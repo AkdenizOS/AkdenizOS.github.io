@@ -235,6 +235,7 @@
            target="_blank"
            rel="noopener noreferrer"
            data-idx="${idx}"
+           data-year="${repo.year}"
            tabindex="-1"
            aria-label="${escHtml(repo.code)} — ${escHtml(repo.name)}">
           <span class="search-result__code">${codeHtml}</span>
