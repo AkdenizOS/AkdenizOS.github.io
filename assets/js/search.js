@@ -359,6 +359,16 @@
       if (!wrap.contains(e.target)) closeDropdown();
     });
 
+    resultList.addEventListener("click", (event) => {
+      const link = event.target.closest(".search-result");
+      if (!link) return;
+      const year = link.getAttribute("data-year");
+      if (year == null) return;
+      document.dispatchEvent(new CustomEvent("repo:focus-year", {
+        detail: { year: String(year) }
+      }));
+    });
+
     /* ── "/" shortcut to focus ── */
     document.addEventListener("keydown", (e) => {
       if (e.key === "/" && document.activeElement !== input
