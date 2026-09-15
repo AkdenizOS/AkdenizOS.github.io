@@ -43,10 +43,7 @@
   const navbar = document.querySelector(".navbar");
   if (navbar) {
     const onScroll = () => {
-      navbar.style.boxShadow =
-        window.scrollY > 20
-          ? "0 8px 32px rgba(0,0,0,0.55)"
-          : "";
+      navbar.classList.toggle("is-scrolled", window.scrollY > 20);
     };
     window.addEventListener("scroll", onScroll, { passive: true });
   }
