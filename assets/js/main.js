@@ -52,8 +52,7 @@
   }
 
   /* ── Repository accordion ── */
-  const repoYears = Array.from(document.querySelectorAll(".repo-explorer .repo-year"));
-  const yearOrder = ["1", "2", "3", "4", "0"];
+  const repoYears = Array.from(document.querySelectorAll(".repo-explorer .repo-year[data-year]"));
   const yearMap = new Map();
   const toolbarChips = Array.from(document.querySelectorAll(".repo-toolbar__chip[data-target-year]"));
   const toolbarActions = Array.from(document.querySelectorAll(".repo-toolbar__action[data-repo-action]"));
@@ -105,8 +104,7 @@
     const { header, grid } = getParts(year);
     if (!header || !grid) return;
 
-    const yearKey = yearOrder[index] || String(index + 1);
-    year.dataset.year = yearKey;
+    const yearKey = year.dataset.year;
     yearMap.set(yearKey, year);
     setYearState(year, index === 0);
 
