@@ -20,6 +20,7 @@
   if (!mount) return;
 
   const STRIP_COUNT = 6;
+  const STRIP_SPEED = 26; /* px per second — slow enough to read */
 
   const ADD_HREF =
     "https://github.com/AkdenizOS/AkdenizOS.github.io/blob/main/showcase.json";
@@ -187,6 +188,113 @@
       });
   };
 
+  /* Continuous drift rather than a slide-at-a-time carousel: nothing is
+     hidden behind a slide, and because it moves the scroll position of a
+     real scroll container, dragging and swiping keep working.
+
+     It pauses on hover, on keyboard focus, while a pointer is down, when
+     the tab is hidden, and whenever the reader asks it to. It never
+     starts at all under prefers-reduced-motion. */
+  const startMarquee = () => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const toggle = document.getElementById("strip-toggle");
+
+    /* A second copy makes the wrap seamless. It is decorative — screen
+       readers and the tab order see the originals only. */
+    const originals = Array.from(strip.children);
+    const clones = originals.map((card) => {
+      const copy = card.cloneNode(true);
+      copy.setAttribute("aria-hidden", "true");
+      copy.tabIndex = -1;
+      return copy;
+    });
+    strip.append(...clones);
+
+    /* Snapping fights a scrollLeft written every frame — but a reader who
+       asked for less motion never gets that loop, so they keep the snap. */
+    if (!reduced.matches) strip.style.scrollSnapType = "none";
+
+    let paused = reduced.matches;
+    let holds = 0;
+    let last = null;
+    let position = strip.scrollLeft;
+
+    /* The loop length is the distance to the matching clone, not half the
+       scroll width: scrollWidth also carries the container's padding and
+       the two halves are separated by one extra gap, so halving it drifts
+       by a few pixels and the wrap visibly jumps. */
+    let cycle = 0;
+    const measure = () => {
+      const first = strip.children[0];
+      const twin = strip.children[originals.length];
+      cycle = first && twin ? twin.offsetLeft - first.offsetLeft : 0;
+    };
+
+    /* One loop that runs for the life of the page and decides each frame
+       whether to advance. Earlier this juggled start/stop calls against a
+       set of flags, and a single missed transition left it stopped for
+       good with no way back. */
+    const frame = (now) => {
+      requestAnimationFrame(frame);
+
+      const still = paused || holds > 0 || document.hidden || cycle <= 0;
+      if (still) {
+        last = null;
+        return;
+      }
+
+      if (last == null) {
+        last = now;
+        position = strip.scrollLeft;
+        return;
+      }
+
+      position += (STRIP_SPEED * (now - last)) / 1000;
+      last = now;
+
+      if (position >= cycle) position -= cycle;
+      strip.scrollLeft = position;
+    };
+
+    const label = () => {
+      if (!toggle) return;
+      toggle.textContent = paused ? "// play" : "// pause";
+      toggle.setAttribute("aria-pressed", String(paused));
+      toggle.setAttribute(
+        "aria-label",
+        paused ? "Let the project strip scroll" : "Pause the project strip"
+      );
+    };
+
+    /* Hovering, focusing or dragging holds it still; counting rather than
+       flagging means an unmatched leave cannot strand it. */
+    ["pointerenter", "focusin", "pointerdown", "touchstart"].forEach((e) =>
+      strip.addEventListener(e, () => { holds += 1; }, { passive: true })
+    );
+    ["pointerleave", "focusout", "pointerup", "touchend", "touchcancel"].forEach((e) =>
+      strip.addEventListener(e, () => { holds = Math.max(0, holds - 1); }, { passive: true })
+    );
+
+    window.addEventListener("resize", measure, { passive: true });
+
+    reduced.addEventListener("change", (e) => {
+      paused = e.matches;
+      label();
+    });
+
+    if (toggle) {
+      toggle.hidden = false;
+      toggle.addEventListener("click", () => {
+        paused = !paused;
+        label();
+      });
+    }
+
+    measure();
+    label();
+    requestAnimationFrame(frame);
+  };
+
   fetch("showcase.json", { cache: "no-cache" })
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
     .then((data) => {
@@ -200,6 +308,7 @@
         ...(grid ? [buildAddCard()] : [])
       );
       if (projects.length) enrich(projects);
+      if (strip && projects.length) startMarquee();
     })
     .catch(() => {
       if (strip) {
