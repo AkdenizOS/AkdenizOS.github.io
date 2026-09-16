@@ -96,6 +96,33 @@
     meta.append(owner);
   };
 
+
+  /* Students share a campus IP and GitHub allows 60 unauthenticated
+     requests an hour per address, so repeat visits read from the tab's
+     own cache rather than spending a request each time. */
+  const CACHE_KEY = "akdenizos:showcase-meta";
+  const CACHE_TTL = 30 * 60 * 1000;
+
+  const cached = () => {
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      const { at, data } = JSON.parse(raw);
+      return Date.now() - at < CACHE_TTL ? data : null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const remember = (data) => {
+    try {
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data }));
+    } catch (e) {
+      /* private mode or quota — the network path still works */
+    }
+    return data;
+  };
+
   /* One search request carries every repo, so the number of API calls
      does not grow with the number of projects. */
   const enrich = (projects) => {
@@ -103,12 +130,16 @@
     const url =
       `https://api.github.com/search/repositories?q=${query}&per_page=100`;
 
-    return fetch(url, { headers: { Accept: "application/vnd.github+json" } })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((data) => {
-        const byName = new Map(
-          (data.items || []).map((r) => [r.full_name.toLowerCase(), r])
-        );
+    const hit = cached();
+    const source = hit
+      ? Promise.resolve(hit)
+      : fetch(url, { headers: { Accept: "application/vnd.github+json" } })
+          .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+          .then((data) => remember(data.items || []));
+
+    return source
+      .then((items) => {
+        const byName = new Map(items.map((r) => [r.full_name.toLowerCase(), r]));
         grid.querySelectorAll(".sc-card[data-repo]").forEach((card) => {
           const repo = byName.get(card.dataset.repo.toLowerCase());
           if (repo) decorate(card, repo);
