@@ -90,6 +90,23 @@ def main():
             continue
         seen[key] = index
 
+        url = project.get("url")
+        if url is not None:
+            if not isinstance(url, str) or not url.startswith("https://"):
+                errors.append(f'{repo}: "url" must be an https:// address')
+            else:
+                try:
+                    req = urllib.request.Request(
+                        url, method="GET",
+                        headers={"User-Agent": "akdenizos-showcase-validator"})
+                    with urllib.request.urlopen(req, timeout=20) as resp:
+                        if resp.status >= 400:
+                            errors.append(f"{repo}: url returned {resp.status}")
+                except urllib.error.HTTPError as exc:
+                    errors.append(f"{repo}: url returned {exc.code}")
+                except urllib.error.URLError as exc:
+                    errors.append(f"{repo}: url unreachable — {exc.reason}")
+
         tags = project.get("tags", [])
         if not isinstance(tags, list) or any(not isinstance(t, str) for t in tags):
             errors.append(f"{repo}: tags must be a list of strings")

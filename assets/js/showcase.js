@@ -35,7 +35,8 @@
 
   const buildCard = (project) => {
     const card = el("a", "sc-card");
-    card.href = `https://github.com/${project.repo}`;
+    /* A project that runs somewhere is more worth opening than its source. */
+    card.href = project.url || `https://github.com/${project.repo}`;
     card.target = "_blank";
     card.rel = "noopener noreferrer";
     card.dataset.color = PALETTE.includes(project.color) ? project.color : "navy";
@@ -45,6 +46,11 @@
       el("h3", "sc-card__title", project.title || project.repo.split("/")[1]),
       el("p", "sc-card__blurb", project.blurb || "")
     );
+
+    if (project.url) {
+      card.dataset.live = "";
+      card.append(el("span", "sc-card__live", "live ↗"));
+    }
 
     if (Array.isArray(project.tags) && project.tags.length) {
       const tags = el("div", "sc-card__tags");
