@@ -12,8 +12,14 @@
 (function () {
   "use strict";
 
+  /* The same module feeds two surfaces: the full grid on showcase.html
+     and a short scroll-snap strip on the landing page. */
   const grid = document.getElementById("showcase");
-  if (!grid) return;
+  const strip = document.getElementById("showcase-strip");
+  const mount = grid || strip;
+  if (!mount) return;
+
+  const STRIP_COUNT = 6;
 
   const ADD_HREF =
     "https://github.com/AkdenizOS/AkdenizOS.github.io/blob/main/showcase.json";
@@ -99,13 +105,25 @@
 
   /* Students share a campus IP and GitHub allows 60 unauthenticated
      requests an hour per address, so repeat visits read from the tab's
-     own cache rather than spending a request each time. */
-  const CACHE_KEY = "akdenizos:showcase-meta";
+     own cache rather than spending a request each time.
+
+     The key includes the repo set: the landing strip asks about six
+     projects and the full grid about all of them, and a shared key
+     would leave the grid rendering the strip's smaller answer. */
   const CACHE_TTL = 30 * 60 * 1000;
 
-  const cached = () => {
+  const keyFor = (repos) => {
+    const joined = repos.join(",");
+    let hash = 0;
+    for (let i = 0; i < joined.length; i += 1) {
+      hash = (hash * 31 + joined.charCodeAt(i)) | 0;
+    }
+    return `akdenizos:showcase-meta:${repos.length}:${(hash >>> 0).toString(36)}`;
+  };
+
+  const cached = (key) => {
     try {
-      const raw = sessionStorage.getItem(CACHE_KEY);
+      const raw = sessionStorage.getItem(key);
       if (!raw) return null;
       const { at, data } = JSON.parse(raw);
       return Date.now() - at < CACHE_TTL ? data : null;
@@ -114,33 +132,52 @@
     }
   };
 
-  const remember = (data) => {
+  const remember = (key, data) => {
     try {
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data }));
+      sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), data }));
     } catch (e) {
       /* private mode or quota — the network path still works */
     }
     return data;
   };
 
-  /* One search request carries every repo, so the number of API calls
-     does not grow with the number of projects. */
-  const enrich = (projects) => {
-    const query = projects.map((p) => `repo:${p.repo}`).join("+");
-    const url =
-      `https://api.github.com/search/repositories?q=${query}&per_page=100`;
+  /* Search carries many repos per request, so the call count grows in
+     chunks rather than per project. The chunk size keeps the query
+     inside GitHub's length limit. */
+  const CHUNK = 20;
 
-    const hit = cached();
-    const source = hit
-      ? Promise.resolve(hit)
-      : fetch(url, { headers: { Accept: "application/vnd.github+json" } })
-          .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-          .then((data) => remember(data.items || []));
+  const fetchChunk = (repos) => {
+    const query = repos.map((name) => `repo:${name}`).join("+");
+    return fetch(
+      `https://api.github.com/search/repositories?q=${query}&per_page=100`,
+      { headers: { Accept: "application/vnd.github+json" } }
+    )
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((data) => data.items || []);
+  };
+
+  const enrich = (projects) => {
+    const repos = projects.map((p) => p.repo);
+    const key = keyFor(repos);
+
+    const hit = cached(key);
+    let source;
+    if (hit) {
+      source = Promise.resolve(hit);
+    } else {
+      const chunks = [];
+      for (let i = 0; i < repos.length; i += CHUNK) {
+        chunks.push(repos.slice(i, i + CHUNK));
+      }
+      source = Promise.all(chunks.map(fetchChunk)).then((groups) =>
+        remember(key, [].concat.apply([], groups))
+      );
+    }
 
     return source
       .then((items) => {
         const byName = new Map(items.map((r) => [r.full_name.toLowerCase(), r]));
-        grid.querySelectorAll(".sc-card[data-repo]").forEach((card) => {
+        mount.querySelectorAll(".sc-card[data-repo]").forEach((card) => {
           const repo = byName.get(card.dataset.repo.toLowerCase());
           if (repo) decorate(card, repo);
         });
@@ -153,11 +190,23 @@
   fetch("showcase.json", { cache: "no-cache" })
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
     .then((data) => {
-      const projects = (data && data.projects) || [];
-      grid.replaceChildren(...projects.map(buildCard), buildAddCard());
+      const all = (data && data.projects) || [];
+
+      /* Entries are appended, so the newest sit at the end of the file. */
+      const projects = strip ? all.slice(-STRIP_COUNT).reverse() : all;
+
+      mount.replaceChildren(
+        ...projects.map(buildCard),
+        ...(grid ? [buildAddCard()] : [])
+      );
       if (projects.length) enrich(projects);
     })
     .catch(() => {
+      if (strip) {
+        const section = strip.closest("[data-showcase-strip]");
+        if (section) section.remove();
+        return;
+      }
       grid.replaceChildren(
         el(
           "p",
