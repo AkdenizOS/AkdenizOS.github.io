@@ -21,6 +21,9 @@
 
   const STRIP_COUNT = 6;
   const STRIP_SPEED = 26; /* px per second — slow enough to read */
+  /* Below this the loop shows the same two or three cards over and over,
+     so a short list sits still and ends with the invitation instead. */
+  const STRIP_MIN_DRIFT = 4;
 
   const ADD_HREF =
     "https://github.com/AkdenizOS/AkdenizOS.github.io/blob/main/showcase.json";
@@ -314,7 +317,11 @@
         ...(grid ? [buildAddCard()] : [])
       );
       if (projects.length) enrich(projects);
-      if (strip && projects.length) startMarquee();
+      if (strip && projects.length) {
+        const overflows = strip.scrollWidth > strip.clientWidth;
+        if (projects.length >= STRIP_MIN_DRIFT && overflows) startMarquee();
+        else strip.append(buildAddCard());
+      }
     })
     .catch(() => {
       if (strip) {
