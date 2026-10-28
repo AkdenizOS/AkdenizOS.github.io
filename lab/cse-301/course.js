@@ -27,6 +27,9 @@ window.LAB_COURSES["cse-301"] = {
     { slug: "bst-red-black", unit: "Data structures", lecture: "L7", title: "BST ve red-black tree", min: 55, sections: 11, status: "open",
       desc: "BST operation'ları ve height'ın önemi, red-black tree kuralları, height'ın O(log n) olduğunun proof'u.", tags: ["HW4"] },
     { slug: "dc-design", unit: "Divide and conquer", lecture: "L1 + sınav", title: "Divide and conquer tasarımı ve Karatsuba", min: 48, sections: 11, status: "open",
-      desc: "Karatsuba fikri ve sınavdaki algorithm design soruları: binary search varyantları, partition ile daraltma, Select ile ikiye bölme.", tags: ["Sınav kalıbı", "Tasarım"] }
+      desc: "Karatsuba fikri ve sınavdaki algorithm design soruları: binary search varyantları, partition ile daraltma, Select ile ikiye bölme.", tags: ["Sınav kalıbı", "Tasarım"] },
+    // Single-page trace without lab.js: no sections to track, so it stays out of the progress total.
+    { slug: "sorting-trace", unit: "Özet", lecture: "L2–L7", title: "Sorting adım adım", min: 20, status: "open",
+      desc: "7 sorting algoritması aynı array üzerinde satır satır: Insertion, Merge, Quick, Heap, Counting, Radix, Bucket.", tags: ["Tekrar"] }
   ]
 };
