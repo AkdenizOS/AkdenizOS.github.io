@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 301: substitution method. Tahmin et, tümevarımla ispatla: sabit c tuzağı, güçlü hipotez, T(n/5)+T(7n/10)+n, T(n−1)+n²." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Substitution method · CSE 301 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css" />
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 301</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 301</a> / Substitution method</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L3–4</span><span class="chip chip--exam">Sınav kalıbı</span><span class="src">~55 dk · 11 bölüm</span></div>
+          <h1>Substitution method</h1>
+          <p class="lead">Master theorem her recurrence'ı çözemez. Substitution method (yerine koyma yöntemi) her yerde çalışır: cevabı tahmin edersin, sonra tümevarımla (induction) ispatlarsın. Bu ders tarifi, sınavda kâğıda nasıl yazılacağını ve herkesin düştüğü tuzakları öğretir.</p>
+          <p class="src">Kaynak: CS161 Lecture 3 notları §4 ve slaytlar s.40–53 · CS161 Lecture 4 notları §3.4–3.5 ve slaytlar s.5–13, s.64 · Bilkent CS473 Lecture 3 slaytları s.9–22 (2025-26'da derste kullanıldı) · hocanın L3–L4 class-prep soruları 1–5 · S5.5 midterm review · HW2 · 2023-24 ve 2020-21 vizeleri.</p>
+        </header>
+
+        <article class="lesson" data-course="cse-301" data-lesson="substitution">
+
+<!-- 1 -->
+<section class="lsec" id="why" data-min="4">
+  <h2>Neden bir yöntem daha?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Master theorem bir kalıp makinesi: sadece $T(n) = a\,T(n/b) + O(n^d)$ biçimini yer. Recurrence bu kalıba uymuyorsa makine susar. Substitution method ise kalıp istemez. Cevabı bir yerden bulursun (açarak, ağaç çizerek, sayı deneyerek) ve doğru olduğunu ispatlarsın.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Class prep L3 S2 · Master theorem neden susar?</span>
+    <ul>
+      <li>$T(n) = T(n-1) + n$: problem <strong>bölünmüyor</strong>, 1 küçülüyor. $n/b$ biçimi yok, $b &gt; 1$ bulamazsın.</li>
+      <li>$T(n) = T(n/5) + T(7n/10) + cn$: iki alt problem <strong>farklı boyutta</strong>. Tek bir $a$ ve tek bir $b$ yok.</li>
+      <li>$T(n) = 2T(n/2) + n\log n$: CS161'in master theorem'i $f(n) = n^d$ ister, $n\log n$ öyle değil. CLRS'in genel sürümünde de $n\log n$, $n^{\log_2 2} = n$'den büyük ama <em>polinom kadar</em> büyük değil; durum 2 ile durum 3 arasındaki boşluğa düşer.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Substitution method (guess and check)</span>
+    <ol>
+      <li><strong>Guess:</strong> cevabı biçimiyle tahmin et, örneğin $T(n) \le c\, n\log n$.</li>
+      <li><strong>Prove:</strong> tahmini tümevarımla ispatla. Recurrence'ta $T$'nin küçük argümanlarının yerine tahmini <em>koyarsın</em>, yöntemin adı buradan gelir.</li>
+      <li><strong>Profit:</strong> ispat çalışınca bulduğun sabitlerle temiz bir ispat yaz.</li>
+    </ol>
+  </div>
+  <p class="src">Kaynak: CS161 L3 slaytları s.40 · CS161 L4 slaytları s.7 ve s.64 ("substitution method can work when the master theorem doesn't") · S5.5 midterm review · Bilkent CS473 L3 s.9.</p>
+  <div class="quiz" id="q-why">
+    <p class="quiz__q">Hangisini master theorem doğrudan çözer?</p>
+    <button class="quiz__opt" data-correct>$T(n) = 3T(n/2) + n$<span class="why">Doğru: $a = 3,\ b = 2,\ d = 1$, $a &gt; b^d$ ⇒ $O(n^{\log_2 3})$. Karatsuba'nın recurrence'ı.</span></button>
+    <button class="quiz__opt">$T(n) = T(n/2) + T(n/3) + n$<span class="why">İki alt problem farklı boyutta. "İki tane var, $a = 2$" demek yanlış: $b$ tek bir sayı olmalı.</span></button>
+    <button class="quiz__opt">$T(n) = T(n-1) + 1$<span class="why">Boyut çıkarmayla küçülüyor. $n-1$'i $n/b$ diye yazamazsın; bu tip açarak ya da substitution ile çözülür.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="recipe" data-min="5">
+  <h2>Tarif: tahmin, tümevarım, sabit en son</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi: merdiven</span>
+    <p>Tümevarım bir merdiven. Alt basamağı (base case) sağlam koyarsın. Sonra "altındaki <strong>bütün</strong> basamaklar sağlamsa bu basamak da sağlam" dersin. $T(n)$, $T(n/2)$'ye ya da $T(n/5)$ ile $T(7n/10)$'a dayandığı için hemen alttaki basamak yetmez; altındaki her basamağı varsayarız. Buna <strong>strong induction</strong> (güçlü tümevarım) denir.</p>
+  </div>
+  <p>Oynat: $T(n) = 2T(n/2) + n$, $T(1) = 1$ ve tahmin $T(n) \le 2n\log n$. Her basamak bir alttaki basamağı kullanıyor; değerler JavaScript'te recurrence çalıştırılarak hesaplanıyor.</p>
+  <div id="ladder-stepper"></div>
+  <div class="box box--rule">
+    <span class="box__label">Tarif (class prep L3 S1)</span>
+    <ol>
+      <li><strong>Guess:</strong> $T(n) \le d\cdot g(n)$, $d$ henüz bilinmiyor.</li>
+      <li><strong>Inductive hypothesis (IH):</strong> $n_0 \le m &lt; n$ olan her $m$ için $T(m) \le d\cdot g(m)$.</li>
+      <li><strong>Inductive step:</strong> recurrence'ı yaz, küçük $T$'lerin yerine IH'yi koy, sonucun $\le d\cdot g(n)$ olması için $d$'nin sağlaması gereken koşulu çıkar (örneğin $d \ge 10c$).</li>
+      <li><strong>Base case:</strong> $T(n_0) \le d\cdot g(n_0)$ için gereken koşulu çıkar (örneğin $d \ge 1$).</li>
+      <li>İki koşulu birden sağlayan $d$'yi seç: $d = \max(1, 10c)$.</li>
+    </ol>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Neden d en son seçilir?</span>
+    <p>Hangi $d$'nin yeteceğini adımı yapmadan bilemezsin. $d$'yi baştan "5" diye koyarsan ve adım $d \ge 10$ isterse ispat çöker, ama tahmin yanlış değildir, sadece sabit kötü seçilmiştir. Bu yüzden önce $d$'yi harf olarak taşırsın, adım ve base case sana koşulları verir, sonra sayıyı seçersin. Sınav kâğıdına ise sabiti <strong>en baştan sayıyla</strong> yazarsın (Step 3: "pretend you knew it all along").</p>
+  </div>
+  <p class="src">Kaynak: CS161 L3 notları §4 ("first try to prove the inductive step … then obtain a condition that d needs to obey") · CS161 L4 slaytları s.11–13 · S5.5 midterm review ("Pretend you never did step 1") · Bilkent CS473 L3 s.22.</p>
+  <div class="quiz" id="q-recipe">
+    <p class="quiz__q">$T(n) = 2T(n/2) + n$ ispatında neden "sadece $n-1$ için doğru" varsayımı yetmez?</p>
+    <button class="quiz__opt">Çünkü $n-1$ çift olmayabilir<span class="why">Teklik-çiftlik sorun değil. Asıl mesele recurrence'ın hangi argümana baktığı.</span></button>
+    <button class="quiz__opt" data-correct>Çünkü $T(n)$, $T(n/2)$'yi kullanır; IH'nin $n/2$'de de geçerli olması gerekir<span class="why">Doğru. IH'yi "$m &lt; n$ olan her $m$ için" kurarsın, buna strong induction denir. Lecture 4 notları da Select için aynısını yapar.</span></button>
+    <button class="quiz__opt">Çünkü base case $n = 0$'dır<span class="why">Base case'in nerede olduğu başka bir soru. Zayıf tümevarım sadece $n-1$'e dayanabilir, bu recurrence ise $n/2$'ye dayanıyor.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="layout" data-min="6">
+  <h2>Sınav düzeni: 2T(n/2) + n ≤ 2n log n</h2>
+  <div class="box box--example">
+    <span class="box__label">Önce tahmin · CS161 L3 slaytları s.42</span>
+    <p>$T(n) = 2T(n/2) + n$, $T(1) = 1$. Aç: $T(n) = 4T(n/4) + 2n = 8T(n/8) + 3n = \dots = 2^t T(n/2^t) + t\cdot n$. $t = \log n$ koyunca $T(n) = n + n\log n = n(\log n + 1)$. Tahmin: $T(n) \le C\, n\log n$.</p>
+  </div>
+  <h3>Adım 2: C'yi harf olarak taşı</h3>
+  <p>IH: $2 \le m &lt; n$ için $T(m) \le C\,m\log m$. Recurrence'ta yerine koy ($n \ge 4$, ikinin kuvveti, $\log$ 2 tabanında):</p>
+  $$T(n) = 2T(n/2) + n \le 2C\tfrac n2 \log\tfrac n2 + n = Cn(\log n - 1) + n = Cn\log n - (C-1)n.$$
+  <p>Bu, $C \ge 1$ ise $\le Cn\log n$. <strong>Base case:</strong> $n = 1$'de $C\cdot 1 \cdot \log 1 = 0$ ve $T(1) = 1 \not\le 0$. O yüzden base'i $n_0 = 2$'de kurarız: $T(2) = 2\cdot 1 + 2 = 4 \le C\cdot 2\log 2 = 2C$ ⇒ $C \ge 2$. İkisini birden sağlayan: $C = 2$.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kâğıda yazılacak hâli (Step 3)</span>
+    <p><strong>İddia.</strong> İkinin kuvveti olan her $n \ge 2$ için $T(n) \le 2n\log n$. Dolayısıyla $T(n) = O(n\log n)$, $c = 2$, $n_0 = 2$.</p>
+    <p><strong>IH.</strong> $2 \le m &lt; n$ olan her (ikinin kuvveti) $m$ için $T(m) \le 2m\log m$.</p>
+    <p><strong>Base case.</strong> $T(2) = 4 = 2\cdot 2\cdot \log 2$. ✓</p>
+    <p><strong>Inductive step.</strong> $n \ge 4$ olsun. $n/2 \ge 2$, IH $n/2$'ye uygulanır:
+    $T(n) = 2T(n/2) + n \le 2\cdot 2\tfrac n2 \log\tfrac n2 + n = 2n\log n - 2n + n = 2n\log n - n \le 2n\log n.$ ✓</p>
+    <p><strong>Sonuç.</strong> Tümevarımla her $n \ge 2$ için $T(n) \le 2n\log n$. Big-O tanımı $c = 2,\ n_0 = 2$ ile sağlanır. ∎</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>$n_0 = 1$ ile $\log$:</strong> $\log 1 = 0$, yani $n\log n$ tahmini $n = 1$'de hiçbir $c$ ile tutmaz. Base'i $n = 2$'ye kaydır. Bu serbest: Big-O zaten "$n \ge n_0$ için" der.</li>
+      <li><strong>IH sabiti sabit:</strong> IH'deki $C$ ile sonuçtaki $C$ <em>aynı sayı</em>. Adımın sonunda $C$ büyümüşse ispat yoktur (Bölüm 4).</li>
+      <li>Floor/ceiling'i CS161 de atlar ("we're being sloppy"). Sınavda "$n$ ikinin kuvveti varsayalım" yazman yeterli.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">CS161 L3 slaytları s.46–52 · dene</span>
+    <p>$T(n) = 2T(n/2) + 32n$, $T(2) = 2$. $T(n) \le C\,n\log n$ olduğunu ispatla ve $C$'yi bul.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Aynı hesap: $2C\tfrac n2\log\tfrac n2 + 32n = Cn\log n + (32 - C)n$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Adım $C \ge 32$ ister. Base: $T(2) = 2 \le 2C$ ⇒ $C \ge 1$. Hangisi büyük?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>$C = 32$. IH: $2 \le m &lt; n$ için $T(m) \le 32m\log m$. Base $T(2) = 2 \le 64$. Adım: $T(n) \le 2\cdot 32\tfrac n2\log\tfrac n2 + 32n = 32n\log n - 32n + 32n = 32n\log n$. Sonuç: $T(n) = O(n\log n)$, $c = 32$, $n_0 = 2$.</p></div></details>
+  </div>
+  <div class="quiz" id="q-layout">
+    <p class="quiz__q">Bir substitution ispatının "Sonuç" satırında ne olmalı?</p>
+    <button class="quiz__opt">"Böylece $T(n) = O(n\log n)$." başka bir şey gerekmez<span class="why">Tanımın istediği tanıklar eksik. Big-O bir $c$ ve bir $n_0$ var der; hangileri olduğunu yazmazsan okuyucu tanımı kontrol edemez.</span></button>
+    <button class="quiz__opt" data-correct>"Her $n \ge 2$ için $T(n) \le 2n\log n$; Big-O tanımı $c = 2,\ n_0 = 2$ ile sağlanır."<span class="why">Doğru. Kanıtlanan somut eşitsizlik, sonra ondan çıkan Big-O ve açık $c$, $n_0$.</span></button>
+    <button class="quiz__opt">"$C$ yeterince büyük seçilirse tutar."<span class="why">"Yeterince büyük" bir sayı değil. Adım ve base case'ten çıkan koşulları birleştirip sayıyı yazmalısın.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="flaw" data-min="5">
+  <h2>Klasik hata: adımın içinde "= O(n)"</h2>
+  <div class="box box--example">
+    <span class="box__label">Class prep L3 S5 · sahte ispat</span>
+    <p>"MergeSort $O(n)$'dir. Tahmin $T(n) \le cn$. O zaman $T(n) = 2T(n/2) + n \le 2c\tfrac n2 + n = cn + n = O(n)$." Nerede hata var?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>IH ne söylüyordu? "$T(m) \le cm$", <em>belirli</em> bir $c$ ile. Adımın sonunda ne elde etmen gerekiyordu?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$cn + n \le cn$ hiç tutar mı? "$= O(n)$" yazınca sabite ne oldu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Adımın son satırı <strong>tam olarak</strong> "$T(n) \le cn$" olmalı, aynı $c$ ile. Elde edilen $cn + n$ ise $cn$'den büyük: $cn + n \le cn \iff n \le 0$. İspat çöktü.</p>
+      <p>"$= O(n)$" yazmak sabiti gizlice $c$'den $c + 1$'e çıkarır. Her seviyede bir daha çıkar: $\log n$ seviye sonra sabit $c + \log n$ olur, yani artık sabit değildir. Gerçekten de $T(n) = n\log n + n$, yani $T(n)/n = \log n + 1$ sınırsız büyür. CS161 L4 notları §3.5 aynı hesabı yapar: $n + dn \le dn$ hiçbir $d$ ile tutmaz, tahmin yanlış.</p>
+    </div></details>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural</span>
+    <ul>
+      <li>IH bir <strong>sayı</strong> ile yazılır: "$T(m) \le 10m$" ya da "$T(m) \le C m$, $C$ sabit". "$T(m) = O(m)$" bir IH değildir.</li>
+      <li>Adımın son satırı IH ile <strong>aynı biçimde, aynı sabitle</strong> biter: $T(n) \le C\cdot g(n)$.</li>
+      <li>Alt mertebe terimleri adımda atılmaz. Bilkent slaydı: "MUST prove the EXACT inequality, CANNOT ignore lower order terms".</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Neden "T(n) = O(n)" IH olamaz?</span>
+    <p>IH tek bir $n$ hakkında bir cümle olmalı. "$T(n) = O(n)$" ise "bir $C$ ve $n_0$ var ki <em>her</em> $n \ge n_0$ için…" der; tek bir $n$ hakkında hiçbir şey söylemez. Tek bir $n$ için her şey $O(1)$'dir. CS161'deki penguen örneğinde ($2T(n/2) + 32n$) aynı hata $O(n\log n)$ ile yapılır.</p>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">Nasıl soruluyor</span>
+    <p>Hocanın listesinde açıkça var: "Find the flaw. What exactly must the last line of an inductive step say?" Sınavda bir "ispat" verilip hatayı bulman istenirse önce IH'nin <strong>sabitini</strong>, sonra adımın son satırını kontrol et.</p>
+  </div>
+  <p class="src">Kaynak: class prep L3 S5 · CS161 L3 slaytları s.47 ("This is NOT correct") · CS161 L4 slaytları s.10 · CS161 L4 notları §3.5 · Bilkent CS473 L3 s.15 ("= O(n²) Wrong! We must prove exactly") ve s.22.</p>
+  <div class="quiz" id="q-flaw">
+    <p class="quiz__q">Adımın sonunda $T(n) \le Cn + 7$ çıktı, hedef $T(n) \le Cn$. Ne yaparsın?</p>
+    <button class="quiz__opt">"$Cn + 7 = O(n)$, tamam" der geçerim<span class="why">Sahte ispatın ta kendisi: sabit gizlice büyüdü. $Cn + 7 \le Cn$ hiçbir $C$ ile tutmaz.</span></button>
+    <button class="quiz__opt">"Tahmin yanlış, $T(n) \ne O(n)$" derim<span class="why">İspat denemesinin çökmesi, iddianın yanlış olduğunu göstermez. $2T(n/2) + 1$ tam böyle bir örnek (Bölüm 5).</span></button>
+    <button class="quiz__opt" data-correct>Hipotezi güçlendirip ($Cn - b$ gibi) yeniden denerim, olmazsa tahmini değiştiririm<span class="why">Doğru. Fazlalık sabit bir terimse bir alt mertebe terimi çıkararak IH'yi güçlendir. Fazlalık $n$ gibi büyüyorsa (MergeSort'ta olduğu gibi) tahmin gerçekten çok küçüktür.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="strengthen" data-min="5">
+  <h2>Hipotezi güçlendir: 2T(n/2) + 1</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi: önce sayılar</span>
+    <p>$T(1) = 1$ ile: $T(2) = 3$, $T(4) = 7$, $T(8) = 15$, $T(16) = 31$. Desen: $T(n) = 2n - 1$. Yani $T(n) \le 2n$, iddia $T(n) = O(n)$ <strong>doğru</strong>. Bakalım ispat ne diyor.</p>
+  </div>
+  <h3>Deneme 1: IH $T(m) \le cm$</h3>
+  <p>$T(n) = 2T(n/2) + 1 \le 2c\tfrac n2 + 1 = cn + 1$. Hedef $cn$. $cn + 1 \le cn$ hiçbir $c$ ile tutmaz. <strong>Takıldık.</strong></p>
+  <div class="box box--trap">
+    <span class="box__label">Class prep L3 S4 · bu çöküş T(n) ≠ O(n) mi demek?</span>
+    <p><strong>Hayır.</strong> $T(n) = 2n - 1 \le 2n$, iddia doğru. Çöken şey iddia değil, <em>ispat</em>. IH çok zayıf: her alt çağrıdan "en çok $c\cdot m$" bilgisi geliyor ve iki çağrının toplamı tam $cn$'e çıkıyor, $+1$'e yer kalmıyor.</p>
+  </div>
+  <h3>Deneme 2: IH $T(m) \le cm - 1$</h3>
+  <p>$T(n) \le 2\left(c\tfrac n2 - 1\right) + 1 = cn - 2 + 1 = cn - 1$. ✓ Her $c$ için tam olarak hedef. <strong>Base case:</strong> $T(1) = 1 \le c\cdot 1 - 1$ ⇒ $c \ge 2$. Seç $c = 2$: $T(n) \le 2n - 1 \le 2n$, yani $O(n)$, $c = 2$, $n_0 = 1$.</p>
+  <div class="box box--rule">
+    <span class="box__label">Daha güçlü iddia neden daha kolay?</span>
+    <p>Tümevarımda IH hem ispatlaman gereken şey hem de <strong>kullandığın şey</strong>. Daha güçlü bir IH alt çağrılardan daha fazla bilgi getirir: her alt çağrı "$-1$" kadar boşluk taşır, iki çağrının $-2$'si recurrence'ın $+1$'ini öder ve geriye hedefteki $-1$ kalır.</p>
+  </div>
+  <p>Oynat: her satırda gerçek $T(n)$ (recurrence'tan hesaplandı), zayıf IH'nin adımda verdiği sınır ve güçlü IH'nin verdiği sınır, $c = 2$ ile.</p>
+  <div id="strong-stepper"></div>
+  <p class="src">Kaynak: class prep L3 S4 · CS161 L4 notları §3.5 ("we chose the wrong linear function. We could guess instead T(n) ≤ cn − 1") · Bilkent CS473 L3 s.17 ("subtract a low-order term").</p>
+  <div class="quiz" id="q-strengthen">
+    <p class="quiz__q">Güçlü IH $T(m) \le cm - 1$ ile $T(1) = 1$ base case'i $c$'ye ne dayatır?</p>
+    <button class="quiz__opt">$c \ge 1$<span class="why">$c = 1$ ile $c\cdot 1 - 1 = 0$ ve $T(1) = 1 \not\le 0$. Çıkardığın $-1$'i base case'te de hesaba katmalısın.</span></button>
+    <button class="quiz__opt" data-correct>$c \ge 2$<span class="why">Doğru: $1 \le c - 1$. Bedel bu: güçlü IH adımı kolaylaştırır, base case'i biraz zorlaştırır.</span></button>
+    <button class="quiz__opt">Hiçbir şey, adım her $c$ için tuttu<span class="why">Adım her $c$ ile tuttu ama tümevarım base case olmadan başlamaz. Koşulu base case verir.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="lower-order" data-min="6">
+  <h2>Alt mertebe terimi çıkar: 4T(n/2) + n, sonra Ω</h2>
+  <p>2025-26'da derste kullanılan Bilkent slaytlarının ana örneği. $T(n) = 4T(n/2) + n$, $T(1) = \Theta(1)$.</p>
+  <div class="box box--example">
+    <span class="box__label">Gevşek tahmin: O(n³) · slayt s.10–13</span>
+    <p>IH $T(m) \le cm^3$. $T(n) \le 4c\left(\tfrac n2\right)^3 + n = \tfrac c2 n^3 + n = cn^3 - \left(\tfrac c2 n^3 - n\right)$. Parantez ("residual") $\ge 0$ ise bitti: $c \ge 2$, $n \ge 1$ yeter. Base case: $c$ yeterince büyük. Doğru ama <strong>sıkı değil</strong>.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Sıkı tahmin O(n²), ilk deneme · s.14–16</span>
+    <p>IH $T(m) \le cm^2$. $T(n) \le 4c\tfrac{n^2}{4} + n = cn^2 + n$. Slayt burada "$= O(n^2)$" yazmanın <strong>yanlış</strong> olduğunu vurgular: $cn^2 + n \le cn^2$ tutmaz.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Güçlü IH: c₁n² − c₂n · s.17–19</span>
+    <p>IH $T(m) \le c_1 m^2 - c_2 m$.</p>
+    $$T(n) \le 4\left(c_1\tfrac{n^2}{4} - c_2\tfrac n2\right) + n = c_1n^2 - 2c_2 n + n = c_1n^2 - c_2n - (c_2 - 1)n \le c_1n^2 - c_2n \quad (c_2 \ge 1).$$
+    <p>Base case $T(1) = 1$ alırsak: $1 \le c_1 - c_2$ ⇒ $c_1 \ge c_2 + 1$. Seç $c_2 = 1,\ c_1 = 2$: $T(n) \le 2n^2 - n \le 2n^2$. (Kontrol: $T(1) = 1$ ile gerçek değer tam olarak $2n^2 - n$: 1, 6, 28, 120, …)</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Alt sınır Ω(n²) · s.20–21</span>
+    <p>IH $T(m) \ge cm^2$. $T(n) = 4T(n/2) + n \ge 4c\tfrac{n^2}{4} + n = cn^2 + n \ge cn^2$. ✓ Güçlendirmeye gerek yok: fazladan $+n$ alt sınırda <em>işimize yarar</em>. Base: $T(1) = 1 \ge c$ ⇒ $c = 1$. Sonuç: $n^2 \le T(n) \le 2n^2$, yani $T(n) = \Theta(n^2)$. Master theorem de aynısını der ($a = 4 &gt; 2^1$).</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Θ için <strong>iki ayrı</strong> ispat gerekir: O ve Ω. Recurrence "$\le$" ile verilmişse sadece O ispatlanabilir.</li>
+      <li>Fazlalık $+n$ ise çıkardığın terim de $n$ mertebesinde olmalı ($-c_2n$). $-1$ çıkarmak $+n$'i ödemez.</li>
+      <li>Ω ispatında base case $c$'yi <strong>küçük</strong> seçmeye zorlar, O ispatında büyük.</li>
+    </ul>
+  </div>
+  <p class="src">Kaynak: Bilkent CS473 Lecture 3 slaytları s.10–21 (Aykanat ve Ozdal), 2025-26 dönemi ders slaytı. Kapalı form $2n^2 - n$ ve değerler python ile kontrol edildi.</p>
+  <div class="quiz" id="q-lower-order">
+    <p class="quiz__q">$T(n) = 4T(n/2) + n$ için IH $T(m) \le c_1m^2 - 5$ (sabit çıkar) dense ne olur?</p>
+    <button class="quiz__opt">Çalışır, $c_1 \ge 6$ seçilirse<span class="why">Adım: $4(c_1\tfrac{n^2}{4} - 5) + n = c_1n^2 - 20 + n$. Hedef $c_1n^2 - 5$; $n - 15 \le 0$ büyük $n$'de tutmaz. $c_1$'i büyütmek hiçbir şeyi değiştirmez.</span></button>
+    <button class="quiz__opt" data-correct>Çalışmaz: sabit boşluk, $n$ kadar büyüyen fazlalığı karşılayamaz<span class="why">Doğru. Fazlalık $+n$, yani çıkarılan terim $n$ ile ölçeklenmeli: $-c_2n$.</span></button>
+    <button class="quiz__opt">Çalışmaz, çünkü $T(n) \ne O(n^2)$<span class="why">$T(n) = 2n^2 - n = O(n^2)$, iddia doğru. Sadece bu IH yanlış biçimde.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="uneven" data-min="6">
+  <h2>Farklı boyutlar: T(n/5) + T(7n/10) + cn</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi: her seviye %10 daha az iş</span>
+    <p>Kök $cn$ iş yapar. Çocukların toplam boyutu $\tfrac n5 + \tfrac{7n}{10} = \tfrac{9}{10}n$, yani bir alt seviyenin işi en çok $\tfrac{9}{10}cn$. Seviyeler: $cn + 0.9cn + 0.81cn + \dots \le \dfrac{cn}{1 - 0.9} = 10cn$. Tahmin: $T(n) \le dn$ ve $d$ 10c civarında çıkmalı.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">İspat · CS161 L4 notları §3.4</span>
+    <p>IH: $n_0 \le m &lt; n$ için $T(m) \le dm$. Adım:</p>
+    $$T(n) \le d\tfrac n5 + d\tfrac{7n}{10} + cn = \tfrac{9}{10}dn + cn \le dn \iff cn \le \tfrac{1}{10}dn \iff d \ge 10c.$$
+    <p>Base: $T(1) = 1 \le d$. Seç $d = \max(1, 10c)$. Sonuç $T(n) = O(n)$.</p>
+    <p><strong>10c nereden?</strong> Adımda IH'den gelen kısım $\tfrac{9}{10}dn$; hedefe kadar kalan boşluk $\tfrac{1}{10}dn$. Bu boşluk kökün işi $cn$'i ödemeli: $\tfrac{1}{10}d \ge c$. Yani $10 = \dfrac{1}{1 - 9/10}$; kesirlerin toplamı 1'e ne kadar yakınsa $d$ o kadar büyür.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">CS161 L4 slaytları s.11–12 · sınav dili</span>
+    <p>$T(n) \le n + T(n/5) + T(7n/10)$ ($n &gt; 10$), $T(n) = 1$ ($1 \le n \le 10$). <strong>IH:</strong> $T(n) \le 10n$. <strong>Base:</strong> $1 \le n \le 10$ için $1 = T(n) \le 10n$. <strong>Adım:</strong> $k &gt; 10$, IH tüm $1 \le n &lt; k$ için: $T(k) \le k + 10\tfrac k5 + 10\tfrac{7k}{10} = k + 2k + 7k = 10k$. <strong>Sonuç:</strong> $c = 10,\ n_0 = 1$ ile $T(n) = O(n)$.</p>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">2023-24 vizesi S3(b) · bir şık</span>
+    <p>"Her recurrence'a en uygun ifadeyi seç: (1) $\Theta(\log n)$ (2) $\Theta(n)$ (3) $\Theta(n\log n)$ (4) $\Theta(n^{\log_2 3})$ (5) $\Theta(n^3)$." Şıklardan biri: $T(n) = T(n/2) + T(n/10) + T(n/20) + n$.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Master theorem yok (üç farklı boyut). Kesirleri topla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\tfrac12 + \tfrac1{10} + \tfrac1{20} = \tfrac{13}{20} &lt; 1$. $T(n) \le dn$ için adım hangi $d$'yi ister? Alt sınır için kökün işine bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap (2) $\Theta(n)$.</strong></p>
+      <p>O: IH $T(m) \le dm$. $T(n) \le \tfrac{13}{20}dn + n \le dn \iff \tfrac{7}{20}d \ge 1 \iff d \ge \tfrac{20}{7} \approx 2.86$. Base $T(1) = 1 \le d$. Seç $d = 3$: $T(n) \le 3n$.</p>
+      <p>Ω: kök tek başına $n$ iş yapar, yani $T(n) \ge n$. İkisi birlikte $\Theta(n)$.</p>
+      <p class="src">Python ile $T(1) = 1$ ve floor ile $n \le 10^5$ için $T(n)/n$'nin en büyüğü 2.84 çıktı, $20/7$'nin altında.</p>
+    </div></details>
+  </div>
+  <p class="src">Kaynak: CS161 L4 notları §3.4 · CS161 L4 slaytları s.7–13 · S5.5 midterm review · class prep L3 S3 · 2023-24 vize fotoğrafı (S3b).</p>
+  <div class="quiz" id="q-uneven">
+    <p class="quiz__q">$T(n) = T(n/3) + T(n/2) + n$ için $T(n) \le dn$ ispatında adım hangi koşulu verir?</p>
+    <button class="quiz__opt">$d \ge 2$<span class="why">$\tfrac13 + \tfrac12 = \tfrac56$; boşluk $\tfrac16 dn$. Kesirlerin sayısına (2) değil, toplamına bakılır.</span></button>
+    <button class="quiz__opt" data-correct>$d \ge 6$<span class="why">Doğru: $\tfrac56 dn + n \le dn \iff \tfrac16 d \ge 1$. Genel kalıp $d \ge \dfrac{c}{1 - \text{toplam}}$.</span></button>
+    <button class="quiz__opt">Hiçbir $d$ yetmez<span class="why">Bu, toplam $\ge 1$ olunca olur. Burada toplam $5/6 &lt; 1$.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="sum-one" data-min="5">
+  <h2>Kesirlerin toplamı 1 ya da daha fazlaysa</h2>
+  <p>Class prep L3 S3'ün ikinci yarısı. Oynat: üç recurrence için $T(n)/n$, gerçekten çalıştırılarak hesaplanıyor (floor ile, $n \le 10$ iken $T(n) = 1$). $T(n) = O(n)$ ise bu oran sınırlı kalmalı.</p>
+  <div id="ratio-stepper"></div>
+  <div class="box box--rule">
+    <span class="box__label">Toplam = 1: T(n/5) + T(4n/5) + cn</span>
+    <p>Adım: $d\tfrac n5 + d\tfrac{4n}{5} + cn = dn + cn \le dn$? Hiçbir $d$ ile tutmaz: <strong>boşluk sıfır</strong>, kökün işini ödeyecek yer yok. Ağaçta her seviye tam $cn$ iş yapar ve yaklaşık $\log_{5/4} n$ seviye var ⇒ $\Theta(n\log n)$.</p>
+    <p>Doğru tahmin $T(n) \le dn\log n$ ile adım: $d\tfrac n5\log\tfrac n5 + d\tfrac{4n}5\log\tfrac{4n}5 + cn = dn\log n - dHn + cn$, burada $H = \tfrac15\log 5 + \tfrac45\log\tfrac54 \approx 0.72$. $d \ge c/H \approx 1.39c$ yeter.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Toplam &gt; 1: T(n/2) + T(3n/4) + n</span>
+    <p>Her seviyenin işi bir öncekinin $\tfrac54$ katı: iş aşağı doğru <strong>artar</strong>, çözüm $n$'den polinom kadar büyük. $\Theta(n^p)$, burada $p$, $(1/2)^p + (3/4)^p = 1$'in çözümü, $p \approx 1.51$. Bu üssü bulmak vize kapsamı dışında; bilmen gereken: lineer olamaz.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Select'e bağlantı · class prep L4 S18</span>
+    <p>Median of medians'ta 5'li yerine 3'lü gruplar kullanırsan recurrence yaklaşık $T(n/3) + T(2n/3) + cn$ olur. Toplam tam 1: analiz sadece $O(n\log n)$ verir, $O(n)$ değil. 5'li gruplarla $\tfrac15 + \tfrac7{10} = \tfrac9{10} &lt; 1$, bu yüzden lineer. Ayrıntısı Select dersinde.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Özet kural (iş lineerken)</span>
+    <ul>
+      <li>Toplam $&lt; 1$ ⇒ $\Theta(n)$, kökün işi baskın.</li>
+      <li>Toplam $= 1$ ⇒ $\Theta(n\log n)$, her seviye eşit.</li>
+      <li>Toplam $&gt; 1$ ⇒ $n^{p}$, $p &gt; 1$; yapraklar baskın.</li>
+    </ul>
+    <p>Master theorem'deki üç duruma benziyor: kök, denge, yapraklar.</p>
+  </div>
+  <p class="src">Kaynak: class prep L3 S3 ve L4 S18 · CS161 L4 notları §3.4. Oranlar, $H \approx 0.722$ ve $p \approx 1.507$ python ile hesaplandı ($n = 10^6$'da oranlar 8.5, 23.7, 1469).</p>
+  <div class="quiz" id="q-sum-one">
+    <p class="quiz__q">$T(n) = T(n/4) + T(3n/4) + n$ için $T(n) \le dn$ adımında ne olur?</p>
+    <button class="quiz__opt">$d \ge 4$ ile tutar<span class="why">$\tfrac14 + \tfrac34 = 1$, adım $dn + n \le dn$ ister. $d$'nin büyüklüğü işe yaramaz, çünkü IH'den gelen kısım zaten tam $dn$.</span></button>
+    <button class="quiz__opt" data-correct>Hiçbir $d$ ile tutmaz; doğru cevap $\Theta(n\log n)$<span class="why">Doğru. Boşluk sıfır, her seviye $n$ iş yapar, yaklaşık $\log_{4/3} n$ seviye var.</span></button>
+    <button class="quiz__opt">Tutmaz, çünkü cevap $\Theta(n^2)$<span class="why">Toplam tam 1 olunca her seviye eşit iş yapar; yaprak baskınlığı için toplam 1'den büyük olmalı. Cevap $n\log n$.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="decreasing" data-min="5">
+  <h2>Azalan recurrence: T(n−1) + n²</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi: aç ve topla</span>
+    <p>$T(1) = 1$ ile: $T(n) = n^2 + (n-1)^2 + \dots + 1^2 = \dfrac{n(n+1)(2n+1)}{6} \approx \dfrac{n^3}{3}$. Değerler: 1, 5, 14, 30, 55, 91. Tahmin: $\Theta(n^3)$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Üst sınır: T(n) ≤ cn³</span>
+    <p>Burada $T(n)$ sadece $T(n-1)$'e bakar, sıradan tümevarım yeter. IH $T(n-1) \le c(n-1)^3$:</p>
+    $$T(n) \le c(n-1)^3 + n^2 = cn^3 - 3cn^2 + 3cn - c + n^2.$$
+    <p>$\le cn^3$ olması için $(1 - 3c)n^2 + 3cn - c \le 0$ gerekir. $c = 1$: $-2n^2 + 3n - 1 = -(2n-1)(n-1) \le 0$, her $n \ge 1$ için. ✓ Base: $T(1) = 1 \le 1\cdot 1^3$. ✓ Sonuç: $T(n) \le n^3$, $c = 1,\ n_0 = 1$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Alt sınır: T(n) ≥ cn³</span>
+    <p>Aynı açılım, ters yön: $(1-3c)n^2 + 3cn - c \ge 0$ gerekir. $c = \tfrac13$: $0\cdot n^2 + n - \tfrac13 \ge 0$, her $n \ge 1$ için. ✓ Base: $T(1) = 1 \ge \tfrac13$. ✓ Sonuç: $\tfrac13 n^3 \le T(n) \le n^3$, yani $\Theta(n^3)$.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Tahmin $cn^2$ çöker: $c(n-1)^2 + n^2 = cn^2 - 2cn + c + n^2 \le cn^2$ için $n^2 - 2cn + c \le 0$ gerekir, büyük $n$'de tutmaz. Burada güçlendirme kurtarmaz, tahmin gerçekten küçük.</li>
+      <li>Üst sınırda $c = \tfrac13$ olmaz: $(1-1)n^2 + n - \tfrac13 \le 0$ yanlış. Sıkı sabit alt sınırın sabiti; üst sınır biraz pay ister.</li>
+      <li>"$n - 1$" master theorem'e girmez (Bölüm 1).</li>
+    </ul>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">2023-24 vizesi S3(b) · bir şık</span>
+    <p>Aynı soru, aynı beş şık: "$T(n) = T(n-1) + n^2$". İpucu olarak kâğıtta $\sum_{i=0}^{t} i^2 = \Theta(t^3)$ verilmişti.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$T(n)$'yi açıp bir toplam olarak yaz. Kâğıttaki ipucu tam olarak bu toplamı veriyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Gerekçeyi istersen substitution ile sağlamlaştır: $c = 1$ üst, $c = \tfrac13$ alt.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap (5) $\Theta(n^3)$.</strong> $T(n) = T(1) + \sum_{i=2}^{n} i^2 = \sum_{i=1}^{n} i^2 = \tfrac{n(n+1)(2n+1)}{6} = \Theta(n^3)$ ($T(1) = 1$ alınırsa; $T(1) = O(1)$ başka bir sabitse fark sabit kadardır).</p>
+      <p>Tümevarımla: yukarıdaki iki kutu, $\tfrac13 n^3 \le T(n) \le n^3$, her $n \ge 1$ için.</p>
+    </div></details>
+  </div>
+  <p class="src">Kaynak: 2023-24 vize fotoğrafı (S3b) · class prep L3 S2 ($T(n-1)$ tipi). Kapalı form ve iki sınır python ile $n &lt; 200$ için kontrol edildi.</p>
+  <div class="quiz" id="q-decreasing">
+    <p class="quiz__q">$T(n) = T(n-1) + n^2$ ispatında neden strong induction şart değil?</p>
+    <button class="quiz__opt" data-correct>Çünkü adım sadece $T(n-1)$'i kullanır; bir alt basamak yeter<span class="why">Doğru. Strong induction, $T(n/2)$ ya da $T(n/5)$ gibi uzaktaki basamaklara bakıldığında gerekir. Strong kullanmak da yanlış olmaz.</span></button>
+    <button class="quiz__opt">Çünkü base case $n = 1$<span class="why">Base case'in yeri hangi tümevarım türünün gerektiğini belirlemez; adımın hangi argümanlara baktığı belirler.</span></button>
+    <button class="quiz__opt">Çünkü sonuç polinom<span class="why">Sonucun biçimi önemli değil. $T(n/2) + n^2$ da polinom verir ama $n/2$'ye baktığı için strong induction ister.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="practice" data-min="7">
+  <h2>Alıştırma: Fibonacci ve çıkmış soru</h2>
+  <div class="box box--exam">
+    <span class="box__label">HW2 S2 · Big O via induction</span>
+    <p>$F(0) = 0,\ F(1) = 1,\ F(n+2) = F(n) + F(n+1)$. (a) $F(n) = O(2^n)$ olduğunu, (b) $F(n) = \Omega(1.5^n)$ olduğunu tümevarımla göster. Base case, adım ve sonuç ayrı ayrı görünsün.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$F(n)$ <strong>iki</strong> önceki değere bakar, bu yüzden <strong>iki</strong> base case gerekir ve IH "$m &lt; n$ olan her $m$ için" kurulur.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(a) için $c = 1$ dene: $2^{n-1} + 2^{n-2} = 3\cdot 2^{n-2}$ ile $2^n = 4\cdot 2^{n-2}$'yi karşılaştır.</p></div></details>
+    <details class="hint"><summary>İpucu 3</summary><div><p>(b) için $1.5^{n-1} + 1.5^{n-2} = 1.5^{n-2}(1.5 + 1) = 2.5\cdot 1.5^{n-2}$ ve $1.5^n = 2.25\cdot 1.5^{n-2}$. $F(0) = 0$ hiçbir pozitif $c\cdot 1.5^0$'dan büyük olamaz: base'leri $n = 1, 2$'de kur.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a) İddia:</strong> her $n \ge 0$ için $F(n) \le 2^n$. <strong>Base:</strong> $F(0) = 0 \le 1$, $F(1) = 1 \le 2$. <strong>IH:</strong> $0 \le m &lt; n$ için $F(m) \le 2^m$. <strong>Adım</strong> ($n \ge 2$): $F(n) = F(n-1) + F(n-2) \le 2^{n-1} + 2^{n-2} = 3\cdot 2^{n-2} \le 4\cdot 2^{n-2} = 2^n$. <strong>Sonuç:</strong> $F(n) = O(2^n)$, $c = 1,\ n_0 = 0$.</p>
+      <p><strong>(b) İddia:</strong> her $n \ge 1$ için $F(n) \ge \tfrac13\, 1.5^n$. <strong>Base:</strong> $F(1) = 1 \ge 0.5$, $F(2) = 1 \ge 0.75$. <strong>IH:</strong> $1 \le m &lt; n$ için $F(m) \ge \tfrac13 1.5^m$. <strong>Adım</strong> ($n \ge 3$): $F(n) = F(n-1) + F(n-2) \ge \tfrac13 1.5^{n-2}(1.5 + 1) = \tfrac13\cdot 2.5\cdot 1.5^{n-2} \ge \tfrac13\cdot 2.25\cdot 1.5^{n-2} = \tfrac13 1.5^n$. <strong>Sonuç:</strong> $F(n) = \Omega(1.5^n)$, $c = \tfrac13,\ n_0 = 1$.</p>
+      <p class="src">$c$ için $\tfrac49$'a kadar her değer çalışır ($F(2) = 1 \ge 2.25c$). Python ile $n &lt; 100$ kontrol edildi.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">2020-21 vizesi S3</span>
+    <p>"$T(2) = 1$, $T(n) = T(n^{1/4}) + 1$ ($n &gt; 1$). Solve this recurrence asymptotically. Show your work." (2019-20 vizesinde aynısı $T(n^{1/2})$ ile.) Önce açarak çöz, sonra cevabı substitution ile doğrula.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$n = 2^{4^k}$ al. $n^{1/4} = 2^{4^{k-1}}$. Kaç adımda 2'ye inersin?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$k$ adım: $T(n) = k + 1$ ve $\log_2 n = 4^k$ ⇒ $k = \log_4\log_2 n$. Şimdi IH $T(m) = \log_4\log m + 1$ ile adımı yap: $\log(n^{1/4}) = \tfrac14\log n$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Açarak:</strong> $T(n) = T(n^{1/4}) + 1 = T(n^{1/16}) + 2 = \dots = T(n^{1/4^k}) + k$. $n^{1/4^k} = 2$ olduğunda $\log n = 4^k$, $k = \log_4\log n$. $T(n) = 1 + \log_4\log n = \Theta(\log\log n)$.</p>
+      <p><strong>Substitution ile doğrulama</strong> ($n = 2^{4^k}$ biçimindeki $n$'ler için). <strong>İddia:</strong> $T(n) = \log_4\log n + 1$. <strong>Base:</strong> $n = 2$: $\log_4 1 + 1 = 1 = T(2)$. ✓ <strong>Adım:</strong> $T(n) = T(n^{1/4}) + 1 = \log_4\!\left(\tfrac14\log n\right) + 1 + 1 = \log_4\log n - 1 + 2 = \log_4\log n + 1$. ✓ <strong>Sonuç:</strong> $T(n) = \Theta(\log\log n)$.</p>
+      <p class="src">Altungöz'ün cevaplı kâğıdında aynı açılımla $O(\log\log n)$ bulunmuş.</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-practice">
+    <p class="quiz__q">CS161 L3 concept check: $T(n) = 2T(n/2) + 3T(n/3) + n^2$. Substitution ile ispatlanabilen en sıkı tahmin hangisi?</p>
+    <button class="quiz__opt">$T(n) \le 12n$<span class="why">Kök tek başına $n^2$ iş yapar; lineer bir sınır olamaz.</span></button>
+    <button class="quiz__opt">$T(n) \le 2n^2$<span class="why">Adım: $2\cdot 2\tfrac{n^2}{4} + 3\cdot 2\tfrac{n^2}{9} + n^2 = \tfrac{5}{6}\cdot 2n^2 + n^2 \approx 2.67n^2 &gt; 2n^2$. Mertebe doğru, sabit küçük.</span></button>
+    <button class="quiz__opt" data-correct>$T(n) \le 6n^2$<span class="why">Doğru: $\tfrac24 + \tfrac39 = \tfrac56$, adım $\tfrac56 cn^2 + n^2 \le cn^2 \iff c \ge 6$. Bölüm 7'deki $\tfrac{1}{1 - \text{toplam}}$ kalıbı, bu kez $n^2$ ile.</span></button>
+    <button class="quiz__opt">$T(n) \le n^3$<span class="why">Doğru bir üst sınır ama sıkı değil; $n^2$ mertebesi ispatlanabiliyor.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="check" data-min="5">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Hangisi geçerli bir inductive hypothesis?</p>
+    <button class="quiz__opt">"$m &lt; n$ için $T(m) = O(m\log m)$"<span class="why">Tek bir $m$ için O anlamsız; sabit her adımda gizlice büyüyebilir. IH bir sayıyla yazılır.</span></button>
+    <button class="quiz__opt" data-correct>"$2 \le m &lt; n$ için $T(m) \le 5m\log m$"<span class="why">Doğru: sabit sayı (5), açık aralık ve somut eşitsizlik.</span></button>
+    <button class="quiz__opt">"Yeterince büyük her $m$ için $T(m) \le cm\log m$"<span class="why">"Yeterince büyük" ve belirsiz $c$, Big-O tanımını IH'nin içine koymak demek; sahte ispat tuzağıyla aynı.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">$T(n) = 2T(n/2) + 1$ için $T(m) \le cm$ ile adım $cn + 1$ verdi. Doğru yorum?</p>
+    <button class="quiz__opt">$T(n) = \omega(n)$, lineerden hızlı büyür<span class="why">Gerçek değer $2n - 1$. Bir ispat denemesinin çökmesi alt sınır kanıtı değildir.</span></button>
+    <button class="quiz__opt" data-correct>İddia doğru, IH zayıf; $T(m) \le cm - 1$ ile $c \ge 2$ çalışır<span class="why">Doğru. Güçlü IH adımı tam $cn - 1$'e götürür, base $T(1) = 1$ ise $c \ge 2$ ister.</span></button>
+    <button class="quiz__opt">$c$'yi büyütürsem $cn + 1 \le cn$ olur<span class="why">$cn + 1 \le cn$ demek $1 \le 0$ demek; $c$'den bağımsız olarak yanlış.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">$T(n) = T(n/5) + T(7n/10) + cn$ ispatında $d \ge 10c$ koşulu nereden çıkar?</p>
+    <button class="quiz__opt">Base case'ten<span class="why">Base case $T(1) = 1 \le d$, yani $d \ge 1$ verir. $10c$ adımdan gelir.</span></button>
+    <button class="quiz__opt" data-correct>Adımdan: IH'den gelen $\tfrac{9}{10}dn$ ile hedef $dn$ arasındaki $\tfrac1{10}dn$ boşluk $cn$'i ödemeli<span class="why">Doğru. $\tfrac{9}{10}dn + cn \le dn \iff d \ge 10c$.</span></button>
+    <button class="quiz__opt">Gruplar 5'li olduğu için $2 \cdot 5$'ten<span class="why">10, $\tfrac{1}{1 - 9/10}$'dan gelir. Kesirlerin toplamı farklı olsaydı katsayı da farklı olurdu.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">$T(n) = T(n-1) + n^2$, $T(1) = 1$. Hangi ifade doğru?</p>
+    <button class="quiz__opt">$T(n) \le \tfrac13 n^3$ tümevarımla ispatlanır<span class="why">Adım $n - \tfrac13 \le 0$ ister, yanlış. Zaten $T(2) = 5 &gt; \tfrac83$.</span></button>
+    <button class="quiz__opt">$T(n) \le cn^2$ uygun $c$ ile ispatlanır<span class="why">Adım $n^2 - 2cn + c \le 0$ ister; büyük $n$'de tutmaz. Gerçek değer $\approx n^3/3$.</span></button>
+    <button class="quiz__opt" data-correct>$\tfrac13 n^3 \le T(n) \le n^3$, yani $\Theta(n^3)$<span class="why">Doğru. Üst sınır $c = 1$, alt sınır $c = \tfrac13$, ikisi de $n_0 = 1$ ile.</span></button>
+  </div>
+  <p class="src">Sıradaki konu: Select ve median of medians.</p>
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js"></script>
+<script src="../assets/lab.js"></script>
+<script>
+/* Induction ladder: T(n) = 2T(n/2) + n, T(1) = 1, claim T(n) <= 2 n log n for n >= 2 */
+(function () {
+  const T = n => n === 1 ? 1 : 2 * T(n / 2) + n;
+  const B = n => 2 * n * Math.log2(n);
+  const ns = [2, 4, 8, 16, 32, 64, 128, 256];
+  const frames = ns.map((n, k) => {
+    const t = T(n), b = B(n);
+    let cap;
+    if (k === 0) cap = `<b>Base case.</b> $T(2) = 2\\cdot T(1) + 2 = ${t}$ ve $2\\cdot 2\\log 2 = ${b}$. $${t} \\le ${b}$ ✓. ($n = 1$'de $\\log 1 = 0$ olduğu için base'i 2'den başlatıyoruz.)`;
+    else {
+      const ih = B(n / 2), via = 2 * ih + n;
+      cap = `<b>Adım, $n = ${n}$.</b> IH $${n / 2}$'de: $T(${n / 2}) \\le ${ih}$. O zaman $T(${n}) = 2T(${n / 2}) + ${n} \\le 2\\cdot ${ih} + ${n} = ${via} \\le 2n\\log n = ${b}$ ✓. Gerçek değer $T(${n}) = ${t}$.`;
+    }
+    return { k, caption: cap };
+  });
+  Lab.stepper(document.getElementById("ladder-stepper"), {
+    title: "Tümevarım merdiveni",
+    interval: 1400,
+    frames,
+    render(f, idx, el) {
+      let rows = "";
+      for (let j = ns.length - 1; j >= 0; j--) {
+        const n = ns[j], done = j <= f.k, cur = j === f.k, used = f.k > 0 && j === f.k - 1;
+        const bg = cur ? "var(--accent)" : used ? "var(--blue-600)" : done ? "var(--blue-100)" : "var(--stone-100)";
+        const fg = cur || used ? "#fff" : "var(--fg)";
+        const txt = done ? `T(${n}) = ${T(n)} ≤ ${B(n)}` : `n = ${n}`;
+        const tag = cur ? (j === 0 ? "base case" : "ispatlanıyor") : used ? "IH burada kullanıldı" : done ? "✓" : "";
+        rows += `<div style="display:flex;align-items:center;gap:10px;margin:3px 0"><div style="flex:0 0 min(260px,70%);padding:5px 10px;border-radius:6px;background:${bg};color:${fg};font-family:'JetBrains Mono',monospace;font-size:.85rem;border:1px solid var(--border)">${txt}</div><span style="font-size:.8rem;color:var(--fg-muted)">${tag}</span></div>`;
+      }
+      el.innerHTML = `<div style="border-left:4px solid var(--stone-200);padding-left:10px">${rows}</div><div class="src" style="margin-top:4px">Turuncu: şu an ispatlanan basamak · mavi: IH'nin kullanıldığı basamak ($n/2$)</div>`;
+    }
+  });
+})();
+
+/* Weak vs strong hypothesis: T(n) = 2T(n/2) + 1, c = 2 */
+(function () {
+  const c = 2;
+  const T = n => n === 1 ? 1 : 2 * T(n / 2) + 1;
+  const ns = [1, 2, 4, 8, 16, 32, 64, 128];
+  const frames = ns.map((n, k) => ({ k, caption: k === 0
+    ? `<b>$n = 1$ (base).</b> $T(1) = 1$. Zayıf hedef $cn = 2$ ✓, güçlü hedef $cn - 1 = 1$ ✓. Güçlü IH'nin base'i tam sınırda: $c = 2$ en küçük seçim.`
+    : `<b>$n = ${n}$.</b> Gerçek $T(${n}) = ${T(n)}$. Zayıf IH adımı: $2\\cdot c\\tfrac{n}{2} + 1 = ${c * n + 1}$, hedef $${c * n}$ ✗ (fark hep $+1$). Güçlü IH adımı: $2(c\\tfrac n2 - 1) + 1 = ${c * n - 1}$, hedef $${c * n - 1}$ ✓.` }));
+  Lab.stepper(document.getElementById("strong-stepper"), {
+    title: "Zayıf IH ve güçlü IH, c = 2",
+    interval: 1300,
+    frames,
+    render(f, idx, el) {
+      const cell = "padding:4px 8px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace;font-size:.85rem";
+      let h = `<div class="table-wrap"><table style="width:100%"><tr><th>n</th><th>gerçek T(n)</th><th>zayıf adım → hedef cn</th><th>güçlü adım → hedef cn−1</th></tr>`;
+      for (let j = 0; j <= f.k; j++) {
+        const n = ns[j], cur = j === f.k;
+        const weak = j === 0 ? `base: 1 ≤ ${c * n} ✓` : `${c * n + 1} → ${c * n} ✗`;
+        const strong = j === 0 ? `base: 1 ≤ ${c * n - 1} ✓` : `${c * n - 1} → ${c * n - 1} ✓`;
+        h += `<tr style="${cur ? "background:var(--blue-050)" : ""}"><td style="${cell}">${n}</td><td style="${cell}">${T(n)}</td><td style="${cell};color:${j === 0 ? "inherit" : "var(--accent)"}">${weak}</td><td style="${cell}">${strong}</td></tr>`;
+      }
+      el.innerHTML = h + `</table></div><div class="src">Gerçek değer her satırda $cn$'in altında: iddia doğru, zayıf IH sadece bunu ispatlayamıyor.</div>`;
+    }
+  });
+})();
+
+/* T(n)/n for three recurrences, computed with floors; T(n) = 1 for n <= 10 */
+(function () {
+  function make(a1, b1, a2, b2) {
+    const memo = new Map();
+    const T = n => {
+      if (n <= 10) return 1;
+      if (memo.has(n)) return memo.get(n);
+      const v = T(Math.floor(n * a1 / b1)) + T(Math.floor(n * a2 / b2)) + n;
+      memo.set(n, v);
+      return v;
+    };
+    return T;
+  }
+  const R = [
+    { name: "T(n/5) + T(7n/10) + n", sum: "9/10", T: make(1, 5, 7, 10), color: "var(--blue-600)" },
+    { name: "T(n/5) + T(4n/5) + n", sum: "1", T: make(1, 5, 4, 5), color: "var(--fg-brand)" },
+    { name: "T(n/2) + T(3n/4) + n", sum: "5/4", T: make(1, 2, 3, 4), color: "var(--accent)" }
+  ];
+  const ns = [10, 100, 1000, 10000, 100000, 1000000];
+  const sp = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  const fmt = v => v >= 100 ? sp(v) : v.toFixed(2);
+  const maxL = Math.log10(1 + 1500);
+  const frames = ns.map(n => {
+    const r = R.map(x => x.T(n) / n);
+    return { n, r, caption: n === 10
+      ? "$n = 10$: hepsi base case, $T(10)/10 = 0.1$."
+      : `$n = ${sp(n)}$: oranlar ${r.map(fmt).join(", ")}. ${n >= 100000 ? "Toplam 9/10 olan 10'un altında kalıyor (CS161'deki $T(n) \\le 10n$). Toplam 1 olan her 10 katta yaklaşık 4.6 artıyor ($\\log n$ gibi). Toplam 5/4 olan her 10 katta yaklaşık 3.2 katına çıkıyor ($n^{0.51}$ gibi)." : "Fark henüz küçük, $n$'i büyütmeye devam et."}` };
+  });
+  Lab.stepper(document.getElementById("ratio-stepper"), {
+    title: "T(n)/n büyüyor mu?",
+    interval: 1500,
+    frames,
+    render(f, idx, el) {
+      el.innerHTML = R.map((x, i) => {
+        const w = Math.max(1, 100 * Math.log10(1 + f.r[i]) / maxL);
+        return `<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span style="font-family:'JetBrains Mono',monospace">${x.name}</span><span>toplam ${x.sum} · <b>${fmt(f.r[i])}</b></span></div><div style="background:var(--stone-200);border-radius:4px;height:14px;overflow:hidden"><div style="height:100%;width:${w}%;background:${x.color};transition:width .5s"></div></div></div>`;
+      }).join("") + `<div class="src">Çubuklar logaritmik ölçekte · değerler floor ile gerçek recurrence'tan hesaplandı</div>`;
+    }
+  });
+})();
+</script>
+</body>
+</html>

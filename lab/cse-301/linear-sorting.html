@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 301: karşılaştırma modeli, karar ağacı ile Ω(n log n) alt sınırı, CountingSort, stability, BucketSort ve RadixSort'ta taban seçimi." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Sıralamada alt sınır, Counting ve RadixSort · CSE 301 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css" />
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 301</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 301</a> / Alt sınır, Counting ve RadixSort</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L6</span><span class="chip chip--exam">Yeni konu</span><span class="src">~55 dk · 11 bölüm</span></div>
+          <h1>Sıralamada alt sınır, Counting ve RadixSort</h1>
+          <p class="lead">Önce kötü haber: sadece karşılaştırma yapan hiçbir sıralama algoritması n log n'in altına inemez. Sonra iyi haber: elemanların değerini doğrudan kullanırsan (CountingSort, RadixSort) bu sınır geçerli değil ve doğru koşullarda O(n)'de sıralarsın. Bu ders ikisini de, nedenleriyle birlikte öğretir.</p>
+          <p class="src">Kaynak: CS161 Lecture 6 slaytları ve notları · CS161 concept check (sorting models) · pre-lecture exercise · Bilkent CS473 Lecture 9 slaytları (2025-26'da derste kullanıldı, <code>excluded-from-2025-final/lecture09.pdf</code>) · S4 ve S5.5 section handout'ları · HW4 · hocanın L5–L6 class prep notu · CLRS 3e Bölüm 8.</p>
+        </header>
+
+        <article class="lesson" data-course="cse-301" data-lesson="linear-sorting">
+
+<!-- 1 -->
+<section class="lsec" id="model" data-min="4">
+  <h2>Karşılaştırma modeli</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · StickSort</span>
+    <p>CS161'in şakası: $n$ çubuğu boyuna göre sıralamak için hepsini dikey tutup masaya bırak. Hepsi masaya değer, üst uçları sıralı görünür. "$O(1)$'de sıraladım!"</p>
+    <p>Hile nerede? Çubuklar dizideki sayılar değil ve "masaya bırakmak" bilgisayarın yapabildiği bir işlem değil. Yani <strong>hangi işlemlere izin verdiğin</strong> sonucu belirliyor. Buna <em>model of computation</em> denir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Comparison-based sorting</span>
+    <p>Algoritma elemanların değerini göremez. Elemanlar hakkında bilgi edinmenin tek yolu bir "cin"e (genie) soru sormaktır: "$a_i \le a_j$ mi?" Cevap evet ya da hayır.</p>
+    <p>Gördüğümüz bütün sıralamalar böyle çalışır: InsertionSort, MergeSort, QuickSort. QuickSort partition'da "7, pivot 5'ten büyük mü?" diye sorar, başka bir şey yapmaz.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">İki model · CS161 slayt 7</span>
+    <ul>
+      <li><strong>Karşılaştırma modeli:</strong> her algoritma en az $\Omega(n\log n)$ adım atar. Ama her türlü karşılaştırılabilir nesneyi (string, tarih, kesir…) sıralar.</li>
+      <li><strong>Değerleri kullanan model:</strong> elemanlar küçük tam sayılar ise değeri dizi indeksi olarak kullanabilirsin (CountingSort, RadixSort). Burada $O(n)$ mümkün.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak</span>
+    <p>"Comparison-based" kodun içinde hiç <code>&lt;</code> olmaması demek değil. Soru şu: algoritma <strong>elemanlar hakkındaki bilgiyi nereden alıyor?</strong> CountingSort'taki <code>C[A[j]]</code> değeri indeks olarak kullanır. Bu bir karşılaştırma değil, değere doğrudan erişim.</p>
+  </div>
+  <div class="quiz" id="q-model">
+    <p class="quiz__q">Hangisi comparison-based bir sıralama <strong>değildir</strong>?</p>
+    <button class="quiz__opt">Rastgele pivotlu QuickSort<span class="why">Rastgelelik modeli değiştirmez: pivot rastgele seçilir ama elemanlar yine sadece pivotla karşılaştırılır.</span></button>
+    <button class="quiz__opt" data-correct>CountingSort<span class="why">Doğru. Elemanı karşılaştırmaz, değerini <code>C[A[j]]</code> gibi indeks olarak kullanır.</span></button>
+    <button class="quiz__opt">InsertionSort<span class="why">Her adımda <code>A[i] &gt; key</code> sorusunu sorar. Klasik karşılaştırma algoritması.</span></button>
+    <button class="quiz__opt">MergeSort<span class="why">Merge adımı iki listenin başındaki elemanları karşılaştırır. Bilgi sadece buradan gelir.</span></button>
+  </div>
+  <p class="src">Kaynak: CS161 Lecture 6 slayt 5–11 · CS161 notları §2 · Bilkent CS473 L9 slayt 2.</p>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="decision-tree" data-min="5">
+  <h2>Karar ağacı (decision tree)</h2>
+  <p>Algoritmayı ve $n$'i sabitle. Algoritmanın sorduğu her soru bir dallanmadır: cevap "≤" ise bir yöne, "&gt;" ise öbür yöne. Bütün olası çalışmaları üst üste koyunca bir ikili ağaç çıkar.</p>
+  <p>Aşağıdaki ağaç, InsertionSort'u 3 elemanın 6 farklı sıralaması üzerinde gerçekten çalıştırıp sorduğu soruları birleştirerek üretiliyor. Bir girdi seç ve oynat.</p>
+  <div style="margin:8px 0"><select id="dt-sel" class="btn btn--sm"></select></div>
+  <div id="dt-stepper"></div>
+  <div class="box box--rule">
+    <span class="box__label">Karar ağacının parçaları</span>
+    <ul>
+      <li><strong>İç düğüm</strong> $i\!:\!j$ = "$a_i$ ile $a_j$'yi karşılaştır". İki çocuğu var: $a_i \le a_j$ ve $a_i &gt; a_j$.</li>
+      <li><strong>Yaprak</strong> = çıktı: elemanların hangi sırayla dizileceği, örneğin $\langle 2,3,1\rangle$ "önce $a_2$, sonra $a_3$, sonra $a_1$" demek.</li>
+      <li>Bir girdi üzerinde çalıştırmak = kökten bir yaprağa giden <strong>tek bir yol</strong>.</li>
+      <li>O girdideki karşılaştırma sayısı = yolun uzunluğu. <strong>Worst-case = ağacın yüksekliği</strong> (en uzun yol).</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak</span>
+    <ul>
+      <li>Her algoritma ve her $n$ için <strong>ayrı</strong> bir ağaç vardır. "MergeSort'un ağacı" diye tek bir ağaç yok, $n = 3$ için bir tane, $n = 4$ için başka bir tane var.</li>
+      <li>Ağaç sadece karşılaştırmaları sayar; atama, kaydırma gibi işler görünmez. Bu sorun değil: süre en az karşılaştırma sayısı kadardır, yani karşılaştırmaya alt sınır süreye de alt sınırdır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-dt">
+    <p class="quiz__q">Girdi $\langle a_1, a_2, a_3\rangle = \langle 5, 8, 2\rangle$. InsertionSort'un ağacında hangi yaprağa, kaç karşılaştırmayla varılır?</p>
+    <button class="quiz__opt">$\langle 3,1,2\rangle$, 2 karşılaştırma<span class="why">Yaprak doğru ama $a_3$'ün $a_1$'in de önüne geçtiğini anlamak için üçüncü soru ($1\!:\!3$) gerekiyor. Yol uzunluğu 3.</span></button>
+    <button class="quiz__opt" data-correct>$\langle 3,1,2\rangle$, 3 karşılaştırma<span class="why">Doğru. $1\!:\!2$: $5 \le 8$ sol. $2\!:\!3$: $8 &gt; 2$ sağ. $1\!:\!3$: $5 &gt; 2$ sağ. Çıktı $a_3, a_1, a_2 = 2, 5, 8$.</span></button>
+    <button class="quiz__opt">$\langle 1,3,2\rangle$, 3 karşılaştırma<span class="why">Bu yaprak $a_1 \le a_3$ demek, yani $5 \le 2$. Son soruyu ters cevaplamışsın.</span></button>
+  </div>
+  <p class="src">Kaynak: Bilkent CS473 L9 slayt 7–11 (InsertionSort'un $n=3$ ağacı ve $\langle 9,4,6\rangle$ örneği) · CS161 Lecture 6 slayt 13–17.</p>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="leaves" data-min="5">
+  <h2>n! yaprak, yükseklik en az log₂ n!</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>3 farklı eleman $3! = 6$ farklı sırada gelebilir. Doğru bir algoritma bu 6 durumda 6 farklı şey yapmak zorunda, çünkü her birinde elemanları farklı biçimde yeniden dizmesi gerekiyor.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Argüman, üç adım</span>
+    <ol>
+      <li><strong>En az $n!$ yaprak.</strong> İki farklı girdi sırası $\pi \ne \sigma$ aynı yaprağa düşseydi, algoritma ikisinde de aynı yeniden dizmeyi yapardı. O dizme en fazla birini sıralar, öbüründe çıktı yanlış olur. Yani her permütasyonun kendi yaprağı var.</li>
+      <li><strong>Yüksekliği $h$ olan ikili ağacın en fazla $2^h$ yaprağı vardır</strong> (her seviyede düğüm sayısı en fazla ikiye katlanır).</li>
+      <li>Birleştir: $2^h \ge n!$, yani $h \ge \log_2(n!)$. $h$ tam sayı olduğundan $h \ge \lceil \log_2 n! \rceil$.</li>
+    </ol>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>$n$</th><th>$n!$</th><th>$\log_2 n!$</th><th>En az karşılaştırma</th><th>Gerçek algoritmalar (worst case)</th></tr>
+    <tr><td>3</td><td>6</td><td>≈ 2.585</td><td><strong>3</strong></td><td>InsertionSort 3 → optimal</td></tr>
+    <tr><td>4</td><td>24</td><td>≈ 4.585</td><td><strong>5</strong></td><td>MergeSort 5 ($1+1+3$), InsertionSort 6</td></tr>
+  </table></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Ağacın <strong>tam</strong> $n!$ yaprağı var" deme. <strong>En az</strong> $n!$: bazı algoritmalar gereksiz soru sorar, hiç ulaşılmayan yapraklar olabilir.</li>
+      <li>Alt sınır <strong>worst case</strong> içindir. Bazı girdiler kısa yoldan biter: InsertionSort sıralı girdide sadece $n-1$ karşılaştırma yapar. Bu sınırla çelişmez.</li>
+      <li>Yaprak sayısı ile yüksekliği karıştırma: $n = 4$'te 24 yaprak var ama gereken karşılaştırma 5.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-leaves">
+    <p class="quiz__q">4 farklı elemanı sıralayan her karşılaştırma algoritması worst case'te en az kaç karşılaştırma yapar?</p>
+    <button class="quiz__opt">4<span class="why">$2^4 = 16 &lt; 24$. 4 soruyla 24 sırayı ayıramazsın; $\log_2 24 \approx 4.58$ yukarı yuvarlanır.</span></button>
+    <button class="quiz__opt" data-correct>5<span class="why">Doğru. $2^5 = 32 \ge 24$ ama $2^4 = 16 &lt; 24$. Ve 5 yetiyor: MergeSort 4 elemanı en kötü 5 karşılaştırmada sıralar.</span></button>
+    <button class="quiz__opt">6<span class="why">Bu InsertionSort'un 4 elemandaki worst case'i. Alt sınır değil; MergeSort 5 ile yapıyor.</span></button>
+    <button class="quiz__opt">24<span class="why">24 yaprak sayısı. Soru ağacın yüksekliğini soruyor, o da $\lceil\log_2 24\rceil$.</span></button>
+  </div>
+  <p class="src">Kaynak: CS161 Lecture 6 slayt 18–19 · Bilkent CS473 L9 slayt 12. Tablodaki gerçek sayılar InsertionSort ve MergeSort'un 24 permütasyonun hepsinde çalıştırılmasıyla doğrulandı.</p>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="logfact" data-min="5">
+  <h2>log n! = Ω(n log n) ve teorem</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>$n! = n\cdot(n-1)\cdots 2\cdot 1$. Çarpanların büyük yarısı en az $n/2$. $n=8$: $8\cdot7\cdot6\cdot5 \ge 4^4$. Yani $n!$ en az $(n/2)^{n/2}$ kadar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">İspat · alt sınır</span>
+    <p>En büyük $\lceil n/2\rceil$ çarpanın her biri $\ge n/2$, geri kalanlar $\ge 1$:</p>
+    $$n! \ \ge\ \left(\tfrac n2\right)^{n/2} \quad\Rightarrow\quad \log n! \ \ge\ \tfrac n2 \log\tfrac n2 = \tfrac n2(\log n - 1).$$
+    <p>$n \ge 4$ iken $\log n \ge 2$, yani $\log n - 1 \ge \tfrac12 \log n$. O zaman $\log n! \ge \tfrac n4 \log n$: $c = \tfrac14,\ n_0 = 4$ ile $\log n! = \Omega(n\log n)$.</p>
+    <p><strong>Üst sınır:</strong> $n! \le n^n$, yani $\log n! \le n\log n$. İkisi birlikte: $\log n! = \Theta(n\log n)$.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Alternatif · Stirling</span>
+    <p>Bilkent slaytı (2025-26) Stirling'i kullanır: $n! \ge (n/e)^n$, yani $\log n! \ge n\log n - n\log e = \Omega(n\log n)$. Sınavda yukarıdaki yarıya bölme ispatı yeterli ve ezber gerektirmiyor.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Teorem (CS161 slayt 12, 21)</span>
+    <ul>
+      <li>Her <strong>deterministic</strong> comparison-based sıralama algoritması worst case'te $\Omega(n\log n)$ adım atar.</li>
+      <li>Her <strong>randomized</strong> comparison-based sıralama algoritması <strong>beklenen değerde</strong> (in expectation) $\Omega(n\log n)$ adım atar. Yani rastgele pivot QuickSort'u $n\log n$'in altına indiremez. İspatından sorumlu değilsiniz (slayt 20).</li>
+      <li>Sonuç: MergeSort (ve HeapSort) <strong>asimptotik olarak optimal</strong>. Daha iyisini aramaya gerek yok.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak</span>
+    <p>Teorem "her sıralama $\Omega(n\log n)$" demiyor. Sadece <strong>karşılaştırma modelindeki</strong> algoritmalar için geçerli. CountingSort ve RadixSort bu modelin dışında, o yüzden $O(n)$ olabiliyorlar.</p>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">S5.5 midterm review · dene</span>
+    <p>"Show that $\log(n!) = \Theta(n\log n)$." Handout üst sınırı $n! \le n^n$ ile gösterip alt sınırı size bırakıyor.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$\log(n!) = \log n + \log(n-1) + \dots + \log 1$. Bu toplamın sadece ilk yarısını tut, gerisini at (hepsi $\ge 0$).</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Tuttuğun $n/2$ terimin her biri $\ge \log(n/2)$. Sonra $\log(n/2) \ge \frac12\log n$ eşitsizliğinin hangi $n$'den itibaren doğru olduğunu bul.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>$\log n! \ge \sum_{i=\lceil n/2\rceil}^{n} \log i \ge \frac n2\log\frac n2$. $n \ge 4$ için $\log\frac n2 = \log n - 1 \ge \frac12\log n$. Yani $\log n! \ge \frac14 n\log n$ ($c = \frac14$, $n_0 = 4$). Üstten $\log n! \le \log n^n = n\log n$ ($c = 1$, $n_0 = 1$). İkisi birlikte Θ verir. ∎</p></div></details>
+  </div>
+  <div class="quiz" id="q-logfact">
+    <p class="quiz__q">Bir arkadaşın "rastgele pivot seçen bir karşılaştırma sıralaması yazdım, beklenen süresi $O(n)$" diyor. Ne dersin?</p>
+    <button class="quiz__opt">Olabilir, alt sınır sadece deterministic algoritmalar için<span class="why">Hayır. CS161 teoremi randomized algoritmaları da kapsar: beklenen değerde $\Omega(n\log n)$.</span></button>
+    <button class="quiz__opt" data-correct>İmkânsız: randomized karşılaştırma sıralamaları da beklenen değerde $\Omega(n\log n)$<span class="why">Doğru. Rastgelelik worst case'i iyileştirebilir (QuickSort'un $n^2$'si gibi), ama $n\log n$ tabanını delemez.</span></button>
+    <button class="quiz__opt">Olabilir, çünkü worst case yine $\Omega(n\log n)$ kalır<span class="why">Teorem beklenen süre için de konuşuyor. Worst case'in büyük olması beklenen $O(n)$'e kapı açmaz.</span></button>
+  </div>
+  <p class="src">Kaynak: CS161 Lecture 6 slayt 12, 18–22 · CS161 notları §2 (randomized dahil) · S5.5 midterm review "Show that log(n!) = Θ(n log n)" · Bilkent CS473 L9 slayt 13–14 · HW1 tablosu ($\log(n!)$ vs $\log(n^n)$).</p>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="use-bound" data-min="6">
+  <h2>Alt sınırı kullanmak</h2>
+  <p>Sınavlarda alt sınır çoğu zaman ispatlanmaz, <strong>kullanılır</strong>: "Şu şey mümkün olsaydı, $n$ elemanı $o(n\log n)$ karşılaştırmayla sıralardım. Bu imkânsız, o halde o şey de imkânsız."</p>
+  <div class="box box--example">
+    <span class="box__label">Concept check · 3-sort</span>
+    <p>Elinde 3 elemanı sıralayan bir <code>3-sort</code> fonksiyonu var ve diziye sadece onunla dokunabiliyorsun. Kaç çağrı gerekir?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bir <code>3-sort</code> çağrısının kaç farklı cevabı olabilir? 3 elemanın kaç sırası var?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Karar ağacı artık ikili değil, her düğümün en fazla 6 çocuğu var. Yüksekliği $h$ olan böyle bir ağacın kaç yaprağı olabilir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>Her çağrı en fazla $3! = 6$ cevap verir, yani ağacın en fazla $6^h$ yaprağı var. $6^h \ge n!$ ⇒ $h \ge \log_6 n! = \dfrac{\log_2 n!}{\log_2 6} = \Omega(n\log n)$. Cevap $\Omega(n\log n)$; $\log_2 6$ sadece sabit bir çarpan. Örneğin $n = 100$ için en az 204 çağrı.</p></div></details>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">HW4 S3 · Lucky's Unlucky Tree</span>
+    <p>Lucky'nin luckyTree'si karşılaştırılabilir nesneleri tutan bir BST: <code>luckyInsert</code> $O(1)$, search ve delete $O(\log n)$, hepsi deterministic. Neden yanlış?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Elinde $n$ eleman var. Hepsini luckyTree'ye koymak ne kadar sürer?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bir BST'den elemanları sıralı sırayla nasıl okursun ve bu kaç karşılaştırma yapar?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>Sıralama algoritması: $n$ elemanı tek tek <code>luckyInsert</code> et ($n \cdot O(1) = O(n)$), sonra in-order traversal yap ($O(n)$, hiç karşılaştırma yok; BST özelliği sayesinde çıktı sıralı). Toplam $O(n)$, deterministic ve sadece karşılaştırma kullanıyor (luckyTree her karşılaştırılabilir nesneyi kabul ediyor). Bu, karşılaştırma sıralamaları için $\Omega(n\log n)$ alt sınırıyla çelişir. O halde luckyTree var olamaz. ∎</p></div></details>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">2020-21 vizesi S4 · 2019-20 sınavı S1 · k-sorted dizi</span>
+    <p>Sınav: "Her eleman sıralı haldeki yerinden en fazla $k$ uzakta. Min-heap ile sırala ve sıkı üst sınırı ver." Biz bir adım ileri gidelim: <strong>hiçbir karşılaştırma algoritması bundan asimptotik olarak daha iyisini yapamaz</strong>, bunu göster.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce sınavın cevabı: heap'te en fazla $k+1$ eleman var. $n$ kez "en küçüğü çıkar, sıradakini ekle" yapıyorsun. Her işlem kaç adım?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Alt sınır için: bu kurala uyan kaç farklı girdi sırası var, en azından kabaca? Sıralı diziyi $k$'lık bloklara böl ve her bloğun içini istediğin gibi karıştır.</p></div></details>
+    <details class="hint"><summary>İpucu 3</summary><div><p>Karar ağacının o kadar farklı yaprağı olmalı. $\log_2$'sini al ve bu bölümdeki $\log k! \ge \frac k2\log\frac k2$ eşitsizliğini kullan.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Üst sınır (sınavın sorusu).</strong> İlk $k+1$ elemandan min-heap kur: $O(k)$. Sonra $n$ kez: kökü çıkar ve çıktıya yaz, diziden sıradaki elemanı heap'e ekle. Heap boyutu hep $\le k+1$, her işlem $O(\log k)$. Toplam $O(k + n\log k) = O(n\log k)$. Doğru çünkü sıralı dizinin $i$. elemanı girdide en geç $i+k$. konumdadır, yani onu çıkarırken heap'in içindedir.</p>
+      <p><strong>Alt sınır.</strong> $k$, $n$'i bölsün. Sıralı diziyi $k$ uzunluğunda $n/k$ bloğa ayır ve her bloğun içini herhangi bir şekilde karıştır. Her eleman en fazla $k-1 \le k$ yer kayar, yani her biri geçerli bir girdi. Böyle $(k!)^{n/k}$ farklı girdi var ve hepsinin doğru çıktısı farklı, yani her birinin kendi yaprağı olmalı:</p>
+      $$h \ \ge\ \log_2 (k!)^{n/k} = \tfrac nk \log k! \ \ge\ \tfrac nk\cdot\tfrac k2\log\tfrac k2 = \tfrac n2(\log k - 1) \ \ge\ \tfrac n4 \log k \quad (k \ge 4).$$
+      <p>Yani her karşılaştırma algoritması $\Omega(n\log k)$ karşılaştırma yapar ve heap algoritması optimal. $k = n$ olunca genel $\Omega(n\log n)$ sınırı geri gelir.</p>
+    </div></details>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Başka tür alt sınır · L3–L4 class prep S7</span>
+    <p>"Minimumu bulmak neden $\Omega(n)$?" sorusu karar ağacıyla değil, başka bir argümanla çözülür: minimum olmayan her eleman en az bir karşılaştırma kaybetmeli, her karşılaştırma tek bir kaybeden üretir, yani en az $n-1$ karşılaştırma (S4 handout'u, problem 4.1). Karar ağacı burada sadece $\log_2 n$ verirdi (n olası cevap), bu zayıf. Hangi argümanın güçlü olduğuna bak.</p>
+  </div>
+  <div class="quiz" id="q-use">
+    <p class="quiz__q">Concept check: karşılaştırılabilir nesneler için insert, remove ve "en küçüğü döndür" işlemlerinin üçü de $O(1)$ olan bir veri yapısı mümkün mü?</p>
+    <button class="quiz__opt">Mümkün, bir linked list ve bir min göstergesi yeter<span class="why">Min'i silince yeni min'i bulmak için listeyi taramak gerekir, bu $O(1)$ değil. Asıl engel ise alt sınır.</span></button>
+    <button class="quiz__opt" data-correct>İmkânsız: $n$ kez ekle, sonra $n$ kez "min al, sil" yap; $O(n)$'de sıralamış olursun<span class="why">Doğru. Bu bir karşılaştırma sıralaması olur ve $\Omega(n\log n)$ ile çelişir.</span></button>
+    <button class="quiz__opt">Mümkün ama sadece amortized olarak<span class="why">Amortized $O(1)$ da $n$ işlemde toplam $O(n)$ demek; aynı sıralama argümanı onu da çürütür.</span></button>
+  </div>
+  <p class="src">Kaynak: CS161 Lecture 6 concept check (3-Wise Comparisons, Possible or Impossible) · HW4 S3 · <code>exams/2020-2021/midterm.pdf</code> S4 ve <code>exams/2019-2020/exams-2019.pdf</code> S1 (k-sorted dizi; alt sınır kısmı bu dersin eklemesi) · Algo_L3_L4_Class_Prep S7 · S4-solutions S4. Sayılar (204 çağrı, $(k!)^{n/k}$ blok sayımı) Python ile doğrulandı.</p>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="counting" data-min="6">
+  <h2>CountingSort</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Pre-lecture exercise</span>
+    <p>$n$ öğrenciyi doğum ayına göre sırala. MergeSort $O(n\log n)$. Ama sadece 12 ay var: 12 kova aç, her öğrenciyi ayının kovasına at, kovaları Ocak'tan Aralık'a birleştir. Tek geçiş, $O(n + 12) = O(n)$.</p>
+  </div>
+  <p>CS161 bunu kovalarla (FIFO linked list) anlatır. Bilkent slaytları ve CLRS aynı fikri kova yerine <strong>sayaç ve prefix sum</strong> ile yapar. Aşağıdaki animasyon slayttaki örneği gerçekten çalıştırıyor: $A = [4,1,3,4,3]$, değerler $1..k$, $k = 4$. Aynı değerleri ayırt edebilmek için alt indis koyduk.</p>
+  <div id="cs-stepper"></div>
+  <div class="box box--rule">
+    <span class="box__label">CountingSort(A, k) · CLRS sürümü</span>
+    <ol>
+      <li>$C[1..k] = 0$. <span class="src">$\Theta(k)$</span></li>
+      <li>Her $j$ için $C[A[j]]$++. Artık $C[i]$ = "değeri $i$ olan eleman sayısı". <span class="src">$\Theta(n)$</span></li>
+      <li>Prefix sum: $C[i] \mathrel{+}= C[i-1]$. Artık $C[i]$ = "değeri $\le i$ olan eleman sayısı" = $i$ değerinin son elemanının gideceği yer. <span class="src">$\Theta(k)$</span></li>
+      <li>$j = n$'den $1$'e: $B[C[A[j]]] = A[j]$, sonra $C[A[j]]$−−. <span class="src">$\Theta(n)$</span></li>
+    </ol>
+    <p><strong>Toplam $\Theta(n+k)$</strong>, ek bellek $\Theta(n+k)$. $k = O(n)$ ise $\Theta(n)$.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$k$ eleman sayısı değil, <strong>değer aralığı</strong>. $n$ sayı $[1, n^3)$ aralığındaysa CountingSort $\Theta(n + n^3) = \Theta(n^3)$, MergeSort'tan çok kötü (concept check).</li>
+      <li>Değerlerin tam sayı olması ve aralığın baştan bilinmesi gerekir. $[2,\ 12345,\ 21000,\ 100000000]$ gibi seyrek değerlerde yüz milyon kova açarsın (CS161 slayt 29).</li>
+      <li>4. adımda <strong>sağdan sola</strong> gitmek keyfi değil: stability'yi o sağlar (sonraki bölüm).</li>
+    </ul>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">HW4 S4 · Studious Stork · dene</span>
+    <p>$A[i] \in \{1,\dots,k\}$, diziyi göremiyorsun, Siggi'ye sadece evet/hayır sorusu sorabiliyorsun. Sıralı $A$'yı $O(k\log n)$ soruyla yaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Sıralı $A$'yı yazmak için neyi bilmen yeter? CountingSort'un 2. adımından sonra elinde ne vardı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her $v$ değeri için "$A$'da en az $c$ tane $v$ var mı?" sorusu evet/hayır cevaplı ve $c$'ye göre monoton. $c \in [0, n]$ üzerinde binary search.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>Her $v = 1..k$ için $v$'nin sayısı $c_v$'yi binary search ile bul: "en az $c$ tane $v$ var mı?" sorusuyla $[0,n]$ aralığını yarıya böl, $O(\log n)$ soru. Toplam $k\cdot O(\log n)$. Sonra kâğıda $c_1$ tane 1, $c_2$ tane 2, … yaz. Bu CountingSort'un sayma adımı; sayıları bilince sıralı çıktı bedava.</p></div></details>
+  </div>
+  <div class="quiz" id="q-counting">
+    <p class="quiz__q">Prefix sum'dan sonra $C = [1, 1, 3, 5]$. Döngü $j = 5$'ten başlıyor ve $A[5] = 3$. Bu eleman $B$'de nereye yazılır, $C$ ne olur?</p>
+    <button class="quiz__opt">$B[2]$; $C[3]$ 2 olur<span class="why">Önce yaz, sonra azalt. Önce azaltırsan her şey bir sola kayar ve $B[5]$ boş kalır.</span></button>
+    <button class="quiz__opt">$B[1]$; çünkü ilk işlenen eleman<span class="why">Yeri işlem sırası değil $C[A[j]]$ belirler. $B$ sağdan sola dolmaz, her değer kendi bloğuna gider.</span></button>
+    <button class="quiz__opt" data-correct>$B[3]$; $C[3]$ 2 olur<span class="why">Doğru. $C[3] = 3$: değeri $\le 3$ olan 3 eleman var, bu 3'lerin sonuncusu 3. kutuya gider. Sonraki 3 için yer 2.</span></button>
+  </div>
+  <p class="src">Kaynak: CS161 pre-lecture exercise ve Lecture 6 slayt 25–29 · CS161 notları §2 · Bilkent CS473 L9 slayt 15–26 (örnek $A = [4,1,3,4,3]$) · HW4 S4 · concept check S3.</p>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="stable" data-min="4">
+  <h2>Stability (kararlılık)</h2>
+  <div class="box box--example">
+    <span class="box__label">Pre-lecture · doğum ayı</span>
+    <p>Girdi: (Plucky, Oca), (Lucky, Oca), (Siggi, Nis), (Ollie, May). Hem {Plucky, Lucky, Siggi, Ollie} hem {Lucky, Plucky, Siggi, Ollie} doğru sıralama. <strong>Stable</strong> bir sıralama her zaman ilkini verir: eşitler girdideki sıralarını korur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanım</span>
+    <p>Bir sıralama <strong>stable</strong>'dır: anahtarı eşit iki eleman $x, y$ için, $x$ girdide $y$'den önceyse çıktıda da $y$'den öncedir.</p>
+    <p><strong>Neden önemli?</strong> (1) RadixSort'un doğruluğu buna dayanır (sonraki bölümler). (2) Çok anahtarlı sıralama: önce isme göre sırala, sonra aya göre <em>stable</em> sırala; her ayın içinde isimler alfabetik kalır.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Algoritma</th><th>Stable mı?</th><th>Neden</th></tr>
+    <tr><td>InsertionSort</td><td>Evet</td><td>Sadece <code>A[i] &gt; key</code> olanları kaydırır; eşit eleman key'in önünde kalır.</td></tr>
+    <tr><td>MergeSort</td><td>Evet</td><td>Eşitlikte soldan alırsa (<code>L[i] ≤ R[j]</code>).</td></tr>
+    <tr><td>QuickSort (Hoare/Lomuto)</td><td>Genelde hayır</td><td>Partition'daki uzak swap'lar eşitlerin sırasını bozabilir.</td></tr>
+    <tr><td>CountingSort (CLRS)</td><td>Evet</td><td>Son döngü sağdan sola: her değerin son elemanı bloğun en sağına.</td></tr>
+    <tr><td>CS161 CountingSort (kovalar)</td><td>Evet</td><td>Kovalar FIFO: ilk gelen ilk çıkar.</td></tr>
+  </table></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>InsertionSort'ta koşulu <code>A[i] ≥ key</code> yaparsan eşitleri de kaydırırsın ve stability gider. MergeSort'ta eşitlikte sağdan alırsan aynı şey.</li>
+      <li>CountingSort'un son döngüsünü soldan sağa çalıştırırsan eşitler <strong>ters</strong> sıraya girer; $[4_1,1,3_1,4_2,3_2]$ → $[1, 3_2, 3_1, 4_2, 4_1]$.</li>
+    </ul>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">Hocanın class prep S29 · SlowSort stable mı?</span>
+    <p>2023-24 vizesi S4(b)'deki SlowSort: rastgele bir $x$ seç, $S$'te $x$'ten küçük $y$ yoksa $x$ minimumdur, onu başa koy ve $S\setminus\{x\}$'i sırala. "Stable mı? $S$ bir küme olarak tanımlanmışken stability anlamlı mı?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Stability tanımı hangi elemanlar hakkında konuşuyor? Bir kümede o tür elemanlar olabilir mi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Şimdi tekrarlı değerlere izin ver. Minimum değerden iki kopya varsa test (<code>y &lt; x</code>) ikisini de kabul eder mi? Hangisinin seçileceğini ne belirler?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>Küme olarak tanımlıysa eşit eleman yok, stability sorusu boş. Tekrarlara izin verirsek: minimum değerin iki kopyası $m_1, m_2$ olsun. Test sadece "$y &lt; x$ mi?" diye sorduğu için ikisi de minimum kabul edilir; hangisinin önce yerleşeceğini <strong>rastgele seçim</strong> belirler, girdi sırası değil. $m_2$ önce seçilirse çıktıda $m_1$'in önüne geçer. Yani SlowSort stable değil.</p></div></details>
+  </div>
+  <div class="quiz" id="q-stable">
+    <p class="quiz__q">Hangi değişiklik CLRS CountingSort'u <strong>stable olmaktan çıkarır</strong>?</p>
+    <button class="quiz__opt">$C$'yi $0..k-1$ ile indekslemek<span class="why">Sadece indeks kayması. Elemanların göreli sırası değişmez.</span></button>
+    <button class="quiz__opt" data-correct>Son döngüyü $j = 1$'den $n$'e çalıştırmak<span class="why">Doğru. Her değerin ilk görülen elemanı bloğun en sağına yazılır, eşitler ters döner.</span></button>
+    <button class="quiz__opt">Prefix sum'ı başka bir dizide tutmak<span class="why">Hangi dizide tuttuğun önemli değil; aynı sayılar, aynı yerleşim.</span></button>
+  </div>
+  <p class="src">Kaynak: CS161 pre-lecture exercise · CS161 notları §2 (stability) · Bilkent CS473 L9 slayt 27 · <code>Algo_Class_Prep.pdf</code> S29 · 2023-24 vizesi S4(b) (<code>exams/2023-2024/</code>). Soldan sağa çıktısı Python ile doğrulandı.</p>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="bucket" data-min="4">
+  <h2>BucketSort fikri</h2>
+  <div class="box box--trap">
+    <span class="box__label">İsim karışıklığı</span>
+    <p>CS161'in notebook'undaki <code>bucketSort</code>, slaytlardaki "CountingSort" ile aynı şey: tam sayı anahtarlar, her değere bir FIFO kova. CLRS 8.4'teki <strong>BucketSort</strong> ise başka bir algoritma: $[0, 1)$ aralığındaki gerçel sayılar için. Sınavda hangisinin sorulduğuna bak.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · n = 8</span>
+    <p>$[0.42,\ 0.07,\ 0.91,\ 0.33,\ 0.38,\ 0.75,\ 0.04,\ 0.58]$. Kova numarası $\lfloor n\cdot x\rfloor = \lfloor 8x\rfloor$:</p>
+    <p>kova 0: $0.07,\ 0.04$ · kova 2: $0.33$ · kova 3: $0.42,\ 0.38$ · kova 4: $0.58$ · kova 6: $0.75$ · kova 7: $0.91$</p>
+    <p>Her kovayı InsertionSort ile sırala ve birleştir: $0.04,\ 0.07,\ 0.33,\ 0.38,\ 0.42,\ 0.58,\ 0.75,\ 0.91$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">BucketSort (CLRS 8.4)</span>
+    <ul>
+      <li>$n$ kova aç, $x$'i $\lfloor n x\rfloor$ numaralı kovaya at: $O(n)$.</li>
+      <li>Her kovayı InsertionSort ile sırala, sonra kovaları sırayla birleştir.</li>
+      <li>Girdi $[0,1)$'de <strong>uniform</strong> dağılıyorsa bir kovaya ortalama 1 eleman düşer ve beklenen süre $\Theta(n)$.</li>
+      <li>Worst case: hepsi aynı kovaya düşerse InsertionSort $\Theta(n^2)$.</li>
+    </ul>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">S4 S3 · More Sorting</span>
+    <p>$n$ sayı $1..M$ aralığında, $M$ büyük ama sabit. İki elemanın aralarındaki fark en fazla $T$ olan bir çift var mı? $O(n^2)$, $O(n\log n)$ ve $O(n)$ çözüm iste.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$O(n\log n)$: sıraladıktan sonra hangi çiftlere bakman yeter?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$O(n)$: genişliği $T$ olan kovalar aç, $i$. kova $[iT, (i+1)T)$. İki eleman aynı kovaya düşerse ne söyleyebilirsin?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>(1) Bütün çiftleri dene, $O(n^2)$. (2) Sırala, sadece komşu çiftlere bak: yakın bir çift varsa sıralı dizide komşu bir çift de yakındır. (3) Genişliği $T$ olan $O(M/T)$ kova, yani sabit sayıda; yerleştirme $O(n)$. Bir kovada 2 eleman varsa farkları $&lt; T$, cevap evet. Yoksa her kovada en fazla 1 eleman var ve aralarında bir kova olan iki eleman $T$'den uzak; sadece komşu kovalardaki çiftlere bak, en fazla $n-1$ çift. Toplam $O(n)$.</p></div></details>
+  </div>
+  <div class="quiz" id="q-bucket">
+    <p class="quiz__q">BucketSort içinde InsertionSort ile karşılaştırma yapıyor. O halde neden $\Omega(n\log n)$ alt sınırına takılmıyor?</p>
+    <button class="quiz__opt">Takılıyor, beklenen süresi de aslında $\Theta(n\log n)$<span class="why">Uniform girdide beklenen süre $\Theta(n)$. Alt sınır onu engellemiyor, çünkü algoritma modelin dışında.</span></button>
+    <button class="quiz__opt" data-correct>Kovayı $\lfloor nx\rfloor$ ile değerden hesaplıyor; bu karşılaştırma değil, model dışı bir işlem<span class="why">Doğru. Asıl işi değerle kovaya atmak yapıyor. Üstelik $\Theta(n)$ sadece uniform dağılım varsayımıyla ve beklenen değerde.</span></button>
+    <button class="quiz__opt">Çünkü InsertionSort küçük girdilerde $O(n)$<span class="why">Kovaların küçük olması dağılım varsayımından geliyor. Asıl soru modelin neden geçerli olmadığı.</span></button>
+  </div>
+  <p class="src">Kaynak: CS161 Lecture 6 notebook (<code>lecture6_bucketsort.ipynb</code>) · S4-solutions S3 · CLRS 3e §8.4. Örnek bu derse ait, çıktısı Python ile doğrulandı.</p>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="radix" data-min="6">
+  <h2>RadixSort: en sağdaki basamaktan başla</h2>
+  <p>CountingSort'un sorunu büyük aralık. RadixSort çözümü: sayıyı basamaklarına ayır, her geçişte <strong>tek basamağa</strong> göre CountingSort yap. Basamak 0–9 arası, yani her geçişte sadece 10 kova. En önemsiz basamaktan (least significant digit, <strong>LSD</strong>) başla.</p>
+  <p>Aşağıda CS161 slaytındaki dizi gerçekten sıralanıyor. Turuncu basamak o geçişin anahtarı. Taban 100'e geçince her "basamak" iki ondalık haneden oluşur.</p>
+  <div style="margin:8px 0"><select id="rx-sel" class="btn btn--sm"><option value="10">Taban 10 (r = 10)</option><option value="100">Taban 100 (r = 100)</option></select></div>
+  <div id="rx-stepper"></div>
+  <div class="box box--rule">
+    <span class="box__label">Doğruluk · induction</span>
+    <p><strong>Invariant:</strong> $t$. geçişten sonra dizi, sayıların <strong>son $t$ basamağına</strong> göre sıralıdır.</p>
+    <ul>
+      <li><strong>Base case ($t=0$):</strong> "Son 0 basamağa göre sıralı" boş bir iddia, doğru.</li>
+      <li><strong>Inductive step:</strong> $t-1$ için doğru olsun. $t$. geçişten sonra herhangi iki sayıya bak: $x$'in son $t$ basamağı $y$'ninkinden küçük olsun. İki durum var:
+        <ul>
+          <li><strong>$x_t &lt; y_t$:</strong> $x$ daha önceki kovaya düşer, çıktıda $y$'den önce.</li>
+          <li><strong>$x_t = y_t$:</strong> o zaman son $t-1$ basamakta $x &lt; y$. Hipotezden $x$ bu geçişin girdisinde $y$'den önceydi. Aynı kovaya düşüyorlar ve sıralama <strong>stable</strong> olduğu için $x$ yine önde.</li>
+        </ul>
+        Her çift doğru sırada, yani dizi son $t$ basamağa göre sıralı.</li>
+      <li><strong>Sonuç:</strong> $t = d$'de dizi bütün basamaklara göre, yani tamamen sıralı. ∎</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Stability neden şart?</span>
+    <p>İspatta stability sadece ikinci durumda kullanıldı, ama orada vazgeçilmez: geçiş eşit basamaklı elemanların sırasını değiştirmeye izin verseydi, önceki geçişlerin kurduğu düzen kaybolurdu. Somut olarak: 3. geçişte $1, 13, 21, 50$'nin yüzler basamağı hep 0. 2. geçiş onları doğru sıraya koymuştu; stable olmayan bir sıralama bu dört sayıyı istediği sırada bırakabilir, örneğin $50, 1, 21, 13$, ve sonuç yanlış olur.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Neden MSD değil? · Bilkent L9 slayt 33–39</span>
+    <p>Hollerith'in kart makinesi en önemli basamaktan (MSD) başlıyordu: önce yüzler basamağına göre 10 desteye ayır, sonra <strong>her desteyi ayrı ayrı</strong> recursive sırala. 3 basamakta en kötü 111 geçiş ve 99 ara deste. LSD ise tek deste ile sadece $d$ geçiş yapar; bedeli her geçişin stable olması.</p>
+  </div>
+  <div class="quiz" id="q-radix">
+    <p class="quiz__q">$[21, 345, 13, 101, 50, 234, 1]$'e taban 10'da iki geçiş uygulandı. Dizi ne olur?</p>
+    <button class="quiz__opt">$[1, 13, 21, 50, 101, 234, 345]$<span class="why">Bu 3. geçişten sonraki tam sıralı hal. İki geçiş sadece son iki basamağı sıralar; 50 hâlâ sonda.</span></button>
+    <button class="quiz__opt">$[50, 21, 101, 1, 13, 234, 345]$<span class="why">Bu tek geçişten sonraki hal (sadece birler basamağına göre).</span></button>
+    <button class="quiz__opt" data-correct>$[101, 1, 13, 21, 234, 345, 50]$<span class="why">Doğru. Son iki basamaklar: 01, 01, 13, 21, 34, 45, 50, sıralı. 101 ile 1 eşit, ilk geçişteki sıralarını korudular.</span></button>
+  </div>
+  <p class="src">Kaynak: CS161 Lecture 6 slayt 30–41 (örnek dizi ve ispat taslağı) · CS161 notları §3 · Bilkent CS473 L9 slayt 28–41 · S5.5 midterm review. Geçiş sonuçları Python ile doğrulandı.</p>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="radix-time" data-min="6">
+  <h2>RadixSort'un süresi ve taban seçimi</h2>
+  <div class="box box--rule">
+    <span class="box__label">Genel süre (CS161 slayt 50)</span>
+    <p>$n$ tam sayı, en büyüğü $M$, taban $r$:</p>
+    <ul>
+      <li>Basamak sayısı $d = \lfloor \log_r M\rfloor + 1$.</li>
+      <li>Her geçiş: $r$ kova aç, $n$ sayıyı yerleştir: $O(n + r)$.</li>
+    </ul>
+    $$T = O\big(d\,(n+r)\big) = O\Big(\big(\lfloor\log_r M\rfloor + 1\big)\,(n + r)\Big)$$
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Takas</span>
+    <p>Büyük $r$ = daha az geçiş ama daha çok kova. Örnekteki dizide taban 10: 3 geçiş × 10 kova. Taban 100: 2 geçiş × 100 kova (yukarıdaki animasyonda dene).</p>
+    <p>Taban 10 genelde kötü seçim: $\{1,\dots,n\}$'deki sayılar için $d = \lfloor\log_{10} n\rfloor + 1$ (örneğin $n = 1234$ → 4 basamak), süre $O(n\log n)$. MergeSort'tan farkı yok.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Makul seçim: r = n</span>
+    <p>$n$ ile $r$'yi dengele: $r = n$ ⇒ her geçiş $O(n)$ ve
+    $$T = O\big(n\cdot(\lfloor\log_n M\rfloor + 1)\big).$$</p>
+    <ul>
+      <li><strong>Kazandığı yer:</strong> $M \le n^c$, $c$ sabit ⇒ en fazla $c+1$ geçiş ⇒ $O(n)$. CS161: "$n^{100}$'e kadar olan sayıları $O(n)$'de sıralar." 100 yerine herhangi bir sabit olabilir.</li>
+      <li><strong>Kaybettiği yer:</strong> $M = 2^n$ ⇒ $\log_n 2^n = n/\log n$ geçiş ⇒ $O(n^2/\log n)$, MergeSort'tan kötü. Sayılar $n$'e göre çok büyükse RadixSort kullanma.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Alt sınırla çelişmez</span>
+    <p>RadixSort iki elemanı hiç karşılaştırmaz; basamağı okur ve kova indeksi olarak kullanır. Yani karşılaştırma modelinin dışında ve $\Omega(n\log n)$ onu bağlamaz. Bedeli: sadece tam sayı (ya da basamaklara ayrılabilen) anahtarlarda çalışır ve süresi $M$'ye bağlıdır.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"RadixSort her zaman $O(n)$" yanlış. $d$, $M$'ye ve $r$'ye bağlı.</li>
+      <li>Tabanı büyütmek her zaman iyi değil: $r = n^2$ ile geçiş sayısı azalır ama her geçiş $O(n^2)$ olur.</li>
+      <li>$\log_n M$'deki "+1"i atma: $M &lt; n$ iken $\log_n M &lt; 1$ ama yine bir geçiş gerekir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">Concept check · [1, n³) aralığı</span>
+    <p>$A$'da $n$ pozitif tam sayı var, hepsi $[1, n^3)$ aralığında. (a) CountingSort'un süresi? (b) Taban 10 RadixSort'un süresi? (c) Hangi taban en hızlısı: 2, 10, $n$, $n^2$?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) CountingSort'ta $k$ ne? (b) $n^3$'ün ondalık basamak sayısı $\log_{10} n$ cinsinden ne?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c) Her taban için iki sayıyı ayrı hesapla: geçiş sayısı $d$ ve geçiş başına maliyet $n + r$. Sonra çarp.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) $k = n^3$ ⇒ $\Theta(n + n^3) = \Theta(n^3)$.</p>
+      <p>(b) $d \approx 3\log_{10} n$, geçiş başına $\Theta(n + 10)$ ⇒ $\Theta(n\log n)$.</p>
+      <p>(c) Taban 2: $\approx 3\log_2 n$ geçiş, $\Theta(n\log n)$. Taban $n$: 3 geçiş × $\Theta(n)$ = $\Theta(n)$. Taban $n^2$: 2 geçiş × $\Theta(n + n^2)$ = $\Theta(n^2)$. En hızlısı <strong>taban $n$</strong>.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">HW4 S2 · Word representations</span>
+    <p>$W = [$the, quick, brown, fox, jumps, over, the, lazy, dog$]$, kelimeler boşlukla aynı uzunluğa tamamlanıyor (boşluk 'a'dan önce). RadixSort $O(d(n+r))$.</p>
+    <ol>
+      <li>2.1: $d$, $n$, $r$ neyi ifade eder, değerleri ne?</li>
+      <li>2.2: Her karakter 8 bitlik ASCII'ye çevrilip bit dizisi olarak sıralanırsa?</li>
+      <li>2.3: Önce ilk yayın tarihine, eşitlikte alfabeye göre sıralamak için "jumps" (19 Kasım 1562) nasıl yazılmalı?</li>
+      <li>2.4: $n &gt; 2$ kelimelik $V$'deki kelimeler 0, 1, 10, 11, … diye ikili sayılarla kodlanırsa süre?</li>
+      <li>2.5: Kelimeler uzunluğu $n$ olan one-hot vektörlerle kodlanırsa süre?</li>
+    </ol>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$n$ = sıralanan eleman sayısı, $d$ = bir elemandaki "basamak" (karakter ya da bit) sayısı, $r$ = bir basamağın alabileceği değer sayısı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>2.3'te LSD sırası önemli: en önemli anahtar (tarih) stringin <strong>başında</strong> olmalı ve her tarih aynı uzunlukta yazılmalı. 2.4'te $n-1$'in ikili gösteriminde kaç bit var?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>2.1: $n = 9$ kelime, $d = 5$ (en uzun kelime "quick", "brown", "jumps"), $r = 27$ (26 harf + boşluk).</p>
+      <p>2.2: $n = 9$, $d = 5 \cdot 8 = 40$ bit, $r = 2$.</p>
+      <p>2.3: <code>15621119jumps</code>: YYYYMMDD sonra kelime. Tarih en önde olduğu için en son (en önemli) geçişler onu sıralar; eşitlikte kelime kısmı bozulmadan kalır. "brainrot" (2024) bu yüzden sonra gelir.</p>
+      <p>2.4: $r = 2$, $d = \Theta(\log n)$ bit ⇒ $O(n\log n)$.</p>
+      <p>2.5: $r = 2$, $d = n$ ⇒ $O(n(n+2)) = O(n^2)$.</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-radix-time">
+    <p class="quiz__q">$n$ sayı, hepsi $0 \le x &lt; n^{2}$. En iyi seçim ve süre?</p>
+    <button class="quiz__opt">CountingSort, $\Theta(n)$<span class="why">CountingSort'ta $k = n^2$, süre $\Theta(n + n^2) = \Theta(n^2)$.</span></button>
+    <button class="quiz__opt" data-correct>RadixSort, taban $n$: 2 geçiş, $\Theta(n)$<span class="why">Doğru. Her sayı taban $n$'de 2 basamaklı, her geçiş $\Theta(n + n)$.</span></button>
+    <button class="quiz__opt">RadixSort, taban 10: $\Theta(n)$<span class="why">Taban 10'da $\approx 2\log_{10} n$ geçiş var, süre $\Theta(n\log n)$.</span></button>
+  </div>
+  <p class="src">Kaynak: CS161 Lecture 6 slayt 42–55 (taban 100 örneği, $r = n$, $n^{100}$, $2^n$) · CS161 notları §3 · concept check S3 · HW4 S2 · Bilkent CS473 L9 slayt 42–48. Geçiş sayıları Python ile doğrulandı.</p>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="check" data-min="5">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Bir algoritma 3 farklı elemanı her girdide en fazla 2 karşılaştırmayla sıraladığını iddia ediyor. Doğru olabilir mi?</p>
+    <button class="quiz__opt">Evet, InsertionSort sıralı girdide 2 karşılaştırma yapar<span class="why">Bu tek bir girdi. İddia "her girdide" diyor, yani worst case 2.</span></button>
+    <button class="quiz__opt" data-correct>Hayır: 2 karşılaştırmalık ağacın en fazla 4 yaprağı var, 6 sıra gerekiyor<span class="why">Doğru. $2^2 = 4 &lt; 3! = 6$. En az $\lceil\log_2 6\rceil = 3$.</span></button>
+    <button class="quiz__opt">Evet, randomized olursa<span class="why">Randomized karşılaştırma algoritmaları da aynı sınıra tabi (beklenen değerde). Rastgelelik yaprak sayısını azaltmaz.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Concept check: $n$ karşılaştırılabilir elemanı, her biri $\log n$ büyüklüğünde $n/\log n$ gruba $O(n)$'de bölmek (her $i &lt; j$ için $i$. gruptakiler $\le$ $j$. gruptakiler) mümkün mü?</p>
+    <button class="quiz__opt">Mümkün, Select ile medyanlara bölerek<span class="why">Tekrarlı Select ile bölmek $O(n\log(n/\log n))$ tutar, $O(n)$ değil. Ve aslında hiçbir yöntem yapamaz.</span></button>
+    <button class="quiz__opt" data-correct>İmkânsız: sonra her grubu MergeSort'la sıralarsan toplam $O(n\log\log n)$'de sıralamış olursun<span class="why">Doğru. $\frac{n}{\log n}\cdot O(\log n\log\log n) = O(n\log\log n) = o(n\log n)$, alt sınırla çelişir.</span></button>
+    <button class="quiz__opt">Mümkün, çünkü gruplar kendi içinde sıralı olmak zorunda değil<span class="why">Gruplar sıralı olmasa da onları sıralamak ucuz; asıl iş gruplar arası düzende ve o iş alt sınırı aşar.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">LSD RadixSort'un her geçişte stable bir sıralama kullanması neden şart?</p>
+    <button class="quiz__opt">Basamak değerleri tekrar edebildiği için CountingSort başka türlü çalışmaz<span class="why">CountingSort tekrarlarla stable olmasa da çalışır, sadece eşitlerin sırası rastgele olur. Sorun RadixSort'un invariant'ında.</span></button>
+    <button class="quiz__opt">Yoksa her geçiş $O(n+r)$'den uzun sürer<span class="why">Stability süreyle ilgili değil, doğrulukla ilgili.</span></button>
+    <button class="quiz__opt" data-correct>Basamağı eşit olan iki sayının sırası önceki geçişlerden geliyor; stable olmazsa o bilgi kaybolur<span class="why">Doğru. İspatın "$x_t = y_t$" durumu tam olarak bunu kullanıyor.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">CS161'e göre $r = n$ tabanlı RadixSort hangi durumda MergeSort'tan <strong>kötüdür</strong>?</p>
+    <button class="quiz__opt">Sayılar $n^{100}$'e kadar olduğunda<span class="why">$\log_n n^{100} = 100$ sabit, süre $O(n)$. Bu RadixSort'un kazandığı durum.</span></button>
+    <button class="quiz__opt" data-correct>Sayılar $2^n$ büyüklüğünde olduğunda<span class="why">Doğru. $n/\log n$ geçiş, toplam $O(n^2/\log n) \gg n\log n$.</span></button>
+    <button class="quiz__opt">Sayılar $1..n$ aralığında olduğunda<span class="why">Taban $n$'de tek basamak, tek geçiş, $O(n)$.</span></button>
+  </div>
+  <p class="src">Sıradaki konu: BST ve red-black tree.</p>
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js"></script>
+<script src="../assets/lab.js"></script>
+<script>
+/* Decision tree of InsertionSort for n = 3, built by running the algorithm on all 6 orders */
+(function () {
+  function runIns(vals) {
+    const a = vals.map((v, i) => ({ v, id: i + 1 }));
+    const path = [];
+    for (let j = 1; j < a.length; j++) {
+      const key = a[j];
+      let i = j - 1;
+      while (i >= 0) {
+        const gt = a[i].v > key.v;
+        path.push({ l: a[i].id, r: key.id, gt, lv: a[i].v, rv: key.v });
+        if (!gt) break;
+        a[i + 1] = a[i];
+        i--;
+      }
+      a[i + 1] = key;
+    }
+    return { path, out: a.map(x => x.id), sorted: a.map(x => x.v) };
+  }
+  function perms(arr) {
+    if (arr.length <= 1) return [arr.slice()];
+    const res = [];
+    arr.forEach((x, i) => perms(arr.slice(0, i).concat(arr.slice(i + 1))).forEach(p => res.push([x].concat(p))));
+    return res;
+  }
+  // build the tree: node ids are strings of L (≤) / R (>)
+  const nodes = {};
+  perms([1, 2, 3]).forEach(p => {
+    const run = runIns(p);
+    let id = "";
+    run.path.forEach(s => {
+      nodes[id] = nodes[id] || { id, label: s.l + ":" + s.r };
+      id += s.gt ? "R" : "L";
+    });
+    nodes[id] = { id, leaf: run.out };
+  });
+  // layout: leaves get consecutive slots, internal nodes sit above the middle of their children
+  let slot = 0, maxDepth = 0;
+  function place(id, depth) {
+    const n = nodes[id];
+    n.depth = depth; maxDepth = Math.max(maxDepth, depth);
+    if (n.leaf) { n.x = slot++; return n.x; }
+    n.x = (place(id + "L", depth + 1) + place(id + "R", depth + 1)) / 2;
+    return n.x;
+  }
+  place("", 0);
+  const W = 640, H = 70 + maxDepth * 78, X = s => 50 + s * (W - 100) / (slot - 1), Y = d => 30 + d * 78;
+
+  function svg(onPath, done) {
+    let e = "", v = "";
+    Object.values(nodes).forEach(n => {
+      if (n.leaf) return;
+      ["L", "R"].forEach(dir => {
+        const c = nodes[n.id + dir], hot = onPath.has(c.id) && onPath.has(n.id);
+        e += `<line x1="${X(n.x)}" y1="${Y(n.depth)}" x2="${X(c.x)}" y2="${Y(c.depth)}" style="stroke:${hot ? "var(--accent)" : "var(--border-strong)"};stroke-width:${hot ? 3 : 1.5}"/>`;
+        const mx = (X(n.x) + X(c.x)) / 2 + (dir === "L" ? -10 : 10), my = (Y(n.depth) + Y(c.depth)) / 2;
+        e += `<text x="${mx}" y="${my}" text-anchor="middle" style="font-size:13px;fill:var(--fg-subtle)">${dir === "L" ? "≤" : "&gt;"}</text>`;
+      });
+    });
+    Object.values(nodes).forEach(n => {
+      const hot = onPath.has(n.id), x = X(n.x), y = Y(n.depth);
+      if (n.leaf) {
+        const fill = hot && done ? "var(--blue-100)" : "var(--bg-elevated)", stroke = hot && done ? "var(--blue-600)" : "var(--border-strong)";
+        v += `<rect x="${x - 34}" y="${y - 14}" width="68" height="28" rx="6" style="fill:${fill};stroke:${stroke};stroke-width:${hot && done ? 2.5 : 1.5}"/>`;
+        v += `<text x="${x}" y="${y + 5}" text-anchor="middle" style="font-size:13px;font-weight:700;fill:var(--fg)">⟨${n.leaf.join(",")}⟩</text>`;
+      } else {
+        v += `<circle cx="${x}" cy="${y}" r="19" style="fill:${hot ? "var(--orange-100)" : "var(--bg-elevated)"};stroke:${hot ? "var(--accent)" : "var(--border-strong)"};stroke-width:${hot ? 2.5 : 1.5}"/>`;
+        v += `<text x="${x}" y="${y + 5}" text-anchor="middle" style="font-size:13px;font-weight:700;fill:var(--fg)">${n.label}</text>`;
+      }
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;display:block" role="img" aria-label="InsertionSort karar ağacı, n = 3">${e}${v}</svg>`;
+  }
+
+  const inner = Object.values(nodes).filter(n => !n.leaf).length;
+  const inputs = perms([4, 6, 9]);
+  const sel = document.getElementById("dt-sel"), box = document.getElementById("dt-stepper");
+  sel.innerHTML = inputs.map((p, i) => `<option value="${i}">⟨${p.join(", ")}⟩${p.join() === "9,4,6" ? " (slayt örneği)" : ""}</option>`).join("");
+  sel.value = String(inputs.findIndex(p => p.join() === "9,4,6"));
+  function build() {
+    const vals = inputs[+sel.value], run = runIns(vals);
+    const ids = [""];
+    run.path.forEach(s => ids.push(ids[ids.length - 1] + (s.gt ? "R" : "L")));
+    const frames = [{ k: 0, caption: `Girdi $a_1 = ${vals[0]},\\ a_2 = ${vals[1]},\\ a_3 = ${vals[2]}$. Ağaç 6 sıranın hepsinde InsertionSort çalıştırılarak kuruldu: ${inner} iç düğüm, ${slot} yaprak, yükseklik ${maxDepth}.` }];
+    run.path.forEach((s, k) => frames.push({ k: k + 1,
+      caption: `Soru ${k + 1}: $a_${s.l} \\le a_${s.r}$ mi? $${s.lv} ${s.gt ? "&gt;" : "\\le"} ${s.rv}$ → ${s.gt ? "sağ dal (&gt;)" : "sol dal (≤)"}.` }));
+    frames.push({ k: run.path.length + 1, done: true,
+      caption: `Yaprak $\\langle ${run.out.join(",")}\\rangle$: çıktı $${run.out.map(i => "a_" + i).join(", ")} = ${run.sorted.join(", ")}$. <b>${run.path.length} karşılaştırma</b> = yolun uzunluğu.` });
+    Lab.stepper(box, { title: "InsertionSort, n = 3", interval: 1300, frames,
+      render(f, i, el) { el.innerHTML = svg(new Set(ids.slice(0, f.k)), !!f.done); } });
+  }
+  sel.onchange = build; build();
+})();
+
+/* CountingSort (CLRS version) on the slide example */
+(function () {
+  const A = [4, 1, 3, 4, 3], k = 4, n = A.length;
+  const seen = {}, total = {};
+  A.forEach(v => { total[v] = (total[v] || 0) + 1; });
+  const sub = ["", "₁", "₂", "₃", "₄"];
+  const lab = [], mlab = [];
+  A.forEach(v => { seen[v] = (seen[v] || 0) + 1; lab.push(total[v] > 1 ? v + sub[seen[v]] : String(v)); mlab.push(total[v] > 1 ? v + "_" + seen[v] : String(v)); });
+  const code = ["for i = 1 to k: C[i] = 0", "for j = 1 to n: C[A[j]] = C[A[j]] + 1", "for i = 2 to k: C[i] = C[i] + C[i-1]",
+    "for j = n downto 1:", "    B[C[A[j]]] = A[j]", "    C[A[j]] = C[A[j]] - 1"];
+  const frames = [];
+  let C = new Array(k).fill(0);
+  const B = new Array(n).fill(null);
+  const snap = (o) => frames.push(Object.assign({ C: C.slice(), B: B.slice() }, o));
+  snap({ line: 0, caption: "Adım 1: $k = 4$ sayacın hepsi 0. $\\Theta(k)$." });
+  for (let j = 0; j < n; j++) {
+    C[A[j] - 1]++;
+    snap({ line: 1, aj: j, ci: A[j] - 1, caption: `Adım 2: $A[${j + 1}] = ${A[j]}$ → $C[${A[j]}] = ${C[A[j] - 1]}$.` + (j === n - 1 ? " Artık $C[i]$ = değeri $i$ olan eleman sayısı." : "") });
+  }
+  for (let i = 1; i < k; i++) {
+    C[i] += C[i - 1];
+    snap({ line: 2, ci: i, caption: `Adım 3: $C[${i + 1}] = C[${i + 1}] + C[${i}] = ${C[i]}$.` + (i === k - 1 ? " Artık $C[i]$ = değeri $\\le i$ olan eleman sayısı." : "") });
+  }
+  for (let j = n - 1; j >= 0; j--) {
+    const v = A[j], pos = C[v - 1];
+    B[pos - 1] = lab[j];
+    C[v - 1]--;
+    snap({ line: 4, aj: j, ci: v - 1, bp: pos - 1,
+      caption: `Adım 4: $A[${j + 1}] = ${mlab[j]}$, $C[${v}] = ${pos}$ → $B[${pos}]$'e yaz, sonra $C[${v}] = ${C[v - 1]}$.` +
+        (j === 0 ? ` <b>Bitti.</b> ${lab.filter(s => s.length > 1).length ? "Eşitler girdideki sırada: $3_1$ önce $3_2$, $4_1$ önce $4_2$. Stable." : ""} Toplam $\\Theta(n + k)$.` : "") });
+  }
+  const row = (name, html) => `<div style="display:flex;align-items:center;gap:10px"><b style="width:18px">${name}</b><div style="flex:1;min-width:0">${html}</div></div>`;
+  Lab.stepper(document.getElementById("cs-stepper"), { title: "CountingSort, A = [4, 1, 3, 4, 3], k = 4", interval: 1100, frames,
+    render(f, i, el) {
+      const am = {}, cm = {}, bm = {};
+      if (f.aj !== undefined) am[f.aj] = "cmp";
+      if (f.ci !== undefined) cm[f.ci] = f.line === 2 ? "swap" : "pivot";
+      f.B.forEach((x, p) => { if (x !== null) bm[p] = "done"; });
+      if (f.bp !== undefined) bm[f.bp] = "swap";
+      el.innerHTML = Lab.codeView(code, f.line) +
+        row("A", Lab.arrayView(lab, { marks: am, base: 1 })) +
+        row("C", Lab.arrayView(f.C, { marks: cm, base: 1 })) +
+        row("B", Lab.arrayView(f.B.map(x => x === null ? "·" : x), { marks: bm, base: 1 }));
+    } });
+})();
+
+/* LSD RadixSort with FIFO buckets on the CS161 slide example */
+(function () {
+  const A0 = [21, 345, 13, 101, 50, 234, 1];
+  const sel = document.getElementById("rx-sel"), box = document.getElementById("rx-stepper");
+  function build() {
+    const r = +sel.value, w = r === 10 ? 1 : 2, max = Math.max.apply(null, A0);
+    let d = 1; while (Math.pow(r, d) <= max) d++;
+    const len = d * w, pad = x => String(x).padStart(len, "0");
+    const digit = (x, p) => Math.floor(x / Math.pow(r, p)) % r;
+    const frames = [];
+    let arr = A0.slice();
+    frames.push({ arr: arr.slice(), p: -1, caption: `Taban $r = ${r}$: en büyük sayı ${max}, yani $d = ${d}$ basamak ($d = \\lfloor \\log_{${r}} ${max} \\rfloor + 1$). Her geçiş $O(n + r)$.` });
+    for (let p = 0; p < d; p++) {
+      const buckets = Array.from({ length: r }, () => []);
+      const used = new Set(arr.map(x => digit(x, p)));
+      frames.push({ arr: arr.slice(), p, buckets: buckets.map(b => b.slice()), used, caption: `${p + 1}. geçiş: anahtar sağdan ${p + 1}. ${r === 10 ? "basamak" : "basamak (iki hane)"}. Elemanları <b>soldan sağa</b> sırayla kovalara at.` });
+      arr.forEach((x, i) => {
+        buckets[digit(x, p)].push(x);
+        frames.push({ arr: arr.slice(), p, cur: i, buckets: buckets.map(b => b.slice()), used,
+          caption: `$${x}$: anahtar $${String(digit(x, p)).padStart(w, "0")}$ → kova ${digit(x, p)}${buckets[digit(x, p)].length > 1 ? " (kovada zaten eleman var, <b>arkasına</b> eklenir: FIFO)" : ""}.` });
+      });
+      arr = [].concat.apply([], buckets);
+      frames.push({ arr: arr.slice(), p, after: true, buckets: buckets.map(b => b.slice()), used,
+        caption: p === d - 1 ? `Kovaları sırayla birleştir: <b>sıralandı</b>. ${d} geçiş × $O(n + ${r})$.` :
+          `Kovaları 0'dan ${r - 1}'e, her kovayı geldiği sırayla birleştir. Dizi artık <b>son ${p + 1} basamağa</b> göre sıralı.` });
+    }
+    function num(x, p, mark) {
+      const s = pad(x);
+      let h = s;
+      if (p >= 0) { const a = len - (p + 1) * w, b = len - p * w; h = s.slice(0, a) + `<b style="color:var(--accent)">${s.slice(a, b)}</b>` + s.slice(b); }
+      return `<span class="arr__cell${mark ? " m-" + mark : ""}" style="min-width:${len * 12 + 18}px"><span>${h}</span></span>`;
+    }
+    Lab.stepper(box, { title: `RadixSort (LSD), taban ${r}`, interval: 800, frames,
+      render(f, i, el) {
+        const shown = f.after ? -1 : f.cur;
+        let h = `<div class="arr" style="padding-top:4px">${f.arr.map((x, k) => num(x, f.after ? -1 : f.p, k === shown ? "cmp" : (f.cur !== undefined && k < f.cur ? "dim" : ""))).join("")}</div>`;
+        if (f.buckets) {
+          const cols = [];
+          for (let b = 0; b < r; b++) {
+            if (r > 10 && !f.used.has(b)) continue;
+            cols.push(`<div style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:${len * 12 + 22}px">` +
+              `<div style="display:flex;flex-direction:column;gap:3px;min-height:40px;justify-content:flex-end">${f.buckets[b].map(x => num(x, f.p, "")).join("")}</div>` +
+              `<div style="border-top:3px solid var(--border-strong);width:100%;text-align:center;font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--fg-subtle)">${String(b).padStart(w, "0")}</div></div>`);
+          }
+          h += `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">${cols.join("")}</div>`;
+          h += `<div class="src">Her kovada en üstteki ilk gelen; birleştirirken üstten aşağı okunur (FIFO).</div>`;
+          if (r > 10) h += `<div class="src">Sadece bu geçişte dolacak kovalar gösteriliyor; toplam ${r} kova var.</div>`;
+        }
+        el.innerHTML = h;
+      } });
+  }
+  sel.onchange = build; build();
+})();
+</script>
+</body>
+</html>
