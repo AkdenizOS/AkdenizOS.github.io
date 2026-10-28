@@ -111,10 +111,40 @@
     return { go(n) { i = n; show(); } };
   }
 
+  /* ── Review queue (successive relearning) ──
+     A wrong answer puts the question in the queue, due now. It leaves only
+     after two correct answers in separate sittings (the second one is due
+     6 hours later). The student cannot drop items by hand: in the relearning
+     studies, self-chosen dropping removed the benefit. */
+  const RELEARN_GAP = 6 * 3600 * 1000;
+  function queueGet(course) { return store.get(`${course}/queue`, {}); }
+  function recordAnswer(course, item, ok) {
+    const q = queueGet(course);
+    const key = `${item.slug}#${item.id}`;
+    const prev = q[key];
+    if (!ok) {
+      q[key] = { slug: item.slug, id: item.id, title: item.title, html: item.html, due: Date.now(), streak: 0, misses: (prev ? prev.misses : 0) + 1 };
+    } else if (prev && Date.now() >= prev.due) {
+      prev.streak += 1;
+      if (prev.streak >= 2) delete q[key];
+      else prev.due = Date.now() + RELEARN_GAP;
+    }
+    store.set(`${course}/queue`, q);
+    document.dispatchEvent(new CustomEvent("lab:queue"));
+  }
+  function queueCounts(course) {
+    const items = Object.values(queueGet(course));
+    const now = Date.now();
+    return { due: items.filter((x) => x.due <= now).length, later: items.filter((x) => x.due > now).length };
+  }
+
   /* ── Quiz ── */
-  function initQuiz(q, course, lesson) {
+  function initQuiz(q, course, lesson, opt) {
+    opt = opt || {};
     const key = `${course}/${lesson}/quiz`;
     const id = q.id || "";
+    const pristine = opt.html || q.outerHTML;
+    const lessonTitle = opt.title || (document.querySelector(".lesson-head h1") || {}).textContent || lesson;
     const opts = Array.from(q.querySelectorAll(".quiz__opt"));
     if (!q.querySelector(".quiz__tag")) q.insertAdjacentHTML("afterbegin", '<div class="quiz__tag">Kendini dene</div>');
     q.insertAdjacentHTML("beforeend", '<button class="btn btn--sm quiz__retry">↺ Yeniden dene</button>');
@@ -125,9 +155,12 @@
         q.classList.add("is-answered");
         opts.forEach((x) => { if (x.hasAttribute("data-correct")) x.classList.add("is-correct"); });
         if (!o.hasAttribute("data-correct")) o.classList.add("is-wrong");
+        const ok = o.hasAttribute("data-correct");
         const res = store.get(key, {});
-        res[id] = o.hasAttribute("data-correct");
+        res[id] = ok;
         store.set(key, res);
+        recordAnswer(course, { slug: lesson, id, title: lessonTitle.trim(), html: pristine }, ok);
+        q.dispatchEvent(new CustomEvent("lab:answered", { bubbles: true, detail: { ok } }));
       });
     });
     q.querySelector(".quiz__retry").addEventListener("click", () => {
@@ -137,8 +170,10 @@
   }
 
   /* ── Pomodoro (25 / 5) ── */
+  const pomos = [];
   function pomodoro(el) {
     let left = 25 * 60, br = false, t = null;
+    pomos.push({ start() { if (!t) btn.click(); } });
     el.innerHTML = '<span class="pomo"><b>25:00</b><button class="btn btn--sm" data-p>▶ Odak</button></span>';
     const b = el.querySelector("b"), btn = el.querySelector("[data-p]"), wrap = el.querySelector(".pomo");
     const draw = () => { b.textContent = `${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}`; };
@@ -156,6 +191,101 @@
       }, 1000);
     });
     draw();
+  }
+
+  /* ── Just start: a 2-minute entry with an if-then plan ── */
+  function justStart(onGo) {
+    const old = document.querySelector(".juststart");
+    if (old) old.remove();
+    const plan = store.get("ifthen", "Telefonu açmak istersem başka odaya koyarım.");
+    document.body.insertAdjacentHTML("beforeend",
+      `<div class="juststart" role="dialog" aria-label="Sadece başla">
+        <div class="juststart__card">
+          <b class="juststart__time">2:00</b>
+          <p>Sadece 2 dakika. Sıradaki bölümü aç, ilk paragrafı oku ve ilk soruyu dene. Süre bitince devam edip etmemeye sen karar verirsin.</p>
+          <label>If-then planın<input class="juststart__plan" value="${esc(plan)}"></label>
+          <div class="juststart__row"><button class="btn btn--sm" data-js-close>Kapat</button><button class="btn btn--sm btn--accent" data-js-pomo hidden>▶ 25 dk odak başlat</button></div>
+        </div>
+      </div>`);
+    const box = document.querySelector(".juststart");
+    const timeEl = box.querySelector(".juststart__time");
+    box.querySelector(".juststart__plan").addEventListener("change", (e) => store.set("ifthen", e.target.value));
+    let left = 120;
+    const t = setInterval(() => {
+      left--;
+      timeEl.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+      if (left <= 0) {
+        clearInterval(t);
+        timeEl.textContent = "Başladın. Devam?";
+        box.classList.add("is-open");
+        box.querySelector("[data-js-pomo]").hidden = false;
+      }
+    }, 1000);
+    box.querySelector("[data-js-close]").addEventListener("click", () => { clearInterval(t); box.remove(); });
+    box.querySelector("[data-js-pomo]").addEventListener("click", () => { pomos.forEach((p) => p.start()); box.remove(); });
+    box.classList.add("is-mini");
+    if (onGo) onGo();
+  }
+
+  /* ── Practice page: review queue and mixed test ── */
+  async function initPractice(root) {
+    const course = root.dataset.course;
+    const m = (window.LAB_COURSES || {})[course];
+    const mode = new URLSearchParams(location.search).get("mode") === "mixed" ? "mixed" : "queue";
+    const list = root.querySelector("[data-practice-list]");
+    const head = root.querySelector("[data-practice-head]");
+    const render = (items) => {
+      list.innerHTML = "";
+      items.forEach((it, k) => {
+        const wrap = document.createElement("div");
+        wrap.className = "practice-item";
+        wrap.innerHTML = `<div class="src">${k + 1}. ${esc(it.title)} · <a href="${it.slug}.html">derse git</a></div>${it.html}`;
+        list.appendChild(wrap);
+        const q = wrap.querySelector(".quiz");
+        initQuiz(q, course, it.slug, { html: it.html, title: it.title });
+        q.addEventListener("lab:answered", (e) => {
+          if (!e.detail.ok && mode === "queue") {
+            // successive relearning: the same question comes back at the end of this sitting
+            render.extra = (render.extra || 0) + 1;
+            const again = document.createElement("div");
+            again.className = "practice-item";
+            again.innerHTML = `<div class="src">Tekrar · ${esc(it.title)}</div>${it.html}`;
+            list.appendChild(again);
+            initQuiz(again.querySelector(".quiz"), course, it.slug, { html: it.html, title: it.title });
+            renderMath(again);
+          }
+        });
+      });
+      renderMath(list);
+    };
+    if (mode === "queue") {
+      const all = Object.values(queueGet(course));
+      const due = all.filter((x) => x.due <= Date.now()).sort((a, b) => b.misses - a.misses);
+      const later = all.length - due.length;
+      head.innerHTML = `<h1>Tekrar kuyruğu</h1><p class="lead">Yanlış cevapladığın sorular burada. Bir soru, iki ayrı oturumda doğru cevaplanınca kuyruktan çıkar (ikinci tekrar ilk doğrudan 6 saat sonra açılır). Şu an <b>${due.length}</b> soru hazır${later ? `, ${later} soru daha sonra açılacak` : ""}.</p>`;
+      if (!due.length) list.innerHTML = `<div class="box box--rule"><span class="box__label">Kuyruk boş</span><p>Şu an tekrar edilecek soru yok. <a href="practice.html?mode=mixed">Karışık test</a> çözebilir ya da derse dönebilirsin.</p></div>`;
+      else render(due);
+      return;
+    }
+    head.innerHTML = `<h1>Karışık test</h1><p class="lead">Tüm derslerden rastgele 10 soru. Konular karışık geldiği için önce hangi yöntemin gerektiğini seçmen gerekiyor; sınavda da öyle. Yanlışlar tekrar kuyruğuna girer.</p><p><button class="btn btn--sm" data-reshuffle>⇄ Yeni 10 soru</button></p>`;
+    list.innerHTML = '<p class="src">Sorular yükleniyor…</p>';
+    const pool = [];
+    const parser = new DOMParser();
+    await Promise.all(m.lessons.filter((l) => l.status !== "soon").map(async (l) => {
+      try {
+        const html = await (await fetch(`${l.slug}.html`)).text();
+        const doc = parser.parseFromString(html, "text/html");
+        doc.querySelectorAll("article.lesson .quiz").forEach((q) => { if (q.id) pool.push({ slug: l.slug, id: q.id, title: l.title, html: q.outerHTML }); });
+      } catch (e) { /* offline: skip that lesson */ }
+    }));
+    const pick = () => {
+      const a = pool.slice();
+      for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+      render(a.slice(0, 10));
+    };
+    head.querySelector("[data-reshuffle]").addEventListener("click", pick);
+    if (!pool.length) list.innerHTML = '<p class="src">Sorular yüklenemedi. Sayfayı bir web sunucusu üzerinden aç.</p>';
+    else pick();
   }
 
   /* ── Lesson page ── */
@@ -246,6 +376,57 @@
     document.querySelectorAll(".pomo-slot").forEach(pomodoro);
     article.querySelectorAll(".quiz").forEach((q) => initQuiz(q, course, slug));
 
+    // Retrieval first: the section's first question opens the section, the
+    // explanation stays blurred until it is answered (or skipped).
+    const tools = document.querySelector(".toc__tools");
+    const moved = [];
+    function lockSections(on) {
+      moved.forEach(({ q, mark }) => mark.parentNode.insertBefore(q, mark));
+      moved.length = 0;
+      article.querySelectorAll(".tryfirst-note").forEach((n) => n.remove());
+      secs.forEach((s) => s.classList.remove("is-locked"));
+      if (!on) return;
+      secs.forEach((s) => {
+        const q = s.querySelector(".quiz");
+        if (!q || done.has(s.id) || q.classList.contains("is-answered")) return;
+        const h = s.querySelector("h2");
+        const mark = document.createComment("quiz-home");
+        q.parentNode.insertBefore(mark, q);
+        h.insertAdjacentElement("afterend", q);
+        q.insertAdjacentHTML("beforebegin", '<p class="tryfirst-note">Önce bu soruyu dene. Bilmiyorsan tahmin et; yanlış cevap da öğrenmeye yarar. Cevaplayınca anlatım açılır. <button class="btn btn--sm" data-unlock>Atla</button></p>');
+        moved.push({ q, mark });
+        s.classList.add("is-locked");
+      });
+    }
+    article.addEventListener("lab:answered", (e) => {
+      const s = e.target.closest("section.lsec");
+      if (s) s.classList.remove("is-locked");
+    });
+    article.addEventListener("click", (e) => {
+      if (e.target.closest("[data-unlock]")) e.target.closest("section.lsec").classList.remove("is-locked");
+    });
+    if (tools) {
+      tools.insertAdjacentHTML("afterbegin",
+        `<button class="btn btn--sm btn--accent" data-juststart>▶ Sadece başla (2 dk)</button>
+         <button class="btn btn--sm" data-tryfirst></button>
+         <a class="btn btn--sm" href="practice.html?mode=queue" data-queue-link>↻ Tekrar kuyruğu</a>
+         <a class="btn btn--sm" href="practice.html?mode=mixed">⇄ Karışık test</a>`);
+      const tf = tools.querySelector("[data-tryfirst]");
+      const paintTf = (on) => { tf.textContent = on ? "✎ Önce dene: açık" : "✎ Önce dene: kapalı"; };
+      let tfOn = store.get("tryfirst", true);
+      paintTf(tfOn); lockSections(tfOn);
+      tf.addEventListener("click", () => { tfOn = !tfOn; store.set("tryfirst", tfOn); paintTf(tfOn); lockSections(tfOn); });
+      const ql = tools.querySelector("[data-queue-link]");
+      const paintQ = () => { const c = queueCounts(course); ql.textContent = c.due ? `↻ Tekrar kuyruğu (${c.due})` : "↻ Tekrar kuyruğu"; };
+      paintQ(); document.addEventListener("lab:queue", paintQ);
+      const go = () => justStart(() => {
+        const first = secs.find((s) => !done.has(s.id)) || secs[0];
+        if (first) first.scrollIntoView({ behavior: "smooth" });
+      });
+      tools.querySelector("[data-juststart]").addEventListener("click", go);
+      if (new URLSearchParams(location.search).get("start") === "1") setTimeout(go, 300);
+    }
+
     // previous / next lesson
     if (manifest) {
       const list = manifest.lessons.filter((l) => l.status !== "soon");
@@ -296,7 +477,11 @@
     const set = (sel, v) => { const e = root.querySelector(sel); if (e) e.textContent = v; };
     set("[data-stat-progress]", totalSecs ? `%${Math.round(100 * totalDone / totalSecs)}` : "%0");
     set("[data-stat-lessons]", m.lessons.filter((l) => l.status !== "soon").length);
+    const qb = root.querySelector("[data-queue-btn]");
+    if (qb) { const c = queueCounts(course); if (c.due) qb.textContent = `↻ Tekrar kuyruğu (${c.due})`; }
+    const js = root.querySelector("[data-juststart]");
     const nextBtn = root.querySelector("[data-next-lesson]");
+    if (js) js.addEventListener("click", () => { if (nextBtn) location.href = nextBtn.getAttribute("href") + "?start=1"; });
     const last = store.get(`${course}/last`, null);
     const target = firstOpen || m.lessons[0];
     if (nextBtn && target) { nextBtn.href = target.slug + ".html"; nextBtn.textContent = (last ? "Kaldığın yerden: " : "Başla: ") + target.title + " ▶"; }
@@ -319,5 +504,7 @@
     if (article) initLesson(article);
     const course = document.querySelector("[data-course-page]");
     if (course) initCourse(course);
+    const practice = document.querySelector("[data-practice]");
+    if (practice) initPractice(practice);
   });
 })();

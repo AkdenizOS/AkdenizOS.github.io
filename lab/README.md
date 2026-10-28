@@ -14,6 +14,16 @@ lab/
 
 Progress is kept in `localStorage` under `lab:<course>/<slug>/…`. No accounts, nothing leaves the browser.
 
+## Study features (all in `assets/lab.js`, no per-lesson code)
+
+They follow the learning-science findings that hold for students with ADHD too: retrieval practice, successive relearning, interleaving.
+
+- **Önce dene (retrieval first):** each unfinished section opens with its first quiz and the explanation stays blurred until the quiz is answered or skipped. Toggle in the lesson sidebar.
+- **Tekrar kuyruğu (review queue):** a wrong answer puts the quiz in `lab:<course>/queue`, due at once. It leaves after two correct answers in separate sittings, the second due 6 hours after the first. Items cannot be removed by hand. `practice.html?mode=queue`.
+- **Karışık test (mixed test):** 10 random quizzes fetched from every open lesson. `practice.html?mode=mixed`. Needs a web server (fetch), not `file://`.
+- **Sadece başla (just start):** a 2-minute timer with an if-then plan, then an offer to start the 25-minute focus timer. `?start=1` on a lesson URL opens it.
+- **Past exam boxes:** `<div class="box box--exam" data-exam="<id>">` marks a past exam question placed in the section that teaches what it needs, with hints and a worked solution.
+
 ## Writing a lesson
 
 Copy `cse-301/asymptotics.html` and keep its head, navbar, TOC aside, `progress-top`, `lesson-foot` and the three script tags at the bottom (`course.js`, `../assets/lab.js`, then the lesson's own script). Change the `<title>`, the description, the crumbs, the header and `data-lesson` on the article; `data-lesson` must equal the slug in `course.js`.

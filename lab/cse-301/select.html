@@ -487,26 +487,36 @@
     <button class="quiz__opt" data-correct>Select + bir tarama<span class="why">Doğru. $k$ ne olursa olsun $O(n)$.</span></button>
     <button class="quiz__opt">Sort et<span class="why">$O(n\log n)$: Select'ten yavaş. $n^{1.5}$'ten hızlı olsa da en iyisi değil.</span></button>
   </div>
-  <div class="box box--exam">
-    <span class="box__label">2019-20 vizesi S4 · 2020-21 tek ders sınavı S3</span>
-    <p>"$n$ farklı sayıdan oluşan $S$ ve pozitif $k \le n$ verildiğinde, $S$'nin <strong>median'ına değerce en yakın</strong> $k$ sayıyı bulan $O(n)$ bir algoritma tarif et."</p>
+  <div class="box box--exam" data-exam="2020-21-single-Q3">
+    <span class="box__label">2020-21 tek ders sınavı S3 · 2019-20 vizesi S4 · çıkmış soru</span>
+    <p>"Implement an O(n) algorithm that, given a set S of n distinct numbers and a positive integer k≤n, determines the k numbers in S that have the closest value to the median of S."</p>
+    <p>2019-20 vizesinde aynı soru "Describe an O(n) algorithm … that are closest to the median of S" diye sorulmuştu. Tek ders sınavı bir programlama sınavı: "Implement" burada bir function yazmak demek.</p>
     <details class="hint"><summary>İpucu 1</summary><div><p>Önce median $m$'yi bul. Hangi algoritma bunu $O(n)$'de yapar?</p></div></details>
     <details class="hint"><summary>İpucu 2</summary><div><p>"Değerce en yakın" = $|s - m|$ en küçük. Her eleman için bu mesafeyi hesapla. Soru yine bir selection problem'ine dönüştü.</p></div></details>
-    <details class="hint"><summary>İpucu 3</summary><div><p>Mesafeler arasında $k$-th smallest olanı, yani $\delta$'yı bul. Sonra tek taramayla mesafesi $\le \delta$ olanları topla.</p></div></details>
+    <details class="hint"><summary>İpucu 3</summary><div><p>Mesafeler arasında $k$-th smallest olanı bul, sonra tek taramayla ondan büyük olmayanları topla. İki sayı aynı mesafede olabilir ($m - d$ ve $m + d$). Select distinct eleman istiyor: mesafeyi değerle birlikte $(|s - m|, s)$ çifti olarak tut.</p></div></details>
     <details class="reveal"><summary>Çözümü göster</summary><div>
       <ol>
-        <li>$m \leftarrow$ Select$(S, n, \lceil n/2 \rceil)$ (median of medians): $O(n)$.</li>
-        <li>$m$ hariç her $s$ için $D[s] = |s - m|$: $O(n)$.</li>
-        <li>$\delta \leftarrow$ Select$(D, n-1, k)$: $O(n)$.</li>
-        <li>$S$'yi tara, $s \ne m$ ve $|s - m| \le \delta$ olanları output'a yaz (eşit mesafede fazlası çıkarsa $k$'da dur): $O(n)$.</li>
+        <li>$m \leftarrow$ Select$(S, \lceil n/2 \rceil)$ (median of medians): $O(n)$.</li>
+        <li>Her $s \in S$ için $D$'ye $(|s - m|, s)$ çiftini yaz: $O(n)$. $S$'nin elemanları farklı olduğu için çiftler de farklı (lexicographic sıra: önce mesafe, eşitse değer).</li>
+        <li>$t \leftarrow$ Select$(D, k)$, yani $k$-th smallest çift: $O(n)$.</li>
+        <li>$D$'yi tara, $\le t$ olan çiftlerin $s$'sini output'a yaz. Tam $k$ eleman çıkar: $O(n)$.</li>
       </ol>
-      <p>Toplam $O(n)$: constant sayıda Select ve tarama.</p>
-      <p><strong>Örnek:</strong> $S = [3, 19, 7, 40, 11, 16, 1, 14, 28]$, $k = 3$. $m = 14$. Mesafeler: 16→2, 11→3, 19→5, 7→7, 3→11, 1→13, 28→14, 40→26. $\delta = 5$ ⇒ cevap $\{16, 11, 19\}$.</p>
+<pre><code>def closest_to_median(S, k):
+    n = len(S)
+    m = select(S, (n + 1) // 2)              # median, O(n)
+    D = [(abs(s - m), s) for s in S]         # (mesafe, değer), hepsi farklı
+    t = select(D, k)                         # k-th smallest çift, O(n)
+    return [s for (d, s) in D if (d, s) &lt;= t]   # tam k eleman, O(n)</code></pre>
+      <p>Burada <code>select</code>, Bölüm 7'deki median of medians Select'i. Toplam: üç $O(n)$ adım ve bir tarama, yani worst case $O(n)$.</p>
+      <p><strong>Neden doğru:</strong> $t$, $k$-th smallest çift olduğu için tam $k$ çift $\le t$. Seçilen her elemanın mesafesi, seçilmeyen her elemanın mesafesinden büyük değil. Median'ın kendisi mesafe 0 ile her zaman seçilir; $k \le n$ olduğu için onu dışarıda bırakamayız, yoksa $k = n$ iken $k$ eleman bulunamaz.</p>
+      <p><strong>Örnek:</strong> $S = [3, 19, 7, 40, 11, 16, 1, 14, 28]$, $k = 3$. Sorted hâli $1, 3, 7, 11, 14, 16, 19, 28, 40$ ⇒ $m = 14$. Çiftler sırayla $(0, 14), (2, 16), (3, 11), (5, 19), (7, 7), \ldots$ ⇒ $t = (3, 11)$, cevap $\{14, 16, 11\}$.</p>
+      <p><strong>Eşit mesafe:</strong> $S = [1, 4, 5, 6, 9]$, $k = 2$, $m = 5$. 4 ve 6'nın mesafesi 1. Çiftler $(0, 5), (1, 4), (1, 6), \ldots$ ⇒ $t = (1, 4)$, cevap $\{5, 4\}$. $\{5, 6\}$ de doğru bir cevap; çift sırası sadece birini seçmemizi sağlıyor.</p>
     </div></details>
+    <p class="src">Kaynak: <code>exams/2020-2021/single-course-exam.pdf</code> S3; <code>exams/2019-2020/exams-2019.pdf</code> vize S4. Referans çözüm (<code>exams/2019-2020/questions-Q4.txt</code>) farklı: sorted sırada median'ın iki yanındaki $k/2$ konumu alıyor, bu da rank'e göre yakınlık (aşağıdaki tuzak). Function, Python'da 20000 random input'ta ($k = n$ ve eşit mesafeler dâhil) brute force ile karşılaştırıldı.</p>
   </div>
   <div class="box box--trap">
     <span class="box__label">Rank olarak yakın ≠ değerce yakın</span>
-    <p>Repodaki 2019-20 çözüm notu, sorted array'de median'ın sağındaki ve solundaki $k/2$ konumu alıyor. Bu, <strong>rank'i</strong> en yakın elemanları verir. Counterexample: $S = [1, 2, 10, 11, 12]$, $k = 2$, $m = 10$. Rank komşuları $\{2, 11\}$, ama değerce en yakınlar $\{11, 12\}$ (mesafe 1 ve 2; 2'nin mesafesi 8). 2020-21 sorusu "closest value" diyerek bunu açıkça istiyor.</p>
+    <p>Repodaki 2019-20 çözüm notu, sorted array'de median'ın sağındaki ve solundaki $k/2$ konumu alıyor. Bu, <strong>rank'i</strong> en yakın elemanları verir. Counterexample: $S = [1, 2, 10, 11, 12]$, $k = 3$, $m = 10$. Rank komşuları $\{2, 10, 11\}$, ama değerce en yakınlar $\{10, 11, 12\}$ (mesafe 0, 1 ve 2; 2'nin mesafesi 8). 2020-21 sorusu "closest value" diyerek bunu açıkça istiyor.</p>
   </div>
   <div class="box box--exam">
     <span class="box__label">2019-20 vizesi S3</span>
