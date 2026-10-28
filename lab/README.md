@@ -12,6 +12,8 @@ lab/
   <course>/<slug>.html    one lesson
 ```
 
+GitHub Pages caches assets for 4 hours, so every page loads `lab.css`, `lab.js` and `course.js` with a `?v=N` query. Raise N in all pages whenever one of those files changes.
+
 Progress is kept in `localStorage` under `lab:<course>/<slug>/…`. No accounts, nothing leaves the browser.
 
 ## Study features (all in `assets/lab.js`, no per-lesson code)
