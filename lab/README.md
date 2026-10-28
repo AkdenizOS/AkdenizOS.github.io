@@ -57,7 +57,8 @@ KaTeX auto-render: `$…$` inline, `$$…$$` display. Inside JavaScript strings 
 <div class="box box--example"><span class="box__label">Örnek · source</span>…</div>
 <div class="box box--trap"><span class="box__label">Tuzak</span>…</div>       common mistakes
 <div class="box box--exam"><span class="box__label">2020-21 vizesi S2</span>…</div>  how exams ask it
-<p class="src">Kaynak: …</p>                                                   where it comes from
+<!-- Kaynak: … -->                                                             where it comes from (kept out of sight)
+<p class="src">Not: …</p>                                                      only notes the student needs, e.g. a wrong answer key
 ```
 
 ### Self-check questions
