@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="CSE 301: seçim problemi, Ω(n) alt sınırı, Select ve üç durum, pivot seçimi, QuickSelect, median of medians ve 7n/10 + 5 lemması." />
+  <meta name="description" content="CSE 301: selection problem, Ω(n) lower bound, Select ve üç durum, pivot seçimi, QuickSelect, median of medians ve 7n/10 + 5 lemma'sı." />
   <meta name="theme-color" content="#F7F8FC" />
   <title>Select ve median of medians · CSE 301 · AkdenizOS Lab</title>
   <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
@@ -49,7 +49,7 @@
         <header class="lesson-head">
           <div class="lesson-head__meta"><span class="chip">L4</span><span class="chip chip--exam">HW3</span><span class="src">~50 dk · 11 bölüm</span></div>
           <h1>Select ve median of medians</h1>
-          <p class="lead">Sıralanmamış bir dizide $k$. en küçük elemanı bulmak için diziyi baştan sona sıralamak gerekmez. Bu ders, bir pivot etrafında bölüp yalnızca bir tarafa inen Select algoritmasını, pivotun süreyi nasıl belirlediğini ve en kötü durumda bile $O(n)$ veren median of medians fikrini öğretir.</p>
+          <p class="lead">Unsorted bir array'de $k$-th smallest elemanı bulmak için bütün array'i sort etmek gerekmez. Bu derste üç şey var: bir pivot etrafında partition yapıp yalnızca bir tarafa inen Select algoritması, pivot seçiminin running time'ı nasıl belirlediği ve worst case'te bile $O(n)$ veren median of medians fikri.</p>
           <p class="src">Kaynak: CS161 Lecture 4 notları §2–3.6 ve slaytları (s.30–62) · CS161 Lecture 4 ve 5 concept check · Bilkent CS473 Lecture 7 slaytları (2025-26'da derste kullanıldı) · hocanın L3–L4 class-prep soruları (S6–S20) · CS161 S2 section, S5.5 midterm review · HW3 · 2019-20 vizesi S3–S4 · 2020-21 tek ders sınavı S3 · 2023-24 vizesi S3(b).</p>
         </header>
 
@@ -57,88 +57,88 @@
 
 <!-- 1 -->
 <section class="lsec" id="selection" data-min="4">
-  <h2>Seçim problemi</h2>
+  <h2>Selection problem</h2>
   <div class="box box--example">
     <span class="box__label">Örnek · CS161 pre-lecture 4</span>
-    <p>$A = [6, 4, 8, 9, 5, 2, 1]$ ve $k = 3$. Sıralı hâli $[1, 2, 4, 5, 6, 8, 9]$, üçüncü eleman <strong>4</strong>. Yani 3-select'in cevabı 4.</p>
+    <p>$A = [6, 4, 8, 9, 5, 2, 1]$ ve $k = 3$. Sorted hâli $[1, 2, 4, 5, 6, 8, 9]$, üçüncü eleman <strong>4</strong>. Yani 3-select'in cevabı 4.</p>
   </div>
   <div class="box box--rule">
     <span class="box__label">Selection problem</span>
-    <p><strong>Girdi:</strong> $n$ sayılık bir $A$ dizisi ve bir tam sayı $k \in \{1, \dots, n\}$. <strong>Çıktı:</strong> $A$'nın $k$. en küçük elemanı (Bilkent slaytlarındaki adıyla $k$-th <em>order statistic</em>).</p>
+    <p><strong>Input:</strong> $n$ sayılık bir $A$ array'i ve bir tam sayı $k \in \{1, \dots, n\}$. <strong>Output:</strong> $A$'nın $k$-th smallest elemanı (Bilkent slaytlarındaki adıyla $k$-th <em>order statistic</em>).</p>
     <ul>
-      <li>$k = 1$: minimum, $k = n$: maksimum, $k = \lceil n/2 \rceil$: median.</li>
-      <li><strong>Sıralayarak çözüm:</strong> MergeSort ile sırala ($O(n\log n)$), $k$. elemanı döndür ($O(1)$). Toplam $O(n\log n)$.</li>
+      <li>$k = 1$: minimum, $k = n$: maximum, $k = \lceil n/2 \rceil$: median.</li>
+      <li><strong>Sorting ile çözüm:</strong> MergeSort ile sort et ($O(n\log n)$), $k$-th elemanı döndür ($O(1)$). Toplam $O(n\log n)$.</li>
     </ul>
   </div>
-  <p>Neden yetmiyor? Tek bir eleman için bütün diziyi sıralıyoruz. $k = 1$ için tek bir tarama $O(n)$'de iş görüyor. Soru şu: her $k$ için $O(n)$ mümkün mü? Cevap evet, bu dersin sonunda.</p>
+  <p>Bu neden yetmiyor? Tek bir eleman için bütün array'i sort ediyoruz. $k = 1$ için tek bir tarama $O(n)$'de işi bitiriyor. Soru şu: her $k$ için $O(n)$ mümkün mü? Mümkün, dersin sonunda göreceğiz.</p>
   <div class="box box--rule">
     <span class="box__label">Median ve selection aynı zorlukta (class prep S6)</span>
     <ul>
-      <li><strong>Selection ⇒ median:</strong> önemsiz. Median $=$ Select$(A, n, \lceil n/2\rceil)$.</li>
-      <li><strong>Lineer median ⇒ lineer selection:</strong> Elinde $O(n)$'lik bir median algoritması varsa, Select'te pivot olarak tam medyanı kullan. Her adımda dizi yarıya iner: $T(n) \le T(n/2) + cn = O(n)$ (Bölüm 5).</li>
+      <li><strong>Selection ⇒ median:</strong> Kolay yön. Median $=$ Select$(A, n, \lceil n/2\rceil)$.</li>
+      <li><strong>Linear median ⇒ linear selection:</strong> Elinde $O(n)$'lik bir median algoritması varsa Select'te pivot olarak tam median'ı kullan. Her adımda array yarıya iner: $T(n) \le T(n/2) + cn = O(n)$ (Bölüm 5).</li>
     </ul>
   </div>
   <div class="box box--trap">
     <span class="box__label">Tuzak</span>
-    <p>"$k$. en küçük" bir <strong>sıra (rank)</strong>, dizideki $k$. konum değil. $A[k]$'yı döndürmek sıralı olmayan dizide anlamsız. Bilkent slaytı ayrıca "sıralamayı MergeSort ile yap, QuickSort ile değil" der: QuickSort'un en kötü durumu $\Theta(n^2)$.</p>
+    <p>"$k$-th smallest" bir <strong>rank</strong> belirtir, array'deki $k$. konumu değil. Unsorted bir array'de $A[k]$'yı döndürmenin anlamı yok. Bilkent slaytı ayrıca "sorting'i MergeSort ile yap, QuickSort ile değil" der, çünkü QuickSort'un worst case'i $\Theta(n^2)$.</p>
   </div>
   <div class="quiz" id="q-sel-basic">
     <p class="quiz__q">$A = [6, 4, 8, 9, 5, 2, 1]$ için 5-select ne döndürür?</p>
-    <button class="quiz__opt">5<span class="why">Bu $A[5]$, yani 5. konumdaki eleman. Selection konum değil sıra sorar.</span></button>
-    <button class="quiz__opt" data-correct>6<span class="why">Doğru. Sıralı dizi $[1, 2, 4, 5, 6, 8, 9]$, beşinci eleman 6.</span></button>
-    <button class="quiz__opt">4<span class="why">Bu 5. <strong>en büyük</strong> eleman ($9, 8, 6, 5, 4$). Selection küçükten sayar.</span></button>
+    <button class="quiz__opt">5<span class="why">Bu $A[5]$, yani 5. konumdaki eleman. Selection konumu sormaz, rank'i sorar.</span></button>
+    <button class="quiz__opt" data-correct>6<span class="why">Doğru. Sorted array $[1, 2, 4, 5, 6, 8, 9]$, beşinci eleman 6.</span></button>
+    <button class="quiz__opt">4<span class="why">Bu 5th <strong>largest</strong> eleman ($9, 8, 6, 5, 4$). Selection en küçükten sayar.</span></button>
   </div>
   <p class="src">Kaynak: CS161 Lecture 4 notları §2; pre-lecture 4 S1–S3; Bilkent CS473 L7 s.2–3; class prep S6.</p>
 </section>
 
 <!-- 2 -->
 <section class="lsec" id="lower-bound" data-min="4">
-  <h2>Alt sınır: minimum bile Ω(n)</h2>
+  <h2>Lower bound: minimum bile Ω(n)</h2>
   <div class="box box--intuition">
     <span class="box__label">Sezgi</span>
-    <p>Yedi kutudan altısını açtın, birini açmadın. Açmadığın kutuda en küçük sayı olabilir. Görmediğin bir sayı hakkında hiçbir şey bilemezsin; o yüzden her kutuyu açmak zorundasın.</p>
+    <p>Yedi kutudan altısını açtın, birini açmadın. En küçük sayı açmadığın kutuda olabilir. Görmediğin bir sayı hakkında hiçbir şey bilemezsin, o yüzden her kutuyu açman gerekir.</p>
   </div>
-  <p>SelectMin bunu tam olarak yapar: $m \leftarrow \infty$, her $A[i]$ için $A[i] &lt; m$ ise $m \leftarrow A[i]$. Tek tarama, $O(n)$. Daha hızlısı olamaz:</p>
+  <p>SelectMin tam olarak bunu yapar: $m \leftarrow \infty$, her $A[i]$ için $A[i] &lt; m$ ise $m \leftarrow A[i]$. Tek tarama, $O(n)$. Daha hızlısı olamaz:</p>
   <div class="box box--rule">
-    <span class="box__label">Önerme · CS161 notları Prop. 2</span>
-    <p>Minimumu bulan her <strong>deterministic</strong> algoritma $\Omega(n)$ süre harcar.</p>
+    <span class="box__label">Proposition · CS161 notları Prop. 2</span>
+    <p>Minimumu bulan her <strong>deterministic</strong> algoritmanın running time'ı $\Omega(n)$'dir.</p>
     <ol>
-      <li>Doğru bir deterministic algoritma bir $X$ girdisinde $A[i]$'yi hiç okumasın. Çıktısı $v$ olsun.</li>
-      <li>$X'$ girdisi: $X$'in aynısı, sadece $X'[i] = (\min X) - 1$.</li>
-      <li>$X'$ üzerinde algoritma okuduğu her yerde $X$ ile aynı değerleri görür. <strong>Deterministic</strong> olduğu için aynı adımları atar ve yine $v$ döndürür.</li>
-      <li>Ama $X'$'in minimumu $X'[i]$, $v$ değil. Algoritma ikisinden birinde yanlış. Çelişki. Demek ki her elemanı okumalı: en az $n$ adım.</li>
+      <li>Doğru çalışan bir deterministic algoritma, bir $X$ input'unda $A[i]$'yi hiç okumasın. Output'u $v$ olsun.</li>
+      <li>$X'$ input'u: $X$'in aynısı, sadece $X'[i] = (\min X) - 1$.</li>
+      <li>Algoritma $X'$ üzerinde okuduğu her yerde $X$ ile aynı değerleri görür. <strong>Deterministic</strong> olduğu için aynı adımları atar ve yine $v$ döndürür.</li>
+      <li>Ama $X'$'in minimumu $X'[i]$, yani $v$ değil. Algoritma iki input'tan birinde yanlış cevap verir: contradiction. Demek ki her elemanı okumalı, en az $n$ adım.</li>
     </ol>
   </div>
   <div class="box box--trap">
     <span class="box__label">"Deterministic" nerede kullanıldı? (class prep S7)</span>
     <ul>
-      <li>3. adımda: aynı okumalar ⇒ aynı işlemler ⇒ aynı çıktı.</li>
-      <li><strong>Her zaman doğru rastgele algoritma (Las Vegas):</strong> Rastgele bitleri sabitle; o bitlerle $A[i]$'yi atlayan bir koşu varsa aynı argüman o bitlerle $X'$'de yanlış cevap verdirir. Her zaman doğru olduğu için hiçbir koşu bir eleman atlayamaz: yine $\Omega(n)$.</li>
-      <li><strong>Küçük olasılıkla yanılabilen (Monte Carlo):</strong> argüman olduğu gibi işlemez, çünkü bazen yanılmasına izin var. Notlarda yok, ama fikir şu: minimumu rastgele bir konuma koyarsan $q$ konum okuyan algoritma onu kabaca $q/n$ olasılıkla görür; $\delta$ hata payıyla doğru olmak için yaklaşık $(1-\delta)n$ okuma gerekir. Sabit $\delta$ için yine $\Omega(n)$.</li>
-      <li><strong>Herhangi bir $k$ için:</strong> Evet, $\Omega(n)$. Okunmamış bir eleman, döndürülen değerin altına ya da üstüne taşınarak onun sırasını değiştirebilir.</li>
+      <li>3. adımda: aynı okumalar ⇒ aynı işlemler ⇒ aynı output.</li>
+      <li><strong>Her zaman doğru randomized algorithm (Las Vegas):</strong> Random bit'leri sabitle. O bit'lerle $A[i]$'yi atlayan bir koşu varsa aynı argüman, aynı bit'lerle $X'$'te yanlış cevap verdirir. Algoritma her zaman doğru olduğu için hiçbir koşu bir elemanı atlayamaz: yine $\Omega(n)$.</li>
+      <li><strong>Küçük bir probability ile yanılabilen (Monte Carlo):</strong> Argüman olduğu gibi işlemez, çünkü algoritmanın bazen yanılmasına izin var. Notlarda yok, ama fikir şu: minimumu random bir konuma koyarsan $q$ konum okuyan algoritma onu kabaca $q/n$ probability ile görür. $\delta$ hata payıyla doğru olmak için yaklaşık $(1-\delta)n$ okuma gerekir. Constant $\delta$ için yine $\Omega(n)$.</li>
+      <li><strong>Herhangi bir $k$ için:</strong> Evet, $\Omega(n)$. Okunmamış bir eleman döndürülen değerin altına ya da üstüne taşınırsa o değerin rank'i değişir.</li>
     </ul>
   </div>
   <div class="box box--exam">
     <span class="box__label">Class prep S7 · dene</span>
-    <p>"Neden her deterministic minimum algoritması $\Omega(n)$ zaman ister? Argümanı yeniden kur."</p>
+    <p>"Minimumu bulan her deterministic algoritma neden $\Omega(n)$ zaman ister? Argümanı yeniden kur."</p>
     <details class="hint"><summary>İpucu 1</summary><div><p>Algoritmanın bir konumu hiç okumadığını varsay. O konumdaki değeri değiştirince algoritmanın davranışı değişir mi?</p></div></details>
-    <details class="hint"><summary>İpucu 2</summary><div><p>Değiştirdiğin değeri herkesten küçük seç. Çıktı aynı kalır ama doğru cevap değişir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Yeni değeri hepsinden küçük seç. Output aynı kalır ama doğru cevap değişir.</p></div></details>
   </div>
   <div class="quiz" id="q-lower">
-    <p class="quiz__q">Bir deterministic algoritma minimumu bulurken her girdide $n-1$ eleman okuyor. Ne söylenebilir?</p>
-    <button class="quiz__opt">Bazı girdilerde doğru, bu yeterli<span class="why">Doğruluk <strong>her</strong> girdi için istenir. Okunmayan konuma çok küçük bir sayı koyan girdide yanılır.</span></button>
-    <button class="quiz__opt" data-correct>Her zaman doğru olamaz<span class="why">Doğru. Okumadığı konuma $(\min) - 1$ koy: aynı okumalar, aynı çıktı, yanlış cevap.</span></button>
-    <button class="quiz__opt">$n-1 = \Theta(n)$ olduğu için sorun yok<span class="why">Süre analizi doğruluğu kurtarmaz. Alt sınır argümanı "kaç adım" değil "hangi elemanlar okundu" sorusudur.</span></button>
+    <p class="quiz__q">Bir deterministic algoritma minimumu bulurken her input'ta $n-1$ eleman okuyor. Ne söylenebilir?</p>
+    <button class="quiz__opt">Bazı input'larda doğru, bu yeterli<span class="why">Correctness <strong>her</strong> input için istenir. Okunmayan konuma çok küçük bir sayı koyan input'ta algoritma yanılır.</span></button>
+    <button class="quiz__opt" data-correct>Her zaman doğru olamaz<span class="why">Doğru. Okumadığı konuma $(\min) - 1$ koy: aynı okumalar, aynı output, yanlış cevap.</span></button>
+    <button class="quiz__opt">$n-1 = \Theta(n)$ olduğu için sorun yok<span class="why">Running time analizi correctness'ı kurtarmaz. Lower bound argümanı adım sayısına bakmaz, hangi elemanların okunduğuna bakar.</span></button>
   </div>
   <p class="src">Kaynak: CS161 Lecture 4 notları §2.1 (Tanım 1, Önerme 2); class prep S7. Monte Carlo maddesi notlarda yok, bu dersin ek açıklaması.</p>
 </section>
 
 <!-- 3 -->
 <section class="lsec" id="select-algo" data-min="6">
-  <h2>Select: böl, tek tarafa in</h2>
+  <h2>Select: partition yap, tek tarafa in</h2>
   <div class="box box--intuition">
     <span class="box__label">Sezgi</span>
-    <p>Sıralanmamış dizide binary search. Bir pivot $p$ seç, diziyi ondan küçükler ($L$) ve büyükler ($R$) diye ayır. Aradığın eleman ya $p$'nin kendisi, ya $L$'de, ya $R$'de. Sadece <strong>bir</strong> tarafa in. QuickSort iki tarafa da iner; Select yalnız birine.</p>
+    <p>Unsorted array'de binary search gibi düşün. Bir pivot $p$ seç, array'i ondan küçükler ($L$) ve büyükler ($R$) diye ayır. Aradığın eleman ya $p$'nin kendisi, ya $L$'de ya da $R$'de. Sadece <strong>bir</strong> tarafa in. QuickSort iki tarafa da recursive call yapar, Select yalnızca birine.</p>
   </div>
   <div class="box box--rule">
     <span class="box__label">Select(A, n, k) · CS161 notları Algoritma 2</span>
@@ -149,61 +149,61 @@
   if |L| = k − 1:  return p                        (durum 1)
   if |L| &gt; k − 1:  return Select(L, |L|, k)         (durum 2)
   if |L| &lt; k − 1:  return Select(R, |R|, k − |L| − 1)   (durum 3)</code></pre>
-    <p>Elemanların farklı olduğunu varsayıyoruz (Bölüm 4'te eşitleri ele alacağız). ChoosePivot şimdilik kara kutu; doğruluğu etkilemez, sadece süreyi.</p>
+    <p>Elemanların farklı olduğunu varsayıyoruz (eşit elemanlar Bölüm 4'te). ChoosePivot şimdilik bir kara kutu: correctness'ı etkilemez, sadece running time'ı etkiler.</p>
   </div>
-  <p>Class-prep S8'in dizisi: $A = [7, 2, 9, 4, 1, 8, 5]$. Pivot kuralı "son eleman" (S8'deki pivot 5 tam da son eleman). $k$'yı değiştir ve oynat; kareler algoritmanın gerçek çalışmasından üretiliyor.</p>
+  <p>Class-prep S8'in array'i: $A = [7, 2, 9, 4, 1, 8, 5]$. Pivot kuralı "son eleman" (S8'deki pivot 5 de son eleman). $k$'yı değiştirip oynat. Kareler algoritmanın gerçek çalışmasından üretiliyor.</p>
   <div style="margin:8px 0"><select id="ksel" class="btn btn--sm"></select></div>
   <div id="select-stepper"></div>
   <div class="box box--rule">
     <span class="box__label">Yeni k neden $k - |L| - 1$?</span>
-    <p>Durum 3'te $L$'nin $|L|$ elemanı ve $p$'nin kendisi, yani $|L| + 1$ eleman, aradığımızdan küçük ve $R$'ye girmiyor. Cevabın $A$'daki sırası $k$ ise $R$ içindeki sırası $k - (|L| + 1)$. $k - |L|$ yazarsan pivotu saymayı unutmuş olursun.</p>
+    <p>Durum 3'te $L$'nin $|L|$ elemanı ve $p$'nin kendisi, yani $|L| + 1$ eleman, aradığımızdan küçüktür ve $R$'ye girmez. Cevabın $A$'daki rank'i $k$ ise $R$ içindeki rank'i $k - (|L| + 1)$ olur. $k - |L|$ yazarsan pivot'u saymayı unutmuş olursun.</p>
   </div>
   <div class="box box--trap">
     <span class="box__label">Bilkent R-SELECT'te $-1$ yok</span>
-    <p>Bilkent slaytlarındaki R-SELECT, Hoare partition kullanır: pivot ayrı tutulmaz, bir tarafın içinde kalır. Sol parça $k$ eleman içeriyorsa sağa $i - k$ ile inilir. Slayt örneği: $[6, 10, 13, 5, 8, 3, 2, 11]$, $i = 7$. Partition sonrası sol $[2, 3, 5]$ ($k = 3$), sağ $[13, 8, 10, 6, 11]$; sağda 4. en küçük aranır, cevap 11. <strong>Formül, pivotun bir tarafa konup konmadığına bağlı.</strong> Sınavda hangi pseudocode verildiyse ona göre yaz.</p>
+    <p>Bilkent slaytlarındaki R-SELECT, Hoare partition kullanır: pivot ayrı tutulmaz, bir tarafın içinde kalır. Sol parça $k$ eleman içeriyorsa sağa $i - k$ ile inilir. Slayt örneği: $[6, 10, 13, 5, 8, 3, 2, 11]$, $i = 7$. Partition sonrası sol $[2, 3, 5]$ ($k = 3$), sağ $[13, 8, 10, 6, 11]$. Sağda 4th smallest aranır, cevap 11. <strong>Formül, pivot'un bir tarafa konup konmadığına bağlı.</strong> Sınavda hangi pseudocode verildiyse ona göre yaz.</p>
   </div>
   <div class="box box--exam">
     <span class="box__label">Class prep S8 · dene</span>
-    <p>"Select$(A, n, k)$'yı $A = [7, 2, 9, 4, 1, 8, 5]$, $k = 5$, pivot 5 ile elle izle. $A_&lt;$, $A_&gt;$, seçilen dal ve özyinelemedeki yeni $k$ nedir?"</p>
+    <p>"Select$(A, n, k)$'yı $A = [7, 2, 9, 4, 1, 8, 5]$, $k = 5$, pivot 5 ile elle izle. $A_&lt;$, $A_&gt;$, seçilen dal ve recursive call'daki yeni $k$ nedir?"</p>
     <details class="hint"><summary>İpucu 1</summary><div><p>Önce $L$ ve $R$'yi yaz, sonra $|L|$'yi $k - 1 = 4$ ile karşılaştır.</p></div></details>
     <details class="hint"><summary>İpucu 2</summary><div><p>$|L| = 3 &lt; 4$: durum 3. Pivot ve $L$ atılınca kaç eleman eksildi?</p></div></details>
     <details class="reveal"><summary>Çözümü göster</summary><div>
-      <p>$L = [2, 4, 1]$, $R = [7, 9, 8]$. $|L| = 3 &lt; k - 1 = 4$ ⇒ durum 3: Select$(R, 3, 5 - 3 - 1 = 1)$. $R$'nin en küçüğü 7. Kontrol: sıralı $A = [1, 2, 4, 5, 7, 8, 9]$, beşinci eleman 7. ✓</p>
-      <p>Neden $k - |L| - 1$: $L$'deki 3 eleman ve pivot 5, toplam 4 eleman 7'den küçük ve $R$'de yok. 7'nin $R$ içindeki sırası $5 - 4 = 1$.</p>
+      <p>$L = [2, 4, 1]$, $R = [7, 9, 8]$. $|L| = 3 &lt; k - 1 = 4$ ⇒ durum 3: Select$(R, 3, 5 - 3 - 1 = 1)$. $R$'nin en küçüğü 7. Kontrol: sorted $A = [1, 2, 4, 5, 7, 8, 9]$, beşinci eleman 7. ✓</p>
+      <p>Neden $k - |L| - 1$: $L$'deki 3 eleman ve pivot 5, toplam 4 eleman, 7'den küçük ve $R$'de yok. 7'nin $R$ içindeki rank'i $5 - 4 = 1$.</p>
     </div></details>
   </div>
   <div class="quiz" id="q-branch">
-    <p class="quiz__q">Aynı $A = [7, 2, 9, 4, 1, 8, 5]$, pivot 5, ama $k = 2$. Select hangi çağrıyı yapar?</p>
-    <button class="quiz__opt" data-correct>Select$(L, 3, 2)$<span class="why">Doğru. $|L| = 3 &gt; k - 1 = 1$: durum 2. Sol tarafta $k$ değişmez; cevap $L = [2, 4, 1]$'in 2. en küçüğü, yani 2.</span></button>
-    <button class="quiz__opt">Select$(R, 3, 2 - 3 - 1)$<span class="why">Durum 3 yalnız $|L| &lt; k - 1$ iken. Burada yeni $k$ negatif çıkar, bu da yanlış dala girildiğinin işareti.</span></button>
-    <button class="quiz__opt">5 döndürür<span class="why">Pivotu döndürmek için $|L| = k - 1$ gerekir, yani $k = 4$. 5, dizinin 4. en küçüğü.</span></button>
+    <p class="quiz__q">Aynı $A = [7, 2, 9, 4, 1, 8, 5]$, pivot 5, ama $k = 2$. Select hangi recursive call'u yapar?</p>
+    <button class="quiz__opt" data-correct>Select$(L, 3, 2)$<span class="why">Doğru. $|L| = 3 &gt; k - 1 = 1$: durum 2. Sol tarafta $k$ değişmez. Cevap $L = [2, 4, 1]$'in 2nd smallest elemanı, yani 2.</span></button>
+    <button class="quiz__opt">Select$(R, 3, 2 - 3 - 1)$<span class="why">Durum 3 yalnızca $|L| &lt; k - 1$ iken geçerli. Burada yeni $k$ negatif çıkıyor; bu, yanlış dala girildiğini gösterir.</span></button>
+    <button class="quiz__opt">5 döndürür<span class="why">Pivot'u döndürmek için $|L| = k - 1$ gerekir, yani $k = 4$. 5, array'in 4th smallest elemanı.</span></button>
   </div>
   <p class="src">Kaynak: CS161 Lecture 4 notları §3 (Algoritma 2); slayt s.45; class prep S8; Bilkent CS473 L7 s.5–8 (R-SELECT).</p>
 </section>
 
 <!-- 4 -->
 <section class="lsec" id="correctness" data-min="5">
-  <h2>Doğruluk ve eşit elemanlar</h2>
+  <h2>Correctness ve eşit elemanlar</h2>
   <div class="box box--intuition">
     <span class="box__label">Sezgi</span>
-    <p>Select, "küçük dizilerde doğru çalışıyorum" varsayımına güvenir. Ama alt dizinin boyu $n-1$ değil, $n$'den küçük herhangi bir sayı olabilir. Bu yüzden <strong>strong induction</strong>: "$n$'den küçük <em>her</em> boy için doğru" diye varsay.</p>
+    <p>Select, "küçük array'lerde doğru çalışıyorum" varsayımına güvenir. Ama subarray'in boyu $n-1$ olmak zorunda değil, $n$'den küçük herhangi bir sayı olabilir. Bu yüzden <strong>strong induction</strong> kullanırız: "$n$'den küçük <em>her</em> boy için doğru" diye varsayarız.</p>
   </div>
   <div class="box box--rule">
     <span class="box__label">Strong induction ispatı · CS161 notları §3.6</span>
-    <p><strong>IH($n$):</strong> $n$ boylu her $A$ ve her $k \in \{1, \dots, n\}$ için Select, $A$'nın $k$. en küçüğünü döndürür.</p>
-    <p><strong>Base case ($n = 1$):</strong> $k = 1$ zorunlu; tek eleman döner. ✓</p>
-    <p><strong>Inductive step:</strong> $i \ge 2$, IH her $1 \le n &lt; i$ için doğru olsun. $|A| = i$.</p>
+    <p><strong>IH($n$):</strong> $n$ boyundaki her $A$ ve her $k \in \{1, \dots, n\}$ için Select, $A$'nın $k$-th smallest elemanını döndürür.</p>
+    <p><strong>Base case ($n = 1$):</strong> $k = 1$ olmak zorunda, tek eleman döner. ✓</p>
+    <p><strong>Inductive step:</strong> $i \ge 2$ olsun ve IH her $1 \le n &lt; i$ için doğru olsun. $|A| = i$.</p>
     <ul>
-      <li><strong>Durum 1</strong> $|L| = k - 1$: $p$'den küçük tam $k-1$ eleman var, $p$ $k$. en küçük. ✓</li>
-      <li><strong>Durum 2</strong> $|L| &gt; k - 1$: $k$. en küçük $L$'de ve $L$'nin de $k$. en küçüğü. $|L| &lt; i$ (pivot dışarıda) ve $1 \le k \le |L|$, IH uygulanır. ✓</li>
-      <li><strong>Durum 3</strong> $|L| &lt; k - 1$: cevap $R$'de, sırası $k - |L| - 1$. IH'yi uygulamadan önce kontrol: $1 \le k - |L| - 1$ (çünkü $|L| &lt; k - 1$) ve $k - |L| - 1 \le |R|$ (çünkü bu $k \le |L| + |R| + 1 = i$ demek). $|R| &lt; i$. ✓</li>
+      <li><strong>Durum 1</strong> $|L| = k - 1$: $p$'den küçük tam $k-1$ eleman var, yani $p$ $k$-th smallest. ✓</li>
+      <li><strong>Durum 2</strong> $|L| &gt; k - 1$: $k$-th smallest $L$'dedir ve $L$'nin de $k$-th smallest elemanıdır. $|L| &lt; i$ (pivot dışarıda) ve $1 \le k \le |L|$, yani IH uygulanır. ✓</li>
+      <li><strong>Durum 3</strong> $|L| &lt; k - 1$: cevap $R$'de, rank'i $k - |L| - 1$. IH'yi uygulamadan önce kontrol: $1 \le k - |L| - 1$ (çünkü $|L| &lt; k - 1$) ve $k - |L| - 1 \le |R|$ (çünkü bu $k \le |L| + |R| + 1 = i$ demek). $|R| &lt; i$. ✓</li>
     </ul>
-    <p>Pivot hiçbir yerde kullanılmadı: <strong>her pivot seçimiyle doğru.</strong></p>
+    <p>Pivot'un ne olduğu hiçbir yerde kullanılmadı: <strong>Select her pivot seçimiyle doğru.</strong></p>
   </div>
   <h3>[3, 3, 3, 3] ile ne olur?</h3>
   <div class="box box--example">
     <span class="box__label">Class prep S9 · $A = [3, 3, 3, 3]$, $k = 2$</span>
-    <p>Pivot 3. $L = \{a &lt; 3\} = \emptyset$, $R = \{a &gt; 3\} = \emptyset$. $|L| = 0 &lt; k - 1 = 1$ ⇒ durum 3: Select$(\emptyset, 0, 1)$. Boş dizide 1. eleman istenir: algoritma çöker. Bozulan varsayım <strong>elemanların farklı olması</strong>: o varsayımla $|L| + |R| + 1 = n$ olur, burada $0 + 0 + 1 \ne 4$.</p>
+    <p>Pivot 3. $L = \{a &lt; 3\} = \emptyset$, $R = \{a &gt; 3\} = \emptyset$. $|L| = 0 &lt; k - 1 = 1$ ⇒ durum 3: Select$(\emptyset, 0, 1)$. Boş array'de 1. eleman istenir ve algoritma çöker. Bozulan varsayım <strong>elemanların farklı olması</strong>. O varsayım altında $|L| + |R| + 1 = n$ olur; burada $0 + 0 + 1 \ne 4$.</p>
   </div>
   <div class="box box--rule">
     <span class="box__label">Düzeltme: üçlü partition</span>
@@ -216,102 +216,102 @@
     <p>$[3,3,3,3]$, $k = 2$: $|E| = 4$, $0 &lt; 2 \le 4$ ⇒ 3 döner. ✓</p>
   </div>
   <div class="box box--trap">
-    <span class="box__label">Pivotu alt diziden çıkarmasaydık</span>
-    <p>$L$ yerine $\{a \le p\}$ alırsan ve $p$ maksimumsa $L = A$ olur: aynı boyda tekrar çağrı, sonsuz döngü. İspat da çöker, çünkü IH sadece <strong>kesin daha küçük</strong> boylar için var. Her özyineleme boyu en az 1 azaltmalı.</p>
+    <span class="box__label">Pivot'u subarray'den çıkarmasaydık</span>
+    <p>$L$ yerine $\{a \le p\}$ alırsan ve $p$ maksimumsa $L = A$ olur: aynı boyda tekrar recursive call, yani sonsuz recursion. İspat da çöker, çünkü IH sadece <strong>kesin daha küçük</strong> boylar için geçerli. Her recursive call boyu en az 1 azaltmalı.</p>
   </div>
   <div class="box box--exam">
     <span class="box__label">Class prep S20 · dene</span>
-    <p>"Select'in, hangi pivot kullanılırsa kullanılsın, $k$. en küçüğü döndürdüğünü strong induction ile ispatla. Durum 3'te IH'den önce hangi eşitsizlikleri kontrol etmelisin?"</p>
-    <details class="hint"><summary>İpucu 1</summary><div><p>IH'yi "boyu $n$ olan her dizi ve her geçerli $k$" diye kur. Alt dizinin boyu kaç olabilir?</p></div></details>
-    <details class="hint"><summary>İpucu 2</summary><div><p>IH'nin şartı: yeni $k$, alt dizinin geçerli aralığında olmalı. $1 \le k - |L| - 1 \le |R|$'yi durum koşulundan ve $n = |L| + |R| + 1$'den çıkar.</p></div></details>
+    <p>"Select'in, hangi pivot kullanılırsa kullanılsın, $k$-th smallest elemanı döndürdüğünü strong induction ile ispatla. Durum 3'te IH'den önce hangi eşitsizlikleri kontrol etmelisin?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>IH'yi "boyu $n$ olan her array ve her geçerli $k$" diye kur. Subarray'in boyu kaç olabilir?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>IH'nin şartı: yeni $k$, subarray'in geçerli aralığında olmalı. $1 \le k - |L| - 1 \le |R|$ eşitsizliğini durum koşulundan ve $n = |L| + |R| + 1$'den çıkar.</p></div></details>
   </div>
   <div class="quiz" id="q-induct">
     <p class="quiz__q">Durum 3'te $k - |L| - 1 \ge 1$ neden doğrudur?</p>
     <button class="quiz__opt" data-correct>Durum 3'ün koşulu $|L| &lt; k - 1$ olduğu için<span class="why">Doğru. $|L| \le k - 2$ ⇒ $k - |L| - 1 \ge 1$.</span></button>
-    <button class="quiz__opt">$k \le n$ olduğu için<span class="why">$k \le n$ öbür eşitsizliği ($\le |R|$) verir. Alt sınır durum koşulundan gelir.</span></button>
-    <button class="quiz__opt">Pivot median olduğu için<span class="why">Doğruluk ispatı pivotun ne olduğunu hiç kullanmaz. Pivot sadece süreyi etkiler.</span></button>
+    <button class="quiz__opt">$k \le n$ olduğu için<span class="why">$k \le n$ öbür eşitsizliği ($\le |R|$) verir. Alttaki eşitsizlik durum koşulundan gelir.</span></button>
+    <button class="quiz__opt">Pivot median olduğu için<span class="why">Correctness ispatı pivot'un ne olduğunu hiç kullanmaz. Pivot sadece running time'ı etkiler.</span></button>
   </div>
   <p class="src">Kaynak: CS161 Lecture 4 notları §3.6; class prep S9 ve S20. Üçlü partition fikri HW3 S3'teki (QuickSort with duplicates) $A_&lt;, A_=, A_&gt;$ ayrımıyla aynı.</p>
 </section>
 
 <!-- 5 -->
 <section class="lsec" id="pivot-cost" data-min="5">
-  <h2>Pivot seçimi süreyi belirler</h2>
-  <p>Doğruluk her pivotla tamam. Süre ise her adımda ne kadar elemanı attığına bağlı. Aşağıda $n = 64$, $A = [1, 2, \dots, 64]$, $k = 64$ (en büyük) için üç pivot kuralı yan yana koşuyor. Çubuk o anki alt dizinin boyu, sayı şimdiye kadar taranan eleman toplamı.</p>
+  <h2>Pivot seçimi running time'ı belirler</h2>
+  <p>Correctness her pivot ile sağlanıyor. Running time ise her adımda kaç eleman atıldığına bağlı. Aşağıda $n = 64$, $A = [1, 2, \dots, 64]$, $k = 64$ (en büyük) için üç pivot kuralı yan yana çalışıyor. Çubuk o anki subarray'in boyunu, sayı o ana kadar taranan elemanların toplamını gösterir.</p>
   <div id="pivot-stepper"></div>
   <div class="box box--rule">
     <span class="box__label">Kötü pivot: hep min ya da max · notlar Önerme 3, class prep S10</span>
-    <p>Her adım sadece 1 eleman atar: $T(n) = T(n-1) + \Theta(n)$. Aç:</p>
+    <p>Her adım sadece 1 eleman atar: $T(n) = T(n-1) + \Theta(n)$. Recurrence'ı aç:</p>
     $$c_2\,\frac{n(n+1)}{2} = c_2(n + (n-1) + \dots + 1) \;\le\; T(n) \;\le\; c_1(n + (n-1) + \dots + 1) = c_1\,\frac{n(n+1)}{2}$$
-    <p>İki yönden de $n^2/2$ mertebesi: $T(n) = \Theta(n^2)$. (Bu en kötü $k$ içindir; pivot min iken $k = 1$ olsaydı ilk adımda biterdi.)</p>
+    <p>İki yönden de $n^2/2$ mertebesinde: $T(n) = \Theta(n^2)$. (Bu, en kötü $k$ için geçerli. Pivot min iken $k = 1$ olsaydı ilk adımda biterdi.)</p>
   </div>
   <div class="box box--rule">
     <span class="box__label">İdeal pivot: tam median · notlar Önerme 4, class prep S11</span>
     <p>$T(n) \le T(n/2) + cn$.</p>
     <ul>
-      <li><strong>Açarak (geometric sum):</strong> $cn + \tfrac{cn}{2} + \tfrac{cn}{4} + \dots \le cn \cdot \tfrac{1}{1 - 1/2} = 2cn = O(n)$.</li>
+      <li><strong>Açarak (geometric series):</strong> $cn + \tfrac{cn}{2} + \tfrac{cn}{4} + \dots \le cn \cdot \tfrac{1}{1 - 1/2} = 2cn = O(n)$.</li>
       <li><strong>Master theorem:</strong> $a = 1$, $b = 2$, $d = 1$; $a &lt; b^d$ ⇒ $O(n^d) = O(n)$.</li>
     </ul>
   </div>
   <div class="box box--trap">
     <span class="box__label">"Yarıya bölüyorsa $n\log n$" yanlış</span>
-    <p>MergeSort da yarıya böler ama <strong>iki</strong> yarıyı da çözer: her seviyede toplam iş $n$, $\log n$ seviye ⇒ $n \log n$ ($a = 2 = b^d$). Select <strong>tek</strong> yarıya iner: seviye işi her seferinde yarıya düşer, toplam geometrik seri ⇒ $O(n)$. Belirleyici olan alt problem <em>sayısı</em>.</p>
+    <p>MergeSort da yarıya böler ama <strong>iki</strong> yarıyı da çözer: her level'da toplam iş $n$, $\log n$ level var ⇒ $n \log n$ ($a = 2 = b^d$). Select <strong>tek</strong> yarıya iner: level işi her seferinde yarıya düşer, toplam bir geometric series olur ⇒ $O(n)$. Sonucu belirleyen, subproblem <em>sayısı</em>.</p>
   </div>
   <div class="box box--example">
     <span class="box__label">CS161 Section 2, S4 · genelleme</span>
-    <p>Pivot her seferinde en kötü $c$–$(1-c)$ bölmesi veriyorsa ($c &lt; 1$ sabit) alt dizi her adımda en fazla $c$ katına iner: $\sum_i c^i n \le \frac{n}{1-c} = O(n)$. Yarıya inmek için sabit olmayan ($\omega(1)$) sayıda adım gerekiyorsa her biri en az $n/2$ iş yapar, toplam $\omega(n)$.</p>
+    <p>Pivot her seferinde en kötü ihtimalle $c$–$(1-c)$ bölmesi veriyorsa ($c &lt; 1$ bir constant) subarray her adımda en fazla $c$ katına iner: $\sum_i c^i n \le \frac{n}{1-c} = O(n)$. Yarıya inmek için constant olmayan ($\omega(1)$) sayıda adım gerekiyorsa bu adımların her biri en az $n/2$ iş yapar, toplam $\omega(n)$ olur.</p>
   </div>
   <div class="box box--exam">
     <span class="box__label">Class prep S10–S11 · dene</span>
-    <p>"Pivot hep min/max ise recurrence'ı yaz, aç, alt ve üst sınırı ispatla. Pivot hep tam median ise recurrence'ı iki yolla çöz; MergeSort da yarıya böldüğü hâlde cevap neden $O(n\log n)$ değil?"</p>
-    <details class="hint"><summary>İpucu 1</summary><div><p>Min pivotta özyinelemeli çağrı $n - 1$ boyunda. Partition her elemana bakar: $\Theta(n)$.</p></div></details>
-    <details class="hint"><summary>İpucu 2</summary><div><p>Median pivotta seviye işlerini yaz: $n, n/2, n/4, \dots$ Bu seriyi MergeSort'un $n, n, n, \dots$ serisiyle karşılaştır.</p></div></details>
+    <p>"Pivot hep min/max ise recurrence'ı yaz, aç, lower ve upper bound'u ispatla. Pivot hep tam median ise recurrence'ı iki yolla çöz. MergeSort da yarıya böldüğü hâlde cevap neden $O(n\log n)$ değil?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Min pivot'ta recursive call $n - 1$ boyunda. Partition her elemana bakar: $\Theta(n)$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Median pivot'ta level işlerini yaz: $n, n/2, n/4, \dots$ Bu seriyi MergeSort'un $n, n, n, \dots$ serisiyle karşılaştır.</p></div></details>
   </div>
   <div class="quiz" id="q-median-pivot">
     <p class="quiz__q">$T(n) = T(n/2) + n$, $T(1) = 1$ ise $T(n)$ nedir?</p>
-    <button class="quiz__opt">$\Theta(n\log n)$<span class="why">Bu $2T(n/2) + n$ (MergeSort) cevabı. Burada tek alt problem var, seviye işleri yarıya iniyor.</span></button>
+    <button class="quiz__opt">$\Theta(n\log n)$<span class="why">Bu, $2T(n/2) + n$ (MergeSort) recurrence'ının cevabı. Burada tek subproblem var, level işleri yarıya iniyor.</span></button>
     <button class="quiz__opt" data-correct>$\Theta(n)$<span class="why">Doğru. $n + n/2 + n/4 + \dots \le 2n$; alttan da ilk terim $n$.</span></button>
-    <button class="quiz__opt">$\Theta(\log n)$<span class="why">Seviye <em>sayısı</em> $\log n$ ama her seviye sabit değil, $n/2^i$ iş yapıyor. Bu binary search ($T(n/2) + 1$) cevabı.</span></button>
+    <button class="quiz__opt">$\Theta(\log n)$<span class="why">Level <em>sayısı</em> $\log n$, ama her level constant iş değil $n/2^i$ iş yapıyor. $\Theta(\log n)$, binary search'ün ($T(n/2) + 1$) cevabı.</span></button>
   </div>
   <p class="src">Kaynak: CS161 Lecture 4 notları §3 (Önerme 3–4); slayt s.30; CS161 S2 çözümleri, Problem 4; class prep S10–S11. Animasyondaki sayılar ($64 \cdot 65/2 = 2080$ ve $64 + 32 + \dots + 1 = 127$) koddan üretiliyor.</p>
 </section>
 
 <!-- 6 -->
 <section class="lsec" id="random-pivot" data-min="4">
-  <h2>Rastgele pivot: QuickSelect</h2>
+  <h2>Random pivot: QuickSelect</h2>
   <div class="box box--intuition">
     <span class="box__label">Sezgi</span>
-    <p>Rastgele seçilen pivot, kabaca yarı olasılıkla "orta yarıdan" (sırası $n/4$ ile $3n/4$ arasından) gelir. O zaman iki parça da en fazla $3n/4$. Ortalama iki denemede bir dizi dörtte bir küçülür: yine geometrik seri.</p>
+    <p>Random seçilen pivot kabaca 1/2 probability ile "orta yarıdan" gelir, yani rank'i $n/4$ ile $3n/4$ arasındadır. O zaman iki parça da en fazla $3n/4$ olur. Ortalama iki denemede bir array dörtte bir küçülür, bu da yine bir geometric series verir.</p>
   </div>
   <div class="box box--rule">
     <span class="box__label">QuickSelect (Idea #1) · class prep S12</span>
     <ul>
       <li><strong>Worst-case:</strong> $\Theta(n^2)$. Her seferinde en kötü pivot gelebilir (Bilkent slaytı: $[1, \dots, 8]$'de $i = 8$ ararken her pivot en küçük çıkar, boy 8, 7, 6, …).</li>
-      <li><strong>Expected:</strong> $O(n)$, <strong>her</strong> girdi için; beklenti algoritmanın kendi yazı-turalarının üzerinden alınır.</li>
+      <li><strong>Expected:</strong> $O(n)$, <strong>her</strong> input için. Expected value, algoritmanın kendi yazı-turaları üzerinden alınır.</li>
     </ul>
-    <p><strong>Faz argümanı (CS161 L5 concept check):</strong> Faz $i$: dizi boyu $\big((3/4)^{i+1}n,\ (3/4)^i n\big]$ aralığında. İyi pivot olasılığı $\tfrac12 \pm O(1/n)$ ⇒ bir fazdaki beklenen çağrı sayısı $\le 2 + O(1/n)$. Fazdaki her çağrı $\le c(3/4)^i n$ iş yapar:</p>
+    <p><strong>Faz argümanı (CS161 L5 concept check):</strong> Faz $i$: array boyu $\big((3/4)^{i+1}n,\ (3/4)^i n\big]$ aralığında. İyi pivot gelme probability'si $\tfrac12 \pm O(1/n)$ ⇒ bir fazdaki expected recursive call sayısı $\le 2 + O(1/n)$. Fazdaki her recursive call $\le c(3/4)^i n$ iş yapar:</p>
     $$\mathbb{E}[T(n)] \le \sum_{i \ge 0} 2c\left(\tfrac34\right)^i n = 8cn = O(n).$$
   </div>
   <div class="box box--trap">
     <span class="box__label">Worst-case ile expected farklı sorular</span>
     <ul>
-      <li><strong>Worst-case:</strong> en kötü girdi <em>ve</em> en şanssız yazı-turalar. <strong>Expected:</strong> en kötü girdi, yazı-turaların ortalaması.</li>
-      <li>"Expected $O(n)$" rastgele <em>girdi</em> varsayımı değil. Girdi kötü niyetli olabilir; şans algoritmanın içinde.</li>
-      <li>Pivot seçimlerini görüp girdiyi ona göre kuran bir "bad guy" varsa rastgelelik işe yaramaz (CS161 slayt s.31). O durum için Bölüm 7.</li>
-      <li>Pratikte yine de QuickSelect kullanılır: sabiti çok küçük. Median of medians'ın sabiti büyük (slayt s.50: "pick a random pivot if you don't expect nefarious arrays").</li>
+      <li><strong>Worst-case:</strong> en kötü input <em>ve</em> en şanssız yazı-turalar. <strong>Expected:</strong> en kötü input, yazı-turaların ortalaması.</li>
+      <li>"Expected $O(n)$" random <em>input</em> varsaymaz. Input kötü niyetli olabilir; şans algoritmanın içinde.</li>
+      <li>Pivot seçimlerini görüp input'u ona göre kuran bir "bad guy" varsa randomness işe yaramaz (CS161 slayt s.31). O durum için Bölüm 7.</li>
+      <li>Pratikte yine de QuickSelect kullanılır, çünkü constant'ı çok küçük. Median of medians'ın constant'ı büyük (slayt s.50: "pick a random pivot if you don't expect nefarious arrays").</li>
     </ul>
   </div>
   <div class="box box--exam">
     <span class="box__label">Class prep S12 + CS161 L5 concept check · dene</span>
-    <p>"Rastgele pivotlu Select'in worst-case ve expected süresi nedir? İki ifadenin farkını açıkla; notlar neden pratikte bu sürümün kullanıldığını söylüyor?"</p>
+    <p>"Random pivot'lu Select'in worst-case ve expected running time'ı nedir? İki ifadenin farkını açıkla. Notlar pratikte neden bu sürümün kullanıldığını söylüyor?"</p>
     <details class="hint"><summary>İpucu 1</summary><div><p>Worst-case için: hiçbir yazı-tura dizisi yasak değil. Her seferinde en küçük eleman pivot olabilir mi?</p></div></details>
-    <details class="hint"><summary>İpucu 2</summary><div><p>Expected için faz argümanı: bir fazda kaç çağrı beklersin, faz $i$'de bir çağrı ne kadar iş yapar?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Expected için faz argümanı: bir fazda kaç recursive call beklersin, faz $i$'de bir recursive call ne kadar iş yapar?</p></div></details>
   </div>
   <div class="quiz" id="q-quickselect">
-    <p class="quiz__q">Rastgele pivotun diziyi, iki parçanın da boyu $\le 3n/4$ olacak şekilde bölme olasılığı yaklaşık kaçtır?</p>
-    <button class="quiz__opt">$3/4$<span class="why">Parçanın en fazla $3n/4$ olması için pivot alttaki çeyrekte de üstteki çeyrekte de <strong>olmamalı</strong>. İki çeyrek elenince geriye yarı kalır.</span></button>
-    <button class="quiz__opt" data-correct>$1/2$<span class="why">Doğru. Pivotun sırası $n/4$ ile $3n/4$ arasında olmalı: elemanların ortadaki yarısı. ($\pm O(1/n)$ yuvarlama farkı.)</span></button>
-    <button class="quiz__opt">$1/4$<span class="why">Bu tek bir çeyreğin payı. İyi bölge orta iki çeyreğin tamamı.</span></button>
+    <p class="quiz__q">Random pivot'un array'i, iki parçanın da boyu $\le 3n/4$ olacak şekilde partition etme probability'si yaklaşık kaçtır?</p>
+    <button class="quiz__opt">$3/4$<span class="why">Parçaların en fazla $3n/4$ olması için pivot alttaki çeyreğin de üstteki çeyreğin de <strong>dışında</strong> kalmalı. İki çeyrek elenince geriye yarı kalır.</span></button>
+    <button class="quiz__opt" data-correct>$1/2$<span class="why">Doğru. Pivot'un rank'i $n/4$ ile $3n/4$ arasında olmalı: elemanların ortadaki yarısı. ($\pm O(1/n)$ yuvarlama farkı.)</span></button>
+    <button class="quiz__opt">$1/4$<span class="why">Bu, tek bir çeyreğin payı. İyi bölge ortadaki iki çeyreğin tamamı.</span></button>
   </div>
   <p class="src">Kaynak: CS161 Lecture 4 notları §3.1; slayt s.31 ve s.50; CS161 Lecture 5 concept check (QuickSelect bölümü); Bilkent CS473 L7 s.9–18; class prep S12.</p>
 </section>
@@ -321,50 +321,50 @@
   <h2>Median of medians: ChoosePivot</h2>
   <div class="box box--intuition">
     <span class="box__label">Sezgi</span>
-    <p>Tam median'ı bulmak, çözmeye çalıştığımız problemin kendisi (Idea #2 döngüsel). Ama tam median'a gerek yok: diziyi en kötü %30–%70 bölen bir pivot da yeter. Onu küçük bir "temsilci" kümeden hesaplarız: 5'li grupların medyanları.</p>
+    <p>Tam median'ı bulmak, çözmeye çalıştığımız problemin ta kendisi (Idea #2 bu yüzden döngüsel). Ama tam median'a gerek yok. En kötü ihtimalle %30–%70 partition veren bir pivot da yeter. Bu pivot'u küçük bir "temsilci" kümeden hesaplarız: 5'li grupların median'ları.</p>
   </div>
   <div class="box box--rule">
     <span class="box__label">ChoosePivot(A, n) · CS161 notları Algoritma 3 (Blum, Floyd, Pratt, Rivest, Tarjan 1973)</span>
     <ol>
-      <li>$A$'yı $g = \lceil n/5 \rceil$ gruba böl (sonuncusu 5'ten az olabilir).</li>
-      <li>Her grubu sırala, ortadakini al: medyanlar kümesi $C$, $|C| = g$.</li>
-      <li>$p \leftarrow$ Select$(C, g, \lceil g/2 \rceil)$: medyanların medyanı.</li>
-      <li>$p$'yi döndür; Select bununla partition yapar.</li>
+      <li>$A$'yı $g = \lceil n/5 \rceil$ gruba böl (sonuncusunda 5'ten az eleman olabilir).</li>
+      <li>Her grubu sort et, ortadakini al: median'lar kümesi $C$, $|C| = g$.</li>
+      <li>$p \leftarrow$ Select$(C, g, \lceil g/2 \rceil)$: median of medians.</li>
+      <li>$p$'yi döndür. Select partition'ı bununla yapar.</li>
     </ol>
   </div>
-  <p>Örnek seç ve oynat. Sütunlar 5'li gruplar. İspattaki resim için sütunlar medyanlarına göre dizilir; algoritmanın bunu yapmasına gerek yok.</p>
+  <p>Örnek seç ve oynat. Sütunlar 5'li grupları gösterir. İspattaki resim için sütunlar median'larına göre dizilir; algoritmanın bunu yapması gerekmez.</p>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
     <select id="momsel" class="btn btn--sm">
       <option value="0">Bilkent slaytı (n = 43)</option>
-      <option value="1">Rastgele dizi (n = 35)</option>
+      <option value="1">Random array (n = 35)</option>
     </select>
-    <button class="btn btn--sm" id="momnew">Yeni rastgele dizi</button>
+    <button class="btn btn--sm" id="momnew">Yeni random array</button>
   </div>
   <div id="mom-stepper"></div>
   <div class="box box--example">
     <span class="box__label">Bilkent CS473 L7 · $x = 24$</span>
-    <p>1'den 43'e kadar sayılar karışık sırada. 9 grup (sonuncusu $\{26, 35, 43\}$, 3 elemanlı). Medyanlar $M = \{11, 27, 32, 17, 19, 10, 29, 24, 35\}$; sıralı hâli $10, 11, 17, 19, \mathbf{24}, 27, 29, 32, 35$, ortadaki 24. Partition: $|L| = 23$, $|R| = 19$. Resimde x'ten kesin küçük 14, kesin büyük 13 eleman görülür.</p>
+    <p>1'den 43'e kadar sayılar karışık sırada. 9 grup var (sonuncusu $\{26, 35, 43\}$, 3 elemanlı). Median'lar $M = \{11, 27, 32, 17, 19, 10, 29, 24, 35\}$; sorted hâli $10, 11, 17, 19, \mathbf{24}, 27, 29, 32, 35$, ortadaki 24. Partition: $|L| = 23$, $|R| = 19$. Resimde x'ten kesin küçük 14, kesin büyük 13 eleman görülür.</p>
   </div>
   <div class="box box--trap">
-    <span class="box__label">Neden döngüsel değil? Grupları neyle sıralarız? (class prep S13–S14)</span>
+    <span class="box__label">Neden döngüsel değil? Grupları neyle sort ederiz? (class prep S13–S14)</span>
     <ul>
-      <li>ChoosePivot içindeki Select, $n$ değil $\lceil n/5 \rceil$ elemanlı $C$ üzerinde çalışır. Daha küçük girdi ⇒ özyineleme biter. Idea #2 ise Select$(A, n/2)$'yi <strong>aynı</strong> $A$ üzerinde isterdi.</li>
-      <li>5 elemanlı bir grubu sıralamak sabit iş: MergeSort da InsertionSort da en fazla birkaç düzine işlem. $\lceil n/5 \rceil$ grup ⇒ toplam $O(n)$. InsertionSort'un $n^2$'si burada $5^2 = 25$, yani sabit.</li>
+      <li>ChoosePivot içindeki Select, $n$ elemanlı $A$ üzerinde değil, $\lceil n/5 \rceil$ elemanlı $C$ üzerinde çalışır. Input küçüldüğü için recursion biter. Idea #2 ise Select$(A, n/2)$'yi <strong>aynı</strong> $A$ üzerinde isterdi.</li>
+      <li>5 elemanlı bir grubu sort etmek constant iş: MergeSort da InsertionSort da en fazla birkaç düzine işlem yapar. $\lceil n/5 \rceil$ grup ⇒ toplam $O(n)$. InsertionSort'un $n^2$'si burada $5^2 = 25$, yani bir constant.</li>
     </ul>
   </div>
   <div class="box box--exam">
     <span class="box__label">Class prep S13–S14 · dene</span>
-    <p>"ChoosePivot'u adım adım anlat. Her 5'li grubu sıralamak neden grup başına $O(1)$, toplamda $O(n)$? Yavaş InsertionSort ile sıralasan algoritma yine lineer olur mu?"</p>
-    <details class="hint"><summary>İpucu 1</summary><div><p>Grup boyu $n$'e bağlı mı? Bir sabitin karesi de sabittir.</p></div></details>
-    <details class="hint"><summary>İpucu 2</summary><div><p>Grup sayısı $\lceil n/5 \rceil$; grup başına sabit iş çarpı grup sayısı.</p></div></details>
+    <p>"ChoosePivot'u adım adım anlat. Her 5'li grubu sort etmek neden grup başına $O(1)$, toplamda $O(n)$? Yavaş InsertionSort ile sort etsen algoritma yine linear olur mu?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Grup boyu $n$'e bağlı mı? Bir constant'ın karesi de constant'tır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Grup sayısı $\lceil n/5 \rceil$. Grup başına constant iş çarpı grup sayısı.</p></div></details>
   </div>
   <div class="quiz" id="q-mom">
-    <p class="quiz__q">Gruplar $[9, 1, 7, 3, 5]$, $[2, 8, 6, 4, 10]$, $[15, 11, 13, 12, 14]$. Medyanların medyanı kaçtır?</p>
-    <button class="quiz__opt" data-correct>6<span class="why">Doğru. Grup medyanları 5, 6, 13; bunların ortası 6.</span></button>
-    <button class="quiz__opt">8<span class="why">8, 15 elemanın <strong>gerçek</strong> median'ı. Medyanların medyanı ona yakın ama genelde eşit değil (Bölüm 8).</span></button>
-    <button class="quiz__opt">7<span class="why">7, ilk grubun 4. elemanı; grupları sıralamadan ortadaki konumu almışsın. Önce her grubu sırala: $[1, 3, 5, 7, 9]$ ⇒ 5.</span></button>
+    <p class="quiz__q">Gruplar $[9, 1, 7, 3, 5]$, $[2, 8, 6, 4, 10]$, $[15, 11, 13, 12, 14]$. Median of medians kaçtır?</p>
+    <button class="quiz__opt" data-correct>6<span class="why">Doğru. Grup median'ları 5, 6, 13; bu üçünün ortadakisi 6.</span></button>
+    <button class="quiz__opt">8<span class="why">8, 15 elemanın <strong>gerçek</strong> median'ı. Median of medians ona yakındır ama genelde eşit değildir (Bölüm 8).</span></button>
+    <button class="quiz__opt">7<span class="why">7, ilk grubun sort edilmemiş hâlindeki ortadaki (3.) eleman. Grupları sort etmeden ortadaki konumları alırsan 7, 6, 13 çıkar ve bunların median'ı 7 olur. Önce her grubu sort et: $[1, 3, 5, 7, 9]$ ⇒ 5.</span></button>
   </div>
-  <p class="src">Kaynak: CS161 Lecture 4 notları §3.2–3.3 (Algoritma 3); slayt s.39–40; Bilkent CS473 L7 s.19–27 (görev metni "35 sayılık" diyor, slayttaki dizi 43 sayı; burada saydık); class prep S13–S14.</p>
+  <p class="src">Kaynak: CS161 Lecture 4 notları §3.2–3.3 (Algoritma 3); slayt s.39–40; Bilkent CS473 L7 s.19–27 (görev metni "35 sayılık" diyor, slayttaki array 43 sayı; burada saydık); class prep S13–S14.</p>
 </section>
 
 <!-- 8 -->
@@ -372,51 +372,51 @@
   <h2>Lemma: |L|, |R| ≤ 7n/10 + 5</h2>
   <div class="box box--intuition">
     <span class="box__label">Sezgi: yüzde hesabı</span>
-    <p>Grupların yarısının medyanı $x$'ten küçük. Bu grupların her birinde 3 eleman (medyan ve altındaki ikisi) $x$'ten küçük. Grupların yarısı $\approx n/10$ grup, çarpı 3 ⇒ $\approx 3n/10$ eleman kesin $x$'ten küçük. Demek ki $x$'ten büyükler en fazla $\approx 7n/10$. Simetrik olarak küçükler de.</p>
+    <p>Grupların yarısının median'ı $x$'ten küçük. Bu grupların her birinde 3 eleman (median ve altındaki iki eleman) $x$'ten küçük. Grupların yarısı $\approx n/10$ grup eder, çarpı 3 ⇒ $\approx 3n/10$ eleman kesin olarak $x$'ten küçük. Demek ki $x$'ten büyükler en fazla $\approx 7n/10$. Simetrik olarak küçükler için de aynısı geçerli.</p>
   </div>
   <div class="box box--rule">
     <span class="box__label">Lemma 5 · CS161 notları §3.3.1</span>
-    <p>$g = \lceil n/5 \rceil$. $x$, $g$ medyanın medyanı olduğu için $\lceil g/2 \rceil$ grubun medyanı $\le x$ (x'in kendi grubu dâhil). x'in kendi grubu ve eksik kalan son grup hariç, geriye en az $\lceil g/2 \rceil - 2$ grup kalır; her biri $x$'ten küçük 3 eleman verir:</p>
+    <p>$g = \lceil n/5 \rceil$. $x$, $g$ median'ın median'ı olduğu için $\lceil g/2 \rceil$ grubun median'ı $\le x$ (x'in kendi grubu dâhil). x'in kendi grubu ve eksik kalan son grup hariç geriye en az $\lceil g/2 \rceil - 2$ grup kalır. Bunların her biri $x$'ten küçük 3 eleman verir:</p>
     $$|R| \le (n - 1) - 3\left(\left\lceil \tfrac g2 \right\rceil - 2\right) = n + 5 - 3\left\lceil \tfrac g2 \right\rceil \le n + 5 - \tfrac{3n}{10} = \tfrac{7n}{10} + 5$$
-    <p>(Son adım: $\lceil g/2 \rceil \ge g/2 \ge n/10$.) $|L|$ için aynı hesap.</p>
+    <p>(Son adım: $\lceil g/2 \rceil \ge g/2 \ge n/10$.) $|L|$ için hesap aynı.</p>
     <ul>
-      <li><strong>3 nereden?</strong> Sıralı 5'li grupta medyan ve ondan küçük 2 eleman.</li>
-      <li><strong>"Grupların yarısı" nereden?</strong> $x$, medyanların medyanı: medyanların yarısı ondan küçük.</li>
+      <li><strong>3 nereden?</strong> Sorted 5'li grupta median ve ondan küçük 2 eleman.</li>
+      <li><strong>"Grupların yarısı" nereden?</strong> $x$ median of medians olduğu için median'ların yarısı ondan küçük.</li>
       <li><strong>+5 nereden?</strong> İki grubu saymadık ($-2$ grup, yani $+6$) ve $x$'in kendisi ne $L$'de ne $R$'de ($-1$): $6 - 1 = 5$.</li>
     </ul>
   </div>
   <div class="box box--example">
     <span class="box__label">Bilkent sürümü: $+6$</span>
-    <p>Bilkent slaytları "$|R| \ge 3n/10 - 6$" yazıp özyinelemeyi en fazla $n - (3n/10 - 6) = 7n/10 + 6$ eleman üzerinde kurar ($x$'i çıkarmadan sayar). Sabit 5 mi 6 mı önemsiz; ikisi de aynı $O(n)$'i verir.</p>
+    <p>Bilkent slaytları "$|R| \ge 3n/10 - 6$" yazıp recursion'ı en fazla $n - (3n/10 - 6) = 7n/10 + 6$ eleman üzerinde kurar ($x$'i çıkarmadan sayar). Constant'ın 5 ya da 6 olması fark etmez, ikisi de aynı $O(n)$'i verir.</p>
   </div>
   <div class="box box--rule">
     <span class="box__label">Recurrence · class prep S16</span>
-    $$T(n) \le \underbrace{c_1 n}_{\text{gruplama, grup sıralama, partition}} + \underbrace{T(n/5 + 1)}_{\text{Select}(C)\text{: pivotu bulmak}} + \underbrace{T(7n/10 + 5)}_{L\text{ ya da }R\text{'ye iniş}}\qquad (n &gt; 5)$$
-    <p>Master theorem uygulanmaz (iki farklı boyda alt problem). Sadeleştirilmiş $T(n) \le T(n/5) + T(7n/10) + cn$ için <a href="substitution.html">substitution</a>: $T(n) \le dn$ tahmin et;</p>
+    $$T(n) \le \underbrace{c_1 n}_{\text{gruplama, grup sorting, partition}} + \underbrace{T(n/5 + 1)}_{\text{Select}(C)\text{: pivot'u bulmak}} + \underbrace{T(7n/10 + 5)}_{L\text{ ya da }R\text{'ye iniş}}\qquad (n &gt; 5)$$
+    <p>Master theorem burada uygulanmaz, çünkü iki farklı boyda subproblem var. Sadeleştirilmiş $T(n) \le T(n/5) + T(7n/10) + cn$ için <a href="substitution.html">substitution</a>: $T(n) \le dn$ tahmin et;</p>
     $$\tfrac{d n}{5} + \tfrac{7 d n}{10} + cn = \tfrac{9}{10}dn + cn \le dn \iff d \ge 10c.$$
-    <p>$d = \max(T(1), 10c)$ ile $T(n) = O(n)$. İkinci çağrı neden $n/2$ değil $7n/10$: tam median yerine yaklaşığını hesapladık. Kaybettiğimiz şey denge, kazandığımız şey hesaplanabilirlik.</p>
+    <p>$d = \max(T(1), 10c)$ ile $T(n) = O(n)$. İkinci recursive call neden $n/2$ değil de $7n/10$? Çünkü tam median yerine yaklaşığını hesapladık. Dengeden biraz kaybettik, karşılığında pivot'u hesaplanabilir hâle getirdik.</p>
   </div>
   <div class="box box--example">
-    <span class="box__label">Class prep S17 · medyanların medyanı median değil</span>
-    <p>$n = 15$: gruplar $[1, 2, 3, 14, 15]$, $[4, 5, 6, 12, 13]$, $[7, 8, 9, 10, 11]$. Medyanlar 3, 6, 9 ⇒ $x = 6$. Gerçek median 8. $|L| = 5$, $|R| = 9$.</p>
-    <p>Sınır $7 \cdot 15/10 + 5 = 15.5 &gt; 15$: küçük $n$'de lemma hiçbir şey söylemez. $7n/10 + 5 &lt; n \iff n &gt; 50/3$, yani $n \ge 17$'den itibaren anlamlı. Slaytlardaki pseudocode'un "len(A) ≤ 50 ise sırala" base case'i bu yüzden var.</p>
+    <span class="box__label">Class prep S17 · median of medians, median değildir</span>
+    <p>$n = 15$: gruplar $[1, 2, 3, 14, 15]$, $[4, 5, 6, 12, 13]$, $[7, 8, 9, 10, 11]$. Median'lar 3, 6, 9 ⇒ $x = 6$. Gerçek median 8. $|L| = 5$, $|R| = 9$.</p>
+    <p>Bound $7 \cdot 15/10 + 5 = 15.5 &gt; 15$: küçük $n$'de lemma hiçbir şey söylemez. $7n/10 + 5 &lt; n \iff n &gt; 50/3$, yani lemma $n \ge 17$'den itibaren anlamlı. Slaytlardaki pseudocode'un "len(A) ≤ 50 ise sort et" base case'i bu yüzden var.</p>
   </div>
   <div class="box box--exam">
     <span class="box__label">Class prep S15–S17 · dene</span>
-    <p>"Standart resmi çiz: gruplar sütun, sütunlar sıralı, sütunlar medyana göre dizili. $x$'ten kesin küçük elemanları tara. $|A_&lt;|, |A_&gt;| \le 7n/10 + 5$'i, 3'ün, 'grupların yarısı'nın ve +5'in nereden geldiğiyle açıkla."</p>
+    <p>"Standart resmi çiz: gruplar sütun, sütunlar sorted, sütunlar median'a göre dizili. $x$'ten kesin küçük elemanları tara. $|A_&lt;|, |A_&gt;| \le 7n/10 + 5$ eşitsizliğini 3'ün, 'grupların yarısı'nın ve +5'in nereden geldiğiyle açıkla."</p>
     <details class="hint"><summary>İpucu 1</summary><div><p>Bölüm 7'deki animasyonun 5. karesi tam bu resim. Taralı bölge $x$'in sol üstü.</p></div></details>
     <details class="hint"><summary>İpucu 2</summary><div><p>Taralı sütun sayısını $\lceil g/2 \rceil$ cinsinden yaz, iki sütunu "güvenilmez" diye çıkar, sonra $n - 1$'den düş.</p></div></details>
     <details class="reveal"><summary>Çözümü göster</summary><div>
-      <p>Sütunlar küçükten büyüğe sıralı (üstte küçük), sütunlar medyana göre soldan sağa dizili. $x$ ortadaki sütunun medyanı. Solundaki her sütunun medyanı $\le x$, o sütunda medyanın üstündeki 2 eleman da medyandan küçük ⇒ sütun başına 3 eleman $&lt; x$. Böyle $\lceil g/2\rceil$ sütun var; $x$'in sütunu (orada $x$ hariç sadece 2 eleman) ve eksik son grup için 2 sütun düşülür: en az $3(\lceil g/2\rceil - 2) \ge 3n/10 - 6$ eleman $&lt; x$. Toplam $n - 1$ eleman ($x$ hariç) ⇒ $|R| \le n - 1 - 3n/10 + 6 = 7n/10 + 5$. $|L|$ simetrik (sağ alt bölge).</p>
+      <p>Her sütun kendi içinde küçükten büyüğe sorted (üstte küçük), sütunlar median'a göre soldan sağa dizili. $x$ ortadaki sütunun median'ı. Solundaki her sütunun median'ı $\le x$ ve o sütunda median'ın üstündeki 2 eleman da median'dan küçük ⇒ sütun başına 3 eleman $&lt; x$. Böyle $\lceil g/2\rceil$ sütun var. $x$'in sütunu (orada $x$ hariç sadece 2 eleman var) ve eksik son grup için 2 sütun düşülür: en az $3(\lceil g/2\rceil - 2) \ge 3n/10 - 6$ eleman $&lt; x$. $x$ hariç toplam $n - 1$ eleman var ⇒ $|R| \le n - 1 - 3n/10 + 6 = 7n/10 + 5$. $|L|$ simetrik (sağ alt bölge).</p>
     </div></details>
   </div>
   <div class="quiz" id="q-lemma">
-    <p class="quiz__q">$n = 1000$ iken median of medians pivotuyla Select'in ikinci özyinelemeli çağrısı en fazla kaç elemanlıdır (Lemma 5)?</p>
-    <button class="quiz__opt">500<span class="why">Bu tam median pivotunun verdiği sınır. Medyanların medyanı sadece %30–%70 garanti eder.</span></button>
-    <button class="quiz__opt">300<span class="why">300 ($3n/10$) <strong>atılması garanti olan</strong> eleman sayısı, kalan değil.</span></button>
+    <p class="quiz__q">$n = 1000$ iken median of medians pivot'uyla Select'in ikinci recursive call'u en fazla kaç elemanlıdır (Lemma 5)?</p>
+    <button class="quiz__opt">500<span class="why">Bu, tam median pivot'unun verdiği bound. Median of medians sadece %30–%70 garanti eder.</span></button>
+    <button class="quiz__opt">300<span class="why">300 ($3n/10$), <strong>atılması garanti olan</strong> eleman sayısı. Soru geriye kalanları soruyor.</span></button>
     <button class="quiz__opt" data-correct>705<span class="why">Doğru. $7 \cdot 1000/10 + 5 = 705$.</span></button>
   </div>
-  <p class="src">Kaynak: CS161 Lecture 4 notları §3.3.1 (Lemma 5), §3.4; slayt s.37–46 ve s.53–61 (proof by picture); Bilkent CS473 L7 s.32–35; class prep S15–S17. Örnekler Python ile doğrulandı; ayrıca $n = 6\ldots199$ arası rastgele dizilerde $\max(|L|,|R|) \le 7n/10 + 5$ kontrol edildi.</p>
+  <p class="src">Kaynak: CS161 Lecture 4 notları §3.3.1 (Lemma 5), §3.4; slayt s.37–46 ve s.53–61 (proof by picture); Bilkent CS473 L7 s.32–35; class prep S15–S17. Örnekler Python ile doğrulandı; ayrıca $n = 6\ldots199$ arası random array'lerde $\max(|L|,|R|) \le 7n/10 + 5$ kontrol edildi.</p>
 </section>
 
 <!-- 9 -->
@@ -424,11 +424,11 @@
   <h2>Neden 5'li grup?</h2>
   <div class="box box--intuition">
     <span class="box__label">Sezgi</span>
-    <p>İki özyinelemeli çağrının boy oranlarının toplamı 1'den küçükse her seviyedeki toplam iş bir öncekinin sabit bir kesri olur: geometrik seri, $O(n)$. Toplam tam 1 ise her seviye $n$ iş yapar, $\log n$ seviye ⇒ $n\log n$.</p>
+    <p>İki recursive call'un boy oranlarının toplamı 1'den küçükse her level'daki toplam iş bir öncekinin constant bir kesri olur: geometric series, $O(n)$. Toplam tam 1 ise her level $n$ iş yapar, $\log n$ level ⇒ $n\log n$.</p>
   </div>
-  <p>$s$ elemanlı gruplarda: içteki çağrı $n/s$; yarı grubun her biri $(s+1)/2$ eleman verir ⇒ kesin küçükler $\approx \frac{s+1}{2}\cdot\frac{n}{2s}$, dışarıdaki çağrı $\approx \frac{3s-1}{4s}n$.</p>
+  <p>$s$ elemanlı gruplarda içteki recursive call $n/s$ boyunda. Grupların yarısının her biri $(s+1)/2$ eleman verir ⇒ kesin küçükler $\approx \frac{s+1}{2}\cdot\frac{n}{2s}$, dıştaki recursive call $\approx \frac{3s-1}{4s}n$.</p>
   <div class="table-wrap"><table>
-    <tr><th>Grup boyu</th><th>İç çağrı</th><th>Dış çağrı</th><th>Toplam</th><th>Sonuç</th></tr>
+    <tr><th>Grup boyu</th><th>İç recursive call</th><th>Dış recursive call</th><th>Toplam</th><th>Sonuç</th></tr>
     <tr><td>3</td><td>$n/3$</td><td>$2n/3$</td><td>$1$</td><td>$\Theta(n\log n)$</td></tr>
     <tr><td>5</td><td>$n/5$</td><td>$7n/10$</td><td>$9/10$</td><td>$O(n)$, $d \ge 10c$</td></tr>
     <tr><td>7</td><td>$n/7$</td><td>$5n/7$</td><td>$6/7$</td><td>$O(n)$, $C = 7$</td></tr>
@@ -437,34 +437,34 @@
     <span class="box__label">Substitution ile kontrol · CS161 L4 concept check</span>
     <ul>
       <li><strong>7'li:</strong> $T(n) = n + T(n/7) + T(5n/7)$. $T \le Cn$: $\tfrac{6}{7}Cn + n \le Cn \iff C \ge 7$. En küçük $C = 7$.</li>
-      <li><strong>3'lü:</strong> $T(n) = n + T(n/3) + T(2n/3)$. $\tfrac13 + \tfrac23 = 1$: $Cn + n \le Cn$ hiçbir $C$ ile sağlanmaz. Her seviye tam $n$ iş, derinlik $\log_{3/2} n$ ⇒ $\Theta(n\log n)$.</li>
-      <li>Oranlar toplamı 1'den büyükse (class prep L3 S3) seviye işi büyür, sonuç lineerden de kötü.</li>
+      <li><strong>3'lü:</strong> $T(n) = n + T(n/3) + T(2n/3)$. $\tfrac13 + \tfrac23 = 1$: $Cn + n \le Cn$ hiçbir $C$ ile sağlanmaz. Her level tam $n$ iş yapar, derinlik $\log_{3/2} n$ ⇒ $\Theta(n\log n)$.</li>
+      <li>Oranlar toplamı 1'den büyükse (class prep L3 S3) level işi büyür ve sonuç linear'dan da kötü olur.</li>
     </ul>
   </div>
   <div class="box box--trap">
     <span class="box__label">Tuzak</span>
-    <p>"Grup büyüdükçe daha iyi" değil: grup boyu sabit kaldıkça her şey $O(n)$, ama grup sıralama maliyeti ve sabitler büyür. 5, lineerliği veren en küçük grup boyu (4'lü gruplarda da oranlar toplamı $\tfrac14 + \tfrac34 = 1$ çıkar).</p>
+    <p>Grup büyüdükçe algoritma iyileşmez. 5 ve üstü her constant grup boyunda sonuç $O(n)$, ama grubu sort etme maliyeti ve constant'lar büyür. 5, linear sonucu veren en küçük grup boyu (4'lü gruplarda da oranlar toplamı $\tfrac14 + \tfrac34 = 1$ çıkar).</p>
   </div>
   <div class="box box--exam">
     <span class="box__label">2023-24 vizesi S3(b) · aynı kalıp</span>
-    <p>Seçenekli recurrence sorusunda: "$T(n) = T(n/2) + T(n/10) + T(n/20) + n$." Seçenekler $\Theta(\log n)$, $\Theta(n)$, $\Theta(n\log n)$, $\Theta(n^{\log_2 3})$, $\Theta(n^3)$.</p>
+    <p>Çoktan seçmeli recurrence sorusu: "$T(n) = T(n/2) + T(n/10) + T(n/20) + n$." Seçenekler $\Theta(\log n)$, $\Theta(n)$, $\Theta(n\log n)$, $\Theta(n^{\log_2 3})$, $\Theta(n^3)$.</p>
     <details class="hint"><summary>İpucu 1</summary><div><p>Oranları topla: $\tfrac12 + \tfrac1{10} + \tfrac1{20}$. 1'den küçük mü?</p></div></details>
-    <details class="hint"><summary>İpucu 2</summary><div><p>$T(n) \le dn$ tahmin et; $d$ için bir alt sınır çıkıyor mu? Alt sınır için $+n$ terimine bak.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$T(n) \le dn$ tahmin et. $d$ için bir koşul çıkıyor mu? Lower bound için $+n$ terimine bak.</p></div></details>
     <details class="reveal"><summary>Çözümü göster</summary><div>
-      <p>Toplam $\tfrac{13}{20} &lt; 1$. Substitution: $\tfrac{13}{20}dn + n \le dn \iff d \ge \tfrac{20}{7}$. Yani $T(n) = O(n)$; $+n$ terimi yüzünden $T(n) \ge n$, sonuç $\Theta(n)$ (seçenek 2).</p>
+      <p>Toplam $\tfrac{13}{20} &lt; 1$. Substitution: $\tfrac{13}{20}dn + n \le dn \iff d \ge \tfrac{20}{7}$. Yani $T(n) = O(n)$. $+n$ terimi yüzünden $T(n) \ge n$, sonuç $\Theta(n)$ (seçenek 2).</p>
     </div></details>
   </div>
   <div class="box box--exam">
     <span class="box__label">Class prep S18 · dene</span>
-    <p>"3'lü ve 7'li gruplarla analizi tekrarla: iki alt problem boyu ne, oranların toplamı ne, recurrence $O(n)$ verir mi? 3'ün neden çok küçük olduğunu substitution cevaplarınla açıkla."</p>
-    <details class="hint"><summary>İpucu 1</summary><div><p>3'lü grupta medyan ve altındaki 1 eleman: grup başına 2 kesin küçük, grupların yarısı $n/6$.</p></div></details>
+    <p>"3'lü ve 7'li gruplarla analizi tekrarla: iki subproblem'in boyu ne, oranların toplamı ne, recurrence $O(n)$ verir mi? 3'ün neden çok küçük olduğunu substitution cevaplarınla açıkla."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>3'lü grupta median ve altındaki 1 eleman: grup başına 2 kesin küçük, grupların yarısı $n/6$.</p></div></details>
     <details class="hint"><summary>İpucu 2</summary><div><p>Substitution'da $\tfrac13 Cn + \tfrac23 Cn + n \le Cn$ yazmayı dene. Nerede takılıyorsun?</p></div></details>
   </div>
   <div class="quiz" id="q-groups">
     <p class="quiz__q">Gruplar 3'lü olursa Select'in recurrence'ı ve sonucu ne olur?</p>
-    <button class="quiz__opt">$T(n/3) + T(2n/3) + n = O(n)$<span class="why">Oranlar toplamı tam 1: her seviye $n$ iş, $\log n$ seviye. Lineer değil.</span></button>
+    <button class="quiz__opt">$T(n/3) + T(2n/3) + n = O(n)$<span class="why">Oranlar toplamı tam 1: her level $n$ iş, $\log n$ level. Sonuç linear değil.</span></button>
     <button class="quiz__opt" data-correct>$T(n/3) + T(2n/3) + n = \Theta(n\log n)$<span class="why">Doğru. Concept check'in cevabı da bu.</span></button>
-    <button class="quiz__opt">$T(n/3) + T(7n/10) + n = O(n)$<span class="why">$7n/10$, 5'li grupların sınırı. 3'lü grupta kesin atılan sadece $n/3$, kalan $2n/3$.</span></button>
+    <button class="quiz__opt">$T(n/3) + T(7n/10) + n = O(n)$<span class="why">$7n/10$, 5'li grupların bound'u. 3'lü grupta kesin atılan sadece $n/3$, kalan $2n/3$.</span></button>
   </div>
   <p class="src">Kaynak: CS161 Lecture 4 concept check (7'li: $a = 7$, $b = 5$, $c = 7$, $C = 7$; 3'lü: $a = 3$, $b = 2$, $c = 3$, $\Theta(n\log n)$); class prep L3 S3 ve L4 S18; 2023-24 vize fotoğrafı S3(b). Kesirler Python'da <code>Fraction</code> ile hesaplandı.</p>
 </section>
@@ -475,60 +475,60 @@
   <div class="box box--rule">
     <span class="box__label">En küçük k eleman, üç yol · class prep S19</span>
     <div class="table-wrap"><table>
-      <tr><th>Yol</th><th>Süre</th><th>Ne zaman iyi?</th></tr>
-      <tr><td>(i) Sırala, ilk $k$'yı al</td><td>$O(n\log n)$</td><td>Çıktının sıralı olması da isteniyorsa</td></tr>
-      <tr><td>(ii) $x$ = Select$(A, n, k)$, sonra bir tarama: $\le x$ olanları topla</td><td>$O(n)$</td><td>Her $k$ için asimptotik en iyi</td></tr>
-      <tr><td>(iii) $k$ kez SelectMin, her seferinde çıkar</td><td>$O(kn)$</td><td>Sadece $k = O(1)$ iken (ii) ile aynı mertebe; $k = \omega(\log n)$ olunca sıralamadan bile kötü</td></tr>
+      <tr><th>Yol</th><th>Running time</th><th>Ne zaman iyi?</th></tr>
+      <tr><td>(i) Sort et, ilk $k$'yı al</td><td>$O(n\log n)$</td><td>Output'un sorted olması da isteniyorsa</td></tr>
+      <tr><td>(ii) $x$ = Select$(A, n, k)$, sonra bir tarama: $\le x$ olanları topla</td><td>$O(n)$</td><td>Her $k$ için asymptotic olarak en iyi</td></tr>
+      <tr><td>(iii) $k$ kez SelectMin, her seferinde çıkar</td><td>$O(kn)$</td><td>Sadece $k = O(1)$ iken (ii) ile aynı mertebede; $k = \omega(\log n)$ olunca sorting'den bile kötü</td></tr>
     </table></div>
   </div>
   <div class="quiz" id="q-ksmall">
-    <p class="quiz__q">$k = \sqrt n$ en küçük elemanı (sırasız) istiyorsun. En hızlı yol?</p>
-    <button class="quiz__opt">$k$ kez SelectMin<span class="why">$k \cdot n = n^{1.5}$. $k$ sabit olmadığı için lineerlikten çıkar.</span></button>
+    <p class="quiz__q">En küçük $k = \sqrt n$ elemanı (sorted olması gerekmeden) istiyorsun. En hızlı yol hangisi?</p>
+    <button class="quiz__opt">$k$ kez SelectMin<span class="why">$k \cdot n = n^{1.5}$. $k$ constant olmadığı için linear time'ı aşar.</span></button>
     <button class="quiz__opt" data-correct>Select + bir tarama<span class="why">Doğru. $k$ ne olursa olsun $O(n)$.</span></button>
-    <button class="quiz__opt">Sırala<span class="why">$O(n\log n)$: Select'ten yavaş. $n^{1.5}$'ten hızlı olsa da en iyi değil.</span></button>
+    <button class="quiz__opt">Sort et<span class="why">$O(n\log n)$: Select'ten yavaş. $n^{1.5}$'ten hızlı olsa da en iyisi değil.</span></button>
   </div>
   <div class="box box--exam">
     <span class="box__label">2019-20 vizesi S4 · 2020-21 tek ders sınavı S3</span>
     <p>"$n$ farklı sayıdan oluşan $S$ ve pozitif $k \le n$ verildiğinde, $S$'nin <strong>median'ına değerce en yakın</strong> $k$ sayıyı bulan $O(n)$ bir algoritma tarif et."</p>
     <details class="hint"><summary>İpucu 1</summary><div><p>Önce median $m$'yi bul. Hangi algoritma bunu $O(n)$'de yapar?</p></div></details>
-    <details class="hint"><summary>İpucu 2</summary><div><p>"Değerce en yakın" = $|s - m|$ en küçük. Her eleman için bu mesafeyi hesapla. Şimdi soru yine bir seçim problemi.</p></div></details>
-    <details class="hint"><summary>İpucu 3</summary><div><p>Mesafeler dizisinde $k$. en küçük mesafeyi $\delta$ bul; sonra tek taramayla mesafesi $\le \delta$ olanları topla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Değerce en yakın" = $|s - m|$ en küçük. Her eleman için bu mesafeyi hesapla. Soru yine bir selection problem'ine dönüştü.</p></div></details>
+    <details class="hint"><summary>İpucu 3</summary><div><p>Mesafeler arasında $k$-th smallest olanı, yani $\delta$'yı bul. Sonra tek taramayla mesafesi $\le \delta$ olanları topla.</p></div></details>
     <details class="reveal"><summary>Çözümü göster</summary><div>
       <ol>
         <li>$m \leftarrow$ Select$(S, n, \lceil n/2 \rceil)$ (median of medians): $O(n)$.</li>
         <li>$m$ hariç her $s$ için $D[s] = |s - m|$: $O(n)$.</li>
         <li>$\delta \leftarrow$ Select$(D, n-1, k)$: $O(n)$.</li>
-        <li>$S$'yi tara, $s \ne m$ ve $|s - m| \le \delta$ olanları çıktıya yaz (eşit mesafede fazlası çıkarsa $k$'da dur): $O(n)$.</li>
+        <li>$S$'yi tara, $s \ne m$ ve $|s - m| \le \delta$ olanları output'a yaz (eşit mesafede fazlası çıkarsa $k$'da dur): $O(n)$.</li>
       </ol>
-      <p>Toplam $O(n)$: sabit sayıda Select ve tarama.</p>
+      <p>Toplam $O(n)$: constant sayıda Select ve tarama.</p>
       <p><strong>Örnek:</strong> $S = [3, 19, 7, 40, 11, 16, 1, 14, 28]$, $k = 3$. $m = 14$. Mesafeler: 16→2, 11→3, 19→5, 7→7, 3→11, 1→13, 28→14, 40→26. $\delta = 5$ ⇒ cevap $\{16, 11, 19\}$.</p>
     </div></details>
   </div>
   <div class="box box--trap">
-    <span class="box__label">Sıraca yakın ≠ değerce yakın</span>
-    <p>Repodaki 2019-20 çözüm notu, sıralı dizide median'ın sağındaki ve solundaki $k/2$ konumu alıyor. Bu, <strong>sırası</strong> en yakın elemanları verir. Karşı örnek: $S = [1, 2, 10, 11, 12]$, $k = 2$, $m = 10$. Sıraca komşular $\{2, 11\}$, ama değerce en yakınlar $\{11, 12\}$ (mesafe 1 ve 2; 2'nin mesafesi 8). 2020-21 sorusu "closest value" diyerek bunu açıkça istiyor.</p>
+    <span class="box__label">Rank olarak yakın ≠ değerce yakın</span>
+    <p>Repodaki 2019-20 çözüm notu, sorted array'de median'ın sağındaki ve solundaki $k/2$ konumu alıyor. Bu, <strong>rank'i</strong> en yakın elemanları verir. Counterexample: $S = [1, 2, 10, 11, 12]$, $k = 2$, $m = 10$. Rank komşuları $\{2, 11\}$, ama değerce en yakınlar $\{11, 12\}$ (mesafe 1 ve 2; 2'nin mesafesi 8). 2020-21 sorusu "closest value" diyerek bunu açıkça istiyor.</p>
   </div>
   <div class="box box--exam">
     <span class="box__label">2019-20 vizesi S3</span>
-    <p>"QuickSort'u en kötü durumda $O(n\log n)$ çalışacak şekilde nasıl değiştirirsin? Kısaca açıkla."</p>
+    <p>"QuickSort'u worst case'te $O(n\log n)$ çalışacak şekilde nasıl değiştirirsin? Kısaca açıkla."</p>
     <details class="hint"><summary>İpucu 1</summary><div><p>QuickSort'u $n^2$'ye ne götürüyor? Dengesiz pivot.</p></div></details>
-    <details class="hint"><summary>İpucu 2</summary><div><p>Tam median'ı en kötü durumda $O(n)$'de bulabiliyorsun.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Tam median'ı worst case'te $O(n)$'de bulabiliyorsun.</p></div></details>
     <details class="reveal"><summary>Çözümü göster</summary><div>
-      <p>Her adımda pivotu median of medians Select'iyle tam median olarak seç: Select$(A, n, \lceil n/2 \rceil)$, $O(n)$. Partition zaten $O(n)$. İki yarı da $\le n/2$: $T(n) = 2T(n/2) + O(n) = O(n\log n)$, en kötü durumda bile. (Pratikte sabit büyük olduğu için rastgele pivot tercih edilir.)</p>
+      <p>Her adımda pivot'u median of medians Select'iyle tam median olarak seç: Select$(A, n, \lceil n/2 \rceil)$, $O(n)$. Partition zaten $O(n)$. İki yarı da $\le n/2$: $T(n) = 2T(n/2) + O(n) = O(n\log n)$, worst case'te bile. (Pratikte constant büyük olduğu için random pivot tercih edilir.)</p>
     </div></details>
   </div>
   <div class="box box--exam">
-    <span class="box__label">CS161 HW3 Problem 1 · iki dizinin median'ı</span>
-    <p>"$n$ uzunluklu iki dizi veriliyor; birleşimlerinin median'ını bul. (1.1) Diziler sırasızsa algoritma ve neden en iyi süre olduğu. (1.2) İki dizi de sıralıysa daha hızlısı?"</p>
-    <details class="hint"><summary>İpucu 1 (1.1)</summary><div><p>Birleştir, $2n$ elemanlı dizide Select. Alt sınır için Bölüm 2: okunmayan bir eleman median'ı değiştirebilir.</p></div></details>
-    <details class="hint"><summary>İpucu 2 (1.2)</summary><div><p>Daha genel soru: iki sıralı dizide $k$. en küçük. $A$'nın ve $B$'nin $\lfloor k/2\rfloor$. elemanını karşılaştır. Küçük olanın o elemana kadar olan kısmı $k$. elemanı içerebilir mi?</p></div></details>
-    <details class="hint"><summary>İpucu 3 (1.2)</summary><div><p>$A[i] \le B[i]$ ($i = \lfloor k/2 \rfloor$) ise $A[i]$'den küçük en fazla $(i-1) + (i-1) \le k-2$ eleman var, yani $A[1..i]$'nin hepsi $k$.'dan önce gelir: at, $k \leftarrow k - i$. Her adım $k$'yı yarıya indirir.</p></div></details>
+    <span class="box__label">CS161 HW3 Problem 1 · iki array'in median'ı</span>
+    <p>"$n$ uzunluklu iki array veriliyor; ikisinin birleşiminin median'ını bul. (1.1) Array'ler unsorted ise algoritma ve bunun neden en iyi running time olduğu. (1.2) İki array de sorted ise daha hızlısı?"</p>
+    <details class="hint"><summary>İpucu 1 (1.1)</summary><div><p>İki array'i tek array'de topla, $2n$ elemanlı array'de Select çalıştır. Lower bound için Bölüm 2: okunmayan bir eleman median'ı değiştirebilir.</p></div></details>
+    <details class="hint"><summary>İpucu 2 (1.2)</summary><div><p>Daha genel soru: iki sorted array'de $k$-th smallest. $A$'nın ve $B$'nin $\lfloor k/2\rfloor$. elemanını karşılaştır. Küçük olanın o elemana kadar olan kısmı $k$-th elemanı içerebilir mi?</p></div></details>
+    <details class="hint"><summary>İpucu 3 (1.2)</summary><div><p>$A[i] \le B[i]$ ($i = \lfloor k/2 \rfloor$) ise $A[i]$'den küçük en fazla $(i-1) + (i-1) \le k-2$ eleman var, yani $A[1..i]$'nin hepsi $k$-th elemandan önce gelir: at, $k \leftarrow k - i$. Her adım $k$'yı yarıya indirir.</p></div></details>
     <details class="reveal"><summary>Çözüm taslağını göster</summary><div>
-      <p><strong>1.1:</strong> İki diziyi birleştir ($O(n)$), $2n$ eleman üzerinde Select ile $n$. elemanı bul: $O(n)$. Daha hızlısı olamaz: bir elemanı okumayan algoritmaya karşı o eleman değiştirilip median kaydırılabilir, en az $\Omega(n)$.</p>
-      <p><strong>1.2:</strong> kth$(A, B, k)$: dizilerden biri boşsa öbürünün $k$. elemanını döndür; $k = 1$ ise $\min(A[1], B[1])$. Yoksa $i = \min(\lfloor k/2 \rfloor, |A|)$, $j = \min(\lfloor k/2 \rfloor, |B|)$; $A[i] \le B[j]$ ise $A$'nın ilk $i$ elemanını at ve $k \leftarrow k - i$, değilse $B$'nin ilk $j$'sini at ve $k \leftarrow k - j$. Median $=$ kth$(A, B, n)$. Her adım $k$'yı yaklaşık yarıya indirir: $O(\log n)$.</p>
+      <p><strong>1.1:</strong> İki array'i tek array'de topla ($O(n)$), $2n$ eleman üzerinde Select ile $n$-th elemanı bul: $O(n)$. Daha hızlısı olamaz: bir elemanı okumayan algoritmaya karşı o eleman değiştirilip median kaydırılabilir, yani lower bound $\Omega(n)$.</p>
+      <p><strong>1.2:</strong> kth$(A, B, k)$: array'lerden biri boşsa öbürünün $k$-th elemanını döndür; $k = 1$ ise $\min(A[1], B[1])$. Yoksa $i = \min(\lfloor k/2 \rfloor, |A|)$, $j = \min(\lfloor k/2 \rfloor, |B|)$; $A[i] \le B[j]$ ise $A$'nın ilk $i$ elemanını at ve $k \leftarrow k - i$, değilse $B$'nin ilk $j$ elemanını at ve $k \leftarrow k - j$. Median $=$ kth$(A, B, n)$. Her adım $k$'yı yaklaşık yarıya indirir: $O(\log n)$.</p>
     </div></details>
   </div>
-  <p class="src">Kaynak: class prep S19; 2019-20 sınav seti (<code>exams/2019-2020/exams-2019.pdf</code>, vize S3–S4) ve <code>questions-Q3.txt</code>, <code>questions-Q4.txt</code>; 2020-21 <code>single-course-exam.pdf</code> S3; CS161 HW3 Problem 1. Q4 çözüm notu sıraca yakınlığı veriyor; bizim hesabımız (Python) değerce yakınlığın farklı çıktığını gösterdi, sorunun ifadesine uyan değerce olan. 1.2 algoritması 3000 rastgele girdide sıralamayla karşılaştırılarak doğrulandı.</p>
+  <p class="src">Kaynak: class prep S19; 2019-20 sınav seti (<code>exams/2019-2020/exams-2019.pdf</code>, vize S3–S4) ve <code>questions-Q3.txt</code>, <code>questions-Q4.txt</code>; 2020-21 <code>single-course-exam.pdf</code> S3; CS161 HW3 Problem 1. Q4 çözüm notu rank olarak yakınlığı veriyor; bizim hesabımız (Python) değerce yakınlığın farklı çıktığını gösterdi, sorunun ifadesine uyan değerce olan. 1.2 algoritması 3000 random input'ta sorting ile karşılaştırılarak doğrulandı.</p>
 </section>
 
 <!-- 11 -->
@@ -536,30 +536,30 @@
   <h2>Son kontrol</h2>
   <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
   <div class="quiz" id="q-final-1">
-    <p class="quiz__q">Select'te $k = 9$ ve partition sonrası $|L| = 4$. Hangi çağrı yapılır?</p>
-    <button class="quiz__opt">Select$(R, 5)$<span class="why">$k - |L| = 5$: pivotu saymayı unuttun. Pivot da cevaptan küçük.</span></button>
+    <p class="quiz__q">Select'te $k = 9$ ve partition sonrası $|L| = 4$. Hangi recursive call yapılır?</p>
+    <button class="quiz__opt">Select$(R, 5)$<span class="why">$k - |L| = 5$: pivot'u saymayı unuttun. Pivot da cevaptan küçük.</span></button>
     <button class="quiz__opt" data-correct>Select$(R, 4)$<span class="why">Doğru. $|L| = 4 &lt; k - 1 = 8$, durum 3: $9 - 4 - 1 = 4$.</span></button>
-    <button class="quiz__opt">Select$(L, 9)$<span class="why">$L$'de sadece 4 eleman var; 9. en küçüğü orada olamaz. Durum 2 için $|L| &gt; k - 1$ gerekir.</span></button>
+    <button class="quiz__opt">Select$(L, 9)$<span class="why">$L$'de sadece 4 eleman var, 9th smallest orada olamaz. Durum 2 için $|L| &gt; k - 1$ gerekir.</span></button>
   </div>
   <div class="quiz" id="q-final-2">
-    <p class="quiz__q">Rastgele pivotlu Select'in (QuickSelect) en kötü durum süresi nedir?</p>
-    <button class="quiz__opt">$O(n)$<span class="why">Bu <strong>beklenen</strong> süre. En kötü durumda her pivot en küçük çıkabilir.</span></button>
-    <button class="quiz__opt">$\Theta(n\log n)$<span class="why">Bu QuickSort'un beklenen süresi. QuickSelect tek tarafa iner.</span></button>
+    <p class="quiz__q">Random pivot'lu Select'in (QuickSelect) worst-case running time'ı nedir?</p>
+    <button class="quiz__opt">$O(n)$<span class="why">Bu <strong>expected</strong> running time. Worst case'te her pivot en küçük eleman çıkabilir.</span></button>
+    <button class="quiz__opt">$\Theta(n\log n)$<span class="why">Bu, QuickSort'un expected running time'ı. QuickSelect tek tarafa iner.</span></button>
     <button class="quiz__opt" data-correct>$\Theta(n^2)$<span class="why">Doğru. $T(n) = T(n-1) + \Theta(n)$.</span></button>
   </div>
   <div class="quiz" id="q-final-3">
     <p class="quiz__q">Median of medians'ta $T(n) \le T(n/5) + T(7n/10) + cn$ neden $O(n)$?</p>
-    <button class="quiz__opt">Master theorem $a = 2$, $b = 5$ verir<span class="why">İki alt problemin boyu farklı; master theorem bu biçime uymaz.</span></button>
-    <button class="quiz__opt" data-correct>$\tfrac15 + \tfrac{7}{10} = \tfrac{9}{10} &lt; 1$, substitution $d \ge 10c$ ile kapanır<span class="why">Doğru. Seviye işi her seferinde en fazla $9/10$'a iner.</span></button>
-    <button class="quiz__opt">Pivot tam median olduğu için<span class="why">Medyanların medyanı tam median değil (Bölüm 8, $n = 15$ örneği). Sadece %30–%70 garantisi var.</span></button>
+    <button class="quiz__opt">Master theorem $a = 2$, $b = 5$ verir<span class="why">İki subproblem'in boyu farklı; master theorem bu biçime uymaz.</span></button>
+    <button class="quiz__opt" data-correct>$\tfrac15 + \tfrac{7}{10} = \tfrac{9}{10} &lt; 1$, substitution $d \ge 10c$ ile kapanır<span class="why">Doğru. Level işi her seferinde en fazla $9/10$'a iner.</span></button>
+    <button class="quiz__opt">Pivot tam median olduğu için<span class="why">Median of medians tam median değil (Bölüm 8, $n = 15$ örneği). Sadece %30–%70 garantisi var.</span></button>
   </div>
   <div class="quiz" id="q-final-4">
     <p class="quiz__q">Lemma 5'teki "$+5$" nereden gelir?</p>
-    <button class="quiz__opt">5'li grupların boyundan<span class="why">Grup boyu 3 çarpanını belirler (medyan ve altındaki 2). $+5$ sayılamayan gruplardan gelir.</span></button>
-    <button class="quiz__opt" data-correct>Sayılmayan 2 gruptan ($+6$) ve pivotun kendisinden ($-1$)<span class="why">Doğru. $n - 1 - 3(\lceil g/2\rceil - 2) = n + 5 - 3\lceil g/2 \rceil$.</span></button>
-    <button class="quiz__opt">Base case $n \le 5$'ten<span class="why">Base case recurrence'ın ayrı satırı. Lemma'daki sabit, x'in grubu ve eksik grup düşülünce çıkar.</span></button>
+    <button class="quiz__opt">5'li grupların boyundan<span class="why">Grup boyu 3 çarpanını belirler (median ve altındaki 2 eleman). $+5$, sayılmayan gruplardan ve pivot'tan gelir.</span></button>
+    <button class="quiz__opt" data-correct>Sayılmayan 2 gruptan ($+6$) ve pivot'un kendisinden ($-1$)<span class="why">Doğru. $n - 1 - 3(\lceil g/2\rceil - 2) = n + 5 - 3\lceil g/2 \rceil$.</span></button>
+    <button class="quiz__opt">Base case $n \le 5$'ten<span class="why">Base case, recurrence'ın ayrı bir satırı. Lemma'daki constant, x'in grubu ve eksik grup düşülünce çıkar.</span></button>
   </div>
-  <p class="src">Sıradaki konu: <a href="quicksort.html">Rastgele algoritmalar ve QuickSort</a>.</p>
+  <p class="src">Sıradaki konu: <a href="quicksort.html">Randomized algorithm'ler ve QuickSort</a>.</p>
 </section>
 
         </article>
@@ -608,7 +608,7 @@ function momSelect(A, k) {
     const fin = Object.assign({}, marks);
     if (L.length === k - 1) {
       fin[pi] = "done";
-      frames.push({ A, marks: fin, L, R, line: 4, call, depth, caption: `$|L| = ${L.length} = k - 1$: durum 1. Pivotun altında tam $k-1$ eleman var, cevap <b>${p}</b>.` });
+      frames.push({ A, marks: fin, L, R, line: 4, call, depth, caption: `$|L| = ${L.length} = k - 1$: durum 1. Pivot'un altında tam $k-1$ eleman var, cevap <b>${p}</b>.` });
       return p;
     }
     if (L.length > k - 1) {
@@ -626,7 +626,7 @@ function momSelect(A, k) {
     const k = +ksel.value, frames = [];
     const ans = run(A0, k, 0, frames), truth = A0.slice().sort((a, b) => a - b)[k - 1];
     const last = frames[frames.length - 1];
-    frames.push(Object.assign({}, last, { caption: `Sonuç: <b>${ans}</b>. Kontrol: sıralı dizi $[${A0.slice().sort((a, b) => a - b).join(", ")}]$, ${k}. eleman ${truth} ${ans === truth ? "✓" : "✗"}.` }));
+    frames.push(Object.assign({}, last, { caption: `Sonuç: <b>${ans}</b>. Kontrol: sorted array $[${A0.slice().sort((a, b) => a - b).join(", ")}]$, ${k}. eleman ${truth} ${ans === truth ? "✓" : "✗"}.` }));
     Lab.stepper(box, { title: `Select, A = [${A0.join(", ")}], k = ${k}`, interval: 1100, frames,
       render(f, i, el) {
         el.innerHTML = `<div class="src" style="margin-bottom:4px">${"&nbsp;&nbsp;".repeat(f.depth)}${f.depth ? "↳ " : ""}<code>${f.call}</code></div>` +
@@ -663,10 +663,10 @@ function momSelect(A, k) {
   for (let t = 0; t < T; t++) {
     const done = rules.filter(r => t >= r.sizes.length - 1).map(r => r.name);
     frames.push({ t, caption: t === T - 1
-      ? `Bitti. Taranan toplam: min pivot <b>${work(rules[0], t)}</b> $= 64 \\cdot 65 / 2$, tam median <b>${work(rules[1], t)}</b> $\\le 2n$, median of medians <b>${work(rules[2], t)}</b> (dış zincir; pivotu bulan iç Select'lerin işi ayrıca sabit kat ekler).`
-      : `Çağrı ${t + 1}. ${done.length ? "Bitenler: " + done.join(", ") + "." : "Min pivot her adımda sadece 1 eleman atıyor."}` });
+      ? `Bitti. Taranan toplam: min pivot <b>${work(rules[0], t)}</b> $= 64 \\cdot 65 / 2$, tam median <b>${work(rules[1], t)}</b> $\\le 2n$, median of medians <b>${work(rules[2], t)}</b> (dıştaki recursive call zinciri; pivot'u bulan içteki Select'lerin işi buna constant bir kat ekler).`
+      : `Recursive call ${t + 1}. ${done.length ? "Bitenler: " + done.join(", ") + "." : "Min pivot her adımda sadece 1 eleman atıyor."}` });
   }
-  Lab.stepper(document.getElementById("pivot-stepper"), { title: "n = 64, k = 64: alt dizinin boyu", interval: 220, frames,
+  Lab.stepper(document.getElementById("pivot-stepper"), { title: "n = 64, k = 64: subarray'in boyu", interval: 220, frames,
     render(f, i, el) {
       el.innerHTML = rules.map(r => {
         const s = f.t < r.sizes.length ? r.sizes[f.t] : 0, fin = f.t >= r.sizes.length - 1;
@@ -703,20 +703,20 @@ function momSelect(A, k) {
       { cols: raw, align: false, med: false, x: false, shade: 0,
         caption: `Adım 1: $n = ${n}$ sayıyı sırayla 5'erli gruplara böl: $g = \\lceil ${n}/5 \\rceil = ${g}$ sütun${lastLen < 5 ? ` (sonuncusu ${lastLen} elemanlı)` : ""}.` },
       { cols: sorted, align: true, med: true, x: false, shade: 0,
-        caption: `Adım 2: Her sütunu kendi içinde sırala (üstte küçük). Ortadaki eleman grubun medyanı (kalın çerçeve). $M = \\{${M.join(", ")}\\}$.` },
+        caption: `Adım 2: Her sütunu kendi içinde sort et (üstte küçük). Ortadaki eleman grubun median'ı (kalın çerçeve). $M = \\{${M.join(", ")}\\}$.` },
       { cols: byMed, align: true, med: true, x: false, shade: 0,
-        caption: `Sadece ispat için: sütunları medyanlarına göre soldan sağa diz. Algoritma bunu yapmaz.` },
+        caption: `Sadece ispat için: sütunları median'larına göre soldan sağa diz. Algoritma bunu yapmaz.` },
       { cols: byMed, align: true, med: true, x: true, shade: 0,
-        caption: `Adım 3: $x = $ Select$(M, ${g}, ${Math.ceil(g / 2)}) = ${x}$, medyanların medyanı (mor).` },
+        caption: `Adım 3: $x = $ Select$(M, ${g}, ${Math.ceil(g / 2)}) = ${x}$, median of medians (mor).` },
       { cols: byMed, align: true, med: true, x: true, shade: 1,
-        caption: `$x$'in sol üstü: medyanı $x$'ten küçük sütunlarda medyan ve üstündekiler, $x$'in sütununda üstündekiler. Hepsi $\\lt ${x}$: <b>${cntLt}</b> eleman. Lemma'nın alt sınırı $3(\\lceil g/2 \\rceil - 2) = ${lemmaLow}$.` },
+        caption: `$x$'in sol üstü: median'ı $x$'ten küçük sütunlarda median ve üstündekiler, $x$'in sütununda üstündekiler. Hepsi $\\lt ${x}$: <b>${cntLt}</b> eleman. Lemma'nın lower bound'u $3(\\lceil g/2 \\rceil - 2) = ${lemmaLow}$.` },
       { cols: byMed, align: true, med: true, x: true, shade: 2,
         caption: `Simetrik: sağ alt bölge kesin $\\gt ${x}$: <b>${cntGt}</b> eleman.` },
       { cols: byMed, align: true, med: true, x: true, shade: 3,
         caption: `Adım 4: partition. $|L| = ${L}$, $|R| = ${R}$. Lemma: ikisi de $\\le 7n/10 + 5 = ${bound}$ ${Math.max(L, R) <= 7 * n / 10 + 5 ? "✓" : "✗"}. Gerçek median ${A.slice().sort((a, b) => a - b)[Math.ceil(n / 2) - 1]}${A.slice().sort((a, b) => a - b)[Math.ceil(n / 2) - 1] === x ? " (bu sefer aynı)" : ", $x$ ondan farklı"}.` }
     ];
     const CW = 40, CH = 32, GAP = 6, PAD = 6;
-    Lab.stepper(box, { title: sel.value === "0" ? "Bilkent örneği: 43 sayı" : "Rastgele 35 sayı", interval: 1700, frames,
+    Lab.stepper(box, { title: sel.value === "0" ? "Bilkent örneği: 43 sayı" : "Random 35 sayı", interval: 1700, frames,
       render(f, i, el) {
         const W = PAD * 2 + g * (CW + GAP), H = PAD * 2 + 5 * (CH + GAP);
         let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto;display:block" role="img" aria-label="5'li gruplar sütun olarak">`;
@@ -735,7 +735,7 @@ function momSelect(A, k) {
               `<text x="${X + CW / 2}" y="${Y + CH / 2 + 5}" text-anchor="middle" style="fill:${txt};font:700 14px 'JetBrains Mono',monospace">${v}</text>`;
           });
         });
-        el.innerHTML = s + `</svg><div class="src" style="margin-top:4px">mavi: $\\lt x$ · turuncu: $\\gt x$ · mor: $x$ · kalın çerçeve: grup medyanı</div>`;
+        el.innerHTML = s + `</svg><div class="src" style="margin-top:4px">mavi: $\\lt x$ · turuncu: $\\gt x$ · mor: $x$ · kalın çerçeve: grup median'ı</div>`;
       } });
   }
   sel.onchange = build;

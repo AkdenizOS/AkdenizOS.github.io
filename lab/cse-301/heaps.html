@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 301: min-heap ve max-heap, array representation, insert ve extract-min O(log n), build-heap O(n), HeapSort ve k-sorted array." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Heap · CSE 301 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css" />
+  <style>
+    /* Heap drawings. Same node and edge styles as the BST lesson; here a node's place
+       comes from its array index (level by level, left to right), and the small number
+       above each node is that index. */
+    .tfig { overflow-x: auto; margin: 8px 0; }
+    .tsvg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+    .tsvg .e { stroke: var(--border-strong); stroke-width: 2; }
+    .tsvg .e.hole { stroke-dasharray: 4 3; }
+    .tsvg .n circle { fill: var(--bg-elevated); stroke: var(--blue-600); stroke-width: 2; }
+    .tsvg .n text { font: 700 13px 'JetBrains Mono', monospace; fill: var(--fg); text-anchor: middle; dominant-baseline: central; }
+    .tsvg .n.path circle { fill: var(--blue-100); }
+    .tsvg .n.cur circle { fill: var(--accent); stroke: var(--orange-700); }
+    .tsvg .n.cur text { fill: #fff; }
+    .tsvg .n.found circle { fill: #2b8a3e; stroke: #2b8a3e; }
+    .tsvg .n.found text { fill: #fff; }
+    .tsvg .n.new circle { fill: #ebf7ee; stroke: #2b8a3e; stroke-dasharray: 4 3; }
+    .tsvg .n.del circle { fill: #fdecec; stroke: #c92a2a; stroke-width: 3; }
+    .tsvg .n.hole circle { fill: none; stroke: #c92a2a; stroke-dasharray: 4 3; }
+    .tsvg .n.click { cursor: pointer; }
+    .tsvg .ix { font: 500 10px 'JetBrains Mono', monospace; fill: var(--fg-subtle); text-anchor: middle; }
+    .hview { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+    .hview > .tfig { flex: 1 1 300px; min-width: 260px; }
+    .hview > .hside { flex: 1 1 300px; min-width: 0; }
+    .tfig-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+    .tfig-row figure { margin: 0; text-align: center; }
+    .tfig-row figcaption { font-size: .85rem; color: var(--fg-subtle); }
+    .tlegend { display: flex; flex-wrap: wrap; gap: 10px; font-size: .78rem; color: var(--fg-subtle); margin-top: 4px; }
+    .tlegend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+    .hlab { font-size: .8rem; color: var(--fg-subtle); margin-top: 6px; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 301</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 301</a> / Heap</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L7</span><span class="chip chip--exam">Vize kapsamında</span><span class="chip">2020-21 vize S4</span><span class="src">~35 dk · 7 bölüm</span></div>
+          <h1>Heap</h1>
+          <p class="lead">Bazı problemlerde her şeyi sıralamak gerekmez, sadece "şu an en küçük hangisi?" sorusuna hızlı cevap lazımdır. Heap tam bunu yapar: insert ve extract-min worst case'te $O(\log n)$. Bu ders heap'in tanımını, array representation'ı, iki temel işlemi, build-heap'in neden $O(n)$ olduğunu, HeapSort'u ve sınavda çıkan k-sorted array sorusunu anlatıyor.</p>
+          <p class="src">Kaynak: CS161 Lecture 7 notları §2 (Definition 1–2, Algorithm 1–2; L7 slaytları heap'i işlemiyor) · Section 4 warm-up · CLRS 4e §6.1–6.5, Exercise 6.5-11, Problem 8-5 · 2020-21 vizesi S4 · 2019-20 finali S1.</p>
+        </header>
+
+        <article class="lesson" data-course="cse-301" data-lesson="heaps">
+
+<!-- 1 -->
+<section class="lsec" id="heap-def" data-min="4">
+  <h2>Heap nedir?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi: acil servis</span>
+    <p>Hastalar rastgele sırayla gelir ama içeri en acil olan girer. Bunun için iki işlem yeter: <strong>insert(x)</strong> yeni hastayı ekler, <strong>extract-min</strong> en öncelikli olanı döndürür ve siler. Bu ikisini destekleyen yapıya <em>priority queue</em> denir; heap onu kurmanın standart yolu.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Operation</th><th>Unsorted linked list</th><th>Sorted array</th><th>Min-heap</th></tr>
+      <tr><td>insert</td><td>$\Theta(1)$</td><td>$\Theta(n)$</td><td>$O(\log n)$</td></tr>
+      <tr><td>extract-min</td><td>$\Theta(n)$</td><td>$\Theta(1)$*</td><td>$O(\log n)$</td></tr>
+      <tr><td>search(17)</td><td>$\Theta(n)$</td><td>$\Theta(\log n)$</td><td>$\Theta(n)$</td></tr>
+    </table></div>
+    <p class="src">* Array büyükten küçüğe sıralıysa minimum en sonda durur ve silmek tek adımdır. Tablo, L7 notlarındaki tablonun heap eklenmiş hâli.</p>
+  </div>
+
+  <div class="box box--rule">
+    <span class="box__label">Tanım (L7 notları, Definition 1–2)</span>
+    <p><strong>Complete binary tree:</strong> son level hariç her level dolu, son level'daki node'lar da olabildiğince solda.</p>
+    <p><strong>Binary min-heap</strong> iki şartı birlikte sağlar:</p>
+    <ol>
+      <li>Tree complete binary tree'dir.</li>
+      <li><strong>Heap property:</strong> her node'un key'i, altındaki bütün node'ların key'lerinden küçüktür. Bunu kontrol etmek için her parent–child çiftine bakmak yeter: $\text{key}(\text{parent}) \le \text{key}(\text{child})$.</li>
+    </ol>
+    <p>Sonuç: minimum her zaman <strong>root</strong>'tadır. <strong>Max-heap</strong> aynı yapının tersidir: parent child'dan büyüktür, maksimum root'tadır. CS161 min-heap kullanıyor, CLRS HeapSort için max-heap.</p>
+  </div>
+  <div class="tfig-row">
+    <figure><div class="tfig" data-heap="2,6,3,9,8,4,7,12,10"></div><figcaption>min-heap · root = 2</figcaption></figure>
+    <figure><div class="tfig" data-heap="12,10,7,9,8,4,3,2,6"></div><figcaption>max-heap · aynı key'ler · root = 12</figcaption></figure>
+  </div>
+
+  <div class="box box--trap">
+    <span class="box__label">Tuzak: heap property sadece dikeyde geçerli</span>
+    <p>BST'deki gibi "sol küçük, sağ büyük" kuralı yok. Soldaki min-heap'te root'un sol child'ı 6, sağ child'ı 3; ikisi de 2'den büyük olduğu için sorun yok. Sibling'ler arasında hiçbir sıra yok, bu yüzden heap'te bir key'i aramak $\Theta(n)$ (Bölüm 4).</p>
+  </div>
+
+  <div class="box box--exam">
+    <span class="box__label">Section 4 warm-up S6 · nasıl soruluyor</span>
+    <p>Section 4 birkaç tree çizip "red-black tree mi, min-heap mi, ikisi mi, hiçbiri mi?" diye soruyor. Heap için iki şeyi sırayla kontrol et: önce şekil (complete mi?), sonra her kenarda heap property.</p>
+  </div>
+  <div class="tfig" data-heap="1,2,8,3,?,9,11,_,_,_,_,_,_,_,19"></div>
+  <p class="src">Section 4'teki tree. Kesikli kırmızı daire boş kalan yeri gösteriyor.</p>
+  <div class="quiz" id="q-def">
+    <p class="quiz__q">Yukarıdaki tree bir min-heap mi?</p>
+    <button class="quiz__opt">Evet, her parent child'larından küçük<span class="why">Heap property gerçekten sağlanıyor, ama tek şart bu değil. Şekil de complete olmalı.</span></button>
+    <button class="quiz__opt">Hayır, heap property bozuk<span class="why">Her kenara bak: 1&lt;2, 1&lt;8, 2&lt;3, 8&lt;9, 8&lt;11, 11&lt;19. Hepsi doğru, sorun başka yerde.</span></button>
+    <button class="quiz__opt" data-correct>Hayır, complete binary tree değil<span class="why">Doğru. 2'nin sağ child'ı yokken alttaki level'a 19 eklenmiş. Heap bir level dolmadan alttakine geçemez. Section 4'ün cevabı da "Neither".</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="heap-array" data-min="4">
+  <h2>Array representation ve height</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi: boşluk yoksa pointer da gerekmez</span>
+    <p>Complete binary tree'de delik olmadığı için node'ları level level, soldan sağa bir array'e yazabilirsin. Kimin parent'ı, kimin child'ı olduğu index'ten hesaplanır. Node'a tıkla: tree'de ve array'de parent'ı ve child'ları birlikte yanar.</p>
+  </div>
+  <div id="ix-explorer" class="stepper"></div>
+
+  <div class="box box--rule">
+    <span class="box__label">Kural: 1-based index (CLRS ve 2020-21 vizesindeki A[1…n])</span>
+    $$\text{parent}(i) = \lfloor i/2 \rfloor \qquad \text{left}(i) = 2i \qquad \text{right}(i) = 2i+1$$
+    <ul>
+      <li>Root $A[1]$'dedir. Son node $A[n]$, ilk boş yer $A[n+1]$.</li>
+      <li>Leaf'ler $A[\lfloor n/2\rfloor + 1 \ldots n]$: node'ların yaklaşık yarısı leaf (CLRS 6.1-8).</li>
+      <li><strong>Height</strong> (root'tan en derin leaf'e giden yoldaki kenar sayısı) $h = \lfloor \log_2 n \rfloor$. Sebebi: $d$. level'da $2^d$ node var, yani $2^h \le n \le 2^{h+1}-1$.</li>
+      <li>Rakamlarla: $n = 10 \Rightarrow h = 3$, $n = 1000 \Rightarrow h = 9$, $n = 10^6 \Rightarrow h = 19$.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak: 0-based ile 1-based'i karıştırmak</span>
+    <p>Python'un <code>heapq</code>'u ve C array'leri 0'dan başlar. Orada formüller değişir: $\text{parent}(i) = \lfloor (i-1)/2 \rfloor$, child'lar $2i+1$ ve $2i+2$. Soru $A[1\ldots n]$ diyorsa 1-based formülleri kullan, ve aynı cevapta ikisini karıştırma.</p>
+    <p>İkinci tuzak: sıralı bir array her zaman bir min-heap'tir (CLRS 6.1-6), çünkü her parent kendinden sonraki index'lerden küçüktür. Tersi doğru değil. Yukarıdaki heap'in array'i 2 6 3 9 … diye gidiyor, sıralı değil.</p>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">CLRS 6.1-7 · dene</span>
+    <p>$\langle 33, 19, 20, 15, 13, 10, 2, 13, 16, 12 \rangle$ bir max-heap mi?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$n = 10$, leaf olmayan node'lar $i = 1 \ldots 5$. Her biri için $A[i] \ge A[2i]$ ve $A[i] \ge A[2i+1]$ mi, tek tek bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>Değil.</strong> $i = 4$: $A[4] = 15$, child'ları $A[8] = 13$ ve $A[9] = 16$. $16 &gt; 15$ olduğu için max-heap property bozuluyor. Diğer node'lar sorunsuz.</p></div></details>
+  </div>
+  <div class="quiz" id="q-array">
+    <p class="quiz__q">1-based bir heap'te $n = 12$. index 5'teki node'un parent'ı ve child'ları hangi index'lerde?</p>
+    <button class="quiz__opt" data-correct>parent 2, child'lar 10 ve 11<span class="why">Doğru. $\lfloor 5/2 \rfloor = 2$, $2 \cdot 5 = 10$, $2 \cdot 5 + 1 = 11$. İkisi de $\le 12$, yani iki child da var.</span></button>
+    <button class="quiz__opt">parent 2, child'lar 11 ve 12<span class="why">Bunlar 0-based formüller ($2i+1$, $2i+2$). Soru 1-based.</span></button>
+    <button class="quiz__opt">parent 3, child'lar 10 ve 11<span class="why">Parent için aşağı yuvarlanır: $\lfloor 5/2 \rfloor = 2$. index 3'ün child'ları 6 ve 7.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="heap-insert" data-min="5">
+  <h2>Insert ve bubble up</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Tree'nin complete kalması için yeni eleman tek bir yere gidebilir: ilk boş yer, yani $A[n+1]$. Şekil bozulmaz ama heap property bozulabilir, o da sadece yeni eleman ile root arasındaki yolda. Çözüm basit: yeni eleman parent'ından küçük olduğu sürece ikisini swap et. Buna <em>bubble up</em> (sift up) denir.</p>
+  </div>
+  <p>İşlem seç ve oynat. Tree ile array aynı anda değişiyor.</p>
+  <div style="margin:8px 0"><select id="ins-sel" class="btn btn--sm"></select></div>
+  <div id="ins-stepper"></div>
+  <div class="tlegend"><span><i style="background:var(--accent)"></i>hareket eden key</span><span><i style="background:var(--blue-100);border:1px solid var(--blue-600)"></i>comparison yapılan node</span><span><i style="background:#ebf7ee;border:1px dashed #2b8a3e"></i>yeni node</span><span><i style="background:#2b8a3e"></i>yerine oturdu</span></div>
+
+  <div class="box box--rule">
+    <span class="box__label">Kural (L7 notları, Algorithm 1)</span>
+    <ol>
+      <li>Yeni key'i $A[n+1]$'e yaz, $n$'i bir artır.</li>
+      <li>Parent'ı daha büyük olduğu sürece parent ile swap et ve bir level yukarı çık.</li>
+      <li>Parent daha küçükse ya da root'a geldiysen dur.</li>
+    </ol>
+    <p><strong>Running time:</strong> her swap bir level yukarı çıkarır, en fazla height kadar swap olur. Worst case $O(\log n)$, best case tek comparison.</p>
+    <p><strong>Neden doğru:</strong> swap'ta aşağı inen eski parent, yeni key'den büyük ama zaten altındaki herkesten küçüktü. Yani aşağıda bozulma olmaz, bozulma ihtimali sadece bir üstteki kenara taşınır.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak</span>
+    <ul>
+      <li>Bubble up sırasında sibling'e ya da child'lara bakılmaz, sadece parent'a. Sibling'in yeni key'den büyük olması sorun değil.</li>
+      <li>Yeni eleman root'a konup aşağı itilmez. O, extract-min'in yöntemi.</li>
+      <li>$n$ elemanı tek tek insert etmek worst case'te $\Theta(n \log n)$ sürer. Daha hızlı yolu Bölüm 5'te.</li>
+    </ul>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">Sınavda</span>
+    <p>Trace sorusu tipik: "Show the array after inserting 5." Her swap'tan sonraki array'i ayrı satıra yaz. Puan ara adımlarda. Bir de worst case sayısı sorulabilir, aşağıdaki gibi.</p>
+  </div>
+  <div class="quiz" id="q-insert">
+    <p class="quiz__q">1000 elemanlı bir min-heap'e insert yapılıyor. Worst case'te en fazla kaç comparison olur?</p>
+    <button class="quiz__opt" data-correct>9<span class="why">Doğru. Yeni node index 1001'e oturur, depth'i $\lfloor \log_2 1001 \rfloor = 9$. Her level için bir comparison, root'a varınca durur.</span></button>
+    <button class="quiz__opt">10<span class="why">Yoldaki node sayısı 10 ama comparison kenar başına bir tane, yani 9. ($\log_2 1001 \approx 9.97$; aşağı yuvarlanır.)</span></button>
+    <button class="quiz__opt">1000<span class="why">Insert herkesle comparison yapmaz, sadece root'a giden yoldakilerle. Bu yol height kadar uzun.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="heap-extract" data-min="5">
+  <h2>Extract-min ve sift down</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Minimum root'ta, onu almak kolay. Zor olan root'taki boşluğu doldurmak. Tree'nin complete kalması için silinebilecek tek node son node, $A[n]$. Onun key'ini root'a taşı, sonra aşağı it: <strong>daha küçük child</strong> ile swap et, ta ki iki child da ondan büyük olana kadar. Buna <em>sift down</em> (bubble down, CLRS'de MIN-HEAPIFY) denir.</p>
+  </div>
+  <p>Oynat: aynı heap'ten üst üste üç extract-min. Çıkan key'lere bak: 2, 3, 4. Sıralı çıkıyorlar, HeapSort'un fikri bu.</p>
+  <div id="ext-stepper"></div>
+
+  <div class="box box--rule">
+    <span class="box__label">Kural (L7 notları, Algorithm 2)</span>
+    <ol>
+      <li>$m = A[1]$'i sakla. $A[1] = A[n]$ yap, $n$'i bir azalt.</li>
+      <li>Node'un child'ı varsa küçük olanı seç. Node ondan büyükse swap et ve aşağı in.</li>
+      <li>Child yoksa ya da node iki child'dan da küçükse dur. $m$'yi döndür.</li>
+    </ol>
+    <p><strong>Running time:</strong> her adımda bir level iner ve en fazla 2 comparison yapar. Worst case $O(\log n)$.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak 1: büyük child ile swap</span>
+    <p>Yukarıdaki ilk extract-min'de root'a 10 geliyor, child'ları 6 ve 3. 6 ile swap edersen root 6 olur ve sağ child'ı 3 kalır: $6 &gt; 3$, heap property bozuldu. Yukarı her zaman <strong>küçük</strong> olan çıkar, çünkü yeni root iki child'dan da küçük olmalı.</p>
+    <div class="tfig" data-heap="6,10,3,9,8,4,7,12" data-mark="1:del,3:del"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak 2: heap'te arama hızlı değil</span>
+    <p>Heap property sadece "parent küçük" der, sol mu sağ mı gideceğini söylemez. Belli bir key'i bulmak ya da silmek için bütün node'lara bakman gerekebilir: $\Theta(n)$ (L7 notları, dipnot 1). Min-heap'te maksimum bile hızlı bulunmaz: bir leaf'tedir, ama leaf'ler yaklaşık $n/2$ tane.</p>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">Section 4 warm-up S1–2</span>
+    <p>"Key'i 2025 olan elemanı $O(\log n)$'de bul": sadece red-black tree. "En küçük elemanı $O(\log n)$'de bul": ikisi de. Heap'te minimum root'ta, $O(1)$.</p>
+  </div>
+  <div class="quiz" id="q-extract">
+    <p class="quiz__q">$A = [2, 6, 3, 9, 8, 4, 7, 12, 10]$ üzerinde bir extract-min sonrası array ne olur?</p>
+    <button class="quiz__opt" data-correct>$[3, 6, 4, 9, 8, 10, 7, 12]$<span class="why">Doğru. 10 root'a gelir; 3 ile swap (6 ve 3'ün küçüğü), sonra 4 ile swap (4 ve 7'nin küçüğü). index 6 leaf, dur.</span></button>
+    <button class="quiz__opt">$[3, 6, 10, 9, 8, 4, 7, 12]$<span class="why">İlk swap'tan sonra durulmuş. 10'un child'ları 4 ve 7, ikisi de daha küçük; sift down devam etmeli.</span></button>
+    <button class="quiz__opt">$[6, 10, 3, 9, 8, 4, 7, 12]$<span class="why">Büyük child (6) ile swap edilmiş. Root 6, sağ child'ı 3: heap property bozuk.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="build-sort" data-min="7">
+  <h2>Build-heap ve HeapSort</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi: işi aşağıdan başlat</span>
+    <p>$n$ elemanı tek tek insert edersen, büyükten küçüğe gelen bir input'ta her yeni eleman root'a kadar çıkar. Toplam $\Theta(n\log n)$. Build-heap tersinden gider: leaf'ler zaten tek elemanlı heap. Son leaf olmayan node'dan ($\lfloor n/2 \rfloor$) root'a doğru her node'a sift down uygula. Node'ların çoğu aşağıda olduğu için çoğu sift down çok kısa sürer.</p>
+  </div>
+  <div id="build-stepper"></div>
+
+  <div class="box box--rule">
+    <span class="box__label">Kural: build-heap $O(n)$ (CLRS §6.3)</span>
+    <pre><code>BUILD-MIN-HEAP(A, n):
+    for i = ⌊n/2⌋ downto 1:
+        SIFT-DOWN(A, i, n)</code></pre>
+    <p>Height'ı $h$ olan bir node'da sift down en fazla $h$ swap yapar. Height'ı $h$ olan en fazla $\lceil n/2^{h+1} \rceil$ node var: yaklaşık $n/2$ node'un height'ı 0, $n/4$'ünün 1, $n/8$'inin 2 …</p>
+    $$\sum_{h=0}^{\lfloor \log n \rfloor} \left\lceil \frac{n}{2^{h+1}} \right\rceil c\,h \;\le\; c\,n \sum_{h=0}^{\infty} \frac{h}{2^{h}} \;=\; 2cn \;=\; O(n)$$
+    <p>Pahalı sift down'lar az sayıda node'da, ucuzlar çok sayıda node'da. Toplam lineer kalıyor.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Büyükten küçüğe input, $n$</th><th>Tek tek insert: swap</th><th>Build-heap: swap</th></tr>
+    <tr><td>15</td><td>34</td><td>11</td></tr>
+    <tr><td>1023</td><td>8 194</td><td>1 013</td></tr>
+    <tr><td>1 048 575</td><td>18 874 370</td><td>1 048 555</td></tr>
+  </table></div>
+  <p class="src">Sayılar iki algoritmanın Python'da çalıştırılmasıyla bulundu. Insert'te eleman başına swap $\log n$ ile büyüyor (1023'te ≈8, 10⁶'da ≈18), build-heap'te 1'in altında kalıyor.</p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak</span>
+    <ul>
+      <li>"$n/2$ sift down × $O(\log n)$ = $O(n\log n)$" yanlış değil, ama tight bound değil. Sınavda tight bound sorulursa cevap $O(n)$.</li>
+      <li>Loop neden $\lfloor n/2 \rfloor$'den <strong>aşağı</strong> iniyor (CLRS 6.3-3)? Sift down, node'un iki subtree'sinin zaten heap olduğunu varsayar. Aşağıdan yukarı gidince bu her adımda sağlanır.</li>
+    </ul>
+  </div>
+
+  <h3>HeapSort</h3>
+  <p>CLRS max-heap kullanır, çünkü array'i <em>in place</em> ve küçükten büyüğe sıralamak ister. Max-heap'te en büyük key root'tadır; onu array'in sonuna swap et, heap'i bir küçült, root'ta sift down yap. Sağdaki yeşil kısım sıralanmış bölge.</p>
+  <div id="sort-stepper"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural (CLRS §6.4)</span>
+    <pre><code>HEAPSORT(A, n):
+    BUILD-MAX-HEAP(A, n)                 // O(n)
+    for i = n downto 2:
+        swap A[1], A[i]                  // en büyük yerine oturur
+        heap-size = heap-size − 1
+        SIFT-DOWN(A, 1, heap-size)       // O(log n)</code></pre>
+    <p>Running time $O(n) + (n-1)\cdot O(\log n) = O(n\log n)$. In place (dışarıda sabit sayıda eleman), ama stable değil.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Lower bound ile bağlantı (L6)</span>
+    <p>Her comparison-based sorting algoritması worst case'te $\Omega(n\log n)$ comparison yapar. HeapSort $O(n\log n)$ olduğu için MergeSort gibi asymptotically optimal.</p>
+    <p>Aynı argüman heap için bir sınır da verir: insert ve extract-min ikisi birden $o(\log n)$ olan bir comparison-based heap olsaydı, $n$ insert + $n$ extract-min ile $o(n\log n)$'de sıralardık. Bu imkânsız. Build-heap'in $O(n)$ olması lower bound'a aykırı değil, çünkü heap sıralı değil, sadece bir partial order tutuyor.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak: min-heap ile in place HeapSort</span>
+    <p>Min-heap ile aynı swap'ları yaparsan array'in sonuna önce en küçükler yerleşir, sonuç büyükten küçüğe olur. Min-heap ile küçükten büyüğe sıralamak için extract-min'leri ayrı bir output array'ine yazarsın: yine $O(n\log n)$, ama $O(n)$ extra space ile.</p>
+  </div>
+  <div class="box box--exam">
+    <span class="box__label">CLRS 6.4-3 · dene</span>
+    <p>Zaten sıralı bir array'de HeapSort'un running time'ı nedir?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Build-max-heap sıralı array'i nasıl bir heap'e çevirir? Sonra her adımda root'a gelen key nereden geliyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>Yine $\Theta(n\log n)$. Her adımda root'a son leaf'ten gelen küçük bir key gelir ve tekrar aşağı iner. Key'ler farklıysa best case de $\Omega(n\log n)$ (CLRS 6.4-5). HeapSort girdiye göre hızlanmaz, InsertionSort'tan farkı bu.</p></div></details>
+  </div>
+  <div class="quiz" id="q-build">
+    <p class="quiz__q">Sıralanmamış $n$ elemanlı bir array'den min-heap kurmanın tight running time'ı nedir?</p>
+    <button class="quiz__opt" data-correct>$\Theta(n)$<span class="why">Doğru: bottom-up build-heap. Her elemana en az bir kez bakmak gerektiği için daha azı da olmaz.</span></button>
+    <button class="quiz__opt">$\Theta(n\log n)$<span class="why">Tek tek insert'in worst case'i bu. Build-heap'in toplamı $\sum h \cdot n/2^{h+1} = O(n)$.</span></button>
+    <button class="quiz__opt">$\Theta(\log n)$<span class="why">Bu tek bir insert ya da sift down'ın süresi. $n$ elemanın hepsini okumak bile $n$ adım.</span></button>
+  </div>
+  <div class="quiz" id="q-lower">
+    <p class="quiz__q">Bir arkadaşın, comparison-based ve insert ile extract-min'i $O(1)$ olan bir heap yazdığını söylüyor. Ne dersin?</p>
+    <button class="quiz__opt" data-correct>İmkânsız, çünkü bununla $O(n)$'de sıralanırdı<span class="why">Doğru. $n$ insert + $n$ extract-min = $O(n)$ sıralama, ama comparison-based sıralama $\Omega(n\log n)$.</span></button>
+    <button class="quiz__opt">Mümkün, build-heap de zaten $O(n)$<span class="why">Build-heap sadece heap property'yi kurar, sıralamaz. Sıralı çıktıyı veren extract-min'ler ve pahalı olan da onlar.</span></button>
+    <button class="quiz__opt">Mümkün, lower bound sadece MergeSort ve QuickSort için<span class="why">Lower bound, decision tree argümanıyla <strong>her</strong> comparison-based algoritma için geçerli.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="k-sorted" data-min="6">
+  <h2>k-sorted array ve k-way merge</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi: sliding window</span>
+    <p>Her eleman, sıralı hâldeki yerinden en fazla $k$ index uzakta. O zaman sıralı dizinin 1. elemanı input'un ilk $k+1$ elemanı arasında olmalı. Genel olarak: henüz çıkarılmamışların en küçüğü her zaman önündeki $k+1$ elemanlık window'da. Window'u bir min-heap'te tut, en küçüğü çıkar, window'a sıradaki elemanı ekle. Heap hiçbir zaman $k+1$'den büyümez.</p>
+  </div>
+  <p>Örnek: $k = 2$, input $[2, 3, 1, 5, 4, 7, 8, 6]$. Her eleman sıralı yerinden en fazla 2 uzakta (1 ve 6 tam 2 uzakta).</p>
+  <div id="ks-stepper"></div>
+
+  <div class="box box--rule">
+    <span class="box__label">Kural</span>
+    <ul>
+      <li><strong>k-sorted sıralama:</strong> heap boyutu $\le k+1$, her insert ve extract-min $O(\log k)$. İlk heap $O(k)$ (build-heap) ya da $O(k\log k)$ (tek tek insert). Sonra $n$ extract-min ve $n-k-1$ insert. Toplam $O(n\log k)$.</li>
+      <li>Uç durumlar: $k$ sabitse $O(n)$; $k = n$ ise $O(n\log n)$, HeapSort ile aynı.</li>
+      <li><strong>k-way merge</strong> (CLRS 6.5-11): toplam $n$ elemanlı $k$ sıralı listeyi birleştir. Heap'te her listenin o anki ilk elemanı durur, (key, liste no) çifti olarak. Extract-min ile en küçüğü output'a yaz, aynı listenin sıradaki elemanını insert et. Heap boyutu $\le k$, toplam $O(n\log k)$.</li>
+      <li>Lower bound: k-sorted bir array'i sıralamak için her comparison-based algoritma $\Omega(n\log k)$ comparison yapar (CLRS Problem 8-5; <a href="linear-sorting.html">lower bound dersi</a>, son bölüm). Heap çözümü bu yüzden tight.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak</span>
+    <ul>
+      <li>Heap $k$ değil $k+1$ elemanla başlar. 2019-20 final kâğıdında "size k−1" yazıyor, bu bir yazım hatası: ilk $k-1$ elemanda en küçük eleman olmayabilir. Yukarıdaki örnekte 1 index 3'te; ilk 1 ya da 2 elemana bakan algoritma onu kaçırır.</li>
+      <li>k-way merge'de her adımda $k$ listenin başını tek tek taramak $O(nk)$. Heap ile toplam $O(n\log k)$.</li>
+      <li>"$O(n\log n)$" cevabı doğru bir üst sınır ama tight değil; soru tight bound istiyor.</li>
+    </ul>
+  </div>
+
+  <div class="box box--exam">
+    <span class="box__label">2020-21 vizesi S4 (Heap-sort) · dene</span>
+    <p>Sıralanmamış bir $A[1\ldots n]$ array'inde her eleman, sıralı hâldeki index'inden en fazla $k$ uzakta ($0 &lt; k \le n$). Algoritmanın taslağı: ilk $k+1$ elemanla $k+1$ boyutlu bir min-heap kur; sonra her adımda min elemanı çıkarıp result array'ine koy ve kalanlardan bir elemanı heap'e ekle.</p>
+    <p>(a) Algoritmanın tamamını pseudocode olarak yaz. (b) Tight asymptotic upper bound ver, adımları göster.</p>
+    <p class="src">2019-20 finali S1 aynı soru, sadece (b) şıkkı var.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Pseudocode'u üç parçaya böl: ilk heap'i kur; "extract-min, output'a yaz, sıradakini insert et" döngüsü; input bitince heap'te kalanları boşalt.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Heap'te aynı anda en fazla kaç eleman var? O boyutta bir insert ya da extract-min ne kadar sürer?</p></div></details>
+    <details class="hint"><summary>İpucu 3</summary><div><p>Toplam kaç extract-min ve kaç insert yapılıyor? İlk heap'in maliyetini de ekle. $k$ ile $n$ arasındaki ilişkiyi kullanarak sadeleştir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong></p>
+      <pre><code>K-SORTED-SORT(A, n, k):
+    H = empty min-heap
+    for i = 1 to min(k+1, n):
+        INSERT(H, A[i])            // ya da BUILD-MIN-HEAP(A[1..k+1])
+    B = new array[1..n]
+    j = 1
+    for i = k+2 to n:
+        B[j] = EXTRACT-MIN(H)
+        j = j + 1
+        INSERT(H, A[i])
+    while H is not empty:
+        B[j] = EXTRACT-MIN(H)
+        j = j + 1
+    return B</code></pre>
+      <p><strong>Neden doğru:</strong> sıralı dizinin $j$. elemanı input'ta en geç $j+k$ index'inde. $j$. extract-min anında heap'e $A[1\ldots \min(j+k, n)]$ girmiş, ondan küçük olanların hepsi de çıkarılmış. Yani heap'in minimumu tam olarak $j$. en küçük eleman.</p>
+      <p><strong>(b)</strong> Heap boyutu hiçbir zaman $k+1$'i geçmez, her işlem $O(\log(k+1)) = O(\log k)$.</p>
+      <ul>
+        <li>İlk heap: $k+1$ insert, $O(k\log k)$ (build-heap ile $O(k)$).</li>
+        <li>Toplam $n$ extract-min ve $n-k-1$ insert: $O(n\log k)$.</li>
+      </ul>
+      $$T(n) = O(k\log k) + O(n\log k) = O(n\log k) \quad (k \le n)$$
+      <p>$k$ sabitse $O(n)$, $k = n$ ise $O(n\log n)$. Extra space: heap için $O(k)$, $B$ için $O(n)$.</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-kway">
+    <p class="quiz__q">Toplam $n$ elemanlı $k$ tane sıralı listeyi tek sıralı listede birleştirmenin tight running time'ı nedir?</p>
+    <button class="quiz__opt" data-correct>$O(n\log k)$<span class="why">Doğru. Heap'te her listeden bir eleman, en fazla $k$ eleman. $n$ eleman için birer extract-min ve insert, her biri $O(\log k)$.</span></button>
+    <button class="quiz__opt">$O(nk)$<span class="why">Heap'siz çözüm bu: her adımda $k$ listenin başını tek tek taramak. Heap ile her adım $O(\log k)$ sürer.</span></button>
+    <button class="quiz__opt">$O(n\log n)$<span class="why">Her şeyi tek array'e koyup sıralamak bunu verir. Doğru bir üst sınır ama listelerin zaten sıralı olduğunu kullanmıyor; $k$ küçükse çok daha iyisi var.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">$n$ elemanlı bir min-heap'te maksimum nerededir ve bulmak ne kadar sürer?</p>
+    <button class="quiz__opt">Son index'te, $O(1)$<span class="why">Son index sadece son eklenen yer. Örneğin $[2, 6, 3, 9, 8, 4, 7, 12, 10]$'da maksimum 12, index 8'de.</span></button>
+    <button class="quiz__opt" data-correct>Bir leaf'te, $\Theta(n)$<span class="why">Doğru. Child'ı olan her node child'ından küçük, yani maksimum leaf olmak zorunda. Ama leaf'ler arasında sıra yok ve yaklaşık $n/2$ tane leaf var.</span></button>
+    <button class="quiz__opt">Root'un child'larından birinde, $O(1)$<span class="why">Bu max-heap'te ikinci en büyüğün yeri. Min-heap'te root'un child'ları küçük key'lerdir.</span></button>
+  </div>
+  <div class="tfig" data-heap="2,1"></div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Section 4 S5: root 2, sol child'ı 1. Bu tree red-black BST mi, max-heap mi, ikisi mi, hiçbiri mi?</p>
+    <button class="quiz__opt" data-correct>İkisi de<span class="why">Doğru. Complete ve $2 &gt; 1$, yani max-heap. Ayrıca $1 &lt; 2$ olduğu için BST; 2 siyah, 1 kırmızı boyanınca red-black kuralları da sağlanır.</span></button>
+    <button class="quiz__opt">Sadece max-heap<span class="why">Red-black kontrolünü atladın: BST sırası doğru, 1'i kırmızı boyamak yeterli.</span></button>
+    <button class="quiz__opt">Hiçbiri, tek child'lı tree complete değildir<span class="why">Son level'ın sola yaslı olması yeterli. Tek sol child'ı olan bir tree complete; tek sağ child'ı olan değil.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">$A = [3, 5, 4, 9, 6, 8]$ bir min-heap. insert(2) sonrası array nedir?</p>
+    <button class="quiz__opt">$[2, 3, 5, 4, 9, 6, 8]$<span class="why">Bu array'in başına eklemek. Heap'te yeni eleman en sona gider ve parent'larıyla swap ederek yukarı çıkar.</span></button>
+    <button class="quiz__opt" data-correct>$[2, 5, 3, 9, 6, 8, 4]$<span class="why">Doğru. 2 index 7'ye girer. Parent index 3 (4): swap. Parent index 1 (3): swap. 2 root'ta, 2 swap.</span></button>
+    <button class="quiz__opt">$[2, 5, 4, 9, 6, 8, 3]$<span class="why">Yeni key root'a konup eski root en sona atılmış. Şimdi 3 index 7'de ve parent'ı index 3'teki 4: $4 &gt; 3$, heap property bozuk. Bubble up parent zincirinde adım adım ilerler.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Aşağıdakilerden hangisi binary min-heap'te worst case $O(\log n)$ değildir?</p>
+    <button class="quiz__opt">insert<span class="why">Bubble up en fazla height kadar, $O(\log n)$.</span></button>
+    <button class="quiz__opt">extract-min<span class="why">Sift down en fazla height kadar, $O(\log n)$.</span></button>
+    <button class="quiz__opt" data-correct>search(x)<span class="why">Doğru. Heap property hangi subtree'ye gideceğini söylemez, bütün node'lara bakmak gerekebilir: $\Theta(n)$.</span></button>
+  </div>
+  <p class="src">Sıradaki konu: BST ve red-black tree.</p>
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js"></script>
+<script src="../assets/lab.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ── Heap drawing. vals[0] is A[1]. "_" = no node, "?" = a hole that should be filled.
+     mark is keyed by the 1-based index, like the array in the lesson. ── */
+  const T2A = { cur: "swap", path: "cmp", found: "done", new: "small", del: "big", hole: "big" };
+
+  function heapSvg(vals, o) {
+    o = o || {};
+    const mark = o.mark || {}, n = vals.length;
+    const R = 15, DY = 52, PAD = 18, TOP = 14, SLOT = 44;
+    if (!n) return `<svg class="tsvg" viewBox="0 0 120 40" width="120" height="40"><text x="60" y="24" text-anchor="middle" style="fill:var(--fg-subtle);font-size:13px">boş heap</text></svg>`;
+    const depth = Math.floor(Math.log2(n));
+    const W = 2 * PAD + Math.pow(2, depth) * SLOT, H = TOP + R + depth * DY + R + PAD;
+    const pos = (i) => { const d = Math.floor(Math.log2(i)), p = i - Math.pow(2, d); return [PAD + (p + 0.5) * (W - 2 * PAD) / Math.pow(2, d), TOP + R + d * DY]; };
+    const kind = (i) => i > n ? "" : vals[i - 1] === "?" ? "hole" : (vals[i - 1] === "_" || vals[i - 1] === null) ? "" : "node";
+    let edges = "", body = "";
+    for (let i = 1; i <= n; i++) {
+      const k = kind(i);
+      if (!k) continue;
+      const [x, y] = pos(i);
+      if (i > 1 && kind(i >> 1) === "node") {
+        const [px, py] = pos(i >> 1);
+        edges += `<line class="e${k === "hole" ? " hole" : ""}" x1="${px}" y1="${py}" x2="${x}" y2="${y}"/>`;
+      }
+      const cls = ["n", k === "hole" ? "hole" : mark[i] || "", o.click ? "click" : ""].join(" ").trim();
+      body += `<g class="${cls}" data-i="${i}"><circle cx="${x}" cy="${y}" r="${R}"/><text x="${x}" y="${y}">${k === "hole" ? "" : vals[i - 1]}</text></g>`;
+      body += `<text class="ix" x="${x}" y="${y - R - 4}">${i}</text>`;
+    }
+    const keys = vals.filter((v) => v !== "_" && v !== "?" && v !== null);
+    return `<svg class="tsvg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="heap: ${keys.join(" ")}">${edges}${body}</svg>`;
+  }
+
+  function arrMarks(mark, extra) {
+    const m = {};
+    Object.keys(mark || {}).forEach((i) => { if (T2A[mark[i]]) m[i - 1] = T2A[mark[i]]; });
+    return Object.assign(m, extra || {});
+  }
+
+  /* Tree on the left, array (1-based) and code on the right. */
+  function view(vals, mark, side, opts) {
+    opts = opts || {};
+    return `<div class="hview"><div class="tfig">${heapSvg(vals, { mark, click: opts.click })}</div><div class="hside">` +
+      `<div class="hlab">array (1-based)</div>${Lab.arrayView(opts.arr || vals, { base: 1, marks: opts.arrMarks || arrMarks(mark) })}${side || ""}</div></div>`;
+  }
+
+  /* Static figures: <div class="tfig" data-heap="2,6,3" data-mark="1:del"> */
+  document.querySelectorAll(".tfig[data-heap]").forEach((el) => {
+    const vals = el.dataset.heap.split(",").map((s) => (s === "_" || s === "?") ? s : Number(s));
+    const mark = {};
+    (el.dataset.mark || "").split(",").filter(Boolean).forEach((p) => { const [i, c] = p.split(":"); mark[i] = c; });
+    el.innerHTML = heapSvg(vals, { mark });
+  });
+
+  /* Real heap primitives on 1-based arrays (a[0] unused). on(kind, ...) records frames. */
+  function siftUp(a, i, less, on) {
+    while (i > 1) {
+      const p = i >> 1;
+      if (less(a[i], a[p])) { on("cmp", i, p, true); [a[i], a[p]] = [a[p], a[i]]; i = p; on("swap", i); }
+      else { on("cmp", i, p, false); return i; }
+    }
+    on("root", 1);
+    return 1;
+  }
+  function siftDown(a, i, n, less, on) {
+    for (;;) {
+      const l = 2 * i, r = 2 * i + 1;
+      if (l > n) { on("leaf", i); return i; }
+      const c = (r <= n && less(a[r], a[l])) ? r : l;
+      if (less(a[c], a[i])) { on("cmp", i, l, r <= n ? r : null, c, true); [a[i], a[c]] = [a[c], a[i]]; i = c; on("swap", i); }
+      else { on("cmp", i, l, r <= n ? r : null, c, false); return i; }
+    }
+  }
+  const LESS = (x, y) => x < y, MORE = (x, y) => x > y;
+
+  const BASE = [2, 6, 3, 9, 8, 4, 7, 12, 10];
+
+  /* ── Section 2: index explorer ── */
+  (function () {
+    const el = document.getElementById("ix-explorer");
+    const vals = BASE.concat([11]), n = vals.length;
+    function draw(i) {
+      const mark = {}, p = i >> 1, l = 2 * i, r = 2 * i + 1;
+      let cap = "Bir node'a ya da array kutusuna tıkla.";
+      if (i) {
+        mark[i] = "cur";
+        if (p >= 1) mark[p] = "path";
+        if (l <= n) mark[l] = "new";
+        if (r <= n) mark[r] = "new";
+        const ch = (k) => k <= n ? `$A[${k}] = ${vals[k - 1]}$` : `index ${k} yok ($n = ${n}$)`;
+        cap = `<b>index ${i}</b>, key ${vals[i - 1]}. parent: ${p >= 1 ? `$\\lfloor ${i}/2 \\rfloor = ${p}$, key ${vals[p - 1]}` : "yok, bu root"}. left: ${ch(l)}. right: ${ch(r)}.` +
+          (l > n ? ` Child'ı yok: leaf. Leaf'ler index $\\lfloor ${n}/2 \\rfloor + 1 = ${Math.floor(n / 2) + 1}$'dan başlıyor.` : "");
+      }
+      el.innerHTML = `<div class="stepper__title">Index gezgini · $n = ${n}$</div>` + view(vals, mark, "", { click: true }) +
+        `<div class="tlegend"><span><i style="background:var(--accent)"></i>seçilen</span><span><i style="background:var(--blue-100);border:1px solid var(--blue-600)"></i>parent</span><span><i style="background:#ebf7ee;border:1px dashed #2b8a3e"></i>child</span></div>` +
+        `<div class="stepper__caption">${cap}</div>`;
+      Lab.renderMath(el);
+      el.querySelectorAll(".tsvg g[data-i]").forEach((g) => { g.onclick = () => draw(+g.dataset.i); });
+      el.querySelectorAll(".arr__cell").forEach((c, k) => { c.style.cursor = "pointer"; c.onclick = () => draw(k + 1); });
+    }
+    draw(5);
+  })();
+
+  /* ── Section 3: insert with bubble up ── */
+  (function () {
+    const OPS = [{ x: 5, name: "insert(5): iki level çıkar" }, { x: 1, name: "insert(1): root'a kadar çıkar" }, { x: 11, name: "insert(11): hiç swap yok" }];
+    const code = ["insert(x):", "    n = n + 1;  A[n] = x", "    i = n", "    while i > 1 and A[parent(i)] > A[i]:", "        swap A[i], A[parent(i)]", "        i = parent(i)"];
+    const sel = document.getElementById("ins-sel"), el = document.getElementById("ins-stepper");
+    sel.innerHTML = OPS.map((o, k) => `<option value="${k}">${o.name}</option>`).join("");
+    function framesFor(x) {
+      const a = [null].concat(BASE), F = [];
+      let swaps = 0;
+      const snap = (mark, line, caption) => F.push({ vals: a.slice(1), mark, line, caption });
+      snap({}, -1, `$n = ${BASE.length}$ elemanlı min-heap. <code>insert(${x})</code> başlıyor.`);
+      a.push(x);
+      const start = a.length - 1;
+      snap({ [start]: "new" }, 1, `${x} ilk boş yere yazılır (index ${start}). Tree hâlâ complete; heap property bozulduysa bu sadece ${x} ile root arasındaki yolda olabilir.`);
+      const end = siftUp(a, start, LESS, (kind, i, p, go) => {
+        if (kind === "cmp") snap({ [i]: "cur", [p]: "path" }, 3, go
+          ? `parent (index ${p}) key'i ${a[p]}: $${a[p]} &gt; ${a[i]}$, swap gerekiyor.`
+          : `parent (index ${p}) key'i ${a[p]}: $${a[p]} \\le ${a[i]}$, heap property sağlanıyor. Dur.`);
+        if (kind === "swap") { swaps++; snap({ [i]: "cur" }, 5, `Swap edildi. ${x} bir level yukarıda, şimdi index ${i} konumunda.`); }
+        if (kind === "root") snap({ 1: "cur" }, 3, `${x} root'a vardı, üstünde parent yok. Dur.`);
+      });
+      snap({ [end]: "found" }, -1, `Bitti: ${swaps} swap. Height $\\lfloor \\log_2 ${a.length - 1} \\rfloor = ${Math.floor(Math.log2(a.length - 1))}$, yani worst case'te en fazla ${Math.floor(Math.log2(a.length - 1))} swap olabilirdi.`);
+      return F;
+    }
+    function build() {
+      const op = OPS[sel.value];
+      Lab.stepper(el, {
+        title: op.name, interval: 1100, frames: framesFor(op.x),
+        render(f, k, st) { st.innerHTML = view(f.vals, f.mark, Lab.codeView(code, f.line)); }
+      });
+    }
+    sel.onchange = build; build();
+  })();
+
+  /* ── Section 4: three extract-min in a row ── */
+  (function () {
+    const el = document.getElementById("ext-stepper");
+    const code = ["extractMin():", "    m = A[1]", "    A[1] = A[n];  n = n - 1", "    i = 1", "    while i has a child:", "        c = smaller child of i", "        if A[i] <= A[c]: break", "        swap A[i], A[c];  i = c", "    return m"];
+    const a = [null].concat(BASE), out = [], F = [];
+    let n = BASE.length;
+    const snap = (mark, line, caption) => F.push({ vals: a.slice(1, n + 1), mark, line, out: out.slice(), caption });
+    snap({}, -1, `Min-heap, $n = ${n}$. Üç kez extract-min yapacağız.`);
+    for (let t = 0; t < 3; t++) {
+      const m = a[1], last = a[n];
+      snap({ 1: "found" }, 1, `Minimum root'ta: <b>${m}</b>. Sakla.`);
+      snap({ 1: "found", [n]: "cur" }, 2, `Son node (index ${n}, key ${last}) root'a taşınacak. Tree complete kalsın diye silinen node hep son node.`);
+      a[1] = a[n]; a.length = n; n--; out.push(m);
+      snap({ 1: "cur" }, 2, `${last} root'ta, $n = ${n}$. Heap property root'ta bozuk olabilir: sift down.`);
+      siftDown(a, 1, n, LESS, (kind, i, l, r, c, go) => {
+        if (kind === "cmp") {
+          const mk = { [i]: "cur", [l]: "path" };
+          if (r) mk[r] = "path";
+          snap(mk, go ? 5 : 6, `Child'lar: ${a[l]}${r ? " ve " + a[r] : ""}. Küçük olan ${a[c]}. ` + (go ? `$${a[i]} &gt; ${a[c]}$, swap.` : `$${a[i]} \\le ${a[c]}$, heap property sağlanıyor. Dur.`));
+        }
+        if (kind === "swap") snap({ [i]: "cur" }, 7, `${last} bir level indi, şimdi index ${i} konumunda.`);
+        if (kind === "leaf") snap({ [i]: "cur" }, 4, `index ${i} leaf, child'ı yok. Dur.`);
+      });
+      snap({}, 8, `<code>return ${m}</code>. Çıkanlar: ${out.join(", ")}.` + (t === 2 ? " Sıralı çıktılar; $n$ kez extract-min yaparsan bütün array sıralanır." : ""));
+    }
+    Lab.stepper(el, {
+      title: "extract-min × 3", interval: 1100, frames: F,
+      render(f, k, st) {
+        st.innerHTML = view(f.vals, f.mark, Lab.codeView(code, f.line)) +
+          `<div class="hlab">çıkanlar:</div>${Lab.arrayView(f.out.length ? f.out : ["·"], { hideIndex: true, marks: f.out.length ? { [f.out.length - 1]: "done" } : { 0: "dim" } })}`;
+      }
+    });
+  })();
+
+  /* ── Section 5a: bottom-up build-heap ── */
+  (function () {
+    const el = document.getElementById("build-stepper");
+    const INPUT = [9, 7, 10, 3, 8, 2, 6, 5, 1, 4], n = INPUT.length;
+    const code = ["buildMinHeap(A, n):", "    for i = ⌊n/2⌋ downto 1:", "        siftDown(A, i, n)"];
+    const a = [null].concat(INPUT), F = [];
+    let total = 0;
+    const per = [];
+    const snap = (mark, line, caption) => F.push({ vals: a.slice(1), mark, line, caption });
+    snap({}, -1, `Sıralanmamış array, $n = ${n}$. index ${Math.floor(n / 2) + 1}–${n} leaf: her biri tek elemanlı bir heap.`);
+    for (let i = Math.floor(n / 2); i >= 1; i--) {
+      let s = 0;
+      snap({ [i]: "cur" }, 1, `$i = ${i}$, key ${a[i]}. Altındaki iki subtree zaten heap; sift down.`);
+      siftDown(a, i, n, LESS, (kind, j, l, r, c, go) => {
+        if (kind === "cmp" && go) snap({ [j]: "cur", [c]: "path" }, 2, `Küçük child ${a[c]} &lt; ${a[j]}: swap.`);
+        if (kind === "swap") { s++; total++; }
+      });
+      per.push([i, s]);
+      snap({}, 2, `index ${i} için ${s} swap. Şimdi index ${i} altındaki subtree bir min-heap. Toplam swap: ${total}.`);
+    }
+    F[F.length - 1].mark = { 1: "found" };
+    F[F.length - 1].caption = `Bitti: toplam ${total} swap ile min-heap. Root'ta en küçük key (${a[1]}) var. Swap sayıları: ${per.map(([i, c]) => `index ${i} → ${c}`).join(", ")}. En pahalı sift down root'ta, ama root tek bir node.`;
+    Lab.stepper(el, {
+      title: "Build-heap (bottom-up)", interval: 1000, frames: F,
+      render(f, k, st) { st.innerHTML = view(f.vals, f.mark, Lab.codeView(code, f.line)); }
+    });
+  })();
+
+  /* ── Section 5b: HeapSort with a max-heap (CLRS 6.4-1 input) ── */
+  (function () {
+    const el = document.getElementById("sort-stepper");
+    const INPUT = [5, 13, 2, 25, 7, 17, 20, 8, 4], n = INPUT.length;
+    const a = [null].concat(INPUT), F = [];
+    let size = n;
+    const snap = (mark, caption, extra) => {
+      const am = arrMarks(mark, extra);
+      for (let k = size; k < n; k++) am[k] = "done";
+      F.push({ vals: a.slice(1, size + 1), all: a.slice(1), mark, am, caption });
+    };
+    snap({}, `Input (CLRS 6.4-1). Önce BUILD-MAX-HEAP.`);
+    for (let i = Math.floor(n / 2); i >= 1; i--) siftDown(a, i, n, MORE, () => {});
+    snap({ 1: "found" }, `Max-heap hazır: root'ta en büyük key, ${a[1]}.`);
+    for (let i = n; i >= 2; i--) {
+      snap({ 1: "cur", [i]: "path" }, `Swap $A[1] = ${a[1]}$ ile $A[${i}] = ${a[i]}$. ${a[1]} son yerine oturuyor.`);
+      [a[1], a[i]] = [a[i], a[1]];
+      size--;
+      let s = 0;
+      siftDown(a, 1, size, MORE, (kind) => { if (kind === "swap") s++; });
+      snap({ 1: "found" }, `heap-size = ${size}. Root'ta sift down: ${s} swap. Yeni maksimum ${a[1]}.`);
+    }
+    F[F.length - 1].caption = `Sıralandı: ${a.slice(1).join(" ")}. Build-heap $O(n)$, sonra $n-1$ sift down, her biri $O(\\log n)$.`;
+    F[F.length - 1].am = Object.fromEntries(a.slice(1).map((_, k) => [k, "done"]));
+    Lab.stepper(el, {
+      title: "HeapSort (max-heap, in place)", interval: 1200, frames: F,
+      render(f, k, st) { st.innerHTML = view(f.vals, f.mark, `<div class="hlab">tree sadece heap kısmını gösteriyor; yeşil kutular sıralanmış bölge</div>`, { arr: f.all, arrMarks: f.am }); }
+    });
+  })();
+
+  /* ── Section 6: k-sorted array with a (k+1)-element min-heap ── */
+  (function () {
+    const el = document.getElementById("ks-stepper");
+    const A = [2, 3, 1, 5, 4, 7, 8, 6], k = 2, n = A.length;
+    const h = [null], out = [], F = [];
+    let next = 0;
+    const snap = (mark, caption) => F.push({ vals: h.slice(1), mark, out: out.slice(), next, caption });
+    const push = (x) => { h.push(x); siftUp(h, h.length - 1, LESS, () => {}); };
+    const pop = () => { const m = h[1]; h[1] = h[h.length - 1]; h.length--; siftDown(h, 1, h.length - 1, LESS, () => {}); return m; };
+    snap({}, `$k = ${k}$: heap en fazla $k + 1 = ${k + 1}$ eleman tutacak.`);
+    while (next < k + 1) push(A[next++]);
+    snap({ 1: "found" }, `İlk ${k + 1} eleman heap'te: ${A.slice(0, k + 1).join(", ")}. Sıralı dizinin ilk elemanı bunların arasında olmak zorunda.`);
+    while (h.length > 1) {
+      const m = pop();
+      out.push(m);
+      if (next < n) {
+        const x = A[next++];
+        push(x);
+        snap({ [h.indexOf(x)]: "new" }, `extract-min: <b>${m}</b> output'a. Sıradaki input elemanı ${x} heap'e insert edildi. Heap boyutu ${h.length - 1}.`);
+      } else snap({}, `extract-min: <b>${m}</b> output'a. Input bitti, heap boşalıyor.`);
+    }
+    F[F.length - 1].caption = `Output ${out.join(" ")}: sıralı. Heap hiç ${k + 1} elemanı geçmedi, her işlem $O(\\log k)$, toplam $O(n\\log k)$.`;
+    Lab.stepper(el, {
+      title: "k-sorted array, k = 2", interval: 1200, frames: F,
+      render(f, i, st) {
+        const inMarks = {};
+        for (let j = 0; j < f.next; j++) inMarks[j] = "dim";
+        st.innerHTML = `<div class="hlab">input</div>${Lab.arrayView(A, { base: 1, marks: inMarks, pointers: f.next < n ? { "sıradaki": f.next } : {} })}` +
+          `<div class="hview"><div class="tfig">${heapSvg(f.vals, { mark: f.mark })}</div><div class="hside"><div class="hlab">heap (array)</div>${Lab.arrayView(f.vals.length ? f.vals : ["·"], { base: 1, marks: f.vals.length ? arrMarks(f.mark) : { 0: "dim" } })}` +
+          `<div class="hlab">output</div>${Lab.arrayView(f.out.length ? f.out : ["·"], { base: 1, marks: f.out.length ? { [f.out.length - 1]: "done" } : { 0: "dim" } })}</div></div>`;
+      }
+    });
+  })();
+})();
+</script>
+</body>
+</html>
