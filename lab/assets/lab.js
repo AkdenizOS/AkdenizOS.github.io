@@ -159,6 +159,8 @@
         const res = store.get(key, {});
         res[id] = ok;
         store.set(key, res);
+        const first = store.get(`${course}/${lesson}/first`, {});
+        if (!(id in first)) { first[id] = ok; store.set(`${course}/${lesson}/first`, first); }
         recordAnswer(course, { slug: lesson, id, title: lessonTitle.trim(), html: pristine }, ok);
         q.dispatchEvent(new CustomEvent("lab:answered", { bubbles: true, detail: { ok } }));
       });
@@ -441,7 +443,49 @@
       store.set(`${course}/last`, slug);
     }
     paint();
+
+    // "Kaldığın yer" banner: jump back to the first unfinished section.
+    const doneHere = secs.filter((s) => done.has(s.id)).length;
+    if (doneHere > 0 && doneHere < secs.length) {
+      const next = secs.find((s) => !done.has(s.id));
+      const title = (next.querySelector("h2") || {}).textContent || "";
+      article.insertAdjacentHTML("afterbegin",
+        `<div class="resume"><span><b>Kaldığın yer:</b> ${esc(title.replace(/^\d+/, "").replace(/~\d+ dk$/, "").trim())}</span>
+          <span><a class="btn btn--sm btn--accent" href="#${next.id}" data-resume>Devam et ↓</a> <button class="btn btn--sm" data-resume-x aria-label="Kapat">×</button></span></div>`);
+      article.querySelector("[data-resume-x]").addEventListener("click", (e) => e.target.closest(".resume").remove());
+      article.querySelector("[data-resume]").addEventListener("click", (e) => {
+        if (document.body.classList.contains("focus")) { e.preventDefault(); setCurrent(secs.indexOf(next)); }
+      });
+    }
+
+    // Self-check summary at the end of the page, per section.
+    const foot = document.querySelector(".lesson-foot");
+    if (foot) {
+      foot.insertAdjacentHTML("beforebegin", '<div class="quiz-summary" aria-live="polite"></div>');
+      const box = document.querySelector(".quiz-summary");
+      const paintSummary = () => {
+        const res = store.get(`${course}/${slug}/quiz`, {});
+        const first = store.get(`${course}/${slug}/first`, {});
+        let total = 0, answered = 0, firstOk = 0;
+        const rows = secs.map((s) => {
+          const qs = Array.from(s.querySelectorAll(".quiz[id]"));
+          if (!qs.length) return "";
+          const a = qs.filter((q) => q.id in res).length;
+          const f = qs.filter((q) => first[q.id] === true).length;
+          total += qs.length; answered += a; firstOk += f;
+          const t = ((s.querySelector("h2") || {}).textContent || "").replace(/^\d+/, "").replace(/~\d+ dk$/, "").trim();
+          return `<tr><td><a href="#${s.id}">${esc(t)}</a></td><td>${a} / ${qs.length}</td><td>${f}</td></tr>`;
+        }).join("");
+        box.innerHTML = `<div class="box box--rule"><span class="box__label">Kendini dene özeti</span>
+          <p><b>${answered} / ${total}</b> soru cevaplandı, <b>${firstOk}</b> tanesi ilk denemede doğru. Yanlışların tekrar kuyruğunda seni bekliyor.</p>
+          <div class="table-wrap"><table><tr><th>Bölüm</th><th>Cevaplanan</th><th>İlk denemede doğru</th></tr>${rows}</table></div></div>`;
+      };
+      paintSummary();
+      article.addEventListener("lab:answered", () => setTimeout(paintSummary, 0));
+    }
     renderMath(article);
+    const head = document.querySelector(".lesson-head");
+    if (head) renderMath(head);
   }
 
   /* ── Course page ── */

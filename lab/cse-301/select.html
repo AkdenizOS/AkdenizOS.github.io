@@ -14,7 +14,28 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
   <link rel="stylesheet" href="../../assets/css/main.css" />
-  <link rel="stylesheet" href="../assets/lab.css?v=4" />
+  <link rel="stylesheet" href="../assets/lab.css?v=5" />
+  <style>
+    .w-select-guess { background: var(--orange-100); border-radius: var(--radius-md); padding: 6px 10px; font-size: .95rem; margin: var(--sp-3) 0 var(--sp-2); }
+    .w-select-ctrl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-select-ctrl label { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .92rem; font-weight: 600; color: var(--fg-brand); max-width: 100%; }
+    .w-select-ctrl input[type="text"], .w-select-ctrl input[type="number"] { font: 400 .9rem 'JetBrains Mono', monospace; padding: 5px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); min-width: 0; }
+    .w-select-ctrl input[type="text"] { width: min(260px, 100%); }
+    .w-select-ctrl input[type="number"] { width: 5.5em; }
+    .w-select-ctrl input[type="range"] { width: min(220px, 55vw); accent-color: var(--accent); }
+    .w-select-ctrl output { font: 700 .9rem 'JetBrains Mono', monospace; min-width: 2.5em; }
+    .w-select-lbl { font-size: .92rem; font-weight: 600; color: var(--fg-brand); }
+    .w-select-err { color: #c92a2a; font-size: .92rem; margin: 4px 0; }
+    .w-select-err:empty { display: none; }
+    .w-select-strip { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
+    .w-select-strip__label { font-size: .82rem; color: var(--fg-subtle); }
+    /* width 0 + min-width 100%: the wide grid scrolls here instead of widening the lesson column */
+    .w-select-scroll { overflow-x: auto; width: 0; min-width: 100%; }
+    .w-select-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; font: .85rem 'JetBrains Mono', monospace; margin: 6px 0; }
+    .w-select-stats b { color: var(--fg-brand); }
+    .w-select-meter { height: 10px; background: var(--stone-200); border-radius: 5px; overflow: hidden; margin: 4px 0 2px; }
+    .w-select-meter i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+  </style>
 </head>
 <body>
 <div class="page-shell">
@@ -151,8 +172,17 @@
   if |L| &lt; k − 1:  return Select(R, |R|, k − |L| − 1)   (durum 3)</code></pre>
     <p>Elemanların farklı olduğunu varsayıyoruz (eşit elemanlar Bölüm 4'te). ChoosePivot şimdilik bir kara kutu: correctness'ı etkilemez, sadece running time'ı etkiler.</p>
   </div>
-  <p>Class-prep S8'in array'i: $A = [7, 2, 9, 4, 1, 8, 5]$. Pivot kuralı "son eleman" (S8'deki pivot 5 de son eleman). $k$'yı değiştirip oynat. Kareler algoritmanın gerçek çalışmasından üretiliyor.</p>
-  <div style="margin:8px 0"><select id="ksel" class="btn btn--sm"></select></div>
+  <p>Class-prep S8'in array'i: $A = [7, 2, 9, 4, 1, 8, 5]$. Pivot kuralı "son eleman" (S8'deki pivot 5 de son eleman). $k$'yı değiştirip oynat ya da kendi array'ini yaz. Kareler algoritmanın gerçek çalışmasından üretiliyor. Altta aynı array'in sorted hâli duruyor; algoritma onu görmez, sadece sana yol gösterir. Aktif subarray orada hep bitişik bir rank aralığıdır, aranan rank ise baştan sona aynı kalır: atılan küçüklerin sayısı artı o call'daki $k$.</p>
+  <p class="w-select-guess"><b>Önce tahmin et:</b> S8 array'inde $k = 5$ için kaç call olur, son call'daki $k$ kaçtır? Sonra "Sorted array" preset'inde $k = 1$'i dene: pivot hep son eleman olunca kaç call çıkar?</p>
+  <div class="w-select-ctrl">
+    <select id="w-select-preset" class="btn btn--sm" aria-label="Hazır array"></select>
+    <select id="ksel" class="btn btn--sm" aria-label="k"></select>
+  </div>
+  <div class="w-select-ctrl">
+    <label>Kendi array'in <input type="text" id="w-select-arr" value="7, 2, 9, 4, 1, 8, 5" spellcheck="false" autocomplete="off" /></label>
+    <button class="btn btn--sm" id="w-select-go">Çalıştır</button>
+  </div>
+  <p class="w-select-err" id="w-select-err" role="alert"></p>
   <div id="select-stepper"></div>
   <div class="box box--rule">
     <span class="box__label">Yeni k neden $k - |L| - 1$?</span>
@@ -291,6 +321,22 @@
     </ul>
     <p><strong>Faz argümanı (CS161 L5 concept check):</strong> Faz $i$: array boyu $\big((3/4)^{i+1}n,\ (3/4)^i n\big]$ aralığında. İyi pivot gelme probability'si $\tfrac12 \pm O(1/n)$ ⇒ bir fazdaki expected recursive call sayısı $\le 2 + O(1/n)$. Fazdaki her recursive call $\le c(3/4)^i n$ iş yapar:</p>
     $$\mathbb{E}[T(n)] \le \sum_{i \ge 0} 2c\left(\tfrac34\right)^i n = 8cn = O(n).$$
+  </div>
+  <p>Üç pivot kuralını aynı input'ta dene. Array, $1..n$ sayılarının karışık bir dizilişi. Her çubuk bir recursive call'un subarray boyu. Toplam iş, bu boyların toplamı, çünkü partition her call'da subarray'in her elemanına bir kez bakar.</p>
+  <div id="w-select-rules">
+    <p class="w-select-guess"><b>Önce tahmin et:</b> $n = 32$, $k = 1$, kötü pivot (max): kaç recursive call olur, toplam iş $n(n+1)/2 = 528$'e ne kadar yaklaşır? Random pivot'ta aynı $k$ için kaç call beklersin?</p>
+    <div class="w-select-ctrl" role="group" aria-label="Pivot kuralı">
+      <button class="btn btn--sm" data-rule="max">Kötü pivot (max)</button>
+      <button class="btn btn--sm" data-rule="med">Tam median</button>
+      <button class="btn btn--sm" data-rule="rnd">Random</button>
+      <button class="btn btn--sm" id="w-select-reroll">↻ Yeniden dene</button>
+    </div>
+    <div class="w-select-ctrl">
+      <label>n <input type="number" id="w-select-n" value="32" min="2" max="200" step="1" inputmode="numeric" /></label>
+      <label>k <input type="range" id="w-select-k" min="1" max="32" value="1" /> <output id="w-select-kout">1</output></label>
+    </div>
+    <p class="w-select-err" id="w-select-nerr" role="alert"></p>
+    <div id="w-select-rules-stepper"></div>
   </div>
   <div class="box box--trap">
     <span class="box__label">Worst-case ile expected farklı sorular</span>
@@ -433,6 +479,26 @@
     <tr><td>5</td><td>$n/5$</td><td>$7n/10$</td><td>$9/10$</td><td>$O(n)$, $d \ge 10c$</td></tr>
     <tr><td>7</td><td>$n/7$</td><td>$5n/7$</td><td>$6/7$</td><td>$O(n)$, $C = 7$</td></tr>
   </table></div>
+  <p>Tablodaki oranları aynı array'de gör. Sütunlar sorted gruplar, median'larına göre dizili. Mavi hücreler $x$'ten kesin küçük, turuncular kesin büyük. Gri olanlar hakkında resim hiçbir şey söylemez, onlar $x$'in iki tarafına da düşebilir. Dıştaki recursive call en kötü ihtimalle bilinmeyenlerin hepsini ve bir taraftaki kesinleri birlikte alır.</p>
+  <div id="w-select-groups">
+    <p class="w-select-guess"><b>Önce tahmin et:</b> $n = 45$ iken 3'lü, 5'li ve 7'li gruplarda iki recursive call'un boyları toplamı $n$'nin kaçta kaçı olur? Hangisi 1'e en yakın?</p>
+    <div class="w-select-ctrl" role="group" aria-label="Grup boyu">
+      <span class="w-select-lbl">Grup boyu</span>
+      <button class="btn btn--sm" data-s="3">3</button>
+      <button class="btn btn--sm" data-s="5">5</button>
+      <button class="btn btn--sm" data-s="7">7</button>
+    </div>
+    <div class="w-select-ctrl">
+      <select id="w-select-gkind" class="btn btn--sm" aria-label="Array türü">
+        <option value="rnd">Random array</option>
+        <option value="sorted">Sorted array 1..n</option>
+      </select>
+      <label>n <input type="number" id="w-select-gn" value="45" min="9" max="99" step="1" inputmode="numeric" /></label>
+      <button class="btn btn--sm" id="w-select-gnew">Yeni random array</button>
+    </div>
+    <p class="w-select-err" id="w-select-gerr" role="alert"></p>
+    <div id="w-select-groups-stepper"></div>
+  </div>
   <div class="box box--rule">
     <span class="box__label">Substitution ile kontrol · CS161 L4 concept check</span>
     <ul>
@@ -579,8 +645,8 @@
   </div>
 </div>
 
-<script src="course.js?v=4"></script>
-<script src="../assets/lab.js?v=4"></script>
+<script src="course.js?v=5"></script>
+<script src="../assets/lab.js?v=5"></script>
 <script>
 /* Shared helpers: lower median and a real median-of-medians Select */
 const lowMed = g => { const s = g.slice().sort((a, b) => a - b); return s[Math.ceil(s.length / 2) - 1]; };
@@ -593,59 +659,108 @@ function momSelect(A, k) {
   return L.length > k - 1 ? momSelect(L, k) : momSelect(R, k - L.length - 1);
 }
 
-/* 1. Select trace on class-prep S8 array, pivot = last element */
+/* 1. Select trace, pivot = last element, with a sorted reference strip of the input */
 (function () {
-  const A0 = [7, 2, 9, 4, 1, 8, 5];
+  const PRESETS = [
+    { name: "Class prep S8", A: [7, 2, 9, 4, 1, 8, 5], k: 5 },
+    { name: "Bilkent R-SELECT array'i", A: [6, 10, 13, 5, 8, 3, 2, 11], k: 7 },
+    { name: "Sorted array (kötü pivot)", A: [1, 2, 3, 4, 5, 6, 7, 8], k: 1 }
+  ];
+  const MAXN = 12;
   const CODE = ["Select(A, k):", "  if |A| = 1: return A[1]", "  p ← ChoosePivot(A)        // burada: son eleman",
     "  L ← {a < p},  R ← {a > p}", "  if |L| = k−1: return p", "  else if |L| > k−1: return Select(L, k)",
     "  else: return Select(R, k − |L| − 1)"];
   const ksel = document.getElementById("ksel"), box = document.getElementById("select-stepper");
-  ksel.innerHTML = A0.map((_, i) => `<option value="${i + 1}"${i === 4 ? " selected" : ""}>k = ${i + 1}</option>`).join("");
+  const pre = document.getElementById("w-select-preset"), inp = document.getElementById("w-select-arr");
+  const err = document.getElementById("w-select-err");
+  pre.innerHTML = PRESETS.map((p, i) => `<option value="${i}">${p.name}</option>`).join("") + `<option value="own">Kendi array'in</option>`;
+  let A0 = PRESETS[0].A.slice();
+  function fillK(k) {
+    ksel.innerHTML = A0.map((_, i) => `<option value="${i + 1}"${i + 1 === k ? " selected" : ""}>k = ${i + 1}</option>`).join("");
+  }
+  function parse(txt) {
+    const parts = txt.split(/[\s,;]+/).filter(Boolean);
+    if (parts.length < 2) return { err: "En az 2 sayı yaz ve virgülle ayır, örneğin 7, 2, 9, 4." };
+    if (parts.length > MAXN) return { err: `${parts.length} sayı yazdın. Animasyon okunur kalsın diye en fazla ${MAXN} sayı kullan.` };
+    const bad = parts.find(s => !/^-?\d{1,3}$/.test(s));
+    if (bad !== undefined) return { err: `"${bad}" bir tam sayı değil. −999 ile 999 arasındaki tam sayıları kullan.` };
+    const A = parts.map(Number);
+    const dup = A.find((a, i) => A.indexOf(a) !== i);
+    if (dup !== undefined) return { err: `${dup} birden fazla kez geçiyor. Buradaki Select elemanların farklı olduğunu varsayar; eşit elemanlarda ne olduğunu Bölüm 4 anlatıyor.` };
+    return { A };
+  }
   function run(A, k, depth, frames) {
     const call = `Select([${A.join(", ")}], k = ${k})`;
     if (A.length === 1) {
-      frames.push({ A, marks: { 0: "done" }, L: null, R: null, line: 1, call, depth, caption: `$|A| = 1$: tek eleman kaldı, cevap <b>${A[0]}</b>.` });
+      frames.push({ A, k, p: null, ans: A[0], marks: { 0: "done" }, L: null, R: null, line: 1, call, depth, caption: `$|A| = 1$: tek eleman kaldı, cevap <b>${A[0]}</b>.` });
       return A[0];
     }
     const pi = A.length - 1, p = A[pi], L = [], R = [], marks = { [pi]: "pivot" };
-    frames.push({ A, marks: Object.assign({}, marks), L: [], R: [], line: 2, call, depth, caption: `Pivot = son eleman = <b>${p}</b>.` });
+    frames.push({ A, k, p, marks: Object.assign({}, marks), L: [], R: [], line: 2, call, depth, caption: `Pivot = son eleman = <b>${p}</b>.` });
     A.forEach((a, i) => {
       if (i === pi) return;
       if (a < p) { L.push(a); marks[i] = "small"; } else { R.push(a); marks[i] = "big"; }
-      frames.push({ A, marks: Object.assign({}, marks, { [i]: marks[i] + " cmp" }), L: L.slice(), R: R.slice(), line: 3, call, depth,
+      frames.push({ A, k, p, marks: Object.assign({}, marks, { [i]: marks[i] + " cmp" }), L: L.slice(), R: R.slice(), line: 3, call, depth,
         caption: `$${a} ${a < p ? "\\lt" : "\\gt"} ${p}$ ⇒ ${a < p ? "L" : "R"}'ye.` });
     });
     const fin = Object.assign({}, marks);
     if (L.length === k - 1) {
       fin[pi] = "done";
-      frames.push({ A, marks: fin, L, R, line: 4, call, depth, caption: `$|L| = ${L.length} = k - 1$: durum 1. Pivot'un altında tam $k-1$ eleman var, cevap <b>${p}</b>.` });
+      frames.push({ A, k, p, ans: p, marks: fin, L, R, line: 4, call, depth, caption: `$|L| = ${L.length} = k - 1$: durum 1. Pivot'un altında tam $k-1$ eleman var, cevap <b>${p}</b>.` });
       return p;
     }
     if (L.length > k - 1) {
       A.forEach((a, i) => { if (a >= p) fin[i] = "dim"; });
-      frames.push({ A, marks: fin, L, R, line: 5, call, depth, caption: `$|L| = ${L.length} \\gt k - 1 = ${k - 1}$: durum 2. Cevap $L$'de, $k = ${k}$ aynı kalır.` });
+      frames.push({ A, k, p, keep: L, marks: fin, L, R, line: 5, call, depth, caption: `$|L| = ${L.length} \\gt k - 1 = ${k - 1}$: durum 2. Cevap $L$'de, $k = ${k}$ aynı kalır.` });
       return run(L, k, depth + 1, frames);
     }
     const nk = k - L.length - 1;
     A.forEach((a, i) => { if (a <= p) fin[i] = "dim"; });
-    frames.push({ A, marks: fin, L, R, line: 6, call, depth,
+    frames.push({ A, k, p, keep: R, marks: fin, L, R, line: 6, call, depth,
       caption: `$|L| = ${L.length} \\lt k - 1 = ${k - 1}$: durum 3. $L$'nin ${L.length} elemanı ve pivot atılır: yeni $k = ${k} - ${L.length} - 1 = ${nk}$.` });
     return run(R, nk, depth + 1, frames);
   }
+  function strip(f, k0, sorted) {
+    const alive = new Set(f.keep || f.A), marks = {};
+    sorted.forEach((v, r) => {
+      if (!alive.has(v)) marks[r] = "dim";
+      else if (f.ans === v) marks[r] = "done";
+      else if (f.p === v) marks[r] = "pivot";
+      else if (f.L && f.L.includes(v)) marks[r] = "small";
+      else if (f.R && f.R.includes(v)) marks[r] = "big";
+    });
+    const lo = sorted.indexOf(Math.min(...f.A));
+    const label = `Sorted referans (alttaki sayı rank). Aktif subarray: rank ${lo + 1}–${lo + f.A.length}. ` +
+      `Aranan rank $${k0} = ${lo} + ${f.k}$ (atılan küçükler + bu call'un $k$'sı).`;
+    return `<div class="w-select-strip"><div class="w-select-strip__label">${label}</div>` +
+      Lab.arrayView(sorted, { marks, base: 1, pointers: { hedef: k0 - 1 } }) + `</div>`;
+  }
   function build() {
-    const k = +ksel.value, frames = [];
-    const ans = run(A0, k, 0, frames), truth = A0.slice().sort((a, b) => a - b)[k - 1];
+    const k = +ksel.value, frames = [], sorted = A0.slice().sort((a, b) => a - b);
+    const ans = run(A0, k, 0, frames), truth = sorted[k - 1];
     const last = frames[frames.length - 1];
-    frames.push(Object.assign({}, last, { caption: `Sonuç: <b>${ans}</b>. Kontrol: sorted array $[${A0.slice().sort((a, b) => a - b).join(", ")}]$, ${k}. eleman ${truth} ${ans === truth ? "✓" : "✗"}.` }));
+    frames.push(Object.assign({}, last, { caption: `Sonuç: <b>${ans}</b>. Kontrol: sorted array $[${sorted.join(", ")}]$, ${k}. eleman ${truth} ${ans === truth ? "✓" : "✗"}. Toplam ${frames.filter(f => f.line === 2 || f.line === 1).length} call.` }));
     Lab.stepper(box, { title: `Select, A = [${A0.join(", ")}], k = ${k}`, interval: 1100, frames,
       render(f, i, el) {
         el.innerHTML = `<div class="src" style="margin-bottom:4px">${"&nbsp;&nbsp;".repeat(f.depth)}${f.depth ? "↳ " : ""}<code>${f.call}</code></div>` +
           Lab.arrayView(f.A, { marks: f.marks }) +
           (f.L ? `<div style="font-family:'JetBrains Mono',monospace;font-size:.9rem"><span style="color:#1c7ed6">L = [${f.L.join(", ")}]</span> · <span style="color:#e8590c">R = [${f.R.join(", ")}]</span></div>` : "") +
+          strip(f, k, sorted) +
           Lab.codeView(CODE, f.line);
       } });
   }
-  ksel.onchange = build; build();
+  function load(A, k) { A0 = A.slice(); inp.value = A0.join(", "); fillK(k); err.textContent = ""; build(); }
+  pre.onchange = () => { if (pre.value !== "own") { const p = PRESETS[+pre.value]; load(p.A, p.k); } else inp.focus(); };
+  function own() {
+    const r = parse(inp.value);
+    if (r.err) { err.textContent = r.err; return; }
+    pre.value = "own";
+    load(r.A, Math.min(+ksel.value || 1, r.A.length));
+  }
+  document.getElementById("w-select-go").onclick = own;
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") own(); });
+  ksel.onchange = build;
+  load(PRESETS[0].A, PRESETS[0].k);
 })();
 
 /* 2. Pivot rules side by side: subproblem size per recursive call */
@@ -750,6 +865,191 @@ function momSelect(A, k) {
   }
   sel.onchange = build;
   document.getElementById("momnew").onclick = () => { RAND = randomArr(); sel.value = "1"; build(); };
+  build();
+})();
+</script>
+<script>
+/* Seeded PRNG (mulberry32): the same seed replays the same run after reset */
+function seededRng(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function seededShuffle(arr, rng) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function readInt(el, lo, hi, what) {
+  const t = el.value.trim();
+  if (!/^\d+$/.test(t)) return { err: `${what} için bir tam sayı yaz (${lo} ile ${hi} arası).` };
+  const v = +t;
+  if (v < lo) return { err: `${what} = ${v} çok küçük, en az ${lo} olmalı.` };
+  if (v > hi) return { err: `${what} = ${v} çok büyük. Sayfa hızlı kalsın diye en fazla ${hi}.` };
+  return { v };
+}
+
+/* 4. Pivot rules on one input: subproblem size per recursive call, calls and total work */
+(function () {
+  const root = document.getElementById("w-select-rules");
+  const nIn = document.getElementById("w-select-n"), kIn = document.getElementById("w-select-k"), kOut = document.getElementById("w-select-kout");
+  const err = document.getElementById("w-select-nerr"), reroll = document.getElementById("w-select-reroll");
+  const box = document.getElementById("w-select-rules-stepper");
+  const NAMES = { max: "kötü pivot (max)", med: "tam median", rnd: "random pivot" };
+  let n = 32, k = 1, rule = "max", seed = 2026;
+  function trace() {
+    const rng = seededRng(seed);
+    let A = seededShuffle(Array.from({ length: n }, (_, i) => i + 1), seededRng(7919 + n)), kk = k;
+    const calls = [];
+    for (;;) {
+      if (A.length === 1) { calls.push({ size: 1, k: kk, base: true, ans: A[0] }); break; }
+      const p = rule === "max" ? Math.max(...A) : rule === "med" ? lowMed(A) : A[Math.floor(rng() * A.length)];
+      const L = A.filter(a => a < p), R = A.filter(a => a > p), c = { size: A.length, k: kk, rank: L.length + 1 };
+      calls.push(c);
+      if (L.length === kk - 1) { c.ans = p; break; }
+      if (L.length > kk - 1) { c.go = "L"; A = L; } else { c.go = "R"; kk = kk - L.length - 1; A = R; }
+    }
+    return calls;
+  }
+  function build() {
+    const calls = trace(), tri = n * (n + 1) / 2, ans = calls[calls.length - 1].ans;
+    const frames = calls.map((c, t) => {
+      const head = `Call ${t + 1}: boy ${c.size}, $k = ${c.k}$`;
+      let caption;
+      if (c.base) caption = `${head}. $|A| = 1$, base case: cevap <b>${c.ans}</b>.`;
+      else if (c.go === undefined) caption = `${head}. Pivot'un rank'i ${c.rank} $= k$: durum 1, cevap pivot <b>${c.ans}</b>.`;
+      else if (c.go === "L") caption = `${head}. Pivot'un rank'i ${c.rank} $\\gt k$: $L$'ye in, boy ${c.rank - 1}. ${c.size - c.rank + 1} eleman atıldı.`;
+      else caption = `${head}. Pivot'un rank'i ${c.rank} $\\lt k$: $R$'ye in, yeni $k = ${c.k} - ${c.rank} = ${c.k - c.rank}$, boy ${c.size - c.rank}. ${c.rank} eleman atıldı.`;
+      return { t, caption };
+    });
+    const total = calls.reduce((s, c) => s + c.size, 0);
+    frames.push({ t: calls.length - 1, end: true, caption:
+      `Bitti: ${NAMES[rule]} ile <b>${calls.length}</b> call, toplam iş <b>${total}</b>. Cevap ${ans} ${ans === k ? "✓" : "✗"} (değerler $1..n$ olduğu için $k$-th smallest $= k$). ` +
+      `Karşılaştır: $n(n+1)/2 = ${tri}$ (her call yalnızca 1 eleman atsaydı), $2n = ${2 * n}$ (her call yarıya inseydi). Oran: toplam iş ÷ $n(n+1)/2$ = %${Math.round(100 * total / tri)}.` +
+      (rule === "rnd" ? ` "Yeniden dene" ile başka yazı-turalar çek: call sayısı değişir ama $n(n+1)/2$'ye yaklaşmak çok nadirdir.` : "") });
+    const W = 600, H = 150, PAD = 4, bw = (W - 2 * PAD) / calls.length;
+    Lab.stepper(box, { title: `${NAMES[rule]}, n = ${n}, k = ${k}`, interval: Math.max(60, Math.min(800, Math.round(6000 / frames.length))), frames,
+      render(f, i, el) {
+        const work = calls.slice(0, f.t + 1).reduce((s, c) => s + c.size, 0);
+        let svg = `<svg viewBox="0 0 ${W} ${H + 18}" width="100%" style="display:block;max-width:${W}px;height:auto" role="img" aria-label="Her recursive call'un subarray boyu">` +
+          `<line x1="0" x2="${W}" y1="${H}" y2="${H}" style="stroke:var(--border-strong);stroke-width:1"/>`;
+        calls.forEach((c, j) => {
+          if (j > f.t) return;
+          const h = Math.max(1.5, (H - 6) * c.size / n), x = PAD + j * bw;
+          const fill = j === calls.length - 1 && (f.end || j === f.t) ? "#2b8a3e" : j === f.t ? "var(--accent)" : "var(--blue-600)";
+          svg += `<rect x="${x + bw * 0.1}" y="${H - h}" width="${Math.max(1, bw * 0.8)}" height="${h}" rx="${Math.min(3, bw * 0.2)}" style="fill:${fill}"/>`;
+        });
+        const cur = calls[f.t], cx = Math.min(W - 30, Math.max(30, PAD + (f.t + 0.5) * bw));
+        svg += `<text x="${cx}" y="${H + 14}" text-anchor="middle" style="fill:var(--fg-subtle);font:12px 'JetBrains Mono',monospace">boy ${cur.size}</text></svg>`;
+        const pct = Math.min(100, 100 * work / tri);
+        el.innerHTML = `<div class="w-select-stats"><span>recursive call: <b>${f.t + 1}</b></span><span>toplam iş: <b>${work}</b></span>` +
+          `<span>$n(n+1)/2 = ${tri}$</span><span>$2n = ${2 * n}$</span></div>` + svg +
+          `<div class="w-select-meter" aria-hidden="true"><i style="width:${pct}%"></i></div>` +
+          `<div class="src">Turuncu çubuk: toplam iş ÷ $n(n+1)/2$ = %${Math.round(pct)}.</div>`;
+      } });
+  }
+  function setRule(r) {
+    rule = r;
+    root.querySelectorAll("[data-rule]").forEach(b => { const on = b.dataset.rule === r; b.classList.toggle("btn--accent", on); b.setAttribute("aria-pressed", on); });
+    reroll.disabled = r !== "rnd";
+    reroll.title = r === "rnd" ? "Aynı input, yeni random pivot'lar" : "Sadece random pivot'ta anlamlı";
+    build();
+  }
+  root.querySelectorAll("[data-rule]").forEach(b => { b.onclick = () => setRule(b.dataset.rule); });
+  reroll.onclick = () => { seed = Math.floor(Math.random() * 2147483647); build(); };
+  function setN() {
+    const r = readInt(nIn, 2, 200, "n");
+    if (r.err) { err.textContent = r.err; return; }
+    err.textContent = "";
+    n = r.v; kIn.max = n; k = Math.min(k, n); kIn.value = k; kOut.textContent = k;
+    build();
+  }
+  nIn.addEventListener("change", setN);
+  nIn.addEventListener("keydown", e => { if (e.key === "Enter") setN(); });
+  kIn.addEventListener("input", () => { k = +kIn.value; kOut.textContent = k; build(); });
+  setRule("max");
+})();
+
+/* 5. Median-of-medians picture for group size 3, 5 or 7: what the picture guarantees */
+(function () {
+  const root = document.getElementById("w-select-groups"), box = document.getElementById("w-select-groups-stepper");
+  const nIn = document.getElementById("w-select-gn"), kind = document.getElementById("w-select-gkind"), err = document.getElementById("w-select-gerr");
+  let s = 5, n = 45, seed = 301, lastIdx = 0;
+  const medIdx = len => Math.ceil(len / 2) - 1;
+  function array() {
+    if (kind.value === "sorted") return Array.from({ length: n }, (_, i) => i + 1);
+    return seededShuffle(Array.from({ length: 99 }, (_, i) => i + 1), seededRng(seed)).slice(0, n);
+  }
+  function build() {
+    const A = array(), raw = [];
+    for (let i = 0; i < n; i += s) raw.push(A.slice(i, i + s));
+    const g = raw.length, cols = raw.map(c => c.slice().sort((a, b) => a - b));
+    const M = cols.map(c => c[medIdx(c.length)]), x = momSelect(M, Math.ceil(g / 2));
+    cols.sort((a, b) => a[medIdx(a.length)] - b[medIdx(b.length)]);
+    const sure = (col, v) => { const mi = medIdx(col.length), m = col[mi], vi = col.indexOf(v);
+      if (m < x) return vi <= mi ? "lt" : "?"; if (m > x) return vi >= mi ? "gt" : "?";
+      return vi < mi ? "lt" : vi > mi ? "gt" : "x"; };
+    let lt = 0, gt = 0; cols.forEach(c => c.forEach(v => { const k = sure(c, v); if (k === "lt") lt++; if (k === "gt") gt++; }));
+    const unk = n - 1 - lt - gt, outer = n - 1 - Math.min(lt, gt), L = A.filter(a => a < x).length, R = A.filter(a => a > x).length;
+    const ratio = (g + outer) / n, theory = 1 / s + (3 * s - 1) / (4 * s);
+    const th = s === 3 ? "1" : s === 5 ? "9/10" : "6/7", suf = s === 3 ? "3'lü" : `${s}'li`;
+    const frames = [
+      { show: 0, caption: `${g} grup, her biri sorted (üstte küçük), sütunlar median'a göre dizili. $x = ${x}$ (mor), median'ların median'ı. Henüz hiçbir şey taranmadı.` },
+      { show: 1, caption: `Median'ı $x$'ten küçük sütunlarda median ve üstündekiler kesin $\\lt x$. Grup başına ${(s + 1) / 2} eleman, kısa son grupta daha az: <b>${lt}</b> kesin küçük.` },
+      { show: 2, caption: `Simetrik: median'ı $x$'ten büyük sütunlarda median ve altındakiler kesin $\\gt x$: <b>${gt}</b> kesin büyük.` },
+      { show: 3, caption: `Gri ${unk} eleman bilinmiyor. İç call ${g} median üzerinde çalışır. Dış call en kötü ihtimalle bilinmeyenlerin hepsini ve kesinlerin çok olduğu taraftakileri alır: $n - 1 - ${Math.min(lt, gt)} = ${outer}$. ` +
+        `İki call'un boyları toplamı $${g} + ${outer} = ${g + outer}$, $n$ ile oranı $${ratio.toFixed(2)}$. Büyük $n$'de bu oranın limiti $${th} \\approx ${theory.toFixed(2)}$${s === 3 ? ": level işi küçülmez, sonuç $\\Theta(n\\log n)$" : ": level işi her seferinde küçülür, sonuç $O(n)$"}. Bu array'de gerçekte $|L| = ${L}$, $|R| = ${R}$.` }
+    ];
+    const CW = 30, CH = 24, GAP = 4, PAD = 6, mid = (s - 1) / 2;
+    const W = PAD * 2 + g * (CW + GAP) - GAP, H = PAD * 2 + s * (CH + GAP) - GAP;
+    const keep = lastIdx;
+    const st = Lab.stepper(box, { title: `${suf} gruplar, n = ${n}`, interval: 1600, frames,
+      render(f, i, el) {
+        lastIdx = i;
+        let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block;max-width:none" role="img" aria-label="${suf} gruplar sütun olarak">`;
+        cols.forEach((col, ci) => {
+          const off = mid - medIdx(col.length);
+          col.forEach((v, ri) => {
+            const X = PAD + ci * (CW + GAP), Y = PAD + (ri + off) * (CH + GAP), k = sure(col, v);
+            let fill = "var(--paper)", stroke = "var(--border-strong)", sw = 1.5, txt = "var(--fg)", dash = "";
+            if (k === "lt" && f.show >= 1) { fill = "#e7f5ff"; stroke = "#1c7ed6"; txt = "#1b1f24"; }
+            if (k === "gt" && f.show >= 2) { fill = "#fff4e6"; stroke = "#e8590c"; txt = "#1b1f24"; }
+            if (k === "?" && f.show >= 3) { fill = "var(--stone-200)"; stroke = "var(--stone-500)"; dash = "stroke-dasharray:4 3;"; }
+            if (ri === medIdx(col.length)) sw = 3;
+            if (k === "x") { fill = "#efeaff"; stroke = "#6741d9"; sw = 3; txt = "#1b1f24"; }
+            svg += `<rect x="${X}" y="${Y}" width="${CW}" height="${CH}" rx="5" style="fill:${fill};stroke:${stroke};stroke-width:${sw};${dash}"/>` +
+              `<text x="${X + CW / 2}" y="${Y + CH / 2 + 4}" text-anchor="middle" style="fill:${txt};font:700 12px 'JetBrains Mono',monospace">${v}</text>`;
+          });
+        });
+        const q = (v, from) => f.show >= from ? `<b>${v}</b>` : "?";
+        el.innerHTML = `<div class="w-select-stats"><span>kesin küçük: ${q(lt, 1)}</span><span>bilinmeyen: ${q(unk, 3)}</span><span>kesin büyük: ${q(gt, 2)}</span>` +
+          `<span>iç call: ${q(g, 3)}</span><span>dış call ≤ ${q(outer, 3)}</span></div>` +
+          `<div class="w-select-scroll">${svg}</svg></div>` +
+          `<div class="src" style="margin-top:4px">mavi: kesin $\\lt x$ · turuncu: kesin $\\gt x$ · gri: bilinmiyor · mor: $x$ · kalın çerçeve: grup median'ı</div>`;
+      } });
+    st.go(Math.min(keep, frames.length - 1));
+  }
+  root.querySelectorAll("[data-s]").forEach(b => {
+    b.onclick = () => {
+      s = +b.dataset.s;
+      root.querySelectorAll("[data-s]").forEach(o => { const on = o === b; o.classList.toggle("btn--accent", on); o.setAttribute("aria-pressed", on); });
+      build();
+    };
+    const on = +b.dataset.s === s; b.classList.toggle("btn--accent", on); b.setAttribute("aria-pressed", on);
+  });
+  function setN() {
+    const r = readInt(nIn, 9, 99, "n");
+    if (r.err) { err.textContent = r.err; return; }
+    err.textContent = ""; n = r.v; build();
+  }
+  nIn.addEventListener("change", setN);
+  nIn.addEventListener("keydown", e => { if (e.key === "Enter") setN(); });
+  kind.onchange = build;
+  document.getElementById("w-select-gnew").onclick = () => { seed = Math.floor(Math.random() * 2147483647); kind.value = "rnd"; build(); };
   build();
 })();
 </script>

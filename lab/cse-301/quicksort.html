@@ -14,7 +14,48 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
   <link rel="stylesheet" href="../../assets/css/main.css" />
-  <link rel="stylesheet" href="../assets/lab.css?v=4" />
+  <link rel="stylesheet" href="../assets/lab.css?v=5" />
+  <style>
+    /* Controls and readouts shared by the Lomuto lab, the Monte Carlo runner and the equal-elements toggle. */
+    .w-quicksort-predict { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--stone-050); border-radius: var(--radius-md); font-size: .95rem; }
+    .w-quicksort-ctrl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-quicksort-ctrl .btn { width: auto; }
+    .w-quicksort-ctrl input { font: 500 .9rem 'JetBrains Mono', monospace; padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--paper); color: var(--fg); min-width: 0; }
+    .w-quicksort-ctrl input[type=text] { flex: 1 1 180px; }
+    .w-quicksort-ctrl input[type=number] { width: 4.6em; }
+    .w-quicksort-ctrl label { font-size: .88rem; color: var(--fg-subtle); display: inline-flex; gap: 4px; align-items: center; }
+    .w-quicksort-btn.is-on { background: var(--blue-600); border-color: var(--blue-600); color: #fff; }
+    .w-quicksort-err { color: #c92a2a; font-size: .88rem; min-height: 1.2em; margin: 2px 0 4px; }
+    .w-quicksort-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+    .w-quicksort-row > .w-quicksort-code { flex: 1 1 260px; min-width: 0; }
+    .w-quicksort-side { flex: 1 1 180px; min-width: 0; }
+    .w-quicksort-stat { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 4px 0; }
+    .w-quicksort-stat b { display: block; font-size: 1.3rem; font-weight: 800; color: var(--fg-brand); line-height: 1.2; }
+    .w-quicksort-stat span { font-size: .78rem; color: var(--fg-subtle); }
+    .w-quicksort-stack { list-style: none; margin: 4px 0 0; padding: 0; font: .76rem 'JetBrains Mono', monospace; }
+    .w-quicksort-stack li { padding: 2px 6px; margin-bottom: 2px; border-left: 3px solid var(--border-strong); overflow-wrap: anywhere; }
+    .w-quicksort-stack li:first-child { border-left-color: var(--accent); background: var(--orange-100); }
+    .w-quicksort-meter { position: relative; height: 18px; background: var(--stone-200); border-radius: 6px; overflow: hidden; margin: 8px 0 4px; }
+    .w-quicksort-meter > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--blue-600); transition: width .3s; }
+    .w-quicksort-meter > em { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+    .w-quicksort-svg { display: block; width: 100%; height: auto; margin-top: 6px; }
+    .w-quicksort-svg text { font: 500 15px 'JetBrains Mono', monospace; fill: var(--fg-subtle); }
+    .w-quicksort-svg .ax { stroke: var(--border-strong); stroke-width: 1; }
+    .w-quicksort-svg .ref { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 4; }
+    .w-quicksort-svg .est { fill: none; stroke: var(--blue-600); stroke-width: 2; }
+    .w-quicksort-svg .fix { fill: #2b8a3e; }
+    .w-quicksort-svg .piv { fill: #6741d9; }
+    .w-quicksort-svg .lt { fill: #1c7ed6; }
+    .w-quicksort-svg .gt { fill: #e8590c; }
+    .w-quicksort-svg .out { fill: var(--stone-300); }
+    /* At phone width the single-column lesson grid would otherwise grow to its widest child
+       (display maths, the level rows above, the footer links) and the whole page would scroll sideways. */
+    @media (max-width: 900px) {
+      .lesson-grid { grid-template-columns: minmax(0, 1fr); }
+      .lesson-foot { flex-wrap: wrap; }
+      .lesson-foot .btn { white-space: normal; }
+    }
+  </style>
 </head>
 <body>
 <div class="page-shell">
@@ -340,8 +381,21 @@
     <span class="box__label">Slayt örneği · 2 ile 6</span>
     <p>$[7,6,3,5,1,2,4]$'te blok $\{2,3,4,5,6\}$, 5 element ⇒ $P = 2/5$. Slayttaki run'da ilk pivot 5 olduğu için $X_{2,6} = 0$; $X_{1,5} = 1$ (5, $\{1..5\}$'in ilk pivot'u); $X_{3,6} = 0$. Komşu element'ler ($j = i+1$) için $P = 2/2 = 1$: aralarında onları ayıracak bir element yok.</p>
   </div>
-  <p>Simulation: gerçek randomized QuickSort'u defalarca çalıştırıp çiftin compare edilme oranını sayıyoruz.</p>
-  <div style="margin:8px 0"><select id="sim-pair" class="btn btn--sm"></select></div>
+  <p>Simulation: gerçek randomized QuickSort'u defalarca çalıştırıp bir çiftin compare edilme oranını sayıyoruz. Array'de $1$'den $n$'e kadar değerler var; $a$ ve $b$, sorted sıradaki rank'leri. Her run'da pivot'lar yeniden random seçilir, oran da run'lar biriktikçe formüle yaklaşır.</p>
+  <p class="w-quicksort-predict"><strong>Önce tahmin et:</strong> $n = 7$, $a = 2$, $b = 6$ için 1000 run'ın yaklaşık kaçında bu iki element compare edilir?</p>
+  <div class="w-quicksort-ctrl">
+    <label>n <input type="number" id="sim-n" value="7" min="2" max="40" /></label>
+    <label>a <input type="number" id="sim-a" value="2" min="1" max="39" /></label>
+    <label>b <input type="number" id="sim-b" value="6" min="2" max="40" /></label>
+  </div>
+  <div class="w-quicksort-ctrl" id="sim-runs">
+    <button class="btn btn--sm btn--accent" data-k="1">1 run</button>
+    <button class="btn btn--sm btn--accent" data-k="100">100 run</button>
+    <button class="btn btn--sm btn--accent" data-k="1000">1000 run</button>
+    <button class="btn btn--sm" data-k="0">Sıfırla</button>
+  </div>
+  <div class="w-quicksort-err" id="sim-err" role="alert"></div>
+  <div id="sim-out"></div>
   <div id="sim-stepper"></div>
   <div class="box box--rule">
     <span class="box__label">Sum'ı bound et</span>
@@ -375,11 +429,26 @@
     <p><strong>Invariant:</strong> her iteration'ın sonunda $A[\text{start}..i] \le x$ ve $A[i+1..j] &gt; x$. Loop bitince pivot'u $i+1$'e koymak onu doğru yerine oturtur. Partition tam $(\text{end}-\text{start}) - 1$ comparison yapar.</p>
     <p><code>quickSortHelper(A, start, end)</code>: size $\le 1$ ise dön, random bir $p$ seç, $q$ = partition, sonra <code>[start, q)</code> ve <code>[q+1, end)</code> üzerinde recurse et. Pivot iki tarafa da girmez.</p>
   </div>
-  <p>Sınıf örneği $A = [8,7,1,3,5,6,4]$, pivot 4 (zaten sonda). Tablo her <code>j</code> iteration'ını gösteriyor; açık mavi $\le x$ region'ı, turuncu $&gt; x$ region'ı, yeşil ise yerine oturmuş pivot'lar.</p>
-  <div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap">
-    <select id="lo-input" class="btn btn--sm"><option value="0">Sınıf örneği [8,7,1,3,5,6,4]</option><option value="1">Hepsi eşit [4,4,4,4,4,4]</option><option value="2">Sorted [1,2,3,4,5,6]</option></select>
-    <select id="lo-mode" class="btn btn--sm"><option value="last">p = end−1 (last element)</option><option value="random">p random (notebook'taki gibi)</option></select>
+  <p>Sınıf örneği $A = [8,7,1,3,5,6,4]$, pivot 4 (zaten sonda). Tablo her <code>j</code> iteration'ını gösteriyor; açık mavi $\le x$ region'ı, turuncu $&gt; x$ region'ı, beyaz henüz bakılmamış element'ler, mor pivot, yeşil ise yerine oturmuş pivot'lar. Sağdaki call stack o an açık olan call'ları, en üstte aktif olanı gösterir.</p>
+  <p>Kendi array'ini de yazabilirsin (en fazla 12 element). Random modda pivot'lar array'den türetilen bir seed ile seçilir: aynı array ve aynı seed her seferinde aynı pivot'ları verir, böylece bir run'ı tekrar tekrar izleyebilirsin. "Başka seed" yeni bir pivot dizisi dener.</p>
+  <p class="w-quicksort-predict"><strong>Önce tahmin et:</strong> sınıf örneğinde last-element pivot ile sort bitene kadar toplam kaç comparison yapılır? "Eşitler"e basmadan önce 6 eşit element için de bir sayı söyle.</p>
+  <div class="w-quicksort-ctrl" id="lo-presets">
+    <button class="btn btn--sm" data-preset="ornek">Örnek</button>
+    <button class="btn btn--sm" data-preset="sirali">Sıralı</button>
+    <button class="btn btn--sm" data-preset="ters">Ters</button>
+    <button class="btn btn--sm" data-preset="esit">Eşitler</button>
+    <button class="btn btn--sm" data-preset="rastgele">Rastgele</button>
   </div>
+  <div class="w-quicksort-ctrl">
+    <input type="text" id="lo-input" value="8, 7, 1, 3, 5, 6, 4" aria-label="Array: virgül ya da boşlukla ayrılmış tam sayılar" />
+    <button class="btn btn--sm btn--accent" id="lo-go">Çalıştır</button>
+  </div>
+  <div class="w-quicksort-ctrl">
+    <select id="lo-mode" class="btn btn--sm"><option value="last">p = end−1 (last element)</option><option value="random">p seeded random (notebook'taki gibi)</option></select>
+    <span class="src" id="lo-seed"></span>
+    <button class="btn btn--sm" id="lo-reseed">Başka seed</button>
+  </div>
+  <div class="w-quicksort-err" id="lo-err" role="alert"></div>
   <div id="lo-stepper"></div>
   <div class="box box--trap">
     <span class="box__label">Tuzak</span>
@@ -470,12 +539,30 @@ QUICKSORT(A, p, r)
   <h2>Equal elements</h2>
   <div class="box box--example">
     <span class="box__label">Örnek · HW3 §3.1</span>
-    <p>Partition $A_{\le}$ ve $A_{&gt;}$ üretiyorsa ve tüm element'ler eşitse ($[4,4,4,4,4,4]$): hangi pivot seçilirse seçilsin $|A_{\le}| = n-1$, $|A_{&gt;}| = 0$. $T(n) = T(n-1) + \Theta(n)$; probability 1 ile $\Theta(n^2)$. Random pivot hiçbir şeyi kurtarmıyor. Yukarıdaki Lomuto animasyonunda "Hepsi eşit" input'unu seç: $n = 6$'da $15 = \binom62$ comparison.</p>
+    <p>Partition $A_{\le}$ ve $A_{&gt;}$ üretiyorsa ve tüm element'ler eşitse ($[4,4,4,4,4,4]$): hangi pivot seçilirse seçilsin $|A_{\le}| = n-1$, $|A_{&gt;}| = 0$. $T(n) = T(n-1) + \Theta(n)$; probability 1 ile $\Theta(n^2)$. Random pivot hiçbir şeyi kurtarmıyor. Yukarıdaki Lomuto animasyonunda "Eşitler" preset'ini seç: $n = 6$'da $15 = \binom62$ comparison.</p>
   </div>
   <div class="box box--rule">
     <span class="box__label">Çözüm: three-way partition</span>
     <p>Üç parça: $A_{&lt;}$, $A_{=}$, $A_{&gt;}$. Pivot'a eşit olanların hepsi tek seferde yerine oturur; yalnızca $A_{&lt;}$ ve $A_{&gt;}$ üzerinde recurse edilir. Notebook'taki <code>naiveQuickSort</code> bunu zaten yapıyor (<code>E</code> listesi). Tümü eşit bir array'de tek partition yeter: hem expected hem worst-case running time $\Theta(n)$.</p>
   </div>
+  <p>Kır ve onar: aynı array'i iki partition ile sort et, comparison sayacını karşılaştır. Three-way sürüm her element'i pivot ile bir kez, üç sonuçlu ($&lt;$, $=$, $&gt;$) compare eder. Pivot'lar iki modda da array'den türetilen aynı seed ile seçilir.</p>
+  <p class="w-quicksort-predict"><strong>Önce tahmin et:</strong> 32 eşit element'te $\le$ partition'lı QuickSort toplam kaç comparison yapar, three-way partition'lı olan kaç?</p>
+  <div class="w-quicksort-ctrl" id="dup-mode" role="group" aria-label="Partition türü">
+    <button class="btn btn--sm w-quicksort-btn is-on" data-mode="le" aria-pressed="true">≤ partition (Lomuto)</button>
+    <button class="btn btn--sm w-quicksort-btn" data-mode="three" aria-pressed="false">three-way partition</button>
+  </div>
+  <div class="w-quicksort-ctrl" id="dup-presets">
+    <button class="btn btn--sm" data-preset="8">8 eşit</button>
+    <button class="btn btn--sm" data-preset="32">32 eşit</button>
+    <button class="btn btn--sm" data-preset="64">64 eşit</button>
+    <button class="btn btn--sm" data-preset="few">İki farklı değer</button>
+  </div>
+  <div class="w-quicksort-ctrl">
+    <input type="text" id="dup-input" value="" aria-label="Array: virgül ya da boşlukla ayrılmış tam sayılar" />
+    <button class="btn btn--sm btn--accent" id="dup-go">Çalıştır</button>
+  </div>
+  <div class="w-quicksort-err" id="dup-err" role="alert"></div>
+  <div id="dup-stepper"></div>
   <div class="box box--rule">
     <span class="box__label">Hoare equal element'lere neden dayanıklı?</span>
     <p>H-PARTITION'da iki <code>repeat</code> de eşit element'te durur ($A[j] \le$ pivot ve $A[i] \ge$ pivot). Tümü eşit bir array'de $i$ ve $j$ her adımda birer ilerleyip swap yapar ve <strong>ortada</strong> buluşur: $T(n) = 2T(n/2) + \Theta(n) = \Theta(n\log n)$. Python ile: $n = 64$ için ilk iki $q$ değeri 31 ve 15 (0-based index), tam orta.</p>
@@ -597,8 +684,8 @@ QUICKSORT(A, p, r)
   </div>
 </div>
 
-<script src="course.js?v=4"></script>
-<script src="../assets/lab.js?v=4"></script>
+<script src="course.js?v=5"></script>
+<script src="../assets/lab.js?v=5"></script>
 <script>
 /* Small seeded PRNG so simulations are reproducible */
 function mulberry32(a) {
@@ -611,6 +698,26 @@ function mulberry32(a) {
 }
 const cellHTML = (v, mark, idx) => `<div class="arr__cell${mark ? " m-" + mark.split(" ").join(" m-") : ""}">${v}${idx !== undefined ? `<small>${idx}</small>` : ""}</div>`;
 const ghostCell = () => `<div class="arr__cell" style="visibility:hidden">·</div>`;
+
+/* Seed derived from the array itself, so the same array always replays the same pivots (FNV-1a) */
+function arrSeed(A) {
+  let h = 2166136261;
+  A.forEach(v => { h ^= (v + 1000); h = Math.imul(h, 16777619); });
+  return h >>> 0;
+}
+/* Typed array input: integers separated by commas or spaces, sized so the frames stay small */
+function parseArray(text, minN, maxN) {
+  const parts = text.trim().split(/[\s,;]+/).filter(Boolean);
+  if (!parts.length) return { err: "Array boş. Virgül ya da boşlukla ayrılmış tam sayılar yaz, örneğin 5, 2, 8, 1." };
+  const bad = parts.find(p => !/^-?\d+$/.test(p));
+  if (bad !== undefined) return { err: `"${bad.slice(0, 12)}" bir tam sayı değil. Yalnızca tam sayı yaz: ondalık, harf ya da sembol olmasın.` };
+  const A = parts.map(Number);
+  if (A.some(v => v < -99 || v > 99)) return { err: "Değerler −99 ile 99 arasında olmalı ki kutulara sığsın." };
+  if (A.length < minN) return { err: `En az ${minN} element gerekli; ${A.length} element'li bir array'de partition edilecek bir şey yok.` };
+  if (A.length > maxN) return { err: `En fazla ${maxN} element yazabilirsin (sen ${A.length} yazdın); adım sayısı n ile hızla büyüyor.` };
+  return { A };
+}
+const byId = id => document.getElementById(id);
 
 /* 1. Not-in-place QuickSort, frames from a real run */
 (function () {
@@ -665,54 +772,136 @@ const ghostCell = () => `<div class="arr__cell" style="visibility:hidden">·</di
   sel.onchange = build; build();
 })();
 
-/* 2. Monte Carlo estimate of P(a and b compared) from real random QuickSort runs */
+/* 2. Monte Carlo runner: P(rank a and rank b compared) from real random QuickSort runs */
 (function () {
-  const INPUT = [7, 6, 3, 5, 1, 2, 4];
-  const PAIRS = [[2, 6], [1, 7], [3, 4], [1, 5], [3, 7]];
-  const sel = document.getElementById("sim-pair"), box = document.getElementById("sim-stepper");
-  sel.innerHTML = PAIRS.map((p, i) => `<option value="${i}">${p[0]} ile ${p[1]}</option>`).join("");
-  function oneRun(rand, a, b) {
-    let compared = false, first = null;
+  const nEl = byId("sim-n"), aEl = byId("sim-a"), bEl = byId("sim-b");
+  const err = byId("sim-err"), out = byId("sim-out"), box = byId("sim-stepper");
+  const CAP = 20000;
+  let st = null;
+  /* The slide array for n = 7; other sizes get a fixed shuffle of 1..n (with random pivots the order does not change the probability) */
+  function baseArray(n) {
+    if (n === 7) return [7, 6, 3, 5, 1, 2, 4];
+    const r = mulberry32(n), A = Array.from({ length: n }, (_, k) => k + 1);
+    for (let k = n - 1; k > 0; k--) { const m = Math.floor(r() * (k + 1)); const t = A[k]; A[k] = A[m]; A[m] = t; }
+    return A;
+  }
+  function read() {
+    const n = Number(nEl.value), a = Number(aEl.value), b = Number(bEl.value);
+    if (![n, a, b].every(Number.isInteger)) return { err: "n, a ve b tam sayı olmalı." };
+    if (n < 2 || n > 40) return { err: "n 2 ile 40 arasında olmalı." };
+    if (a < 1 || b > n) return { err: `Rank'ler 1 ile n = ${n} arasında olmalı.` };
+    if (a >= b) return { err: "a, b'den küçük olmalı: a < b olan bir çift seç." };
+    return { n, a, b };
+  }
+  /* One full QuickSort; every comparison is element vs pivot, so we watch for the pair {a, b} */
+  function oneRun(n, a, b) {
+    let compared = false;
+    const trace = [];
     (function qs(A) {
       if (A.length <= 1) return;
-      const x = A[Math.floor(rand() * A.length)];
-      if (first === null && x >= a && x <= b && A.includes(a) && A.includes(b)) first = x;
-      if ((x === a && A.includes(b)) || (x === b && A.includes(a))) compared = true;
-      qs(A.filter(v => v < x)); qs(A.filter(v => v > x));
-    })(INPUT);
-    return { compared, first };
+      const x = A[Math.floor(Math.random() * A.length)];
+      if (A.includes(a) && A.includes(b)) trace.push({ A: A.slice(), x });
+      const L = [], R = [];
+      A.forEach(v => {
+        if (v === x) return;
+        if ((v === a && x === b) || (v === b && x === a)) compared = true;
+        (v < x ? L : R).push(v);
+      });
+      qs(L); qs(R);
+    })(baseArray(n));
+    return { compared, trace };
   }
-  function build() {
-    const [a, b] = PAIRS[sel.value], rand = mulberry32(161 + +sel.value);
-    const exact = 2 / (b - a + 1), checkpoints = [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
-    const frames = []; let hits = 0, runs = 0, last = null;
-    checkpoints.forEach(c => {
-      while (runs < c) { last = oneRun(rand, a, b); hits += last.compared ? 1 : 0; runs++; }
-      frames.push({ runs, hits, last, caption: `${runs} run: oran $${(hits / runs).toFixed(3)}$. Formül $\\frac{2}{${b} - ${a} + 1} = \\frac{2}{${b - a + 1}} = ${exact.toFixed(3)}$. Son run'da bloğun ilk pivot'u <b>${last.first}</b> → ${last.compared ? "compare edildiler" : "ayrıldılar"}.` });
+  function chart(hist, exact) {
+    const W = 600, H = 150, X0 = 44, Y0 = 12, PW = W - X0 - 10, PH = H - Y0 - 26;
+    const step = Math.max(1, Math.ceil(hist.length / 300)), pts = [];
+    for (let k = 0; k < hist.length; k += step) pts.push([k + 1, hist[k]]);
+    pts.push([hist.length, hist[hist.length - 1]]);
+    const sx = r => X0 + PW * (hist.length === 1 ? 1 : (r - 1) / (hist.length - 1)), sy = p => Y0 + PH * (1 - p);
+    return `<svg class="w-quicksort-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gözlenen oranın run sayısıyla değişimi">
+      <line class="ax" x1="${X0}" y1="${Y0}" x2="${X0}" y2="${Y0 + PH}"/><line class="ax" x1="${X0}" y1="${Y0 + PH}" x2="${X0 + PW}" y2="${Y0 + PH}"/>
+      <text x="${X0 - 6}" y="${sy(1) + 4}" text-anchor="end">1</text><text x="${X0 - 6}" y="${sy(0.5) + 4}" text-anchor="end">0.5</text><text x="${X0 - 6}" y="${sy(0) + 4}" text-anchor="end">0</text>
+      <line class="ref" x1="${X0}" y1="${sy(exact)}" x2="${X0 + PW}" y2="${sy(exact)}"/>
+      <polyline class="est" points="${pts.map(([r, p]) => `${sx(r).toFixed(1)},${sy(p).toFixed(1)}`).join(" ")}"/>
+      <text x="${X0}" y="${H - 6}">run 1</text><text x="${X0 + PW}" y="${H - 6}" text-anchor="end">run ${hist.length}</text>
+    </svg>`;
+  }
+  function draw() {
+    if (!st) {
+      out.innerHTML = `<p class="src">Henüz run yok. Bir run butonuna bas; sonuç ve son run'ın adımları burada görünecek.</p>`;
+      Lab.stepper(box, { title: "Son run, adım adım", frames: [{ caption: "Run başlatınca, son run'da a ile b'yi içeren her call burada bir adım olarak görünür." }], render(f, k, el) { el.innerHTML = ""; } });
+      return;
+    }
+    const { n, a, b, runs, hits, hist, last } = st, exact = 2 / (b - a + 1), est = hits / runs;
+    out.innerHTML = `<div class="w-quicksort-stat">
+        <div><b>${runs}</b><span>run</span></div>
+        <div><b>${hits}</b><span>compare edildi</span></div>
+        <div><b>${est.toFixed(3)}</b><span>gözlenen oran</span></div>
+        <div><b>${exact.toFixed(3)}</b><span>2/(b−a+1) = 2/${b - a + 1}</span></div>
+        <div><b>${(est - exact >= 0 ? "+" : "−") + Math.abs(est - exact).toFixed(3)}</b><span>fark</span></div>
+      </div>
+      <div class="w-quicksort-meter"><i style="width:${100 * est}%"></i><em style="left:calc(${100 * exact}% - 1px)"></em></div>
+      ${chart(hist, exact)}
+      <div class="src">mavi: gözlenen oran (çubukta şimdiki değer, grafikte her run'dan sonraki değer) · turuncu: 2/(b−a+1)${runs >= CAP ? ` · ${CAP} run sınırına ulaşıldı, Sıfırla'ya bas` : ""}</div>`;
+    const frames = [{ A: baseArray(n), x: null, caption: `Son run · input $[${baseArray(n)}]$. ${a} ile ${b} aynı alt array'de kaldıkça her call bir adım.` }];
+    last.trace.forEach(t => {
+      let c;
+      if (t.x < a || t.x > b) c = `Pivot ${t.x}, $\\{${a},\\dots,${b}\\}$ bloğunun dışında: ${a} ile ${b} aynı tarafa gidiyor, karar sonraki call'a kaldı.`;
+      else if (t.x === a || t.x === b) c = `Pivot ${t.x}, bloğun bir ucu: partition, ${a} ile ${b} arasında bir comparison yapıyor.`;
+      else c = `Pivot ${t.x}, ${a} ile ${b} arasında: ${a} sola, ${b} sağa gidiyor ve bir daha hiç karşılaşmayacaklar.`;
+      frames.push({ A: t.A, x: t.x, caption: c });
     });
+    frames.push({ A: last.trace[last.trace.length - 1].A, x: last.trace[last.trace.length - 1].x, caption: `Bu run'da ${a} ile ${b} ${last.compared ? "<b>compare edildi</b>" : "<b>compare edilmedi</b>"}. ${runs} run'da ${hits} kez: oran ${est.toFixed(3)}, formül $\\frac{2}{${b - a + 1}} = ${exact.toFixed(3)}$.` });
     Lab.stepper(box, {
-      title: `P(${a} ile ${b} compare edilir)`, interval: 900, frames,
+      title: `Son run, adım adım · a = ${a}, b = ${b}`, interval: 1200, frames,
       render(f, k, el) {
-        const est = f.hits / f.runs;
-        el.innerHTML = `<div class="arr-wrap"><div class="arr">${INPUT.slice().sort((x, y) => x - y).map(v => cellHTML(v, v === a || v === b ? "pivot" : v > a && v < b ? "cmp" : "dim")).join("")}</div></div>
-          <div style="position:relative;height:22px;background:var(--stone-200);border-radius:6px;margin-top:10px;overflow:hidden">
-            <div style="height:100%;width:${100 * est}%;background:var(--blue-600);transition:width .4s"></div>
-            <div style="position:absolute;top:0;bottom:0;left:${100 * exact}%;width:3px;background:var(--accent)"></div>
-          </div>
-          <div class="src" style="margin-top:4px">mavi çubuk: simulation · turuncu çizgi: $2/(j-i+1)$ · mor: çift, açık mavi: bloğun içi</div>`;
+        const marks = {};
+        f.A.forEach((v, t) => {
+          if (v === f.x) marks[t] = "pivot";
+          else if (v === a || v === b) marks[t] = "cmp";
+          else if (v > a && v < b) marks[t] = "big";
+          else marks[t] = "dim";
+        });
+        el.innerHTML = Lab.arrayView(f.A, { marks, hideIndex: true }) + `<div class="src">mavi: a ve b · turuncu: aralarındaki değerler · mor: pivot · soluk: bloğun dışı</div>`;
       }
     });
   }
-  sel.onchange = build; build();
+  function reset() { st = null; err.textContent = ""; draw(); }
+  [nEl, aEl, bEl].forEach(el => el.addEventListener("change", () => {
+    const P = read();
+    err.textContent = P.err || "";
+    st = null; if (!P.err) draw();
+  }));
+  byId("sim-runs").addEventListener("click", e => {
+    const btn = e.target.closest("[data-k]");
+    if (!btn) return;
+    const k = Number(btn.dataset.k);
+    if (k === 0) { reset(); return; }
+    const P = read();
+    if (P.err) { err.textContent = P.err; return; }
+    err.textContent = "";
+    if (!st || st.n !== P.n || st.a !== P.a || st.b !== P.b) st = { n: P.n, a: P.a, b: P.b, runs: 0, hits: 0, hist: [], last: null };
+    const todo = Math.min(k, CAP - st.runs);
+    if (todo <= 0) { err.textContent = `En fazla ${CAP} run birikir. Yeniden başlamak için Sıfırla'ya bas.`; return; }
+    for (let r = 0; r < todo; r++) {
+      st.last = oneRun(st.n, st.a, st.b);
+      st.runs++; st.hits += st.last.compared ? 1 : 0;
+      st.hist.push(st.hits / st.runs);
+    }
+    draw();
+  });
+  draw();
 })();
 
-/* 3. Lomuto partition (CS161 notebook partition1) + quickSortHelper, frames from a real run */
+/* 3. Lomuto lab: partition1 + quickSortHelper on a preset or typed array, seeded random pivot, frames from a real run */
 (function () {
-  const INPUTS = [[8, 7, 1, 3, 5, 6, 4], [4, 4, 4, 4, 4, 4], [1, 2, 3, 4, 5, 6]];
-  const CODE = [
+  const PRESETS = {
+    ornek: [8, 7, 1, 3, 5, 6, 4], sirali: [1, 2, 3, 4, 5, 6], ters: [6, 5, 4, 3, 2, 1], esit: [4, 4, 4, 4, 4, 4],
+    rastgele: () => Array.from({ length: 8 }, () => 1 + Math.floor(Math.random() * 30))
+  };
+  const codeFor = mode => [
     "def quickSortHelper(A, start, end):",
     "    if end - start <= 1: return",
-    "    p = choice(range(start, end))",
+    mode === "last" ? "    p = end - 1" : "    p = choice(range(start, end))  # seeded",
     "    q = partition1(A, start, end, p)",
     "    quickSortHelper(A, start, q)",
     "    quickSortHelper(A, q + 1, end)",
@@ -725,15 +914,20 @@ const ghostCell = () => `<div class="arr__cell" style="visibility:hidden">·</di
     "    swap(A, i+1, end-1)",
     "    return i+1"
   ];
-  const box = document.getElementById("lo-stepper"), selIn = document.getElementById("lo-input"), selMode = document.getElementById("lo-mode");
-  function run(input, mode) {
-    const A = input.slice(), frames = [], fixed = new Set(); let rows = [], cmp = 0;
-    const F = (line, st, caption) => frames.push(Object.assign({ A: A.slice(), line, rows: rows.map(r => r.slice()), fixed: new Set(fixed), cmp, caption }, st));
-    const swap = (a, b) => { const t = A[a]; A[a] = A[b]; A[b] = t; };
+  const box = byId("lo-stepper"), inp = byId("lo-input"), selMode = byId("lo-mode");
+  const err = byId("lo-err"), seedEl = byId("lo-seed"), reseed = byId("lo-reseed");
+  let cur = PRESETS.ornek.slice(), offset = 0;
+  const seedOf = A => (arrSeed(A) + offset) >>> 0;
+  function run(input, mode, seed) {
+    const rand = mulberry32(seed);
+    const A = input.slice(), frames = [], fixed = new Set(), stack = []; let rows = [], cmp = 0, swp = 0;
+    const F = (line, st, caption) => frames.push(Object.assign({ A: A.slice(), line, rows: rows.map(r => r.slice()), fixed: new Set(fixed), cmp, swp, stack: stack.slice(), caption }, st));
+    const swap = (a, b) => { const t = A[a]; A[a] = A[b]; A[b] = t; swp++; };
     function partition(s, e, p) {
+      stack.push(`partition1(A, ${s}, ${e}, ${p})`);
       const x = A[p]; rows = [];
       swap(p, e - 1);
-      F(7, { s, e, i: null, j: null, x, phase: "loop" }, `$x = ${x}$. ${p === e - 1 ? "Pivot zaten sonda." : `swap(A, ${p}, ${e - 1}): pivot sona taşındı.`}`);
+      F(7, { s, e, i: null, j: null, x, phase: "loop" }, `$x = ${x}$. ${p === e - 1 ? "Pivot zaten sonda (swap kendisiyle)." : `swap(A, ${p}, ${e - 1}): pivot sona taşındı.`}`);
       let i = s - 1;
       F(8, { s, e, i, j: null, x, phase: "loop" }, `$i = \\text{start} - 1 = ${i}$${i < 0 ? " (array'in solunda)" : ""}. $\\le x$ region'ı şimdilik boş.`);
       for (let j = s; j < e - 1; j++) {
@@ -743,30 +937,39 @@ const ghostCell = () => `<div class="arr__cell" style="visibility:hidden">·</di
         F(le ? 11 : 10, { s, e, i, j, x, phase: "loop" }, le ? `$A[${j}] = ${v} \\le ${x}$: $i = ${i}$, swap(A, ${i}, ${j}).` : `$A[${j}] = ${v} &gt; ${x}$: hiçbir şey yapma, $&gt; x$ region'ı büyüdü.`);
       }
       swap(i + 1, e - 1); fixed.add(i + 1);
-      F(12, { s, e, i, j: null, x, phase: "end", q: i + 1 }, `swap(A, ${i + 1}, ${e - 1}): pivot ${x} final position'ına oturdu. return $q = ${i + 1}$.`);
+      F(12, { s, e, i, j: null, x, phase: "end", q: i + 1 }, `swap(A, ${i + 1}, ${e - 1}): pivot ${x} final position'ına oturdu. return $q = ${i + 1}$; sol taraf ${i + 1 - s}, sağ taraf ${e - i - 2} element.`);
+      stack.pop();
       return i + 1;
     }
     function helper(s, e) {
+      stack.push(`quickSortHelper(A, ${s}, ${e})`);
       if (e - s <= 1) {
         if (e - s === 1) fixed.add(s);
         rows = [];
-        F(1, { s, e, i: null, j: null, x: null, phase: "base" }, `quickSortHelper(A, ${s}, ${e}): ${e - s} element, dön.`);
+        F(1, { s, e, i: null, j: null, x: null, phase: "base" }, `quickSortHelper(A, ${s}, ${e}): ${e - s} element, base case, dön.`);
+        stack.pop();
         return;
       }
-      const p = mode === "last" ? e - 1 : s + Math.floor(Math.random() * (e - s));
+      const p = mode === "last" ? e - 1 : s + Math.floor(rand() * (e - s));
       rows = [];
-      F(2, { s, e, i: null, j: null, x: null, phase: "call", p }, `quickSortHelper(A, ${s}, ${e}): pivot index'i $p = ${p}$ ($A[p] = ${A[p]}$).`);
+      F(2, { s, e, i: null, j: null, x: null, phase: "call", p }, `quickSortHelper(A, ${s}, ${e}): pivot index'i $p = ${p}$ ($A[p] = ${A[p]}$)${mode === "last" ? "" : `, seed ${seed} ile seçildi`}.`);
       const q = partition(s, e, p);
       helper(s, q); helper(q + 1, e);
+      stack.pop();
     }
-    frames.push({ A: A.slice(), line: 0, rows: [], fixed: new Set(), cmp: 0, s: 0, e: A.length, i: null, j: null, phase: "start", caption: `quickSort(A) = quickSortHelper(A, 0, ${A.length}).` });
+    frames.push({ A: A.slice(), line: 0, rows: [], fixed: new Set(), cmp: 0, swp: 0, stack: [], s: 0, e: A.length, i: null, j: null, x: null, phase: "start", caption: `quickSort(A) = quickSortHelper(A, 0, ${A.length}).` });
     helper(0, A.length);
-    frames.push({ A: A.slice(), line: -1, rows: [], fixed: new Set(A.map((_, k) => k)), cmp, s: 0, e: A.length, i: null, j: null, phase: "done", caption: `Bitti: $[${A}]$. Toplam <b>${cmp}</b> comparison ($A[j] \\le x$ testi).${input.every(v => v === input[0]) || mode === "last" && input.every((v, k) => k === 0 || input[k - 1] <= v) ? ` $\\binom{${A.length}}{2} = ${A.length * (A.length - 1) / 2}$: bu input Lomuto için worst case.` : ""}` });
+    const n = A.length, worst = n * (n - 1) / 2;
+    frames.push({ A: A.slice(), line: -1, rows: [], fixed: new Set(A.map((_, k) => k)), cmp, swp, stack: [], s: 0, e: n, i: null, j: null, x: null, phase: "done", caption: `Bitti: $[${A}]$. Toplam <b>${cmp}</b> comparison ($A[j] \\le x$ testi) ve <b>${swp}</b> swap çağrısı.${cmp === worst ? ` $\\binom{${n}}{2} = ${worst}$: her partition bir tarafı boş bıraktı, bu input bu pivot kuralı için worst case.` : ` Worst case $\\binom{${n}}{2} = ${worst}$ olurdu.`}` });
     return frames;
   }
   function build() {
+    const mode = selMode.value, seed = seedOf(cur);
+    seedEl.textContent = mode === "last" ? "seed kullanılmıyor: pivot hep son element" : `seed = ${seed}`;
+    reseed.disabled = mode === "last";
+    const CODE = codeFor(mode);
     Lab.stepper(box, {
-      title: "partition1 + quickSortHelper", interval: 1100, frames: run(INPUTS[selIn.value], selMode.value),
+      title: `partition1 + quickSortHelper · [${cur}]`, interval: 1100, frames: run(cur, mode, seed),
       render(f, k, el) {
         const marks = {};
         f.A.forEach((_, t) => {
@@ -777,20 +980,47 @@ const ghostCell = () => `<div class="arr__cell" style="visibility:hidden">·</di
             else if (f.i !== null && t <= f.i) marks[t] = "small";
             else if (f.j !== null && t < f.j) marks[t] = "big";
             else if (f.j !== null && t === f.j) marks[t] = (f.i === t) ? "small" : "big cmp";
-          } else if (f.phase === "call" && t === f.p) marks[t] = "pivot";
+          } else if (f.phase === "end") marks[t] = t < f.q ? "small" : "big";
+          else if (f.phase === "call" && t === f.p) marks[t] = "pivot";
         });
         const ptr = {};
         if (f.i !== null && f.i >= 0) ptr.i = f.i;
         if (f.j !== null) ptr.j = f.j;
         let table = "";
         if (f.rows.length) table = `<div class="table-wrap"><table><tr><th>j</th><th>A[j]</th><th>A[j] ≤ x?</th><th>i</th><th>A sonra</th></tr>${f.rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>[${r[4]}]</td></tr>`).join("")}</table></div>`;
-        el.innerHTML = `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start"><div style="flex:1;min-width:260px">${Lab.codeView(CODE, f.line)}</div>
-          <div><div class="src">aralık [${f.s}, ${f.e})${f.x !== null && f.x !== undefined ? ` · x = ${f.x}` : ""}</div><div style="font-size:1.4rem;font-weight:800;color:var(--fg-brand)">${f.cmp}</div><div class="src">comparison</div></div></div>
-          ${Lab.arrayView(f.A, { marks, pointers: ptr })}${table}`;
+        const stackHTML = f.stack.length ? f.stack.slice().reverse().map(c => `<li>${c}</li>`).join("") : `<li>boş</li>`;
+        const ij = [f.i !== null && f.i !== undefined ? `i = ${f.i}` : "", f.j !== null && f.j !== undefined ? `j = ${f.j}` : ""].filter(Boolean).join(" · ");
+        el.innerHTML = `<div class="w-quicksort-row"><div class="w-quicksort-code">${Lab.codeView(CODE, f.line)}</div>
+          <div class="w-quicksort-side">
+            <div class="w-quicksort-stat"><div><b>${f.cmp}</b><span>comparison</span></div><div><b>${f.swp}</b><span>swap</span></div></div>
+            <div class="src">aralık [${f.s}, ${f.e})${f.x !== null && f.x !== undefined ? ` · x = ${f.x}` : ""}${ij ? ` · ${ij}` : ""}</div>
+            <div class="src" style="margin-top:6px">call stack (en üstte aktif call)</div>
+            <ul class="w-quicksort-stack">${stackHTML}</ul>
+          </div></div>
+          ${Lab.arrayView(f.A, { marks, pointers: ptr })}
+          <div class="src">açık mavi: ≤ pivot · turuncu: &gt; pivot · beyaz: henüz bakılmadı · mor: pivot · yeşil: final position · soluk: bu call'ın dışında</div>${table}`;
       }
     });
   }
-  selIn.onchange = build; selMode.onchange = build; build();
+  function useInput() {
+    const P = parseArray(inp.value, 2, 12);
+    if (P.err) { err.textContent = P.err; return; }
+    err.textContent = "";
+    if (P.A.join() !== cur.join()) offset = 0;
+    cur = P.A; build();
+  }
+  byId("lo-presets").addEventListener("click", e => {
+    const b = e.target.closest("[data-preset]");
+    if (!b) return;
+    const v = PRESETS[b.dataset.preset];
+    cur = typeof v === "function" ? v() : v.slice(); offset = 0;
+    inp.value = cur.join(", "); err.textContent = ""; build();
+  });
+  byId("lo-go").onclick = useInput;
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") useInput(); });
+  reseed.onclick = () => { offset++; build(); };
+  selMode.onchange = build;
+  build();
 })();
 
 /* 4. Hoare QuickSort recursion tree for 2020-21 S6, frames from a real run (1-indexed) */
@@ -831,6 +1061,105 @@ const ghostCell = () => `<div class="arr__cell" style="visibility:hidden">·</di
         `<div style="font-family:'JetBrains Mono',monospace;font-size:.78rem;white-space:pre;overflow-x:auto;margin-top:8px">${f.tree.join("\n") || " "}</div>`;
     }
   });
+})();
+
+/* 5. Break it: ≤ (Lomuto) partition vs three-way partition on equal elements, counted on a real run */
+(function () {
+  const box = byId("dup-stepper"), inp = byId("dup-input"), err = byId("dup-err"), modeBox = byId("dup-mode");
+  const PRESETS = { 8: Array(8).fill(4), 32: Array(32).fill(4), 64: Array(64).fill(4), few: [2, 1, 2, 2, 1, 2, 1, 1, 2, 2, 1, 2, 2, 1, 1, 2, 1, 2, 2, 1] };
+  const NAME = { le: "≤ partition", three: "three-way partition" };
+  let mode = "le", cur = PRESETS[32].slice();
+  /* Full QuickSort; one frame per partition call. Both kinds use the same seeded pivot choices. */
+  function sortRun(input, kind) {
+    const A = input.slice(), rand = mulberry32(arrSeed(input)), frames = [], fixed = new Set();
+    let cmp = 0, calls = 0;
+    const swap = (u, v) => { const t = A[u]; A[u] = A[v]; A[v] = t; };
+    function rec(s, e, d) {
+      if (e - s <= 0) return;
+      if (e - s === 1) { fixed.add(s); return; }
+      calls++;
+      const p = s + Math.floor(rand() * (e - s));
+      if (kind === "le") {
+        const x = A[p]; swap(p, e - 1); let i = s - 1;
+        for (let j = s; j < e - 1; j++) { cmp++; if (A[j] <= x) { i++; swap(i, j); } }
+        swap(i + 1, e - 1);
+        const q = i + 1; fixed.add(q);
+        frames.push({ A: A.slice(), s, e, lo: q, hi: q + 1, fixed: new Set(fixed), cmp, calls, d,
+          caption: `Call ${calls}, aralık [${s}, ${e}): pivot ${x}, ${e - s - 1} comparison. Pivot ${q}. index'e oturdu; sol ${q - s}, sağ ${e - q - 1} element kaldı.` });
+        rec(s, q, d + 1); rec(q + 1, e, d + 1);
+      } else {
+        swap(p, s); const x = A[s]; let lt = s, k = s + 1, gt = e;
+        while (k < gt) {
+          cmp++;
+          if (A[k] < x) { swap(lt, k); lt++; k++; } else if (A[k] > x) { gt--; swap(k, gt); } else k++;
+        }
+        for (let t = lt; t < gt; t++) fixed.add(t);
+        frames.push({ A: A.slice(), s, e, lo: lt, hi: gt, fixed: new Set(fixed), cmp, calls, d,
+          caption: `Call ${calls}, aralık [${s}, ${e}): pivot ${x}, ${e - s - 1} comparison. $&lt;$: ${lt - s}, $=$: ${gt - lt}, $&gt;$: ${e - gt} element; pivot'a eşit ${gt - lt} element tek seferde yerine oturdu.` });
+        rec(s, lt, d + 1); rec(gt, e, d + 1);
+      }
+    }
+    rec(0, A.length, 0);
+    return { frames, cmp, calls, A };
+  }
+  function build() {
+    const n = cur.length, res = sortRun(cur, mode), other = sortRun(cur, mode === "le" ? "three" : "le");
+    const quad = n * (n - 1) / 2, lin = n - 1, allEq = cur.every(v => v === cur[0]);
+    const lo = Math.min(...cur), hi = Math.max(...cur);
+    const frames = [{ A: cur.slice(), s: 0, e: n, lo: -1, hi: -1, fixed: new Set(), cmp: 0, calls: 0, d: 0, start: true,
+      caption: `${NAME[mode]} · $n = ${n}$${allEq ? `, hepsi ${cur[0]}` : ""}. Oynat'a bas ya da adım adım ilerle.` }]
+      .concat(res.frames);
+    const cLe = mode === "le" ? res.cmp : other.cmp, c3 = mode === "le" ? other.cmp : res.cmp;
+    frames.push({ A: res.A, s: 0, e: n, lo: -1, hi: -1, fixed: new Set(res.A.map((_, k) => k)), cmp: res.cmp, calls: res.calls, d: 0, end: true,
+      caption: `Bitti: ${res.calls} partition call, <b>${res.cmp}</b> comparison. Aynı array'de ≤ partition <b>${cLe}</b>, three-way <b>${c3}</b> comparison yapıyor; $\\binom{${n}}{2} = ${quad}$ ve $n - 1 = ${lin}$.${allEq ? ` Eşit element'lerde ≤ partition her call'da yalnızca pivot'u yerine oturtur ($\\Theta(n^2)$); three-way bütün kopyaları ilk pass'te bitirir ($\\Theta(n)$).` : ""}` });
+    Lab.stepper(box, {
+      title: `${NAME[mode]} · n = ${n}`, interval: Math.max(250, Math.min(900, 18000 / frames.length)), frames,
+      render(f, k, el) {
+        const W = 600, H = 110, w = W / n;
+        const bars = f.A.map((v, t) => {
+          let c;
+          if (!f.start && !f.end && t >= f.lo && t < f.hi) c = "piv";
+          else if (f.fixed.has(t)) c = "fix";
+          else if (t < f.s || t >= f.e || f.start) c = "out";
+          else c = t < f.lo ? "lt" : "gt";
+          const h = hi === lo ? 70 : 20 + 70 * (v - lo) / (hi - lo);
+          return `<rect class="${c}" x="${(t * w + 0.5).toFixed(2)}" y="${(H - 20 - h).toFixed(2)}" width="${Math.max(1, w - 1).toFixed(2)}" height="${h.toFixed(2)}" rx="1.5"/>`;
+        }).join("");
+        const label = f.start || f.end ? "" : `<text x="${((f.s + f.e) / 2 * w).toFixed(1)}" y="${H - 2}" text-anchor="middle">[${f.s}, ${f.e})</text>`;
+        el.innerHTML = `<div class="w-quicksort-stat">
+            <div><b>${f.cmp}</b><span>comparison</span></div>
+            <div><b>${f.calls}</b><span>partition call</span></div>
+            <div><b>${quad}</b><span>n(n−1)/2</span></div>
+            <div><b>${lin}</b><span>n − 1</span></div>
+          </div>
+          <div class="w-quicksort-meter" title="comparison / (n(n−1)/2)"><i style="width:${Math.min(100, 100 * f.cmp / quad)}%"></i><em style="left:calc(${100 * lin / quad}% - 1px)"></em></div>
+          <div class="src">çubuk: comparison sayısının n(n−1)/2'ye oranı · turuncu çizgi: n − 1 seviyesi</div>
+          <svg class="w-quicksort-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Array: her çubuk bir element">${bars}${label}</svg>
+          <div class="src">mor: bu call'ın pivot'u (three-way'de pivot'a eşit blok) · mavi: pivot'tan küçük taraf · turuncu: büyük taraf · yeşil: final position · gri: bu call'ın dışında</div>`;
+      }
+    });
+  }
+  function useInput() {
+    const P = parseArray(inp.value, 2, 64);
+    if (P.err) { err.textContent = P.err; return; }
+    err.textContent = ""; cur = P.A; build();
+  }
+  modeBox.addEventListener("click", e => {
+    const b = e.target.closest("[data-mode]");
+    if (!b) return;
+    mode = b.dataset.mode;
+    modeBox.querySelectorAll("[data-mode]").forEach(x => { const on = x === b; x.classList.toggle("is-on", on); x.setAttribute("aria-pressed", on); });
+    build();
+  });
+  byId("dup-presets").addEventListener("click", e => {
+    const b = e.target.closest("[data-preset]");
+    if (!b) return;
+    cur = PRESETS[b.dataset.preset].slice(); inp.value = cur.join(" "); err.textContent = ""; build();
+  });
+  byId("dup-go").onclick = useInput;
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") useInput(); });
+  inp.value = cur.join(" ");
+  build();
 })();
 </script>
 </body>

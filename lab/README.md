@@ -24,6 +24,7 @@ They follow the learning-science findings that hold for students with ADHD too: 
 - **Tekrar kuyruğu (review queue):** a wrong answer puts the quiz in `lab:<course>/queue`, due at once. It leaves after two correct answers in separate sittings, the second due 6 hours after the first. Items cannot be removed by hand. `practice.html?mode=queue`.
 - **Karışık test (mixed test):** 10 random quizzes fetched from every open lesson. `practice.html?mode=mixed`. Needs a web server (fetch), not `file://`.
 - **Sadece başla (just start):** a 2-minute timer with an if-then plan, then an offer to start the 25-minute focus timer. `?start=1` on a lesson URL opens it.
+- **Kaldığın yer and Kendini dene özeti:** a banner jumps back to the first unfinished section; a table at the end of the page counts answered and first-try-correct quizzes per section.
 - **Past exam boxes:** `<div class="box box--exam" data-exam="<id>">` marks a past exam question placed in the section that teaches what it needs, with hints and a worked solution.
 
 ## Writing a lesson
