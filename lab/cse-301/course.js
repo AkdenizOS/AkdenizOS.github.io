@@ -5,7 +5,8 @@ window.LAB_COURSES = window.LAB_COURSES || {};
 window.LAB_COURSES["cse-301"] = {
   code: "CSE 301",
   title: "Algorithms",
-  exam: { name: "Vize", date: "2026-10-30T09:00:00+03:00" },
+  // Optional countdown on the course page; it hides itself once the date has passed.
+  exam: { name: "Vize", label: "30 Eki 09:00", date: "2026-10-30T09:00:00+03:00" },
   lessons: [
     { slug: "asymptotics", unit: "Temeller", lecture: "L1–2", title: "Asymptotic analysis ve loop analizi", min: 45, sections: 11, status: "open",
       desc: "O, Ω, Θ tanımları, c ve n₀ ile proof, fonksiyonları büyüme hızına göre sıralama, loop'ların running time'ı.", tags: ["Her vizede", "HW1"] },

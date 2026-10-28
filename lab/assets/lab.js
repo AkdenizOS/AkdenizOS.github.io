@@ -485,11 +485,15 @@
     const last = store.get(`${course}/last`, null);
     const target = firstOpen || m.lessons[0];
     if (nextBtn && target) { nextBtn.href = target.slug + ".html"; nextBtn.textContent = (last ? "Kaldığın yerden: " : "Başla: ") + target.title + " ▶"; }
-    if (m.exam) {
+    const examBox = root.querySelector("[data-exam-stat]");
+    if (m.exam && examBox && new Date(m.exam.date) > new Date()) {
+      examBox.hidden = false;
+      const lab = root.querySelector("[data-exam-label]");
+      if (lab) lab.textContent = `${m.exam.name} için kalan${m.exam.label ? ` (${m.exam.label})` : ""}`;
       const el = root.querySelector("[data-stat-exam]");
       const tick = () => {
         const ms = new Date(m.exam.date) - new Date();
-        if (ms <= 0) { el.textContent = "Bugün"; return; }
+        if (ms <= 0) { examBox.hidden = true; return; }
         const h = Math.floor(ms / 3.6e6);
         el.textContent = h >= 48 ? `${Math.floor(h / 24)} gün ${h % 24} sa` : `${h} sa ${Math.floor(ms / 6e4) % 60} dk`;
       };
