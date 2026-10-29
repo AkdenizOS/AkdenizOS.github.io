@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 491 Weeks 9–13: tek grup repository'si, protected main ve pull request, running skeleton ve CI, why yazan commit'ler ve bireysel katkı kanıtı, core components ve API design, UI ve error state'ler, integration ve secrets, success criteria'ya karşı test, triage ve known limitations, Meeting 4–5 ve evaluation criteria 4–5." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Repository, geliştirme ve test · CSE 491 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=8" />
+  <style>
+    .w-build-and-test-box { margin: 12px 0; }
+    .w-build-and-test-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-build-and-test-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-build-and-test-ctl label { font-weight: 600; font-size: .92rem; }
+    .w-build-and-test-ctl input[type="text"] { width: 130px; max-width: 100%; box-sizing: border-box; }
+    .w-build-and-test-ctl input.w-build-and-test-num { width: 80px; }
+    .w-build-and-test-ctl input.w-build-and-test-wide { width: 100%; }
+    .w-build-and-test-ta { width: 100%; box-sizing: border-box; min-height: 150px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .82rem; padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); }
+    .w-build-and-test-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-build-and-test-out { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 10px; background: var(--paper); margin: 8px 0; overflow-wrap: anywhere; }
+    .w-build-and-test-big { font-size: 1.1rem; font-weight: 800; color: var(--fg-brand); }
+    .w-build-and-test-ok { color: #2b8a3e; font-weight: 700; }
+    .w-build-and-test-no { color: var(--orange-700); font-weight: 700; }
+    .w-build-and-test-warn { color: var(--blue-700); font-weight: 700; }
+    .w-build-and-test-weeks { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 2px; margin: 4px 0 8px; }
+    .w-build-and-test-wk { text-align: center; font-size: .72rem; font-weight: 700; padding: 6px 0; border-radius: 4px; background: var(--stone-200); color: var(--fg); }
+    .w-build-and-test-wk.has { background: var(--blue-050); outline: 1px solid var(--blue-600); }
+    .w-build-and-test-wk.due { box-shadow: inset 0 -3px 0 var(--accent); }
+    .w-build-and-test-wk.cur { background: var(--blue-600); color: #fff; outline: none; }
+    .w-build-and-test-card { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 10px; background: var(--paper); font-size: .93rem; }
+    .w-build-and-test-card h4 { margin: 0 0 4px; color: var(--fg-brand); font-size: 1rem; }
+    .w-build-and-test-card p { margin: 4px 0; }
+    .w-build-and-test-tag { display: inline-block; font-size: .72rem; font-weight: 700; border-radius: var(--radius-full); padding: 1px 7px; margin-right: 4px; background: var(--stone-200); color: var(--fg); }
+    .w-build-and-test-tag.syl { background: var(--blue-600); color: #fff; }
+    .w-build-and-test-tag.plan { background: var(--orange-100); color: var(--orange-700); }
+    .w-build-and-test-svg { display: block; width: 100%; height: auto; max-width: 560px; }
+    .w-build-and-test-bar { display: grid; grid-template-columns: 70px minmax(0, 1fr) 70px; gap: 6px; align-items: center; margin: 3px 0; font-size: .88rem; }
+    .w-build-and-test-bar > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+    .w-build-and-test-bar i { display: block; height: 14px; border-radius: 3px; background: var(--blue-600); }
+    .w-build-and-test-bar i.hot { background: var(--accent); }
+    .w-build-and-test-strip { display: flex; align-items: flex-end; gap: 2px; height: 120px; position: relative; border-bottom: 1px solid var(--border-strong); margin: 8px 0 4px; }
+    .w-build-and-test-strip b { flex: 1 1 0; min-width: 2px; background: var(--blue-600); border-radius: 2px 2px 0 0; }
+    .w-build-and-test-strip b.over { background: var(--accent); }
+    .w-build-and-test-strip .w-build-and-test-line { position: absolute; left: 0; right: 0; border-top: 2px dashed var(--fg-brand); }
+    .w-build-and-test-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .w-build-and-test-row select { max-width: 100%; }
+    .w-build-and-test-fb { font-size: .88rem; }
+    .w-build-and-test-out pre { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 491</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 491</a> / Repository, geliştirme ve test</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">Weeks 9–13</span><span class="chip">Syllabus §2 §4 §5 §6</span><span class="chip chip--exam">Sınav yok, teslim var</span><span class="src">~57 dk · 12 bölüm</span></div>
+          <h1>Repository, geliştirme ve test</h1>
+          <p class="lead">Midterm'den sonra beş hafta yazmaktan yapmaya geçersin. Week 9'da tek bir grup repository'si ve çalışan bir iskelet kurulur, Week 10'da core components, Week 11'de arayüz, Week 12'de integration, Week 13'te test. Bu derste her haftanın syllabus'taki konusunu ve milestone'unu, repodaki haftalık planı, commit geçmişinin neden notunu etkilediğini ve prototipi Week 3'te yazdığın success criteria'ya karşı nasıl test edeceğini göreceksin.</p>
+          <p class="src">Not: Bu haftaların slaytı ve ders notu yok. Syllabus §5 her hafta için sadece bir konu ve bir milestone yazıyor, weeks/09–13'teki kişisel not bölümleri boş. Konu Fall 2026-27 term syllabus'ı (MS Teams'te dağıtıldı, GitHub'daki repoda henüz yok) ve repodaki haftalık plan (weeks/09–13) üzerinden anlatıldı. Haftalık plandaki deliverable listeleri ("CI green", "Deployed and reachable" gibi) repo yazarının planı, hocanın şartı değil; sayfada "repo planı" diye işaretli.</p>
+          <!-- Kaynak: resources/2026-2027-fall/CSE491_Senior_Design_Project_I_Syllabus_Fall_2026-2027.pdf s.2 (§2 Recommended meeting schedule M4–M5, §4 bireysel düzeltme), s.3 (evaluation criteria 4–5, §5 weeks 9–13), s.4 (§6 Version control, Academic integrity, Continuity) · weeks/09-repository-setup.md, 10-core-development.md, 11-ui-development.md, 12-integration.md, 13-testing-and-fixes.md, 14-documentation.md (repository ve README beklentisi) · README.md "How to use this repository" madde 1, 3, 5 ve "Put the project itself in its own repository" · course-info.md (code repository, branch, integration, continuous integration, deployment, testing, known limitations) · resources/2026-2027-fall/CSE491_Supervisor_Meeting_Form.docx (alanlar). Bütün örnek projeler (RoomFinder, sensör dashboard'u) uydurma. HTTP status code, Git, GitHub Actions ve percentile anlatımı genel yazılım bilgisi, hocanın belgesi değil. -->
+        </header>
+
+        <article class="lesson" data-course="cse-491" data-lesson="build-and-test">
+
+<!-- 1 -->
+<section class="lsec" id="yer" data-min="4">
+  <h2>Weeks 9–13: konular, milestone'lar ve iki toplantı</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · belgeden koda</span>
+    <p>Week 8'e kadar her şey bir belgeydi: proposal, requirements, design, technology seçimi. Week 9'dan itibaren o belgelerin bir karşılığı olmalı: çalışan bir kod. Final'de (%40) değerlendirici iki soruya bakacak. Söz verdiğin şey çalışıyor mu? Bunu kimin yaptığı belli mi? Bu beş hafta o iki sorunun cevabını üretir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · syllabus §5, Weeks 9–13 (olduğu gibi)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Week</th><th>Topic</th><th>Group milestone</th></tr>
+      <tr><td>9</td><td>Creation of code repository, preparation of project skeleton and setup of development environment</td><td>Supervisor Meeting 4 (week 9 or 10)</td></tr>
+      <tr><td>10</td><td>Development of core data structures, database, API, services or main software components</td><td>Repository link submitted on MS Teams</td></tr>
+      <tr><td>11</td><td>Development of user interface, basic workflows and system components</td><td>Core components demonstrated to the supervisor</td></tr>
+      <tr><td>12</td><td>Integration of system components and preparation of the first working version</td><td>Supervisor Meeting 5 (week 12 or 13)</td></tr>
+      <tr><td>13</td><td>Testing of the preliminary prototype, bug fixing and basic improvements</td><td>All five signed meeting forms uploaded</td></tr>
+    </table></div>
+    <p>Aynı dönemin iki toplantısının "expected focus"u (§2):</p>
+    <ul>
+      <li><strong>Meeting 4 (Week 9–10):</strong> Progress on core components; repository and development environment; risks and re-planning.</li>
+      <li><strong>Meeting 5 (Week 12–13):</strong> Integration and prototype status; testing results; final report, documentation and presentation plan.</li>
+    </ul>
+    <p>Bir de §6'daki kural: "All code is kept in a single group repository from Week 9 onwards."</p>
+  </div>
+  <p class="src">Not: Week ↔ tarih eşlemesi tahmini. Tek sabit nokta "proposal Week 5, 18 Ekim 2026"; buradan Week 1 = 14–20 Eylül çıkıyor. Kesin olan tarihler Teams'teki form son günleri: Meeting 4 için 13 Kasım, Meeting 5 için 27 Kasım.</p>
+  <div class="w-build-and-test-box" id="wbt-time">
+    <p class="w-build-and-test-guess"><b>Önce tahmin et:</b> "Repository link submitted on MS Teams" milestone'u hangi tarihlere düşer? 27 Kasım'daki Meeting 5 form son günü, syllabus'un önerdiği "week 12 or 13" penceresinin içinde mi? Sonra haftaları adım adım oynat.</p>
+    <div id="wbt-time-step"></div>
+    <div class="w-build-and-test-ctl"><label for="wbt-time-date">Bir tarih (YYYY-AA-GG)</label><input type="text" id="wbt-time-date" value="2026-11-20" /><button class="btn btn--sm btn--accent" id="wbt-time-go">Hangi hafta, sırada ne var?</button></div>
+    <div class="w-build-and-test-err" id="wbt-time-err"></div>
+    <div class="w-build-and-test-out" id="wbt-time-out" aria-live="polite"></div>
+  </div>
+  <div class="box box--exam" data-exam="syl5-w10-w11-milestones"><span class="box__label">Syllabus §5 Week 10–11 · proje sorusu</span>
+    <p>"10 · Development of core data structures, database, API, services or main software components · Repository link submitted on MS Teams" — "11 · Development of user interface, basic workflows and system components · Core components demonstrated to the supervisor" (tablonun iki satırı)</p>
+    <p><strong>Görev:</strong> Uydurma RoomFinder grubu (kampüs oda rezervasyonu, üç kişi) için bu iki milestone'u somut bir plana çevir: tam olarak ne teslim edilecek ya da gösterilecek, hangi tarihe kadar, hazır olduğunu nasıl anlayacaksınız?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Week 10 ve 11'in tarihlerini bul: Week $n$ = 14 Eylül + $7(n-1)$ gün. Milestone haftanın sonunda gösterilmiş olmalı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Link submitted" bir link yüklemekten ibaret görünür. Değerlendirici linke tıklayınca ne görmeli? "Demonstrated" ise danışmanın gözünün önünde çalışan bir şey demek; ekran görüntüsü değil.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Milestone</th><th>Tarih</th><th>Teslim / gösterim</th><th>Hazır olma kontrolü</th></tr>
+        <tr><td>Repository link submitted on MS Teams</td><td>Week 10: 16–22 Kasım 2026; en geç 22 Kasım Pazar</td><td>Grubun tek repository'sinin linki Teams'teki ödeve yüklenir. Repo Week 9'dan beri vardır; Week 10'da sadece link teslim edilir.</td><td>Link gizli pencerede (ya da repo private ise erişim verilen hesapla) açılıyor; README'de projenin adı ve çalıştırma adımları var; üç üyenin de commit'i görünüyor; CI son çalıştırmada yeşil.</td></tr>
+        <tr><td>Core components demonstrated to the supervisor</td><td>Week 11: 23–29 Kasım 2026</td><td>Danışmanla bir toplantıda canlı gösterim: veritabanı migration'ı, seed data, oda listeleme ve rezervasyon endpoint'leri, bunların test'leri. M5 bu haftaya düşerse (25 Kasım) gösterim M5'te yapılır ve formun "Work completed" alanına yazılır.</td><td>Gösterilecek akış bir gün önce temiz bir veritabanıyla baştan denendi; test suite yeşil; gösterim 5 dakikayı geçmiyor.</td></tr>
+      </table></div>
+      <p>Neden böyle: Week 10 milestone'u Week 9'daki §6 kuralının ("single group repository from Week 9 onwards") teslim anı. Week 11 milestone'u Week 10'da yazılan core components'in kanıtı. İkisi de toplantı formuna ve commit geçmişine iz bırakır, yani bireysel katkının da kanıtı olur.</p>
+    </div></details>
+    <!-- Kaynak: term syllabus s.3–4 §5 tablosu; tarihler verify_bt.py ile hesaplandı (Week 10 = 16–22 Kas, Week 11 = 23–29 Kas, 27 Kas Cuma = Week 11). -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Repository'yi Week 10'da açmak. Week 10'da link teslim edilir; kod Week 9'dan itibaren tek repo'da olmalı.</li>
+      <li>Meeting 4'ü Week 10'a bırakmak. Pencere "week 9 or 10" ama Teams son günü 13 Kasım, yani Week 9'un Cuması.</li>
+      <li>Meeting 5'in Teams son günü (27 Kasım) Week 11'in içinde, önerilen "week 12 or 13" penceresinden önce. Toplantı Week 11'de yapılırsa integration henüz bitmemiş olur. Hangisinin geçerli olduğunu course assistant'a yazılı sor.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-bt-yer-1">
+    <p class="quiz__q">Syllabus'a göre "Repository link submitted on MS Teams" hangi haftanın milestone'u, ve kod hangi haftadan itibaren tek grup repository'sinde olmalı?</p>
+    <button class="quiz__opt">İkisi de Week 14<span class="why">Week 14 final report, repository ve documentation'ın tamamlandığı hafta. Repo o zaman açılmaz; README'nin uyarısı tam da bu: "Set up the repository in week 9, not week 14."</span></button>
+    <button class="quiz__opt" data-correct>Link Week 10'da; kod Week 9'dan itibaren tek repo'da<span class="why">Doğru. §5 Week 10 milestone'u link teslimi, §6 Version control "single group repository from Week 9 onwards" diyor.</span></button>
+    <button class="quiz__opt">Link Week 9'da; kod Week 10'dan itibaren tek repo'da<span class="why">Sırayı ters çevirdin. Week 9 repository'nin kurulduğu hafta, link bir hafta sonra teslim edilir.</span></button>
+  </div>
+  <div class="quiz" id="q-bt-yer-2">
+    <p class="quiz__q">"Core components demonstrated to the supervisor" milestone'u hangi haftada ve ne demek?</p>
+    <button class="quiz__opt">Week 10; core components'in ekran görüntülerini Teams'e yüklemek<span class="why">Week 10'un milestone'u repository link'i. "Demonstrated to the supervisor" da yükleme değil, danışmana gösterim.</span></button>
+    <button class="quiz__opt">Week 12; bütün sistemin integration'dan sonra çalıştığını göstermek<span class="why">Integration Week 12'nin konusu. Week 11'de gösterilen şey core components: veri katmanı, API, servisler.</span></button>
+    <button class="quiz__opt" data-correct>Week 11; Week 10'da yazılan core components'i danışmana çalışırken göstermek<span class="why">Doğru. Week 11 milestone'u bu. Gösterim bir toplantıda yapılır ve forma yazılırsa kanıtı da kalır.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="repo" data-min="5">
+  <h2>Tek grup repository'si ve içinde ne olmalı</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · repository hem ürün hem kanıt</span>
+    <p>Repository (kod deposu) iki iş görür. Birincisi, değerlendirici projeyi oradan indirip çalıştırır; içi düzensizse criterion 5'te ("repository hygiene") puan kaybedersin. İkincisi, commit geçmişi kimin ne yaptığını gösterir; bireysel notun buna göre ayarlanır. Repo README'sinin uyarısı: "A clean history built over six weeks looks nothing like one assembled the night before."</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · syllabus §6 ve repo planı</span>
+    <p><strong>§6 Version control:</strong> "All code is kept in a single group repository from Week 9 onwards. Commit history is part of the evidence of individual contribution — commit your own work under your own account, regularly, throughout the semester."</p>
+    <p><strong>§6 Academic integrity:</strong> "External code, libraries, datasets, figures and text must be cited and licence-compatible." Repository'ye kopyaladığın her dış kodun licence'ı seninkiyle uyumlu olmalı ve kaynağı yazılmalı.</p>
+    <p><strong>Repo planı (weeks/09):</strong> "GitHub repository from day one — it is a graded deliverable in week 14." "Repository layout, README.md, .gitignore, licence."</p>
+    <p><strong>Repo planı (weeks/14):</strong> "GitHub repository — graded. Clean history, no secrets, no junk files."</p>
+    <p><strong>Repo README'si:</strong> "Put the project itself in its own repository" (ders reposu plan ve notlar için) ve "Test the README on a clean machine. Someone must be able to clone and run your project from it alone."</p>
+    <p>Dosya dosya: <code>README.md</code> projenin ne olduğu ve nasıl kurulup çalıştırılacağı; <code>.gitignore</code> Git'in takip etmeyeceği dosyalar (bağımlılık klasörleri, build çıktısı, <code>.env</code>); <code>LICENSE</code> kodun hangi şartlarla kullanılabileceği; <code>.env.example</code> gerçek değerler olmadan hangi ayarların gerektiği.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · uydurma proje RoomFinder'ın Week 9 sonundaki repository'si</span>
+<pre><code>roomfinder/
+├── README.md            ne, nasıl kurulur, nasıl çalışır, nasıl test edilir
+├── LICENSE              MIT
+├── .gitignore           node_modules/, .venv/, __pycache__/, .env, dist/
+├── .env.example         DATABASE_URL=postgresql://user:password@localhost/roomfinder
+├── .github/workflows/ci.yml
+├── backend/
+│   ├── app/main.py      GET /api/v1/health
+│   ├── migrations/0001_create_rooms.sql
+│   └── tests/test_health.py
+├── frontend/
+│   └── src/App.jsx      health endpoint'ini çağırıp "OK" gösteren tek sayfa
+└── docs/architecture.md</code></pre>
+  </div>
+  <div class="w-build-and-test-box" id="wbt-hyg">
+    <p class="w-build-and-test-guess"><b>Önce tahmin et:</b> Aşağıdaki dosya listesi başka bir uydurma grubun repository'si (<code>git ls-files</code> çıktısı). Kaç tane sorun görüyorsun? Sayıyı aklında tut, sonra kontrol et. Kendi repondaki listeyi de yapıştırabilirsin; hiçbir şey tarayıcıdan çıkmaz.</p>
+    <label for="wbt-hyg-in" class="src">Her satıra bir dosya yolu (repo köküne göre)</label>
+    <textarea id="wbt-hyg-in" class="w-build-and-test-ta" spellcheck="false"></textarea>
+    <div class="w-build-and-test-ctl"><button class="btn btn--sm btn--accent" id="wbt-hyg-go">Kontrol et</button><button class="btn btn--sm" id="wbt-hyg-ex">Örneği yükle</button><button class="btn btn--sm" id="wbt-hyg-good">RoomFinder'ı yükle</button></div>
+    <div class="w-build-and-test-err" id="wbt-hyg-err"></div>
+    <div class="w-build-and-test-out" id="wbt-hyg-out" aria-live="polite"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Her üyenin kendi kişisel repo'sunda kendi parçasını tutması. §6 tek grup repository'si istiyor; parçaları Week 12'de birleştirmeye çalışmak integration'ı en zor hâle getirir.</li>
+      <li><code>node_modules/</code>, <code>.venv/</code> ya da build çıktısını commit etmek. Repo şişer, diff'ler okunmaz olur, "junk files" sayılır. <code>.gitignore</code> ilk commit'te olmalı.</li>
+      <li>LICENSE'ı unutmak. Licence yoksa başkası kodu yasal olarak kullanamaz; dış kod kopyaladıysan licence uyumu §6'nın şartı.</li>
+      <li>Proje kodunu ders reposuna (plan ve not reposu) koymak. Repo README'si açıkça ayrı bir repository istiyor.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="syl6-single-repo"><span class="box__label">Syllabus §6 Version control · proje sorusu</span>
+    <p>"All code is kept in a single group repository from Week 9 onwards. Commit history is part of the evidence of individual contribution — commit your own work under your own account, regularly, throughout the semester."</p>
+    <p><strong>Görev:</strong> Uydurma bir sensör verisi dashboard'u grubunda Week 8 sonunda durum şu: Üye A backend'i kendi GitHub hesabındaki bir repo'da yazdı (40 commit), Üye B frontend'i zip dosyası olarak Teams'te paylaştı (Git yok), Üye C sadece raporu yazdı. Week 9 sonuna kadar §6'ya uymak için adım adım ne yaparsınız?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Single group repository": hepsi tek repo'da. "Under your own account": B'nin kodu A'nın hesabından girerse B'nin katkısı görünmez.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>A'nın 40 commit'lik geçmişi kanıt; atma. Rapor ve diyagramlar da commit edilebilir; C'nin işi de repository'de görünebilir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>Bir GitHub organization ya da grup hesabı altında tek repo açılır (örneğin <code>sensor-dashboard</code>), üç üye de collaborator yapılır.</li>
+        <li>A'nın backend repo'su geçmişiyle birlikte bu repo'ya taşınır (repo'yu transfer etmek ya da <code>backend/</code> alt klasörüne geçmişle birleştirmek). Böylece A'nın 40 commit'i kaybolmaz.</li>
+        <li>B zip'i açar, kendi bilgisayarında kendi Git kimliğiyle (<code>git config user.name</code>, <code>user.email</code> GitHub hesabındaki e-posta) <code>frontend/</code> klasörüne commit eder ve bir pull request açar. B'nin işi B'nin adıyla görünür.</li>
+        <li>C rapor kaynaklarını (Markdown ya da LaTeX, diyagram dosyaları) <code>docs/</code> altına kendi hesabıyla commit eder. Bundan sonra C de test ya da küçük bir modül üstlenir.</li>
+        <li>İlk ortak commit'ler: README, .gitignore, LICENSE, .env.example, CI workflow.</li>
+        <li>Week 10'da bu repo'nun linki Teams'e yüklenir; Meeting 4 formunun "Work completed" alanına repo'nun kurulduğu yazılır.</li>
+      </ol>
+      <p>Kontrol: Week 9 sonunda <code>git shortlog -sn</code> çıktısında üç isim de görünüyor.</p>
+    </div></details>
+    <!-- Kaynak: term syllabus s.4 §6 Version control ve Academic integrity, s.2 §4 bireysel düzeltme. Senaryo uydurma. -->
+  </div>
+  <div class="quiz" id="q-bt-repo-1">
+    <p class="quiz__q">Bir grup <code>.env</code> dosyasını (veritabanı şifresi içinde) ve <code>node_modules/</code> klasörünü commit etmiş, <code>.env.example</code> yok. En doğru düzeltme hangisi?</p>
+    <button class="quiz__opt">Sadece <code>node_modules/</code>'ü silmek; <code>.env</code> takım arkadaşlarının işine yarıyor<span class="why">Şifre public bir repo'da herkesin işine yarar. Secret'lar repo'ya girmez (weeks/12: "Never commit credentials"); takım arkadaşları için <code>.env.example</code> var.</span></button>
+    <button class="quiz__opt" data-correct>İkisini repo'dan çıkarıp <code>.gitignore</code>'a eklemek, değerleri boş bir <code>.env.example</code> koymak ve sızan şifreyi değiştirmek<span class="why">Doğru. Silmek geçmişten silmez; şifre Git geçmişinde kalır, o yüzden değiştirilmeli (Bölüm 8).</span></button>
+    <button class="quiz__opt">Repo'yu private yapmak; o zaman sorun kalmaz<span class="why">Private repo da değerlendiriciye ve sonraki dönemde başkalarına açılır, ve junk dosyalar yine "repository hygiene"i bozar. Sorunu gizlemek çözmek değil.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="branch" data-min="5">
+  <h2>Branching: protected main, feature branch, pull request</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · main her zaman çalışır</span>
+    <p>Üç kişi aynı anda aynı dosyalara yazınca biri ötekinin işini bozar. Çözüm, <code>main</code> branch'ini "her zaman çalışan sürüm" olarak korumak. Herkes kendi işini ayrı bir feature branch'te yapar, iş bitince bir pull request (PR) açar, CI test'leri geçer, bir takım arkadaşı okur, sonra <code>main</code>'e merge edilir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · repo planı (weeks/09) ve terimler</span>
+    <p>"Branching: <code>main</code> protected, feature branches, pull requests. Agree the workflow with the team."</p>
+    <ul>
+      <li><strong>Branch (dal):</strong> commit'lerin ayrı bir hattı. <code>main</code> ortak sürüm, <code>feature/booking-api</code> gibi branch'ler tek bir iş için.</li>
+      <li><strong>Pull request:</strong> "bu branch'i main'e almak istiyorum" isteği. Diff, yorumlar ve CI sonucu tek sayfada görünür.</li>
+      <li><strong>Protected branch:</strong> GitHub'da branch protection rule'u olan branch. Tipik kurallar: doğrudan push yok, merge için PR şart, CI (status check) yeşil olmalı, en az bir onay (review).</li>
+      <li><strong>Agreed workflow:</strong> branch adlandırma, PR'ı kim onaylar, ne kadar beklenir, merge yöntemi. Bir kere konuşulup README'ye ya da <code>CONTRIBUTING.md</code>'ye yazılır.</li>
+    </ul>
+  </div>
+  <div class="w-build-and-test-box">
+    <p class="w-build-and-test-guess"><b>Önce tahmin et:</b> RoomFinder'da Cem, CI'ı kırmızı olan bir branch'i main'e almak istiyor ve bir ara da main'e doğrudan push deniyor. Protection kuralları açıkken bu iki işlemden hangisi geçer? Sonra adım adım oynat; her adımın sonucunu kod kuralları uygulayarak hesaplıyor.</p>
+    <div id="wbt-git-step"></div>
+  </div>
+  <!-- Kaynak: weeks/09 Key concepts. Branch protection kuralları GitHub'ın genel özelliği (required pull request, required status checks, required approvals); simülasyon bunların sade bir modeli. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Kendi PR'ını kendin onaylamak. Review'un amacı ikinci bir göz; GitHub da PR yazarının kendi onayını saymaz.</li>
+      <li>Haftalarca açık kalan dev branch'ler. Ne kadar uzun yaşarsa merge conflict o kadar büyür. Küçük işler, sık merge.</li>
+      <li><code>main</code>'e force push. Takım arkadaşlarının geçmişini siler ve commit geçmişindeki kanıtı bozar.</li>
+      <li>Workflow'u konuşmadan başlamak. Biri merge eder, öteki rebase eder, üçüncüsü main'e push eder; Week 12'de geçmiş okunmaz hâle gelir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-bt-branch-1">
+    <p class="quiz__q">main protected, kurallar: PR şart, CI yeşil olmalı, bir onay gerekli. Bora'nın PR'ında CI yeşil ama henüz kimse onaylamadı. Ne olur?</p>
+    <button class="quiz__opt">Merge edilir; CI yeşil olduğu için yeter<span class="why">Kuralların hepsi birlikte geçerli. Onay kuralı ayrı bir koşul; CI onu karşılamaz.</span></button>
+    <button class="quiz__opt">Bora kendi PR'ını onaylar ve merge eder<span class="why">PR yazarının kendi onayı sayılmaz. Onay takımdaki başka biri için.</span></button>
+    <button class="quiz__opt" data-correct>Merge butonu kilitli kalır; Ada ya da Cem onaylayınca merge edilebilir<span class="why">Doğru. Protected branch'te bütün kurallar sağlanmadan merge yapılamaz.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="skeleton" data-min="4">
+  <h2>Running skeleton ve CI</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · önce en ince boru, sonra kalınlaştır</span>
+    <p>Yaygın hata, önce veritabanını tamamen bitirmek, sonra bütün API'ı, en son arayüzü yazmak. Week 12'de parçalar ilk kez birleşir ve hiçbiri ötekine uymaz. Running skeleton bunun tersi: ilk gün, her katmandan geçen en ince yol çalışır. RoomFinder'da bu, tek bir sayfanın <code>GET /api/v1/health</code>'i çağırıp veritabanından tek bir satır okuyarak "OK" göstermesi. Sonraki her iş bu çalışan borunun içine eklenir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · repo planı (weeks/09)</span>
+    <p>"A <strong>running skeleton</strong>: the thinnest end-to-end path that executes, so integration is never a surprise."</p>
+    <p>"CI from the start — tests running on every push cost an hour now and save days later."</p>
+    <p>CI (continuous integration, sürekli bütünleştirme): her push'ta ve her PR'da test'leri otomatik çalıştıran bir sunucu işi. GitHub'da bu bir workflow dosyasıdır (<code>.github/workflows/*.yml</code>). Sonucu PR sayfasında yeşil tik ya da kırmızı çarpı olarak görünür; branch protection bu sonuca bakar.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · RoomFinder'ın ilk CI workflow'u (Python backend)</span>
+<pre><code>name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r backend/requirements.txt
+      - run: pytest backend/tests</code></pre>
+    <p>İlk test tek satırlık: health endpoint'i 200 dönüyor mu. Az görünür ama artık bir zemin var: bundan sonra yazılan her test her push'ta çalışır, kimse test'i "unutamaz".</p>
+  </div>
+  <div class="box box--exam" data-exam="w09-deliverable"><span class="box__label">weeks/09 Deliverables · ödev sorusu</span>
+    <p>"Repository created, skeleton runs, CI green, every member has pushed once"</p>
+    <p class="src">Not: Bu deliverable repo yazarının planı, hocanın şartı değil. Syllabus Week 9 için sadece "Creation of code repository, preparation of project skeleton and setup of development environment" konusunu ve Meeting 4'ü yazıyor.</p>
+    <p><strong>Görev:</strong> Sensör dashboard'u grubu için (backend + web arayüzü, üç kişi) bu deliverable'ın dört parçasını Week 9 içinde bitirecek bir görev listesi yaz: görev, sahibi, "bitti" sayılma koşulu.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Skeleton runs" için önce en ince end-to-end yolu tanımla: hangi sayfa, hangi endpoint, veritabanında hangi tek satır?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Every member has pushed once" görevlerin üç kişiye dağıtılmasıyla kendiliğinden olur. Her görevin sahibi kendi branch'inden PR açsın.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Görev</th><th>Sahibi</th><th>Bitti sayılır, eğer</th></tr>
+        <tr><td>Repo'yu açmak; README iskeleti, .gitignore, LICENSE, .env.example; main'e protection rule</td><td>A</td><td>Repo'da bu dört dosya var; main'e doğrudan push reddediliyor</td></tr>
+        <tr><td>Backend iskeleti: <code>GET /api/v1/health</code>, veritabanına bağlanıp <code>sensors</code> tablosundan bir satır sayar; migration ve tek satırlık seed</td><td>B</td><td>Temiz bir makinede README adımlarıyla endpoint 200 ve <code>{"status": "ok", "sensors": 1}</code> dönüyor</td></tr>
+        <tr><td>Frontend iskeleti: tek sayfa health'i çağırır, sensör sayısını gösterir; API yoksa hata mesajı gösterir</td><td>C</td><td>Sayfa backend açıkken "1 sensör", kapalıyken hata mesajı gösteriyor</td></tr>
+        <tr><td>CI workflow: backend test'leri ve frontend build her push'ta</td><td>A</td><td>Son PR'da CI yeşil; bilerek bozulan bir test CI'ı kırmızı yapıyor</td></tr>
+        <tr><td>İlk test: health endpoint testi</td><td>B</td><td>CI'da çalışıyor ve geçiyor</td></tr>
+      </table></div>
+      <p>Dört parça: repository created (satır 1), skeleton runs (2, 3), CI green (4, 5), every member has pushed once (A, B, C kendi PR'larıyla). Son satırdaki "bilerek bozulan test" kontrolü, CI'ın gerçekten test çalıştırdığını kanıtlıyor.</p>
+    </div></details>
+    <!-- Kaynak: weeks/09 Deliverables this week ve Key concepts; syllabus §5 Week 9. Görev listesi uydurma örnek. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Hiç test çalıştırmayan bir CI. Workflow yeşil görünür ama hiçbir şeyi kontrol etmez. Bir test'i bilerek bozup CI'ın kırmızıya döndüğünü bir kere gör.</li>
+      <li>Kırmızı CI'ı görmezden gelmek. Bir hafta kırmızı kalan CI'a artık kimse bakmaz; main fiilen kırık demektir.</li>
+      <li>Skeleton'ı katman katman kurmak (önce bütün veritabanı). O zaman "end-to-end" değildir; integration sürprizleri Week 12'ye kalır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-bt-skel-1">
+    <p class="quiz__q">Hangisi bir running skeleton?</p>
+    <button class="quiz__opt">Bütün tabloları, index'leri ve ilişkileriyle tamamlanmış veritabanı şeması<span class="why">Bu tek bir katman, ne kadar eksiksiz olursa olsun. Skeleton bütün katmanlardan geçen ince bir yol.</span></button>
+    <button class="quiz__opt" data-correct>Bir sayfanın bir endpoint'i çağırıp veritabanından tek satır okuyarak sonucu göstermesi<span class="why">Doğru. "The thinnest end-to-end path that executes": UI → API → DB → geri, en az işle.</span></button>
+    <button class="quiz__opt">Bütün ekranların tıklanabilir ama veriye bağlı olmayan prototipi<span class="why">Bu bir wireframe ya da mock-up. Arka uçtan geçmiyor, yani integration sorunlarını ortaya çıkarmıyor.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="commits" data-min="5">
+  <h2>Commit geçmişi: why yazan mesajlar ve bireysel kanıt</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · geçmiş iki kişiye konuşur</span>
+    <p>Commit mesajını iki kişi okur. Biri üç hafta sonraki sen ya da takım arkadaşın: "bu satır neden böyle?" diye soracak. Öteki değerlendirici: "bu öğrenci dönem boyunca ne yaptı?" diye bakacak. "fix" ikisine de bir şey söylemez. "Return 409 when a booking overlaps an existing one" ikisine de söyler.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · syllabus §4, §6 ve repo planı</span>
+    <p><strong>§4:</strong> "Group deliverables receive a group grade, which is then adjusted per student according to individual contribution as evidenced by meeting attendance, repository commit history and the supervisor's assessment. A student whose individual contribution cannot be evidenced may receive a lower grade than the rest of the group."</p>
+    <p><strong>§6:</strong> "commit your own work under your own account, regularly, throughout the semester."</p>
+    <p><strong>Repo planı (weeks/09):</strong> "Commit messages that say why."</p>
+    <p>İyi bir mesaj: emir kipinde kısa bir özet (ne değişti) ve gerekirse ikinci paragrafta neden. Bir commit tek bir mantıksal değişiklik.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · aynı değişiklik, iki mesaj</span>
+    <div class="table-wrap"><table>
+      <tr><th>Kötü</th><th>İyi</th></tr>
+      <tr><td><code>fix</code></td><td><code>Reject bookings whose end time is before start time</code></td></tr>
+      <tr><td><code>update</code></td><td><code>Rename start to start_time to match the API doc</code></td></tr>
+      <tr><td><code>wip</code></td><td><code>Add room list page (empty state only, API call next)</code></td></tr>
+      <tr><td><code>changes</code> (40 dosya)</td><td>Dört ayrı commit: migration, endpoint, test, README</td></tr>
+    </table></div>
+    <p>Pair programming'de iki kişi birlikte yazdıysa mesajın sonuna <code>Co-authored-by: Ad Soyad &lt;eposta&gt;</code> satırı eklenir; GitHub commit'i iki kişiye de yazar.</p>
+  </div>
+  <div class="w-build-and-test-box" id="wbt-log">
+    <p class="w-build-and-test-guess"><b>Önce tahmin et:</b> Aşağıdaki uydurma 11 commit'lik geçmişte kaç mesaj belirsiz? Commit'lerin yüzde kaçı tek bir kişiden? Tahmin et, sonra kontrol et. Kendi geçmişini <code>git log --pretty=format:'%an: %s'</code> ile alıp yapıştırabilirsin.</p>
+    <label for="wbt-log-in" class="src">Her satır: yazar: mesaj</label>
+    <textarea id="wbt-log-in" class="w-build-and-test-ta" spellcheck="false"></textarea>
+    <div class="w-build-and-test-ctl"><label for="wbt-log-team">Grup üyeleri (virgülle, isteğe bağlı)</label><input type="text" id="wbt-log-team" class="w-build-and-test-wide" value="Ada, Bora, Cem" /></div>
+    <div class="w-build-and-test-ctl"><button class="btn btn--sm btn--accent" id="wbt-log-go">Kontrol et</button><button class="btn btn--sm" id="wbt-log-ex">Örneği yükle</button></div>
+    <div class="w-build-and-test-err" id="wbt-log-err"></div>
+    <div class="w-build-and-test-out" id="wbt-log-out" aria-live="polite"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Yanlış Git kimliği. <code>git config user.email</code> GitHub hesabındaki e-postayla eşleşmezse commit'ler profiline bağlanmaz; GitHub'da katkın boş görünür.</li>
+      <li>Herkesin değişikliğini tek kişinin kendi Git kimliğiyle commit etmesi (örneğin dosyalar ona gönderilir, o commit eder). Commit'in author'ı o kişi olur; kod gerçek, katkı gerçek, ama kanıt yanlış kişiyi gösterir. Başkasının hazır commit'lerini push etmek ise author bilgisini değiştirmez: commit'i kim yazdıysa geçmişte o görünür. Yine de §6 herkesin kendi hesabıyla commit etmesini istiyor.</li>
+      <li>Son gece tek dev commit. §6 "regularly, throughout the semester" diyor; tarih damgaları bunu gösterir.</li>
+      <li>Commit sayısını şişirmek (her satıra bir commit). Değerlendirici sayıya değil, değişikliğin içeriğine bakar; anlamsız commit'ler geçmişi okunmaz yapar.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="syl4-syl6-commit-evidence"><span class="box__label">Syllabus §4 + §6 · proje sorusu</span>
+    <p>"…adjusted per student according to individual contribution as evidenced by meeting attendance, repository commit history and the supervisor's assessment." — "commit your own work under your own account, regularly, throughout the semester." (kısaltıldı)</p>
+    <p><strong>Görev:</strong> Widget'taki örnek geçmiş RoomFinder'ın Week 10 sonundaki hâli (Ada 8, Bora 2, Cem 1 commit). Bu geçmiş değerlendiriciye ne söyler? Week 11 başında grup hangi üç somut kararı almalı?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Oranları hesapla: $8/11$, $2/11$, $1/11$. Sonra belirsiz mesajları say ve hepsinin kimden geldiğine bak.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Cem gerçekten az mı çalıştı, yoksa işi başkasının commit'inde mi? İkisinin çözümü farklı.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Okuma:</strong> Ada %72.7, Bora %18.2, Cem %9.1. Bir kişi commit'lerin dörtte üçüne yakınını yapmış. Dört mesaj belirsiz (<code>fix</code>, <code>update</code>, <code>wip</code>, <code>asdf</code>) ve dördü de Ada'dan; yani Ada'nın 8 commit'inin yarısı ne yaptığını söylemiyor. Değerlendiricinin göreceği: "Cem'in katkısı kanıtlanamıyor, Ada'nın geçmişi dağınık."</p>
+      <p><strong>Kararlar:</strong></p>
+      <ol>
+        <li>Cem'in yaptığı ama başkasının commit'iyle giren iş varsa, bundan sonra Cem kendi hesabından commit eder; birlikte yazılan kodda <code>Co-authored-by</code> satırı kullanılır. Cem'in Git e-postası GitHub hesabıyla eşleşiyor mu, kontrol edilir.</li>
+        <li>Week 11 işleri yeniden dağıtılır: Cem bir workflow'un (örneğin rezervasyon iptali) uçtan uca sahibi olur, kendi branch'i ve PR'ı ile.</li>
+        <li>Grup bir mesaj kuralına karar verir ve README'ye yazar: emir kipinde özet, gerekirse neden. Belirsiz mesajlı commit'ler PR açıklamasında açıklanır; geçmiş zorla yeniden yazılmaz.</li>
+      </ol>
+      <p>Bu durum Meeting 4 ya da 5 formunun "Issues, risks and blockers discussed" alanına da yazılır; danışmanın değerlendirmesi bireysel notun üçüncü kanıtı.</p>
+    </div></details>
+    <!-- Kaynak: term syllabus s.2 §4, s.4 §6; oranlar verify_bt.py ile hesaplandı (8/11 = 72.7, 2/11 = 18.2, 1/11 = 9.1). -->
+  </div>
+  <div class="quiz" id="q-bt-commit-1">
+    <p class="quiz__q">Syllabus'a göre commit geçmişi neden notu etkiler?</p>
+    <button class="quiz__opt">Commit sayısı en çok olan öğrenci en yüksek notu alır<span class="why">Syllabus bir sıralama kuralı yazmıyor. Geçmiş katkının kanıtı; sayı tek başına not değil.</span></button>
+    <button class="quiz__opt" data-correct>Grup notu bireysel katkıya göre ayarlanır ve commit geçmişi bu katkının üç kanıtından biridir<span class="why">Doğru. §4: meeting attendance, repository commit history, supervisor's assessment. Katkısı kanıtlanamayan öğrenci daha düşük not alabilir.</span></button>
+    <button class="quiz__opt">Sadece repository hygiene criterion'u için önemlidir<span class="why">Criterion 5 de geçmişin düzenine bakar, ama §4 geçmişi açıkça bireysel düzeltmenin kanıtı olarak sayıyor.</span></button>
+  </div>
+  <div class="quiz" id="q-bt-commit-2">
+    <p class="quiz__q">Hangisi "says why" kuralına en iyi uyan commit mesajı?</p>
+    <button class="quiz__opt">Update booking.py<span class="why">Hangi dosyanın değiştiği diff'te zaten görünüyor. Neyin ve neden değiştiği yok.</span></button>
+    <button class="quiz__opt">Fixed bug<span class="why">Hangi bug, hangi durumda? Üç hafta sonra bu mesajdan bir şey çıkmaz.</span></button>
+    <button class="quiz__opt" data-correct>Return 409 when a booking overlaps an existing one<span class="why">Doğru. Davranışı ve hangi durumda olduğunu söylüyor; neden de kendiliğinden belli: çakışan rezervasyon kabul edilmemeli.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="core" data-min="5">
+  <h2>Week 10: core components ve API design</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · sözleşmeyi önce yaz</span>
+    <p>Frontend'i yazan kişi backend'i yazan kişiyi her gün beklemek istemez. Aradaki sözleşme (contract) işin başında yazılırsa ikisi paralel çalışır: hangi URL, hangi istek, hangi cevap, hangi hata. Bu sözleşmenin adı API design, ve "document as you go" kuralı tam bunun için.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · syllabus §5 Week 10 ve repo planı (weeks/10)</span>
+    <p><strong>Syllabus:</strong> "Development of core data structures, database, API, services or main software components." Milestone: "Repository link submitted on MS Teams."</p>
+    <p><strong>Repo planı:</strong></p>
+    <ul>
+      <li>"Database schema, migrations, seed data." Migration: şema değişikliğinin sıralı, versiyonlu bir dosya olarak yazılması (<code>0001_create_rooms</code>, <code>0002_create_bookings</code>). Seed data: geliştirme ve demo için başlangıç verisi.</li>
+      <li>"Core data structures and business logic." Business logic: projeyi proje yapan kurallar (örneğin "aynı odada çakışan iki rezervasyon olamaz").</li>
+      <li>"API design: endpoints, request/response shapes, status codes, versioning. Document as you go."</li>
+      <li>"Write tests alongside the code, not after."</li>
+      <li>"Keep the skeleton running — never leave <code>main</code> broken."</li>
+    </ul>
+    <p>Repo planının deliverable'ları: "Data layer done and migrated", "Core API endpoints working and documented", "Tests passing".</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · RoomFinder'ın API dokümanından bir sayfa</span>
+    <div class="table-wrap"><table>
+      <tr><th>Endpoint</th><th>Başarılı</th><th>Hata</th></tr>
+      <tr><td><code>GET /api/v1/rooms?date=2026-11-20</code></td><td>200 + oda listesi</td><td>400: tarih biçimi yanlış</td></tr>
+      <tr><td><code>POST /api/v1/bookings</code></td><td>201 + oluşan rezervasyon</td><td>400: end_time, start_time'dan önce · 404: oda yok · 409: çakışan rezervasyon var</td></tr>
+      <tr><td><code>DELETE /api/v1/bookings/{id}</code></td><td>204 (gövde yok)</td><td>404: rezervasyon yok</td></tr>
+    </table></div>
+<pre><code>POST /api/v1/bookings
+{ "room_id": 3, "start_time": "2026-11-20T11:00:00Z", "end_time": "2026-11-20T12:00:00Z" }
+
+201 Created
+{ "id": 41, "room_id": 3, "start_time": "2026-11-20T11:00:00Z", "end_time": "2026-11-20T12:00:00Z" }
+
+409 Conflict
+{ "error": "overlap", "message": "Room 3 is already booked from 10:30 to 11:30." }</code></pre>
+    <p>Status code'lar: 200 OK, 201 Created (yeni kayıt oluştu), 204 No Content, 400 Bad Request (istek hatalı), 404 Not Found, 409 Conflict (istek mevcut durumla çelişiyor), 500 Internal Server Error (sunucuda bug; kullanıcı hatası yüzünden asla dönmemeli). FastAPI gibi bazı framework'ler validation hatasında 422 döner; hangisini kullandığınızı dokümana yazın. <code>/v1/</code> versioning: sözleşme değişirse <code>/v2/</code> açılır, eski istemci bozulmaz.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Uygulanmış bir migration'ı sonradan düzenlemek. Takım arkadaşının veritabanında eski hâli çalıştı; değişiklik yeni bir migration olmalı.</li>
+      <li>Response şeklini frontend'e haber vermeden değiştirmek. Doküman ve test aynı PR'da güncellenir.</li>
+      <li>Test'leri "sonra" yazmak. Week 13'te test yazacak zaman kalmaz; repo planı "alongside the code" diyor.</li>
+      <li>Her hatada 500 dönmek. Demo'da yanlış girilen bir tarih "Internal Server Error" gösterirse criterion 4'teki "robustness" düşer.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w10-api-doc"><span class="box__label">weeks/10 Deliverables · ödev sorusu</span>
+    <p>"Core API endpoints working and documented" · "Tests passing"</p>
+    <p class="src">Not: Bu deliverable repo yazarının planı; syllabus Week 10 için konuyu ve repository link'i milestone'unu yazıyor.</p>
+    <p><strong>Görev:</strong> Sensör dashboard'u için şu endpoint'i dokümante et ve en az dört test yaz (isim + beklenen sonuç yeterli): bir sensörün belirli bir zaman aralığındaki ölçümlerini döndüren endpoint.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Dört şey: URL ve parametreler, başarılı cevabın şekli, her hata durumu ve status code'u, versioning.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Test'leri hata durumlarından türet: her hata satırına bir test, bir de başarılı durum için.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Endpoint:</strong> <code>GET /api/v1/sensors/{id}/readings?from=…&amp;to=…</code> (<code>from</code>, <code>to</code>: ISO 8601, UTC)</p>
+      <div class="table-wrap"><table>
+        <tr><th>Durum</th><th>Status</th><th>Gövde</th></tr>
+        <tr><td>Başarılı</td><td>200</td><td><code>{"sensor_id": 7, "readings": [{"t": "2026-11-18T09:00:00Z", "value": 21.4}, …]}</code>; aralıkta ölçüm yoksa boş liste</td></tr>
+        <tr><td><code>from</code> ya da <code>to</code> eksik / biçimi yanlış</td><td>400</td><td><code>{"error": "bad_range", "message": "…"}</code></td></tr>
+        <tr><td><code>from</code>, <code>to</code>'dan sonra</td><td>400</td><td><code>{"error": "bad_range", "message": "from must be before to"}</code></td></tr>
+        <tr><td>Sensör yok</td><td>404</td><td><code>{"error": "not_found"}</code></td></tr>
+      </table></div>
+      <p><strong>Test'ler:</strong></p>
+      <ol>
+        <li><code>test_readings_in_range</code>: seed'deki sensör 7 için bilinen aralık → 200 ve seed'deki ölçüm sayısı.</li>
+        <li><code>test_readings_empty_range</code>: ölçüm olmayan bir aralık → 200 ve boş liste (404 değil).</li>
+        <li><code>test_readings_reversed_range</code>: <code>from</code> &gt; <code>to</code> → 400.</li>
+        <li><code>test_readings_unknown_sensor</code>: sensör 9999 → 404.</li>
+        <li><code>test_readings_bad_format</code>: <code>from=yesterday</code> → 400.</li>
+      </ol>
+      <p>Doküman <code>docs/api.md</code>'de ve endpoint'le aynı PR'da. Boş aralık için 200 + boş liste seçildi; bu bir karar ve dokümanda yazılı olduğu için frontend boş state'i ona göre gösterir.</p>
+    </div></details>
+    <!-- Kaynak: weeks/10 Key concepts ve Deliverables. Endpoint uydurma örnek. -->
+  </div>
+  <div class="box box--exam" data-exam="w10-data-layer"><span class="box__label">weeks/10 Deliverables · ödev sorusu</span>
+    <p>"Data layer done and migrated" · Key concept: "Database schema, migrations, seed data."</p>
+    <p class="src">Not: Bu deliverable repo yazarının planı, hocanın şartı değil. Syllabus Week 10 için yalnızca konuyu ("core data structures, database, API, services or main software components") ve "Repository link submitted on MS Teams" milestone'unu yazıyor.</p>
+    <p><strong>Görev:</strong> RoomFinder'ın veri katmanını yaz: <code>rooms</code> ve <code>bookings</code> tabloları için sıralı migration'lar, 12 odalık seed data ve Meeting 4'te kararlaştırılan çakışma kuralını (back-to-back rezervasyon serbest) uygulayan sorgu. Sonra "done and migrated" sayılma koşullarını yaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kuralları mümkün olduğunca veritabanına koy: <code>NOT NULL</code>, <code>UNIQUE</code>, <code>REFERENCES</code> (foreign key) ve <code>CHECK</code>. Bitişin başlangıçtan sonra olması tek satırda kontrol edilebilir; çakışma ise başka satırlara baktığı için bir sorgu ister.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İki aralık $[s_1, e_1)$ ve $[s_2, e_2)$ ancak $s_1 &lt; e_2$ ve $e_1 &gt; s_2$ ise çakışır. Eşitlik çakışma sayılmaz; 11:30'da biten rezervasyondan sonra 11:30'da başlayan serbest.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+<pre><code>-- migrations/0001_create_rooms.sql
+CREATE TABLE rooms (
+  id       INTEGER PRIMARY KEY,
+  name     TEXT    NOT NULL UNIQUE,
+  capacity INTEGER NOT NULL CHECK (capacity &gt; 0)
+);
+
+-- migrations/0002_create_bookings.sql
+CREATE TABLE bookings (
+  id         INTEGER PRIMARY KEY,
+  room_id    INTEGER NOT NULL REFERENCES rooms(id),
+  -- tek biçim: 'YYYY-MM-DDTHH:MM:SSZ' (UTC, saniye altı yok)
+  start_time TEXT    NOT NULL CHECK (start_time IS strftime('%Y-%m-%dT%H:%M:%SZ', start_time)),
+  end_time   TEXT    NOT NULL CHECK (end_time   IS strftime('%Y-%m-%dT%H:%M:%SZ', end_time)),
+  CHECK (end_time &gt; start_time)
+);
+
+-- migrations/0003_index_bookings_room_time.sql
+CREATE INDEX idx_bookings_room_time ON bookings (room_id, start_time);
+
+-- seed/rooms.sql (12 satır; ilk üçü)
+INSERT INTO rooms (id, name, capacity) VALUES
+  (1, 'B-101', 4), (2, 'B-102', 4), (3, 'B-103', 6);  -- … 12'ye kadar
+
+-- POST /bookings: kontrol ve ekleme tek transaction'da
+BEGIN IMMEDIATE;   -- yazma kilidini hemen alır
+SELECT COUNT(*) FROM bookings
+WHERE room_id = :room_id AND start_time &lt; :end_time AND end_time &gt; :start_time;
+-- sonuç 0 değilse: ROLLBACK; ve 409
+INSERT INTO bookings (room_id, start_time, end_time)
+VALUES (:room_id, :start_time, :end_time);
+COMMIT;            -- 201</code></pre>
+      <p>Index ayrı bir migration: tablo zaten uygulanmış olduğu için 0002 düzenlenmez, değişiklik 0003 olarak eklenir.</p>
+      <p><strong>Neden tek biçim?</strong> SQLite bu sütunları metin olarak karşılaştırır. Metin sırası zaman sırasıyla ancak bütün değerler aynı uzunlukta ve aynı biçimde olursa aynıdır. Biçimler karışırsa sıra bozulur: <code>10:00:00.500Z</code> metin olarak <code>10:00:00Z</code>'den küçüktür (<code>.</code> karakteri <code>Z</code>'den önce gelir), yani yarım saniye sonraki bitiş başlangıçtan önceymiş gibi görünür. Bu yüzden sütundaki <code>CHECK</code> yalnızca <code>2026-11-20T11:00:00Z</code> biçimini kabul eder. API de gelen her zamanı kaydetmeden ve sorguya koymadan önce bu biçime çevirir (<code>+03:00</code> → UTC) ya da 400 döner. Öteki yol, zamanı <code>INTEGER</code> olarak epoch milisaniye tutmak.</p>
+      <p><strong>Neden transaction?</strong> Kontrol ve ekleme ayrı ayrı çalışırsa iki eşzamanlı istek ikisi de 0 okur ve ikisi de ekler; aynı odada çakışan iki rezervasyon oluşur. <code>BEGIN IMMEDIATE</code> yazma kilidini en başta alır: ikinci istek, birincisi <code>COMMIT</code> edene kadar bekler ve sonra çakışmayı görüp 409 alır. Bekleme süresi bağlantıda ayarlanır (<code>PRAGMA busy_timeout = 5000</code>, Python'da <code>sqlite3.connect(…, timeout=5)</code>); süre dolarsa SQLite <code>database is locked</code> hatası verir, API bunu 500 olarak değil 503 olarak döner ve istemci yeniden dener.</p>
+      <p><strong>Kuralın denemesi.</strong> 3 numaralı odada 10:30–11:30 rezervasyonu varken:</p>
+      <div class="table-wrap"><table>
+        <tr><th>İstek (oda 3)</th><th>Sorgu</th><th>API</th></tr>
+        <tr><td>11:00–12:00</td><td>çakışıyor</td><td>409</td></tr>
+        <tr><td>10:45–11:15 (içinde)</td><td>çakışıyor</td><td>409</td></tr>
+        <tr><td>10:00–12:00 (kapsıyor)</td><td>çakışıyor</td><td>409</td></tr>
+        <tr><td>11:30–12:30 (hemen sonra)</td><td>serbest</td><td>201</td></tr>
+        <tr><td>10:00–10:30 (hemen önce)</td><td>serbest</td><td>201</td></tr>
+        <tr><td>Oda 1, 14:00–15:00, aynı anda iki istek</td><td>ikincisi birincinin <code>COMMIT</code>'ini bekler, sonra çakışıyor</td><td>biri 201, öteki 409</td></tr>
+      </table></div>
+      <p>Veritabanının kendisi şunları reddeder: bitişi başlangıçtan önce olan rezervasyon (<code>CHECK</code>), biçimi farklı bir zaman (<code>10:00:00.500Z</code> ya da <code>14:00:00+03:00</code>, <code>CHECK</code>), olmayan oda 99 için rezervasyon (foreign key), aynı adla ikinci <code>B-101</code> (<code>UNIQUE</code>), kapasitesi 0 olan oda (<code>CHECK</code>). SQLite'ta foreign key kontrolü için bağlantıda <code>PRAGMA foreign_keys = ON</code> gerekir.</p>
+      <p><strong>"Done and migrated" koşulları:</strong></p>
+      <ol>
+        <li>Boş bir veritabanında üç migration sırayla, hatasız çalışıyor; uygulanan son sürüm <code>0003</code>.</li>
+        <li>Seed sonrası <code>SELECT COUNT(*) FROM rooms</code> 12 döndürüyor.</li>
+        <li>Yukarıdaki beş çakışma durumu, beş reddedilen kayıt ve eşzamanlı istek testi birer test olarak yazılı ve CI'da geçiyor. Eşzamanlı test aynı veritabanı dosyasına iki ayrı bağlantı açar, iki isteği iki thread'de aynı anda başlatır ve sonuçta tam bir 201, bir 409 ve tek bir satır bekler.</li>
+        <li>Üç üye de aynı komutlarla kendi makinesinde aynı şemayı kurabiliyor; komutlar README'de.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: weeks/10-core-development.md Key concepts ve Deliverables. RoomFinder uydurma; çakışma kuralı bu sayfanın Meeting 4 örneğindeki karar. SQL python3 -I + sqlite3 ile çalıştırıldı: 3 migration + 12 oda seed; oda 3 (10:30–11:30) için 11:00–12:00, 10:45–11:15, 10:00–12:00 çakışıyor; 11:30–12:30, 10:00–10:30 serbest; CHECK, FOREIGN KEY, UNIQUE ve capacity CHECK reddetti; strftime CHECK 10:00:00.500Z ve +03:00 biçimini reddetti; biçim kısıtı olmadan TEXT CHECK 10:00:00Z → 10:00:00.500Z aralığını reddediyor. Eşzamanlılık: transaction'sız iki bağlantı ikisi de 0 okuyup 2 satır ekledi; BEGIN IMMEDIATE + timeout=5 ile 20 denemede hep [201, 409] ve 1 satır; timeout=0'da ikinci BEGIN IMMEDIATE "database is locked". -->
+    <p><a href="https://github.com/AkdenizOS/CSE-491-Senior-Design-Project-I/blob/main/weeks/10-core-development.md" target="_blank" rel="noopener">Orijinal madde: weeks/10-core-development.md ↗</a></p>
+  </div>
+  <div class="box box--exam" data-exam="syl2-meeting4"><span class="box__label">Syllabus §2 Meeting 4 + Supervisor Meeting Form · proje sorusu</span>
+    <p>"4 · Week 9–10 · Progress on core components; repository and development environment; risks and re-planning" — Teams son günü: 13 Kasım 2026.</p>
+    <p><strong>Görev:</strong> RoomFinder grubu Meeting 4'ü 11 Kasım 2026 Çarşamba yapıyor (20 dakika). Formun bütün alanlarını toplantı öncesi taslak olarak doldur. Formu en geç hangi gün yüklemelisiniz?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Formun 12 alanı ve imza: Project title, Group members (name, no.), Project supervisor, Meeting no., Date / duration, Attendees, Work completed since the last meeting, Issues, risks and blockers discussed, Decisions and action items (with owner and due date), Plan until the next meeting, Date of the next meeting, Supervisor's assessment, Supervisor's signature.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Odaktaki üç başlığı formun alanlarına dağıt: core components ilerlemesi → Work completed; repository ve development environment → Work completed ve Decisions; risks and re-planning → Issues ve Plan.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Alan</th><th>Taslak</th></tr>
+        <tr><td>Project title</td><td>RoomFinder: campus room booking</td></tr>
+        <tr><td>Group members (name, no.)</td><td>Ada …, Bora …, Cem … (numaralar formda)</td></tr>
+        <tr><td>Project supervisor</td><td>(danışmanın unvanı ve adı)</td></tr>
+        <tr><td>Meeting no.</td><td>4</td></tr>
+        <tr><td>Date / duration</td><td>11 Nov 2026 / 20 min</td></tr>
+        <tr><td>Attendees</td><td>Supervisor, Ada, Bora, Cem</td></tr>
+        <tr><td>Work completed since the last meeting</td><td>Midterm report and presentation delivered. Group repository set up (protected main, CI on every push). Running skeleton: page → /api/v1/health → database. Migrations for rooms and bookings, seed data with 12 rooms. GET /rooms and POST /bookings working with 9 tests.</td></tr>
+        <tr><td>Issues, risks and blockers discussed</td><td>Cem's commits do not appear on his GitHub profile (wrong Git e-mail). Deployment target not chosen yet. Overlap rule unclear: may a booking start exactly when another ends?</td></tr>
+        <tr><td>Decisions and action items (with owner and due date)</td><td>Back-to-back bookings allowed; overlap means start &lt; other.end and end &gt; other.start (Bora, 15 Nov). Fix Git identity and re-check (Cem, 12 Nov). Deploy the skeleton to the department server or a free hosting tier and record the URL in README (Ada, 20 Nov). Submit repository link on Teams (Ada, 22 Nov).</td></tr>
+        <tr><td>Plan until the next meeting</td><td>DELETE /bookings, booking and room list pages with error and empty states; demonstrate core components to the supervisor in week 11.</td></tr>
+        <tr><td>Date of the next meeting</td><td>25 Nov 2026</td></tr>
+        <tr><td>Supervisor's assessment</td><td>Boş bırakılır; danışman Insufficient / Adequate / Good / Very good'dan birini işaretler.</td></tr>
+        <tr><td>Supervisor's signature</td><td>Toplantı sonunda danışman imzalar.</td></tr>
+      </table></div>
+      <p><strong>Son gün:</strong> "within one week of the meeting" → 11 + 7 = 18 Kasım; Teams son günü 13 Kasım. Erken olan geçerli: <strong>13 Kasım Cuma</strong>. İmza için iki gün pay var.</p>
+    </div></details>
+    <!-- Kaynak: term syllabus s.1–2 §2 (form within one week, M4 focus); resources/2026-2027-fall/CSE491_Supervisor_Meeting_Form.docx (12 alan + imza); README.md çalışma ağacı (Teams deadline 13 Nov). İçerik uydurma. -->
+  </div>
+  <div class="quiz" id="q-bt-core-1">
+    <p class="quiz__q">RoomFinder'da 3 numaralı oda 10:30–11:30 arasında dolu. Biri aynı oda için 11:00–12:00 rezervasyonu gönderiyor. API dokümanına göre hangi status code dönmeli?</p>
+    <button class="quiz__opt">400 Bad Request<span class="why">İstek kendi içinde geçerli: biçim doğru, bitiş başlangıçtan sonra. Sorun isteğin kendisi değil, mevcut kayıtla çelişmesi.</span></button>
+    <button class="quiz__opt">404 Not Found<span class="why">Oda var. 404 kaynak bulunamadığında döner.</span></button>
+    <button class="quiz__opt" data-correct>409 Conflict<span class="why">Doğru. İstek geçerli ama mevcut durumla (10:30–11:30 rezervasyonu) çelişiyor; dokümanda bu durum 409.</span></button>
+    <button class="quiz__opt">500 Internal Server Error<span class="why">500 sunucudaki bir bug için. Bilinen bir iş kuralının ihlali 500 olarak dönerse istemci ne yapacağını bilemez.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="ui" data-min="5">
+  <h2>Week 11: arayüz, iş akışları, error ve empty state'ler</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · demo mutlu yolda değil, kenarda düşer</span>
+    <p>Demo'yu yapan herkes mutlu yolu (happy path) dener: doğru tarih, boş oda, rezervasyon tamam. Değerlendirici ise boş alanı gönderir, olmayan bir tarihi yazar, interneti yavaş bir telefondan açar. Repo planının uyarısı kısa: "demos fail on these."</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · syllabus §5 Week 11 ve repo planı (weeks/11)</span>
+    <p><strong>Syllabus:</strong> "Development of user interface, basic workflows and system components." Milestone: "Core components demonstrated to the supervisor."</p>
+    <p><strong>Repo planı:</strong></p>
+    <ul>
+      <li>"Implement the wireframes from week 6."</li>
+      <li>"The main user workflows end to end."</li>
+      <li>"Input validation and error states — demos fail on these."</li>
+      <li>"Responsiveness and basic accessibility."</li>
+      <li>"Connect the UI to the API built in week 10."</li>
+    </ul>
+    <p>Repo planının deliverable'ları: "Every main workflow clickable end to end", "Error and empty states handled".</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · RoomFinder'ın "oda listesi" ekranının beş hâli</span>
+    <div class="table-wrap"><table>
+      <tr><th>Durum</th><th>Ne olur</th><th>Ekranda</th></tr>
+      <tr><td>Loading</td><td>İstek gitti, cevap gelmedi</td><td>"Odalar yükleniyor…", butonlar pasif</td></tr>
+      <tr><td>Empty</td><td>200 ama liste boş</td><td>"Bu saatte boş oda yok. Başka bir saat seç." ve saat seçici</td></tr>
+      <tr><td>Validation error</td><td>Kullanıcı bitiş saatini başlangıçtan önce seçti</td><td>Alanın altında "Bitiş saati başlangıçtan sonra olmalı"; istek gönderilmez</td></tr>
+      <tr><td>Server error</td><td>409 ya da ağ hatası</td><td>409 için API'ın mesajı; ağ hatası için "Bağlantı yok, tekrar dene" butonu</td></tr>
+      <tr><td>Success</td><td>201</td><td>"Oda 3, 11:00–12:00 rezerve edildi" ve liste güncellenir</td></tr>
+    </table></div>
+    <p>Basic accessibility: her input'un bir <code>&lt;label&gt;</code>'ı var, bütün akış klavyeyle yapılabiliyor, renk tek bilgi taşıyıcısı değil (dolu oda kırmızı ve "dolu" yazısı). Responsiveness: liste 375 px genişlikte tek sütun.</p>
+  </div>
+  <div class="box box--exam" data-exam="syl5-w11-core-demo"><span class="box__label">Syllabus §5 Week 11 · proje sorusu</span>
+    <p>"11 · Development of user interface, basic workflows and system components · Core components demonstrated to the supervisor"</p>
+    <p><strong>Görev:</strong> RoomFinder grubu Week 11'de danışmana 5 dakikalık bir core components gösterimi yapacak. Gösterimin akışını, her adımın sahibini ve bir şey çalışmazsa B planını yaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Core components" Week 10'un işi: veri katmanı, API, iş kuralları. Arayüz hazırsa onun üzerinden, değilse test'ler ve API çağrılarıyla gösterilir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bir hata durumunu bilerek göster. Mutlu yolu herkes gösterir; 409'u göstermek robustness'ın kanıtı.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>(Ada, 1 dk) Repository: protected main, son PR'lar, CI yeşil. Week 10'da Teams'e yüklenen link bu.</li>
+        <li>(Bora, 2 dk) Temiz veritabanı: migration'lar çalışır, seed 12 oda yükler. Arayüzden 3 numaralı odaya 11:00–12:00 rezervasyonu → 201. Aynı odaya 11:30–12:30 → 409 ve kullanıcıya anlaşılır mesaj.</li>
+        <li>(Cem, 1 dk) Rezervasyon iptali → 204, liste güncellenir. Olmayan rezervasyonu iptal etmek → 404.</li>
+        <li>(Cem, 1 dk) <code>pytest</code> çıktısı: kaç test, hangi kurallar.</li>
+      </ol>
+      <p><strong>B planı:</strong> Arayüz o gün çalışmazsa aynı istekler hazır bir <code>curl</code> listesiyle terminalden gösterilir; ağ yoksa hepsi yerel makinede, seed'li veritabanıyla. Her şey bir gün önce bu sırayla prova edilir.</p>
+      <p>Gösterim bir toplantıda yapılır; M5 bu haftaya düşerse (25 Kasım) formun "Work completed since the last meeting" alanına "core components demonstrated" diye yazılır ve milestone'un kanıtı olur.</p>
+    </div></details>
+    <!-- Kaynak: term syllabus s.3 §5 Week 11; weeks/11 Key concepts. Akış uydurma. -->
+  </div>
+  <div class="box box--exam" data-exam="w11-workflows"><span class="box__label">weeks/11 Deliverables · ödev sorusu</span>
+    <p>"Every main workflow clickable end to end" · "Error and empty states handled"</p>
+    <p class="src">Not: Bu deliverable'lar repo yazarının planı, hocanın şartı değil. Syllabus Week 11 için konuyu ("Development of user interface, basic workflows and system components") ve "Core components demonstrated to the supervisor" milestone'unu yazıyor.</p>
+    <p><strong>Görev:</strong> RoomFinder'ın üç ana iş akışı var: boş oda bulmak, oda rezerve etmek, rezervasyonu iptal etmek. Her akış için tıklama adımlarını ve Week 10 API dokümanındaki her cevabın arayüzde neye dönüştüğünü yaz. Sonra iki deliverable'ın "bitti" sayılma koşulunu yaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Akışın kullandığı endpoint'lerin status code'larını topla. Her biri ekranda bir duruma karşılık gelmeli; ağ hatası API dokümanında yok ama arayüzde olmak zorunda.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Empty" bir hata değil: 200 ile boş liste. "Validation error" çoğu zaman istek hiç gönderilmeden arayüzde yakalanır; backend aynı kuralı yine 400 ile kontrol eder.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Akış</th><th>Tıklamalar</th><th>Cevap → ekranda</th></tr>
+        <tr><td>Boş oda bul</td><td>Tarih ve saat seç → "Ara"</td><td>200 + liste → odalar · 200 + boş liste → "Bu saatte boş oda yok", saat seçici açık · 400 → "Tarih biçimi geçersiz" · ağ hatası → "Bağlantı yok, tekrar dene"</td></tr>
+        <tr><td>Oda rezerve et</td><td>Arama sonucu → oda 3 → "Rezerve et" → onay</td><td>Arama adımının dört durumu, üstüne: 201 → "Oda 3, 11:00–12:00 rezerve edildi" · 400 → alan altında "Bitiş saati başlangıçtan sonra olmalı" · 404 → "Bu oda artık yok", liste yenilenir · 409 → API'ın mesajı ve aynı odanın boş saatleri</td></tr>
+        <tr><td>Rezervasyonu iptal et</td><td>"Rezervasyonlarım" → satır → "İptal et" → onay</td><td>204 → satır listeden kalkar, "İptal edildi" · 404 → "Bu rezervasyon zaten yok", liste yenilenir · ağ hatası → "Bağlantı yok, tekrar dene"; satır yerinde kalır</td></tr>
+      </table></div>
+      <p>Sayım: dokümanda 3 endpoint ve toplam 8 cevap var (GET 200/400, POST 201/400/404/409, DELETE 204/404). Rezerve etme akışı iki endpoint kullandığı için 5 farklı koda bakar (200, 201, 400, 404, 409); arama ve iptal ikişer koda bakar. Her akışa ayrıca loading ve ağ hatası durumu eklenir.</p>
+      <p><strong>"Bitti" koşulları:</strong></p>
+      <ol>
+        <li><em>Clickable end to end:</em> takım dışından biri üç akışı da yardımsız, gerçek API ve seed'li veritabanıyla tamamlıyor. Fare olmadan, yalnız klavyeyle de tamamlanabiliyor.</li>
+        <li><em>Error and empty states:</em> tablodaki her satır bir kez bilerek tetikleniyor ve ekranda beklenen mesaj çıkıyor. Hiçbir durumda boş beyaz ekran ya da ham hata metni yok.</li>
+        <li>Mesajlar ve tıklama sırası Week 6 wireframe'leriyle uyuşuyor; farklı olan yerin sebebi yazılı.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: weeks/11-ui-development.md Key concepts ve Deliverables; bu sayfanın Week 10 API dokümanı örneği. RoomFinder uydurma. Kod sayımı python3 -I ile kontrol edildi: 3 endpoint, 8 cevap; akışlar sırasıyla [200,400], [200,201,400,404,409], [204,404]. -->
+    <p><a href="https://github.com/AkdenizOS/CSE-491-Senior-Design-Project-I/blob/main/weeks/11-ui-development.md" target="_blank" rel="noopener">Orijinal madde: weeks/11-ui-development.md ↗</a></p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Validation'ı sadece arayüzde yapmak. API'a doğrudan istek atan biri kuralları atlar; asıl kontrol backend'de, arayüzdeki sadece kullanıcıya hız kazandırır.</li>
+      <li>Boş listeyi hata gibi göstermek. "Boş oda yok" bir sonuç; "bir şeyler ters gitti" mesajı kullanıcıyı yanıltır.</li>
+      <li>Arayüzü API'dan farklı bir mock'a göre yazmak. Week 12'de alan adları uyuşmaz; arayüz Week 10'un dokümanına göre yazılır.</li>
+      <li>Wireframe'den habersiz yeni ekranlar. Week 6'daki wireframe'ler proposal ve midterm'deki tasarımın parçası; değişiklik varsa sebebi yazılır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-bt-ui-1">
+    <p class="quiz__q">Kullanıcı bir saat seçti, API 200 ve boş bir liste döndü. Arayüz ne göstermeli?</p>
+    <button class="quiz__opt">"Bir hata oluştu, tekrar deneyin"<span class="why">Hata yok; istek başarılı. Boş sonuç bir empty state, error state değil.</span></button>
+    <button class="quiz__opt">Hiçbir şey; liste boş kalır<span class="why">Boş ekran kullanıcıya bir şeyin bozuk olduğunu düşündürür. Repo planı "error and empty states handled" diyor.</span></button>
+    <button class="quiz__opt" data-correct>"Bu saatte boş oda yok" ve başka bir saat seçme yolu<span class="why">Doğru. Empty state durumu söyler ve bir sonraki adımı gösterir.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="integration" data-min="5">
+  <h2>Week 12: integration, deployment, secrets ve ilk sürüm</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · sınırlar hep uyuşmaz</span>
+    <p>RoomFinder'da arayüz saati <code>"start": "14:00"</code> olarak, Türkiye saatiyle gönderiyor. Backend <code>"start_time"</code> alanını UTC ve ISO 8601 bekliyor. Sonuç: önce 400 (alan adı tutmuyor), alan adı düzelince de rezervasyon üç saat kaymış (Türkiye UTC+3). İki taraf da kendi test'lerinde geçiyordu; hata ikisinin arasındaki sınırda. Integration test tam bu sınırı test eder.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · syllabus §5 Week 12 ve repo planı (weeks/12)</span>
+    <p><strong>Syllabus:</strong> "Integration of system components and preparation of the first working version." Milestone: "Supervisor Meeting 5 (week 12 or 13)."</p>
+    <p><strong>Repo planı:</strong></p>
+    <ul>
+      <li>"Wire the components together; fix the interface mismatches that always appear."</li>
+      <li>"Integration tests across component boundaries."</li>
+      <li>"Deploy somewhere reachable — a demo that only runs on one laptop is a risk."</li>
+      <li>"Configuration and secrets handling. Never commit credentials."</li>
+      <li>"Tag the first working version."</li>
+    </ul>
+    <p>Repo planının deliverable'ları: "All components integrated", "Deployed and reachable", "First version tagged".</p>
+    <p>Terimler: <strong>unit test</strong> tek bir fonksiyonu ya da sınıfı tek başına test eder; <strong>integration test</strong> iki ya da daha fazla bileşeni (API + veritabanı, arayüz + API) birlikte; <strong>end-to-end test</strong> kullanıcının yaptığı akışı baştan sona. <strong>Deployment</strong> (dağıtım): sistemi geliştiricinin bilgisayarı dışında, erişilebilir bir yerde çalıştırmak. <strong>Tag</strong>: bir commit'e verilen kalıcı isim (<code>v0.1.0</code>).</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · secrets ve tag</span>
+<pre><code># .gitignore
+.env
+
+# .env.example (commit edilir, gerçek değer yok)
+DATABASE_URL=postgresql://user:password@localhost:5432/roomfinder
+SECRET_KEY=change-me
+
+# backend/app/config.py (pip install python-dotenv)
+import os
+from dotenv import load_dotenv
+load_dotenv()                    # .env'i okur, değerleri os.environ'a ekler
+DATABASE_URL = os.environ["DATABASE_URL"]
+
+# ilk çalışan sürüm
+git tag -a v0.1.0 -m "First working version: list, book and cancel a room"
+git push origin v0.1.0</code></pre>
+    <p>Kod ayarı ortam değişkeninden okur (<code>os.environ["DATABASE_URL"]</code>). Her makinede <code>.env.example</code> kopyalanıp <code>.env</code> yapılır ve gerçek değerler oraya yazılır. <code>.env</code> dosyası kendiliğinden ortam değişkeni olmaz: program başlarken <code>load_dotenv()</code> onu okumazsa <code>os.environ["DATABASE_URL"]</code> <code>KeyError</code> verir. Sunucuda değerler hosting'in secret ayarlarında durur ve sürece ortam değişkeni olarak verilir; <code>load_dotenv()</code> varsayılan olarak var olan bir değişkenin üstüne yazmaz, yani sunucudaki değer geçerli kalır.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Commit edilmiş bir secret'ı yeni bir commit'le silip rahatlamak. Değer Git geçmişinde duruyor; public repo'da otomatik tarayıcılar onu bulur. Önce anahtarı ya da şifreyi değiştir (rotate), sonra dosyayı çıkar.</li>
+      <li>Demo'yu tek laptop'a bağlamak. O laptop o gün açılmazsa demo yok. Deploy edilmiş bir adres ve README'deki kurulum adımları iki ayrı güvence.</li>
+      <li>Kırık bir commit'i tag'lemek. Tag "bu sürüm çalışıyor" demek; önce CI yeşil, sonra tag.</li>
+      <li>Integration'ı Week 12'nin son gününe bırakmak. Running skeleton Week 9'dan beri vardıysa Week 12 bir sürpriz değil, bir toparlama haftası olur.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w12-first-version"><span class="box__label">weeks/12 Deliverables · ödev sorusu</span>
+    <p>"All components integrated" · "Deployed and reachable" · "First version tagged"</p>
+    <p class="src">Not: Bu deliverable'lar repo yazarının planı; syllabus Week 12 için "preparation of the first working version" konusunu ve Meeting 5'i yazıyor.</p>
+    <p><strong>Görev:</strong> RoomFinder için <code>v0.1.0</code> tag'inden önce geçilmesi gereken bir "release kontrol listesi" yaz. Her madde neden orada?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Üç deliverable'ın her biri için "bunu nasıl kanıtlarım?" diye sor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Secrets'ı ve README'yi unutma: tag'lenen sürüm başkasının makinesinde README'den kurulabilmeli.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Madde</th><th>Neden</th></tr>
+        <tr><td>main'de CI yeşil; unit ve integration test'leri geçiyor</td><td>Tag "çalışan sürüm" demek</td></tr>
+        <tr><td>En az bir integration test her sınırı kapsıyor: arayüz → API (alan adları, saat dilimi), API → veritabanı (çakışma kuralı)</td><td>"Integration tests across component boundaries"</td></tr>
+        <tr><td>Üç ana workflow (listele, rezerve et, iptal et) deploy edilen adreste uçtan uca denendi</td><td>"All components integrated", "Deployed and reachable"</td></tr>
+        <tr><td>Deploy adresi README'de; başka bir ağdan (telefonun mobil verisi) açılıyor</td><td>"Reachable" sadece kendi Wi-Fi'nda değil</td></tr>
+        <tr><td><code>git ls-files</code>'ta <code>.env</code> yok; <code>.env.example</code> güncel; sunucudaki secret'lar repo'da değil</td><td>"Never commit credentials"</td></tr>
+        <tr><td>README'deki kurulum adımları temiz bir makinede (ya da yeni bir container'da) baştan denendi</td><td>Repo README'si madde 5: "Test the README on a clean machine."</td></tr>
+        <tr><td><code>git tag -a v0.1.0</code> ve <code>git push origin v0.1.0</code>; GitHub'da release notu: ne çalışıyor, bilinen eksikler</td><td>"First version tagged"; Week 13'teki test'ler bu sürüme karşı yapılır</td></tr>
+      </table></div>
+    </div></details>
+    <!-- Kaynak: weeks/12 Key concepts ve Deliverables; README.md "How to use this repository" madde 5. -->
+  </div>
+  <div class="box box--exam" data-exam="syl2-meeting5"><span class="box__label">Syllabus §2 Meeting 5 · proje sorusu</span>
+    <p>"5 · Week 12–13 · Integration and prototype status; testing results; final report, documentation and presentation plan" — Teams son günü: 27 Kasım 2026.</p>
+    <p><strong>Görev:</strong> RoomFinder grubu M5'i 25 Kasım Çarşamba (Week 11) yapmak zorunda kalıyor; integration o tarihte bitmemiş olacak. M5'in üç odak başlığı için toplantıya ne getirirsiniz, formun "Plan until the next meeting" alanına ne yazarsınız?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Odak "status" ve "results" diyor; bitmiş olmasını şart koşmuyor. Dürüst bir durum ve ölçülmüş ilk sonuçlar getirilebilir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Beşinci form son form. "Date of the next meeting" alanı boş kalmak zorunda değil: ek toplantılar her zaman yapılabilir (§2: "Five documented meetings is the minimum, not the target").</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ul>
+        <li><strong>Integration and prototype status:</strong> hangi bileşenler bağlı (arayüz + rooms API + DB), hangisi kaldı (iptal akışı, deploy). Integration sırasında bulunan uyumsuzluklar (alan adı, saat dilimi) ve nasıl çözüldüğü. Week 11 milestone'u için core components gösterimi bu toplantıda yapılır.</li>
+        <li><strong>Testing results:</strong> o ana kadarki test sayısı ve CI durumu; Week 3 success criteria listesi ve her biri için planlanan test (Bölüm 9'daki matris), ilk ölçümler varsa onlar.</li>
+        <li><strong>Final report, documentation and presentation plan:</strong> final report'un bölüm başlıkları ve sahipleri, README ve technical documentation'ın kim tarafından ne zaman yazılacağı, demo senaryosu taslağı.</li>
+      </ul>
+      <p><strong>Plan until the next meeting:</strong> "Week 12: finish integration, deploy, tag v0.1.0 (Ada). Week 13: run every success-criterion test and one user test with a student outside the team (Bora, Cem). Week 14: final report and README (all). An extra meeting is requested for week 13 to review the test results."</p>
+      <p>Form 27 Kasım'a kadar imzalı yüklenir. Week 13 milestone'u "All five signed meeting forms uploaded" da böylece karşılanmış olur.</p>
+      <p class="src">Not: Teams son günü (27 Kasım, Week 11) ile syllabus'un önerdiği "week 12 or 13" çelişiyor. Hangisinin geçerli olduğunu course assistant'a yazılı sorun.</p>
+    </div></details>
+    <!-- Kaynak: term syllabus s.2 §2 (M5 focus, "minimum, not the target"), s.3 §5 Week 13 milestone; README.md çalışma ağacı (M5 Teams Nov 27). -->
+  </div>
+  <div class="quiz" id="q-bt-int-1">
+    <p class="quiz__q">Ada yanlışlıkla gerçek veritabanı şifresini içeren <code>.env</code>'i public repo'ya push etti. Ertesi gün fark ediyor. İlk yapılması gereken ne?</p>
+    <button class="quiz__opt">Dosyayı silen yeni bir commit atmak; sorun çözülür<span class="why">Şifre hâlâ geçmişteki commit'te duruyor ve herkes okuyabilir. Silmek sızıntıyı geri almaz.</span></button>
+    <button class="quiz__opt" data-correct>Şifreyi hemen değiştirmek, sonra dosyayı repo'dan çıkarıp <code>.gitignore</code>'a eklemek<span class="why">Doğru. Sızmış bir secret artık gizli değil; tek güvenli yol onu geçersiz kılmak. Geçmişi temizlemek isteğe bağlı ek bir adım.</span></button>
+    <button class="quiz__opt">Kimse fark etmediyse bir şey yapmamak<span class="why">Public repo'lar otomatik olarak taranıyor; kimin fark ettiğini bilemezsin. Weeks/12: "Never commit credentials."</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="testing" data-min="6">
+  <h2>Week 13: success criteria'ya karşı test</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · döngüyü kapatmak</span>
+    <p>Week 3'te "başarılı sayılmak için şunu ölçeceğiz" dedin. Week 13'te o ölçümü yaparsın. Repo README'sinin ilk maddesi bu yüzden "Week 3 decides the grade": "Week 13 tests against exactly those, and the final report is graded on whether you met them." Ölçülebilir yazılmış bir criterion'u test etmek bir saat sürer; "hızlı olmalı" diye yazılmış olanı test etmenin yolu yoktur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · syllabus §5 Week 13 ve repo planı (weeks/13)</span>
+    <p><strong>Syllabus:</strong> "Testing of the preliminary prototype, bug fixing and basic improvements." Milestone: "All five signed meeting forms uploaded."</p>
+    <p><strong>Repo planı:</strong></p>
+    <ul>
+      <li>"Test against the <strong>measurable success criteria</strong> you wrote in week 3. That is what closes the loop."</li>
+      <li>"Functional testing, then performance against the non-functional requirements."</li>
+      <li>"User testing with someone outside the team — they will find what you cannot see."</li>
+    </ul>
+    <p>Her criterion için bir test kaydı: <strong>procedure</strong> (ne yapıldı, hangi veriyle, hangi ortamda), <strong>expected</strong> (criterion'un eşiği), <strong>actual</strong> (ölçülen), <strong>pass / fail</strong>. "%95'i 200 ms'nin altında" gibi bir criterion ortalamayla değil, ölçümlerin kaçının eşiğin altında kaldığıyla test edilir. Bunun kısa adı percentile: p95, ölçümlerin %95'inin altında kaldığı değer. Nearest-rank yöntemiyle $n$ ölçüm sıralanır ve p95 = $\lceil 0.95 \cdot n \rceil$'inci değer.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · RoomFinder'ın test matrisi (Week 3 criteria'sından)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Criterion</th><th>Test türü</th><th>Procedure</th><th>Expected</th><th>Actual</th><th>Sonuç</th></tr>
+      <tr><td>S1 · A user can book a free room in at most 4 clicks</td><td>Functional / user test</td><td>5 öğrenci (takım dışı), görev kartıyla, tıklama sayılır</td><td>≤ 4 tık, 5/5 kişi</td><td>4 tık, 5/5</td><td>Pass</td></tr>
+      <tr><td>S2 · 95% of booking requests answered in under 200 ms</td><td>Performance</td><td>Deploy edilen sunucu, 20 istek, sunucu tarafında ölçüm</td><td>≥ %95 &lt; 200 ms</td><td>15/20 (%75), p95 = 260 ms</td><td>Fail</td></tr>
+      <tr><td>S3 · Overlapping bookings are always rejected</td><td>Integration (otomatik)</td><td>CI'da 6 çakışma senaryosu</td><td>6/6 → 409</td><td>6/6</td><td>Pass</td></tr>
+      <tr><td>S4 · Works on a 375 px wide phone screen</td><td>Manual</td><td>İki telefon, üç ana workflow</td><td>Yatay kaydırma yok</td><td>İptal butonu taşıyor</td><td>Fail → düzeltildi, tekrar Pass</td></tr>
+    </table></div>
+    <p>S2'deki 20 ölçüm (ms): 120, 135, 140, 150, 155, 160, 165, 170, 175, 180, 182, 185, 190, 195, 198, 205, 210, 230, 260, 480. Ortalama 194.25 ms, yani "ortalama 200'ün altında". Ama criterion ortalama demiyor: 20 ölçümden 15'i 200'ün altında, %75. p95 için $\lceil 0.95 \cdot 20 \rceil = 19$, sıralı listede 19. değer 260 ms. Criterion tutmuyor.</p>
+  </div>
+  <div class="w-build-and-test-box" id="wbt-crit">
+    <p class="w-build-and-test-guess"><b>Önce tahmin et:</b> Örnekteki 480 ms'lik tek ölçümü 190 yaparsan S2 geçer mi? Tahmin et, sonra listeyi değiştirip hesapla. Kendi ölçümlerini de yazabilirsin.</p>
+    <div class="w-build-and-test-ctl"><label for="wbt-crit-p">Ölçümlerin yüzde kaçı</label><input type="text" id="wbt-crit-p" class="w-build-and-test-num" value="95" /><label for="wbt-crit-t">şu eşiğin altında olmalı (ms)</label><input type="text" id="wbt-crit-t" class="w-build-and-test-num" value="200" /></div>
+    <label for="wbt-crit-in" class="src">Ölçümler (ms), virgül ya da boşlukla</label>
+    <textarea id="wbt-crit-in" class="w-build-and-test-ta" style="min-height:70px" spellcheck="false">120, 135, 140, 150, 155, 160, 165, 170, 175, 180, 182, 185, 190, 195, 198, 205, 210, 230, 260, 480</textarea>
+    <div class="w-build-and-test-ctl"><button class="btn btn--sm btn--accent" id="wbt-crit-go">Hesapla</button><button class="btn btn--sm" id="wbt-crit-ex">Örneğe dön</button></div>
+    <div class="w-build-and-test-err" id="wbt-crit-err"></div>
+    <div class="w-build-and-test-out" id="wbt-crit-out" aria-live="polite"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Ortalamayla percentile criterion'u test etmek. Yukarıdaki örnekte ortalama geçiyor, criterion geçmiyor.</li>
+      <li>Sonucu görünce criterion'u değiştirmek. Week 3'ün criterion'u proposal'da yazılı; final onunla karşılaştırılır. Değiştirmek gerekiyorsa sebebiyle ve danışmanla, raporda açıkça.</li>
+      <li>Performansı kendi laptop'unda, tek kullanıcıyla ölçmek ve bunu söylememek. Ortam (makine, ağ, kaç istek, eşzamanlı mı) procedure'ün parçası.</li>
+      <li>User test'i takım arkadaşıyla yapmak. Sistemi yapan kişi nereye tıklanacağını bilir; repo planı "someone outside the team" diyor.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w13-success-criteria"><span class="box__label">weeks/13 Deliverables · ödev sorusu</span>
+    <p>"Tested against every success criterion"</p>
+    <p class="src">Not: Bu deliverable repo yazarının planı. Syllabus Week 13 konusu "Testing of the preliminary prototype, bug fixing and basic improvements"; final değerlendirmesi de proposal'daki success criteria'ya göre yapılır (§3: proposal "the reference document against which the midterm and final deliverables are assessed").</p>
+    <p><strong>Görev:</strong> Sensör dashboard'unun Week 3 criterion'u: "The dashboard shows a new reading within 5 seconds of the sensor sending it, for 90% of readings." 10 ölçüm (saniye): 1.2, 2.0, 2.4, 3.1, 3.3, 3.8, 4.1, 4.6, 4.9, 7.5. Test kaydını yaz ve sonucu final report'ta nasıl raporlayacağını söyle.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kaç ölçüm 5 saniyenin altında? $0.9 \cdot 10 = 9$ ölçüm gerekiyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>p90 nearest-rank: $\lceil 0.9 \cdot 10 \rceil = 9$, sıralı listede 9. değer.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Criterion</th><th>Procedure</th><th>Expected</th><th>Actual</th><th>Sonuç</th></tr>
+        <tr><td>New reading shown within 5 s for 90% of readings</td><td>Deploy edilen sistem, bir test sensörü 10 ölçüm gönderdi; gönderme zamanı ve ekranda görünme zamanı loglardan</td><td>≥ 9/10 ölçüm &lt; 5 s</td><td>9/10 &lt; 5 s (%90); p90 = 4.9 s; en kötü 7.5 s</td><td>Pass (sınırda)</td></tr>
+      </table></div>
+      <p>9 ölçüm 5 saniyenin altında, %90 gerekiyordu: criterion geçiyor. p90 = 4.9 s, eşiğin hemen altında.</p>
+      <p><strong>Raporlama:</strong> "Criterion met (9 of 10 readings under 5 s, p90 = 4.9 s). The margin is small and the sample has only 10 readings from one sensor; one reading took 7.5 s. A larger test with several sensors is planned for Project II." Sınırda geçen bir sonucu bu şekilde yazmak, değerlendirici bulmadan zayıflığı senin söylemen demek.</p>
+    </div></details>
+    <!-- Kaynak: weeks/13 Key concepts ve Deliverables; README.md madde 1; term syllabus §3. Sayılar verify_bt.py ile hesaplandı. -->
+  </div>
+  <div class="quiz" id="q-bt-test-1">
+    <p class="quiz__q">Criterion: "%95'i 200 ms'nin altında". 40 ölçüm aldın; 37'si 200 ms'nin altında. Sonuç?</p>
+    <button class="quiz__opt" data-correct>Fail: $37/40 = \%92.5$, %95'in altında<span class="why">Doğru. Gereken $\lceil 0.95 \cdot 40 \rceil = 38$ ölçüm; 37 yetmiyor.</span></button>
+    <button class="quiz__opt">Pass: ölçümlerin çoğu eşiğin altında<span class="why">"Çoğu" criterion değil. Eşik %95 olarak yazılmış ve 37/40 bu eşiğin altında kalıyor.</span></button>
+    <button class="quiz__opt">Ortalamaya bakmadan karar verilemez<span class="why">Criterion ortalama hakkında değil, eşiğin altında kalan ölçümlerin payı hakkında. Ortalama bu soruyu cevaplamaz.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="triage" data-min="5">
+  <h2>Triage ve known limitations</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · her bug aynı acil değil</span>
+    <p>Week 13'te test'ler bir sürü sorun çıkarır, zaman ise iki hafta. Hepsini düzeltmeye çalışan grup demo'yu riske atar. Triage, her sorunu üç kutudan birine koymak: demo'dan önce düzelt, known limitation olarak raporla, yeni özellik olarak Project II'ye bırak.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · repo planı (weeks/13) ve syllabus</span>
+    <p>"Triage: fix what blocks the demo, log the rest as known limitations."</p>
+    <p>"Known limitations stated honestly in the report score better than ones the examiner finds."</p>
+    <p>Syllabus §6 Continuity: "The project started in CSE 491 continues in Senior Design Project II; the final presentation includes the development plan for the following semester."</p>
+    <p>Karar kuralı:</p>
+    <ul>
+      <li><strong>Demo'dan önce düzelt:</strong> ana workflow'lardan birini bozuyor ya da demo ekranında yanlış görünüyor (çökme, 500, yanlış veri, deploy edilen sürümde çalışmama).</li>
+      <li><strong>Known limitation:</strong> gerçek bir zayıflık ama demo'yu bozmuyor; ya da test edilmemiş bir durum (ne ölçmediğini söylemek de bir limitation).</li>
+      <li><strong>Project II: yeni özellik:</strong> bug değil, yeni bir özellik ya da out-of-scope listesindeki bir şey.</li>
+    </ul>
+    <p>Project II planı ertelenen bug fix'leri, known limitations ve yeni özellikleri içerir. Yani bir known limitation da (örneğin aşağıdaki connection pool) Project II planına girer. Kutular arasındaki fark, sorunun demo'yu bozup bozmadığı: demo'yu bozan bir sorun hiçbir kutuya ertelenemez.</p>
+  </div>
+  <div class="w-build-and-test-box" id="wbt-tri">
+    <p class="w-build-and-test-guess"><b>Önce tahmin et:</b> Aşağıdaki 10 RoomFinder sorunundan kaçı demo'dan önce düzeltilmeli? Sayıyı aklında tut, sonra her satırı bir kutuya koy ve kontrol et. Known limitation'a koyduklarından final report için İngilizce bir liste üretilir.</p>
+    <div id="wbt-tri-rows"></div>
+    <div class="w-build-and-test-ctl"><button class="btn btn--sm btn--accent" id="wbt-tri-go">Kontrol et</button><button class="btn btn--sm" id="wbt-tri-reset">Temizle</button></div>
+    <div class="w-build-and-test-out" id="wbt-tri-out" aria-live="polite">Her satırda bir seçim yap.</div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Limitation'ları saklamak. Değerlendirici demo'da bulursa hem bug hem dürüstlük puanı gider; raporda yazılıysa bilinçli bir mühendislik kararı gibi okunur.</li>
+      <li>"Known limitation" diye her şeyi ertelemek. Ana workflow'u bozan bir hata limitation değildir; criterion 4 "functionality" ister.</li>
+      <li>Yeni özellik eklemek için düzeltmeyi ertelemek. Week 13'ün konusu "bug fixing and basic improvements"; yeni özellik Project II'nin işi.</li>
+      <li>Ne test edilmediğini yazmamak. "100 kullanıcıyla ölçmedik" demek, ölçülmüş gibi görünmekten iyidir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w13-known-limitations"><span class="box__label">weeks/13 Deliverables · ödev sorusu</span>
+    <p>"Blocking bugs fixed" · "Known limitations written down"</p>
+    <p class="src">Not: Bu deliverable'lar repo yazarının planı; syllabus Week 13 için "bug fixing and basic improvements" diyor.</p>
+    <p><strong>Görev:</strong> Bölüm 9'daki S2 başarısız oldu (15/20, p95 = 260 ms). Grup sebebi buldu: her istek veritabanına yeni bir bağlantı açıyor; connection pool eklemek iki gün sürer, demo'ya üç gün var. Triage kararını ver ve final report'un "Known limitations" bölümüne girecek paragrafı yaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>S2 demo'yu bozuyor mu? 260 ms bir insan için fark edilir mi? Öte yandan criterion proposal'da yazılı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Paragrafta dört şey olsun: ne ölçüldü, sonuç, bilinen sebep, ne zaman ve nasıl çözülecek.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Karar:</strong> Known limitation. Demo'daki akışlar 260 ms'de de kullanılabilir; iki günlük bir değişiklik demo'dan bir gün önce bitecek ve yeni hatalar getirebilir. Riskli değişiklik <code>v0.1.x</code> sürümünü bozmamalı. Connection pool Project II planının ilk maddesi olur.</p>
+      <p><strong>Paragraf:</strong> "Success criterion S2 (95% of booking requests answered in under 200 ms) was not met. In 20 requests to the deployed server, 15 (75%) were under 200 ms and the 95th percentile was 260 ms. Profiling showed that each request opens a new database connection. A connection pool is the planned fix and is the first item of the Project II plan. Load with many concurrent users was not measured."</p>
+      <p>Son cümle "ne ölçülmedi"yi söylüyor; değerlendiricinin soracağı ilk soruyu peşinen cevaplıyor.</p>
+    </div></details>
+    <!-- Kaynak: weeks/13 Key concepts ve Deliverables; term syllabus §6 Continuity. Senaryo uydurma. -->
+  </div>
+  <div class="quiz" id="q-bt-tri-1">
+    <p class="quiz__q">Demo'ya iki gün var. Deploy edilen sürümde login çalışmıyor, localhost'ta çalışıyor. Triage?</p>
+    <button class="quiz__opt">Known limitation: localhost'ta çalıştığı için kod doğru<span class="why">Demo deploy edilen sürümden yapılacak ve login bütün workflow'ların kapısı. Demo'yu bozan bir sorun limitation değildir.</span></button>
+    <button class="quiz__opt" data-correct>Demo'dan önce düzelt<span class="why">Doğru. Ana workflow'u bloke ediyor; "fix what blocks the demo".</span></button>
+    <button class="quiz__opt">Project II'ye ertele<span class="why">Project II'ye ancak demo'yu bozmayan işler ertelenir. Login deploy edilen sürümde çalışmazsa demo'daki bütün workflow'lar kapıda kalır; ertelemek demo'yu bozuk login'le yapmak demek.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="criteria" data-min="4">
+  <h2>Criteria 4–5 ve "her satırı açıklayabilmek"</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · değerlendiricinin gözü</span>
+    <p>Bu beş haftanın ürünü final'de (%40) yedi evaluation criteria'dan özellikle ikisiyle okunur: prototip ve repository. Bir de defence var: değerlendirici bir dosya açıp "bu fonksiyon ne yapıyor?" diye sorabilir. AI ile yazılmış kod da senin kodun sayılır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · syllabus §4 evaluation criteria 4–5 ve §6 Academic integrity</span>
+    <p><strong>Criterion 4:</strong> "Functionality, robustness and extensibility of the preliminary prototype."</p>
+    <p><strong>Criterion 5:</strong> "Quality of documentation: report structure, repository hygiene, README, code readability, references."</p>
+    <p><strong>§6:</strong> "The use of AI assistants is permitted for support, but it must be declared in the report, and students remain fully responsible for, and must be able to explain in the defence, every line of the submitted work."</p>
+    <ul>
+      <li><strong>Functionality:</strong> söz verilen workflow'lar çalışıyor mu (success criteria).</li>
+      <li><strong>Robustness:</strong> yanlış girdi, ağ hatası, boş veri karşısında çökmeden anlamlı davranıyor mu.</li>
+      <li><strong>Extensibility:</strong> Project II'de yeni bir özellik, her şeyi baştan yazmadan eklenebilir mi (bileşenler ayrı, sözleşmeler dokümante).</li>
+      <li><strong>Repository hygiene, README, code readability:</strong> Bölüm 2, 4 ve 5'in konusu.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>AI'ın yazdığı test'leri okumadan "47 test geçiyor" demek. Test hiçbir şeyi kontrol etmiyorsa (<code>assert response is not None</code>) geçmesi bir şey kanıtlamaz; defence'ta da açıklanamaz.</li>
+      <li>AI kullanımını raporda belirtmemek. §6 açık: izinli ama "must be declared".</li>
+      <li>Sadece kendi parçanı bilmek. Defence'ta grup sunar ama sorular kişiye gelebilir; en azından her bileşenin ne yaptığını ve nasıl test edildiğini herkes bilmeli.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="syl4-criteria-4-5"><span class="box__label">Syllabus §4 criteria 4–5 · proje sorusu</span>
+    <p>"Functionality, robustness and extensibility of the preliminary prototype." — "Quality of documentation: report structure, repository hygiene, README, code readability, references."</p>
+    <p><strong>Görev:</strong> Week 13 sonunda RoomFinder için bir öz değerlendirme tablosu yap: iki criterion'un her alt maddesi için repository'de değerlendiricinin göreceği kanıt ne?</p>
+    <p class="src">Not: Repoda bu criteria için bir rubric yok. Tablo syllabus'taki criterion metninden türetildi; resmi bir puanlama anahtarı değil.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Criterion 4'ü üçe (functionality, robustness, extensibility), criterion 5'in bu dersle ilgili kısmını üçe (repository hygiene, README, code readability) böl.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her satırda "nereye bakarsa görür?" sorusunun cevabı bir dosya, bir test, bir tag ya da bir komut olmalı.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Alt madde</th><th>Kanıt</th></tr>
+        <tr><td>Functionality</td><td>Test matrisi (S1–S4) ve sonuçları; <code>v0.1.0</code> tag'i ve deploy adresi; üç workflow'un demo senaryosu</td></tr>
+        <tr><td>Robustness</td><td>400/404/409 için test'ler; arayüzdeki error ve empty state'ler; user test'te çıkan ve düzeltilen hatalar</td></tr>
+        <tr><td>Extensibility</td><td><code>docs/api.md</code> (versiyonlu sözleşme), migration'lar, bileşenlerin ayrı klasörlerde olması; Project II'de eklenecek bir özelliğin (e-posta hatırlatması) hangi bileşene ekleneceğinin bir paragrafla anlatılması</td></tr>
+        <tr><td>Repository hygiene</td><td><code>.gitignore</code>, LICENSE, <code>.env.example</code>, junk ve secret yok (Bölüm 2'deki kontrol); protected main ve PR geçmişi; why yazan commit mesajları; üç üyenin commit'leri</td></tr>
+        <tr><td>README</td><td>Ne olduğu, nasıl kurulduğu, nasıl çalıştırıldığı, nasıl test edildiği; temiz makinede denenmiş</td></tr>
+        <tr><td>Code readability</td><td>Anlamlı isimler, kısa fonksiyonlar, tutarlı formatlama (formatter CI'da), iş kuralının yanında neden'i söyleyen yorum</td></tr>
+      </table></div>
+      <p>Report structure ve references final report'un konusu; <a href="final-and-demo.html">Final report, demo ve defence</a> dersinde.</p>
+    </div></details>
+    <!-- Kaynak: term syllabus s.3 Evaluation criteria 4–5; weeks/14 (README ve repository beklentisi). -->
+  </div>
+  <div class="box box--exam" data-exam="syl6-ai-every-line"><span class="box__label">Syllabus §6 Academic integrity · proje sorusu</span>
+    <p>"The use of AI assistants is permitted for support, but it must be declared in the report, and students remain fully responsible for, and must be able to explain in the defence, every line of the submitted work."</p>
+    <p><strong>Görev:</strong> Sensör dashboard'u grubu test suite'inin çoğunu bir AI asistanıyla üretti; 47 test geçiyor ama grup test'leri tek tek okumadı. Week 13 sonuçlarını rapora yazmadan önce ne yapmalılar?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Geçen bir test iki şey olabilir: kod doğru, ya da test hiçbir şeyi kontrol etmiyor. İkisini nasıl ayırırsın?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Kodu bilerek boz: test kırmızıya dönmüyorsa o test bir şey test etmiyor.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>Test'ler bileşenlere göre üyelere paylaştırılır; her üye kendi payındaki her test'in neyi kontrol ettiğini bir cümleyle yazar ve hangi success criterion ya da requirement'a bağlandığını işaretler.</li>
+        <li>Her önemli kural için kod bilerek bozulur (örneğin çakışma kontrolü kapatılır) ve ilgili test'in kırmızıya döndüğü görülür. Dönmeyen test yeniden yazılır ya da silinir.</li>
+        <li>Hiçbir şeyi kontrol etmeyen test'ler (<code>assert True</code>, sadece "None değil" kontrolü) çıkarılır; test sayısı değil, kapsadığı kurallar raporlanır.</li>
+        <li>Raporda AI beyanı: hangi araç, hangi kısımlar (test iskeletleri), grup bunları nasıl gözden geçirdi (adım 1–3).</li>
+        <li>Defence provası: her üye rastgele seçilen iki test'i ve test ettiği kodu açıklar.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: term syllabus s.4 §6 Academic integrity. Senaryo uydurma. -->
+  </div>
+  <div class="quiz" id="q-bt-crit-1">
+    <p class="quiz__q">Prototip doğru girdiyle her şeyi yapıyor ama boş bir tarih gönderilince 500 hatası veriyor. Criterion 4'ün hangi kısmı zayıf?</p>
+    <button class="quiz__opt">Functionality<span class="why">Söz verilen işlevler doğru girdiyle çalışıyor. Sorun yanlış girdi karşısındaki davranış.</span></button>
+    <button class="quiz__opt" data-correct>Robustness<span class="why">Doğru. Robustness, beklenmeyen ya da yanlış girdide çökmeden anlamlı davranmak. Doğru cevap 400 ve bir mesaj.</span></button>
+    <button class="quiz__opt">Extensibility<span class="why">Extensibility yeni özelliklerin kolay eklenmesi hakkında; hatalı girdiyle ilgisi yok.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="son-kontrol" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Bu sorular bütün dersi karıştırıyor. Cevaplamadan önce hangi haftanın kuralı olduğunu düşün.</p>
+  <div class="quiz" id="q-bt-final-1">
+    <p class="quiz__q">Week 9'dan itibaren kodun nerede olması gerekiyor ve kim commit etmeli?</p>
+    <button class="quiz__opt">Her üyenin kendi repo'sunda; Week 14'te birleştirilir<span class="why">§6 "single group repository from Week 9 onwards" diyor. Week 14 birleştirme haftası değil, tamamlama haftası.</span></button>
+    <button class="quiz__opt" data-correct>Tek grup repository'sinde; herkes kendi işini kendi hesabıyla, düzenli<span class="why">Doğru. §6 Version control'ün iki cümlesi bu.</span></button>
+    <button class="quiz__opt">Tek grup repository'sinde; grup lideri herkesin değişikliklerini kendi Git kimliğiyle commit eder ve push eder<span class="why">Commit'leri lider yazdığı için author hep o olur; öteki üyelerin katkısı geçmişte görünmez ve kanıtlanamaz (§4). Fark şurada: başkasının yazdığı commit'leri push etmek author'ı değiştirmez, ama commit'i lider oluşturursa geçmiş sadece lideri gösterir.</span></button>
+  </div>
+  <div class="quiz" id="q-bt-final-2">
+    <p class="quiz__q">Hangisi syllabus'un değil, repodaki haftalık planın (weeks/*.md) önerisi?</p>
+    <button class="quiz__opt">Repository link submitted on MS Teams (Week 10)<span class="why">Bu syllabus §5'teki Week 10 milestone'u.</span></button>
+    <button class="quiz__opt" data-correct>CI green by the end of Week 9<span class="why">Doğru. "Repository created, skeleton runs, CI green, every member has pushed once" weeks/09'un deliverable'ı; syllabus CI'dan söz etmiyor.</span></button>
+    <button class="quiz__opt">All five signed meeting forms uploaded (Week 13)<span class="why">Bu syllabus §5'teki Week 13 milestone'u.</span></button>
+  </div>
+  <div class="quiz" id="q-bt-final-3">
+    <p class="quiz__q">Week 13'te bir success criterion tutmadı ve düzeltmeye zaman yok. En iyi hareket?</p>
+    <button class="quiz__opt">Criterion'u ölçülen sonuca göre yeniden yazmak<span class="why">Criterion proposal'da yazılı ve final ona göre değerlendirilir. Sessizce değiştirmek, değerlendiricinin bulacağı bir tutarsızlık.</span></button>
+    <button class="quiz__opt">Raporda o criterion'dan hiç söz etmemek<span class="why">"Known limitations stated honestly in the report score better than ones the examiner finds." Değerlendirici proposal'la karşılaştırınca bulur.</span></button>
+    <button class="quiz__opt" data-correct>Ölçümü, sonucu, bilinen sebebi ve Project II'deki çözüm planını known limitation olarak yazmak<span class="why">Doğru. Weeks/13'ün triage kuralı ve §6 Continuity birlikte.</span></button>
+  </div>
+  <div class="quiz" id="q-bt-final-4">
+    <p class="quiz__q">Meeting 4'ün odağı hangisi ve formu en geç ne zaman Teams'te olmalı?</p>
+    <button class="quiz__opt">Integration ve testing results; 27 Kasım<span class="why">Bu Meeting 5'in odağı ve son günü.</span></button>
+    <button class="quiz__opt" data-correct>Core components ilerlemesi, repository ve development environment, risks and re-planning; 13 Kasım (toplantı daha erkense toplantı + 7 gün)<span class="why">Doğru. §2 M4 odağı bu; Teams son günü 13 Kasım ve "within one week of the meeting" kuralının erken olanı geçerli.</span></button>
+    <button class="quiz__opt">System architecture ve technology selection; 30 Ekim<span class="why">Bu Meeting 3'ün odağı ve Teams son günü.</span></button>
+  </div>
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=8"></script>
+<script src="../assets/lab.js?v=8"></script>
+<script>
+/* 1. Weeks 9–13 timeline: dates from Week 1 = 14 Sep 2026 (inferred from proposal due Week 5 = 18 Oct). */
+(function () {
+  const DAY = 864e5, W1 = Date.UTC(2026, 8, 14);
+  const AY = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+  const start = n => W1 + 7 * (n - 1) * DAY;
+  const fmt = ms => { const d = new Date(ms); return `${d.getUTCDate()} ${AY[d.getUTCMonth()]}`; };
+  const weekOf = ms => Math.floor((ms - W1) / DAY / 7) + 1;
+  const range = n => `${fmt(start(n))} – ${fmt(start(n) + 6 * DAY)} 2026`;
+  const MS = ["Groups, topics and supervisors confirmed", "Supervisor Meeting 1 (week 2 or 3)", "Project topic, title and supervisor recorded", "Supervisor Meeting 2 (week 4 or 5)", "Project proposal submitted (20%)", "Supervisor Meeting 3 (week 6 or 7)", "Technology stack and development environment agreed", "Midterm report + presentation (20%)", "Supervisor Meeting 4 (week 9 or 10)", "Repository link submitted on MS Teams", "Core components demonstrated to the supervisor", "Supervisor Meeting 5 (week 12 or 13)", "All five signed meeting forms uploaded", "Final report, repository and documentation completed", "Final report, presentation and demo (40%)"];
+  const W = {
+    9: { topic: "Creation of code repository, preparation of project skeleton and setup of development environment", plan: "Repository created, skeleton runs, CI green, every member has pushed once" },
+    10: { topic: "Development of core data structures, database, API, services or main software components", plan: "Data layer done and migrated · Core API endpoints working and documented · Tests passing" },
+    11: { topic: "Development of user interface, basic workflows and system components", plan: "Every main workflow clickable end to end · Error and empty states handled" },
+    12: { topic: "Integration of system components and preparation of the first working version", plan: "All components integrated · Deployed and reachable · First version tagged" },
+    13: { topic: "Testing of the preliminary prototype, bug fixing and basic improvements", plan: "Tested against every success criterion · Blocking bugs fixed · Known limitations written down" }
+  };
+  const DUES = [
+    { ms: Date.UTC(2026, 10, 13), t: "Meeting 4 formu Teams'te (son gün)", win: [9, 10] },
+    { ms: Date.UTC(2026, 10, 27), t: "Meeting 5 formu Teams'te (son gün)", win: [12, 13] }
+  ];
+  const strip = cur => `<div class="w-build-and-test-weeks">` + Array.from({ length: 15 }, (_, i) => {
+    const n = i + 1, cls = ["w-build-and-test-wk"];
+    if (n >= 9 && n <= 13) cls.push("has");
+    if (DUES.some(d => weekOf(d.ms) === n)) cls.push("due");
+    if (n === cur) cls.push("cur");
+    return `<div class="${cls.join(" ")}" title="Week ${n}">${n}</div>`;
+  }).join("") + `</div>`;
+  const frames = [9, 10, 11, 12, 13].map(n => {
+    const dues = DUES.filter(d => weekOf(d.ms) === n);
+    const wins = DUES.map((d, k) => ({ d, m: k + 4 })).filter(o => o.d.win.includes(n));
+    let cap = `Week ${n} = ${range(n)}. Milestone: <b>${MS[n - 1]}</b>.`;
+    if (dues.length) cap += " Bu hafta Teams son günü: " + dues.map(d => `${fmt(d.ms)} (${d.t.split(" ")[0]} ${d.t.split(" ")[1]})`).join(", ") + ".";
+    return { n, dues, wins, caption: cap };
+  });
+  const m4w = weekOf(DUES[0].ms), m5w = weekOf(DUES[1].ms);
+  frames.push({ n: 0, caption: `Özet: Meeting 4'ün son günü Week ${m4w}'da, penceresi (9–10) içinde ama ilk haftasında. Meeting 5'in son günü Week ${m5w}'de, penceresinden (12–13) ${12 - m5w} hafta önce. Repository link Week 10'un sonunda (${fmt(start(10) + 6 * DAY)}), core components gösterimi Week 11'de (${range(11)}).` });
+  Lab.stepper(document.getElementById("wbt-time-step"), {
+    title: "Weeks 9–13, tarihleriyle",
+    interval: 1800,
+    frames,
+    render(f, i, el) {
+      if (!f.n) {
+        el.innerHTML = strip(0) + `<div class="w-build-and-test-card"><h4>Beş haftanın milestone'ları</h4>` + [9, 10, 11, 12, 13].map(n => `<p><b>W${n}</b> (${range(n)}): ${MS[n - 1]}</p>`).join("") + `</div>`;
+        return;
+      }
+      let h = strip(f.n) + `<div class="w-build-and-test-card"><h4>Week ${f.n} · ${range(f.n)}</h4>`;
+      h += `<p><span class="w-build-and-test-tag syl">Syllabus</span>${W[f.n].topic}</p>`;
+      h += `<p><span class="w-build-and-test-tag syl">Milestone</span>${MS[f.n - 1]}</p>`;
+      f.wins.forEach(o => { h += `<p><span class="w-build-and-test-tag">Pencere</span>Meeting ${o.m} önerilen haftalar: ${o.d.win.join(" or ")}; Teams son günü ${fmt(o.d.ms)} (Week ${weekOf(o.d.ms)})</p>`; });
+      f.dues.forEach(d => { h += `<p><span class="w-build-and-test-tag">Teams</span><b>${fmt(d.ms)} Cuma:</b> ${d.t}</p>`; });
+      h += `<p><span class="w-build-and-test-tag plan">Repo planı</span>${W[f.n].plan}</p></div>`;
+      el.innerHTML = h;
+    }
+  });
+  const inp = document.getElementById("wbt-time-date"), err = document.getElementById("wbt-time-err"), out = document.getElementById("wbt-time-out");
+  function query() {
+    const v = inp.value.trim(), m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+    if (!m) { err.textContent = "Tarihi YYYY-AA-GG biçiminde yaz, örneğin 2026-11-20."; out.innerHTML = ""; return; }
+    const ms = Date.UTC(+m[1], +m[2] - 1, +m[3]), d = new Date(ms);
+    if (d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) { err.textContent = "Böyle bir gün yok. Ay 01–12, gün o ayın gün sayısı içinde olmalı."; out.innerHTML = ""; return; }
+    err.textContent = "";
+    const w = weekOf(ms);
+    let h = "";
+    if (w < 1) h += `<p>${fmt(ms)} dönem başından (14 Eyl 2026) önce.</p>`;
+    else if (w > 15) h += `<p>${fmt(ms)} Week 15'ten sonra; final sunumu final sınav dönemine kalabilir, tarihi Teams'te duyurulur.</p>`;
+    else h += `<p class="w-build-and-test-big">Week ${w} (${range(w)})</p><p>Milestone: ${MS[w - 1]}${W[w] ? `<br>Konu: ${W[w].topic}` : ""}</p>`;
+    const ev = MS.map((t, k) => ({ ms: start(k + 1) + 6 * DAY, t: `Week ${k + 1} sonu: ${t}`, inf: true })).concat(DUES.map(d => ({ ms: d.ms, t: d.t, inf: false })))
+      .filter(e => e.ms >= ms).sort((a, b) => a.ms - b.ms).slice(0, 3);
+    if (ev.length) h += `<p>Sıradaki:</p><ul>` + ev.map(e => `<li><b>${fmt(e.ms)}</b> ${e.t} <span class="src">(${e.inf ? "hafta numarasından tahmini" : "Teams'te sabit"})</span></li>`).join("") + `</ul>`;
+    out.innerHTML = h;
+  }
+  document.getElementById("wbt-time-go").addEventListener("click", query);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") query(); });
+  query();
+})();
+
+/* 2. Repository hygiene checker over a `git ls-files` listing. */
+(function () {
+  const EX = ["README.md", ".gitignore", ".github/workflows/ci.yml", "backend/app/main.py", "backend/app/bookings.py", "backend/tests/test_bookings.py", "backend/.env", "frontend/src/App.jsx", "frontend/node_modules/react/index.js", "docs/architecture.png", "demo-video.mp4"].join("\n");
+  const GOOD = ["README.md", "LICENSE", ".gitignore", ".env.example", ".github/workflows/ci.yml", "backend/app/main.py", "backend/migrations/0001_create_rooms.sql", "backend/tests/test_health.py", "frontend/src/App.jsx", "docs/architecture.md"].join("\n");
+  const ta = document.getElementById("wbt-hyg-in"), err = document.getElementById("wbt-hyg-err"), out = document.getElementById("wbt-hyg-out");
+  ta.value = EX;
+  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const JUNK_DIR = ["node_modules", "venv", ".venv", "__pycache__", ".idea", "dist", "build", "target", ".pytest_cache"];
+  const BIN = /\.(zip|rar|7z|tar|gz|mp4|mov|avi|mkv|exe|dll|iso|jar|apk|sqlite|db|psd)$/i;
+  function check() {
+    const paths = ta.value.split(/\r?\n/).map(s => s.trim().replace(/^\.\//, "")).filter(Boolean);
+    if (!paths.length) { err.textContent = "Liste boş. Her satıra bir dosya yolu yaz ya da 'Örneği yükle'ye bas."; out.innerHTML = ""; return; }
+    const bad = paths.find(p => /\s{2,}|^\/|\\/.test(p));
+    if (bad) { err.textContent = `"${bad}" bir repo yolu gibi görünmüyor: kökten göreli, / ile ayrılmış yol yaz (örneğin backend/app/main.py).`; out.innerHTML = ""; return; }
+    err.textContent = "";
+    const base = p => p.split("/").pop();
+    const root = p => !p.includes("/");
+    const R = [];
+    const add = (st, name, detail, why) => R.push({ st, name, detail, why });
+    const has = f => paths.some(f);
+    add(has(p => root(p) && /^readme(\.(md|rst|txt))?$/i.test(p)) ? "ok" : "no", "Kökte README", "", "Weeks/14: README graded; criterion 5 \"README\". Clone eden kişinin ilk okuduğu dosya.");
+    add(has(p => p === ".gitignore") ? "ok" : "no", "Kökte .gitignore", "", "Weeks/09 \"README.md, .gitignore, licence\". Junk ve .env'in repo'ya girmesini önler.");
+    add(has(p => root(p) && /^(license|licence|copying)(\.(md|txt))?$/i.test(p)) ? "ok" : "no", "Kökte LICENSE", "", "Weeks/09 \"licence\"; §6: dış kod licence-compatible olmalı.");
+    const envs = paths.filter(p => /^\.env(\..+)?$/.test(base(p)) && !/\.(example|sample|template)$/.test(base(p)));
+    add(envs.length ? "no" : "ok", "Commit edilmiş .env yok", envs.join(", "), "Weeks/12: \"Never commit credentials.\" Silmek yetmez; içindeki şifreler değiştirilmeli.");
+    const keys = paths.filter(p => /^(id_rsa|id_ed25519)$|\.pem$|\.key$|^credentials\.json$|service-account.*\.json$/i.test(base(p)));
+    add(keys.length ? "no" : "ok", "Anahtar / credential dosyası yok", keys.join(", "), "Weeks/14: \"no secrets\".");
+    add(has(p => /^\.env\.(example|sample|template)$/.test(base(p))) ? "ok" : "warn", ".env.example var", "", "Ayarların adlarını değersiz verir; proje hiç ayar okumuyorsa gerekmez.");
+    const junk = paths.filter(p => p.split("/").slice(0, -1).some(s => JUNK_DIR.includes(s)) || /^(\.DS_Store|Thumbs\.db)$/.test(base(p)));
+    add(junk.length ? "no" : "ok", "Bağımlılık / build / sistem dosyası yok", junk.slice(0, 4).join(", ") + (junk.length > 4 ? ` (+${junk.length - 4})` : ""), "Weeks/14: \"no junk files\". Kurulum adımıyla yeniden üretilen her şey .gitignore'a.");
+    const bins = paths.filter(p => BIN.test(p));
+    add(bins.length ? "warn" : "ok", "Büyük binary yok", bins.join(", "), "Video, arşiv, veritabanı dosyası repo'yu şişirir; demo videosu release'e ya da bir link olarak README'ye. Boyutu bu listeden bilemiyoruz, o yüzden uyarı.");
+    add(has(p => /^\.github\/workflows\/[^/]+\.ya?ml$/.test(p) || p === ".gitlab-ci.yml") ? "ok" : "no", "CI workflow dosyası", "", "Weeks/09: \"CI from the start\".");
+    add(has(p => p.split("/").slice(0, -1).some(s => /^(tests?|__tests__|spec)$/.test(s)) || /^test_.*\.py$|_test\.(py|go)$|\.(test|spec)\.(js|jsx|ts|tsx)$/.test(base(p))) ? "ok" : "no", "Test dosyaları", "", "Weeks/10: \"Write tests alongside the code\"; CI'ın çalıştıracağı bir şey olmalı.");
+    const nNo = R.filter(r => r.st === "no").length, nW = R.filter(r => r.st === "warn").length;
+    const icon = { ok: `<span class="w-build-and-test-ok">✓</span>`, no: `<span class="w-build-and-test-no">✗</span>`, warn: `<span class="w-build-and-test-warn">!</span>` };
+    let h = `<p class="w-build-and-test-big">${paths.length} dosya · ${nNo} sorun · ${nW} uyarı</p><div class="table-wrap"><table><tr><th></th><th>Kontrol</th><th>Neden</th></tr>`;
+    h += R.map(r => `<tr><td>${icon[r.st]}</td><td>${r.name}${r.detail ? `<br><code>${esc(r.detail)}</code>` : ""}</td><td>${r.why}</td></tr>`).join("") + `</table></div>`;
+    h += `<p>Dosya listesinden görülemeyenler, elle kontrol et: main protected mı (GitHub → Settings → Branches), son CI çalıştırması yeşil mi, her üyenin commit'i var mı (<code>git shortlog -sn</code>, Bölüm 5), ilk sürüm tag'li mi (<code>git tag</code>), README temiz bir makinede denendi mi.</p>`;
+    out.innerHTML = h;
+  }
+  document.getElementById("wbt-hyg-go").addEventListener("click", check);
+  document.getElementById("wbt-hyg-ex").addEventListener("click", () => { ta.value = EX; check(); });
+  document.getElementById("wbt-hyg-good").addEventListener("click", () => { ta.value = GOOD; check(); });
+  out.textContent = "Listeyi kontrol etmek için butona bas.";
+})();
+
+/* 3. Git branch-protection simulation: each op is applied to a small model; the rules decide accept/reject. */
+(function () {
+  const LANES = { "main": 0, "feature/booking-api": 1, "feature/room-list": 2 };
+  const acc = n => n === 2 ? "'yi" : "'i";
+  const RULES = { pr: true, ci: true, approvals: 1 };
+  const OPS = [
+    { op: "commit", br: "main", who: "Ada", msg: "Add running skeleton and CI", ci: "pass" },
+    { op: "branch", name: "feature/booking-api", who: "Bora" },
+    { op: "commit", br: "feature/booking-api", who: "Bora", msg: "Add POST /api/v1/bookings with overlap check", ci: "pass" },
+    { op: "branch", name: "feature/room-list", who: "Cem" },
+    { op: "commit", br: "feature/room-list", who: "Cem", msg: "Add room list page", ci: "fail" },
+    { op: "push", br: "main", who: "Cem", msg: "quick fix" },
+    { op: "pr", br: "feature/booking-api", n: 1 },
+    { op: "review", n: 1, who: "Bora" },
+    { op: "review", n: 1, who: "Cem" },
+    { op: "merge", n: 1, who: "Bora" },
+    { op: "pr", br: "feature/room-list", n: 2 },
+    { op: "merge", n: 2, who: "Cem" },
+    { op: "commit", br: "feature/room-list", who: "Cem", msg: "Fix room list test: expect 12 seeded rooms", ci: "pass" },
+    { op: "review", n: 2, who: "Ada" },
+    { op: "merge", n: 2, who: "Cem" },
+    { op: "tag", name: "v0.1.0", who: "Ada" }
+  ];
+  const S = { commits: [], heads: {}, prs: {}, tags: [] };
+  function newCommit(br, who, msg, ci, parents) {
+    const c = { id: S.commits.length, lane: LANES[br], who, msg, ci, parents };
+    S.commits.push(c); S.heads[br] = c.id; return c;
+  }
+  function apply(o) {
+    if (o.op === "commit") {
+      const p = o.br in S.heads ? [S.heads[o.br]] : [];
+      newCommit(o.br, o.who, o.msg, o.ci, p);
+      Object.values(S.prs).forEach(pr => { if (pr.br === o.br && pr.state === "open") pr.ci = o.ci; });
+      return { ok: true, text: `${o.who}, <code>${o.br}</code>${o.br.endsWith("api") ? "'ye" : "'e"} commit attı: "${o.msg}". CI: ${o.ci === "pass" ? "yeşil" : "kırmızı (bir test kırık)"}.` };
+    }
+    if (o.op === "branch") { S.heads[o.name] = S.heads.main; return { ok: true, text: `${o.who}, main'den <code>${o.name}</code> branch'ini açtı.` }; }
+    if (o.op === "push") {
+      if (RULES.pr) return { ok: false, text: `${o.who} main'e doğrudan push denedi: <b>reddedildi</b>. main protected; değişiklik sadece pull request'le girer.` };
+      newCommit("main", o.who, o.msg, "pass", [S.heads.main]); return { ok: true, text: "Push kabul edildi." };
+    }
+    if (o.op === "pr") {
+      const head = S.commits[S.heads[o.br]];
+      const author = S.commits.find(c => c.lane === LANES[o.br]).who;
+      S.prs[o.n] = { n: o.n, br: o.br, author, ci: head.ci, approvals: [], state: "open" };
+      return { ok: true, text: `${author}, <code>${o.br}</code> → main için PR #${o.n} açtı. CI: ${head.ci === "pass" ? "yeşil" : "kırmızı"}.` };
+    }
+    if (o.op === "review") {
+      const pr = S.prs[o.n];
+      if (o.who === pr.author) return { ok: false, text: `${o.who} kendi PR'ını (#${o.n}) onaylamaya çalıştı: <b>sayılmadı</b>. Onay başka bir üyeden gelmeli.` };
+      if (!pr.approvals.includes(o.who)) pr.approvals.push(o.who);
+      return { ok: true, text: `${o.who} PR #${o.n}${acc(o.n)} okudu ve onayladı (${pr.approvals.length}/${RULES.approvals}).` };
+    }
+    if (o.op === "merge") {
+      const pr = S.prs[o.n], why = [];
+      if (RULES.ci && pr.ci !== "pass") why.push("CI kırmızı");
+      if (pr.approvals.length < RULES.approvals) why.push(`onay ${pr.approvals.length}/${RULES.approvals}`);
+      if (why.length) return { ok: false, text: `${o.who} PR #${o.n}${acc(o.n)} merge etmek istedi: <b>kilitli</b> (${why.join(", ")}).` };
+      newCommit("main", o.who, `Merge PR #${o.n} from ${pr.br}`, "pass", [S.heads.main, S.heads[pr.br]]);
+      pr.state = "merged";
+      return { ok: true, text: `PR #${o.n} merge edildi: CI yeşil, ${pr.approvals.join(", ")} onayladı. main'de yeni bir merge commit'i var.` };
+    }
+    if (o.op === "tag") {
+      const head = S.commits[S.heads.main];
+      if (head.ci !== "pass") return { ok: false, text: "main kırmızı; tag atılmadı." };
+      S.tags.push({ name: o.name, id: head.id });
+      return { ok: true, text: `${o.who}, main'in son commit'ine <code>${o.name}</code> tag'ini koydu: ilk çalışan sürüm.` };
+    }
+  }
+  const frames = [{ snap: JSON.parse(JSON.stringify(S)), caption: `Kurallar: main'e doğrudan push yok, merge için PR, CI yeşil ve en az ${RULES.approvals} onay (PR yazarı hariç).` }];
+  OPS.forEach(o => { const r = apply(o); frames.push({ snap: JSON.parse(JSON.stringify(S)), ok: r.ok, caption: (r.ok ? "" : "✗ ") + r.text }); });
+  const Y = [26, 70, 114], X0 = 128, DX = 44;
+  const names = Object.keys(LANES);
+  function svg(s) {
+    const maxX = X0 + DX * Math.max(0, frames[frames.length - 1].snap.commits.length - 1) + 40;
+    let h = `<svg class="w-build-and-test-svg" viewBox="0 0 ${maxX} 140" role="img" aria-label="Branch grafiği">`;
+    names.forEach((nm, i) => { h += `<line x1="${X0 - 10}" y1="${Y[i]}" x2="${maxX - 10}" y2="${Y[i]}" stroke="var(--border)" stroke-width="1" stroke-dasharray="3 4"/><text x="4" y="${Y[i] + 4}" font-size="12" font-family="JetBrains Mono, monospace" fill="var(--fg)">${nm.replace("feature/", "f/")}</text>`; });
+    s.commits.forEach(c => c.parents.forEach(pid => {
+      const p = s.commits[pid];
+      h += `<line x1="${X0 + DX * p.id}" y1="${Y[p.lane]}" x2="${X0 + DX * c.id}" y2="${Y[c.lane]}" stroke="var(--blue-600)" stroke-width="2"/>`;
+    }));
+    Object.keys(s.heads).forEach(br => {
+      const c = s.commits[s.heads[br]], lane = LANES[br];
+      if (lane !== c.lane) h += `<line x1="${X0 + DX * c.id}" y1="${Y[c.lane]}" x2="${X0 + DX * c.id + 18}" y2="${Y[lane]}" stroke="var(--blue-400)" stroke-width="2" stroke-dasharray="4 3"/>`;
+    });
+    s.commits.forEach(c => {
+      const col = c.ci === "pass" ? "#2b8a3e" : "var(--accent)";
+      h += `<circle cx="${X0 + DX * c.id}" cy="${Y[c.lane]}" r="9" fill="${col}" stroke="var(--paper)" stroke-width="2"><title>${c.who}: ${c.msg}</title></circle><text x="${X0 + DX * c.id}" y="${Y[c.lane] + 4}" font-size="10" text-anchor="middle" fill="#fff" font-weight="700">${c.who[0]}</text>`;
+    });
+    s.tags.forEach(t => { h += `<text x="${X0 + DX * t.id}" y="${Y[0] - 14}" font-size="11" text-anchor="middle" font-weight="700" fill="var(--fg-brand)">${t.name}</text>`; });
+    return h + `</svg>`;
+  }
+  Lab.stepper(document.getElementById("wbt-git-step"), {
+    title: "RoomFinder: protected main ile iki feature branch",
+    interval: 1700,
+    frames,
+    render(f, i, el) {
+      const prs = Object.values(f.snap.prs);
+      let h = svg(f.snap);
+      h += `<p class="src">Daire = commit (harf = yazar). Yeşil: CI geçti, turuncu: CI kırmızı.</p>`;
+      if (prs.length) h += `<div class="table-wrap"><table><tr><th>PR</th><th>Branch</th><th>CI</th><th>Onay</th><th>Durum</th></tr>` + prs.map(p => `<tr><td>#${p.n}</td><td><code>${p.br}</code></td><td>${p.ci === "pass" ? `<span class="w-build-and-test-ok">yeşil</span>` : `<span class="w-build-and-test-no">kırmızı</span>`}</td><td>${p.approvals.join(", ") || "yok"}</td><td>${p.state === "merged" ? "merged" : "open"}</td></tr>`).join("") + `</table></div>`;
+      el.innerHTML = h;
+    }
+  });
+})();
+
+/* 4. Commit log checker: vague messages and per-author share. */
+(function () {
+  const EX = ["Ada: Add running skeleton: FastAPI app, health endpoint, CI workflow", "Ada: fix", "Ada: Add rooms table migration and seed data for 12 rooms", "Ada: update", "Ada: Return 409 when a booking overlaps an existing one", "Ada: wip", "Ada: Validate booking times so that end is after start", "Ada: asdf", "Bora: Add room list page wired to GET /api/v1/rooms", "Bora: Show empty state when no room is free", "Cem: Add .env.example and read DATABASE_URL from environment"].join("\n");
+  const VAGUE = new Set(["fix", "fixes", "fixed", "fix bug", "fix bugs", "bug fix", "bugfix", "update", "updates", "updated", "update code", "update files", "wip", "asdf", "test", "testing", "changes", "change", "stuff", "misc", "minor", "minor changes", "final", "final version", "done", "commit", "save", "small fix", "refactor", "aaa", "."]);
+  const ta = document.getElementById("wbt-log-in"), team = document.getElementById("wbt-log-team"), err = document.getElementById("wbt-log-err"), out = document.getElementById("wbt-log-out");
+  ta.value = EX;
+  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const pct = x => (Math.round(x * 1000) / 10).toFixed(1);
+  function check() {
+    const lines = ta.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    if (!lines.length) { err.textContent = "Geçmiş boş. Her satıra 'yazar: mesaj' yaz ya da 'Örneği yükle'ye bas."; out.innerHTML = ""; return; }
+    const rows = [];
+    for (let i = 0; i < lines.length; i++) {
+      const m = /^([^:]{1,60}):\s*(.*)$/.exec(lines[i]);
+      if (!m || !m[1].trim()) { err.textContent = `${i + 1}. satır "yazar: mesaj" biçiminde değil: "${lines[i].slice(0, 40)}". İki nokta üst üsteden önce yazarın adı olmalı.`; out.innerHTML = ""; return; }
+      rows.push({ who: m[1].trim(), msg: m[2].trim() });
+    }
+    const members = team.value.split(",").map(s => s.trim()).filter(Boolean);
+    err.textContent = "";
+    const flagged = rows.map((r, i) => {
+      const norm = r.msg.toLowerCase().replace(/[.!\s]+$/, "");
+      const words = norm.split(/\s+/).filter(Boolean).length;
+      let why = "";
+      if (!norm) why = "mesaj boş";
+      else if (VAGUE.has(norm)) why = "belirsiz kalıp: neyi neden değiştirdiğini söylemiyor";
+      else if (/^(.)\1+$/.test(norm.replace(/\s/g, ""))) why = "anlamsız karakterler";
+      else if (words < 3) why = "çok kısa: davranış ya da sebep yok";
+      return { i: i + 1, ...r, why };
+    }).filter(r => r.why);
+    const count = {};
+    rows.forEach(r => { count[r.who] = (count[r.who] || 0) + 1; });
+    members.forEach(m => { if (!(m in count)) count[m] = 0; });
+    const authors = Object.keys(count).sort((a, b) => count[b] - count[a]);
+    const n = rows.length, max = Math.max(...authors.map(a => count[a]));
+    let h = `<p class="w-build-and-test-big">${n} commit · ${flagged.length} belirsiz mesaj · ${authors.length} yazar</p>`;
+    h += authors.map(a => `<div class="w-build-and-test-bar"><span title="${esc(a)}">${esc(a)}</span><i class="${count[a] / n >= 0.7 ? "hot" : ""}" style="width:${max ? 100 * count[a] / max : 0}%"></i><span>${count[a]} · %${pct(count[a] / n)}</span></div>`).join("");
+    const warn = [];
+    authors.forEach(a => {
+      if (count[a] / n >= 0.7) warn.push(`<b>${esc(a)}</b>: commit payı %${pct(count[a] / n)} (%70 ya da üstü). Öteki üyelerin katkısı geçmişte görünmüyor olabilir (§4).`);
+      else if (count[a] === 0) warn.push(`<b>${esc(a)}</b> grup listesinde ama hiç commit'i yok. Katkısı kanıtlanamaz; Git e-postasını da kontrol et.`);
+      else if (count[a] / n < 0.1 && authors.length > 1) warn.push(`<b>${esc(a)}</b>: commit payı sadece %${pct(count[a] / n)}. Gerçek katkısı başkasının commit'inde mi?`);
+    });
+    if (members.length) {
+      const extra = authors.filter(a => !members.includes(a) && count[a] > 0);
+      if (extra.length) warn.push(`Grup listesinde olmayan yazar adı: ${extra.map(esc).join(", ")}. Aynı kişinin iki farklı Git kimliği olabilir.`);
+    }
+    if (warn.length) h += `<ul>${warn.map(w => `<li>${w}</li>`).join("")}</ul>`;
+    else h += `<p class="w-build-and-test-ok">Dağılımda belirgin bir dengesizlik yok.</p>`;
+    if (flagged.length) h += `<div class="table-wrap"><table><tr><th>#</th><th>Yazar</th><th>Mesaj</th><th>Sorun</th></tr>` + flagged.map(r => `<tr><td>${r.i}</td><td>${esc(r.who)}</td><td><code>${esc(r.msg) || "(boş)"}</code></td><td>${r.why}</td></tr>`).join("") + `</table></div>`;
+    h += `<p class="src">Kontrol kaba bir sezgisel kural: sabit bir belirsiz kalıp listesi ve üç kelimeden kısa mesajlar. Sayı katkının kendisi değil; değerlendirici commit'lerin içeriğine de bakar.</p>`;
+    out.innerHTML = h;
+  }
+  document.getElementById("wbt-log-go").addEventListener("click", check);
+  document.getElementById("wbt-log-ex").addEventListener("click", () => { ta.value = EX; team.value = "Ada, Bora, Cem"; check(); });
+  out.textContent = "Geçmişi kontrol etmek için butona bas.";
+})();
+
+/* 5. Success-criterion tester: share under threshold and nearest-rank percentile. */
+(function () {
+  const EX = "120, 135, 140, 150, 155, 160, 165, 170, 175, 180, 182, 185, 190, 195, 198, 205, 210, 230, 260, 480";
+  const P = document.getElementById("wbt-crit-p"), T = document.getElementById("wbt-crit-t"), ta = document.getElementById("wbt-crit-in");
+  const err = document.getElementById("wbt-crit-err"), out = document.getElementById("wbt-crit-out");
+  const num = s => /^\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+  const r2 = x => String(Math.round(x * 100) / 100);
+  /* ceil(p · n / 100) in exact integer arithmetic: 0.28 * 25 is 7.000000000000001 in floating point. */
+  const ceilPct = (ps, n) => { const [a, b = ""] = ps.split("."); const num = BigInt(a + b) * BigInt(n), den = 100n * 10n ** BigInt(b.length); return Number((num + den - 1n) / den); };
+  function calc() {
+    const ps = P.value.trim().replace(",", "."), p = num(ps), t = num(T.value.trim().replace(",", "."));
+    if (!(p > 0 && p <= 100)) { err.textContent = "Yüzde 0'dan büyük, en fazla 100 olmalı (örneğin 95)."; out.innerHTML = ""; return; }
+    if (!(t > 0)) { err.textContent = "Eşik pozitif bir sayı olmalı (örneğin 200)."; out.innerHTML = ""; return; }
+    const toks = ta.value.split(/[\s,;]+/).filter(Boolean);
+    const badTok = toks.find(x => isNaN(num(x)));
+    if (badTok !== undefined) { err.textContent = `"${badTok}" bir ölçüm değil. Sadece sayılar, ondalık için nokta (182.5).`; out.innerHTML = ""; return; }
+    if (toks.length < 2) { err.textContent = "En az iki ölçüm yaz; tek ölçümle bir yüzde test edilmez."; out.innerHTML = ""; return; }
+    err.textContent = "";
+    const xs = toks.map(num), s = xs.slice().sort((a, b) => a - b), n = s.length;
+    const mean = s.reduce((a, b) => a + b, 0) / n;
+    const med = n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+    const rank = ceilPct(ps, n), pv = s[rank - 1];
+    const under = s.filter(v => v < t).length, need = rank;
+    const pass = under >= need;
+    const top = Math.max(t * 1.15, s[n - 1]);
+    let h = `<div class="w-build-and-test-strip" aria-hidden="true">` + xs.map(v => `<b class="${v < t ? "" : "over"}" style="height:${100 * v / top}%" title="${v}"></b>`).join("") + `<div class="w-build-and-test-line" style="bottom:${100 * t / top}%"></div></div>`;
+    h += `<p class="src">Çubuklar ölçüm sırasıyla; kesikli çizgi ${r2(t)} ms eşiği, turuncu çubuklar eşiğin üstünde.</p>`;
+    h += `<div class="table-wrap"><table><tr><th>Ölçü</th><th>Değer</th></tr>`;
+    h += `<tr><td>n</td><td>${n}</td></tr><tr><td>Ortalama</td><td>${r2(mean)} ms ${mean < t ? "(eşiğin altında, ama criterion ortalama demiyor)" : ""}</td></tr><tr><td>Median</td><td>${r2(med)} ms</td></tr>`;
+    h += `<tr><td>Eşiğin altında (&lt; ${r2(t)})</td><td>${under} / ${n} = %${r2(100 * under / n)}; gereken ⌈${r2(p / 100)} · ${n}⌉ = ${need}</td></tr>`;
+    h += `<tr><td>p${r2(p)} (nearest-rank)</td><td>sıralı listede ${rank}. değer = ${r2(pv)} ms</td></tr></table></div>`;
+    h += `<p class="w-build-and-test-big ${pass ? "w-build-and-test-ok" : "w-build-and-test-no"}">${pass ? "PASS" : "FAIL"}: ${under} ölçüm eşiğin altında, ${need} gerekiyordu; p${r2(p)} = ${r2(pv)} ms ${pv < t ? "&lt;" : "≥"} ${r2(t)} ms.</p>`;
+    if (n < 20) h += `<p class="src">Not: ${n} ölçüm az; tek bir yavaş istek sonucu değiştirir. Raporda örnek sayısını yaz.</p>`;
+    h += `<p>Rapor satırı:</p><pre>${r2(p)}% of requests answered in under ${r2(t)} ms · measured: ${under}/${n} (${r2(100 * under / n)}%) under ${r2(t)} ms, p${r2(p)} = ${r2(pv)} ms · ${pass ? "PASS" : "FAIL"}</pre>`;
+    out.innerHTML = h;
+  }
+  document.getElementById("wbt-crit-go").addEventListener("click", calc);
+  document.getElementById("wbt-crit-ex").addEventListener("click", () => { ta.value = EX; P.value = "95"; T.value = "200"; calc(); });
+  [P, T].forEach(el => el.addEventListener("keydown", e => { if (e.key === "Enter") calc(); }));
+  calc();
+})();
+
+/* 6. Triage sorter: 10 RoomFinder issues; known limitations are turned into report sentences. */
+(function () {
+  const CAT = { fix: "Demo'dan önce düzelt", lim: "Known limitation", p2: "Project II: yeni özellik" };
+  const ITEMS = [
+    { s: "Rezervasyon formunda bitiş saati boş bırakılınca sayfa 500 hatası veriyor.", a: "fix", r: "Ana workflow'da ve demo'da kolayca tetiklenir; weeks/11: \"Input validation and error states — demos fail on these.\"", lim: "Submitting a booking without an end time returns a server error instead of a validation message." },
+    { s: "Deploy edilen sunucuda login çalışmıyor; sadece localhost'ta çalışıyor.", a: "fix", r: "Demo deploy edilen sürümden yapılacak ve login bütün akışların kapısı.", lim: "Login works only on a local installation, not on the deployed server." },
+    { s: "Oda listesi 200 odadan sonra yavaşlıyor (p95 900 ms). Prototipte 12 oda var; criterion 50 oda için yazıldı ve geçiyor.", a: "lim", r: "Demo'yu ve criterion'u bozmuyor ama gerçek bir sınır; dürüstçe yazılır.", lim: "Room listing slows down beyond about 200 rooms (p95 900 ms); the prototype and its success criterion use at most 50 rooms." },
+    { s: "Ekran okuyucu, takvim ızgarasındaki boş hücreleri okumuyor.", a: "lim", r: "Basic accessibility'nin bir eksiği; demo'yu bozmuyor. Raporda belirtilir, Project II'de düzeltilir.", lim: "Empty cells in the calendar grid are not announced by screen readers." },
+    { s: "Kullanıcılar e-posta ile hatırlatma almak istiyor.", a: "p2", r: "Bu bir bug değil, yeni bir özellik isteği.", lim: "Users receive no e-mail reminders for their bookings." },
+    { s: "Seed verisinde bir odanın kapasitesi -4 görünüyor ve demo ekranında çıkıyor.", a: "fix", r: "Demo'da yanlış veri görünür; düzeltmesi birkaç dakika.", lim: "One seeded room shows a negative capacity." },
+    { s: "Uygulamanın native mobil sürümü yok.", a: "p2", r: "Proposal'ın out-of-scope listesinde; Project II planının konusu.", lim: "There is no native mobile application." },
+    { s: "Rezervasyon iptal edilince liste sayfa yenilenmeden güncellenmiyor.", a: "fix", r: "İptal ana workflow'lardan biri; demo'da \"iptal ettim ama hâlâ görünüyor\" bir bug olarak okunur.", lim: "The room list does not refresh after a booking is cancelled." },
+    { s: "Performans testi tek bir laptop'ta, 10 eşzamanlı kullanıcıyla yapıldı; 100 kullanıcıda ölçülmedi.", a: "lim", r: "Ne ölçülmediğini söylemek de bir limitation. Değerlendiricinin ilk sorusu bu olur.", lim: "Performance was measured with 10 concurrent users on one machine; behaviour with 100 users was not measured." },
+    { s: "Takvim entegrasyonu (Google Calendar) proposal'da \"Could\" önceliğindeydi ve yapılmadı.", a: "p2", r: "Önceliği düşük bir özellik; MoSCoW'da Could. Project II planına girer.", lim: "Calendar integration (a Could requirement) was not implemented." }
+  ];
+  const rows = document.getElementById("wbt-tri-rows"), out = document.getElementById("wbt-tri-out");
+  const opts = `<option value="">Seç…</option>` + Object.keys(CAT).map(k => `<option value="${k}">${CAT[k]}</option>`).join("");
+  rows.innerHTML = ITEMS.map((it, i) => `<div class="w-build-and-test-row"><div><b>${i + 1}.</b> ${it.s}</div><select class="btn btn--sm" aria-label="Sorun ${i + 1} için karar">${opts}</select><div class="w-build-and-test-fb" id="wbt-tri-fb-${i}"></div></div>`).join("");
+  const sels = Array.from(rows.querySelectorAll("select"));
+  document.getElementById("wbt-tri-go").addEventListener("click", () => {
+    let ok = 0, empty = 0;
+    sels.forEach((sel, i) => {
+      const fb = document.getElementById("wbt-tri-fb-" + i), it = ITEMS[i];
+      if (!sel.value) { empty++; fb.innerHTML = `<span class="w-build-and-test-no">Seçim yok.</span>`; return; }
+      if (sel.value === it.a) { ok++; fb.innerHTML = `<span class="w-build-and-test-ok">✓</span> ${it.r}`; }
+      else fb.innerHTML = `<span class="w-build-and-test-no">✗ ${CAT[sel.value]} değil, ${CAT[it.a]}.</span> ${it.r}`;
+    });
+    const nFix = ITEMS.filter(it => it.a === "fix").length;
+    const lims = ITEMS.filter((it, i) => sels[i].value === "lim");
+    const p2 = ITEMS.filter((it, i) => sels[i].value === "p2");
+    let h = (empty ? `${empty} satır boş. ` : "") + `<span class="w-build-and-test-big">${ok} / ${ITEMS.length}</span> doğru. Demo'dan önce düzeltilmesi gerekenler: <b>${nFix}</b>. Tahminin bu muydu?`;
+    if (lims.length) h += `<p>Senin seçimlerinden final report taslağı:</p><pre>Known limitations\n${lims.map(it => "- " + it.lim).join("\n")}</pre>`;
+    if (p2.length) h += `<pre>Planned for Senior Design Project II\n${p2.map(it => "- " + it.lim).join("\n")}</pre>`;
+    out.innerHTML = h;
+  });
+  document.getElementById("wbt-tri-reset").addEventListener("click", () => {
+    sels.forEach((sel, i) => { sel.value = ""; document.getElementById("wbt-tri-fb-" + i).innerHTML = ""; });
+    out.textContent = "Her satırda bir seçim yap.";
+  });
+})();
+</script>
+</body>
+</html>
