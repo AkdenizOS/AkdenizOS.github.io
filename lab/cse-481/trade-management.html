@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 481: trade management. Initial stop = cluster low × (1 − buffer), R ve +1R activation, trailing stop, stop ile kârlı exit, positive skew, expectancy, Chandelier Exit ve risk-based position sizing." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Trade management · CSE 481 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-trade-management-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-trade-management-ctl { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 8px 0; }
+    .w-trade-management-ctl label { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .92rem; }
+    .w-trade-management-ctl input[type="text"] { width: 84px; }
+    .w-trade-management-ctl select { max-width: 100%; }
+    .w-trade-management-ctl input[type="range"] { width: 140px; accent-color: var(--blue-600); }
+    .w-trade-management-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-trade-management-chart { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); padding: 6px; }
+    .w-trade-management-chart svg { display: block; width: 100%; height: auto; }
+    .w-trade-management-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .82rem; color: var(--fg-subtle); margin-top: 4px; }
+    .w-trade-management-legend i { display: inline-block; width: 16px; height: 3px; vertical-align: middle; margin-right: 4px; border-radius: 2px; }
+    .w-trade-management-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 6px; margin: 8px 0; }
+    .w-trade-management-stat { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; background: var(--paper); font-size: .85rem; min-width: 0; }
+    .w-trade-management-stat b { display: block; font-size: 1rem; font-family: 'JetBrains Mono', monospace; overflow-wrap: anywhere; }
+    .w-trade-management-ta { width: 100%; box-sizing: border-box; min-height: 64px; font-family: 'JetBrains Mono', monospace; font-size: .9rem; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); }
+    .w-trade-management-ok { color: #2b8a3e; font-weight: 700; }
+    .w-trade-management-bad { color: #c92a2a; font-weight: 700; }
+    .w-trade-management-cur td { background: var(--blue-050); }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 481</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 481</a> / Trade management</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W3</span><span class="chip chip--exam">Vize kapsamı</span><span class="chip">Quiz: risk şartı</span><span class="src">~55 dk · 12 bölüm</span></div>
+          <h1>Trade management: initial stop, R, trailing stop ve positive skew</h1>
+          <p class="lead">Bir strateji iki parçadan oluşur: trade'e girmek (entry) ve açılmış trade'i yönetmek. Bu derste hocanın Week 3 slaytlarındaki <em>trade lifecycle</em>'ı sırasıyla kuracaksın: initial stop, R, +1R activation, trailing stop ve exit. Sonra positive skew'un düşük win rate ile bile neden kâr getirebildiğini, Chandelier Exit'i ve position sizing'i göreceksin.</p>
+          <p class="src">Not: Bu ders için geçmiş sınav sorusu yok. "Slayt sorusu" kutuları hocanın slaytlarındaki sayısal örneklerden ve quiz brief'inden kuruldu.</p>
+          <!-- Kaynak: resources/2026-2027-fall/week-03-bist-trading-strategies.pdf s.5, s.6 (1/4 görsel), s.8 (3/4 görsel), s.9 (4/4 görsel), s.10, s.17, s.19–27, s.29, s.32 · quiz-bist-algo-trading-challenge.pdf s.2 (Risk Management Requirement, Required Metrics, Final Analysis Question) · Efe'nin quiz defteri bist_algo_trading_challenge.ipynb hücre 0, 9, 11, 13, 26, 27. Bütün sayılar python3 ile yeniden hesaplandı; Chandelier widget'ı defterdeki 9 ASELS/TCELL trade'ini birebir üretiyor. -->
+        </header>
+
+        <article class="lesson" data-course="cse-481" data-lesson="trade-management">
+
+<!-- 1 -->
+<section class="lsec" id="frame" data-min="4">
+  <h2>Entry'den sonra: trade management nerede durur?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Entry sinyali tek bir soruyu cevaplar: "Şimdi gireyim mi?" Trade açıldıktan sonra üç soru daha kalır. Hangi fiyatta yanıldığımı kabul ederim? Fiyat lehime giderse kârı nasıl korurum? Trade ne zaman kapanır? Bu üç sorunun cevabına <strong>trade management</strong> denir.</p>
+    <p>Hoca Volume Bubbles stratejisini tek cümleyle özetliyor: <em>"Find unusual pressure → enter only if the signal is valid → protect the trade → let strong trends run."</em> İlk iki adım sinyal, son ikisi bu dersin konusu: <em>Signal + Risk Control</em>.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Ortak çerçeve · W3 s.5</span>
+    <p>Hoca her stratejiyi aynı sekiz soruyla anlatıyor. Bu dersin konusu 5, 6 ve 7:</p>
+    <div class="table-wrap"><table>
+      <tr><th>#</th><th>Adım</th><th>Soru</th></tr>
+      <tr><td>1</td><td>Input Data</td><td>What data does it use?</td></tr>
+      <tr><td>2</td><td>Signal Detection</td><td>What event does it detect?</td></tr>
+      <tr><td>3</td><td>Filters</td><td>Which extra conditions must be true?</td></tr>
+      <tr><td>4</td><td>Entry</td><td>When does it buy or sell?</td></tr>
+      <tr><td><b>5</b></td><td><b>Initial Stop</b></td><td><b>Where is the first risk boundary?</b></td></tr>
+      <tr><td><b>6</b></td><td><b>Trade Management</b></td><td><b>How does it manage the open trade?</b></td></tr>
+      <tr><td><b>7</b></td><td><b>Exit</b></td><td><b>When does the trade close?</b></td></tr>
+      <tr><td>8</td><td>Performance</td><td>How well did it work?</td></tr>
+    </table></div>
+    <p>Volume Bubbles örneğinde exit satırı şöyle: <em>"Exit = stop, trailing stop, target, or time rule"</em>. Çerçevenin son sorularından biri de bu derse bağlanıyor: <em>"Do results come from entries or exits?"</em> (Bölüm 9).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Trade lifecycle · W3 s.8</span>
+    <ol>
+      <li><strong>Entry:</strong> If a valid buyer cluster appears, open a long trade.</li>
+      <li><strong>Initial Stop:</strong> Place the stop below the cluster candle low (or use ATR, depending on settings).</li>
+      <li><strong>Risk Unit (R):</strong> R = Entry Price − Initial Stop.</li>
+      <li><strong>+1R Activation:</strong> When price moves up by 1R, trailing stop can activate.</li>
+      <li><strong>Trailing Stop:</strong> The stop moves up as price moves in favor.</li>
+      <li><strong>Exit:</strong> The trade closes if stop is touched, target is hit, or another exit rule applies.</li>
+    </ol>
+    <p>Bu ders bu sırayı izliyor. İki tanımı da slayttan aynen al (W3 s.6):</p>
+    <ul>
+      <li><strong>Stop:</strong> Used to limit losses.</li>
+      <li><strong>Trailing Stop:</strong> Used to protect profits while allowing the trade to stay open as long as the trend continues.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W3 s.5 (A Common Framework for All Strategies), s.6 (Visual Pseudocode Guide 1/4, adım 8 "Protect with stop + optional trailing stop"), s.8 (Trade Management 3/4), s.10 (The Big Idea). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Stop ile trailing stop aynı şey değil. Stop'un işi zararı sınırlamak, trailing stop'un işi kârı korumak. Trailing stop, hareket eden bir stop'tur.</li>
+      <li>Pseudocode'un 8. adımı "Protect with stop + <em>optional</em> trailing stop" diyor: initial stop zorunlu, trailing stop bir seçenek.</li>
+      <li>Trade management sinyali değiştirmez. Aynı entry'lerle farklı exit kuralları çok farklı sonuç verebilir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-frame-1">
+    <p class="quiz__q">Trailing stop, hocanın sekiz soruluk çerçevesinde hangi soruyu cevaplar?</p>
+    <button class="quiz__opt">5 · Initial Stop: "Where is the first risk boundary?"<span class="why">Initial stop trade açılırken bir kez konan ilk sınırdır. Trailing stop ondan sonra, trade açıkken devreye girer.</span></button>
+    <button class="quiz__opt" data-correct>6 · Trade Management: "How does it manage the open trade?"<span class="why">Doğru. Trailing stop açık trade'i yönetir: fiyat lehe gittikçe stop'u yukarı taşır.</span></button>
+    <button class="quiz__opt">4 · Entry: "When does it buy or sell?"<span class="why">Entry, trade'in ne zaman açılacağını söyler. Trailing stop trade açıldıktan sonra çalışır.</span></button>
+    <button class="quiz__opt">8 · Performance: "How well did it work?"<span class="why">Performance sonuçları ölçer (win rate, net profit). Trailing stop ise trade sırasında çalışan bir kuraldır.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="initial-stop" data-min="5">
+  <h2>Initial stop: ilk risk sınırı</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Volume Bubbles bir buyer cluster gördüğü için girer: "Bu candle'da alıcılar çok güçlü." Fiyat o cluster candle'ın low'unun altına inerse bu fikir bozulmuştur. Initial stop bu noktayı trade açılmadan önce yazar.</p>
+    <p>Slayt bunu şöyle söylüyor (W3 s.19): <em>"A stop is a pre-defined risk boundary."</em> ve <em>"The strategy does not 'know' the future. It only follows a rule: 'Below this level, my entry idea is wrong.'"</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 s.8 ve s.19</span>
+    $$\text{Initial Stop} = \text{Cluster Candle Low} \times (1 - \text{Buffer})$$
+    <ul>
+      <li>Buffer yüzde olarak verilir. Çarpmadan önce ondalığa çevir: $0.5\% = 0.005$, yani $1 - \text{Buffer} = 0.995$.</li>
+      <li>Stop, cluster low'un <strong>biraz altına</strong> konur (<em>"The stop is placed slightly below the cluster candle low."</em>).</li>
+      <li>Fiyat stop'a düşerse trade kapanır: <em>"If price falls to the stop, the trade closes."</em></li>
+      <li>Ayara göre stop ATR ile de konabilir (<em>"or use ATR, depending on settings"</em>). Bunu Bölüm 10'da göreceksin.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · slayttaki iki hesap</span>
+    <div class="table-wrap"><table>
+      <tr><th>Slayt</th><th>Entry</th><th>Cluster low</th><th>Buffer</th><th>Initial stop</th></tr>
+      <tr><td>W3 s.19</td><td>100 TL</td><td>95 TL</td><td>0.5%</td><td>$95 \times 0.995 = 94.525 \approx 94.53$</td></tr>
+      <tr><td>W3 s.8</td><td>71.60</td><td>68.00</td><td>0.5%</td><td>$68.00 \times 0.995 = 67.66$</td></tr>
+    </table></div>
+    <p>Fiyatlar kuruşla yazıldığı için 94.525 iki haneye yuvarlanıp 94.53 oluyor.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>0.5% ≠ 0.5 TL.</strong> $95 - 0.5 = 94.50$ yanlış: buffer bir oran, fiyatla çarpılır.</li>
+      <li><strong>Yüzdeyi ondalığa çevirmeyi unutma.</strong> $95 \times (1 - 0.5) = 47.5$ çıkarsa 0.5%'i 0.5 olarak almışsındır.</li>
+      <li><strong>Buffer entry'ye değil cluster low'a uygulanır.</strong> $100 \times 0.995 = 99.50$ olmaz: fikir cluster low'un altında bozuluyor, entry'nin altında değil.</li>
+      <li>Long trade'de stop her zaman entry'nin altındadır. Stop entry'nin üstünde çıktıysa bir yerde hata var.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w03-p19-initial-stop"><span class="box__label">W3 s.19 · slayt sorusu</span>
+    <p>"9. Initial Stop: The First Protection. A stop is a pre-defined risk boundary. Entry 100 TL · Cluster low 95 TL · Buffer 0.5% · Stop ?" (slaytta cevap da yazıyor; burada soru olarak sorulmuş hali)</p>
+    <p>Stop'u hesapla ve stop'un neden cluster low'un biraz altına konduğunu bir cümleyle açıkla.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Formülde entry yok. Hangi iki sayıyı kullanacaksın?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$1 - 0.5\% = 1 - 0.005 = 0.995$. Bunu cluster low ile çarp, sonucu kuruşa yuvarla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$\text{Stop} = \text{Cluster Low} \times (1 - \text{Buffer}) = 95 \times (1 - 0.005) = 95 \times 0.995 = 94.525 \approx \boxed{94.53 \text{ TL}}$</p>
+      <p>Açıklama: entry fikri "cluster'daki alıcılar fiyatı tutacak" varsayımına dayanıyor. Fiyat cluster low'un altına inerse bu varsayım bozulur. Buffer, low'a sadece değip dönen küçük hareketlerde trade'in gereksiz yere kapanmasını önleyen küçük bir paydır.</p>
+      <p><em>Model answer:</em> "Stop = 95 × 0.995 = 94.53 TL. The stop is a pre-defined risk boundary: below the cluster low the entry idea is wrong, and the 0.5% buffer keeps the stop slightly below that low."</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-istop-1">
+    <p class="quiz__q">Entry 53.00, cluster candle low 50.00, buffer 1%. Initial stop kaç?</p>
+    <button class="quiz__opt" data-correct>49.50<span class="why">Doğru: $50 \times (1 - 0.01) = 49.50$.</span></button>
+    <button class="quiz__opt">49.00<span class="why">50'den 1 TL çıkardın. Buffer bir yüzde, fiyatla çarpılır: 50'nin 1%'i 0.50 TL.</span></button>
+    <button class="quiz__opt">52.47<span class="why">Bu $53 \times 0.99$: buffer'ı entry'ye uyguladın. Formül cluster low'dan başlar.</span></button>
+    <button class="quiz__opt">49.995<span class="why">Bu $50 \times 0.9999$: 1%'i iki kez 100'e bölmüşsün (0.0001). 1% = 0.01.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="r-unit" data-min="5">
+  <h2>R: trade'in risk birimi</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Farklı hisselerde "5 TL kazandım" ya da "3% kaybettim" aynı şeyi anlatmaz. R her trade'i <strong>kendi riskiyle</strong> ölçer: stop'a kadar olan mesafe. Slayt: <em>"R is the initial risk of the trade."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 s.8 ve s.21</span>
+    $$R = \text{Entry} - \text{Initial Stop} \qquad\qquad +1R \text{ level} = \text{Entry} + R$$
+    <p>Genel olarak $+mR$ seviyesi $\text{Entry} + m \cdot R$'dir ($m = 1.5$ ya da $2$ gibi; Bölüm 5).</p>
+    <div class="table-wrap"><table>
+      <tr><th>Slayt</th><th>Entry</th><th>Initial stop</th><th>R</th><th>+1R level</th></tr>
+      <tr><td>W3 s.21</td><td>100</td><td>95</td><td>$100 - 95 = 5$</td><td>$100 + 5 = 105$</td></tr>
+      <tr><td>W3 s.8</td><td>71.60</td><td>67.66</td><td>$71.60 - 67.66 = 3.94$</td><td>$71.60 + 3.94 = 75.54$</td></tr>
+    </table></div>
+  </div>
+  <p class="src">Not: s.21, R'yi stop = 95 ile hesaplıyor (buffer'sız cluster low). s.19'da aynı trade'in stop'u 94.53. Buffer'lı stop'la $R = 100 - 94.53 = 5.47$ ve +1R = 105.47 olurdu. Sınavda soruda hangi stop verildiyse onu kullan.</p>
+  <div class="box box--example">
+    <span class="box__label">Ek · R-multiple (slaytta yok, standart kullanım)</span>
+    <p>Bir trade'in sonucunu R cinsinden de yazabilirsin: $\dfrac{\text{Exit} - \text{Entry}}{R}$. Initial stop'ta kapanan trade $-1R$'dir. s.22'deki trade (100 → 116, R = 5) $+16/5 = +3.2R$; s.8'deki trade (71.60 → 84.00, R = 3.94) $+12.40/3.94 \approx +3.15R$. Positive skew'u (Bölüm 7) R ile düşünmek kolaylaşır: çok sayıda $-1R$, birkaç büyük $+kR$.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>+1R level = Entry + R</strong>, Stop + R değil. $67.66 + 3.94 = 71.60$ sadece entry'yi geri verir.</li>
+      <li>R, <strong>initial</strong> risk'tir. Trailing stop sonradan yükselse bile R değişmez; R-multiple hep ilk R ile hesaplanır.</li>
+      <li>R bir fiyat farkıdır (hisse başına TL). Yüzde ya da toplam TL değildir. Toplam TL riski için hisse sayısıyla çarparsın (Bölüm 11).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w03-p21-plus1r"><span class="box__label">W3 s.21 · slayt sorusu</span>
+    <p>"11. What does '+1R Activation' mean? R is the initial risk of the trade. Entry 100 · Stop 95 · R ? · +1R level ?"</p>
+    <p>R'yi ve +1R seviyesini bul. Trailing stop bu seviyeden önce ve sonra ne yapar?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>R, entry ile stop arasındaki mesafe.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>+1R seviyesini bulmak için bu mesafeyi entry'nin üstüne ekle. "Activation" kelimesi trailing stop'un ne zaman başladığını anlatıyor.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$R = 100 - 95 = 5$ ve $+1R = 100 + 5 = \boxed{105}$.</p>
+      <p>Fiyat 105'e gelmeden önce trade'i yalnızca initial stop (95) korur. Fiyat 105'e ulaştıktan sonra stop fiyatı yukarı doğru takip etmeye başlayabilir.</p>
+      <p><em>Model answer:</em> "R = Entry − Stop = 100 − 95 = 5. The +1R level is 100 + 5 = 105. Trailing activates only after price reaches +1R; before 105 the initial stop protects the trade, after 105 the stop can start following price upward."</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-r-1">
+    <p class="quiz__q">Entry 50.00, initial stop 47.50. +1R seviyesi kaç?</p>
+    <button class="quiz__opt" data-correct>52.50<span class="why">Doğru: $R = 2.50$, $+1R = 50 + 2.50 = 52.50$.</span></button>
+    <button class="quiz__opt">50.00<span class="why">Bu Stop + R. R'yi stop'a eklersen entry'ye geri dönersin. +1R entry'nin bir R üstüdür.</span></button>
+    <button class="quiz__opt">55.00<span class="why">Bu +2R ($50 + 2 \times 2.50$).</span></button>
+    <button class="quiz__opt">2.50<span class="why">Bu R'nin kendisi, yani bir mesafe. Soru bir fiyat seviyesi istiyor.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="trailing" data-min="5">
+  <h2>Trailing stop: yukarı gider, aşağı inmez</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Stop 95'te sabit kalsın. Fiyat 100'den 120'ye çıksın, sonra 96'ya geri dönsün. Trade hâlâ açık ve 20 TL'lik kâr neredeyse tamamen gitti. Trailing stop bunu önler: fiyat lehine gittikçe stop'u da yukarı taşır. Fiyat düşünce ise stop yerinde kalır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 s.20 ve s.21</span>
+    <ul>
+      <li><em>"Trailing stop moves up when the trade moves in your favor."</em></li>
+      <li><em>"In a long trade, trailing stop can move up, but it does not move down."</em></li>
+      <li><em>"This protects profit while giving the trend room to continue."</em></li>
+      <li>+1R activation: <em>"Trailing stop activates only after price reaches +1R. Before 105, the initial stop protects the trade. After 105, the stop can start following price upward."</em></li>
+    </ul>
+    <p>"Aşağı inmez" kuralını tek satırda yazabilirsin:</p>
+    $$\text{stop}_t = \max\big(\text{stop}_{t-1},\ \text{yeni trailing seviyesi}_t\big)$$
+    <p>Yeni trailing seviyesi bir kurala göre hesaplanır: peak'in altında sabit bir mesafe, bir yüzde ya da ATR'nin katı (Chandelier, Bölüm 10). Slayttaki sade tarif (W3 s.8): <em>"Trailing stop = a moving protective stop that follows the trend from below."</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · W3 s.20</span>
+    <div class="table-wrap"><table>
+      <tr><th>Durum</th><th>Fiyat</th><th>Stop</th></tr>
+      <tr><td>Entry</td><td>100</td><td>95 (initial)</td></tr>
+      <tr><td>Fiyat yükseliyor</td><td>105</td><td>99</td></tr>
+      <tr><td></td><td>110</td><td>104</td></tr>
+      <tr><td></td><td>120</td><td>112</td></tr>
+    </table></div>
+    <p>Fiyat 105'e geldiğinde (bu trade'in +1R seviyesi) stop ilk kez kıpırdıyor. Bu da s.21'deki activation kuralıyla uyumlu.</p>
+  </div>
+  <p class="src">Not: Slayt trailing mesafesinin kuralını vermiyor. Mesafeler 105→99 (6), 110→104 (6), 120→112 (8), s.22'de 125→116 (9). Sayılar yalnızca "stop fiyatla yukarı gider, aşağı inmez" fikrini gösteriyor. Sınavda bir kural verilirse onu uygula.</p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Fiyat 120'den 115'e düşerse stop <strong>112'de kalır</strong>. "Stop fiyatın 8 altında durur" deyip 107'ye indirmek trailing stop değildir.</li>
+      <li>Activation'dan önce stop hareket etmez. Fiyat 103'e çıkıp dönerse stop hâlâ 95'tir.</li>
+      <li>Trailing stop kârı garanti etmez. Stop entry'nin üstüne çıkana kadar trade zararla da kapanabilir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w03-p20-trailing"><span class="box__label">W3 s.20 · slayt sorusu</span>
+    <p>"10. Trailing Stop: A Stop that Follows Price. Entry 100 · Initial Stop 95 · Price rises 105 → 110 → 120 · Stop rises 95 → 99 → 104 → 112"</p>
+    <p>Fiyat 120'den sonra önce 116'ya, sonra 111'e düşüyor. Her adımda stop kaçtır? Trade nerede kapanır, sonuç yüzde kaç ve kaç R?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Fiyat düşerken stop'a ne olur? Kuralı hatırla: "can move up, but it does not move down."</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her yeni fiyatı stop ile karşılaştır: fiyat stop'un altına indiyse trade o seviyeden kapanır. R'yi initial stop'tan hesapla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ul>
+        <li>116: fiyat düştü, stop <strong>112'de kalır</strong>. $116 &gt; 112$, trade açık.</li>
+        <li>111: $111 \le 112$, stop tetiklendi. Exit 112'den (stop fiyatından dolum varsayımıyla).</li>
+      </ul>
+      <p>Sonuç: $\dfrac{112 - 100}{100} = \boxed{+12\%}$. $R = 100 - 95 = 5$, yani $\dfrac{12}{5} = +2.4R$.</p>
+      <p>Fiyat stop'un altında bir gap ile açılırsa (örneğin 108'den) dolum stop'tan değil açılış fiyatından olur ve sonuç daha düşük çıkar (Bölüm 10).</p>
+      <p><em>Model answer:</em> "The stop stays at 112 when price falls to 116, because a trailing stop never moves down. At 111 the stop is touched, the trade exits at 112: +12%, which is +2.4R with R = 5."</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-trail-1">
+    <p class="quiz__q">s.20'deki trade'de fiyat 120'ye çıktı, stop 112 oldu. Sonra fiyat 114'e düşüyor. Stop kaç olur?</p>
+    <button class="quiz__opt" data-correct>112, değişmez<span class="why">Doğru. Long trade'de trailing stop yukarı gider, aşağı inmez. 114 &gt; 112 olduğu için trade de açık kalır.</span></button>
+    <button class="quiz__opt">106<span class="why">Stop'u fiyatla birlikte aşağı çektin (114 − 8). Trailing stop fiyat düşünce yerinde kalır.</span></button>
+    <button class="quiz__opt">95, initial stop'a döner<span class="why">Stop bir kez yükseldikten sonra geri dönmez. Initial stop sadece activation'dan önce geçerliydi.</span></button>
+    <button class="quiz__opt">Trade hemen kapanır<span class="why">Trade ancak fiyat stop'a (112) değerse kapanır. 114 hâlâ stop'un üstünde.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="activation" data-min="6">
+  <h2>Activation zamanı: +1R mi, +1.5R mi, +2R mi?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Trailing stop'u çok erken başlatırsan stop fiyata çok yaklaşır ve sıradan bir geri çekilme trade'i kapatır. Geç başlatırsan trade nefes alır, ama fiyat activation'a ulaşmadan dönerse trade initial stop'ta $-1R$ ile kapanır. Hoca bunu test edilecek bir fikir olarak veriyor: <em>"Test +1R vs +1.5R vs +2R. Trailing stop may activate too early in volatile stocks."</em> (W3 s.25; s.9'da da "Test trailing-stop activation at 1R vs 1.5R vs 2R").</p>
+  </div>
+  <h3>Trade lifecycle simülatörü</h3>
+  <p>Aşağıdaki fiyat yolları elle kuruldu, gerçek veri değil. "Trend" yolu s.8'deki grafiğe benziyor: entry 71.60, cluster low 68.00, fiyat 90'a çıkıp 84'e dönüyor. Trailing kuralı "stop = peak − sabit mesafe". 6 TL mesafe s.8'deki "90'da stop 84" sayısını veriyor. Her bar'da stop gerçekten hesaplanıyor. Bar'da fiyat stop'a değerse ya da altına inerse exit stop fiyatından yapılıyor.</p>
+  <p class="w-trade-management-guess"><b>Önce tahmin et:</b> "Dalgalı" yolda activation +1R iken trade kârla mı kapanır, zararla mı? +2R'ye çıkarınca ne değişir?</p>
+  <div class="w-trade-management-ctl">
+    <label>Fiyat yolu <select id="lc-path" class="btn btn--sm">
+      <option value="trend">Trend (s.8'e benzer)</option>
+      <option value="volatile">Dalgalı, sonra trend</option>
+      <option value="chop">Yatay (sideways)</option>
+    </select></label>
+    <label>Activation <select id="lc-act" class="btn btn--sm">
+      <option value="1">+1R</option>
+      <option value="1.5">+1.5R</option>
+      <option value="2">+2R</option>
+    </select></label>
+    <label>Buffer % <input id="lc-buf" type="text" inputmode="decimal" value="0.5" class="btn btn--sm" /></label>
+    <label>Trail mesafesi (TL) <input id="lc-trail" type="text" inputmode="decimal" value="6" class="btn btn--sm" /></label>
+  </div>
+  <div class="w-trade-management-err" id="lc-err" aria-live="polite"></div>
+  <div id="lc-stepper"></div>
+  <div class="w-trade-management-legend"><span><i style="background:var(--blue-600)"></i>fiyat</span><span><i style="background:#c92a2a"></i>stop (o bar'da geçerli olan)</span><span><i style="background:var(--stone-500)"></i>entry</span><span><i style="background:var(--accent)"></i>activation seviyesi</span></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · activation seçimi bir trade-off</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Erken activation (+1R)</th><th>Geç activation (+2R)</th></tr>
+      <tr><td>İyi yanı</td><td>Küçük kârları erken korur</td><td>Trend'e geri çekilmeler için yer bırakır</td></tr>
+      <tr><td>Kötü yanı</td><td>Dalgalı hissede normal bir geri çekilme trade'i kapatır</td><td>Fiyat +1R ile +2R arasında dönerse trade initial stop'ta kapanır</td></tr>
+    </table></div>
+    <p>Hangisinin iyi olduğu hisseye ve döneme bağlı. Bu yüzden hoca aynı ayarın <strong>bütün hisselerde</strong> test edilmesini istiyor.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Trend" yolunda üç ayar da aynı sonucu veriyor (+17.32%). Activation sadece fiyat activation ile peak arasında geri çekildiğinde fark yaratır.</li>
+      <li>"Yatay" yolda activation hiç gelmiyor. Trade'i trailing kuralı değil initial stop kapatıyor: $-1R$.</li>
+      <li>Ayarı tek bir hissede en iyi sonuca göre seçmek overfitting olur. Slayt: <em>"Do not optimize only for one stock. Test the same settings across many stocks."</em></li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w03-p25-activation-test"><span class="box__label">W3 s.25 · slayttaki test görevi</span>
+    <p>"16. Improvement Ideas to Test … 5 Test +1R vs +1.5R vs +2R. Trailing stop may activate too early in volatile stocks. Do not optimize only for one stock. Test the same settings across many stocks." (görevin bu dersle ilgili maddesi)</p>
+    <p>Bu testi nasıl kurarsın? Hangi sonuç neyi gösterir?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Adil bir karşılaştırmada sadece tek bir şey değişmeli. Hangisi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Hangi metrikler activation'dan etkilenir? Geri çekilmede kapanan trade sayısını, win rate'i, ortalama kazancı düşün. Simülatördeki "Dalgalı" yolu üç ayarla oynat.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>Entry sinyali, initial stop, trailing mesafesi, hisseler ve tarih aralığı sabit kalır. <strong>Sadece activation katsayısı</strong> değişir: 1, 1.5, 2.</li>
+        <li>Altı hissenin her birinde üç backtest çalıştır. Net profit, win rate, ortalama kazanan / kaybeden, initial stop'ta kapanan trade sayısı ve maximum drawdown'u karşılaştır.</li>
+        <li>Yorum: +1R'de çok sayıda küçük kazanç ya da küçük zararla kapanan trade varsa ve +2R'de bunlar büyük kazançlara dönüyorsa, trailing stop dalgalı hisselerde erken başlıyordur. +2R'de initial stop'ta kapanan trade'ler çoğalıyorsa geç activation pahalıya geliyordur.</li>
+        <li>Bir ayarı seçerken tek hissedeki en iyi sonuca değil, altı hissedeki genel davranışa bak.</li>
+      </ol>
+      <p>Simülatördeki "Dalgalı" yol bu etkiyi tek trade'de gösteriyor: +1R'de fiyat 76.40'a çıkınca stop 70.40'a geliyor, 70.10'luk geri çekilme trade'i <strong>−1.68%</strong> ile kapatıyor. +1.5R ve +2R'de stop o sırada hâlâ 67.66'da. Trade geri çekilmeyi atlatıyor ve 89.20'den <strong>+24.58%</strong> ile kapanıyor.</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-act-1">
+    <p class="quiz__q">Activation'ı +1R'den +2R'ye çıkardın, başka hiçbir şeyi değiştirmedin. Hangi durum <strong>daha sık</strong> görülür?</p>
+    <button class="quiz__opt" data-correct>Fiyat +1R ile +2R arasında dönünce trade initial stop'ta $-1R$ ile kapanır<span class="why">Doğru. +2R görülmeden trailing başlamadığı için stop initial seviyede bekler. Fiyat bu aralıktan dönerse kazanç geri verilir.</span></button>
+    <button class="quiz__opt">Trade sıradan geri çekilmelerde daha sık kapanır<span class="why">Tersi. Geri çekilmelerde erken kapanma, activation'ın <em>erken</em> olduğu durumun sorunu (+1R). Geç activation stop'u uzakta tutar.</span></button>
+    <button class="quiz__opt">R büyür<span class="why">R = Entry − Initial Stop. Activation katsayısı R'yi değiştirmez, sadece trailing'in hangi seviyede başlayacağını değiştirir.</span></button>
+    <button class="quiz__opt">Initial stop yukarı taşınır<span class="why">Initial stop entry'de cluster low ve buffer ile bir kez konur. Activation onu değiştirmez.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="stop-exit" data-min="5">
+  <h2>"Stop" ile çıkış kârlı olabilir</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Trailing stop entry'nin üstüne çıktıktan sonra stop'a değmek kârı realize etmek demektir. Bu yüzden "stop ile çıktı" cümlesi tek başına "zarar etti" anlamına gelmez. Slayt (W3 s.22): <em>"The word 'stop' does not always mean a loss. It means the exit rule was triggered."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · exit çeşitleri</span>
+    <ul>
+      <li>W3 s.8: <em>"The trade closes if stop is touched, target is hit, or another exit rule applies."</em></li>
+      <li>W3 s.5: <em>"Exit = stop, trailing stop, target, or time rule"</em>.</li>
+    </ul>
+    <p>Exit sonucunu hep <strong>entry'ye göre</strong> ölç: $\text{sonuç} = \dfrac{\text{Exit} - \text{Entry}}{\text{Entry}}$. Exit'in adı (stop, target, time) sonucun işaretini söylemez.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Efe'nin quiz defteri</span>
+    <p>Defterdeki 31 trade'in 30'u stop ile kapandı (sonuncusu periyot sonu kuralıyla). Bu 30 stop exit'in <strong>19'u kârlı</strong>, 4'ü tam break-even, 7'si zararlı. AKBNK'de 6 stop exit'in 5'i kârlıydı. Orada stop çoğunlukla kâr almak için çalıştı.</p>
+    <p>Bir ayrıntı: break-even stop sıfır zararı garanti etmez. AKBNK #1'de stop entry'ye (68.60) çekilmişti ama hisse 68.00'den gap ile açıldı: <strong>−0.87%</strong>. TUPRS #4'te stop 249.70'teydi, açılış 239.50: <strong>−4.08%</strong>.</p>
+  </div>
+  <!-- Kaynak: bist_algo_trading_challenge.ipynb hücre 11 (trade listesi), hücre 26 (stop exit tablosu), hücre 27 ("How often the stop was hit"). Sayılar python ile yeniden üretildi. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Sonucu stop'tan ya da peak'ten ölçme. 100'den alıp 125'i görüp 116'da çıkan trade'in sonucu +16%'dır; +25% ya da −9% değil.</li>
+      <li>"Stop exit sayısı yüksek, demek ki strateji kötü" yanlış bir çıkarım. Kaçının kârlı olduğuna bak.</li>
+      <li>Yüzdeleri yuvarlarken dikkat: $84/71.60 - 1 = 0.1732$. Slayt "≈ +17%" diyor.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w03-p22-stop-profit"><span class="box__label">W3 s.22 · slayt sorusu</span>
+    <p>"12. A 'Stop' Exit can still be Profitable. Example: Buy at 100. Initial stop is 95. Price rises to 125. Trailing stop moves up. The stop is now 116. This is above the entry price. Price falls to 116. The trade exits by stop, but the result is +16%."</p>
+    <p>Trade neden "stop ile" kapandığı hâlde +16% kazandırdı? Sonucu R cinsinden de yaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Exit fiyatı (116) entry'nin (100) üstünde mi, altında mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>R'yi initial stop ile hesapla: $100 - 95$. Sonra kazancı R'ye böl.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Fiyat 125'e çıkarken trailing stop 116'ya yükseldi, yani entry'nin üstüne. Fiyat 116'ya düşünce stop tetiklendi ve trade entry'den yüksek bir fiyattan kapandı.</p>
+      <p>$\dfrac{116 - 100}{100} = +16\%$, $R = 5$, $\dfrac{16}{5} = \boxed{+3.2R}$. Peak'teki kâr (+25, yani +5R) tamamen alınamadı: 9 TL, trailing stop'un trend'e bıraktığı yerin bedeli.</p>
+      <p><em>Model answer:</em> "The trailing stop had moved up to 116, above the entry price of 100. When price fell to 116 the exit rule was triggered, so the trade closed by stop but with a profit of +16% (+3.2R). 'Stop' means the exit rule fired, not that the trade lost money."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="w03-p8-lifecycle"><span class="box__label">W3 s.8 · slayt sorusu</span>
+    <p>"Example: Trade Lifecycle with Real Numbers. 1 Entry 71.60 · 2 Initial Stop 67.66 · 3 Risk Unit (R) 71.60 − 67.66 = 3.94 · 4 +1R level 75.54 (71.60 + 3.94) · 5 Later in the trade: Price rises to 90 and the trailing stop has climbed to 84. · 6 Exit trigger: A drop to 84 triggers exit (when stop is touched). Example result: Entry 71.60 → Exit 84.00 ≈ +17%" ve "Cluster Candle Low = 68.00, Buffer = 0.5%"</p>
+    <p>Cluster low'dan başlayarak bütün satırları kendin hesapla. Sonucu yüzde ve R olarak ver. Peak ile exit arasındaki mesafe kaç R?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Sıra: initial stop → R → +1R → exit sonucu. Her biri bir öncekini kullanıyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Peak 90, exit 84. Bu farkı R'ye (3.94) böl.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ul>
+        <li>Initial stop: $68.00 \times 0.995 = 67.66$</li>
+        <li>$R = 71.60 - 67.66 = 3.94$</li>
+        <li>+1R level: $71.60 + 3.94 = 75.54$. Trailing stop bu seviyeden sonra çalışıyor.</li>
+        <li>Fiyat 90'a çıkıyor, trailing stop 84'e geliyor. Fiyat 84'e düşünce stop tetikleniyor.</li>
+        <li>Sonuç: $\dfrac{84.00 - 71.60}{71.60} = \dfrac{12.40}{71.60} = 0.1732 \approx \boxed{+17.3\%}$, ve $\dfrac{12.40}{3.94} \approx +3.15R$.</li>
+        <li>Peak'ten exit'e: $90 - 84 = 6$ TL $= 6/3.94 \approx 1.52R$ geri verildi.</li>
+      </ul>
+      <p>Bölüm 5'teki simülatörde "Trend" yolu tam bu trade'i oynatıyor.</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-stopexit-1">
+    <p class="quiz__q">Entry 40.00, initial stop 38.00. Fiyat 52'ye çıkıyor, trailing stop 47.00'ye geliyor ve trade 47.00'de stop ile kapanıyor. Sonuç?</p>
+    <button class="quiz__opt" data-correct>+17.5%, yani +3.5R<span class="why">Doğru: $(47 - 40)/40 = 0.175$ ve $R = 2$, $7/2 = 3.5R$.</span></button>
+    <button class="quiz__opt">−1R, çünkü stop ile kapandı<span class="why">"Stop" kelimesi zarar demek değil. Stop entry'nin üstündeyken kapanan trade kârlıdır.</span></button>
+    <button class="quiz__opt">+30%, yani +6R<span class="why">Bu peak'e (52) göre hesap. Trade peak'te değil, 47'de kapandı.</span></button>
+    <button class="quiz__opt">+23.7%<span class="why">Bu $(47 - 38)/38$: sonucu initial stop'tan ölçtün. Getiri entry'ye göre hesaplanır.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="skew" data-min="6">
+  <h2>Positive skew: küçük zararlar, büyük kazançlar</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Initial stop zararı yaklaşık $-1R$'de keser. Trailing stop iyi trade'i trend sürdükçe açık tutar. Sonuç olarak dağılım bir tarafa çarpık olur: çok sayıda küçük zarar, az sayıda büyük kazanç. Slayt (W3 s.24): <em>"This strategy does not need to win every trade. It can work if losses are small and winners are much larger."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 s.24 ve s.9</span>
+    <p><em>"Positive skew = many small losses + a few very large gains."</em></p>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Trade'ler</th><th>Toplam</th></tr>
+      <tr><td>7 küçük zarar</td><td>−2%, −3%, −1%, −2%, −4%, −2%, −3%</td><td>−17%</td></tr>
+      <tr><td>3 büyük kazanç</td><td>+5%, +20%, +35%</td><td>+60%</td></tr>
+      <tr><td><b>Net</b></td><td>win rate = 3/10 = 30%</td><td><b>+43%</b></td></tr>
+    </table></div>
+    <p>s.26'daki Volume Bubbles sonuçlarının altındaki not da aynı şeyi söylüyor: <em>"A high win rate is not required for profitability; a few larger winners can offset many smaller losses."</em> s.27'de örneği var: <em>"FROTO wins only 3 of 20 trades, yet the net result remains slightly positive."</em> (FROTO: 15% win rate, +₺3,000.)</p>
+  </div>
+  <p class="src">Not: Slayt yüzdeleri topluyor. Her trade bütün sermayeyle açılırsa (compounding) doğru hesap çarpımdır: $\prod (1 + r_i) - 1$. Bu 10 trade için sonuç +43.16%, toplama çok yakın. Büyük kazançlarda fark açılır: Efe'nin ASELS trade'lerinin toplamı +178.43%, çarpımı +263.85% (defterde +263,818 TL).</p>
+  <h3>Positive skew hesaplayıcı</h3>
+  <p>Trade getirilerini yüzde olarak yaz (boşluk, virgül ya da noktalı virgülle ayır; ondalık için nokta). Hesaplayıcı toplamı, compounding ile neti, win rate'i ve Bölüm 8'deki expectancy'yi hesaplıyor. Profit factor burada yüzdelerden hesaplanıyor: her trade aynı TL tutarıyla açıldığında TL profit factor'a eşittir.</p>
+  <p class="w-trade-management-guess"><b>Önce tahmin et:</b> Slayttaki 10 trade'den sadece +35%'lik trade'i çıkarırsan net sonuç pozitif kalır mı? Kalırsa yaklaşık kaç olur?</p>
+  <div class="w-trade-management-ctl">
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-sk="-2 -3 -1 -2 -4 -2 -3 5 20 35">Slayt (s.24)</button>
+    <button class="btn btn--sm" data-sk="-2 -3 -1 -2 -4 -2 -3 5 20">+35% olmadan</button>
+    <button class="btn btn--sm" data-sk="69.70 24.31 96.76 -12.34">Efe · ASELS</button>
+    <button class="btn btn--sm" data-sk="0 0.07 -5.04 6.25 -6.47">Efe · TCELL</button>
+    <button class="btn btn--sm" data-sk="60 -19 -19 -19">E &gt; 0, compounding &lt; 0</button>
+  </div>
+  <textarea id="sk-in" class="w-trade-management-ta" aria-label="Trade getirileri (yüzde)">-2 -3 -1 -2 -4 -2 -3 5 20 35</textarea>
+  <div class="w-trade-management-ctl"><button class="btn btn--sm btn--accent" id="sk-go">Hesapla</button></div>
+  <div class="w-trade-management-err" id="sk-err" aria-live="polite"></div>
+  <div class="w-trade-management-chart" id="sk-chart"></div>
+  <div class="w-trade-management-stats" id="sk-stats"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Win rate kârlılığı tek başına söylemez.</strong> 30% win rate +43% verebilir, 80% win rate zarar edebilir. Kazanç ve zararların <em>büyüklüğü</em> de gerekir.</li>
+      <li>Positive skew birkaç büyük kazanca bağlıdır. +35%'i çıkarınca net +43%'ten +8%'e düşüyor. En büyük kazancı kesen bir exit kuralı (çok dar trailing, erken target) bu stratejiyi bozar.</li>
+      <li>Zararların küçük kalması initial stop'a bağlı. Stop'u "biraz daha bekleyeyim" diye kaldırmak skew'u bozar.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w03-p24-positive-skew"><span class="box__label">W3 s.24 · slayt sorusu</span>
+    <p>"14. Positive Skew: Small Losses, Big Wins. This strategy does not need to win every trade. It can work if losses are small and winners are much larger. 7 small losses: −2%, −3%, −1%, −2%, −4%, −2%, −3% · 3 larger wins: +5%, +20%, +35%"</p>
+    <p>Toplam zararı, toplam kazancı ve neti hesapla. Win rate kaç? Strateji neden yüksek win rate olmadan kâr ediyor?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Zararları ve kazançları ayrı ayrı topla. Win rate = kazanan trade / toplam trade.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Ortalama zarar ile ortalama kazancı karşılaştır. Bir kazanç kaç zararı karşılıyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Losses: $-2 - 3 - 1 - 2 - 4 - 2 - 3 = -17\%$. Wins: $5 + 20 + 35 = +60\%$. Net: $60 - 17 = \boxed{+43\%}$.</p>
+      <p>Win rate $= 3/10 = 30\%$. Ortalama zarar $17/7 \approx 2.43\%$, ortalama kazanç $60/3 = 20\%$: bir ortalama kazanç yaklaşık 8 ortalama zararı karşılıyor. Kâr, kazançların sayısından değil büyüklüğünden geliyor.</p>
+      <p>Neden böyle bir dağılım çıkıyor: initial stop zararları küçük tutuyor, trailing stop kazanan trade'i trend sürdükçe açık tutuyor.</p>
+      <p><em>Model answer:</em> "Losses sum to −17%, wins to +60%, net +43% with a win rate of only 30%. The strategy is profitable because losses are cut small by the stop while a few winners run with the trailing stop: positive skew. A high win rate is not required."</p>
+      <p class="src">Not: Slayt yüzdeleri topluyor. Her trade bütün sermayeyle açılırsa compounding ile net +43.16% olur.</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-skew-1">
+    <p class="quiz__q">s.26: FROTO 20 trade'in 3'ünü kazandı (15%) ve yine de hafif kârda (+₺3,000). Bu nasıl mümkün?</p>
+    <button class="quiz__opt" data-correct>Birkaç büyük kazanç, çok sayıdaki küçük zararı karşıladı<span class="why">Doğru. Slaytın yorumu: "A few larger winners can compensate for many small losses."</span></button>
+    <button class="quiz__opt">Win rate 15% olunca strateji kâr edemez, tabloda hata var<span class="why">Win rate tek başına kârı belirlemez. Kazançlar zararlardan yeterince büyükse düşük win rate ile de kâr edilir.</span></button>
+    <button class="quiz__opt">Zarar eden trade'ler stop ile kapandığı için sayılmadı<span class="why">Stop ile kapanan trade'ler de sayılır: 17 losing trade tabloda var.</span></button>
+    <button class="quiz__opt">Trade sayısı arttıkça win rate önemsizleşir<span class="why">Trade sayısı tek başına bir şey değiştirmez. Belirleyici olan kazanç ve zarar büyüklüklerinin oranı.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="expectancy" data-min="4">
+  <h2>Expectancy ve break-even win rate</h2>
+  <p class="src">Not: Expectancy ve break-even win rate hocanın slaytlarında yok. Positive skew fikrini tek bir sayıya çeviren standart tanımlar oldukları için eklendi.</p>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Positive skew "düşük win rate de yeter" diyor. Ne kadar düşük? Bunu cevaplamak için trade başına ortalama sonucu hesaplarsın.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Ek · standart tanımlar</span>
+    <p>$p$ = win rate, $\overline{W}$ = ortalama kazanç, $\overline{L}$ = ortalama zarar (pozitif sayı olarak):</p>
+    $$E = p \cdot \overline{W} - (1 - p) \cdot \overline{L} \qquad\qquad p^{*} = \frac{\overline{L}}{\overline{W} + \overline{L}}$$
+    <ul>
+      <li>$E$ (expectancy): trade başına beklenen sonuç. Break-even trade yoksa trade'lerin ortalamasına eşittir.</li>
+      <li>$p^{*}$ (break-even win rate): $E = 0$ yapan win rate. $p &gt; p^{*}$ ise (bu ortalamalarla) arithmetic expectancy pozitiftir.</li>
+      <li>Yüzde getirilerle $E &gt; 0$ ancak her trade aynı TL tutarıyla açılırsa net kâr demektir. Her trade bütün sermayeyle açılırsa (compounding) kârlılığı $\prod (1 + r_i) - 1$ söyler. Örnek: $+60, -19, -19, -19$ için win rate 25%, ortalama kazanç ortalama zararın 3 katından büyük, $E = +0.75\%$, ama compounding ile net $-14.97\%$.</li>
+      <li>Profit factor = toplam kazanç / toplam zarar (quiz'in Required Metrics listesinde var). Gerçek trade'lerin TL PnL'lerinden hesaplanır. $&gt; 1$ ise net kâr, $= 1$ ise kazanç ve kayıp eşit, net sıfır. Hiç zarar yoksa (kazanç varken) sonsuz, hiç kazanç ve zarar yoksa ($0/0$) tanımsızdır.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · s.24'teki 10 trade</span>
+    <p>$p = 0.3$, $\overline{W} = 60/3 = 20\%$, $\overline{L} = 17/7 \approx 2.43\%$.</p>
+    <p>$E = 0.3 \times 20 - 0.7 \times 2.43 = 6 - 1.7 = +4.3\%$ trade başına. Kontrol: $43\% / 10 = 4.3\%$.</p>
+    <p>$p^{*} = \dfrac{2.43}{20 + 2.43} \approx 10.8\%$. Bu kazanç/zarar oranıyla 30% win rate, expectancy'yi pozitif yapmaya fazlasıyla yetiyor. Yüzdelerden profit factor $= 60/17 \approx 3.53$. Her trade aynı TL tutarıyla açılırsa TL PnL'leri yüzdelerle orantılıdır ve TL profit factor da 3.53 çıkar.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$\overline{L}$'yi formüle negatif koyma: formüldeki eksi işareti zaten zararı çıkarıyor.</li>
+      <li>$p^{*}$ formülünde payda $\overline{W} + \overline{L}$, sadece $\overline{W}$ değil.</li>
+      <li>Expectancy geçmiş trade'lerden hesaplanır. Gelecek için garanti değildir (backtest ≠ future guarantee).</li>
+      <li>Pozitif arithmetic expectancy, compounding ile kâr garantisi değildir. Hesaplayıcıda "E &gt; 0, compounding &lt; 0" hazır girdisini dene: $-19\%$'luk zarardan sonra sermayeyi geri getirmek için $+23.5\%$ gerekir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-exp-1">
+    <p class="quiz__q">Bir stratejide ortalama kazanç 6%, ortalama zarar 2%. Break-even win rate kaç?</p>
+    <button class="quiz__opt" data-correct>25%<span class="why">Doğru: $p^{*} = 2/(6 + 2) = 0.25$. Win rate 25%'in üstündeyse expectancy pozitif.</span></button>
+    <button class="quiz__opt">33%<span class="why">Bu $2/6$: paydaya sadece ortalama kazancı koydun. Payda $\overline{W} + \overline{L}$.</span></button>
+    <button class="quiz__opt">50%<span class="why">50% ancak kazanç ve zarar eşit büyüklükteyse break-even olur. Burada kazanç zararın 3 katı.</span></button>
+    <button class="quiz__opt">75%<span class="why">Bu $6/(6 + 2)$: pay ile paydayı karıştırdın. Pay ortalama zarar olmalı.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="why-differ" data-min="5">
+  <h2>Aynı exit kuralı, farklı hisseler</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Trailing stop bir trend'i sonuna kadar sürmek için tasarlanmış. Trend yoksa aynı kural her seferinde initial stop'ta kapanır. Bu yüzden aynı strateji bazı hisselerde birkaç büyük kazanç, bazılarında bir dizi küçük zarar üretir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 s.9 ve s.23</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Trend-friendly (ASELS, AKBNK, TUPRS)</th><th>Sideways / mean-reverting (TCELL, FROTO, EREGL)</th></tr>
+      <tr><td>Sinyalden sonra</td><td>"Strong positive clusters are followed by sustained price expansion."</td><td>"Buyer clusters appear, but price often reverses quickly."</td></tr>
+      <tr><td>Trade management</td><td>"Trailing stop keeps the trade alive while the trend continues."</td><td>"The strategy enters, but repeated stop-outs reduce win rate."</td></tr>
+      <tr><td>Sonuç</td><td>"A few large winners can dominate total performance."</td><td>"Many small losses occur before a bigger move appears."</td></tr>
+    </table></div>
+    <p>s.9'un özeti: <em>"Core idea: This is a momentum strategy. It looks for unusually strong buying pressure, then tries to ride the trend with disciplined risk control."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Control Test · W3 s.9</span>
+    <p><em>"If random or fixed-interval entries produce similar results, the main edge may come more from the exit system (trailing stop) than from the entry signal itself."</em></p>
+    <p>Yani sinyali kapatıp yerine rastgele (ya da her $n$ günde bir) entry koy, exit sistemini aynen bırak. Sonuçlar benzerse entry sinyalinin ek katkısı gösterilmemiştir. Kazanç piyasa hareketinden ve/veya exit sisteminden geliyor olabilir: yükselen bir piyasada rastgele long entry'ler de kazanır.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Düşük win rate'i doğrudan "kötü sinyal" diye okuma. Sideways bir hissede iyi bir sinyal de tekrar tekrar stop'a takılır.</li>
+      <li>Kârlı bir backtest'i entry sinyaline yazmadan önce Control Test'i düşün: kazanç piyasa hareketinden ya da exit sisteminden geliyor olabilir.</li>
+      <li>Control Test'te exit sistemi değişmemeli. İkisini birden değiştirirsen farkın nereden geldiğini bilemezsin.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w03-p9-control-test"><span class="box__label">W3 s.9 · slayt sorusu</span>
+    <p>"Control Test: If random or fixed-interval entries produce similar results, the main edge may come more from the exit system (trailing stop) than from the entry signal itself."</p>
+    <p>Bu testi adım adım nasıl yaparsın? İki olası sonucu yorumla.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Hangi parça sabit kalmalı, hangisi değişmeli?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Rastgele entry tek bir şans sonucu verebilir. Testi birkaç kez tekrarlamak neden iyi olur?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>Exit sistemini aynen tut: initial stop, +1R activation, trailing stop, varsa time rule.</li>
+        <li>Entry sinyalini kaldır. Yerine aynı hisselerde ve aynı dönemde rastgele tarihlerde ya da sabit aralıklarla (örneğin her 20 bar'da bir) entry koy. Rastgele versiyonu farklı seed'lerle birçok kez çalıştır.</li>
+        <li>Net profit, win rate, ortalama kazanç/zarar ve drawdown'u asıl stratejiyle karşılaştır.</li>
+      </ol>
+      <p><strong>Sonuçlar benzerse:</strong> entry sinyalinin ek katkısı gösterilmemiştir. Kazanç piyasa hareketinden ve/veya exit sisteminden (trailing stop) geliyor olabilir. Bu test ikisini birbirinden ayırmaz. <strong>Asıl strateji belirgin şekilde iyiyse:</strong> entry sinyalinin gerçek bir katkısı (edge) var.</p>
+      <p><em>Model answer:</em> "Keep the exit system fixed and replace the signal with random or fixed-interval entries on the same stocks and period, repeated many times. If results are similar, the entry signal has not shown added value over random entries; the profit may come from market movement and/or the exit system (trailing stop)."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="2026-27-quiz-final-analysis"><span class="box__label">Quiz 2026 · Final Analysis Question (stop'larla ilgili kısım)</span>
+    <p>"Explain why the same strategy performed differently across the six stocks. Discuss factors such as trending vs. sideways markets, volatility, false breakouts, momentum strength, reversal behavior, volume characteristics, and stop-loss frequency." (sorunun bu dersle ilgili kısmı: stop-loss frequency)</p>
+    <p>Efe'nin defterindeki tabloyu kullanarak stop-loss frequency'nin hisseler arasındaki farkı nasıl açıkladığını yaz.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Hisse</th><th>Stop exit</th><th>Zararlı stop</th><th>Break-even stop</th><th>Net (TL)</th></tr>
+      <tr><td>AKBNK</td><td>6</td><td>1</td><td>0</td><td>+102,967</td></tr>
+      <tr><td>ASELS</td><td>4</td><td>1</td><td>0</td><td>+263,818</td></tr>
+      <tr><td>TUPRS</td><td>4</td><td>1</td><td>0</td><td>+120,988</td></tr>
+      <tr><td>TCELL</td><td>5</td><td>2</td><td>1</td><td>−5,561</td></tr>
+      <tr><td>FROTO</td><td>6</td><td>2</td><td>2</td><td>+14,164</td></tr>
+      <tr><td>EREGL</td><td>5</td><td>0</td><td>1</td><td>+66,787</td></tr>
+    </table></div>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Stop exit sayıları birbirine yakın (4–6). Fark sayıda değil. Nerede?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her stop exit'i üçe ayır: kârda, break-even, zararda. Hangi hisselerde stop kâr alıyor, hangilerinde zarar kesiyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Hemen her trade stop ile kapandı (31'in 30'u), bu yüzden stop exit'in sayısı tek başına bir şey anlatmıyor. Önemli olan stop tetiklendiğinde nerede olduğu:</p>
+      <ul>
+        <li>AKBNK (6'nın 5'i), EREGL (5'in 4'ü) ve TUPRS (4'ün 3'ü) için stop exit'lerin çoğu kârlı. Stop trailing ile entry'nin üstüne çıkmış ve kâr almak için çalışmış.</li>
+        <li>TCELL ve FROTO'da stop'lar çoğunlukla zarar kesiyor ya da break-even'da kapatıyor. Hisseler yatay/düşüş içinde, trend gelmediği için trailing stop entry'nin yeterince üstüne çıkamıyor. TCELL bu yüzden sermayenin hafif altında, FROTO sadece +14% ile bitti.</li>
+        <li>ASELS'te güçlü trend sayesinde az sayıda trade büyük kazanç getirdi. Tek büyük zarar (−12.34%) zirveye yakın bir breakout'tan geldi.</li>
+      </ul>
+      <p><em>Model answer (stop-loss frequency part):</em> "Almost every trade ended at the stop, so what matters is where the stop was when it was hit. In trending stocks (AKBNK, EREGL, TUPRS) the trailing stop had moved above entry, so most stop exits locked in profit. In sideways stocks (TCELL, FROTO) the stop mostly cut losses or exited at break-even, which explains their weak results."</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/assignments/2026-2027-fall-efe-kurucay/bist-algo-trading-challenge/bist_algo_trading_challenge.ipynb" target="_blank" rel="noopener">Efe'nin quiz defteri (GitHub)</a></p>
+    <!-- Kaynak: quiz-bist-algo-trading-challenge.pdf s.2 Final Analysis Question; tablo defterin hücre 26 çıktısı. Sorunun diğer faktörleri four-strategies dersinde. -->
+  </div>
+  <div class="quiz" id="q-differ-1">
+    <p class="quiz__q">Control Test'te rastgele entry'ler, Volume Bubbles sinyaliyle hemen hemen aynı net profit'i veriyor. En makul yorum hangisi?</p>
+    <button class="quiz__opt" data-correct>Sinyalin ek katkısı gösterilmemiş; kazanç piyasa hareketinden ve/veya exit sisteminden geliyor olabilir<span class="why">Doğru. Slayt da "may" diyor: "the main edge may come more from the exit system (trailing stop) than from the entry signal itself." Rastgele entry'ler de aynı piyasa hareketinden yararlanır, bu yüzden test kazancın kaynağını kesin olarak göstermez.</span></button>
+    <button class="quiz__opt">Sinyal çok iyi, rastgele entry bile onu taklit edebiliyor<span class="why">Tersi. Sinyal rastgele entry'den daha iyi değilse sinyalin katkısı küçüktür.</span></button>
+    <button class="quiz__opt">Trailing stop gereksiz, kaldırılmalı<span class="why">Test exit sistemini sabit tuttuğu için onun hakkında hüküm vermez. Trailing stop'u kaldırmak, kazancı üreten parçalardan birini kaldırabilir.</span></button>
+    <button class="quiz__opt">Backtest'te look-ahead bias var<span class="why">Bu test look-ahead bias'ı ölçmez. Sadece entry sinyalinin rastgele entry'ye göre ek katkısını ölçer.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="chandelier" data-min="6">
+  <h2>ATR stop ve Chandelier Exit</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Sabit bir TL mesafesi her hissede aynı anlama gelmez. Günde 1 TL oynayan bir hissede 6 TL'lik trailing mesafesi geniş, günde 10 TL oynayan bir hissede çok dar kalır. ATR (Average True Range) hissenin günlük volatility'sini, yani tipik günlük fiyat aralığını ölçer. Stop'u ATR'nin katı olarak koyarsan mesafe hissenin volatility'sine uyar.</p>
+    <p>Hoca bunu diğer stratejilerde de seçenek olarak veriyor. Liquidity Swings (W3 s.29): <em>"The stop is usually placed below the most recent Swing Low zone. Optionally, it can be managed with a Chandelier stop or a trailing stop."</em> S/R Channels (W3 s.32): <em>"An optional Chandelier stop can trail the trade."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Chandelier Exit (long)</span>
+    $$\text{Stop}_t = \max\Big(\text{Stop}_{t-1},\ \underbrace{\max_{\text{entry} \le s \le t} \text{High}_s}_{\text{highest high since entry}} - k \cdot \text{ATR}_t\Big)$$
+    <ul>
+      <li>Initial stop: $\text{Entry} - k \cdot \text{ATR}$. Yani burada $R = k \cdot \text{ATR}$.</li>
+      <li>$k$ büyüdükçe stop uzaklaşır: trade geri çekilmelere dayanır, ama yanıldığında daha çok kaybeder.</li>
+      <li>$\max(\text{Stop}_{t-1}, \dots)$ önemli: ATR artınca $\text{HH} - k \cdot \text{ATR}$ düşebilir. Max olmadan stop aşağı inerdi.</li>
+      <li>Bar $t+1$'de kontrol edilen stop, bar $t$'nin kapanışında hesaplanır. Böylece look-ahead olmaz.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Efe'nin quiz stratejisi (defter hücre 0 ve 9)</span>
+    <ul>
+      <li>Stop: <em>"Chandelier stop: highest high since entry minus k × ATR(14). It only moves up."</em></li>
+      <li>$k$ seçimi: 40 bar'lık Kaufman Efficiency Ratio $&gt; 0.15$ ise hisse trend'de sayılıyor ve $k = 8$, değilse $k = 4.5$.</li>
+      <li>Break-even: fiyat entry'nin 3 × ATR üstüne çıkınca stop en az entry'ye çekiliyor.</li>
+      <li>Gap: hisse stop'un altında açılırsa dolum stop'tan değil açılış fiyatından ("Chandelier stop (gap open)").</li>
+    </ul>
+  </div>
+  <h3>Chandelier simülatörü · gerçek ASELS ve TCELL verisi</h3>
+  <p>Efe'nin defterindeki 9 trade'den birini seç. Simülatör o trade'in entry'sinden başlayıp her bar'da Chandelier stop'u hesaplıyor (Yahoo Finance günlük bar'ları, 2 Ocak 2024 – 1 Ekim 2026). "ER kuralı" seçiliyken sonuç defterdeki trade'le birebir aynı çıkıyor. Trade tek başına simüle ediliyor: sonraki trade'ler ve sermaye hesaba katılmıyor.</p>
+  <p class="w-trade-management-guess"><b>Önce tahmin et:</b> ASELS #1'de (8.1.2025, 77.05) $k = 3$ ile $k = 8$ arasında trade kaç kat uzun sürer? TCELL #5'te (13.4.2026, 114.60) geniş $k$ zararı büyütür mü, küçültür mü?</p>
+  <div class="w-trade-management-ctl">
+    <label>Trade <select id="ch-trade" class="btn btn--sm"></select></label>
+  </div>
+  <div class="w-trade-management-ctl">
+    <label><input type="radio" name="ch-mode" id="ch-efe" checked /> ER kuralı (k = 8 / 4.5)</label>
+    <label><input type="radio" name="ch-mode" id="ch-fix" /> Sabit k</label>
+    <label><input type="range" id="ch-k-r" min="1" max="12" step="0.5" value="3" aria-label="k slider" /><input id="ch-k" type="text" inputmode="decimal" value="3" class="btn btn--sm" aria-label="k" /></label>
+  </div>
+  <div class="w-trade-management-ctl">
+    <label>ATR uzunluğu <select id="ch-atr" class="btn btn--sm"><option value="7">7</option><option value="14" selected>14</option><option value="21">21</option></select></label>
+    <label><input type="checkbox" id="ch-be" checked /> Break-even (+3 ATR)</label>
+  </div>
+  <div class="w-trade-management-err" id="ch-err" aria-live="polite"></div>
+  <div class="w-trade-management-chart" id="ch-chart"></div>
+  <div class="w-trade-management-legend"><span><i style="background:var(--blue-600)"></i>close</span><span><i style="background:#c92a2a"></i>Chandelier stop</span><span><i style="background:#2b8a3e"></i>entry</span></div>
+  <div class="w-trade-management-stats" id="ch-stats"></div>
+  <div id="ch-check"></div>
+  <div class="table-wrap" id="ch-table"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Geniş k her zaman iyi değil.</strong> TCELL #5'te $k = 3$ trade'i −3.16% ile, $k = 4.5$ −6.47% ile, $k = 6$ −11.18% ile kapatıyor. Initial risk $k \cdot \text{ATR}$ olduğu için yanlış bir trade'de geniş $k$ daha çok kaybettirir.</li>
+      <li>Aynı geniş $k$, ASELS #1'de trade'i 23 bar yerine yüzlerce bar açık tutuyor. Hangisinin doğru olduğu hissenin trend'de olup olmamasına bağlı. Efe bu yüzden $k$'yı Efficiency Ratio ile seçti.</li>
+      <li>Chandelier "highest <em>high</em> since entry" kullanır, highest close değil. Peak entry'den sonraki en yüksek High'dır.</li>
+      <li>Break-even stop gap'te koruma vermez (Bölüm 6: AKBNK #1, TUPRS #4).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-chand-1">
+    <p class="quiz__q">Long trade, entry 100. Entry'den beri highest high 130, bugünkü ATR 4, $k = 3$. Dünkü stop 120. Bugünün stop'u kaç?</p>
+    <button class="quiz__opt" data-correct>120<span class="why">Doğru: $130 - 3 \times 4 = 118$, ama stop aşağı inmez: $\max(120, 118) = 120$.</span></button>
+    <button class="quiz__opt">118<span class="why">Formülü doğru uyguladın ama max'ı unuttun. Stop dünkü 120'nin altına inemez.</span></button>
+    <button class="quiz__opt">88<span class="why">Bu $100 - 3 \times 4$: entry'den hesapladın. Chandelier highest high'dan ölçer (entry'den sadece initial stop hesaplanır).</span></button>
+    <button class="quiz__opt">126<span class="why">Bu $130 - 4$: ATR'yi $k$ ile çarpmadın.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="sizing" data-min="5">
+  <h2>Risk mekanizmaları ve position sizing</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Stop, hisse başına riski (R) belirler. Toplam risk ise kaç hisse aldığına bağlıdır. 100,000 TL'nin hepsiyle girip R = 3.94 olan bir trade'de stop'a düşersen 5,500 TL kaybedersin. Hisse sayısını riske göre ayarlarsan aynı stop yaklaşık 1,000 TL'ye mal olur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · quiz brief, Risk Management Requirement</span>
+    <p><em>"The strategy must include at least one risk-management mechanism, such as a stop-loss, ATR stop, trailing stop, Chandelier Exit, maximum holding period, or risk-based position sizing."</em></p>
+    <div class="table-wrap"><table>
+      <tr><th>Mekanizma</th><th>Riski nasıl sınırlar</th><th>Bu derste</th></tr>
+      <tr><td>stop-loss</td><td>Fikrin bozulduğu fiyatta çıkar</td><td>Bölüm 2</td></tr>
+      <tr><td>ATR stop</td><td>Stop mesafesini oynaklığa göre koyar: Entry − k·ATR</td><td>Bölüm 10</td></tr>
+      <tr><td>trailing stop</td><td>Kârı korur, aşağı inmez</td><td>Bölüm 4–5</td></tr>
+      <tr><td>Chandelier Exit</td><td>ATR'li trailing stop: HH − k·ATR</td><td>Bölüm 10</td></tr>
+      <tr><td>maximum holding period</td><td>Trade belli sayıda bar'dan sonra kapanır (s.5: "time rule", s.29: "Time limit reached (Exit)")</td><td>burada</td></tr>
+      <tr><td>risk-based position sizing</td><td>Stop'a düşülürse kaybedilecek tutarı trade açılmadan sabitler</td><td>burada</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · risk-based position sizing (standart tanım)</span>
+    $$\text{Risk budget} = \text{Capital} \times \text{risk \%} \qquad \text{Shares} = \left\lfloor \frac{\text{Risk budget}}{R} \right\rfloor$$
+    <p>Örnek: 100,000 TL, işlem başına 1% risk, entry 71.60, stop 67.66. Risk budget 1,000 TL, $R = 3.94$, shares $= \lfloor 1000 / 3.94 \rfloor = 253$. Pozisyon $253 \times 71.60 = 18,114.80$ TL. Stop'ta kayıp $253 \times 3.94 = 996.82$ TL.</p>
+    <p>All-in (bütün sermaye): $\lfloor 100000 / 71.60 \rfloor = 1396$ hisse, stop'ta kayıp $1396 \times 3.94 = 5,500.24$ TL (sermayenin 5.5%'i).</p>
+  </div>
+  <p class="src">Not: Money management haftasının (W11) slaytları repoda yok. Position sizing burada quiz brief'indeki listeden ve standart tanımdan anlatıldı.</p>
+  <div class="box box--example">
+    <span class="box__label">Örnek · "Big" ile +1699'u karıştırma (W3 s.17)</span>
+    <p>Grafikteki "BUY 71.60 — Big Cluster" etiketinde iki ayrı bilgi var: <em>"'Big' = signal strength"</em> ve <em>"+1699 = position size / lots"</em>. Slayt uyarıyor: <em>"Do not confuse them."</em> Sinyalin güçlü olması pozisyonun büyük olması gerektiği anlamına gelmez. Pozisyon büyüklüğü ayrı bir karardır.</p>
+    <p>Efe quiz'de all-in sizing kullandı ("all available cash, whole shares, no leverage"). Risk mekanizması olarak Chandelier stop ve break-even'ı seçti.</p>
+  </div>
+  <h3>Position sizing hesaplayıcı</h3>
+  <p class="w-trade-management-guess"><b>Önce tahmin et:</b> Sermaye 100,000 TL, risk 1%. Entry aynı kalırken stop'u entry'ye iki kat yaklaştırırsan (R yarıya inerse) hisse sayısı ne olur?</p>
+  <div class="w-trade-management-ctl">
+    <label>Capital (TL) <input id="sz-cap" type="text" inputmode="decimal" value="100000" class="btn btn--sm" /></label>
+    <label>Risk % <input id="sz-risk" type="text" inputmode="decimal" value="1" class="btn btn--sm" /></label>
+    <label>Entry <input id="sz-entry" type="text" inputmode="decimal" value="71.60" class="btn btn--sm" /></label>
+    <label>Stop <input id="sz-stop" type="text" inputmode="decimal" value="67.66" class="btn btn--sm" /></label>
+  </div>
+  <div class="w-trade-management-err" id="sz-err" aria-live="polite"></div>
+  <div class="table-wrap" id="sz-out"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Hisse sayısını entry fiyatına göre değil R'ye göre hesapla. $1000 / 71.60$ risk-based değil, 1,000 TL'lik bir pozisyon olur.</li>
+      <li>Stop çok yakınsa formül sermayeden büyük bir pozisyon isteyebilir. O zaman sermaye sınırı devreye girer (hesaplayıcı bunu gösteriyor).</li>
+      <li>Gap'te kayıp risk budget'ı aşabilir: dolum stop'tan değil açılıştan olur.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="2026-27-quiz-risk-req"><span class="box__label">Quiz 2026 · Risk Management Requirement</span>
+    <p>"The strategy must include at least one risk-management mechanism, such as a stop-loss, ATR stop, trailing stop, Chandelier Exit, maximum holding period, or risk-based position sizing."</p>
+    <p>(1) Bu listeden iki mekanizmayı birer cümleyle açıkla. (2) 100,000 TL sermaye, 2% risk, entry 100, stop 94.53 için risk-based position size'ı hesapla ve all-in ile karşılaştır.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her mekanizma için "neyi sınırlıyor" sorusunu cevapla: trade başına zarar mı, kârın geri verilmesi mi, süre mi, pozisyonun büyüklüğü mü?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Risk budget = 100,000 × 0.02 = 2,000 TL. R = 100 − 94.53. Hisse sayısını aşağı yuvarla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(1)</strong> Örneğin: <em>Trailing stop</em> fiyat lehe gittikçe yükselir ve aşağı inmez. Böylece kârın bir kısmı korunur ve trend devam ettikçe trade açık kalır. <em>Maximum holding period</em> trade'i belli bir bar sayısından sonra kapatır. Böylece sermaye hareket etmeyen bir trade'de sınırsız süre beklemez.</p>
+      <p><strong>(2)</strong> $R = 100 - 94.53 = 5.47$. Risk budget $= 2,000$ TL. Shares $= \lfloor 2000 / 5.47 \rfloor = 365$. Pozisyon $36,500$ TL, stop'ta kayıp $365 \times 5.47 = 1,996.55$ TL.</p>
+      <p>All-in: $\lfloor 100000 / 100 \rfloor = 1000$ hisse, stop'ta kayıp $1000 \times 5.47 = 5,470$ TL (5.47%).</p>
+      <p><em>Model answer:</em> "Risk-based sizing: shares = (100,000 × 2%) / (100 − 94.53) = 2,000 / 5.47 ≈ 365 shares, a 36,500 TL position that loses about 2,000 TL at the stop. All-in buys 1,000 shares and loses 5,470 TL at the same stop."</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/assignments/2026-2027-fall-efe-kurucay/bist-algo-trading-challenge/bist_algo_trading_challenge.ipynb" target="_blank" rel="noopener">Efe'nin quiz defteri (GitHub): seçtiği risk mekanizması hücre 0 ve 9'da</a></p>
+  </div>
+  <div class="quiz" id="q-size-1">
+    <p class="quiz__q">Sermaye 50,000 TL, risk 2%, entry 40.00, stop 38.00. Risk-based kaç hisse?</p>
+    <button class="quiz__opt" data-correct>500<span class="why">Doğru: risk budget $= 1,000$ TL, $R = 2$, $1000 / 2 = 500$ hisse (20,000 TL'lik pozisyon).</span></button>
+    <button class="quiz__opt">25<span class="why">Bu $1000 / 40$: risk budget'ı entry fiyatına böldün. R'ye bölmelisin.</span></button>
+    <button class="quiz__opt">1,250<span class="why">Bu all-in ($50000 / 40$). Stop'ta $2,500$ TL kaybedersin, yani 2% değil 5%.</span></button>
+    <button class="quiz__opt">25,000<span class="why">Bu $50000 / 2$: sermayenin tamamını R'ye böldün. Önce risk %'sini uygula.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="final" data-min="5">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Cluster candle low 40.00, buffer 0.5%, entry 42.00. +1R seviyesi kaç?</p>
+    <button class="quiz__opt" data-correct>44.20<span class="why">Doğru: stop $= 40 \times 0.995 = 39.80$, $R = 2.20$, $+1R = 42 + 2.20 = 44.20$.</span></button>
+    <button class="quiz__opt">44.00<span class="why">R'yi cluster low'dan aldın ($42 - 40 = 2$). R initial stop'tan, yani buffer'lı seviyeden hesaplanır.</span></button>
+    <button class="quiz__opt">42.20<span class="why">Bu $R$ yerine $0.2$ eklemek. $R = 42 - 39.80 = 2.20$.</span></button>
+    <button class="quiz__opt">42.00<span class="why">Bu stop + R = entry. +1R, entry'nin bir R üstüdür.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Entry 100, initial stop 94. Trailing stop trade'i 118'den kapatıyor. Sonuç?</p>
+    <button class="quiz__opt" data-correct>+18%, +3R<span class="why">Doğru: $(118 - 100)/100 = 18\%$, $R = 6$, $18/6 = 3R$.</span></button>
+    <button class="quiz__opt">−1R, çünkü stop ile kapandı<span class="why">Stop entry'nin üstündeyken tetiklenirse trade kârla kapanır. "Stop" = exit kuralı tetiklendi.</span></button>
+    <button class="quiz__opt">+24%, +4R<span class="why">$118 - 94 = 24$: sonucu initial stop'tan ölçtün. Getiri entry'den ölçülür.</span></button>
+    <button class="quiz__opt">+18%, +2R<span class="why">Yüzde doğru ama R = 9 almışsın. $R = 100 - 94 = 6$.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Bir stratejinin win rate'i 25%. Hangi ifade doğru?</p>
+    <button class="quiz__opt" data-correct>Ortalama kazanç ortalama zararın 3 katından büyükse arithmetic expectancy pozitiftir<span class="why">Doğru: $p^{*} = \overline{L}/(\overline{W} + \overline{L}) = 1/(3 + 1) = 25\%$. Oran 3'ü geçerse $p^{*}$ 25%'in altına iner. Compounding ile kâr için ayrıca $\prod (1 + r_i) - 1 &gt; 0$ gerekir.</span></button>
+    <button class="quiz__opt">25% win rate ile kâr imkânsız<span class="why">s.24 ve s.26: "A high win rate is not required for profitability." 30% ile +43%, FROTO 15% ile pozitif.</span></button>
+    <button class="quiz__opt">Kazanç ile zarar eşit büyüklükteyse kâr eder<span class="why">Eşit büyüklükte break-even win rate 50% olur. 25% ile zarar eder.</span></button>
+    <button class="quiz__opt">Trade sayısı yeterince artarsa kâra geçer<span class="why">Expectancy negatifse daha çok trade daha çok zarar demek. Trade sayısı işareti değiştirmez.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Hangisi quiz brief'indeki risk-management mekanizmalarından biri <strong>değildir</strong>?</p>
+    <button class="quiz__opt" data-correct>RSI 30'un üstüne çıkınca al<span class="why">Doğru: bu bir entry kuralı. Riski sınırlamaz, trade'i açar.</span></button>
+    <button class="quiz__opt">Maximum holding period<span class="why">Listede var: trade'i bir süre sonra kapatarak riski sınırlar.</span></button>
+    <button class="quiz__opt">Chandelier Exit<span class="why">Listede var: ATR'li bir trailing stop.</span></button>
+    <button class="quiz__opt">Risk-based position sizing<span class="why">Listede var: stop'ta kaybedilecek tutarı trade açılmadan sabitler.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Trailing stop 112'de, fiyat 120'den 113'e düştü, ATR de arttı. Chandelier formülü bugün 109 veriyor. Stop kaç olur?</p>
+    <button class="quiz__opt" data-correct>112<span class="why">Doğru: $\max(112, 109) = 112$. Trailing stop aşağı inmez.</span></button>
+    <button class="quiz__opt">109<span class="why">Formülün yeni değerini aldın ama max'ı unuttun.</span></button>
+    <button class="quiz__opt">113<span class="why">Stop fiyata eşitlenmez. Kural yalnızca stop'u yukarı taşır, onu da formüle göre.</span></button>
+    <button class="quiz__opt">Trade kapanır<span class="why">113 &gt; 112, fiyat stop'a değmedi. Trade açık.</span></button>
+  </div>
+  <!-- Sıradaki konu: Dört strateji, tek çerçeve. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+/* ASELS and TCELL daily bars (Yahoo Finance, split-adjusted), 2024-01-02 → 2026-10-01, rounded to 0.01 TL. */
+const TM_DATA = {
+ASELS:{d:"2024-01-02,2024-01-03,2024-01-04,2024-01-05,2024-01-08,2024-01-09,2024-01-10,2024-01-11,2024-01-12,2024-01-15,2024-01-16,2024-01-17,2024-01-18,2024-01-19,2024-01-22,2024-01-23,2024-01-24,2024-01-25,2024-01-26,2024-01-29,2024-01-30,2024-01-31,2024-02-01,2024-02-02,2024-02-05,2024-02-06,2024-02-07,2024-02-08,2024-02-09,2024-02-12,2024-02-13,2024-02-14,2024-02-15,2024-02-16,2024-02-19,2024-02-20,2024-02-21,2024-02-22,2024-02-23,2024-02-26,2024-02-27,2024-02-28,2024-02-29,2024-03-01,2024-03-04,2024-03-05,2024-03-06,2024-03-07,2024-03-08,2024-03-11,2024-03-12,2024-03-13,2024-03-14,2024-03-15,2024-03-18,2024-03-19,2024-03-20,2024-03-21,2024-03-22,2024-03-25,2024-03-26,2024-03-27,2024-03-28,2024-03-29,2024-04-01,2024-04-02,2024-04-03,2024-04-04,2024-04-05,2024-04-08,2024-04-15,2024-04-16,2024-04-17,2024-04-18,2024-04-19,2024-04-22,2024-04-24,2024-04-25,2024-04-26,2024-04-29,2024-04-30,2024-05-02,2024-05-03,2024-05-06,2024-05-07,2024-05-08,2024-05-09,2024-05-10,2024-05-13,2024-05-14,2024-05-15,2024-05-16,2024-05-17,2024-05-20,2024-05-21,2024-05-22,2024-05-23,2024-05-24,2024-05-27,2024-05-28,2024-05-29,2024-05-30,2024-05-31,2024-06-03,2024-06-04,2024-06-05,2024-06-06,2024-06-07,2024-06-10,2024-06-11,2024-06-12,2024-06-13,2024-06-14,2024-06-20,2024-06-21,2024-06-24,2024-06-25,2024-06-26,2024-06-27,2024-06-28,2024-07-01,2024-07-02,2024-07-03,2024-07-04,2024-07-05,2024-07-08,2024-07-09,2024-07-10,2024-07-11,2024-07-12,2024-07-16,2024-07-17,2024-07-18,2024-07-19,2024-07-22,2024-07-23,2024-07-24,2024-07-25,2024-07-26,2024-07-29,2024-07-30,2024-07-31,2024-08-01,2024-08-02,2024-08-05,2024-08-06,2024-08-07,2024-08-08,2024-08-09,2024-08-12,2024-08-13,2024-08-14,2024-08-15,2024-08-16,2024-08-19,2024-08-20,2024-08-21,2024-08-22,2024-08-23,2024-08-26,2024-08-27,2024-08-28,2024-08-29,2024-09-02,2024-09-03,2024-09-04,2024-09-05,2024-09-06,2024-09-09,2024-09-10,2024-09-11,2024-09-12,2024-09-13,2024-09-16,2024-09-17,2024-09-18,2024-09-19,2024-09-20,2024-09-23,2024-09-24,2024-09-25,2024-09-26,2024-09-27,2024-09-30,2024-10-01,2024-10-02,2024-10-03,2024-10-04,2024-10-07,2024-10-08,2024-10-09,2024-10-10,2024-10-11,2024-10-14,2024-10-15,2024-10-16,2024-10-17,2024-10-18,2024-10-21,2024-10-22,2024-10-23,2024-10-24,2024-10-25,2024-10-28,2024-10-30,2024-10-31,2024-11-01,2024-11-04,2024-11-05,2024-11-06,2024-11-07,2024-11-08,2024-11-11,2024-11-12,2024-11-13,2024-11-14,2024-11-15,2024-11-18,2024-11-19,2024-11-20,2024-11-21,2024-11-22,2024-11-25,2024-11-26,2024-11-27,2024-11-28,2024-11-29,2024-12-02,2024-12-03,2024-12-04,2024-12-05,2024-12-06,2024-12-09,2024-12-10,2024-12-11,2024-12-12,2024-12-13,2024-12-16,2024-12-17,2024-12-18,2024-12-19,2024-12-20,2024-12-23,2024-12-24,2024-12-25,2024-12-26,2024-12-27,2024-12-30,2024-12-31,2025-01-02,2025-01-03,2025-01-06,2025-01-07,2025-01-08,2025-01-09,2025-01-10,2025-01-13,2025-01-14,2025-01-15,2025-01-16,2025-01-17,2025-01-20,2025-01-21,2025-01-22,2025-01-23,2025-01-24,2025-01-27,2025-01-28,2025-01-29,2025-01-30,2025-01-31,2025-02-03,2025-02-04,2025-02-05,2025-02-06,2025-02-07,2025-02-10,2025-02-11,2025-02-12,2025-02-13,2025-02-14,2025-02-17,2025-02-18,2025-02-19,2025-02-20,2025-02-21,2025-02-24,2025-02-25,2025-02-26,2025-02-27,2025-02-28,2025-03-03,2025-03-04,2025-03-05,2025-03-06,2025-03-07,2025-03-10,2025-03-11,2025-03-12,2025-03-13,2025-03-14,2025-03-17,2025-03-18,2025-03-19,2025-03-20,2025-03-21,2025-03-24,2025-03-25,2025-03-26,2025-03-27,2025-03-28,2025-04-02,2025-04-03,2025-04-04,2025-04-07,2025-04-08,2025-04-09,2025-04-10,2025-04-11,2025-04-14,2025-04-15,2025-04-16,2025-04-17,2025-04-18,2025-04-21,2025-04-22,2025-04-24,2025-04-25,2025-04-28,2025-04-29,2025-04-30,2025-05-02,2025-05-05,2025-05-06,2025-05-07,2025-05-08,2025-05-09,2025-05-12,2025-05-13,2025-05-14,2025-05-15,2025-05-16,2025-05-20,2025-05-21,2025-05-22,2025-05-23,2025-05-26,2025-05-27,2025-05-28,2025-05-29,2025-05-30,2025-06-02,2025-06-03,2025-06-04,2025-06-05,2025-06-10,2025-06-11,2025-06-12,2025-06-13,2025-06-16,2025-06-17,2025-06-18,2025-06-19,2025-06-20,2025-06-23,2025-06-24,2025-06-25,2025-06-26,2025-06-27,2025-06-30,2025-07-01,2025-07-02,2025-07-03,2025-07-04,2025-07-07,2025-07-08,2025-07-09,2025-07-10,2025-07-11,2025-07-14,2025-07-16,2025-07-17,2025-07-18,2025-07-21,2025-07-22,2025-07-23,2025-07-24,2025-07-25,2025-07-28,2025-07-29,2025-07-30,2025-07-31,2025-08-01,2025-08-04,2025-08-05,2025-08-06,2025-08-07,2025-08-08,2025-08-11,2025-08-12,2025-08-13,2025-08-14,2025-08-15,2025-08-18,2025-08-19,2025-08-20,2025-08-21,2025-08-22,2025-08-25,2025-08-26,2025-08-27,2025-08-28,2025-08-29,2025-09-01,2025-09-02,2025-09-03,2025-09-04,2025-09-05,2025-09-08,2025-09-09,2025-09-10,2025-09-11,2025-09-12,2025-09-15,2025-09-16,2025-09-17,2025-09-18,2025-09-19,2025-09-22,2025-09-23,2025-09-24,2025-09-25,2025-09-26,2025-09-29,2025-09-30,2025-10-01,2025-10-02,2025-10-03,2025-10-06,2025-10-07,2025-10-08,2025-10-09,2025-10-10,2025-10-13,2025-10-14,2025-10-15,2025-10-16,2025-10-17,2025-10-20,2025-10-21,2025-10-22,2025-10-23,2025-10-24,2025-10-27,2025-10-28,2025-10-30,2025-10-31,2025-11-03,2025-11-04,2025-11-05,2025-11-06,2025-11-07,2025-11-10,2025-11-11,2025-11-12,2025-11-13,2025-11-14,2025-11-17,2025-11-18,2025-11-19,2025-11-20,2025-11-21,2025-11-24,2025-11-25,2025-11-26,2025-11-27,2025-11-28,2025-12-01,2025-12-02,2025-12-03,2025-12-04,2025-12-05,2025-12-08,2025-12-09,2025-12-10,2025-12-11,2025-12-12,2025-12-15,2025-12-16,2025-12-17,2025-12-18,2025-12-19,2025-12-22,2025-12-23,2025-12-24,2025-12-25,2025-12-26,2025-12-29,2025-12-30,2025-12-31,2026-01-02,2026-01-05,2026-01-06,2026-01-07,2026-01-08,2026-01-09,2026-01-12,2026-01-13,2026-01-14,2026-01-15,2026-01-16,2026-01-19,2026-01-20,2026-01-21,2026-01-22,2026-01-23,2026-01-26,2026-01-27,2026-01-28,2026-01-29,2026-01-30,2026-02-02,2026-02-03,2026-02-04,2026-02-05,2026-02-06,2026-02-09,2026-02-10,2026-02-11,2026-02-12,2026-02-13,2026-02-16,2026-02-17,2026-02-18,2026-02-19,2026-02-20,2026-02-23,2026-02-24,2026-02-25,2026-02-26,2026-02-27,2026-03-02,2026-03-03,2026-03-04,2026-03-05,2026-03-06,2026-03-09,2026-03-10,2026-03-11,2026-03-12,2026-03-13,2026-03-16,2026-03-17,2026-03-18,2026-03-19,2026-03-23,2026-03-24,2026-03-25,2026-03-26,2026-03-27,2026-03-30,2026-03-31,2026-04-01,2026-04-02,2026-04-03,2026-04-06,2026-04-07,2026-04-08,2026-04-09,2026-04-10,2026-04-13,2026-04-14,2026-04-15,2026-04-16,2026-04-17,2026-04-20,2026-04-21,2026-04-22,2026-04-24,2026-04-27,2026-04-28,2026-04-29,2026-04-30,2026-05-04,2026-05-05,2026-05-06,2026-05-07,2026-05-08,2026-05-11,2026-05-12,2026-05-13,2026-05-14,2026-05-15,2026-05-18,2026-05-20,2026-05-21,2026-05-22,2026-05-25,2026-05-26,2026-05-27,2026-05-28,2026-05-29,2026-06-01,2026-06-02,2026-06-03,2026-06-04,2026-06-05,2026-06-08,2026-06-09,2026-06-10,2026-06-11,2026-06-12,2026-06-15,2026-06-16,2026-06-17,2026-06-18,2026-06-19,2026-06-22,2026-06-23,2026-06-24,2026-06-25,2026-06-26,2026-06-29,2026-06-30,2026-07-01,2026-07-02,2026-07-03,2026-07-06,2026-07-07,2026-07-08,2026-07-09,2026-07-10,2026-07-13,2026-07-14,2026-07-16,2026-07-17,2026-07-20,2026-07-21,2026-07-22,2026-07-23,2026-07-24,2026-07-27,2026-07-28,2026-07-29,2026-07-30,2026-07-31,2026-08-03,2026-08-04,2026-08-05,2026-08-06,2026-08-07,2026-08-10,2026-08-11,2026-08-12,2026-08-13,2026-08-14,2026-08-17,2026-08-18,2026-08-19,2026-08-20,2026-08-21,2026-08-24,2026-08-25,2026-08-26,2026-08-27,2026-08-28,2026-08-31,2026-09-01,2026-09-02,2026-09-03,2026-09-04,2026-09-07,2026-09-08,2026-09-09,2026-09-10,2026-09-11,2026-09-14,2026-09-15,2026-09-16,2026-09-17,2026-09-18,2026-09-21,2026-09-22,2026-09-23,2026-09-24,2026-09-25,2026-09-28,2026-09-29,2026-09-30,2026-10-01",o:[45.44,46.74,46.66,47.62,47.64,48.2,46.94,47.76,47.14,47.68,47.66,47.86,48.68,48.48,47.5,47.7,48.04,49.5,48.58,50,51.5,50.9,50.6,51.5,51.2,52.5,52.5,51.3,51.65,53.35,53.5,55.05,54.9,55.9,58.5,58.65,60,60.4,62.4,63.5,66.5,63.25,61,60,59.4,58.55,56.55,55.2,57.65,60,56.7,56.1,55.75,56.6,57.65,55.15,56,56.4,57.95,56.35,55.6,54,55.7,55.8,55.6,55,52.2,52.8,54.1,58.65,59.45,57.85,58.7,57.75,57.95,59.25,58.15,58.5,57.55,59.5,61.55,61,62.2,62.3,62.45,62.5,62.4,63.4,63.4,62.15,61,60.1,61,61.95,62.4,61.6,61.55,60.5,59.5,60.15,60,58.7,60.3,58.95,60.4,59.5,59.35,61,60.65,58.1,57,58.6,60.5,60.3,60.7,61.7,61.85,59.9,59.05,60,59.1,56.45,57.2,60.7,60.2,61.1,63.2,64.65,65.3,64.85,63.9,63.3,63.75,63,63.4,63.25,64.4,62.4,64.35,64.95,62.8,62.75,62.75,62.35,57.95,58,56.65,57.8,59.3,58.15,56.7,58.25,57.65,58.7,58.05,58.25,57.75,56.85,56.05,55.5,54.5,56.2,57.1,58.4,59.25,57.1,56.95,57.25,57.15,56.15,56.95,55.4,56.05,58.3,57.6,57.9,58.3,58.8,59.6,59.4,62.2,61.4,59.3,59,59.35,58.45,56.35,57.65,61.6,58.75,58.05,58.75,56.7,56.25,55.4,56.75,56.8,59.1,59.1,57.7,58.25,60.25,60.4,60.4,60.25,61.25,61,64.5,64.35,64.95,63.75,65.05,65.4,65.85,66,68.3,68.7,67.7,67.45,67.5,65.5,67.8,68.7,69.05,67.7,68.4,69.9,69.45,70.2,70.45,70.35,71.3,71,71.2,71,69.5,69,69.25,67.65,68,70.1,70.15,70,72.05,72.75,74,74.4,74,73.2,72.95,73.45,75.3,75.5,77.05,76.65,77.9,78.35,78.5,78.55,78.35,80.8,81.3,82.35,80.75,82.2,84.1,85,85.85,89.65,88.2,88.8,88.15,88.55,88.5,86.9,85.95,85.75,81.35,81.9,78.2,79.85,79.3,80.7,83.75,84,84.05,83.1,84.05,82.7,86,90,94,97.95,102.1,106,112,108.2,110.3,117.1,116.1,117.1,117.3,121.8,117.7,113.4,117.5,112.3,122.8,117,117.7,117,119.7,118.2,117.3,113.5,118.9,117.5,120.5,123,120.3,119.3,116.8,121.3,128.8,130.2,129,132.3,135.1,135.8,138.6,135.3,135,129.9,129.7,137.5,144.6,155.2,148.3,140.3,137.5,141.6,137.5,137.8,133,133.4,136.1,136.6,135.8,138,135.2,131.6,130.7,129.4,127.9,134.4,139,140.2,144.4,149.1,141.5,139.5,144.6,142,144,146.4,143.1,143.4,148.9,140.7,146.5,150.8,149,146.7,151,150.4,152.5,152.3,151.2,152.5,153.9,155.5,161,162.5,166.8,177.6,178.3,180.6,183.1,184.3,181.3,179,180.5,188,186.3,188.5,186,182.1,180.3,181.6,178.7,172,174.5,170.4,170.4,172.2,173.7,182.4,180.3,182.5,180.5,185.4,185,183.8,183.5,179,173,178.8,182.1,173.8,173.5,180.1,177.4,172.1,173.7,185.2,195.2,194.6,192.4,210,212.8,211.6,219,218,217.3,216.5,215.1,218.2,218.2,216.2,215.4,209.4,215,219.2,211.3,214,212.1,207.4,204,195.3,204.1,205.9,209,207.8,204.2,209.1,211.4,206,204.5,202.6,199,194.4,187.5,186,188.3,183,183.8,177.8,178.3,188.3,188.2,185.1,183.7,184.5,185,180.3,184.3,184.5,183.4,187.1,187.7,185.7,185.1,190,193.8,202,206.8,205,207,212.2,209.3,202,204.4,211.8,212.6,221.6,225.2,222.7,226.3,222,229.8,232,233,240,259,264,265,285.75,283,292,289.25,303.25,310,317.5,338.5,295,302.75,300.75,328.5,312.25,310.25,317,300,304.25,299,302.75,285,291,292.25,298,295,302,303.25,296.75,294.75,313.25,307.25,314.5,312.75,309.75,308.25,312.25,324,344.25,322,333.5,346,333.5,319.25,334.5,336.75,330,324,321.75,341,348,338.75,353.25,352,340,340,330.75,321,321.5,325,336.5,330.5,338.5,341.5,362.25,377,398.75,415.75,412.25,420,412.5,418,409,399,399,393.75,420.75,415.5,427.25,422,432.75,430.75,437,431,430,433,420,414.75,415.5,416.75,402,397.75,370.5,411.25,399.75,380.25,380.25,380.25,385,385,409.5,388.5,362.75,366,368.5,357.25,380.5,377.75,372,382,398,393.5,408.75,402.75,393,392,374.25,376,364.25,359,345,372.5,386,403.75,402.75,383,378.5,359,370,352.75,349,350.25,353.25,355.5,362,371.5,376.25,381.25,360.5,357.5,354.5,341,344,337.75,354,346.75,365,354,355.25,361,379.5,398.25,387.5,388.5,380.5,403.5,403,406,399.75,404.25,400,403.75,404.25,386.75,385.5,383.5,380.5,390.25,392,392,404,398.5,390.25,375.5,378,360,379.75,373,378,379,381,368.25,370,367.25,338.5,342],h:[47.12,47.26,47.58,47.92,48.24,48.58,47.9,47.84,48.46,48.42,48.4,48.78,49.44,48.64,48.04,48.78,48.7,49.66,49.4,51.7,51.9,51.1,51.8,52.05,52.65,52.55,52.7,51.85,52.6,53.9,55.6,55.05,56.5,59.95,59.85,59.55,60.65,62.7,64.35,67.25,67.3,64.8,61.95,60.9,60.3,59.2,57.4,57.25,59.1,60.05,57.4,56.9,56.8,57.7,57.7,56.6,56.6,58.55,58.45,58,55.95,56.45,56.95,56.8,55.85,56,53.3,54.75,58.55,59.25,60.05,59.2,59.35,58.55,58.9,59.6,58.6,58.9,59.85,62.25,62,62.35,63.2,63.05,63.05,62.85,64,64.55,63.9,62.85,61.45,61.2,61.95,63.4,63.5,62,62.6,60.9,60.5,60.25,60.5,60.25,60.9,60.6,60.75,59.85,61.4,61.7,60.75,58.5,58.45,60.5,61.15,61,61.5,62.15,62.35,60.4,60.4,60.35,59.35,56.95,58.6,61.2,61.6,64,65,65.45,65.6,66.1,64.05,63.75,64.85,63.7,64.8,64.8,64.4,64.6,65.4,65.9,63.5,63.35,64.2,62.8,58.6,58.7,58.75,59.65,59.75,58.8,58.35,58.55,58.85,59.25,58.95,59.15,58.45,57.5,56.5,55.55,56.55,57.55,58.95,59.95,59.45,57.35,58.1,58.15,57.45,57.3,57.2,56.1,58.7,58.55,58.5,58.55,58.75,59.4,60.05,63.8,62.85,61.6,59.85,59.85,59.8,59.85,58.6,61.55,61.6,59,58.85,59,57.85,57.45,56.6,57.15,58.95,60.65,59.5,58.9,61.55,61.3,61.25,60.9,62,62.65,64.3,65.4,66.8,65.7,65.35,66.35,66.5,67.3,68.2,69.1,69.7,67.9,68.4,68.1,68.15,69.3,69.55,69.45,68.7,70.15,71.8,70.35,70.9,71.4,71.25,71.65,71.35,71.65,71.3,70.6,69.3,69.3,68.65,71,71.2,71,72.95,73.45,74,74.65,74.9,74.65,73.8,73.8,75.35,75.8,78.35,77.95,78.45,79.7,79.35,80.25,80.15,80.55,81.9,82.4,82.45,82,84.2,85.55,87,89.95,90.6,89.25,90.05,89,89.6,88.75,88.45,86.35,85.85,82.3,82.25,80.2,80.8,80.9,84.3,85.05,84.75,84.15,84.55,84.6,87.15,90.35,94.3,99.55,101.9,106,112.2,114,111.2,118.6,118.1,119.9,117.8,121.9,124,123,121,117.7,120.6,125.7,118.5,118.2,119.9,120.7,120.7,118.4,117.8,119.9,119.7,123.7,123.4,120.7,119.9,122,133.3,130.6,131.3,132.7,134.8,136,141.3,139.4,136.7,135.3,130.8,138.6,146.5,154.9,155.8,148.4,141.6,139.3,141.8,143.8,137.9,134.9,138,138.5,138.3,138.9,138.7,136.2,132.6,132.6,130.4,135,139.7,141.1,142.9,148.2,150.7,145,145.5,145.6,145.4,146.9,147.8,144,150,149.6,146.5,151.9,153.2,150.6,150.5,151.7,151.6,153.5,152.8,154.2,154.8,157,165.4,166.2,168.9,176.9,178.4,181.8,187.7,187,185,182.3,181.6,187,188.7,188.5,188.7,188.4,183.5,182.7,181.7,179,175.9,175.4,172.1,172.5,173.2,182.5,183.3,182.9,183.1,186,185.4,186.8,187.5,184.9,179.6,179,184.2,182.6,175.6,174.5,180.9,177.7,176.9,186.4,196.5,199.3,196.8,204.4,218.2,214.5,217.8,220.8,222.3,220.5,219.1,218.7,221.9,219.6,217.2,217,216.2,223.3,220,215.9,216.9,212.5,210.6,205.1,206.2,207.4,216.2,211.4,215.7,209,211.4,211.9,208,206,203.9,204.2,195.7,189.9,188.6,188.8,186.1,184.7,177.8,189.2,189.9,191.2,186.8,186,185.1,185.4,185.7,186.1,185,188.2,188.9,191.8,187.6,188.7,194.4,202.8,209.9,209.9,207.1,214.2,212.6,209.6,205.9,211.3,216.3,223.9,229.5,228,227,228,231.3,237.3,233.7,242.5,258,270,268.5,280,294.75,292.75,292.5,304.5,312.5,325,338.25,339.25,304.75,306.75,324.25,333.5,316.25,323,317.25,306,306.5,304,303,292.75,294.25,298.25,300,303.5,304,304.5,301.75,315.5,321.25,314.75,316.25,315.5,314.75,312.75,324.75,347,345.5,339.25,350,350,337.75,336,335.75,338.25,333.5,328.25,343.75,355.5,351.5,356.5,359,355,343.25,341,332.75,324.75,327.5,336.5,338.5,342.5,344.75,366.5,379,399.5,429,425.25,421.25,422.5,417.5,421.5,412.25,406.75,404.5,416.25,424.75,434.25,431,443.5,434.5,450,437,434.5,438.75,433.25,423.5,421,419,419,403.25,409.25,412,413,401.75,380.25,380.25,380.25,398.25,408.5,409.5,393.5,367.75,377.25,368.75,382.75,389.75,382.75,385.5,397,399.25,412.5,412.75,407.25,396.25,392.75,389,379,367.75,367,372.25,388.75,399.75,411.25,410,389,382,375.25,370.5,353.25,363,353.25,361.75,363.5,376,381,391.25,382.5,366.25,362.75,356,348.75,344.5,351.25,361.5,364.5,368.5,362.5,357.75,382.75,395.75,407.5,394,390,405,408.75,408,410,412.75,405.25,408,411,406.75,396.5,391.75,388.5,393.75,398.75,392,406.25,407,400.75,391,379.5,381.75,383.25,380.75,381.75,383.75,386,383.75,374.5,370,367.75,349.25,370],l:[45.14,45.92,46.56,46.82,47.38,46.8,46.48,46.64,46.22,47.16,47.2,47.6,48.3,47.1,46.92,47.1,47.44,48.12,48.26,49.64,50.6,49.92,50.55,50.9,51.15,51.4,51.25,50.9,51.2,52.45,53,53.25,54.8,55.7,58.05,58.25,58.95,59.8,61.25,63.45,63.2,60.9,59,59,58.2,56.6,54.9,55.15,57.4,56.45,54.95,55.2,55.15,56.05,54.85,55,55.6,56.4,56.2,55,52.85,52.1,55.25,55.5,54.2,51.8,51.55,52.4,54.1,58.15,58.1,57.55,57.25,56.9,57.1,57.8,57.35,57.15,57.4,58.65,60.45,60.9,61.5,61.85,61.05,61.65,62.4,63.2,62.3,60.8,59.55,59.95,60.95,61.9,61.3,60.95,60.5,59.15,59.2,59.45,57.4,58.7,58.35,58.35,59.2,58.5,59.15,60.15,58.1,56.6,56.85,58.3,58.8,60.05,60.3,60.75,59.9,58.55,58.75,58.3,55.55,55.45,56.95,59.7,59.85,60.5,63.05,64.1,64.2,63.6,62.85,62.75,62.8,62.55,63,63.05,62.65,62.15,64.05,62.6,62.45,61.55,62.45,60.25,55.6,56.05,56.55,57.8,57.4,56.65,56.55,57.25,57.05,57.6,57.75,57.8,56.4,55.4,54.75,54.25,54.35,56.05,56.2,58.4,57.55,55.85,56.7,57.1,56,56.1,54.75,54.1,55.55,57.15,57.55,57.65,57.8,58.35,59,59.4,61.15,58.9,58.5,58.8,57.1,56.2,55.85,57.05,58.55,57.65,57.55,56.45,55.65,55,54.7,55.85,56.8,58.9,57.3,57,57.35,60.25,59.8,60.2,60.05,60.65,61,62.95,63.65,62.95,63.65,64.8,64.9,65.7,65.75,67.4,67.45,66.5,66.5,65.4,64.9,67.8,68.1,67.4,67.4,68.4,69,69.3,69.75,69.9,70.05,70.6,69.5,70,68.85,69,68.25,67.5,67.65,67.4,69.75,69,69.75,70.85,72.5,72.9,73,73.2,72.4,72.2,73.45,74.6,75.2,76.15,76.5,77.5,77.85,78.2,77.3,77.45,80.05,80.95,80.05,80.15,81.55,83.4,84.3,84.65,87.5,87.2,88.5,87.45,87.55,85.5,85.6,85.05,81.45,81,78.1,77.25,78.2,79.1,80.45,83.3,82.15,81.65,82.75,80.65,82.7,85.05,89.5,93.55,96.95,100.3,104.9,105.7,108,109.7,113.8,114.2,115.8,117,120.2,111.1,113.2,108,112.1,114.2,114,115,114.9,116.6,115.8,115.3,113.5,117.1,116.3,120.2,118.9,118.3,116.2,116.8,121.3,126.9,126.7,129,131.6,132.3,134,136.8,132,129,128.2,129.5,137.4,144.2,149.1,137.2,135.4,136.5,136.5,136.6,129.9,131.2,131.1,134.4,135.1,135.2,134.1,131,128.6,129.2,126.9,127.9,134,137.5,138.2,141.9,140.7,138.5,138.6,141.2,141.7,143.3,143.9,138.6,143.1,140.3,140.5,145.1,148,145.5,146.7,149,148.5,151.6,147.4,149.4,151.9,151.4,154.7,160.4,162.5,166.8,173.7,177.2,178.5,182.5,178.7,177.3,176.6,180.5,183.5,183.8,185.1,179.6,178.1,179.8,178.6,172,170.4,168.8,169.1,167,169.6,173.2,178.7,179,179.7,179.1,181.9,183,183,178.2,168.7,170.7,178.7,175,172,170.8,174.6,171.1,171.3,171.9,184.8,194.1,191.4,191.7,205.3,209.3,207.6,215.6,214.1,213.6,213.3,207.1,216,212.9,213,206.5,208.4,209.5,212.1,209.6,210.1,203.1,203.8,193.6,190.5,202.6,205.9,205.9,203.9,200.6,207,205.7,201.4,201.5,195.8,193.1,187.4,184.7,184,180.1,181.2,177.3,171.5,178,184.6,184.2,183.5,181.6,181.6,179.4,180.1,183.4,182.8,181.5,185.5,185.7,183,184.1,186.7,191.9,200.9,204.5,203.3,205.9,207,200,201.8,204.2,209.7,211.8,221,220.3,222,221,222,229.2,228.5,233,238.8,257.75,260.25,263.5,280,282.5,283,285.75,301,305.75,317,303.25,287.5,296.75,300.75,308,307.5,309,303.25,293.75,291.75,297.25,283.75,283,287.25,291,291.5,292.5,298.5,295.25,293.25,294.75,304.5,306,308.75,305.25,303.75,304,307.5,324,318,321.75,330,333.5,318.5,319.25,326.5,329.75,320.25,314.75,321.5,338,338.75,338,347,337,335,328,320.5,316,317.75,323.25,330,327.75,337,338,362.25,376.5,388.5,408.5,411.25,406,407,408,396.5,391,390.25,391,414.25,415.5,418.25,421.5,424.25,429.5,423,426.25,425,419.25,410.75,413.75,410.5,402,389.25,377.75,370.5,396,380.25,380.25,380.25,380.25,383,383,381.25,356.75,355,359.5,357.25,356,373.25,365.25,369.75,378.5,384.75,390,400.5,393.75,387.25,367.5,371.25,354.25,354,342.5,342.5,371.75,382.25,396.5,382.75,375.25,358.25,355,352.5,345.5,349,344.5,348.75,353.5,360,370,371.5,360.5,355.5,352,335.5,339.75,331.75,336.5,341.5,344.75,350.5,349.5,346.75,360,378.25,387.5,380.5,378.75,379,394.25,400,396.75,396.5,396,393.5,402,385.25,382.5,380.75,373,379.75,390.25,384,391,390.25,391.5,370.75,368.25,347.5,357,371,364,373.5,377,367.25,368.25,357.25,338.5,334.25,342],c:[46.9,46.6,47.46,47.44,47.64,46.94,47.48,46.88,47.54,47.62,48.08,48.3,48.4,47.46,47.12,47.26,48.4,48.48,49.18,51.4,50.85,50.6,51.3,51.15,52.35,52.3,51.25,51.35,52.1,53.45,54.95,54.9,55.85,58.3,58.5,59.55,60.4,62.4,63.3,66.5,63.25,60.9,60,59.2,58.55,56.6,54.9,57.25,58.55,56.6,55.8,55.6,56.4,57.65,55.15,56.2,55.95,57.9,56.35,55.2,53,55.7,55.45,56.1,54.9,52.45,52.45,53.85,58.45,58.8,58.1,58.55,57.7,57.65,58.7,57.8,58.3,57.45,59.1,62.05,60.75,62.1,62.2,62.4,62.3,62.4,63.4,63.4,62.4,60.85,59.95,60.7,61.45,62.2,61.4,61.5,60.5,59.25,60.05,59.6,57.55,60.1,58.65,60.4,59.2,59,60.45,60.65,58.3,57,57.6,60.15,59.35,60.7,61.5,61.75,59.9,58.9,59.9,58.6,56.25,56.95,58.5,60.1,60.75,63.3,64.55,65,64.9,63.8,63.25,63.5,63.15,63,63.25,64.3,62.8,64.45,64.6,62.7,62.75,62.5,63.3,60.8,56.75,56.25,58.25,59.2,57.95,57.05,58.35,57.55,58.7,57.75,58.85,58.05,56.6,56.15,55.1,54.5,56.5,57.1,58.4,59.25,57.65,56.8,57.5,57.35,56,56.45,54.9,55.95,58.35,57.35,58.1,57.75,58.65,59.2,59.3,62.45,61.15,59.25,59.25,59.25,58.4,56.2,57.8,61.15,59,58.15,58.75,56.7,56.1,55.35,56,57.05,58.25,59.35,57.6,58.35,61,60.85,60.85,60.2,61.5,60.85,63.85,63.5,65.15,63.55,65.35,65.25,65.8,66,68,68.35,67.7,67.45,67.9,66,68.05,68.5,69,67.55,68.4,70.15,69.45,70.2,70.2,70.3,71,71.2,71.25,71,69.3,69.2,69.2,67.55,68.05,70.75,69.9,69.8,72.05,72.65,74,74.4,73.95,73.2,72.5,73.5,74.85,75.5,77.3,76.6,78.2,78.35,78.8,78.55,78.3,80.25,81.05,82.35,80.65,82,84.05,85.15,85.85,89.65,88.2,88.8,88.7,88.25,88.4,86.2,85.95,85.7,81.55,81.75,78.1,79.65,79.3,80.7,84,83.8,84.1,82.75,83.75,81,86,90,93.45,98.05,101.7,105.4,112.2,108.2,110.3,117,115.9,116.3,117.1,121.7,123.4,112.3,117.5,110.5,120.4,117.5,116,117,119.9,118.3,117.3,117.4,116.7,118.8,117.1,123.1,119.2,119.3,116.6,121.2,128.5,129.9,127.9,131.7,134.5,135.3,138.6,137.4,135,129.8,129.8,137.4,144.2,154.6,149.2,140.4,136.8,138,137.5,138.6,132.3,133,137,136.2,136.3,137.6,135.1,132.2,129.6,129.3,127.6,134.7,139.5,139.2,141.3,144.7,141.5,138.9,144.5,141.5,144.1,146.3,147.1,142.6,148.4,140.3,146.5,150.8,148.4,145.6,149.8,151.2,151.3,152.2,149.7,152.5,154,155.5,161.7,161.9,166.2,176.8,176.5,180.1,182.6,183.2,181.3,179.3,180.3,187,184.4,188.5,185.1,181.6,179,180.5,178.7,172,174.2,170,170.4,171.7,172.4,181.5,180.3,181.5,180.2,185.5,183.3,183.8,183.3,178.5,174.2,178.8,182,175,173.5,173.7,177.4,172.1,173.9,185.2,195.2,194.1,192.2,204.4,213.6,211.2,217.5,218.3,217.3,216.3,215,218.1,217,216.1,215.2,209.5,215.6,219.2,213.5,214,212,207.5,204,194.9,203.9,205.6,207.6,206.5,203.9,208.8,211.4,205.7,203.6,202.6,197.3,194.1,187.4,185.1,186.4,181.4,183.6,177.8,176,188.3,188.2,184.3,184.8,184.7,184.4,180.1,184.1,184.5,183.4,187.2,187.7,185.9,185.1,188.2,193.7,202,205.8,204.9,204,212.2,209.3,201,204.4,211.1,212.8,221.7,224.7,222.7,226.1,221,229,231.7,230.2,240,257,263.5,262.75,280,283,289.75,288,302.5,309.25,316,336.75,303.25,300.25,300.75,323.25,310.5,307.5,319,303.25,299.5,296.75,302.5,285,288,292,298.25,294,301.5,302.25,296.5,294,310.25,307,313.25,310.5,309,306.25,311,322,340,322.25,333,345,333.5,319,334.25,335.75,330,322.25,320.5,341.25,348.75,338.75,353.25,352,337.5,338,330.75,320.5,320.25,320.25,336.5,330.5,337,342,362.25,376.75,398.5,415.25,411.75,416.75,411,414,408,396.5,396.5,392,415,414.5,425.5,420.25,431.75,427.25,434,428,428.5,431.75,419.25,412.75,415.5,415,402,393.5,377.75,410,401.75,380.25,380.25,380.25,380.25,384,407.75,383.5,362.25,363,368,357.25,376.75,377.75,371.25,375.75,394,395,410.75,402.5,394.75,392,367.5,373.5,361.5,357.5,345,371.25,384.75,399.5,401.75,383,377,358.75,370,352.5,348.5,352.5,351.5,354.5,360,370,376.25,380.25,360.5,358,354.5,337.5,342.25,336.25,349.25,346.75,363,353.75,356.25,356.25,381,395.75,387.5,389,381.25,403,402.25,403.25,399.75,403.75,398.25,403.75,404,386.25,384.5,380.75,380.25,388.25,392.5,390,402.25,398.5,393.75,372.5,377,360,379.75,372.75,378,374.5,381.5,367.75,372.25,367.25,338.5,336.5,370]},
+TCELL:{d:"2024-01-02,2024-01-03,2024-01-04,2024-01-05,2024-01-08,2024-01-09,2024-01-10,2024-01-11,2024-01-12,2024-01-15,2024-01-16,2024-01-17,2024-01-18,2024-01-19,2024-01-22,2024-01-23,2024-01-24,2024-01-25,2024-01-26,2024-01-29,2024-01-30,2024-01-31,2024-02-01,2024-02-02,2024-02-05,2024-02-06,2024-02-07,2024-02-08,2024-02-09,2024-02-12,2024-02-13,2024-02-14,2024-02-15,2024-02-16,2024-02-19,2024-02-20,2024-02-21,2024-02-22,2024-02-23,2024-02-26,2024-02-27,2024-02-28,2024-02-29,2024-03-01,2024-03-04,2024-03-05,2024-03-06,2024-03-07,2024-03-08,2024-03-11,2024-03-12,2024-03-13,2024-03-14,2024-03-15,2024-03-18,2024-03-19,2024-03-20,2024-03-21,2024-03-22,2024-03-25,2024-03-26,2024-03-27,2024-03-28,2024-03-29,2024-04-01,2024-04-02,2024-04-03,2024-04-04,2024-04-05,2024-04-08,2024-04-15,2024-04-16,2024-04-17,2024-04-18,2024-04-19,2024-04-22,2024-04-24,2024-04-25,2024-04-26,2024-04-29,2024-04-30,2024-05-02,2024-05-03,2024-05-06,2024-05-07,2024-05-08,2024-05-09,2024-05-10,2024-05-13,2024-05-14,2024-05-15,2024-05-16,2024-05-17,2024-05-20,2024-05-21,2024-05-22,2024-05-23,2024-05-24,2024-05-27,2024-05-28,2024-05-29,2024-05-30,2024-05-31,2024-06-03,2024-06-04,2024-06-05,2024-06-06,2024-06-07,2024-06-10,2024-06-11,2024-06-12,2024-06-13,2024-06-14,2024-06-20,2024-06-21,2024-06-24,2024-06-25,2024-06-26,2024-06-27,2024-06-28,2024-07-01,2024-07-02,2024-07-03,2024-07-04,2024-07-05,2024-07-08,2024-07-09,2024-07-10,2024-07-11,2024-07-12,2024-07-16,2024-07-17,2024-07-18,2024-07-19,2024-07-22,2024-07-23,2024-07-24,2024-07-25,2024-07-26,2024-07-29,2024-07-30,2024-07-31,2024-08-01,2024-08-02,2024-08-05,2024-08-06,2024-08-07,2024-08-08,2024-08-09,2024-08-12,2024-08-13,2024-08-14,2024-08-15,2024-08-16,2024-08-19,2024-08-20,2024-08-21,2024-08-22,2024-08-23,2024-08-26,2024-08-27,2024-08-28,2024-08-29,2024-09-02,2024-09-03,2024-09-04,2024-09-05,2024-09-06,2024-09-09,2024-09-10,2024-09-11,2024-09-12,2024-09-13,2024-09-16,2024-09-17,2024-09-18,2024-09-19,2024-09-20,2024-09-23,2024-09-24,2024-09-25,2024-09-26,2024-09-27,2024-09-30,2024-10-01,2024-10-02,2024-10-03,2024-10-04,2024-10-07,2024-10-08,2024-10-09,2024-10-10,2024-10-11,2024-10-14,2024-10-15,2024-10-16,2024-10-17,2024-10-18,2024-10-21,2024-10-22,2024-10-23,2024-10-24,2024-10-25,2024-10-28,2024-10-30,2024-10-31,2024-11-01,2024-11-04,2024-11-05,2024-11-06,2024-11-07,2024-11-08,2024-11-11,2024-11-12,2024-11-13,2024-11-14,2024-11-15,2024-11-18,2024-11-19,2024-11-20,2024-11-21,2024-11-22,2024-11-25,2024-11-26,2024-11-27,2024-11-28,2024-11-29,2024-12-02,2024-12-03,2024-12-04,2024-12-05,2024-12-06,2024-12-09,2024-12-10,2024-12-11,2024-12-12,2024-12-13,2024-12-16,2024-12-17,2024-12-18,2024-12-19,2024-12-20,2024-12-23,2024-12-24,2024-12-25,2024-12-26,2024-12-27,2024-12-30,2024-12-31,2025-01-02,2025-01-03,2025-01-06,2025-01-07,2025-01-08,2025-01-09,2025-01-10,2025-01-13,2025-01-14,2025-01-15,2025-01-16,2025-01-17,2025-01-20,2025-01-21,2025-01-22,2025-01-23,2025-01-24,2025-01-27,2025-01-28,2025-01-29,2025-01-30,2025-01-31,2025-02-03,2025-02-04,2025-02-05,2025-02-06,2025-02-07,2025-02-10,2025-02-11,2025-02-12,2025-02-13,2025-02-14,2025-02-17,2025-02-18,2025-02-19,2025-02-20,2025-02-21,2025-02-24,2025-02-25,2025-02-26,2025-02-27,2025-02-28,2025-03-03,2025-03-04,2025-03-05,2025-03-06,2025-03-07,2025-03-10,2025-03-11,2025-03-12,2025-03-13,2025-03-14,2025-03-17,2025-03-18,2025-03-19,2025-03-20,2025-03-21,2025-03-24,2025-03-25,2025-03-26,2025-03-27,2025-03-28,2025-04-02,2025-04-03,2025-04-04,2025-04-07,2025-04-08,2025-04-09,2025-04-10,2025-04-11,2025-04-14,2025-04-15,2025-04-16,2025-04-17,2025-04-18,2025-04-21,2025-04-22,2025-04-24,2025-04-25,2025-04-28,2025-04-29,2025-04-30,2025-05-02,2025-05-05,2025-05-06,2025-05-07,2025-05-08,2025-05-09,2025-05-12,2025-05-13,2025-05-14,2025-05-15,2025-05-16,2025-05-20,2025-05-21,2025-05-22,2025-05-23,2025-05-26,2025-05-27,2025-05-28,2025-05-29,2025-05-30,2025-06-02,2025-06-03,2025-06-04,2025-06-05,2025-06-10,2025-06-11,2025-06-12,2025-06-13,2025-06-16,2025-06-17,2025-06-18,2025-06-19,2025-06-20,2025-06-23,2025-06-24,2025-06-25,2025-06-26,2025-06-27,2025-06-30,2025-07-01,2025-07-02,2025-07-03,2025-07-04,2025-07-07,2025-07-08,2025-07-09,2025-07-10,2025-07-11,2025-07-14,2025-07-16,2025-07-17,2025-07-18,2025-07-21,2025-07-22,2025-07-23,2025-07-24,2025-07-25,2025-07-28,2025-07-29,2025-07-30,2025-07-31,2025-08-01,2025-08-04,2025-08-05,2025-08-06,2025-08-07,2025-08-08,2025-08-11,2025-08-12,2025-08-13,2025-08-14,2025-08-15,2025-08-18,2025-08-19,2025-08-20,2025-08-21,2025-08-22,2025-08-25,2025-08-26,2025-08-27,2025-08-28,2025-08-29,2025-09-01,2025-09-02,2025-09-03,2025-09-04,2025-09-05,2025-09-08,2025-09-09,2025-09-10,2025-09-11,2025-09-12,2025-09-15,2025-09-16,2025-09-17,2025-09-18,2025-09-19,2025-09-22,2025-09-23,2025-09-24,2025-09-25,2025-09-26,2025-09-29,2025-09-30,2025-10-01,2025-10-02,2025-10-03,2025-10-06,2025-10-07,2025-10-08,2025-10-09,2025-10-10,2025-10-13,2025-10-14,2025-10-15,2025-10-16,2025-10-17,2025-10-20,2025-10-21,2025-10-22,2025-10-23,2025-10-24,2025-10-27,2025-10-28,2025-10-30,2025-10-31,2025-11-03,2025-11-04,2025-11-05,2025-11-06,2025-11-07,2025-11-10,2025-11-11,2025-11-12,2025-11-13,2025-11-14,2025-11-17,2025-11-18,2025-11-19,2025-11-20,2025-11-21,2025-11-24,2025-11-25,2025-11-26,2025-11-27,2025-11-28,2025-12-01,2025-12-02,2025-12-03,2025-12-04,2025-12-05,2025-12-08,2025-12-09,2025-12-10,2025-12-11,2025-12-12,2025-12-15,2025-12-16,2025-12-17,2025-12-18,2025-12-19,2025-12-22,2025-12-23,2025-12-24,2025-12-25,2025-12-26,2025-12-29,2025-12-30,2025-12-31,2026-01-02,2026-01-05,2026-01-06,2026-01-07,2026-01-08,2026-01-09,2026-01-12,2026-01-13,2026-01-14,2026-01-15,2026-01-16,2026-01-19,2026-01-20,2026-01-21,2026-01-22,2026-01-23,2026-01-26,2026-01-27,2026-01-28,2026-01-29,2026-01-30,2026-02-02,2026-02-03,2026-02-04,2026-02-05,2026-02-06,2026-02-09,2026-02-10,2026-02-11,2026-02-12,2026-02-13,2026-02-16,2026-02-17,2026-02-18,2026-02-19,2026-02-20,2026-02-23,2026-02-24,2026-02-25,2026-02-26,2026-02-27,2026-03-02,2026-03-03,2026-03-04,2026-03-05,2026-03-06,2026-03-09,2026-03-10,2026-03-11,2026-03-12,2026-03-13,2026-03-16,2026-03-17,2026-03-18,2026-03-19,2026-03-23,2026-03-24,2026-03-25,2026-03-26,2026-03-27,2026-03-30,2026-03-31,2026-04-01,2026-04-02,2026-04-03,2026-04-06,2026-04-07,2026-04-08,2026-04-09,2026-04-10,2026-04-13,2026-04-14,2026-04-15,2026-04-16,2026-04-17,2026-04-20,2026-04-21,2026-04-22,2026-04-24,2026-04-27,2026-04-28,2026-04-29,2026-04-30,2026-05-04,2026-05-05,2026-05-06,2026-05-07,2026-05-08,2026-05-11,2026-05-12,2026-05-13,2026-05-14,2026-05-15,2026-05-18,2026-05-20,2026-05-21,2026-05-22,2026-05-25,2026-05-26,2026-05-27,2026-05-28,2026-05-29,2026-06-01,2026-06-02,2026-06-03,2026-06-04,2026-06-05,2026-06-08,2026-06-09,2026-06-10,2026-06-11,2026-06-12,2026-06-15,2026-06-16,2026-06-17,2026-06-18,2026-06-19,2026-06-22,2026-06-23,2026-06-24,2026-06-25,2026-06-26,2026-06-29,2026-06-30,2026-07-01,2026-07-02,2026-07-03,2026-07-06,2026-07-07,2026-07-08,2026-07-09,2026-07-10,2026-07-13,2026-07-14,2026-07-16,2026-07-17,2026-07-20,2026-07-21,2026-07-22,2026-07-23,2026-07-24,2026-07-27,2026-07-28,2026-07-29,2026-07-30,2026-07-31,2026-08-03,2026-08-04,2026-08-05,2026-08-06,2026-08-07,2026-08-10,2026-08-11,2026-08-12,2026-08-13,2026-08-14,2026-08-17,2026-08-18,2026-08-19,2026-08-20,2026-08-21,2026-08-24,2026-08-25,2026-08-26,2026-08-27,2026-08-28,2026-08-31,2026-09-01,2026-09-02,2026-09-03,2026-09-04,2026-09-07,2026-09-08,2026-09-09,2026-09-10,2026-09-11,2026-09-14,2026-09-15,2026-09-16,2026-09-17,2026-09-18,2026-09-21,2026-09-22,2026-09-23,2026-09-24,2026-09-25,2026-09-28,2026-09-29,2026-09-30,2026-10-01",o:[57.5,58.5,57.75,59.2,61.8,62.8,62.15,61.85,60.55,61.25,62.6,63.7,65.1,64.75,64.55,65.5,65.7,66.3,67.15,69.2,69.7,69.35,68.6,70.9,70.45,70.25,69.5,68.45,68.85,69.05,70.8,68.65,67.85,69.2,68.45,67,67.45,66,66.65,68.7,67.5,65.6,65.1,67,66.65,64,63.55,62.55,64.45,66.1,62.4,63.8,62.3,62.3,63.75,63.65,65.2,65,69.05,69.5,69.25,66.3,67,68.25,68,67.7,67.7,68.65,71.4,74,74.95,73,73.8,75.45,75.15,76.75,77.8,79.5,78.55,79.75,80.15,81.05,81.25,82,82.6,84.7,84.55,83.5,84.2,83.55,83.1,83.1,84.85,87.85,87.35,90.95,93,92.75,91.6,91.05,90.8,91.7,97.25,99.9,103,99.8,101.7,99.3,97.6,99,95.6,99,99.65,99.65,103,101.4,100,100,98.5,99.95,101.2,99.25,102.4,104.9,107.5,107.5,109,108.5,109.7,110.9,111.3,109,110.1,110.1,111.1,114.8,111,107,109.6,105.2,105.9,104.9,107,106.1,95.1,102.7,103.8,105.2,106.6,103.2,104,104.2,104.2,105.9,103.7,106.3,101.2,99.9,95,94.5,90.95,96.3,97.05,98.9,100.1,98,100.5,98.9,97.15,96.7,97.1,99.7,96.8,94.75,91.6,91.8,92.55,94.35,94.05,95,97.45,96.55,95.7,95.6,95.25,91.5,89.95,87.45,84.45,82.4,83.05,87,86.7,84.2,83.75,85.7,88,87.4,85.15,85.75,87.7,87.55,86.9,87.95,87.9,87.9,85,85.45,84.75,84,85.65,91.1,92,95.3,95.35,95.2,96.4,94.6,92.65,93.2,94.4,96.1,93.75,93.4,93.7,93.25,91.35,90.05,92.15,94.05,91.8,92.75,95.05,93.9,94.1,93.15,93.4,96.35,96.1,95.75,97,93.65,91.9,90.9,93.25,94.1,93.25,94.3,93,93.2,96.05,99.25,97.8,97.2,97.5,96.45,95.85,95,95.4,96.9,98.5,100.8,99.1,102.3,105.5,106,105.2,106.1,109,108.2,107.8,106.9,105.8,108,106.5,107,106,107.1,108.6,108.9,107.8,106.2,104,105.5,105.4,107.3,106.2,103.8,104,105.3,104.8,101.3,101,102.5,105.5,107.9,106.2,105.3,104.3,107.2,107.9,110.1,109.6,101,97.5,96.5,89,91.8,93.5,95.25,93.25,95.25,94.65,92.3,85.5,90.2,89.5,92.3,90.25,91.6,90.25,89.8,88.7,92.15,93.5,93.85,91.35,94.7,91.65,90.25,91.75,90.5,89.9,86.55,87.6,89.05,90.45,95.1,96.7,96.5,97.8,96.85,97.4,98.4,97.8,99.5,98.95,98.75,98,96.95,95.5,94,91.75,93.8,98.05,98.3,97.15,96.1,92.5,92.3,92.3,90.65,91.15,88.05,87.75,92,91.9,93.05,89.55,89.9,97,98.2,99.05,98.25,97,97.65,94,96.85,94.55,92.6,92.5,93.1,94.1,94.9,95.7,95.3,94.7,94.25,92.7,92.5,91.2,93.75,93.25,93.6,94.5,93.5,93.2,96.05,97.3,97.4,97.35,97.75,94.7,95.15,94.4,95.4,97.9,99.2,98.3,99.35,100.8,99.8,96.8,94.9,93.5,91.2,90.75,90.85,88.5,88.95,89.45,88.75,88.7,89.45,93.65,95,96,95.2,98.95,97.75,99.15,99.8,98.3,96.75,97.55,97.85,99.5,101.7,98.45,98.9,100,99.5,101,99,97.95,91.05,95,95.75,94.3,96.8,97.3,98.5,98.65,100.7,99.95,100.9,98.35,100.2,97.45,97.3,98.35,98.5,97.35,96.6,97,96.6,95.05,93.55,92.85,94.25,95.25,96.3,94.45,94.95,94.05,94.5,94.6,93.35,96,97.35,98,97.15,98.65,100.7,101.8,101.3,100.8,105.4,105.2,101.7,102.1,101.9,101.4,99.6,98.85,99,97.05,95.25,94.05,93.95,93.5,96.4,96.95,99.2,99.2,100,98.3,99.75,102.1,101.2,104,107,105.6,105,106.4,113,112.7,114.8,114.2,116.5,116.8,115,114.5,119,118.3,115.6,115.5,117.1,117,122.3,124.1,126,126.5,126.2,125.4,120.1,124.1,123.1,121.7,121.3,121,108.1,113.3,112.8,111.6,110.5,104.4,112,111,108.4,110,112,109.4,111.5,107.5,104.9,107.5,107.7,106.7,106.3,106,105.1,108.5,106.1,107.1,107.9,108.3,109.4,110.7,116.1,114.6,116.5,116.6,118,117.5,118.1,118.6,116.1,113.7,114.5,116,114.2,111,112.3,111.1,116.8,119.4,118.1,120,121,116,114.9,112.5,109.3,106.7,108.1,102.8,106.5,106.2,101,101,101,102,103.6,107.5,106.6,108,104.1,107.8,105.1,105,108.5,115.5,114.9,115.7,112.5,114.5,113.8,112.1,110.9,111.5,110.5,110.9,110,107.4,108.8,109,107.5,108.5,107.1,106.1,104.8,105.9,109,110.2,111.7,108.4,110.2,112,110.4,105,104.6,102.3,101.8,101.7,102,100.7,104.1,106.5,105.1,105.2,105.2,105,102.9,104.1,103.9,104.8,102.6,103.5,104.4,103,105.5,103.4,103.2,104.2,103.8,103.5,95.5,95.55,97.8,96.5,98.1,99.05,102.2,102,101.5,102.9,102.6,99.6,96.1,98.4,97.2,99.45,100.5,100,99.5,99.35,98.3,98.2,96.6],h:[59.1,58.85,60.55,61.35,62.55,63,62.4,62.1,62.45,63.55,64.8,65.6,65.3,64.9,66.25,67.05,66.85,67.65,70.85,70.25,71,69.4,70.3,71.5,70.7,70.75,69.55,69.15,69.45,71,70.8,68.85,69.35,69.65,69.15,67.45,67.55,66.85,68.55,69.2,67.5,66.3,67.65,67.3,66.7,64.75,64.25,64.35,65.5,66.7,63.3,63.8,62.35,63.6,64.65,65.4,65.8,70.15,70.55,72.7,70,67.9,68.65,69.5,68.25,68.75,69.25,72,74.4,75.05,75.4,74,75.45,76.45,77.95,79.25,78.7,79.6,79.6,80.2,81.05,81.8,83,83.2,85.2,85,85.4,85.75,85.05,84,84,84.75,88.2,88.65,92.05,93.2,95.9,94.75,92.2,91.5,92.25,96.45,102.7,107.1,103.4,102.1,101.9,100.5,101.8,100.4,99.2,100.3,100.7,103.3,104.4,101.5,101.7,100.5,99.8,101.9,102.2,102.6,105.5,107.5,107.5,111.7,111.6,111.7,113.7,111.7,111.9,110.1,112.1,111.3,115.3,114.8,111,110,110.1,107.1,106.9,106.6,110.5,106.3,101.7,104.6,106.7,106.1,107.7,106.4,104.2,106.2,105.7,105.9,106.7,106.8,102,99.95,95.65,94.9,96.5,97.7,99.3,101.7,100.1,100.6,100.6,99.9,98.2,99.3,99.65,100.2,97.6,95.3,92.75,92.45,93.85,95.7,95.45,98,98.5,98.45,96.45,96.15,95.6,92.7,91.1,88.9,84.6,85.2,87.15,88.25,87.8,84.25,86.5,88.1,88.55,87.85,86.8,89.05,88.15,88.45,88.7,88.85,88.9,89.15,86.45,87.05,85.15,85.8,89,92.35,96.6,96.45,96.1,96.95,96.6,95.1,92.95,95.95,96.3,96.4,94.25,95.05,94.45,94.1,91.95,92.15,94.6,95.25,92.65,95.2,95.7,95.1,94.65,94.35,96.4,97.8,96.6,98.4,97.05,93.9,92.4,92.15,95.45,94.5,94.7,94.7,94.95,96.2,99.4,99.75,98.3,101.4,99.25,98.1,96.05,95.95,97.2,98.45,100.7,101.3,102.7,106.2,106.5,107.8,106.9,109,109.5,108.6,108.8,107.1,108.4,108,108.5,107,107.3,108.9,109.2,109.5,109,106.2,106,106.5,107.7,108.2,106.7,104.6,106.1,108.1,106.3,102.5,102.3,104.5,107.4,109.3,108.1,106.6,106.8,107.9,111.3,111.4,111.3,104.1,100.8,96.5,90.5,96.05,97.25,95.5,95.8,95.75,95.65,92.7,90.05,91.4,91.2,92.7,91.4,91.8,90.75,90.1,91.65,93.8,95.85,94.65,94.15,95.1,91.8,91.8,92.1,90.9,90.2,88.25,88.4,90.25,94.1,98.25,97.6,97.5,98.4,97.6,98.6,99.5,99.75,100.3,99.55,99.5,98.4,97.35,95.7,94.1,94.75,98.4,98.05,99,98.4,98.05,93.4,93.65,93.45,91.5,92,90.1,89.4,92.15,93.75,93.15,90.4,96.15,99,99.25,100.1,100.2,98.15,98,95.7,96.9,94.9,93.3,93.85,94.25,94.9,95.85,95.95,95.6,96,94.35,92.85,92.95,94.2,94.8,93.75,94.1,94.5,93.75,95.3,96.6,97.85,98.3,98.6,98.05,95.6,96.55,95.65,97.8,99.4,99.3,99.35,100,101.4,99.9,96.95,94.95,94.2,91.35,91.4,91.4,89.3,89.35,90.15,89.7,89.7,94.05,95.3,95.95,96.1,97.35,99.35,99.95,100.2,100.3,99,98,98.7,100.7,101.7,102,99.6,100.8,101.1,101.1,101.8,100.1,97.95,96.05,100.4,95.75,97.25,97.35,99.4,98.55,104.4,101.9,101.9,103.7,100.5,101.6,97.55,100.8,103.4,99.1,98,96.95,97.15,96.8,95.15,94.1,94.6,95.6,97,96.7,94.9,95.25,95.45,95.55,94.75,96,97.25,98.65,99.3,99.4,101.5,102.1,102.7,102.4,104.5,106,105.2,102.9,103,102.7,101.6,100,99.5,99.4,97.3,95.5,94.55,94.75,96,97.3,99.25,99.4,99.9,100,100.2,102.7,102.7,104.1,106.2,108.8,105.8,105.8,112.1,115.1,115.3,115.9,116.5,118.7,118.8,115.4,118.5,119.5,118.6,115.6,117.9,118.2,123.3,124.6,127,129.6,128.6,129.1,125.6,123.5,125,123.5,122.2,121.6,121.8,115.1,115.7,113.9,113.2,112.2,107,112,112.9,112.2,110.6,112.8,111.7,112,107.8,108.4,108,108.6,108.9,106.8,106.4,107.7,108.6,107.2,108.6,109.2,109,113.3,114.4,117.8,115.7,118.5,117.6,118.5,121.3,119.7,118.9,116.3,114.9,117.2,116.4,114.9,112.3,113.2,116.1,119.3,120.9,120.9,123.4,121,116,115.5,113,109.4,108.8,108.1,107.8,107.5,106.9,101,101,101,105.4,108.9,108.5,108.2,108.1,107.5,110,105.8,107.6,111.4,116.3,115.4,116.3,116.1,115.9,114.7,112.5,112.3,113.1,111.6,112,110.3,109.1,110.9,109,109,109.4,107.1,106.9,107.7,109.4,111,112.4,112.3,111.2,111.9,112.3,110.6,105.4,105.2,103.2,102.4,102.2,102.2,104.9,108.4,107.5,106.3,106.5,106.6,105,104.7,105.3,105.4,104.8,104.5,105.3,105.1,105.5,105.9,103.8,105.1,104.8,103.9,103.5,96.75,98,98,98.3,99.65,101.6,103.7,102.2,105.4,104.2,102.8,102.2,99.8,99.45,99.9,102,101.9,101,100.9,100.3,99.4,98.6,99.6],l:[57.3,57.25,57.3,59.1,60.8,61.45,60.85,60.5,59.35,61.05,62.45,63,64.05,62.8,63.95,64.95,65,66.05,66.65,68.05,68.8,67.8,68.35,69.75,69.7,69.2,68,68.35,68,68.7,67.95,66.6,67.65,68.05,66.35,66.1,65.5,65.15,66.65,67.05,65.5,64.55,65.1,65.7,63.9,62.95,62.4,62.55,63.9,62.1,60.95,62,61.15,61.3,62.8,63.6,63.6,65,68.7,68.2,65.85,65.9,66.6,67.5,65.4,66.45,67.1,68.65,71.4,73.4,72.95,71.9,73.5,74.35,74.95,76.75,76.45,77.15,77.7,78.35,79.25,80.4,80.95,80.3,82.2,83.6,83.05,83.5,82.85,82.2,82.4,82.9,84.75,86.6,87.25,90.95,92.55,91.8,88.7,87.6,89.1,91.7,96,98.6,99.2,96.6,98.6,97.3,95.3,95.6,95.4,97.1,97.55,98.9,100.8,97.7,98.6,96.75,97.15,99.2,97.8,98.6,102.3,104.6,104.7,107.1,107.5,108,109.7,109.5,108.2,106.9,109.5,108.9,110.4,109.9,107.4,105.3,106.3,103.7,104.7,104.5,106.8,101.6,95.1,101.1,102.8,104.2,102.7,103.2,101,102.8,102.7,103.1,102.9,101,97.5,95,93.05,90.55,90.2,95.05,96,98.9,98.05,97.6,98.1,97.9,95.85,96.65,96.7,94.8,92.6,90.6,91.55,91.2,92.05,93.5,92.8,94.85,95.9,95.25,94.15,93.85,89.8,89,86.4,83.95,82.15,81.7,83.05,86.2,83.75,80.85,82.9,85.05,85.65,84.65,84.25,85.75,85.7,86.15,86.4,87.45,87,84.2,85,83.5,82.8,82.5,85.5,88.6,91.7,94.75,93.35,94.95,93.85,91.85,90.9,92.5,93.7,92.2,92.6,92.9,92.6,91.15,90.2,89.8,91.8,93.2,90.9,92.35,93.5,93.25,92.7,92.4,92.65,96.05,94.8,94.95,93.35,91.25,90.5,90.35,92.55,92.2,93.25,93.15,90.95,92.25,95.5,97.35,96.45,96.15,94.9,95,93.35,94.2,95,96,98.25,98.4,99,101.5,104.8,105.6,104.3,104.3,107.2,106.9,106.5,104.6,105.3,104.3,106,105.4,105.7,106.5,106.8,106.3,105.5,102.3,103.6,104.3,105.4,102,103.3,102.6,103.3,104.4,99.9,99.55,100.5,102.4,104.3,105.6,104.4,102.8,103.6,106.4,106.8,108.6,108.7,98.3,94.7,87.4,84.55,90.4,92.7,92.35,91.9,93.4,91.95,88,84.9,88.65,89,89.8,88.95,89.8,89.4,87.8,87.15,91,93.05,90.85,91.25,91.25,89.9,90.1,88.35,88.95,86.35,86.4,87.1,88.1,89.1,94.95,95.2,96,96.35,94.9,96.4,97.3,96.1,96.85,97.55,97.25,94.9,95.1,91.75,91,91.5,93.75,96.35,96.1,96.5,94.9,88.6,90.8,90.95,89.85,88.6,87.55,87.45,90.15,91.25,89.15,88.4,89.9,96.65,97.35,96.2,97.55,95.75,93.75,93.7,93.7,92.35,91.75,89.05,92.65,93.2,94.5,94.85,94.2,93.75,92.5,91.9,91.1,91.15,92.2,92.4,93.15,93.35,92.65,93.2,95.1,96.15,96.45,96.8,94.3,93.55,93.6,93.85,94.3,97.7,97.4,97.8,98.1,99.6,96.15,94.5,93.25,88.25,89.45,90.4,89.8,87.95,87.55,88.2,87.8,87.05,88.8,93.05,94.45,94.15,94.75,97.85,97.05,97.3,98.05,95.85,96.3,96.45,97.2,99.3,97.35,97.45,98.2,97.6,98.8,99.6,97.6,90,90.45,94.35,91.55,92.6,95.6,96.8,97.1,98.3,99.45,99.65,98.15,98.1,96.7,96.05,97.3,98.05,96.35,95.8,91.8,94.4,94.7,92.3,92.5,92.7,93.75,95,94.25,93.45,93.25,93.85,94.2,93.3,93.35,95.4,97,96.85,96.8,98.65,100.5,100.7,99.5,100.7,104.1,100.1,101.3,101.6,100,99.5,98,98.3,98.55,95.1,93.95,92.55,92.85,93.5,95.55,96.85,97.9,97.05,97.85,98.25,99.65,101.1,100.7,103.1,105.5,103,103.8,105.5,111.6,111.7,113.1,114,115.9,115.4,110.9,113.3,117.1,115,113,114.9,116.4,116.3,121.1,123.8,125.3,126,123.8,119.7,119.9,121.8,120.7,119.4,118.4,115.1,108.1,111.4,109.5,109.7,106.1,102.9,108.8,108.3,107.5,107.4,108.6,109,107.9,106.4,102.5,103.9,106.7,105.5,104.9,104.4,105,106.2,105.2,106.1,107,104.5,108.9,110,115.4,112.7,115.8,115.6,116.7,116,117.7,115,113.7,112,114,113.5,111.4,109.4,109.6,111.1,115.2,118.2,116.6,119.5,115,113.6,113.9,109.5,106.8,105.3,102.7,100.8,105.2,101,101,101,101,102,103.6,105.3,104.5,104.6,104,105.5,103.5,104.7,107.7,112.4,113.3,111.3,112.4,113.4,112.7,110.8,109.4,109.4,109.7,108.6,106.6,106.1,107.6,106.9,106.3,107.3,103.9,104.3,104.6,105.3,108.1,109.7,108.3,107.8,109.6,110,103.8,102.1,101.8,101.4,100.7,98.95,99.25,100.3,104,104.9,103.6,104.4,104.9,102,101.6,103,103.2,101.7,102.2,102.8,102.2,102.6,102.7,102.5,102.8,101.9,102.4,93.5,94.9,94.4,96.35,95.05,97.75,97.85,101,100,101.2,102.3,99.3,92.25,95.3,96.4,95.7,99.45,100,99,99.05,97.5,96.35,95.15,96.1],c:[58.6,57.7,59,61.25,62.1,62.5,61.5,60.85,61,62.35,64.25,65,64.45,64.35,64.6,65.6,66,66.95,69,69.3,69.35,68.55,69.55,70.2,70.05,69.35,68.1,68.65,68.35,70.9,68.3,67.5,68.8,68.15,66.75,67.35,65.75,66.4,68.35,67.5,65.5,65.35,66.95,66.3,63.95,63.6,62.4,64.3,65.5,62.1,61.5,62,61.9,63.6,63.9,65.05,64.3,69.05,69.65,69.3,66.25,66.75,68.4,67.7,67.25,67,68.5,71.1,74,74.95,73.25,73.25,74.9,75.35,76.55,77.4,78.3,78.5,79.1,80.2,80.8,80.95,82.1,82.25,84.75,84,83.8,84,83.35,83.1,82.8,84.75,87.4,87.1,90.6,92.1,92.7,91.8,89.6,90.75,91.6,95.75,99.6,102.6,99.75,100.8,98.95,97.6,99,95.6,97.95,97.1,98.6,103.3,101,100,100.2,98.05,99.35,100.6,99.3,102,104.7,107.5,106,108.7,109.4,109,111.2,111.1,109,109.4,110.1,110.4,114.8,111.3,107.4,108,106.3,105.6,105.4,105.6,107.5,102.5,100.2,102.7,105.9,106,102.8,103.7,103.3,103.5,105,103.5,106.3,101.2,98.2,95,94,91,96.5,97.05,98.35,100,99.5,100.1,98.95,98,95.85,97.15,98.2,97.8,94.6,91.2,91.85,91.65,93.8,93.6,94.75,97.3,95.9,95.75,96.35,95.2,91.75,89.9,86.95,84.35,82.35,82.35,87.05,86.25,84.1,84.25,86.4,88,87.25,85.1,85.5,87.7,87,87,87.75,87.7,87.8,84.75,85.85,84.65,83.55,85.1,89,91.4,95.7,95.95,94.75,96,94.6,92.25,92.45,94,96,93.15,93.4,93.05,93.05,91.3,90.55,91.85,93.9,94.15,92.15,94.3,93.8,93.85,92.8,93.5,96,96.05,95.8,97.25,93.6,91.45,90.7,92.05,93.75,93.2,94.05,93.15,92.8,96.05,98.5,97.95,97.5,96.85,96.3,95.65,94.65,95.2,95.9,98.45,100.3,99.7,102,105,106.2,106.4,106.1,108.9,108,107.4,108.1,105.6,107.5,105.9,107.1,106,107,108.5,107.9,107.4,106.3,104,105,104.9,106.8,105.5,103.7,104.2,105.3,107.7,100.7,100.5,101.5,104.4,107.4,106,104.7,103.4,106,107.5,109.4,109.4,109.2,98.3,97.1,87.4,89.6,94.8,93.9,93.2,95.8,94.35,92,88.3,88.45,90.65,89.7,89.8,90.7,89.9,89.9,88.55,91.65,93,93.5,92.1,94.15,91.3,90.55,91.3,89.9,89.1,86.55,87.35,87.9,90.05,92.3,97.45,95.75,97.05,96.5,96.7,98.45,97.35,99.75,98,98.5,98,96.05,95.5,94.85,91,94.05,98.15,97.1,97.1,97.1,95.7,92.5,92.65,90.95,90.9,88.6,89.85,88.15,91.7,92.95,89.5,89.3,96.15,98.5,98.1,98,98.95,97,94,95.25,93.7,92.4,92.3,92.25,94.1,94.55,95.55,95.1,94.35,94.25,92.5,92.55,91.1,93.55,93.25,93.25,93.4,93.35,93,94.95,96.3,97.25,97.55,97.75,94.6,94.75,94.1,95.2,97.65,99,97.85,99.05,99.8,99.6,96.75,94.8,93.25,91.2,90.65,90.5,90.05,88.9,89.1,88.75,88.65,89.45,93.65,95.2,95.75,94.8,97,98.9,99.05,99.6,98.2,96.9,97.3,97.85,99.5,101.4,98.1,98.8,100.4,98.45,100.4,100.2,97.9,90.85,95.75,95.8,94.25,96.8,96.95,97.6,98.55,100.8,100,100.6,98.75,99.7,97.45,96.45,97.7,102,96.9,96.45,94.4,96.3,95.6,93.15,93.1,94,94.65,96.7,94.7,94.4,94,94.1,94.6,93.55,95.85,97.25,97.75,97.15,98,100.8,101.7,101.2,100.5,104.2,105.4,101.8,102.1,101.9,101,99.5,98.7,98.6,98.65,95.25,93.95,93.5,93.1,96,96.8,99.1,98.8,99.65,98.3,99.55,101.7,101.7,103.7,105.9,105.8,104.5,105.5,112.1,112.8,114.8,114.4,115.9,117.3,116.9,113.5,118.5,118.3,116.1,114.3,117,118.1,122.1,123.9,125.3,127.5,126,124.6,120.2,122.8,123.1,121.5,121,120.8,115.8,114,113.3,111,109.7,107.5,106.9,111.5,109.1,111.3,108.8,109.1,110.8,108.5,106.6,108.4,106.2,107.4,106,106.4,104.6,105.9,107.2,106.9,107.5,108.6,104.9,111.2,114.4,117.3,115.7,116.3,117.1,117.3,120.5,117.7,115.3,114.1,114.3,116.6,113.8,112.1,112.1,111,115.2,117.7,118.6,120,121.9,115,114,114.5,109.5,106.8,108.6,106,106.5,106.1,101,101,101,101,102.6,108.5,105.8,107.9,105.1,107.4,105.5,104.6,107.5,110.7,114.9,115.2,112.1,116,113.4,113.2,111,110.4,110.5,110.9,109.6,107.4,108.7,108.4,107.2,108.6,108.2,105.4,104.9,107,109,110.2,112.2,108.5,109.6,111.5,111,105,103.7,102.3,101.7,101.4,101.5,99.95,104.5,107.6,105.1,105.3,105.1,105.3,103.1,104.1,103.1,104.1,102.9,103.5,104,102.8,104.3,103.1,102.7,103.5,102.8,103.5,95.05,96.55,97.2,96.6,98.15,99.05,101.6,101.8,101.6,103.7,102.4,99.4,95.75,99.15,97.2,99.9,100.3,100.8,99.45,99.95,98.35,98.25,96.1,97.7]}
+};
+</script>
+<script>
+/* Pure computations shared by the widgets (no DOM). Checked against python ports of the slides and of Efe's notebook. */
+const TM = (function () {
+  const r2 = x => Math.round(x * 100) / 100;
+  const f2 = x => r2(x).toFixed(2);
+  const pct = (a, b) => (b / a - 1) * 100;
+  function num(raw) {
+    const s = String(raw).trim().replace(/−/g, "-").replace(",", ".");
+    return /^[+-]?\d+(\.\d+)?$/.test(s) ? Number(s) : null;
+  }
+  function rma(x, n) {
+    const a = 1 / n, y = new Array(x.length);
+    for (let i = 0; i < x.length; i++) y[i] = i ? (1 - a) * y[i - 1] + a * x[i] : x[i];
+    return y;
+  }
+  const cache = {};
+  function series(key) {
+    if (cache[key]) return cache[key];
+    const S = TM_DATA[key];
+    const dates = S.d.split(",");
+    let last = dates.length - 1;
+    while (dates[last] > "2026-10-01") last--;
+    const n = dates.length, er = new Array(n).fill(0);
+    for (let i = 40; i < n; i++) {
+      let s = 0;
+      for (let j = i - 39; j <= i; j++) s += Math.abs(S.c[j] - S.c[j - 1]);
+      er[i] = s ? Math.abs(S.c[i] - S.c[i - 40]) / s : 0;
+    }
+    return (cache[key] = { o: S.o, h: S.h, l: S.l, c: S.c, dates, last, er, atr: {} });
+  }
+  function atr(S, n) {
+    if (!S.atr[n]) {
+      const tr = S.c.map((c, i) => {
+        const pc = i ? S.c[i - 1] : c;
+        return Math.max(S.h[i] - S.l[i], Math.abs(S.h[i] - pc), Math.abs(S.l[i] - pc));
+      });
+      S.atr[n] = rma(tr, n);
+    }
+    return S.atr[n];
+  }
+  /* One long trade filled at the open of bar i0, managed by a Chandelier stop (Efe's notebook, cell 9). */
+  function chandelier(key, i0, opt) {
+    const S = series(key), A = atr(S, opt.atrLen), last = S.last;
+    const K = i => opt.k == null ? (S.er[i] > 0.15 ? 8 : 4.5) : opt.k;
+    const ep = S.o[i0], eatr = A[i0 - 1];
+    let stop = ep - K(i0 - 1) * A[i0 - 1], hi = ep, beAt = -1;
+    const init = stop, line = [];
+    function done(i, px, why) {
+      const atBE = why !== "end" && line[line.length - 1] === ep;
+      return { i0, exitI: i, px, why, atBE, ep, init, R: ep - init, line, beAt, pct: pct(ep, px), rMult: (px - ep) / (ep - init), bars: i - i0 };
+    }
+    for (let i = i0; i <= last; i++) {
+      line.push(stop);
+      if (i > i0 && S.o[i] <= stop) return done(i, S.o[i], "gap");
+      if (S.l[i] <= stop) return done(i, stop, "stop");
+      hi = Math.max(hi, S.h[i]);
+      stop = Math.max(stop, hi - K(i) * A[i]);
+      if (opt.be && hi >= ep + 3 * eatr) { if (beAt < 0) beAt = i; stop = Math.max(stop, ep); }
+    }
+    return done(last, S.c[last], "end");
+  }
+  /* Efe's notebook (cell 11): the 9 ASELS and TCELL trades; the simulator must reproduce them. */
+  const TRADES = [
+    { s: "ASELS", n: 1, d: "2025-01-08", sig: "Volume breakout", ep: 77.05, xd: "2025-05-30", xp: 130.76, why: "Chandelier stop" },
+    { s: "ASELS", n: 2, d: "2025-07-01", sig: "Volume breakout", ep: 150.80, xd: "2025-11-06", xp: 187.46, why: "Chandelier stop" },
+    { s: "ASELS", n: 3, d: "2025-11-18", sig: "RSI reversal", ep: 188.30, xd: "2026-05-22", xp: 370.50, why: "Chandelier stop (gap open)" },
+    { s: "ASELS", n: 4, d: "2026-08-14", sig: "Volume breakout", ep: 398.25, xd: "2026-09-16", xp: 349.12, why: "Chandelier stop" },
+    { s: "TCELL", n: 1, d: "2025-01-06", sig: "Volume breakout", ep: 99.25, xd: "2025-03-19", xp: 99.25, why: "Break-even stop" },
+    { s: "TCELL", n: 2, d: "2025-03-25", sig: "RSI reversal", ep: 91.80, xd: "2025-09-02", xp: 91.86, why: "Chandelier stop" },
+    { s: "TCELL", n: 3, d: "2025-12-09", sig: "Volume breakout", ep: 100.70, xd: "2025-12-26", xp: 95.62, why: "Chandelier stop" },
+    { s: "TCELL", n: 4, d: "2026-01-16", sig: "Volume breakout", ep: 104.00, xd: "2026-03-06", xp: 110.50, why: "Chandelier stop (gap open)" },
+    { s: "TCELL", n: 5, d: "2026-04-13", sig: "Volume breakout", ep: 114.60, xd: "2026-05-18", xp: 107.19, why: "Chandelier stop" }
+  ];
+  /* Constructed price paths for the lifecycle stepper (not real data). */
+  const PATHS = {
+    trend: { clusterLow: 68.00, prices: [71.60, 72.40, 71.10, 73.00, 74.20, 73.50, 75.00, 76.30, 75.60, 77.80, 79.00, 78.10, 80.50, 82.00, 81.20, 83.50, 85.10, 84.00, 86.40, 88.00, 87.10, 89.20, 90.00, 88.60, 87.20, 85.90, 84.00, 82.50] },
+    volatile: { clusterLow: 68.00, prices: [71.60, 72.80, 74.50, 76.40, 75.20, 73.10, 71.00, 70.10, 71.50, 73.90, 76.80, 79.20, 82.50, 81.00, 84.60, 88.30, 91.00, 89.40, 93.50, 95.20, 92.00, 90.10, 88.90, 87.50] },
+    chop: { clusterLow: 68.00, prices: [71.60, 72.90, 74.00, 72.60, 71.20, 72.40, 70.80, 69.50, 68.90, 70.20, 69.00, 67.40, 66.80] }
+  };
+  /* Long trade: initial stop from the cluster low, trailing (peak − distance) after +m·R. The stop checked on a bar is the one set before it. */
+  function lifecycle(prices, clusterLow, bufPct, m, trail) {
+    const e = prices[0], init = r2(clusterLow * (1 - bufPct / 100)), R = r2(e - init), act = r2(e + m * R);
+    let stop = init, peak = e, active = false;
+    const frames = [{ t: 0, p: e, peak, stop, checked: init, active, ev: "entry" }];
+    for (let t = 1; t < prices.length; t++) {
+      const p = prices[t], checked = stop;
+      if (p <= stop) {
+        frames.push({ t, p, peak, stop, checked, active, ev: "exit", px: stop });
+        return { e, init, R, act, frames, exit: { t, px: stop, why: active ? "trail" : "init" } };
+      }
+      const old = stop;
+      let ev = "wait";
+      if (p > peak) peak = p;
+      if (!active && peak >= act) { active = true; ev = "activate"; }
+      if (active) {
+        const ns = r2(peak - trail);
+        if (ns > stop) stop = ns;
+        if (ev !== "activate") ev = stop > old ? "raise" : "hold";
+      }
+      frames.push({ t, p, peak, stop, old, checked, active, ev, cand: active ? r2(peak - trail) : null });
+    }
+    const L = prices[prices.length - 1];
+    frames.push({ t: prices.length - 1, p: L, peak, stop, checked: stop, active, ev: "end", px: L });
+    return { e, init, R, act, frames, exit: { t: prices.length - 1, px: L, why: "end" } };
+  }
+  function skew(arr) {
+    const n = arr.length, wins = arr.filter(r => r > 0), losses = arr.filter(r => r < 0);
+    const sum = arr.reduce((a, b) => a + b, 0), sw = wins.reduce((a, b) => a + b, 0), sl = losses.reduce((a, b) => a + b, 0);
+    const comp = (arr.reduce((a, r) => a * (1 + r / 100), 1) - 1) * 100;
+    const avgW = wins.length ? sw / wins.length : null, avgL = losses.length ? -sl / losses.length : null;
+    const be = avgW != null && avgL != null ? avgL / (avgW + avgL) : null;
+    return { n, wins: wins.length, losses: losses.length, flat: n - wins.length - losses.length, sum, comp, wr: wins.length / n, avgW, avgL, E: sum / n, be, pf: sl ? sw / -sl : sw > 0 ? Infinity : null, sw, sl };
+  }
+  function sizing(cap, riskPct, entry, stop) {
+    const R = entry - stop, budget = cap * riskPct / 100;
+    let shares = Math.floor(budget / R + 1e-9), capped = false;
+    const maxShares = Math.floor(cap / entry + 1e-9);
+    if (shares > maxShares) { shares = maxShares; capped = true; }
+    return { R, budget, shares, capped, value: shares * entry, loss: shares * R, allShares: maxShares, allValue: maxShares * entry, allLoss: maxShares * R };
+  }
+  return { r2, f2, pct, num, series, atr, chandelier, TRADES, PATHS, lifecycle, skew, sizing };
+})();
+</script>
+<script>
+/* Widgets */
+(function () {
+  const $ = id => document.getElementById(id);
+  const RED = "#c92a2a", GREEN = "#2b8a3e";
+  const { f2 } = TM;
+  const sgn = x => (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toFixed(2);
+  const tl = x => x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const trDate = d => d.slice(8, 10) + "." + d.slice(5, 7) + "." + d.slice(0, 4);
+
+  /* Line chart in a 360-wide viewBox so labels stay readable at phone width. */
+  function chart(o) {
+    const W = 360, H = o.h || 200, pl = 36, pr = 8, pt = 10, pb = 18;
+    let lo = Infinity, hi = -Infinity;
+    o.series.forEach(s => s.vals.forEach(v => { if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }));
+    (o.hlines || []).forEach(h => { lo = Math.min(lo, h.y); hi = Math.max(hi, h.y); });
+    const span = (hi - lo) || 1; lo -= span * 0.06; hi += span * 0.08;
+    const X = i => pl + (o.n <= 1 ? 0 : i * (W - pl - pr) / (o.n - 1));
+    const Y = v => pt + (hi - v) * (H - pt - pb) / (hi - lo);
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria}">`;
+    for (let k = 0; k <= 3; k++) {
+      const v = lo + (hi - lo) * k / 3, y = Y(v).toFixed(1);
+      s += `<line x1="${pl}" x2="${W - pr}" y1="${y}" y2="${y}" style="stroke:var(--stone-200)" /><text x="${pl - 3}" y="${(+y + 3).toFixed(1)}" text-anchor="end" style="font-size:9px;fill:var(--fg-subtle)">${v.toFixed(v < 100 ? 1 : 0)}</text>`;
+    }
+    (o.hlines || []).forEach(h => {
+      const y = Y(h.y).toFixed(1);
+      s += `<line x1="${pl}" x2="${W - pr}" y1="${y}" y2="${y}" style="stroke:${h.color};stroke-dasharray:4 3;stroke-width:1" /><text x="${W - pr - 2}" y="${(+y - 3).toFixed(1)}" text-anchor="end" style="font-size:9px;font-weight:700;fill:${h.color}">${h.label}</text>`;
+    });
+    o.series.forEach(se => {
+      let d = "", prev = null;
+      se.vals.forEach((v, i) => {
+        if (v == null) { prev = null; return; }
+        if (se.step && prev != null) d += `L${X(i).toFixed(1)},${Y(prev).toFixed(1)}`;
+        d += (prev == null ? "M" : "L") + X(i).toFixed(1) + "," + Y(v).toFixed(1);
+        prev = v;
+      });
+      if (d) s += `<path d="${d}" style="fill:none;stroke:${se.color};stroke-width:${se.w || 1.6}" />`;
+    });
+    (o.markers || []).forEach(m => {
+      s += `<circle cx="${X(m.i).toFixed(1)}" cy="${Y(m.y).toFixed(1)}" r="${m.r || 4}" style="fill:${m.color};stroke:#fff;stroke-width:1" />`;
+      if (m.label) s += `<text x="${Math.min(W - 40, Math.max(pl + 2, X(m.i) - 18)).toFixed(1)}" y="${(Y(m.y) + (m.below ? 14 : -7)).toFixed(1)}" style="font-size:9px;font-weight:700;fill:${m.color}">${m.label}</text>`;
+    });
+    if (o.xl) s += `<text x="${pl}" y="${H - 4}" style="font-size:9px;fill:var(--fg-subtle)">${o.xl}</text>`;
+    if (o.xr) s += `<text x="${W - pr}" y="${H - 4}" text-anchor="end" style="font-size:9px;fill:var(--fg-subtle)">${o.xr}</text>`;
+    return s + `</svg>`;
+  }
+  const stat = (label, val) => `<div class="w-trade-management-stat">${label}<b>${val}</b></div>`;
+
+  /* 1. Trade lifecycle stepper */
+  (function () {
+    const box = $("lc-stepper"), err = $("lc-err"), pathSel = $("lc-path"), actSel = $("lc-act"), bufIn = $("lc-buf"), trailIn = $("lc-trail");
+    const NAMES = { trend: "Trend", volatile: "Dalgalı, sonra trend", chop: "Yatay" };
+    function caption(f, run, m, trail, bufPct, clusterLow) {
+      const head = `Bar ${f.t} · fiyat ${f2(f.p)}. `;
+      if (f.ev === "entry") return `Bar 0 · Entry ${f2(run.e)}. Initial stop = ${f2(clusterLow)} × (1 − ${+(bufPct / 100).toFixed(4)}) = <b>${f2(run.init)}</b>. R = ${f2(run.e)} − ${f2(run.init)} = <b>${f2(run.R)}</b>. Trailing stop, fiyat ${f2(run.act)} seviyesine (+${m}R) gelince başlayacak.`;
+      if (f.ev === "exit") {
+        const res = (f.px - run.e) / run.e * 100, rm = (f.px - run.e) / run.R;
+        const why = run.exit.why === "init" ? "initial stop: entry fikri bozuldu" : f.px > run.e ? "trailing stop, kârda" : "trailing stop, ama stop henüz entry'nin altındaydı";
+        return head + `${f2(f.p)} ≤ stop ${f2(f.checked)} → <b>exit ${f2(f.px)}</b>. Sonuç ${sgn(res)}% = ${sgn(rm)}R. Sebep: ${why}.`;
+      }
+      if (f.ev === "end") {
+        const res = (f.px - run.e) / run.e * 100;
+        return head + `Fiyat yolu bitti, trade hâlâ açık. Son fiyattan kapatılırsa sonuç ${sgn(res)}% = ${sgn((f.px - run.e) / run.R)}R.`;
+      }
+      if (f.ev === "wait") return head + `Henüz +${m}R (${f2(run.act)}) görülmedi. Stop initial stop'ta: ${f2(f.stop)}.`;
+      if (f.ev === "activate") return head + `Fiyat +${m}R seviyesini (${f2(run.act)}) geçti: <b>trailing stop aktif</b>. Peak − mesafe = ${f2(f.peak)} − ${f2(trail)} = ${f2(f.cand)}` + (f.stop > f.old ? `, stop ${f2(f.old)} → <b>${f2(f.stop)}</b>.` : `. Bu mevcut stop'un (${f2(f.old)}) altında, stop yerinde kalıyor.`);
+      if (f.ev === "raise") return head + `Yeni peak. Stop yukarı: ${f2(f.old)} → <b>${f2(f.stop)}</b>.`;
+      return head + `Fiyat peak'in (${f2(f.peak)}) altında. Stop yerinde kalıyor (${f2(f.stop)}): trailing stop aşağı inmez.`;
+    }
+    function build() {
+      const bufPct = TM.num(bufIn.value), trail = TM.num(trailIn.value);
+      if (bufPct === null || bufPct < 0 || bufPct > 5) { err.textContent = "Buffer 0 ile 5 arasında bir yüzde olmalı, örneğin 0.5."; return; }
+      if (trail === null || trail < 0.5 || trail > 20) { err.textContent = "Trail mesafesi 0.5 ile 20 TL arasında olmalı, örneğin 6."; return; }
+      err.textContent = "";
+      const P = TM.PATHS[pathSel.value], m = Number(actSel.value);
+      const run = TM.lifecycle(P.prices, P.clusterLow, bufPct, m, trail);
+      const n = P.prices.length;
+      const frames = run.frames.map(f => Object.assign({}, f, { caption: caption(f, run, m, trail, bufPct, P.clusterLow) }));
+      Lab.stepper(box, {
+        title: `${NAMES[pathSel.value]} · activation +${m}R · trail ${f2(trail)} TL`,
+        interval: 650,
+        frames,
+        render(f, idx, el) {
+          const price = P.prices.map((v, i) => (i <= f.t ? v : null));
+          const stops = run.frames.map(g => g.checked);
+          const stopVals = Array.from({ length: n }, (_, i) => (i <= f.t && i < stops.length ? stops[i] : null));
+          const markers = [{ i: 0, y: run.e, color: GREEN, label: "BUY " + f2(run.e), below: true }];
+          if (f.ev === "exit" || f.ev === "end") markers.push({ i: f.t, y: f.px, color: RED, label: "EXIT " + f2(f.px) });
+          else markers.push({ i: f.t, y: f.p, color: "var(--blue-600)", r: 3 });
+          el.innerHTML = `<div class="w-trade-management-chart">` + chart({
+            n, aria: "fiyat ve stop grafiği", series: [{ vals: stopVals, color: RED, step: true, w: 1.8 }, { vals: price, color: "var(--blue-600)" }],
+            hlines: [{ y: run.e, color: "var(--stone-500)", label: "entry " + f2(run.e) }, { y: run.act, color: "var(--accent)", label: `+${m}R ${f2(run.act)}` }],
+            markers, xl: "bar 0", xr: "bar " + (n - 1)
+          }) + `</div>`;
+        }
+      });
+    }
+    [pathSel, actSel].forEach(x => x.addEventListener("change", build));
+    [bufIn, trailIn].forEach(x => { x.addEventListener("change", build); x.addEventListener("keydown", e => { if (e.key === "Enter") build(); }); });
+    build();
+  })();
+
+  /* 2. Positive-skew calculator */
+  (function () {
+    const ta = $("sk-in"), err = $("sk-err"), out = $("sk-stats"), ch = $("sk-chart");
+    function parse(raw) {
+      const toks = raw.replace(/−/g, "-").replace(/%/g, " ").split(/[\s;,]+/).filter(Boolean);
+      if (!toks.length) return { e: "En az bir trade getirisi yaz, örneğin: -2 -3 5 20" };
+      if (toks.length > 60) return { e: "En fazla 60 trade gir." };
+      const vals = [];
+      for (const t of toks) {
+        if (!/^[+-]?\d+(\.\d+)?$/.test(t)) return { e: `"${t}" bir sayı değil. Yüzdeleri sayı olarak yaz (ondalık için nokta): -2.5 7 12` };
+        const v = Number(t);
+        if (v <= -100) return { e: `${t}%: bir trade sermayenin tamamından fazlasını kaybettiremez (−100%'den büyük olmalı).` };
+        vals.push(v);
+      }
+      return { vals };
+    }
+    function run() {
+      const p = parse(ta.value);
+      if (p.e) { err.textContent = p.e; out.innerHTML = ""; ch.innerHTML = ""; return; }
+      err.textContent = "";
+      const v = p.vals, s = TM.skew(v);
+      const W = 360, H = 170, pl = 8, pr = 8, mx = Math.max(...v.map(Math.abs), 1);
+      const lo = Math.min(0, ...v), hi = Math.max(0, ...v), Y = x => 12 + (hi - x) * (H - 24) / ((hi - lo) || 1);
+      const bw = (W - pl - pr) / v.length;
+      let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="trade getirileri bar grafiği">`;
+      svg += `<line x1="${pl}" x2="${W - pr}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" style="stroke:var(--stone-500)" />`;
+      v.forEach((r, i) => {
+        const x = pl + i * bw + bw * 0.12, y0 = Y(0), y1 = Y(r), top = Math.min(y0, y1), h = Math.max(1, Math.abs(y1 - y0));
+        svg += `<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${(bw * 0.76).toFixed(1)}" height="${h.toFixed(1)}" rx="2" style="fill:${r > 0 ? GREEN : r < 0 ? RED : "var(--stone-300)"}" />`;
+        if (v.length <= 16) svg += `<text x="${(x + bw * 0.38).toFixed(1)}" y="${(r >= 0 ? top - 2 : top + h + 9).toFixed(1)}" text-anchor="middle" style="font-size:${v.length > 10 ? 7.5 : 9}px;fill:var(--fg)">${r > 0 ? "+" : ""}${r}</text>`;
+      });
+      ch.innerHTML = svg + `</svg>`;
+      void mx;
+      const fmt = x => (x == null ? "—" : sgn(x) + "%");
+      out.innerHTML = [
+        stat("Trade sayısı", `${s.n} (${s.wins} kazanç, ${s.losses} zarar${s.flat ? ", " + s.flat + " sıfır" : ""})`),
+        stat("Win rate", (s.wr * 100).toFixed(1) + "%"),
+        stat("Toplam zarar / kazanç", `${fmt(s.sl)} / ${fmt(s.sw)}`),
+        stat("Net (slayttaki gibi toplam)", fmt(s.sum)),
+        stat("Net (compounding)", fmt(s.comp)),
+        stat("Ortalama kazanç / zarar", `${s.avgW == null ? "—" : s.avgW.toFixed(2) + "%"} / ${s.avgL == null ? "—" : s.avgL.toFixed(2) + "%"}`),
+        stat("Arithmetic expectancy E (trade başına)", fmt(s.E)),
+        stat("Break-even win rate p*", s.be == null ? "— (kazanç ya da zarar yok)" : (s.be * 100).toFixed(1) + "%"),
+        stat("Profit factor (yüzdelerden)", s.pf === null ? "tanımsız (0/0: kazanç da zarar da yok)" : s.pf === Infinity ? "∞ (zarar yok)" : s.pf.toFixed(2) + (Math.abs(s.sw + s.sl) < 1e-9 ? " (kazanç ve kayıp eşit; toplam net sıfır)" : ""))
+      ].join("");
+    }
+    $("sk-go").addEventListener("click", run);
+    document.querySelectorAll("[data-sk]").forEach(b => b.addEventListener("click", () => { ta.value = b.dataset.sk; run(); }));
+    run();
+  })();
+
+  /* 3. Chandelier simulator on real data */
+  (function () {
+    const sel = $("ch-trade"), efe = $("ch-efe"), fix = $("ch-fix"), kR = $("ch-k-r"), kIn = $("ch-k"), atrSel = $("ch-atr"), be = $("ch-be");
+    const err = $("ch-err"), chEl = $("ch-chart"), st = $("ch-stats"), chk = $("ch-check"), tbl = $("ch-table");
+    sel.innerHTML = TM.TRADES.map((t, i) => `<option value="${i}">${t.s} #${t.n} · ${trDate(t.d)} · ${t.sig} · ${f2(t.ep)}</option>`).join("");
+    const WHY = { stop: "stop", gap: "stop (gap open)", end: "periyot sonu" };
+    function kVal() {
+      const k = TM.num(kIn.value);
+      return k === null || k < 1 || k > 12 ? null : k;
+    }
+    function run() {
+      const T = TM.TRADES[sel.value], S = TM.series(T.s), i0 = S.dates.indexOf(T.d);
+      let k = null;
+      if (fix.checked) {
+        k = kVal();
+        if (k === null) { err.textContent = "k 1 ile 12 arasında bir sayı olmalı, örneğin 3 ya da 4.5."; return; }
+      }
+      err.textContent = "";
+      const opt = { k, atrLen: Number(atrSel.value), be: be.checked };
+      const r = TM.chandelier(T.s, i0, opt);
+      const a = Math.max(0, i0 - 8), b = Math.min(S.last, r.exitI + 8), n = b - a + 1;
+      const close = [], stop = [];
+      for (let i = a; i <= b; i++) { close.push(S.c[i]); stop.push(i >= i0 && i <= r.exitI ? r.line[i - i0] : null); }
+      chEl.innerHTML = chart({
+        n, h: 210, aria: `${T.s} close ve Chandelier stop`, series: [{ vals: stop, color: RED, step: true, w: 1.6 }, { vals: close, color: "var(--blue-600)", w: 1.3 }],
+        markers: [{ i: i0 - a, y: r.ep, color: GREEN, label: "BUY " + f2(r.ep), below: true }, { i: r.exitI - a, y: r.px, color: RED, label: "EXIT " + f2(r.px) }],
+        xl: trDate(S.dates[a]), xr: trDate(S.dates[b])
+      });
+      const reason = r.why === "end" ? WHY.end : (r.atBE ? "break-even " : "Chandelier ") + WHY[r.why];
+      st.innerHTML = [
+        stat("Initial stop", f2(r.init)),
+        stat("R (initial risk)", `${f2(r.R)} (${(r.R / r.ep * 100).toFixed(1)}%)`),
+        stat("Exit", `${trDate(S.dates[r.exitI])} · ${f2(r.px)}`),
+        stat("Exit sebebi", reason),
+        stat("Sonuç", `${sgn(r.pct)}% = ${sgn(r.rMult)}R`),
+        stat("Açık kaldığı bar", String(r.bars)),
+        stat("Break-even devreye girdi", r.beAt < 0 ? "hayır" : trDate(S.dates[r.beAt]))
+      ].join("");
+      if (k === null && opt.atrLen === 14 && opt.be) {
+        const same = S.dates[r.exitI] === T.xd && Math.abs(r.px - T.xp) < 0.006;
+        chk.innerHTML = `<p class="${same ? "w-trade-management-ok" : "w-trade-management-bad"}">Defterdeki sonuç: ${trDate(T.xd)} · ${f2(T.xp)} · ${T.why}. ${same ? "Simülatör aynı sonucu verdi." : "Simülatör farklı bir sonuç verdi."}</p>`;
+      } else chk.innerHTML = `<p class="src">Defterle karşılaştırma için "ER kuralı", ATR 14 ve break-even açık olmalı. Defterde: ${trDate(T.xd)} · ${f2(T.xp)}.</p>`;
+      const ks = [3, 4.5, 6, 8, 10, null];
+      let h = `<table><tr><th>k</th><th>Initial stop</th><th>R</th><th>Exit</th><th>Sonuç</th><th>Bar</th></tr>`;
+      ks.forEach(kk => {
+        const q = TM.chandelier(T.s, i0, { k: kk, atrLen: opt.atrLen, be: opt.be });
+        const cur = (kk === null && k === null) || (kk !== null && k === kk);
+        h += `<tr class="${cur ? "w-trade-management-cur" : ""}"><td>${kk === null ? "ER kuralı" : kk}</td><td>${f2(q.init)}</td><td>${f2(q.R)}</td><td>${trDate(S.dates[q.exitI])} · ${f2(q.px)}${q.why === "end" ? " (son)" : ""}</td><td>${sgn(q.pct)}% · ${sgn(q.rMult)}R</td><td>${q.bars}</td></tr>`;
+      });
+      tbl.innerHTML = h + `</table><p class="src">Tablo seçili trade için ATR ${opt.atrLen} ve break-even ${opt.be ? "açık" : "kapalı"} ile hesaplandı.</p>`;
+    }
+    kR.addEventListener("input", () => { kIn.value = kR.value; fix.checked = true; run(); });
+    kIn.addEventListener("change", () => { const k = kVal(); if (k !== null) kR.value = k; fix.checked = true; run(); });
+    kIn.addEventListener("keydown", e => { if (e.key === "Enter") { const k = kVal(); if (k !== null) kR.value = k; fix.checked = true; run(); } });
+    [sel, efe, fix, atrSel, be].forEach(x => x.addEventListener("change", run));
+    run();
+  })();
+
+  /* 4. Position sizing calculator */
+  (function () {
+    const ids = ["sz-cap", "sz-risk", "sz-entry", "sz-stop"], err = $("sz-err"), out = $("sz-out");
+    function run() {
+      const [cap, risk, entry, stop] = ids.map(id => TM.num($(id).value));
+      if ([cap, risk, entry, stop].some(x => x === null)) { err.textContent = "Dört kutuya da sayı yaz (ondalık için nokta)."; out.innerHTML = ""; return; }
+      if (cap <= 0 || entry <= 0 || stop <= 0) { err.textContent = "Sermaye, entry ve stop pozitif olmalı."; out.innerHTML = ""; return; }
+      if (risk <= 0 || risk > 100) { err.textContent = "Risk % 0 ile 100 arasında olmalı, örneğin 1."; out.innerHTML = ""; return; }
+      if (stop >= entry) { err.textContent = "Long trade'de stop entry'nin altında olmalı."; out.innerHTML = ""; return; }
+      if (entry > cap) { err.textContent = "Entry fiyatı sermayeden büyük: tek hisse bile alınamaz."; out.innerHTML = ""; return; }
+      err.textContent = "";
+      const s = TM.sizing(cap, risk, entry, stop);
+      out.innerHTML = `<table>
+        <tr><th></th><th>Risk-based (${risk}%)</th><th>All-in</th></tr>
+        <tr><td>R = entry − stop</td><td colspan="2">${f2(s.R)} TL (${(s.R / entry * 100).toFixed(2)}%)</td></tr>
+        <tr><td>Risk budget</td><td>${tl(s.budget)} TL</td><td>—</td></tr>
+        <tr><td>Hisse</td><td><b>${s.shares.toLocaleString("en-US")}</b>${s.capped ? " (sermaye sınırı)" : ""}</td><td>${s.allShares.toLocaleString("en-US")}</td></tr>
+        <tr><td>Pozisyon değeri</td><td>${tl(s.value)} TL (${(s.value / cap * 100).toFixed(1)}%)</td><td>${tl(s.allValue)} TL</td></tr>
+        <tr><td>Stop'ta kayıp</td><td><b>${tl(s.loss)} TL</b> (${(s.loss / cap * 100).toFixed(2)}%)</td><td>${tl(s.allLoss)} TL (${(s.allLoss / cap * 100).toFixed(2)}%)</td></tr>
+      </table>` + (s.capped ? `<p class="src">Stop entry'ye çok yakın: risk budget'ı kullanmak için sermayeden büyük pozisyon gerekirdi, bu yüzden hisse sayısı sermayeyle sınırlandı.</p>` : "");
+    }
+    ids.forEach(id => { $(id).addEventListener("change", run); $(id).addEventListener("keydown", e => { if (e.key === "Enter") run(); }); });
+    run();
+  })();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 481: SMA20 > SMA50 kuralından signal'a, vectorised backtest, shift(1), look-ahead bias kataloğu, benchmark, win rate, profit factor, maximum drawdown, Sharpe, maliyet, out-of-sample ve prediction ≠ profitable strategy." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Kuraldan sinyale, sinyalden backtest'e · CSE 481 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-rules-backtest-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-rules-backtest-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-rules-backtest-ctl input[type="text"] { width: 64px; }
+    .w-rules-backtest-ctl label { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+    .w-rules-backtest-ctl input[type="range"] { width: 140px; accent-color: var(--blue-600); }
+    .w-rules-backtest-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; white-space: pre-line; }
+    .w-rules-backtest-chart { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); padding: 6px; margin: 6px 0; min-width: 0; }
+    .w-rules-backtest-chart svg { display: block; width: 100%; height: auto; }
+    .w-rules-backtest-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .85rem; margin: 2px 4px 4px; }
+    .w-rules-backtest-legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+    .w-rules-backtest-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px; margin: 8px 0; }
+    .w-rules-backtest-kpi { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; background: var(--paper); }
+    .w-rules-backtest-kpi span { display: block; font-size: .78rem; color: var(--fg-subtle); }
+    .w-rules-backtest-kpi b { font-family: 'JetBrains Mono', monospace; font-size: 1rem; }
+    .w-rules-backtest-pos { color: #2b8a3e; }
+    .w-rules-backtest-neg { color: var(--orange-700); }
+    .w-rules-backtest-snip { border: 1px solid var(--border); border-radius: var(--radius-md); margin: 10px 0; background: var(--paper); }
+    .w-rules-backtest-snip h4 { margin: 0; padding: 6px 10px; font-size: .95rem; color: var(--fg-brand); border-bottom: 1px solid var(--border); }
+    .w-rules-backtest-code { overflow-x: auto; padding: 4px 0; }
+    .w-rules-backtest-line { display: block; min-width: 100%; width: max-content; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: .82rem; white-space: pre; background: none; border: 0; border-left: 3px solid transparent; padding: 3px 10px; cursor: pointer; color: var(--fg); }
+    .w-rules-backtest-line:hover { background: var(--blue-050); }
+    .w-rules-backtest-line.is-ok { background: #e6f4ea; border-left-color: #2b8a3e; }
+    .w-rules-backtest-line.is-bad { background: var(--orange-100); border-left-color: var(--orange-600); }
+    .w-rules-backtest-snip__foot { padding: 6px 10px; border-top: 1px solid var(--border); }
+    .w-rules-backtest-fb { margin-top: 6px; font-size: .92rem; }
+    .w-rules-backtest-ta { width: 100%; max-width: 360px; min-height: 150px; font-family: 'JetBrains Mono', monospace; font-size: .88rem; padding: 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); }
+    .w-rules-backtest-calc { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    @media (min-width: 720px) { .w-rules-backtest-calc { grid-template-columns: minmax(0, 360px) minmax(0, 1fr); } }
+    .w-rules-backtest-tt tr.is-best td { background: var(--blue-050); font-weight: 700; }
+    .w-rules-backtest-tt tr.is-ref td { background: var(--orange-100); }
+    .w-rules-backtest-cur td { background: var(--blue-050); }
+    .w-rules-backtest-mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 481</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 481</a> / Kuraldan sinyale, sinyalden backtest'e</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W1 + W4</span><span class="chip chip--exam">Vize</span><span class="chip">Quiz</span><span class="src">~52 dk · 11 bölüm</span></div>
+          <h1>Kuraldan sinyale, sinyalden backtest'e</h1>
+          <p class="lead">Bir indicator'ı Python'un her gün aynı şekilde uygulayabileceği bir <em>rule</em>'a, rule'u bir <em>signal</em> sütununa, signal'ı da bir <em>backtest</em>'e çevireceğiz. Sonra üç soruya cevap vereceğiz: <code>shift(1)</code> neden orada, look-ahead bias koda nereden sızar, ve sonuç hangi metriklerle, neyle karşılaştırılarak raporlanır.</p>
+          <p class="src">Not: Week 4 (Backtesting Strategies) slaytları repoda yok; konu Week 1 slaytları (s.21–22, 30, 37), term project brief (§17–19, §26, §31, §38), quiz brief ve senin quiz notebook'un üzerinden anlatıldı.</p>
+          <!-- Kaynak: week-01-bist-python-mcp.pdf s.17, 21, 22, 27, 30, 37 · week-02-agentic-harness.pdf s.3, FSM ve CI/CD slaytları · week-03-bist-trading-strategies.pdf s.25–26 · term-project-brief.pdf §9, §12, §14, §15, §17, §18, §19, §26, §27, §31, §38 · quiz-bist-algo-trading-challenge.pdf s.1–3 · assignments/2026-2027-fall-efe-kurucay/bist-algo-trading-challenge/bist_algo_trading_challenge.ipynb hücre 0, 5, 9, 11, 13, 15, 27 · code/scenario2_thyao_weekday_patterns.py (TRANSACTION_COST, train_test_split_by_time) · code/scenario3_technical_reversal_events_3_periods.py (add_forward_returns) · weeks/01 Practice · assignments/undated-term-project/20190808004.ipynb hücre 9, 16, 17. -->
+        </header>
+
+        <article class="lesson" data-course="cse-481" data-lesson="rules-backtest">
+
+<!-- 1 -->
+<section class="lsec" id="rule" data-min="4">
+  <h2>Göstergeden kurala</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Dersin akışı bir pipeline: <strong>data → rules → signals → backtest</strong>. Gösterge (indicator) sadece bir sayıdır: SMA20, son 20 close'un ortalaması. Rule ise bu sayıdan her gün aynı kararı çıkaran bir cümledir. "Grafik iyi görünüyor" bir rule değildir. "SMA20, SMA50'nin üstündeyse BUY" bir rule'dur, çünkü Python bunu insan yargısı olmadan her güne uygulayabilir.</p>
+    <p>Neden bu rule? Kısa ortalama uzun ortalamanın üstündeyse son günlerin fiyatları eski günlerinkinden yüksektir, yani fiyat yukarı gidiyordur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · From Indicator to Trading Rule (W1 s.21)</span>
+<pre><code>df["Signal"] = 0
+df.loc[df["SMA20"] &gt; df["SMA50"], "Signal"] = 1
+df.loc[df["SMA20"] &lt; df["SMA50"], "Signal"] = -1</code></pre>
+    <ul>
+      <li>SMA20 &gt; SMA50 → BUY → <code>Signal = 1</code></li>
+      <li>SMA20 &lt; SMA50 → SELL → <code>Signal = -1</code></li>
+      <li>Diğer satırlar <code>0</code> kalır: ilk 49 satırda SMA50 henüz <code>NaN</code>'dır ve NaN ile yapılan her karşılaştırma <code>False</code> döner. Tam eşitlik de 0 bırakır.</li>
+    </ul>
+    <p>Slaytın altındaki cümle: <strong>"Rule-based ≠ guaranteed profit. We must test it."</strong> Kuralın açık yazılmış olması kazandıracağı anlamına gelmez. Test etmenin yolu backtest'tir.</p>
+  </div>
+  <p>W1 s.37'deki combined strategy aynı fikri büyütüyor: technical, fundamental ve macro skorlar <em>Combined Score = 0.4 × Technical Score + 0.4 × Fundamental Score + 0.2 × Macro Score</em> ile birleşip "final rule-based BUY / HOLD / SELL decision"a çevriliyor, sonra backtest edilip Buy-and-Hold ve XU100 ile karşılaştırılıyor. Skorların kendisi <a href="scenarios-fundamentals.html">fundamentals dersinde</a>.</p>
+  <!-- Kaynak: week-01 s.20 (SMA kodu), s.21 (kural kodu ve "Rule-based ≠ guaranteed profit"), s.32 (pipeline: Market Data → Features → Rules/Model → Backtest → MCP Agent → Explanation), s.37 (Combined Score). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>State ile event'i karıştırma.</strong> "SMA20 &gt; SMA50 iken" bir durumdur: signal günlerce 1 kalır. "SMA20, SMA50'yi yukarı kestiği gün" (crossover) ise tek günlük bir olaydır. Slayttaki kod durumu kullanıyor.</li>
+      <li><code>Signal = -1</code> bu kodda <strong>short</strong> pozisyon demek: fiyat düşerken kazanır. Senin quiz çözümün long-only'ydi; orada SELL "pozisyonu kapat" anlamındaydı. Quiz brief'i long-only şartı koymuyor; bu senin seçimindi. Hangi anlamı kullandığını raporda yaz.</li>
+      <li>Rule'un tanımı her hisse için aynı olmalı. Hisseye göre parametre seçersen bu da sonuçlara bakarak karar vermek olur (bölüm 9).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w01-p27-minilab-rule">
+    <span class="box__label">Week 1 Mini Lab · çıkmış soru</span>
+    <p>"Write one simple trading rule in plain English." (Mini Lab'in son maddesi; görevin geri kalanı veri indirme, OHLCV ve support/resistance.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İyi bir rule şu dört soruya cevap verir: hangi veri, hangi koşul, ne zaman giriş, ne zaman çıkış?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Koşulu ölçülebilir yaz ("fiyat yüksek" değil, "SMA20 &gt; SMA50"). Kararın ne zaman verildiğini ve ne zaman uygulandığını da söyle: bu, bir sonraki bölümün konusu olan shift(1)'in cümle hâli.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Örnek cevap:</strong> "After each day's close, compute the 20-day and 50-day simple moving averages of the closing price. If SMA20 is above SMA50, hold a long position from the next trading day; if SMA20 is below SMA50, close the position (or go short). The rule uses only prices up to the decision day and is applied the same way to every stock."</p>
+      <p>Kontrol listesi: (1) veri: daily close; (2) koşul: SMA20 ile SMA50'nin karşılaştırması; (3) giriş ve çıkış: koşul değişince; (4) zamanlama: karar close'da, pozisyon ertesi gün; (5) her hissede aynı kural. Sonuna slaytın cümlesini eklemek iyi olur: "This rule is not guaranteed to be profitable; it must be backtested."</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/resources/2026-2027-fall/week-01-bist-python-mcp.pdf">Orijinal slayt (W1 s.27)</a></p>
+    <!-- Kaynak: week-01 s.27 "Week 1 Mini Lab" (Task: Write one simple trading rule in plain English; Deliverable: notebook, 1 chart, 3–5 sentences). Referans çözüm yok. -->
+  </div>
+  <div class="quiz" id="q-rule-nan">
+    <p class="quiz__q">Slayttaki kod çalıştırıldıktan sonra veri setinin ilk 49 satırında <code>Signal</code> ne olur?</p>
+    <button class="quiz__opt" data-correct>0<span class="why">Doğru. SMA50 ilk 49 satırda NaN; NaN ile karşılaştırma False döner, iki <code>loc</code> ataması da çalışmaz ve başlangıç değeri 0 kalır.</span></button>
+    <button class="quiz__opt">NaN<span class="why">Sütun önce <code>0</code> ile dolduruluyor. NaN, SMA sütunlarında kalır; signal sütununa geçmez.</span></button>
+    <button class="quiz__opt">-1<span class="why">-1 için <code>SMA20 &lt; SMA50</code> True olmalı. NaN ile her karşılaştırma False, yani "küçük" de değil.</span></button>
+    <button class="quiz__opt">Kod hata verir<span class="why">pandas NaN karşılaştırmasında hata vermez, sessizce False döndürür. Bu yüzden warm-up dönemini bilerek düşünmen gerekir.</span></button>
+  </div>
+  <div class="quiz" id="q-rule-state">
+    <p class="quiz__q">SMA20, 12 gün boyunca SMA50'nin üstünde kalıyor. Slayttaki kodla kaç günde <code>Signal = 1</code> olur?</p>
+    <button class="quiz__opt">1 gün, kesişme günü<span class="why">Bu event (crossover) okuması. Koddaki koşul her gün yeniden bakılan bir durum: <code>SMA20 &gt; SMA50</code> olan her satır 1 alır.</span></button>
+    <button class="quiz__opt" data-correct>12 gün<span class="why">Doğru. Koşul 12 gün boyunca True, signal 12 gün boyunca 1. Pozisyon bu süre boyunca açık kalır.</span></button>
+    <button class="quiz__opt">0 gün; önce SELL gelmesi gerekir<span class="why">Kodda sıra şartı yok. Her satır kendi SMA değerlerine bakılarak etiketleniyor.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="vector" data-min="5">
+  <h2>Vectorised backtest: üç satır</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Backtest sorusu: "Would the strategy have worked in the past?" Geçmişin her gününe gidip "o gün elimde pozisyon var mıydı, varsa o gün ne kazandım?" diye sorarız. Bunu döngü yazmadan, bütün sütunu bir kerede hesaplayarak yaparsak <strong>vectorised backtest</strong> olur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Backtesting (W1 s.22)</span>
+<pre><code>df["Return"] = df["Close"].pct_change()
+df["Strategy_Return"] = (
+    df["Signal"].shift(1) * df["Return"]
+)
+equity = (1 + df["Strategy_Return"]).cumprod()</code></pre>
+    <p>Satır satır, $t$ gün indeksi ve $C_t$ close olmak üzere:</p>
+    $$r_t = \frac{C_t}{C_{t-1}} - 1, \qquad s_t = \text{Signal}_{t-1}\cdot r_t, \qquad E_t = \prod_{k \le t} (1 + s_k)$$
+    <ul>
+      <li><code>pct_change()</code>: günlük getiri. İlk satır NaN çünkü önceki close yok.</li>
+      <li><code>shift(1)</code>: signal sütununu bir satır aşağı kaydırır, yani dünkü kararı bugünün getirisinin yanına koyar. Neden böyle olduğu bir sonraki bölümde.</li>
+      <li><code>cumprod()</code>: getirileri <strong>çarparak</strong> biriktirir. $E_t$ bir çarpandır: 100,000 TL ile başladıysan sermaye $100{,}000 \cdot E_t$ olur.</li>
+    </ul>
+    <p>Slayt sonucu iki şeyle karşılaştırıyor: "Strategy Return vs. BIST 100 Return".</p>
+  </div>
+  <!-- Kaynak: week-01 s.22 (kod, "Would the strategy have worked in the past?", "Compare Strategy Return vs. BIST 100 Return"). -->
+  <p class="w-rules-backtest-guess"><b>Önce tahmin et:</b> Fiyat 6 günde 100'den 108'e çıkıyor (+%8). Aşağıdaki signal'larla stratejinin equity'si 1'in üstünde mi biter, altında mı?</p>
+  <div id="w-toy-stepper"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Getirileri toplama.</strong> Örnekte toplam $4 - 1.92 - 2.94 - 1.90 + 0 = -2.77\%$, gerçek sonuç ise çarpımla $-2.89\%$. Fark uzun dönemde büyür. Kodda <code>cumsum</code> değil <code>cumprod</code> var.</li>
+      <li><code>cumprod()</code> ilk satırdaki NaN'ı atlar (pandas'ta skipna varsayılan); equity ilk satırda NaN, sonra 1.04'ten başlar.</li>
+      <li>Equity TL değildir. "Equity 1.9" demek sermaye 1.9 katına çıktı demek; 100,000 TL ile 190,000 TL.</li>
+      <li>Bu üç satır komisyon, slippage ve kısmi pozisyon bilmez. Her gün ya tam içerdesin ya tam dışarıda (bölüm 9'da maliyet ekleyeceğiz).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-vec-compound">
+    <p class="quiz__q">Signal iki gün boyunca 1 (shift sonrası da 1). Getiriler önce +%10, sonra −%10. Equity kaç olur?</p>
+    <button class="quiz__opt">1.00<span class="why">Bu getirileri toplamak: $10 - 10 = 0$. Çarpım $1.1 \times 0.9 = 0.99$; −%10, daha büyük bir tabana uygulanıyor.</span></button>
+    <button class="quiz__opt" data-correct>0.99<span class="why">Doğru. $(1 + 0.10)(1 - 0.10) = 0.99$, yani %1 kayıp. <code>cumprod</code> tam bunu yapar.</span></button>
+    <button class="quiz__opt">1.01<span class="why">Yönü ters çevirdin. Önce kazanıp sonra aynı oranda kaybedince başlangıcın altına düşersin.</span></button>
+  </div>
+  <div class="quiz" id="q-vec-short">
+    <p class="quiz__q">Dünkü signal −1, bugünkü getiri −%3. <code>Strategy_Return</code> kaç?</p>
+    <button class="quiz__opt" data-correct>+%3<span class="why">Doğru. $(-1) \times (-0.03) = +0.03$. Slayttaki kodda −1 short pozisyondur: fiyat düşünce kazanır.</span></button>
+    <button class="quiz__opt">−%3<span class="why">Bu long pozisyonun sonucu olurdu. Signal'ın işaretini getiriyle çarpmayı unutma.</span></button>
+    <button class="quiz__opt">0<span class="why">Signal 0 olsaydı öyle olurdu. −1 "pozisyon yok" değil, "short" demek; long-only bir sistemde −1 yerine 0 kullanırsın.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="shift" data-min="5">
+  <h2>shift(1): kararı bugün ver, getiriyi yarın al</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · zaman çizgisi</span>
+    <p>$\text{Signal}_t$, $t$ gününün close'u belli olduktan sonra hesaplanır (SMA20 bugünkü close'u içerir). $r_t$ ise dünkü close'dan bugünkü close'a olan harekettir. İkisini aynı satırda çarparsan, bugünün close'una bakarak verdiğin bir kararla <strong>bu close'a giden hareketi</strong> kazanmış olursun. Gerçekte o hareket sen karar vermeden önce olmuştu.</p>
+    <p>Doğrusu: kararı $t$'nin close'unda ver, ilk kazanacağın getiri $r_{t+1}$ olsun. <code>Signal.shift(1)</code> tam olarak bunu yapar: dünkü kararı bugünün getirisiyle eşleştirir.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Satır</th><th>Ne zaman bilinir?</th><th>Hangi zaman aralığı?</th></tr>
+    <tr><td>$\text{Signal}_t$</td><td>$t$ günü close'dan sonra</td><td>karar anı</td></tr>
+    <tr><td>$r_t$</td><td>$t$ günü close'da</td><td>$C_{t-1} \to C_t$ (karardan <strong>önce</strong>)</td></tr>
+    <tr><td>$r_{t+1}$</td><td>$t+1$ günü close'da</td><td>$C_t \to C_{t+1}$ (karardan <strong>sonra</strong>)</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural</span>
+    <p>W1 s.22: "Avoid look-ahead bias: use only information that would have been available at that time."<br>
+    Brief §18: "Use signal shifting so decisions at time $t$ cannot use the close or information from $t+1$."</p>
+    $$s_t = \text{Signal}_{t-1} \cdot r_t \qquad\text{(doğru)} \qquad\qquad s_t = \text{Signal}_{t} \cdot r_t \qquad\text{(look-ahead)}$$
+  </div>
+  <p>Yukarıdaki oyuncak örnekte shift(1)'i kaldırınca sonuç $-2.89\%$'ten $+14.41\%$'e çıkıyor. Gerçek veride etkinin büyüklüğü signal'ın bugünkü close'a ne kadar bağlı olduğuna göre değişir. Senin 6 hissende, long-only:</p>
+  <div class="table-wrap"><table>
+    <tr><th>Kural</th><th>AKBNK shift(1) ile</th><th>AKBNK shift'siz</th><th>ASELS shift(1) ile</th><th>ASELS shift'siz</th></tr>
+    <tr><td>SMA20 &gt; SMA50</td><td>−36.4%</td><td>−19.5%</td><td>+295.0%</td><td>+263.5%</td></tr>
+    <tr><td>Close &gt; SMA5</td><td>+75.3%</td><td><strong>+2095.3%</strong></td><td>+192.1%</td><td><strong>+9178.3%</strong></td></tr>
+  </table></div>
+  <p>SMA20/50 yavaş değişir; bugünkü close onu az oynatır, sızıntı küçük kalır (ASELS'te sızıntılı versiyon tesadüfen daha kötü bile). "Close &gt; SMA5" ise neredeyse "bugün fiyat yükseldi mi?" sorusudur. Shift'siz hâli, yükseldiğini bildiğin günü kazanç yazar ve sonuç inanılmaz görünür. <strong>İnanılmaz görünen bir backtest önce sızıntı için kontrol edilir.</strong> Bölüm 8'deki laboratuvarda bunu kendin deneyeceksin.</p>
+  <!-- Kaynak: sayılar, quiz notebook'undaki CSV'lerden (Close, 2 ondalık) 1 Oca 2025 – 1 Eki 2026 penceresi için python3 ile hesaplandı; long-only (−1 yerine 0), maliyet yok. -->
+  <div class="box box--example">
+    <span class="box__label">Örnek · senin quiz notebook'un</span>
+    <p>Notebook'ta signal günlük close'da hesaplanıyor ve emir <strong>ertesi bar'ın open'ında</strong> doluyor. 20-bar high ve volume ortalaması da bir bar kaydırılmış:</p>
+<pre><code># shift(1): the breakout level and the volume average exclude the current bar
+d["DonchianHigh"] = d.High.rolling(p["breakout_len"]).max().shift(1)
+d["VolAvg"] = d.Volume.rolling(p["vol_len"]).mean().shift(1)
+...
+# 1) fill the order created by yesterday's close signal at today's open
+shares = int(cash // o[i])</code></pre>
+    <p>Bu, slayttaki shift(1)'den de sıkı. Vectorised versiyon, signal'ı hesapladığın close fiyatından işlem yapabildiğini varsayıyor; gerçekte o fiyatı ancak close olduktan sonra görürsün. Ertesi open'da doldurmak bu iyimserliği kaldırır.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><code>shift(-1)</code> yazmak: signal'ı yukarı kaydırır, yani <strong>yarının</strong> kararını bugüne getirir. En büyük sızıntı budur.</li>
+      <li><code>df["Signal"] * df["Return"].shift(1)</code>: shift yanlış sütunda. Bugünün kararını dünkü getiriyle eşleştirir; karar, sonucu belli olmuş bir hareket üzerine verilmiş olur.</li>
+      <li>shift(1) sadece "aynı gün" sızıntısını kapatır. Signal'ın içinde birkaç gün ileriye bakan bir parça varsa (bir sonraki bölümdeki center=True pivot gibi) shift(1) yetmez.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-shift-line">
+    <p class="quiz__q">Hangisi slayttaki kuralı look-ahead bias olmadan uygular?</p>
+    <button class="quiz__opt">s = df["Signal"] * df["Return"]<span class="why">Aynı satırda çarpım: bugünün close'uyla verilen karar, o close'a giden hareketi kazanıyor.</span></button>
+    <button class="quiz__opt">s = df["Signal"].shift(-1) * df["Return"]<span class="why">shift(-1) yarının signal'ını bugüne taşır. Sızıntıyı azaltmaz, bir gün daha artırır.</span></button>
+    <button class="quiz__opt" data-correct>s = df["Signal"].shift(1) * df["Return"]<span class="why">Doğru. Dünkü karar, bugünün getirisi. W1 s.22'deki kod bu.</span></button>
+    <button class="quiz__opt">s = df["Signal"] * df["Return"].shift(1)<span class="why">Kaydırma yanlış sütunda: bugünün signal'ı dünkü getiriyle eşleşiyor, yani zaten olmuş bir hareket üzerine karar veriliyor.</span></button>
+  </div>
+  <div class="quiz" id="q-shift-why">
+    <p class="quiz__q">Shift'siz bir backtest neden genellikle <em>daha iyi</em> görünür?</p>
+    <button class="quiz__opt">Çünkü pozisyon bir gün daha uzun tutulur<span class="why">Pozisyon süresi aynı; sadece hangi günün getirisiyle eşleştiği değişiyor.</span></button>
+    <button class="quiz__opt" data-correct>Çünkü signal, getirisini ölçtüğü günün close'unu zaten içerir<span class="why">Doğru. Fiyat yükseldiği gün SMA'lar da yukarı itilir ve signal o günün yükselişini zaten biliyormuş gibi davranır.</span></button>
+    <button class="quiz__opt">Çünkü pct_change ilk satırı NaN yapar<span class="why">NaN tek bir satırı etkiler ve iki versiyonda da aynıdır; fark yaratmaz.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="leak" data-min="6">
+  <h2>Look-ahead bias kataloğu</h2>
+  <div class="box box--rule">
+    <span class="box__label">Tanım</span>
+    <p><strong>Look-ahead bias</strong>: backtest'te, karar anında henüz var olmayan bir bilginin kullanılması. Sonuç gerçekte elde edilemeyecek kadar iyi çıkar.</p>
+    <p>Quiz brief'teki "No Look-Ahead Rule": "The strategy must use only information available at the time of the trade. Future prices, future returns, or manually selected best entry/exit dates are not allowed."</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>#</th><th>Sızıntı</th><th>Nasıl görünür</th><th>Düzeltme</th></tr>
+    <tr><td>1</td><td>Kaydırılmamış signal</td><td><code>Signal * Return</code></td><td><code>Signal.shift(1) * Return</code> (W1 s.22, brief §18)</td></tr>
+    <tr><td>2</td><td>Ortalanmış pencere</td><td><code>rolling(2*window+1, center=True)</code> ile pivot (W1 s.17): $t$ günündeki pivot, $t+5$'e kadarki bar'lara bakıyor</td><td>Pivot $t$'de değil, $t+\text{window}$'da bilinir: trade'de <code>PivotLow.shift(window)</code> kullan</td></tr>
+    <tr><td>3</td><td>Forward return'ü input yapmak</td><td><code>Close.shift(-5) / Close - 1</code> bir feature ya da signal oluyor</td><td>Forward return sadece <strong>sonucu ölçmek</strong> için (scenario 3'teki gibi), hiçbir zaman karar için</td></tr>
+    <tr><td>4</td><td>Gelecekteki financial statement</td><td>Bilanço quarter-end tarihine yazılıyor, oysa haftalar sonra açıklandı</td><td>Publication date'e hizala (brief §9, §14, §18). Brief §26'da hard block</td></tr>
+    <tr><td>5</td><td>Revize edilmiş macro veri</td><td>Enflasyon ya da faiz serisinin bugünkü (revize) hâli geçmiş bir karara giriyor</td><td>"Macro variables must be aligned by their publication timestamps. Revised or future data should not be retroactively inserted" (brief §15)</td></tr>
+    <tr><td>6</td><td>Elle seçilmiş tarihler</td><td>"Şu dipte aldım, şu tepede sattım"</td><td>"Trade decisions must be generated by Python rules, not by manually selected dates" (quiz brief)</td></tr>
+    <tr><td>7</td><td>Time series'i karıştırarak bölmek</td><td><code>train_test_split(..., random_state=42)</code>: gelecek günler training'e giriyor</td><td>Zamana göre böl (scenario 2'deki <code>train_test_split_by_time</code>)</td></tr>
+  </table></div>
+  <p>2 numara bizim gözlemimiz: slayt center=True pivot'u support/resistance <em>çizmek</em> için kullanıyor, trade sinyali için değil. Çizim için sorun yok; aynı sütunu bir backtest'e signal olarak koyarsan sızıntı olur.</p>
+  <div class="box box--rule">
+    <span class="box__label">Harness'te karşılığı · brief §26 Data Quality and Risk Gate</span>
+    <p>Hard blocks: "Future financial-statement information enters an earlier historical date." · "Look-ahead bias in indicator/signal construction." · "Wrong ticker or broken price history." · "Critical period mismatch between price and financial data." · "Backtest uses information unavailable at decision time."</p>
+    <p>Bunlardan biri varsa gate çıktısı <code>HARD_BLOCK</code>'tur ve sistem güçlü bir sonuç üretemez. W2'deki CI/CD benzetmesi aynı şeyi söylüyor: "Future financial-statement data appears inside a historical backtest → HARD BLOCK", tıpkı test'i geçmeyen kodun deploy edilmemesi gibi. Gate'in diğer çıktıları <a href="harness-mcp.html">harness dersinde</a>.</p>
+  </div>
+  <!-- Kaynak: brief §9 ("Fundamental information must be point-in-time ... the date on which the financial statement became publicly available"), §14, §15, §18, §26 · week-02 CI/CD slaytı · week-01 s.17 pivot kodu · scenario3 add_forward_returns · scenario2 train_test_split_by_time · quiz brief "No Look-Ahead Rule" ve Student Task maddesi · 7 numaradaki kalıp assignments/undated-term-project/20190808004.ipynb hücre 16'dan (eski bir öğrencinin projesi). -->
+  <h3>Sızıntıyı bul</h3>
+  <p class="w-rules-backtest-guess"><b>Önce tahmin et:</b> Altı snippet var. Her birinde, geleceği gören satıra tıkla. Birinde sızıntı yok; onu "Sızıntı yok" ile işaretle. Kaç tanesini ilk denemede bulursun?</p>
+  <div id="w-leak"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Kodda <code>shift(1)</code> var, demek ki temiz" yanlış. shift(1) aynı gün sızıntısını kapatır; center=True pivot ya da yanlış tarihli bilanço gibi birkaç gün ileriye uzanan bilgiyi kapatmaz.</li>
+      <li><code>shift(-n)</code> her zaman yasak değil. Scenario 3, bir event'ten sonraki 5 günlük getiriyi ölçmek için <code>Close.shift(-5)</code> kullanıyor; bu, sonucu ölçmektir. Yasak olan, onu karar girdisi yapmaktır.</li>
+      <li>Warm-up için eski veriyi yüklemek sızıntı değildir. Senin notebook'un 2024'ten veri yükleyip ilk trade'i 1 Ocak 2025'ten önce açmıyor; geçmiş veri her zaman serbest, gelecek veri hiçbir zaman.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="2026-27-quiz-no-lookahead">
+    <span class="box__label">Quiz brief · No Look-Ahead Rule · çıkmış soru</span>
+    <p>"No Look-Ahead Rule: The strategy must use only information available at the time of the trade. Future prices, future returns, or manually selected best entry/exit dates are not allowed."</p>
+    <p>(Kuralın metni. Çalışma sorusu: kuralı kendi cümlelerinle açıkla, Python'da nasıl ihlal edilebileceğine üç örnek ver ve her birinin düzeltmesini yaz.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kuralın üç yasağını ayrı ayrı düşün: future prices, future returns, manually selected dates. Her biri koda nasıl girer?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Yukarıdaki tablodan üçünü seç. Her biri için "karar anında bu bilgi var mıydı?" sorusunu sor.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Exam answer:</strong> "A backtest may only use information that existed at the moment the trade decision was made. Otherwise the result includes profits that could never have been earned in real time (look-ahead bias). Three common violations and their fixes:</p>
+      <ol>
+        <li><em>Unshifted signal.</em> <code>Signal * Return</code> lets a signal computed from today's close earn today's return. Fix: <code>Signal.shift(1) * Return</code>, or compute the signal at the close and fill at the next open.</li>
+        <li><em>Centred or forward-looking features.</em> A pivot found with <code>rolling(11, center=True)</code> or a feature built with <code>shift(-5)</code> uses future bars. Fix: use only backward windows, and shift a centred pivot by the window length before it can trigger a trade.</li>
+        <li><em>Future fundamentals or hand-picked dates.</em> Attaching quarterly results to the quarter-end date (instead of the publication date), or choosing entry and exit dates by looking at the chart. Fix: align data to publication timestamps and let Python rules generate every trade."</li>
+      </ol>
+      <p>Bir cümle daha eklenebilir: brief §26'ya göre bu durumlar risk gate'te <code>HARD_BLOCK</code> sayılır.</p>
+    </div></details>
+    <!-- Kaynak: quiz-bist-algo-trading-challenge.pdf s.2 "No Look-Ahead Rule". Dosya origin/main'de olmadığı için bağlantı verilmedi. -->
+  </div>
+  <div class="quiz" id="q-leak-pivot">
+    <p class="quiz__q"><code>window = 5</code> ile center=True pivot low $t$ gününde True çıkıyor. Bu bilgiyi en erken hangi gün bir trade kararında kullanabilirsin?</p>
+    <button class="quiz__opt">$t$ günü<span class="why">Pencere $t-5$'ten $t+5$'e uzanıyor. $t$ günü sonraki 5 bar'ı henüz görmedin.</span></button>
+    <button class="quiz__opt">$t+1$ günü, shift(1) ile<span class="why">shift(1) bir günlük gecikme ekler; ama pivot'un onaylanması için 5 gün gerekiyor.</span></button>
+    <button class="quiz__opt" data-correct>$t+5$ günü close'da (pozisyon $t+6$'dan itibaren)<span class="why">Doğru. Pencerenin son bar'ı $t+5$; ancak o close'dan sonra "$t$ en düşük noktaydı" diyebilirsin.</span></button>
+  </div>
+  <div class="quiz" id="q-leak-fin">
+    <p class="quiz__q">Bir şirketin Q3 bilançosu (quarter-end 30 Eylül) 6 Kasım'da açıklanıyor. 15 Ekim tarihli bir backtest kararında bu bilançoyu kullanmak:</p>
+    <button class="quiz__opt">Sorun değil, Q3 bitmişti<span class="why">Çeyreğin bitmesi bilginin açıklandığı anlamına gelmez. 15 Ekim'de rakamları kimse bilmiyordu.</span></button>
+    <button class="quiz__opt" data-correct>Look-ahead bias; brief'e göre hard block<span class="why">Doğru. "Future financial-statement information enters an earlier historical date." Veriyi 6 Kasım'a, yani publication date'e hizalaman gerekir.</span></button>
+    <button class="quiz__opt">Sadece soft warning<span class="why">Soft warning'ler eksik macro verisi ya da seyrek haber gibi durumlar. Gelecekteki bilanço brief §26'da açıkça hard block listesinde.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="benchmark" data-min="5">
+  <h2>Benchmark: neye göre iyi?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>"Stratejim %60 kazandırdı." İyi mi? Aynı dönemde hisseyi alıp hiç dokunmadan tutsaydın %400 kazanacak idiysen kötü. Tek başına bir backtest sonucu bir şey söylemez; bir <strong>benchmark</strong> ile karşılaştırınca anlam kazanır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · brief §18, W1 s.22 ve s.37</span>
+    <ul>
+      <li>"Compare against <strong>Buy-and-Hold</strong>, <strong>XU100</strong> and where possible a <strong>sector benchmark</strong>."</li>
+      <li>Buy-and-hold: ilk gün al, son güne kadar tut. Aynı hissenin "hiçbir şey yapmama" sonucu.</li>
+      <li>XU100: BIST 100 endeksinin getirisi. Piyasanın genel hareketi.</li>
+      <li>Sector benchmark: aynı sektördeki hisselerin getirisi (banka hissesini bankalarla karşılaştır).</li>
+      <li><strong>Benchmark difference</strong> = strateji getirisi − benchmark getirisi (yüzde puan ya da TL).</li>
+    </ul>
+    $$\text{Benchmark difference} = R_{\text{strategy}} - R_{\text{benchmark}}$$
+  </div>
+  <h3>Quiz'deki benchmark kuralı</h3>
+  <p>Quiz brief'te her hissenin <strong>kendi</strong> benchmark'ı var (100,000 TL başlangıç):</p>
+  <div class="table-wrap"><table>
+    <tr><th>Stock</th><th>Benchmark Net Profit</th><th>Benchmark Final Capital</th><th>Senin stratejin (Net)</th><th>Sonuç</th></tr>
+    <tr><td>AKBNK</td><td>+84,000 TL</td><td>184,000 TL</td><td>+102,967 TL</td><td>PASS</td></tr>
+    <tr><td>ASELS</td><td>+239,000 TL</td><td>339,000 TL</td><td>+263,818 TL</td><td>PASS</td></tr>
+    <tr><td>TUPRS</td><td>+72,000 TL</td><td>172,000 TL</td><td>+120,988 TL</td><td>PASS</td></tr>
+    <tr><td>TCELL</td><td>−18,000 TL</td><td>82,000 TL</td><td>−5,561 TL</td><td>PASS</td></tr>
+    <tr><td>FROTO</td><td>+3,000 TL</td><td>103,000 TL</td><td>+14,164 TL</td><td>PASS</td></tr>
+    <tr><td>EREGL</td><td>+39,000 TL</td><td>139,000 TL</td><td>+66,787 TL</td><td>PASS</td></tr>
+  </table></div>
+  <p>"A stock passes only when its final capital is higher than that stock's benchmark final capital." TCELL zarar etti ama benchmark'ı daha çok zarar ettiği için PASS. Bu benchmark'lar buy-and-hold değil: W3 s.26'daki <strong>Volume Bubbles</strong> stratejisinin sonuçlarıyla birebir aynı. Yani quiz'deki soru "hocanın referans stratejisini her hissede geçebilir misin?" idi.</p>
+  <p class="src">Not: W3 s.26'daki Volume Bubbles test dönemi "1 January 2025 – 28 September 2026" yazıyor, quiz dönemi 1 Ekim 2026'da bitiyor. Rakamlar aynı; aradaki üç gün için slayt bir açıklama yapmıyor.</p>
+  <div class="box box--example">
+    <span class="box__label">Örnek · benchmark seçimi kararı değiştirir</span>
+    <p>Senin notebook'unda ASELS: strateji +263.8%, quiz benchmark'ı +239.0% → PASS. Ama aynı dönemde ASELS'i ilk gün açılışta alıp tutmak +407.2% verirdi. Buy-and-hold'a göre benchmark difference ≈ −143 yüzde puan. AKBNK'de tersi: strateji +103.0%, buy-and-hold +3.2%. "Stratejim iyi" cümlesi, hangi benchmark'a göre olduğu yazılmadan eksiktir.</p>
+  </div>
+  <!-- Kaynak: quiz brief s.1 Benchmark Results tablosu ve "Important" notu, s.3 Benchmark Comparison · notebook hücre 3 (Buy&Hold % ilk open'dan son close'a), hücre 15 (PASS tablosu), hücre 26 · week-03 s.26. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Farklı dönemleri karşılaştırmak. Benchmark ile strateji aynı başlangıç ve bitiş tarihini kullanmalı.</li>
+      <li>Buy-and-hold'u farklı fiyattan başlatmak sonucu değiştirir. Notebook AKBNK için ilk günün open'ından başlıyor: +3.21%. Vectorised versiyon (31 Aralık close'u 64.85'ten 1 Ekim close'u 67.55'e) +4.16% veriyor. Hangisini kullandığını yaz.</li>
+      <li>Repoda XU100 serisi yok; bu sayfadaki laboratuvar bu yüzden sadece buy-and-hold ile karşılaştırıyor. Projede XU100'ü ayrıca indirmen gerekir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="2026-27-quiz-benchmark-rule">
+    <span class="box__label">Quiz brief · Benchmark Comparison · çıkmış soru</span>
+    <p>"Requirement: the strategy must outperform the benchmark result for each of the six stocks individually. A higher total portfolio profit does not compensate for failing to beat the benchmark on any single stock."</p>
+    <p>(Kural metni. Çalışma sorusu: brief'teki örnekte AKBNK +90,000, ASELS +250,000, TUPRS +60,000 TL. Sonuç nedir ve toplam kâr neden yetmez?)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her hisseyi kendi satırında karşılaştır: AKBNK 84,000, ASELS 239,000, TUPRS 72,000.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Üç hissenin toplamını da karşılaştır. Sonra kendine sor: tek bir hissedeki büyük kazanç, stratejinin genel olarak işe yaradığını mı gösterir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>AKBNK: 90,000 &gt; 84,000 → PASS. ASELS: 250,000 &gt; 239,000 → PASS. TUPRS: 60,000 &lt; 72,000 → <strong>FAIL</strong>.</li>
+        <li>Toplam: strateji 90 + 250 + 60 = 400 bin TL, benchmark 84 + 239 + 72 = 395 bin TL. Toplamda önde ama challenge geçilmedi.</li>
+      </ol>
+      <p><strong>Exam answer:</strong> "The challenge asks whether one rule works on every stock, not whether one portfolio made money. A total can be dominated by a single large winner (for example ASELS) and hide a stock where the strategy is worse than the reference. Requiring each stock to beat its own benchmark tests robustness across different market behaviours, so with TUPRS at +60,000 TL against +72,000 TL the challenge is failed even though the total (400,000 TL) is above the benchmark total (395,000 TL)."</p>
+    </div></details>
+    <!-- Kaynak: quiz brief s.1 Example (+90,000 / +250,000 / +60,000) ve s.3 Benchmark Comparison. Toplamlar python3 ile kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-bench-diff">
+    <p class="quiz__q">Strateji +%30, aynı dönemde buy-and-hold +%45, XU100 +%20. Hangisi doğru?</p>
+    <button class="quiz__opt">Strateji iyi, çünkü pozitif<span class="why">Pozitif olmak yetmez; benchmark olmadan "iyi" denemez.</span></button>
+    <button class="quiz__opt" data-correct>Buy-and-hold'a göre −15, XU100'e göre +10 yüzde puan<span class="why">Doğru. Benchmark difference her benchmark için ayrı hesaplanır ve ikisini de raporlarsın: hisseyi tutmaktan kötü, piyasadan iyi.</span></button>
+    <button class="quiz__opt">Benchmark difference +%10, çünkü XU100 ana benchmark<span class="why">Brief üçünü de istiyor (Buy-and-Hold, XU100, sector). Sadece seni iyi gösterenini seçmek de bir tür sonuçlara bakarak karar vermektir.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="trade-metrics" data-min="5">
+  <h2>Trade metrikleri: win rate, profit factor, average trade</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Bir trade = bir giriş + bir çıkış. Her trade'in bir PnL'i (profit and loss) var. Trade listesine bakarak üç soru sorarız: ne kadar kazandım, ne sıklıkla kazandım, kazançlarım kayıplarımın kaç katı?</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · quiz brief "Required Metrics" (trade'den hesaplananlar)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Metric</th><th>Tanım</th></tr>
+      <tr><td>Net Profit</td><td>$\sum \text{PnL}_i$</td></tr>
+      <tr><td>Final Capital</td><td>Initial Capital + Net Profit</td></tr>
+      <tr><td>Total Trades</td><td>Tamamlanmış (açılıp kapanmış) trade sayısı</td></tr>
+      <tr><td>Winning / Losing Trades</td><td>$\text{PnL} &gt; 0$ / $\text{PnL} &lt; 0$ olanların sayısı</td></tr>
+      <tr><td>Win Rate</td><td>$\dfrac{\text{Winning Trades}}{\text{Total Trades}}$</td></tr>
+      <tr><td>Profit Factor</td><td>$\dfrac{\text{gross profit}}{|\text{gross loss}|} = \dfrac{\sum_{\text{PnL}&gt;0} \text{PnL}}{\left|\sum_{\text{PnL}&lt;0} \text{PnL}\right|}$</td></tr>
+      <tr><td>Average Trade</td><td>$\dfrac{\text{Net Profit}}{\text{Total Trades}}$</td></tr>
+    </table></div>
+    <p>Profit factor 1'in üstündeyse kazançlar kayıplardan büyüktür ve net profit pozitiftir; 1'in altındaysa net profit negatiftir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · senin AKBNK trade'lerin (notebook hücre 11)</span>
+    <p>PnL (TL): −874.20, +18,530.14, +48,281.96, +10,901.30, +20,033.23, +6,095.03</p>
+    <ul>
+      <li>Net Profit = 102,967.46 TL → Final Capital = 202,967.46 TL</li>
+      <li>Total 6, Winning 5, Losing 1 → Win Rate = 5/6 = 83.33%</li>
+      <li>Gross profit = 103,841.66, gross loss = 874.20 → Profit Factor ≈ 118.8 (notebook 118.79 yazıyor; fark yuvarlanmış PnL'lerden)</li>
+      <li>Average Trade = 102,967.46 / 6 = 17,161.24 TL</li>
+    </ul>
+  </div>
+  <p>W3 s.26'daki Volume Bubbles tablosu win rate'in tek başına yetmediğini gösteriyor. FROTO 20 trade'in 3'ünü kazanmış (win rate 15.0%) ama net +3,000 TL. Slaytın notu: "A high win rate is not required for profitability; a few larger winners can offset many smaller losses." (Bu küçük kayıp / büyük kazanç fikri, yani positive skew, <a href="trade-management.html">trade management dersinde</a>.)</p>
+  <!-- Kaynak: quiz brief s.2 Required Metrics · notebook hücre 11 (trade log), 12–13 (metrics fonksiyonu, break-even ayrı) · week-03 s.26 (win rate'ler 7/13 = 53.8%, 8/13 = 61.5%, 8/16 = 50.0%, 4/17 = 23.5%, 3/20 = 15.0%, 5/17 = 29.4%, python3 ile kontrol edildi). -->
+  <h3>Hesaplayıcı</h3>
+  <p class="w-rules-backtest-guess"><b>Önce tahmin et:</b> TCELL'in 5 trade'i: 0, +65.75, −5,039.71, +5,934.50, −6,521.80. Profit factor 1'in üstünde mi, altında mı? Win rate %40 mı, %50 mi?</p>
+  <div class="w-rules-backtest-calc">
+    <div>
+      <div class="w-rules-backtest-ctl" id="w-calc-presets"></div>
+      <label for="w-calc-ta" class="src">Her satıra bir trade'in PnL'i (TL). Ondalık için nokta; binlik ayırıcı kullanma.</label>
+      <textarea id="w-calc-ta" class="w-rules-backtest-ta" spellcheck="false"></textarea>
+      <div class="w-rules-backtest-err" id="w-calc-err" aria-live="polite"></div>
+    </div>
+    <div id="w-calc-out"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Break-even trade'ler.</strong> PnL tam 0 olan trade ne kazanç ne kayıp. Senin notebook'un bunları ayrı sayıyor ve win rate'i "wins / all trades" ile hesaplıyor (TCELL 2/5 = 40%). Break-even'ları paydadan çıkarırsan 2/4 = 50% olur. İkisi de savunulabilir; hangisini kullandığını yaz.</li>
+      <li><strong>Losing trade yoksa</strong> profit factor'ın paydası 0 olur. EREGL'de notebook <code>inf</code> yazıyor. Bu "sonsuz iyi" demek değil; 5 trade'lik bir örnekte kayıp hiç görülmemiş demek.</li>
+      <li>Win rate yüksek, net profit negatif olabilir: 9 küçük kazanç ve 1 büyük kayıp. Win rate'i her zaman profit factor ya da average trade ile birlikte oku.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="2026-27-quiz-student-task">
+    <span class="box__label">2026-27 Quiz (BIST Algorithmic Trading Challenge) · Student Task ve Required Python Workflow · çıkmış soru</span>
+    <p>"Trade decisions must be generated by Python rules, not by manually selected dates. · At least 3 completed trades must be generated for every stock. · Your submission must include your source code, all buy and sell times, the exact buy and sell prices for each trade, the profit or loss of each completed trade, and a chart showing the trades and their resulting profits/losses."</p>
+    <p>"Required Python Workflow: Load historical price data. · Calculate indicators or features. · Generate BUY and SELL signals. · Apply position sizing and risk management. · Run the backtest. · Calculate performance metrics. · Compare each stock with the benchmark."</p>
+    <p>Çalışma soruları: (a) Trade log'unda hangi sütunlar olmalı? (b) "Completed trade" ne demek, dönem sonunda hâlâ açık olan pozisyon ne olur? (c) Kural neden en az 3 trade istiyor, neden elle seçilmiş tarihleri yasaklıyor? (d) 100,000 TL'nin tamamıyla tam sayıda hisse alınıyor; entry 71.60, exit 84.00. Shares, PnL (TL) ve PnL (%) kaç?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Brief'in istediği her bilgiyi bir sütuna çevir: "buy and sell times" iki sütun, "exact buy and sell prices" iki sütun, "profit or loss" bir sütun. Neden kapandığını da yazarsan stop sıklığını sonradan sayabilirsin.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(d) için: shares = cash // price (tam sayı bölme). Artan para nakitte kalır. PnL = shares × (exit − entry). (c) için 1/1 = 100% örneğini hatırla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a) Trade log.</strong> One row per completed trade: Entry Date, Entry Price, Exit Date, Exit Price, Exit Reason, Shares, PnL (TL), PnL (%). Efe'nin notebook'u tam bu sütunları tutuyor. Required Metrics bu tablodan hesaplanır (yukarıdaki kural kutusu).</p>
+      <p><strong>(b) Completed trade.</strong> A trade that was both opened and closed inside the backtest window. A position that is still open on the last day has no exit price, so it has no realised PnL. You must state a rule for it. Efe'nin notebook'u kuralı yazıyor: "A position that is still open is closed at the last close of the backtest window" (Exit Reason: "End of backtest"). TUPRS'un son trade'i böyle kapandı (+79,198 TL). Bu kuralı yazmazsan okuyucu o trade'in sayılıp sayılmadığını bilemez.</p>
+      <p><strong>(c) Why the two rules.</strong> "Manually selected dates" means picking entries and exits by looking at the chart afterwards. That uses future information and can beat any benchmark, so it measures nothing. A Python rule makes every trade reproducible and testable on all six stocks. The minimum of 3 trades is a sample-size rule: with 1 or 2 trades, win rate and profit factor are meaningless (1/1 = 100%), and one lucky trade could pass the benchmark. Notebook'ta kontrol tek satır: <code>COMPARE.Trades.min() &gt;= 3</code>. Senin sonucun: en az 4 trade (ASELS).</p>
+      <p><strong>(d) Numbers.</strong></p>
+      <ul>
+        <li>Shares $= \lfloor 100{,}000 / 71.60 \rfloor = 1{,}396$; cost $= 1{,}396 \times 71.60 = 99{,}953.60$ TL; 46.40 TL nakitte kalır.</li>
+        <li>PnL $= 1{,}396 \times (84.00 - 71.60) = 1{,}396 \times 12.40 = 17{,}310.40$ TL.</li>
+        <li>PnL (%) $= 84.00 / 71.60 - 1 = 17.32\%$. W3 s.8 bunu "≈ +17%" diye yazıyor.</li>
+      </ul>
+      <p><strong>Chart.</strong> Price line, a marker at every entry and exit, and the PnL written next to each exit:</p>
+<pre><code>fig, ax = plt.subplots(figsize=(12, 4))
+ax.plot(d.index, d["Close"], lw=1)
+ax.scatter(pd.to_datetime(trades["Entry Date"]), trades["Entry Price"], marker="^", color="green", label="BUY")
+ax.scatter(pd.to_datetime(trades["Exit Date"]), trades["Exit Price"], marker="v", color="red", label="SELL")
+for _, r in trades.iterrows():
+    ax.annotate(f'{r["PnL (TL)"]:+,.0f} TL', (pd.to_datetime(r["Exit Date"]), r["Exit Price"]))
+ax.legend()</code></pre>
+      <p><strong>Workflow sırası</strong> bu dersin sırasıyla aynı: veriyi yükle (OHLCV dersi), indicator'ları hesapla, kuraldan signal üret, position sizing ve stop'u uygula (trade management dersi), backtest'i <code>shift(1)</code> ile çalıştır, bu bölümdeki metrikleri hesapla, her hisseyi kendi benchmark'ıyla karşılaştır.</p>
+    </div></details>
+    <!-- Kaynak: quiz-bist-algo-trading-challenge.pdf s.1–2 "Student Task", "Required Python Workflow" (dosya origin/main'de yok, bağlantı verilmedi) · Efe'nin notebook'u hücre 0 (End of period kuralı), hücre 9 (trade sütunları, int(cash // o[i])), hücre 15 (min trades 4), hücre 27 (TUPRS +79,198) · W3 s.8 (71.60 → 84.00). 1396, 99,953.60, 46.40, 17,310.40 ve 17.32% python ile kontrol edildi. Grafik kodu bizim. -->
+  </div>
+  <div class="quiz" id="q-pf">
+    <p class="quiz__q">Trade'ler: +400, −100, +200, −300, +100 TL. Profit factor kaç?</p>
+    <button class="quiz__opt">7.0<span class="why">Paydaya sadece ilk kaybı (100) koymuşsun. Gross loss bütün kayıpların toplamı: 100 + 300 = 400.</span></button>
+    <button class="quiz__opt" data-correct>1.75<span class="why">Doğru. Gross profit 400 + 200 + 100 = 700, gross loss 100 + 300 = 400; 700 / 400 = 1.75.</span></button>
+    <button class="quiz__opt">0.6<span class="why">Bu win rate (3/5). Profit factor sayıları değil, TL tutarlarını oranlar.</span></button>
+    <button class="quiz__opt">300<span class="why">Bu net profit (700 − 400). Profit factor bir oran, fark değil.</span></button>
+  </div>
+  <div class="quiz" id="q-winrate">
+    <p class="quiz__q">Win rate %85, net profit negatif. Bu mümkün mü?</p>
+    <button class="quiz__opt">Hayır, win rate %50'nin üstündeyse net pozitif olur<span class="why">Win rate sadece sayar, büyüklüğe bakmaz. Kayıplar kazançlardan çok büyükse net negatif olur.</span></button>
+    <button class="quiz__opt" data-correct>Evet: kazançlar küçük, birkaç kayıp çok büyükse<span class="why">Doğru. Bu durumda profit factor 1'in altındadır. FROTO'nun tersi: orada düşük win rate'e rağmen net pozitif.</span></button>
+    <button class="quiz__opt">Sadece break-even trade'ler sayılırsa<span class="why">Break-even trade'ler PnL'e 0 ekler; net'i negatif yapamazlar.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="drawdown" data-min="6">
+  <h2>Equity metrikleri: cumulative return, maximum drawdown, Sharpe ratio</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Trade listesi sadece kapanış anlarını görür. Equity curve ise her günün değerini görür: pozisyon açıkken fiyat düştüyse hesabın da düşmüştür. Bu düşüşün en kötüsü, stratejiyi gerçekte uygulayan birinin yaşayacağı en acı dönemdir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural</span>
+    <ul>
+      <li><strong>Cumulative Return</strong> $= E_T / E_0 - 1$ (W1 s.30, brief §18 ve §31).</li>
+      <li><strong>Drawdown</strong> $DD_t = \dfrac{E_t}{\max_{k \le t} E_k} - 1$: bugünkü equity, o güne kadarki en yüksek değerin ne kadar altında?</li>
+      <li><strong>Maximum Drawdown</strong> $MDD = \min_t DD_t$ (negatif bir sayı; "%25 drawdown" diye de söylenir).</li>
+    </ul>
+<pre><code>dd = equity / equity.cummax() - 1
+max_drawdown = dd.min()</code></pre>
+    <p>Notebook'undaki <code>metrics()</code> fonksiyonu tam bunu yapıyor ve başlangıç sermayesini (100,000) serinin başına ekliyor; böylece ilk günden itibaren düşüş de sayılıyor.</p>
+  </div>
+  <p class="w-rules-backtest-guess"><b>Önce tahmin et:</b> Equity: 100, 110, 105, 120, 90, 95, 130, 117. Maximum drawdown %25 mi, %30.8 mi?</p>
+  <div id="w-mdd-stepper"></div>
+  <p>Drawdown neden bu kadar önemli: %25 düşen bir hesabın başa dönmesi için %25 değil, $1/0.75 - 1 = 33.3\%$ kazanması gerekir. W2'deki örnek çıktıda, backtest XU100'ü geçtiği hâlde insan reviewer sonucu reddediyor: "REJECT. Reason: Maximum drawdown is too high." (Brief §27'de de aynı örnek var.)</p>
+  <div class="box box--rule">
+    <span class="box__label">Sharpe ratio</span>
+    <p>Getirinin, volatility'ye (getirilerin ne kadar dalgalandığı) göre ne kadar iyi olduğu. Günlük strateji getirileri $s_t$ ile:</p>
+    $$\text{Sharpe} = \frac{\operatorname{mean}(s_t) - r_f}{\operatorname{std}(s_t)} \cdot \sqrt{252}$$
+    <p>$r_f$ günlük risk-free rate; basitlik için çoğu zaman 0 alınır. $\sqrt{252}$, günlük oranı yıllığa çevirir (bir yılda yaklaşık 252 işlem günü). Örnek: ortalama günlük getiri %0.1, standart sapma %2 ise $\frac{0.001}{0.02}\sqrt{252} \approx 0.79$.</p>
+    <p class="src">Not: Sharpe ratio slaytlarda ve brief'te metrik olarak geçiyor ama formülü verilmiyor. Bu, yaygın kullanılan tanım. Türkiye'de faiz yüksek olduğu için $r_f = 0$ almak Sharpe'ı olduğundan iyi gösterir; raporda varsayımını yaz.</p>
+  </div>
+  <p>W1 s.30'daki "Suggested Metrics" listesi: Cumulative Return, Max Drawdown, Sharpe Ratio, Hit Rate / Accuracy, Benchmark Difference. Hit rate, sinyallerin ne kadarının doğru çıktığı; trade'ler için win rate'in karşılığı. Accuracy ise bir ML modelinin metriği (bölüm 10).</p>
+  <!-- Kaynak: week-01 s.30 Suggested Metrics · brief §18 ("Report cumulative return, Sharpe ratio, maximum drawdown, win rate and benchmark difference"), §27, §31 (Trading/backtest satırı) · week-02 s.3 örnek çıktı · notebook hücre 13 (dd = curve / curve.cummax() - 1). Sharpe formülü kaynakta yok; standart tanım. Oyuncak sayılar python3 ile doğrulandı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>MDD ≠ (max − min) / max.</strong> Örnekte (130 − 90) / 130 = 30.8% çıkar, ama 90'ın dibi 130'un tepesinden <em>önce</em>. Drawdown her zaman bir tepeden <strong>sonraki</strong> dibe bakar.</li>
+      <li><strong>Kapanmış trade'lerden MDD hesaplamak</strong> düşüşü gizler. AKBNK'de kapanmış trade equity'si en fazla −0.87% düşüyor, notebook'taki günlük equity'nin MDD'si ise −19.41%. Açık pozisyondaki düşüş de gerçek bir düşüştür. (Yukarıdaki hesaplayıcı bu farkı gösteriyor.)</li>
+      <li>Sharpe trade PnL'lerinden değil, günlük getiri serisinden hesaplanır. Hiç pozisyon olmayan günlerin 0 getirisi de seride kalır.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="2026-27-quiz-required-metrics">
+    <span class="box__label">Quiz brief · Required Metrics · çıkmış soru</span>
+    <p>"Required Metrics: Net Profit · Final Capital · Total Trades · Winning Trades · Losing Trades · Win Rate · Maximum Drawdown · Profit Factor · Average Trade"</p>
+    <p>(Liste. Çalışma sorusu: her birini tanımla, gerekiyorsa formülünü yaz ve neyi ölçtüğünü bir cümleyle söyle.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Dokuz metrikten sekizi trade listesinden hesaplanır. Hangisi equity curve ister?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Win rate ile profit factor'ı birbirinden ayıran şey: biri sayar, öbürü TL tutarlarını oranlar. Break-even trade'lerin nereye gittiğini de söyle.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Metric</th><th>Exam answer</th><th>AKBNK (notebook)</th></tr>
+        <tr><td>Net Profit</td><td>Sum of the profit/loss of all completed trades.</td><td>+102,967 TL</td></tr>
+        <tr><td>Final Capital</td><td>Initial capital + net profit.</td><td>202,967 TL</td></tr>
+        <tr><td>Total Trades</td><td>Number of completed (opened and closed) trades.</td><td>6</td></tr>
+        <tr><td>Winning Trades</td><td>Trades with PnL &gt; 0.</td><td>5</td></tr>
+        <tr><td>Losing Trades</td><td>Trades with PnL &lt; 0 (PnL = 0 is break-even, reported separately).</td><td>1</td></tr>
+        <tr><td>Win Rate</td><td>Winning trades / total trades. Measures how often, not how much.</td><td>83.33%</td></tr>
+        <tr><td>Maximum Drawdown</td><td>Largest fall of the equity curve from a previous peak: min(equity / running max − 1). Measures the worst loss an investor would have lived through.</td><td>−19.41%</td></tr>
+        <tr><td>Profit Factor</td><td>Gross profit / |gross loss|. Above 1 means net profitable; undefined (∞) with no losing trade.</td><td>118.79</td></tr>
+        <tr><td>Average Trade</td><td>Net profit / total trades: expected result per trade.</td><td>17,161 TL</td></tr>
+      </table></div>
+      <p>Son cümle olarak: "These metrics should be read together; a high win rate alone does not imply profitability (W3: FROTO 15% win rate, positive net)."</p>
+    </div></details>
+    <!-- Kaynak: quiz brief s.2 Required Metrics · notebook hücre 13 çıktısı (AKBNK sütunu). -->
+  </div>
+  <div class="quiz" id="q-mdd">
+    <p class="quiz__q">Equity: 100, 140, 70, 80, 150, 120. Maximum drawdown kaç?</p>
+    <button class="quiz__opt">−%53.3<span class="why">Bu (150 − 70) / 150. Ama 70'in dibi 150'den önce; o tepeden sonraki en düşük değer 120.</span></button>
+    <button class="quiz__opt" data-correct>−%50<span class="why">Doğru. 140'ın tepesinden 70'e: $70/140 - 1 = -0.5$. 150'den 120'ye düşüş sadece −%20.</span></button>
+    <button class="quiz__opt">−%30<span class="why">Bu 100'den 70'e düşüş. Drawdown başlangıca göre değil, o güne kadarki en yüksek değere (140) göre ölçülür.</span></button>
+    <button class="quiz__opt">+%20<span class="why">Bu cumulative return (120/100 − 1). Drawdown ayrı bir soru: yolda ne kadar düştün?</span></button>
+  </div>
+  <div class="quiz" id="q-sharpe">
+    <p class="quiz__q">Aynı dönemde iki stratejinin ortalama günlük excess return'ü aynı ve pozitiftir. A'nın standart sapması B'ninkinden büyüktür. Sharpe ratio için ne dersin?</p>
+    <button class="quiz__opt">Aynı, çünkü ortalama getiri aynı<span class="why">Sharpe, ortalama excess return'ü standart sapmaya böler. Pay aynı ama payda farklıysa sonuç farklıdır.</span></button>
+    <button class="quiz__opt" data-correct>B'ninki daha yüksek<span class="why">Doğru. Pay aynı ve pozitif, B'nin paydası daha küçük. Örnek: pay %0.1, standart sapma %2 ve %1 ise Sharpe 0.79 ve 1.59. Pay negatif olsaydı sıralama tersine dönerdi.</span></button>
+    <button class="quiz__opt">A'nınki daha yüksek, çünkü volatility fırsat demek<span class="why">Sharpe'ta standart sapma paydada. Pay pozitifken payda büyüdükçe oran düşer.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="lab" data-min="6">
+  <h2>Laboratuvar: SMA crossover'ı gerçek veride test et</h2>
+  <p>Bu laboratuvar, quiz notebook'undaki 6 hissenin gerçek close'larıyla (Yahoo Finance, 2024-01-02 → 2026-10-01) bölüm 2'deki üç satırı çalıştırıyor. Backtest penceresi quiz dönemi: 1 Ocak 2025 – 1 Ekim 2026. 2024 verisi sadece SMA'ların ısınması için. Equity, 100,000 TL ile başlıyor; altında drawdown (underwater) grafiği var.</p>
+  <p class="w-rules-backtest-guess"><b>Önce tahmin et:</b> Slayttaki kural (20/50) AKBNK'de buy-and-hold'u geçer mi? shift(1)'i kapatınca 20/50'de sonuç ne kadar değişir? Hızlı bir kuralda (1/5) ne kadar?</p>
+  <div class="w-rules-backtest-ctl">
+    <label>Hisse <select id="w-lab-t" class="btn btn--sm"></select></label>
+    <label>fast <input id="w-lab-f" type="text" inputmode="numeric" value="20" class="btn btn--sm" /></label>
+    <label>slow <input id="w-lab-s" type="text" inputmode="numeric" value="50" class="btn btn--sm" /></label>
+    <label>maliyet % <input id="w-lab-c" type="text" inputmode="decimal" value="0" class="btn btn--sm" /></label>
+  </div>
+  <div class="w-rules-backtest-ctl">
+    <label><input id="w-lab-shift" type="checkbox" checked /> <code>Signal.shift(1)</code></label>
+    <label>Signal <select id="w-lab-m" class="btn btn--sm"><option value="ls">slayttaki gibi (1 / −1)</option><option value="lo">long-only (−1 yerine 0)</option></select></label>
+  </div>
+  <div class="w-rules-backtest-ctl">
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wlab="20,50">20/50 (slayt)</button>
+    <button class="btn btn--sm" data-wlab="10,30">10/30</button>
+    <button class="btn btn--sm" data-wlab="1,5">1/5 (Close &gt; SMA5)</button>
+  </div>
+  <div class="w-rules-backtest-err" id="w-lab-err" aria-live="polite"></div>
+  <div id="w-lab-out"></div>
+  <!-- Kaynak: veri assignments/2026-2027-fall-efe-kurucay/bist-algo-trading-challenge/data/*.csv (Close, 2 ondalığa yuvarlanmış). Motor python3 ile aynı tanımla yeniden hesaplandı ve sonuçlar karşılaştırıldı. Maliyet: her pozisyon değişiminde maliyet × |pos_t − pos_{t−1}|. -->
+  <div class="box box--exam" data-exam="w01-practice-sma-backtest">
+    <span class="box__label">Week 1 Practice · çıkmış soru</span>
+    <p>"Backtest <code>SMA20 &gt; SMA50</code> with <code>shift(1)</code> and compare with buy-and-hold" (weeks/01 Practice listesinin son maddesi; önceki madde ASELS.IS'i 2024-01-01'den indirmeyi istiyor.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Dört adım: SMA20 ve SMA50, Signal (W1 s.21), Strategy_Return ve equity (W1 s.22), buy-and-hold equity = <code>(1 + Return).cumprod()</code>.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Karşılaştırmada en az üç sayı ver: iki cumulative return ve aradaki fark (benchmark difference). Maximum drawdown'ı da eklersen "daha az kazandı ama daha az mı düştü?" sorusuna cevap verirsin.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+<pre><code>import pandas as pd
+import yfinance as yf
+df = yf.download("ASELS.IS", start="2024-01-01", end="2026-10-02", auto_adjust=False)
+if isinstance(df.columns, pd.MultiIndex):
+    df.columns = df.columns.get_level_values(0)
+df["SMA20"] = df["Close"].rolling(20).mean()
+df["SMA50"] = df["Close"].rolling(50).mean()
+df["Signal"] = 0
+df.loc[df["SMA20"] &gt; df["SMA50"], "Signal"] = 1
+df.loc[df["SMA20"] &lt; df["SMA50"], "Signal"] = -1
+df["Return"] = df["Close"].pct_change()
+df["Strategy_Return"] = df["Signal"].shift(1) * df["Return"]
+
+w = df.loc["2025-01-01":"2026-10-01"]
+strategy = (1 + w["Strategy_Return"]).cumprod()
+buy_hold = (1 + w["Return"]).cumprod()
+print(strategy.iloc[-1] - 1, buy_hold.iloc[-1] - 1)
+print((strategy / strategy.cummax() - 1).min())</code></pre>
+      <p>Repodaki CSV'lerle, quiz dönemi için sonuçlar (maliyet yok):</p>
+      <div class="table-wrap"><table>
+        <tr><th>Stock</th><th>Buy-and-hold</th><th>SMA 20/50 (1/−1)</th><th>Fark</th><th>SMA 20/50 long-only</th><th>MDD (1/−1)</th></tr>
+        <tr><td>AKBNK</td><td>+4.2%</td><td>−65.8%</td><td>−70.0</td><td>−36.4%</td><td>−69.3%</td></tr>
+        <tr><td>ASELS</td><td>+410.3%</td><td>+185.0%</td><td>−225.4</td><td>+295.0%</td><td>−40.9%</td></tr>
+        <tr><td>TUPRS</td><td>+172.7%</td><td>+16.5%</td><td>−156.2</td><td>+84.4%</td><td>−35.5%</td></tr>
+        <tr><td>TCELL</td><td>+5.3%</td><td>−63.5%</td><td>−68.8</td><td>−35.4%</td><td>−71.4%</td></tr>
+        <tr><td>FROTO</td><td>−19.5%</td><td>+10.1%</td><td>+29.6</td><td>+0.3%</td><td>−36.9%</td></tr>
+        <tr><td>EREGL</td><td>+50.1%</td><td>−25.2%</td><td>−75.2</td><td>+10.2%</td><td>−44.0%</td></tr>
+      </table></div>
+      <p><strong>Exam answer (ASELS):</strong> "With shift(1) the SMA20/SMA50 rule returned +185.0% from 1 Jan 2025 to 1 Oct 2026, while buy-and-hold returned +410.3%, a benchmark difference of about −225 percentage points. The strategy's maximum drawdown (−40.9%) was also deeper than buy-and-hold's (−22.5%), because the short side (−1) lost money when prices rose while the strategy was short; in this strong uptrend the short days compounded to about −27.9%. A rule-based strategy is therefore not automatically better than holding the stock; in a strongly trending stock, staying invested wins."</p>
+      <p>Tablodan genel ders: 1/−1 versiyonu sadece FROTO'da (düşen hisse) buy-and-hold'u geçiyor. Yatay giden AKBNK ve TCELL'de crossover sürekli yanlış tarafa düşüyor (13 ve 16 pozisyon değişimi). Short tarafı kapatınca (long-only) kayıplar azalıyor, ama FROTO dışındaki beş hissede sonuç yine buy-and-hold'un altında.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/weeks/01-bist-100-and-yahoo-finance.md">Orijinal liste (weeks/01)</a></p>
+    <!-- Kaynak: weeks/01-bist-100-and-yahoo-finance.md Practice. Referans çözüm yok; tablo, repodaki CSV'lerle python3 ile hesaplandı (Close 2 ondalık, pencere 2025-01-02 … 2026-10-01, buy-and-hold 2024-12-31 close'undan). Short (−1) günlerinin bileşik getirisi 0.7214 → −27.9%, python3 ile. -->
+  </div>
+  <div class="quiz" id="q-lab-diff">
+    <p class="quiz__q">ASELS'te long-only 20/50: strateji +295.0%, buy-and-hold +410.3%. Buy-and-hold'a göre benchmark difference kaç?</p>
+    <button class="quiz__opt" data-correct>−115.3 yüzde puan<span class="why">Doğru. $295.0 - 410.3 = -115.3$. Strateji iyi kazandı ama hisseyi tutmanın gerisinde kaldı.</span></button>
+    <button class="quiz__opt">+115.3 yüzde puan<span class="why">Çıkarmanın sırası ters. Benchmark difference = strateji − benchmark.</span></button>
+    <button class="quiz__opt">−22.6%<span class="why">Bu iki equity'nin oranı: $3.950 / 5.103 - 1$. Benchmark difference ise getirilerin farkı, yüzde puan olarak.</span></button>
+  </div>
+  <div class="quiz" id="q-lab-fast">
+    <p class="quiz__q">Laboratuvarda shift(1)'i kapatınca 1/5 kuralı 20/50'den çok daha fazla şişiyor. Neden?</p>
+    <button class="quiz__opt">Çünkü 1/5 daha çok trade yapıyor ve her trade kâr ediyor<span class="why">Shift'li hâlinde aynı kural çok daha mütevazı kazanıyor. Trade'lerin kâr etmesinin sebebi, aynı günün getirisini görmeleri.</span></button>
+    <button class="quiz__opt" data-correct>Çünkü "Close &gt; SMA5" büyük ölçüde bugünkü close'a bağlı; shift'siz hâli bugünün yükselişini görerek pozisyon alıyor<span class="why">Doğru. Signal ne kadar hızlı tepki veriyorsa aynı gün sızıntısı o kadar büyük. SMA20/50 bugünkü close'dan çok az etkilenir.</span></button>
+    <button class="quiz__opt">Çünkü SMA5'in warm-up süresi kısa<span class="why">Warm-up sadece ilk birkaç günü etkiler; burada fark bütün dönem boyunca birikiyor.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="realism" data-min="6">
+  <h2>Gerçekçilik: maliyet, signal sayısı, out-of-sample</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · brief §18'in geri kalanı</span>
+    <ul>
+      <li>"Include transaction-cost and simple slippage assumptions."</li>
+      <li>"Use train/validation/test or rolling walk-forward periods for data-mined rules."</li>
+      <li>"Report the number of signals; a high return from very few events should be flagged."</li>
+      <li>"Use regime breakdowns and out-of-sample testing for weekday/pattern discoveries."</li>
+    </ul>
+  </div>
+  <h3>Transaction cost ve slippage</h3>
+  <p>Scenario 2 kodu <code>TRANSACTION_COST = 0.001</code> (%0.10) kullanıyor ve bunun neyi temsil ettiğini sayıyor: brokerage commissions, bid-ask spread, fees, slippage. Kod örneği: ortalama Thu-Fri getirisi +5.72%, maliyet 0.10%, net +5.62%. "A strategy may look profitable before costs but lose much of its advantage after costs."</p>
+  <p>Vectorised backtest'te maliyeti pozisyon değiştiği gün düşeriz:</p>
+  $$s_t = \text{pos}_t \cdot r_t - c \cdot |\text{pos}_t - \text{pos}_{t-1}|$$
+  <p>0'dan 1'e geçiş bir birim, −1'den 1'e geçiş iki birim maliyet. Çok trade yapan kural maliyetten daha çok etkilenir. Laboratuvarda maliyeti %0.1 yapıp 1/5 kuralına bak.</p>
+  <h3>Signal sayısı</h3>
+  <p>Scenario 2: "1 / 1 = 100%, 100 / 100 = 100%. Both are mathematically 100%, but they do NOT provide the same statistical evidence." Tek bir event'ten gelen %100 başarı zayıf kanıttır. Quiz de her hisse için en az 3 tamamlanmış trade istiyordu.</p>
+  <h3>Train / validation / test ve walk-forward</h3>
+  <div class="box box--rule">
+    <span class="box__label">Tanımlar</span>
+    <ul>
+      <li><strong>Train</strong> (in-sample): kuralın parametrelerini seçtiğin dönem.</li>
+      <li><strong>Validation</strong>: birkaç aday varyant arasından seçim yaptığın ayrı dönem.</li>
+      <li><strong>Test</strong> (out-of-sample): en sona bırakılan, seçim yaparken hiç bakılmayan dönem. Bir kere kullanılır.</li>
+      <li><strong>Walk-forward</strong>: pencereyi kaydırarak tekrarla. $[t_0, t_1]$'de seç, $(t_1, t_2]$'de test et, sonra her şeyi ileri kaydır ve yeniden yap.</li>
+    </ul>
+    <p>Time series rastgele bölünmez; zamana göre bölünür. Scenario 2'deki fonksiyon:</p>
+<pre><code>def train_test_split_by_time(df, train_ratio=0.70):
+    split_index = int(len(df) * train_ratio)
+    train = df.iloc[:split_index].copy()
+    test = df.iloc[split_index:].copy()
+    return train, test</code></pre>
+  </div>
+  <p>Neden gerekli? Çok sayıda parametre ya da pattern denersen bazıları sadece şans eseri iyi görünür ("data snooping and multiple-testing bias", scenario 2; ayrıntısı <a href="time-series-patterns.html">time series dersinde</a>). W3 s.25'teki uyarı da aynı: "Do not optimize only for one stock. Test the same settings across many stocks."</p>
+  <div class="box box--example">
+    <span class="box__label">Örnek · senin notebook'unun "Limitations" bölümü</span>
+    <p>"I chose the parameter values with a grid search over the same 2025-2026 period ... The trading rules do not use future data, but the parameters were fitted to this period, so I would expect smaller margins on new data. I did not test the strategy on a separate period."</p>
+    <p>Kurallar look-ahead içermiyor, ama parametreler test dönemine bakılarak seçildi. Bu, look-ahead bias'ın daha sinsi bir akrabası: sonuca bakarak seçim. Dürüst bir rapor bunu yazar, senin notebook'un da yazmış. Düzeltmesi: parametreyi 2024'te seç, 2025–2026'da bir kere test et.</p>
+  </div>
+  <p class="w-rules-backtest-guess"><b>Önce tahmin et:</b> 20 farklı fast/slow kombinasyonu train döneminde deneniyor ve en iyisi seçiliyor. Bu kombinasyon test döneminde de ilk sıralarda mı kalır?</p>
+  <div class="w-rules-backtest-ctl">
+    <label>Hisse <select id="w-tt-t" class="btn btn--sm"></select></label>
+    <label>Signal <select id="w-tt-m" class="btn btn--sm"><option value="ls">slayttaki gibi (1 / −1)</option><option value="lo">long-only</option></select></label>
+  </div>
+  <div class="w-rules-backtest-ctl">
+    <label>train payı <input id="w-tt-r" type="range" min="50" max="85" step="5" value="70" /> <b id="w-tt-rv" class="w-rules-backtest-mono">70%</b></label>
+  </div>
+  <div id="w-tt-out"></div>
+  <!-- Kaynak: brief §18 · code/scenario2_thyao_weekday_patterns.py (TRANSACTION_COST = 0.001, TRAIN_RATIO = 0.70, train_test_split_by_time, "1 / 1 = 100%", "data snooping and multiple-testing bias", 5.72 − 0.10 = 5.62) · week-03 s.25 · notebook hücre 27 Limitations. Train/test tablosu python3 ile aynı ızgarada (fast 1, 5, 10, 20, 30; slow 10, 20, 50, 100, 150) doğrulandı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Test dönemine bakıp parametreyi değiştirip tekrar test etmek, test'i train'e çevirir. Test bir kere kullanılır.</li>
+      <li>Az sayıda signal'dan gelen yüksek getiri (brief: "should be flagged") ile çok sayıda signal'dan gelen orta getiri aynı güvenilirlikte değildir.</li>
+      <li>Train'de iyi, test'te kötü olması her zaman overfitting değildir; piyasa rejimi de değişmiş olabilir (yükselen piyasa, yatay piyasa). Bu yüzden brief "regime breakdowns" da istiyor.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-oos">
+    <p class="quiz__q">20 kombinasyonun train'de en iyisi test'te ortalarda kalıyor. En iyi açıklama hangisi?</p>
+    <button class="quiz__opt">Test dönemi hatalı seçilmiş<span class="why">Test dönemi zaman olarak sonra geliyor ve hiç kullanılmamış; doğru seçim. Sorun train'deki seçimde.</span></button>
+    <button class="quiz__opt" data-correct>Train'deki birinciliğin bir kısmı o döneme özgü şanstı; çok sayıda deneme yapınca en iyisi kısmen gürültüden seçilir<span class="why">Doğru. Bu data snooping / multiple testing. Out-of-sample test bunu ortaya çıkarmak için var.</span></button>
+    <button class="quiz__opt">Daha çok kombinasyon denemek gerekirdi<span class="why">Daha çok deneme, train'deki en iyinin şanstan gelme ihtimalini artırır; sorunu büyütür.</span></button>
+  </div>
+  <div class="quiz" id="q-cost">
+    <p class="quiz__q">Maliyet %0.1. Bir gün pozisyon −1'den +1'e geçiyor. O günün maliyeti kaç?</p>
+    <button class="quiz__opt">%0.1<span class="why">Pozisyon iki birim değişiyor: short'u kapat (1), long aç (1).</span></button>
+    <button class="quiz__opt" data-correct>%0.2<span class="why">Doğru. $0.001 \times |1 - (-1)| = 0.002$.</span></button>
+    <button class="quiz__opt">0, çünkü pozisyon büyüklüğü aynı kaldı<span class="why">Mutlak büyüklük aynı ama yön değişti; iki işlem yapılıyor.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="prediction" data-min="5">
+  <h2>Prediction ≠ profitable strategy</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Bir model yarın fiyatın yükselip düşeceğini %70 doğru tahmin ediyor. Para kazandırır mı? Gerekmez. Doğru tahmin ettiği günler küçük yükselişlerse, yanıldığı günler büyük düşüşlerse, tahmin isabeti yüksekken para kaybedersin. Accuracy <em>kaç kere</em> haklı olduğunu sayar; para <em>ne kadar</em> haklı olduğuna bağlıdır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · brief §19</span>
+    <p>"ML metrics and finance metrics must be reported separately."</p>
+    <div class="table-wrap"><table>
+      <tr><th>ML Evaluation</th><th>Financial Evaluation</th></tr>
+      <tr><td>Accuracy</td><td>Cumulative Return</td></tr>
+      <tr><td>Precision</td><td>Sharpe Ratio</td></tr>
+      <tr><td>Recall</td><td>Maximum Drawdown</td></tr>
+      <tr><td>F1</td><td>Win Rate</td></tr>
+      <tr><td>Confusion Matrix</td><td>Benchmark Difference</td></tr>
+    </table></div>
+    <p>"Students must explain why Prediction ≠ Profitable Strategy." ML opsiyonel; "should not replace the main analytical harness."</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · yüksek F1, negatif getiri</span>
+    <p>10 gün. Model her gün "up" diyor. 7 gün fiyat +%0.5 yükseliyor, 3 gün −%3 düşüyor. Model "up" deyince long oluyoruz.</p>
+    <ul>
+      <li>Accuracy = 7/10 = 0.70. "Up" sınıfı için precision = 7/10 = 0.70, recall = 7/7 = 1.00, F1 = $\frac{2 \cdot 0.7 \cdot 1}{1.7} \approx 0.82$.</li>
+      <li>Cumulative return = $1.005^7 \cdot 0.97^3 - 1 \approx -5.49\%$. Tek bir giriş maliyeti (%0.1) ile −5.58%.</li>
+    </ul>
+    <p>ML metrikleri iyi, finansal sonuç kötü. Sebep: (1) getirilerin büyüklüğü eşit değil, (2) maliyet, (3) tahminin gerçekten işlem yapılabilir zamanda gelmesi gerekir (bölüm 3).</p>
+  </div>
+  <p>Repodaki eski bir öğrenci projesi (hocanın materyali değil) bunun ters örneği: onlarca BIST hissesi için RandomForest / LightGBM / CatBoost accuracy, precision, recall, F1 raporluyor (çoğu 0.46–0.62 arası) ama hiçbir backtest, getiri ya da drawdown yok. Bu sayılardan stratejinin para kazandırıp kazandırmayacağı hakkında bir şey söylenemez. Üstelik target aynı günün mum rengi (close &gt; open), feature'lar aynı günün close'unu içeren SMA/EMA'lar ve veri rastgele bölünmüş: bölüm 4'teki 1 ve 7 numaralı sızıntılar.</p>
+  <!-- Kaynak: brief §19 · assignments/undated-term-project/20190808004.ipynb hücre 9 (candlestick_color = close − open), 11 (SMA/EMA feature'lar), 16 (train_test_split random_state=42), 17 (çıktılar). Oyuncak sayılar python3 ile doğrulandı. -->
+  <h3>Backtest'in sistemdeki yeri</h3>
+  <div class="box box--rule">
+    <span class="box__label">Kural · brief §17 Finite Action Space</span>
+    <p>Projede strateji katmanı BUY/SELL değil, sınırlı bir eylem kümesi üretir:</p>
+    <p><code>HOLD</code> · <code>WATCH</code> · <code>INVESTIGATE</code> · <code>POTENTIAL_CATCH_UP_CANDIDATE</code> · <code>TECHNICAL_REVERSAL_CANDIDATE</code> · <code>FUNDAMENTAL_IMPROVEMENT_CANDIDATE</code> · <code>REJECT_SIGNAL</code> · <code>ANALYSIS_UNSAFE</code></p>
+    <p>"Optional BUY/SELL labels may be used only as educational backtest labels. No real broker execution is allowed."</p>
+  </div>
+  <p>Brief §18'in ilk cümlesi: "Every strategy or discovered pattern should be historically verified before the system presents a strong conclusion." W2'deki state machine'de bunun karşılığı: "if Backtest = NOT RUN, the FSM does not allow a final strong conclusion." Ama doğrulanmış bir backtest bile geleceği garanti etmez: brief §38'deki ayrımlardan biri "Backtest ≠ future guarantee", W2'deki örnek çıktının uyarısı da "Historical performance is not a future guarantee."</p>
+  <!-- Kaynak: brief §17, §18, §38 · week-02 FSM slaytı ve s.3 örnek çıktı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Accuracy %50'nin üstündeyse kâr edilir sanmak. Büyüklük, maliyet ve zamanlama hesaba girmeden accuracy finansal bir metrik değildir.</li>
+      <li>Accuracy'yi win rate ile karıştırmak. Accuracy bütün günlerin (ya da örneklerin) tahmin isabeti; win rate tamamlanmış trade'lerin kârlı olanlarının oranı.</li>
+      <li>BUY/SELL'i projenin çıktısı sanmak. Projede bunlar sadece backtest etiketi; sistemin çıktısı §17'deki eylemlerden biri.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="brief-s19-prediction-profit">
+    <span class="box__label">Term project brief §19 · çıkmış soru</span>
+    <p>"ML metrics and finance metrics must be reported separately. [...] Students must explain why Prediction ≠ Profitable Strategy."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Accuracy neyi sayar, kâr neye bağlıdır? Büyüklük kelimesini kullan.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Üç ayrı sebep bul: getirilerin büyüklüğü, maliyet, işlem yapılabilirlik (zamanlama / look-ahead). Bir sayısal örnek eklersen cevap güçlenir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Exam answer:</strong> "Prediction metrics such as accuracy, precision, recall and F1 count how often the model is right. Profit depends on how much is gained when it is right and how much is lost when it is wrong. A model that is right 70% of the time on small up-days (+0.5%) and wrong 30% of the time on large down-days (−3%) has accuracy 0.70 and F1 ≈ 0.82 for the 'up' class, yet the strategy loses about 5.5%. Transaction costs and slippage reduce the result further, and a prediction is only useful if it is available before the trade can be made (no look-ahead). A strategy must therefore be judged with financial metrics (cumulative return, Sharpe ratio, maximum drawdown, win rate, benchmark difference) from a backtest, reported separately from the ML metrics."</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/resources/2026-2027-fall/term-project-brief.pdf">Orijinal metin (brief §19)</a></p>
+    <!-- Kaynak: term-project-brief.pdf §19 (s.8). Referans çözüm yok. -->
+  </div>
+  <div class="quiz" id="q-pred">
+    <p class="quiz__q">Bir model %62 accuracy ile günlük yönü tahmin ediyor. Hangisi söylenebilir?</p>
+    <button class="quiz__opt">%62 &gt; %50, demek ki strateji kâr eder<span class="why">Accuracy getirilerin büyüklüğünü ve maliyeti görmez. Kâr için backtest gerekir.</span></button>
+    <button class="quiz__opt" data-correct>Kâr hakkında bir şey söylenemez; backtest ve finansal metrikler ayrıca raporlanmalı<span class="why">Doğru. Brief §19: "ML metrics and finance metrics must be reported separately."</span></button>
+    <button class="quiz__opt">Sharpe ratio yaklaşık 0.62'dir<span class="why">Sharpe getiri serisinden hesaplanır; accuracy'den türetilemez.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="check" data-min="5">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Close: 50, 55, 44. Signal (shift'ten önce): 1, −1, 1. Shift(1) ile son günün Strategy_Return'ü kaç?</p>
+    <button class="quiz__opt">−%20<span class="why">Bu, dünkü signal'ı 1 sanmak. Son günün getirisi $44/55 - 1 = -0.20$, dünkü signal ise −1.</span></button>
+    <button class="quiz__opt" data-correct>+%20<span class="why">Doğru. $\text{Signal}_{t-1} = -1$, $r_t = -0.20$; çarpım +0.20. Short pozisyon düşüşten kazandı.</span></button>
+    <button class="quiz__opt">+%10<span class="why">Bu ikinci günün getirisi (55/50 − 1). Shift signal'ı kaydırır, getiriyi değil.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Hangisi look-ahead bias <strong>değildir</strong>?</p>
+    <button class="quiz__opt">Q2 bilançosunu quarter-end tarihine yazmak<span class="why">Bilanço haftalar sonra açıklanır; quarter-end tarihine yazmak geleceği geçmişe taşır.</span></button>
+    <button class="quiz__opt">center=True pivot'u signal olarak kullanmak<span class="why">Ortalanmış pencere sonraki bar'ları görür.</span></button>
+    <button class="quiz__opt" data-correct>Bir event'ten sonraki 5 günlük getiriyi <code>shift(-5)</code> ile ölçüp raporlamak<span class="why">Doğru. Bu, sonucu ölçmek (scenario 3). Bu değeri karar girdisi yaparsan sızıntı olur; raporlamak sorun değil.</span></button>
+    <button class="quiz__opt">En iyi giriş tarihlerini grafikten seçmek<span class="why">Quiz brief bunu açıkça yasaklıyor: "manually selected best entry/exit dates are not allowed."</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Strateji A: 10 trade, win rate %30, profit factor 2.4. Strateji B: 10 trade, win rate %80, profit factor 0.7. Hangisi net kârda?</p>
+    <button class="quiz__opt">B, çünkü daha sık kazanıyor<span class="why">Profit factor 1'in altında: kayıpların toplamı kazançlardan büyük, net negatif.</span></button>
+    <button class="quiz__opt" data-correct>A<span class="why">Doğru. Profit factor &gt; 1 ⇔ net profit &gt; 0. Win rate düşük ama kazançlar büyük (W3'teki FROTO gibi).</span></button>
+    <button class="quiz__opt">Bilinemez, drawdown gerekir<span class="why">Drawdown yolu anlatır; net kârın işaretini profit factor tek başına söyler.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Quiz challenge'ında bir öğrencinin toplam kârı benchmark toplamından 60,000 TL fazla, ama EREGL'de benchmark'ın 2,000 TL altında. Sonuç?</p>
+    <button class="quiz__opt">PASS, toplam önemli<span class="why">Brief: "overall portfolio profit is not used for passing the challenge."</span></button>
+    <button class="quiz__opt" data-correct>Challenge geçilmez<span class="why">Doğru. Her hisse kendi benchmark'ını geçmeli; tek bir FAIL yeterli.</span></button>
+    <button class="quiz__opt">EREGL'den başka hisseler PASS sayılır, challenge %83 geçilmiş olur<span class="why">Challenge kısmi puanlı değil: "You must beat the benchmark for all six stocks individually."</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Bir backtest +%900 getiri gösteriyor, 4 trade var, parametreler aynı dönemde grid search ile seçilmiş. İlk ne yaparsın?</p>
+    <button class="quiz__opt">Sonucu raporlar, stratejiyi projede kullanırım<span class="why">Brief §18 bu üç işaretin her birini ayrı ayrı uyarı sayıyor: çok az signal, aynı dönemde seçim, inanılmaz sonuç.</span></button>
+    <button class="quiz__opt" data-correct>Sızıntıyı kontrol eder, signal sayısını işaretler ve ayrı bir dönemde out-of-sample test ederim<span class="why">Doğru. Önce shift ve veri tarihleri, sonra "high return from very few events should be flagged", sonra train/test ya da walk-forward.</span></button>
+    <button class="quiz__opt">Daha çok parametre deneyip daha iyisini ararım<span class="why">Aynı dönemde daha çok deneme, multiple-testing sorununu büyütür.</span></button>
+  </div>
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+const RB_DATES="20240102,20240103,20240104,20240105,20240108,20240109,20240110,20240111,20240112,20240115,20240116,20240117,20240118,20240119,20240122,20240123,20240124,20240125,20240126,20240129,20240130,20240131,20240201,20240202,20240205,20240206,20240207,20240208,20240209,20240212,20240213,20240214,20240215,20240216,20240219,20240220,20240221,20240222,20240223,20240226,20240227,20240228,20240229,20240301,20240304,20240305,20240306,20240307,20240308,20240311,20240312,20240313,20240314,20240315,20240318,20240319,20240320,20240321,20240322,20240325,20240326,20240327,20240328,20240329,20240401,20240402,20240403,20240404,20240405,20240408,20240409,20240415,20240416,20240417,20240418,20240419,20240422,20240424,20240425,20240426,20240429,20240430,20240502,20240503,20240506,20240507,20240508,20240509,20240510,20240513,20240514,20240515,20240516,20240517,20240520,20240521,20240522,20240523,20240524,20240527,20240528,20240529,20240530,20240531,20240603,20240604,20240605,20240606,20240607,20240610,20240611,20240612,20240613,20240614,20240620,20240621,20240624,20240625,20240626,20240627,20240628,20240701,20240702,20240703,20240704,20240705,20240708,20240709,20240710,20240711,20240712,20240716,20240717,20240718,20240719,20240722,20240723,20240724,20240725,20240726,20240729,20240730,20240731,20240801,20240802,20240805,20240806,20240807,20240808,20240809,20240812,20240813,20240814,20240815,20240816,20240819,20240820,20240821,20240822,20240823,20240826,20240827,20240828,20240829,20240902,20240903,20240904,20240905,20240906,20240909,20240910,20240911,20240912,20240913,20240916,20240917,20240918,20240919,20240920,20240923,20240924,20240925,20240926,20240927,20240930,20241001,20241002,20241003,20241004,20241007,20241008,20241009,20241010,20241011,20241014,20241015,20241016,20241017,20241018,20241021,20241022,20241023,20241024,20241025,20241028,20241030,20241031,20241101,20241104,20241105,20241106,20241107,20241108,20241111,20241112,20241113,20241114,20241115,20241118,20241119,20241120,20241121,20241122,20241125,20241126,20241127,20241128,20241129,20241202,20241203,20241204,20241205,20241206,20241209,20241210,20241211,20241212,20241213,20241216,20241217,20241218,20241219,20241220,20241223,20241224,20241225,20241226,20241227,20241230,20241231,20250102,20250103,20250106,20250107,20250108,20250109,20250110,20250113,20250114,20250115,20250116,20250117,20250120,20250121,20250122,20250123,20250124,20250127,20250128,20250129,20250130,20250131,20250203,20250204,20250205,20250206,20250207,20250210,20250211,20250212,20250213,20250214,20250217,20250218,20250219,20250220,20250221,20250224,20250225,20250226,20250227,20250228,20250303,20250304,20250305,20250306,20250307,20250310,20250311,20250312,20250313,20250314,20250317,20250318,20250319,20250320,20250321,20250324,20250325,20250326,20250327,20250328,20250402,20250403,20250404,20250407,20250408,20250409,20250410,20250411,20250414,20250415,20250416,20250417,20250418,20250421,20250422,20250424,20250425,20250428,20250429,20250430,20250502,20250505,20250506,20250507,20250508,20250509,20250512,20250513,20250514,20250515,20250516,20250520,20250521,20250522,20250523,20250526,20250527,20250528,20250529,20250530,20250602,20250603,20250604,20250605,20250610,20250611,20250612,20250613,20250616,20250617,20250618,20250619,20250620,20250623,20250624,20250625,20250626,20250627,20250630,20250701,20250702,20250703,20250704,20250707,20250708,20250709,20250710,20250711,20250714,20250716,20250717,20250718,20250721,20250722,20250723,20250724,20250725,20250728,20250729,20250730,20250731,20250801,20250804,20250805,20250806,20250807,20250808,20250811,20250812,20250813,20250814,20250815,20250818,20250819,20250820,20250821,20250822,20250825,20250826,20250827,20250828,20250829,20250901,20250902,20250903,20250904,20250905,20250908,20250909,20250910,20250911,20250912,20250915,20250916,20250917,20250918,20250919,20250922,20250923,20250924,20250925,20250926,20250929,20250930,20251001,20251002,20251003,20251006,20251007,20251008,20251009,20251010,20251013,20251014,20251015,20251016,20251017,20251020,20251021,20251022,20251023,20251024,20251027,20251028,20251030,20251031,20251103,20251104,20251105,20251106,20251107,20251110,20251111,20251112,20251113,20251114,20251117,20251118,20251119,20251120,20251121,20251124,20251125,20251126,20251127,20251128,20251201,20251202,20251203,20251204,20251205,20251208,20251209,20251210,20251211,20251212,20251215,20251216,20251217,20251218,20251219,20251222,20251223,20251224,20251225,20251226,20251229,20251230,20251231,20260102,20260105,20260106,20260107,20260108,20260109,20260112,20260113,20260114,20260115,20260116,20260119,20260120,20260121,20260122,20260123,20260126,20260127,20260128,20260129,20260130,20260202,20260203,20260204,20260205,20260206,20260209,20260210,20260211,20260212,20260213,20260216,20260217,20260218,20260219,20260220,20260223,20260224,20260225,20260226,20260227,20260302,20260303,20260304,20260305,20260306,20260309,20260310,20260311,20260312,20260313,20260316,20260317,20260318,20260319,20260323,20260324,20260325,20260326,20260327,20260330,20260331,20260401,20260402,20260403,20260406,20260407,20260408,20260409,20260410,20260413,20260414,20260415,20260416,20260417,20260420,20260421,20260422,20260424,20260427,20260428,20260429,20260430,20260504,20260505,20260506,20260507,20260508,20260511,20260512,20260513,20260514,20260515,20260518,20260520,20260521,20260522,20260525,20260526,20260527,20260528,20260529,20260601,20260602,20260603,20260604,20260605,20260608,20260609,20260610,20260611,20260612,20260615,20260616,20260617,20260618,20260619,20260622,20260623,20260624,20260625,20260626,20260629,20260630,20260701,20260702,20260703,20260706,20260707,20260708,20260709,20260710,20260713,20260714,20260716,20260717,20260720,20260721,20260722,20260723,20260724,20260727,20260728,20260729,20260730,20260731,20260803,20260804,20260805,20260806,20260807,20260810,20260811,20260812,20260813,20260814,20260817,20260818,20260819,20260820,20260821,20260824,20260825,20260826,20260827,20260828,20260831,20260901,20260902,20260903,20260904,20260907,20260908,20260909,20260910,20260911,20260914,20260915,20260916,20260917,20260918,20260921,20260922,20260923,20260924,20260925,20260928,20260929,20260930,20261001".split(",").map(s=>s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6));
+const RB_CLOSE={
+AKBNK:[36.54,35.34,36.3,36.78,40.44,39.84,40.74,41.12,43.26,43.18,41.8,42,41.02,40.92,40.06,38.16,40.4,40.34,40.32,39.66,39.66,39.54,40.08,39.26,40.22,41.04,40.44,40.38,40.26,41.16,40.52,41,41.86,41.48,41.54,43.1,43.5,42.34,42.9,41.66,41.6,40.46,41.58,40.3,39.02,39.38,38.7,40.96,41.84,42.8,43.78,41.8,40.56,39.72,40.14,42.32,42.64,45.04,45.82,46,44.28,44.4,46.78,46.78,47.8,49.3,49.24,52.4,55.65,55.5,null,58.4,55.85,56.05,58.55,62.5,59.85,60.3,57.45,59.05,60.35,59.45,58.15,60.05,60.25,61.6,60,59.4,57.8,56,57.5,57.2,59.15,62.9,64.5,67.35,66.25,66.55,66.5,68,69.8,66,65.7,66.4,66.8,63.5,62.35,61.15,59.3,59.45,60.6,62.2,61.5,61.1,63.8,66,67.15,65.2,64.8,66.85,64.05,61.95,62.7,66.25,67.25,66.75,67.7,64.6,64,66.7,66.7,68.3,67.85,68.2,68.75,69.3,69.3,67.5,65.55,65.65,64.65,62.75,61.9,63.2,60.2,56.9,55.65,55.7,55.85,52.95,54.2,55.75,56.2,58.35,56.85,60.25,59.9,59.15,59.55,58.1,58.5,59.1,58.7,58.3,61.45,60.95,61.1,60.6,59.65,58.05,56.45,55.3,56.8,56.6,56.2,57.85,58.55,61.35,60.15,61.25,63.85,63.9,63.1,63.55,61.6,57.65,52.85,51.55,54.35,55.65,56.05,57.2,55.75,55.55,53.9,54.35,54.5,53.25,50.15,48.46,49.9,49.12,49.68,49.98,49.96,51,50.6,49.92,46.96,46.4,47.46,48.4,51.2,52.55,53,53.9,55.4,54.85,55.05,53.55,52.2,56.9,60.6,59.6,59.2,59.45,59.7,60.85,61,63.4,62.75,63.45,65.3,66.35,65.15,63.9,63.65,63.55,62.7,62.7,62.9,61.15,60.7,59.3,60.25,65.05,65.65,66.25,65.65,64.85,66.2,66.2,66.8,64.75,63.6,65.9,64.4,62.8,63,63.2,64.15,66,67.15,68.55,69.6,68.15,66.45,66,67.1,66,65.5,64.85,63.8,65.7,64.9,64.45,63.5,62.7,63.2,62.85,64.05,64.85,64.5,65.1,64.3,65.6,64.8,64.8,66.15,67.5,67.8,67.3,73,72.15,73.1,73.45,73.75,73.9,71.9,73.55,74.8,74.9,75.1,73.25,65.95,59.7,53.75,53.95,56,53.95,52.8,52.25,52.85,52.55,52.25,52.1,51.95,49.78,49.4,49.88,50.1,50.35,50.55,51.3,49.54,49.78,50.4,53.5,51.5,49.36,48.94,48.5,49.5,48.58,49.26,49.48,49.9,49.88,51.9,52.25,51.8,50.7,51.95,52.55,52.5,53.65,51.9,51.95,50.95,51.65,52.8,50.95,52.05,55.65,56.2,56.25,59.85,60,59.2,59.5,59.9,58.6,58.35,57.15,57.2,57.9,61.05,60.95,60.8,62,68.2,68.1,69.15,68.8,69.7,67.95,67.7,69.3,70.35,69.75,66.9,65.45,67.85,67.3,68.6,67.6,67.55,68.2,68,67.15,67.15,67.2,67.5,66.55,66.85,66.75,66.7,68.55,67.9,68.25,68.25,68.35,66.75,67.2,66.5,65.85,67.2,68.25,69.85,69.25,70.5,69,69.5,68.25,69.2,66.05,60.8,61.6,62.45,61.55,62.8,63.9,61,62,65.45,66.6,67.35,65.05,66.65,67.7,66,65.55,64.65,61.8,61.2,62.7,64.25,62.45,59.45,58.45,59.1,58.1,57.35,57.5,55.95,53.5,53.6,55.3,54.85,57.95,57.6,57.9,58.55,60.2,58.8,58.55,59.5,60.8,61.1,61,61.2,62.45,60.9,59.9,58.3,58.9,58.7,58.3,58.35,58.85,61.35,61.9,61.8,62.9,63.4,63.5,63.75,64.75,66.25,66.05,66.7,64.4,67,68.3,69.3,68.65,69,69.55,71,71.3,70.7,71.15,71.8,72.9,71.95,69.85,69.75,69.25,69.55,69.75,69.8,73.5,73.2,74.4,72.3,72.7,73.8,73.5,74.5,74,73.85,74.9,77.3,78.2,79.9,77.8,78.85,79.65,79.55,84.85,89,92.95,90.95,87.95,85.65,84.4,83.85,85.45,83.55,83.95,91.15,88.7,89.5,88.9,90.5,87,88.35,90.35,91.55,91,91.7,90.15,82.75,78.9,78.45,79.6,74.05,73.6,77.1,77.55,75.75,72.55,72.7,75.8,75.7,73.6,73.1,70.3,70.9,67.25,66.9,65.6,66,68.25,69.25,68.75,70.3,69.25,75.75,75.3,78.4,77.4,78.45,78.9,78.1,83.55,81.85,80.75,79.25,77.9,77.7,75.95,73.7,73.2,70.65,70.7,74.35,75.2,75.25,75.85,72.75,71.55,72.35,70.25,70.1,69.1,62.2,63.6,65.4,64,64,64,64,63.7,65.95,64.85,67.15,64.5,66.9,67.15,66.1,66.8,72.6,76.75,77.1,78,81.1,81.85,82,80.5,80.95,77.2,77.25,77.2,77,77.85,77.95,73.75,73.5,73.6,70.65,70.2,68.75,67.65,69.1,68.6,66.5,66.85,66.7,66.55,67.05,67.6,66.45,65.8,63.3,61.6,63.4,66,68.1,67.55,67.1,67.4,66.8,66.15,68.8,69.05,68.8,68,67.65,70.3,69.2,69.7,72.1,72,73.15,72.85,73.2,71.85,71.95,71.5,71.55,71.85,73.05,74.95,72.95,72.1,72.7,72.55,69.55,65.2,71.55,70.7,72.45,73.1,72.95,70.65,70.9,70.1,69.9,67,67.55],
+ASELS:[46.9,46.6,47.46,47.44,47.64,46.94,47.48,46.88,47.54,47.62,48.08,48.3,48.4,47.46,47.12,47.26,48.4,48.48,49.18,51.4,50.85,50.6,51.3,51.15,52.35,52.3,51.25,51.35,52.1,53.45,54.95,54.9,55.85,58.3,58.5,59.55,60.4,62.4,63.3,66.5,63.25,60.9,60,59.2,58.55,56.6,54.9,57.25,58.55,56.6,55.8,55.6,56.4,57.65,55.15,56.2,55.95,57.9,56.35,55.2,53,55.7,55.45,56.1,54.9,52.45,52.45,53.85,58.45,58.8,null,58.1,58.55,57.7,57.65,58.7,57.8,58.3,57.45,59.1,62.05,60.75,62.1,62.2,62.4,62.3,62.4,63.4,63.4,62.4,60.85,59.95,60.7,61.45,62.2,61.4,61.5,60.5,59.25,60.05,59.6,57.55,60.1,58.65,60.4,59.2,59,60.45,60.65,58.3,57,57.6,60.15,59.35,60.7,61.5,61.75,59.9,58.9,59.9,58.6,56.25,56.95,58.5,60.1,60.75,63.3,64.55,65,64.9,63.8,63.25,63.5,63.15,63,63.25,64.3,62.8,64.45,64.6,62.7,62.75,62.5,63.3,60.8,56.75,56.25,58.25,59.2,57.95,57.05,58.35,57.55,58.7,57.75,58.85,58.05,56.6,56.15,55.1,54.5,56.5,57.1,58.4,59.25,57.65,56.8,57.5,57.35,56,56.45,54.9,55.95,58.35,57.35,58.1,57.75,58.65,59.2,59.3,62.45,61.15,59.25,59.25,59.25,58.4,56.2,57.8,61.15,59,58.15,58.75,56.7,56.1,55.35,56,57.05,58.25,59.35,57.6,58.35,61,60.85,60.85,60.2,61.5,60.85,63.85,63.5,65.15,63.55,65.35,65.25,65.8,66,68,68.35,67.7,67.45,67.9,66,68.05,68.5,69,67.55,68.4,70.15,69.45,70.2,70.2,70.3,71,71.2,71.25,71,69.3,69.2,69.2,67.55,68.05,70.75,69.9,69.8,72.05,72.65,74,74.4,73.95,73.2,72.5,73.5,74.85,75.5,77.3,76.6,78.2,78.35,78.8,78.55,78.3,80.25,81.05,82.35,80.65,82,84.05,85.15,85.85,89.65,88.2,88.8,88.7,88.25,88.4,86.2,85.95,85.7,81.55,81.75,78.1,79.65,79.3,80.7,84,83.8,84.1,82.75,83.75,81,86,90,93.45,98.05,101.7,105.4,112.2,108.2,110.3,117,115.9,116.3,117.1,121.7,123.4,112.3,117.5,110.5,120.4,117.5,116,117,119.9,118.3,117.3,117.4,116.7,118.8,117.1,123.1,119.2,119.3,116.6,121.2,128.5,129.9,127.9,131.7,134.5,135.3,138.6,137.4,135,129.8,129.8,137.4,144.2,154.6,149.2,140.4,136.8,138,137.5,138.6,132.3,133,137,136.2,136.3,137.6,135.1,132.2,129.6,129.3,127.6,134.7,139.5,139.2,141.3,144.7,141.5,138.9,144.5,141.5,144.1,146.3,147.1,142.6,148.4,140.3,146.5,150.8,148.4,145.6,149.8,151.2,151.3,152.2,149.7,152.5,154,155.5,161.7,161.9,166.2,176.8,176.5,180.1,182.6,183.2,181.3,179.3,180.3,187,184.4,188.5,185.1,181.6,179,180.5,178.7,172,174.2,170,170.4,171.7,172.4,181.5,180.3,181.5,180.2,185.5,183.3,183.8,183.3,178.5,174.2,178.8,182,175,173.5,173.7,177.4,172.1,173.9,185.2,195.2,194.1,192.2,204.4,213.6,211.2,217.5,218.3,217.3,216.3,215,218.1,217,216.1,215.2,209.5,215.6,219.2,213.5,214,212,207.5,204,194.9,203.9,205.6,207.6,206.5,203.9,208.8,211.4,205.7,203.6,202.6,197.3,194.1,187.4,185.1,186.4,181.4,183.6,177.8,176,188.3,188.2,184.3,184.8,184.7,184.4,180.1,184.1,184.5,183.4,187.2,187.7,185.9,185.1,188.2,193.7,202,205.8,204.9,204,212.2,209.3,201,204.4,211.1,212.8,221.7,224.7,222.7,226.1,221,229,231.7,230.2,240,257,263.5,262.75,280,283,289.75,288,302.5,309.25,316,336.75,303.25,300.25,300.75,323.25,310.5,307.5,319,303.25,299.5,296.75,302.5,285,288,292,298.25,294,301.5,302.25,296.5,294,310.25,307,313.25,310.5,309,306.25,311,322,340,322.25,333,345,333.5,319,334.25,335.75,330,322.25,320.5,341.25,348.75,338.75,353.25,352,337.5,338,330.75,320.5,320.25,320.25,336.5,330.5,337,342,362.25,376.75,398.5,415.25,411.75,416.75,411,414,408,396.5,396.5,392,415,414.5,425.5,420.25,431.75,427.25,434,428,428.5,431.75,419.25,412.75,415.5,415,402,393.5,377.75,410,401.75,380.25,380.25,380.25,380.25,384,407.75,383.5,362.25,363,368,357.25,376.75,377.75,371.25,375.75,394,395,410.75,402.5,394.75,392,367.5,373.5,361.5,357.5,345,371.25,384.75,399.5,401.75,383,377,358.75,370,352.5,348.5,352.5,351.5,354.5,360,370,376.25,380.25,360.5,358,354.5,337.5,342.25,336.25,349.25,346.75,363,353.75,356.25,356.25,381,395.75,387.5,389,381.25,403,402.25,403.25,399.75,403.75,398.25,403.75,404,386.25,384.5,380.75,380.25,388.25,392.5,390,402.25,398.5,393.75,372.5,377,360,379.75,372.75,378,374.5,381.5,367.75,372.25,367.25,338.5,336.5,370],
+TUPRS:[144,140.5,143.7,143.8,140,138.1,139.7,139.6,139.7,140.9,143.2,142.1,139.9,139.3,141.2,140,142.5,144.8,147.6,152.3,150.3,150,154.7,155.3,155.1,154.5,154.3,157.8,157.7,162.8,160.6,164.6,167.4,167,173,171.3,165.2,164,164.1,160.6,160.2,161.5,161.8,164.8,161.4,165.1,169,171.1,170.2,167.3,165.8,163.2,165.4,163,165.2,173.7,171.8,174,172,170,169.4,169.7,176.9,177,178.5,175.8,162.8,169.9,179.7,183.1,null,183,186,186.5,185.9,189.9,188.5,187.8,189.6,192.1,196,195.8,204,201.3,200.5,198.3,192.7,189.1,187.2,184.8,183.6,181.5,180.8,189.1,191.9,194.5,194.9,192.3,190.3,189.3,187.5,185.8,182.9,176.7,173.9,168.6,167,163.6,163.9,162.3,160.9,164,166.1,167,172.1,170.8,171.6,169.9,165.4,168.7,165.5,163.8,162.4,168.3,174.1,173.4,171.7,168.8,168,170.6,168.4,166.5,166.3,166.2,165,163.2,164.5,163,161.3,163.4,162.5,161.6,163.3,164.3,159.1,153.7,158,162.9,165,163.3,161.8,162.2,159,162.6,161.7,165.2,164,164.9,163.6,161,161,164.7,165.4,168.6,170.6,167.1,165,162.4,162,161.3,160.1,155.8,156.7,162.6,163.4,165.1,164.6,169,165.9,168.5,170.9,169,170,158.6,155.2,155.2,153.5,150.5,154.5,152,153.7,153,150,148.2,145.5,145.7,147.2,147.4,145,144.7,146,143.7,146,146.1,149,148.2,144.6,145.1,142.6,141.1,144.4,144.9,146.9,146,144,146.2,147.9,148.1,147.2,143.5,140.8,144.9,146.4,148.5,147.7,146.5,147.4,147.2,147.3,148.7,152.4,151.2,152.1,154.5,154,154.1,150.9,151.2,148.6,148.5,146.3,144.4,145.5,143.3,142.5,143.8,143.7,144.2,142.5,141.9,146.1,150,147.7,146.4,144.3,145.6,143.5,143.9,145,147,148.5,148.1,145.6,142.6,144.5,143.6,143.2,140.6,140.2,139.8,141.7,141.2,138.6,137.6,138,140,141.9,139,138.2,136.4,135.2,134.2,133.4,130.1,125.7,127.7,125.6,126,123.5,125.4,128.7,129,128.9,126,129.6,137.6,139.6,141.7,141.7,143.7,144,144.4,146.1,145,137.8,141.9,135.6,138,141.9,142.5,142.2,138,135,136,134.3,133.2,129.5,127.1,128.3,128.4,128.1,127,124.9,124.7,124.9,123.9,124.5,125.3,125.3,124,125.1,124.7,124.8,123.5,119.6,117.6,128.2,128.7,134.5,135.2,135.3,131.7,134.3,130.5,129.2,128.9,128.6,128.8,126.1,126.1,126,124,123.5,127,133,130.8,131.1,131.7,131,131.3,129.8,134.8,137,143.8,144.6,148.4,137.3,134.4,133.7,136,140,141.7,144.7,146.4,147.2,146.2,140.5,146,150.2,156.2,155.5,152.5,157.3,160.1,167,167.6,165.1,166.7,167.1,164.5,162.6,165,168.9,165.9,163.9,165.7,167,164.3,164,164.4,161,163.3,160,162.7,161.1,160.2,164,168.4,172.7,172.8,171.6,171.1,171,172.2,173.2,170.1,170.9,168.8,167.5,165.9,168.3,170.5,175,173.4,183.7,189,190.2,191.4,195,195.7,195.6,197.6,200.6,192.8,193.3,186.5,191.5,191,185.1,182,180.6,180.5,183.1,180.6,172.5,174.1,178.4,176.2,173.2,177.4,176.1,181.7,187,191.8,192.7,196.7,196,197.6,198.7,188,195.4,198.2,198,196.6,192.4,195.1,197.7,199.2,201.7,204,206.5,205,201.4,195,190,193,194.2,194.8,199,198,196.7,197,197.6,199.1,197.5,198,197.4,197.6,195,186.7,189.3,188.7,184.6,185.7,185.2,188,188.3,185.1,183.1,186.4,184.4,187,192.9,200,199.1,196.7,197.3,203,208.4,218.5,218.6,222.5,222.8,226.9,221.1,226.7,225.8,227,227.2,242.2,248.4,244.8,229.6,234,229.2,226.5,223,219.8,214.4,215.9,223.3,221.6,223.5,220,222.1,221.5,221.6,227,222,217.7,215.9,218.5,224.8,235,231,246.8,258,250.25,248,248.3,264.75,263.5,255,251.5,254.75,253.25,255,259,250.5,240.2,240.5,247,258.25,253.75,256,255.25,256.5,260,251,255,254.5,264,267.5,261.25,268,253,255,253.5,263,269,274,269.5,275.5,271,271,270.75,271,259.25,258.5,259.5,255,250.75,253.5,258.5,254,250,241.7,243.1,234.1,236.2,236.2,236.2,236.2,244.9,250.25,237.9,232.2,240.8,238.8,229.5,234.8,236,233.8,231.9,225.4,226.7,224.1,226.9,220.7,220.4,216.8,219.2,219.2,219.3,227.5,236.3,239.8,248.2,247.4,258,256.5,264.25,267,268.25,270.75,286.25,289.25,307.5,309.5,313.75,314.5,304.25,292.25,293.5,297.75,288,295.25,290.5,290.25,303.75,321.5,323.5,340,336.5,351.25,346,361.75,368.75,374,395.5,395.25,406.75,400.5,373.75,380,380.75,396,400.25,402.75,392.25,391,388.5,394.25,394.5,414.25,416.75,413.5,415.75,412.5,401.75,412,417.25,414.75,397,411,410.75,406,398.25,383.25,376.25,387],
+TCELL:[58.6,57.7,59,61.25,62.1,62.5,61.5,60.85,61,62.35,64.25,65,64.45,64.35,64.6,65.6,66,66.95,69,69.3,69.35,68.55,69.55,70.2,70.05,69.35,68.1,68.65,68.35,70.9,68.3,67.5,68.8,68.15,66.75,67.35,65.75,66.4,68.35,67.5,65.5,65.35,66.95,66.3,63.95,63.6,62.4,64.3,65.5,62.1,61.5,62,61.9,63.6,63.9,65.05,64.3,69.05,69.65,69.3,66.25,66.75,68.4,67.7,67.25,67,68.5,71.1,74,74.95,null,73.25,73.25,74.9,75.35,76.55,77.4,78.3,78.5,79.1,80.2,80.8,80.95,82.1,82.25,84.75,84,83.8,84,83.35,83.1,82.8,84.75,87.4,87.1,90.6,92.1,92.7,91.8,89.6,90.75,91.6,95.75,99.6,102.6,99.75,100.8,98.95,97.6,99,95.6,97.95,97.1,98.6,103.3,101,100,100.2,98.05,99.35,100.6,99.3,102,104.7,107.5,106,108.7,109.4,109,111.2,111.1,109,109.4,110.1,110.4,114.8,111.3,107.4,108,106.3,105.6,105.4,105.6,107.5,102.5,100.2,102.7,105.9,106,102.8,103.7,103.3,103.5,105,103.5,106.3,101.2,98.2,95,94,91,96.5,97.05,98.35,100,99.5,100.1,98.95,98,95.85,97.15,98.2,97.8,94.6,91.2,91.85,91.65,93.8,93.6,94.75,97.3,95.9,95.75,96.35,95.2,91.75,89.9,86.95,84.35,82.35,82.35,87.05,86.25,84.1,84.25,86.4,88,87.25,85.1,85.5,87.7,87,87,87.75,87.7,87.8,84.75,85.85,84.65,83.55,85.1,89,91.4,95.7,95.95,94.75,96,94.6,92.25,92.45,94,96,93.15,93.4,93.05,93.05,91.3,90.55,91.85,93.9,94.15,92.15,94.3,93.8,93.85,92.8,93.5,96,96.05,95.8,97.25,93.6,91.45,90.7,92.05,93.75,93.2,94.05,93.15,92.8,96.05,98.5,97.95,97.5,96.85,96.3,95.65,94.65,95.2,95.9,98.45,100.3,99.7,102,105,106.2,106.4,106.1,108.9,108,107.4,108.1,105.6,107.5,105.9,107.1,106,107,108.5,107.9,107.4,106.3,104,105,104.9,106.8,105.5,103.7,104.2,105.3,107.7,100.7,100.5,101.5,104.4,107.4,106,104.7,103.4,106,107.5,109.4,109.4,109.2,98.3,97.1,87.4,89.6,94.8,93.9,93.2,95.8,94.35,92,88.3,88.45,90.65,89.7,89.8,90.7,89.9,89.9,88.55,91.65,93,93.5,92.1,94.15,91.3,90.55,91.3,89.9,89.1,86.55,87.35,87.9,90.05,92.3,97.45,95.75,97.05,96.5,96.7,98.45,97.35,99.75,98,98.5,98,96.05,95.5,94.85,91,94.05,98.15,97.1,97.1,97.1,95.7,92.5,92.65,90.95,90.9,88.6,89.85,88.15,91.7,92.95,89.5,89.3,96.15,98.5,98.1,98,98.95,97,94,95.25,93.7,92.4,92.3,92.25,94.1,94.55,95.55,95.1,94.35,94.25,92.5,92.55,91.1,93.55,93.25,93.25,93.4,93.35,93,94.95,96.3,97.25,97.55,97.75,94.6,94.75,94.1,95.2,97.65,99,97.85,99.05,99.8,99.6,96.75,94.8,93.25,91.2,90.65,90.5,90.05,88.9,89.1,88.75,88.65,89.45,93.65,95.2,95.75,94.8,97,98.9,99.05,99.6,98.2,96.9,97.3,97.85,99.5,101.4,98.1,98.8,100.4,98.45,100.4,100.2,97.9,90.85,95.75,95.8,94.25,96.8,96.95,97.6,98.55,100.8,100,100.6,98.75,99.7,97.45,96.45,97.7,102,96.9,96.45,94.4,96.3,95.6,93.15,93.1,94,94.65,96.7,94.7,94.4,94,94.1,94.6,93.55,95.85,97.25,97.75,97.15,98,100.8,101.7,101.2,100.5,104.2,105.4,101.8,102.1,101.9,101,99.5,98.7,98.6,98.65,95.25,93.95,93.5,93.1,96,96.8,99.1,98.8,99.65,98.3,99.55,101.7,101.7,103.7,105.9,105.8,104.5,105.5,112.1,112.8,114.8,114.4,115.9,117.3,116.9,113.5,118.5,118.3,116.1,114.3,117,118.1,122.1,123.9,125.3,127.5,126,124.6,120.2,122.8,123.1,121.5,121,120.8,115.8,114,113.3,111,109.7,107.5,106.9,111.5,109.1,111.3,108.8,109.1,110.8,108.5,106.6,108.4,106.2,107.4,106,106.4,104.6,105.9,107.2,106.9,107.5,108.6,104.9,111.2,114.4,117.3,115.7,116.3,117.1,117.3,120.5,117.7,115.3,114.1,114.3,116.6,113.8,112.1,112.1,111,115.2,117.7,118.6,120,121.9,115,114,114.5,109.5,106.8,108.6,106,106.5,106.1,101,101,101,101,102.6,108.5,105.8,107.9,105.1,107.4,105.5,104.6,107.5,110.7,114.9,115.2,112.1,116,113.4,113.2,111,110.4,110.5,110.9,109.6,107.4,108.7,108.4,107.2,108.6,108.2,105.4,104.9,107,109,110.2,112.2,108.5,109.6,111.5,111,105,103.7,102.3,101.7,101.4,101.5,99.95,104.5,107.6,105.1,105.3,105.1,105.3,103.1,104.1,103.1,104.1,102.9,103.5,104,102.8,104.3,103.1,102.7,103.5,102.8,103.5,95.05,96.55,97.2,96.6,98.15,99.05,101.6,101.8,101.6,103.7,102.4,99.4,95.75,99.15,97.2,99.9,100.3,100.8,99.45,99.95,98.35,98.25,96.1,97.7],
+FROTO:[76.5,74,75,74.55,77.35,75.45,76.8,77.8,78.7,81.2,81.8,80.1,79.8,79.7,79.65,80.75,82.75,83.9,86.1,86.25,85.7,88.2,88.7,89.8,91.35,93.8,92,93.3,95.6,98.55,95.45,97,95.95,96.45,95.95,98.6,98.2,102.4,101.3,102.7,103.2,103.4,101.7,100.8,98.3,99.15,104.2,105.7,111,112.7,111.2,108.4,110.5,108.1,106.8,111,113.4,120.7,114.4,110.7,110.6,109.6,115.5,113.2,114.9,113,113.9,116.5,121.9,116.7,116.7,114.3,115.3,111.8,111.7,112,112.2,110.5,109.1,110.9,110.6,111.4,113.9,113.3,114.7,114.7,112,114.1,114.9,114.5,118.6,119.1,120.2,120.7,121.4,121.5,122.2,116.8,112.3,112.2,111.6,108.8,108.2,109.3,108,102,104.7,101.6,102.5,101.9,100.8,106.5,105.7,107.9,109.5,108.3,108.7,111.9,110.2,113.1,112.4,110,110.3,111.5,112.6,112.3,110.5,106.6,103.9,107.8,106.9,105.7,105.3,105.8,104.9,106.1,104,101,99.9,100.2,98.45,99.45,99.4,98.65,94.85,89,90.45,88,89.7,86.9,86.3,88,88,89,88.45,91.85,92.75,93.8,93.75,90.5,88.7,90.35,92,96.4,95.75,93.6,92.9,94.75,93.35,91.7,89.45,85.95,88.55,91.6,89.45,91.25,91.65,92.65,91.4,91.2,92.4,91.3,92.8,93.15,91.8,89.65,88,86.05,88.3,91.45,93.2,96.3,95.45,93.8,90.7,91.15,91.55,96.8,96.75,96.25,99.6,100,101.1,101.5,100.4,98.2,97.85,97.45,96.8,97.6,98.85,100.5,105,103.7,107.1,110,111.7,107.7,109.9,105,99,101.7,100.1,99.3,99.2,97.3,96.8,96.7,97.6,99.45,99.65,99.35,99.8,99.15,97.9,99.5,98.7,99.25,98.1,97.3,95.7,95.25,94.95,93.05,93.25,93.95,94.95,95.55,93.95,93.7,94.05,95.15,94.7,94.4,94.1,94.25,92.25,91.4,90.9,91.2,92.35,92.2,92.3,92.7,92.75,95.6,93.25,91.4,91.9,92.15,94.1,92.95,88.4,89.65,91,91.9,92.25,91.8,91.85,89.85,91.5,91.6,90.75,93.45,93.5,91.7,90.4,89.2,88.85,88.95,89.05,88.25,89.1,88.65,93,97.4,98.3,99.3,102.5,103.1,104.7,105.2,106.5,107.2,101.3,105.3,99.55,104.2,104.4,103.4,102.8,105.9,104.1,107.6,104.8,103.6,103.2,99.8,100.5,99.35,99.6,95.2,91.1,91.75,91.55,92.35,91.4,92.2,92.8,92.1,91.5,88.55,89.6,88.2,87.75,87.25,90.95,91.5,97.95,97.75,96.55,93.5,96.75,91.95,89.75,88.4,86.9,88.2,86.15,85.35,84.4,80.15,81.25,85.2,87.95,87.55,86.75,86.5,83.45,82.75,83.2,84.1,82.95,81.7,83.65,85,86.6,86.8,84.55,84.15,89.25,90.15,93.9,93.05,93.5,92.5,92.85,94.8,96.35,95.3,96.05,95.5,94.4,92,92.45,93.75,93.35,94.3,92.4,92.95,91.5,95.45,95.15,97.45,100.5,101.6,102.4,106.3,104.9,106.2,106.3,105.1,104.8,105.2,107,111,114,114.2,114.5,115.7,118.3,113.4,111.8,111.7,110.8,104.9,105.2,104.6,107,105.6,102.9,102.7,101,100.8,105.3,108.4,105,104.1,105.8,105.1,101.7,101,103.1,100.7,99.4,99.05,100.3,99.9,98.8,96.55,97.35,95.9,94.05,93.55,92.65,92.45,91.75,90.55,92.8,96.5,98,97.7,96.95,100,98.35,97.5,96.25,99.25,100.1,98.5,99.3,97.9,97.1,96.45,94.4,94.35,94.7,94.7,94.6,94.2,95.05,95.45,94.05,94.2,94.45,95,95.15,94.6,96.65,98.2,90.2,90.35,90.8,92.25,91.35,90.5,93.65,96.9,99.3,97.4,97.25,96.05,95.35,94.5,94.45,95.45,95.1,94.3,91.05,92.65,92.65,95.6,96.2,98.25,97.55,98.1,98.45,98.8,100.9,101.6,104.3,105.4,103.7,103,103.1,103.9,105.1,107.8,109.2,110.3,112.1,113.7,113.8,116.5,115.8,115.2,115.7,119.4,115.9,120.2,127.2,129,134.3,127.8,123.9,120.8,121.3,120.6,119.6,117.1,118.6,115.9,111.7,108.5,107.8,111.4,108.5,108.9,112.1,111.6,112,109.7,105.6,107.9,105.7,109.8,108.9,104.2,104.6,102.7,103.8,100,101.1,102.5,100.7,99.6,100.4,96.7,101.8,102.2,105.3,104.9,106.1,106.8,105.9,109.3,107.5,103.5,102.3,104.5,102.6,99.15,98.05,98,96,98.05,99,98.9,97.5,97,94.1,93.45,93.45,91.45,87.35,86.65,82.35,86.85,87.6,84.15,84.15,84.15,84.15,85.2,88.9,88.95,88.6,86.2,87.1,86.3,87.45,86.55,86.7,90.1,91.3,89.55,91.85,91.1,89.85,87.95,86.45,86.35,86.25,85.45,84.55,85.2,83.7,83.75,82,83,80.8,80.85,81.8,81.55,81.05,84.4,83.6,82.65,81.1,81.45,79.4,79,78.25,77.55,76.1,76.7,80.1,79.05,80.55,80.45,78.6,78.1,77.4,78.85,79.75,79.7,79.1,79,78.9,79.35,79.6,80.2,80.1,78.6,79.55,78.45,78.4,76.95,77.25,76.25,75.65,77.2,79.65,82.8,83.95,81.9,82.85,81.75,78.4,74.65,77.45,76,77.85,79.2,78.5,77.4,76.8,74.95,74.4,73.55,75.45],
+EREGL:[21.13,20.66,21.16,21.31,21.67,21.45,22.52,21.95,21.9,22.03,22.15,21.72,21.26,21.08,21.02,21.17,21.19,21.41,21.65,21.86,21.67,21.57,21.86,21.73,21.76,22.1,22.51,22.74,23.18,23.2,23.06,23.3,23.54,24.56,24.16,24.81,24.32,24.09,23.25,22.79,23.48,23.45,22.76,22.97,23.01,22.7,22.14,22.83,22.95,22.89,22.64,22.23,22.17,22.2,22.04,22.13,21.89,21.92,21.65,21.48,21.06,20.91,21.06,21.16,20.65,19.45,19.14,19.71,20.69,20.97,20.97,20.66,20.26,20.06,20.22,20.61,20.79,20.85,20.8,21.4,21.94,21.53,22.31,22.09,21.98,22.73,22.61,22.75,23.42,23.16,23.26,22.46,22.8,23.43,23.98,23.97,24.16,24.26,24.71,24.59,24.71,24.29,24.47,23.97,24.8,24.58,24.34,24.27,23.97,23.22,23.11,23.9,24.71,25.8,26.92,26.27,26.65,26.25,26.02,26.5,26.62,25.88,25.65,27.45,27.48,27.5,27.35,27.3,27.5,27.58,27.62,28.45,28.35,27.95,28.77,29.7,29.17,28.83,28.33,28.12,27.8,27.95,28.02,28.62,27.52,25.05,24.7,25.2,26.1,25.3,24.66,24.7,24.62,24.93,24.31,24.64,24.5,24.46,24.7,24.12,23.4,23.7,23.78,24.17,24.65,24.23,23.83,24.02,23.64,23.36,23.26,23.7,23.4,23.72,23.81,24.15,24.12,24.71,24.85,24.67,25.58,25.7,25.6,26.3,26.75,26.35,25.58,25,25.08,24.83,23.82,23.78,23.75,24.46,24.14,24.22,24.72,24.51,24.03,23.76,23.76,23.1,23.32,23.7,23.93,23.92,23.8,23.97,23.47,23.88,24.38,24.76,25.55,25.48,25.15,25.02,25.55,25.15,25.25,24.77,23.99,24.9,25.05,25.35,25.05,24.7,25.22,25.78,26.04,26,26.1,25.92,25.92,27,26.16,26.06,26.32,26.56,26.06,26.16,25.78,25.3,25.1,24.96,24.86,25.06,24.78,24.94,24.6,24.4,24.5,24.72,24.66,24.08,23.64,23.86,23.78,23.1,22.82,22.84,23,23.06,22.84,22.64,22.62,22.68,23.3,23.12,23.2,22.92,22.92,22.44,21.68,22.02,21.7,22.5,23.42,22.86,23.4,23.4,23.32,23.34,23.52,23.66,22.8,22.98,22.38,22.12,21.86,21.88,22.36,22.32,22.5,22.04,23.74,24.68,24.8,24.44,24.82,25.28,25.42,25.58,25.58,25.66,23.1,23.36,21.1,21.7,22.7,22.52,22.36,22.52,22.66,22.48,21.6,21.3,21.6,20.96,21.3,21.34,21.8,21.8,21.54,21.4,21.1,20.96,21.26,21.96,22.62,22.92,22.76,22.5,23.44,24.04,23.8,22.64,23.26,23.98,24.52,25,24.66,24.68,24.8,24.86,24.24,23.88,23.54,23.52,23.8,23.86,23.82,23.44,23.02,23.42,23.74,23.54,24.2,24.16,24.9,24.8,25.9,26.6,26.48,25.4,26.36,25.92,26,25.8,25.52,25.82,26.66,26.7,27.42,27.3,27.48,27.02,26.82,26.9,27.26,27.16,26.9,26.78,27.08,26.88,27.26,27.04,27.04,27.1,26.94,26.72,26.42,26.62,26.72,26.94,27.24,27.12,27.48,27.26,27.16,27.48,27.52,27.86,27.62,27.66,28.78,29.36,29.3,29.56,29.4,29.66,29.68,29.58,29.8,29.86,29.84,28.52,28.5,28.18,27.34,26.5,26.26,26.02,25.7,25.7,27.5,27.62,27.52,27.24,28.94,29.62,31.66,31.44,32.44,30.32,29.36,29.4,29.9,29.66,29.34,29.02,29,27.82,28,27.86,27.4,25.96,27.7,27.14,26.4,27.18,27.36,26.84,26.84,27.24,27.68,27.58,27.48,27.48,28.84,29.18,27.06,26.52,26.12,25.24,24.48,24.34,24.28,23.9,24,23.8,24.18,24.44,24.12,23.94,23.88,24,23.88,23.86,23.98,23.92,23.9,23.78,23.8,24.16,24.24,24.14,24.38,24.56,24.86,24.5,24.7,24.6,24.56,24.34,24.06,24.16,24.04,23.84,23.64,23.94,23.82,24.22,24.52,25.12,24.44,24.72,24.66,24.88,25.14,25.56,25.48,26.06,26.58,25.68,25.92,26.76,27.06,27.6,27.44,27.9,28.48,28.18,27.54,28.76,28.82,28.7,29.02,30,29.2,29.24,29.9,29.58,30.1,29.1,29.64,29.42,30.06,31.48,31.98,31.38,31.9,32.66,31.5,29.14,28.86,28.88,28.2,28.32,29.32,28.96,28.66,28.4,28.16,28.7,28.28,27.9,28.66,27.78,27.92,26.9,27.9,27.58,28.22,28.78,28.2,29.2,30.06,28.84,29.58,30.1,31.3,32,31.46,31.64,30.9,32.04,33.3,33.72,32.6,33,33.6,32.98,33.72,35.12,35.82,37.22,37.68,38.48,41.26,40.86,40.08,40.5,39.74,39.62,38.54,38.64,35.18,38.68,39.48,39.18,39.18,39.18,39.18,40,41,40.3,40.1,39.16,39.02,38.64,38.64,38.4,39.36,40.2,40.3,39.4,40,40.02,40.34,39.82,39.94,40.32,42.12,41.2,40.48,40.44,40.8,40.1,41.52,41.26,39.94,40.06,40.4,40.86,41.88,44.06,42.34,43.6,42.3,42.24,44.2,43.28,43.26,43.86,43.16,42.4,42.54,40.7,41.74,41.98,41.56,38.68,36.88,36.86,37.18,38.24,37.38,37.94,37.7,37.76,38.1,38.14,38.18,38.24,38.7,38.6,39.16,38.78,37.78,37.6,36.58,37.2,38.32,39.92,39.08,38.98,39.4,38.86,38.26,34.78,36.14,36.42,37.38,37.82,38.54,37.94,37.74,37.48,36.76,35.94,36.62]
+};
+</script>
+<script>
+/* ===== Shared engine: the vectorised backtest of W1 p.21–22 on the quiz CSVs ===== */
+const RBX = (function () {
+  const TICK = ["AKBNK", "ASELS", "TUPRS", "TCELL", "FROTO", "EREGL"];
+  const cache = {};
+  function series(t) {
+    if (!cache[t]) {
+      const d = [], c = [];
+      RB_CLOSE[t].forEach((v, i) => { if (v !== null) { d.push(RB_DATES[i]); c.push(v); } });
+      cache[t] = { d, c };
+    }
+    return cache[t];
+  }
+  /* running-sum rolling mean, same arithmetic as the python check */
+  function sma(c, n) {
+    const out = new Array(c.length).fill(null);
+    let s = 0;
+    for (let i = 0; i < c.length; i++) {
+      s += c[i];
+      if (i >= n) s -= c[i - n];
+      if (i >= n - 1) out[i] = s / n;
+    }
+    return out;
+  }
+  function signals(c, f, s, longOnly) {
+    const a = sma(c, f), b = sma(c, s);
+    return c.map((_, i) => (a[i] === null || b[i] === null) ? 0 : a[i] > b[i] ? 1 : a[i] < b[i] ? (longOnly ? 0 : -1) : 0);
+  }
+  function drawdown(eq) {
+    let peak = eq[0], peakI = 0, mdd = 0, troughI = 0, mddPeakI = 0;
+    const dd = eq.map((x, i) => {
+      if (x > peak) { peak = x; peakI = i; }
+      const v = x / peak - 1;
+      if (v < mdd) { mdd = v; troughI = i; mddPeakI = peakI; }
+      return v;
+    });
+    return { dd, mdd, troughI, peakI: mddPeakI };
+  }
+  function run(t, o) {
+    const { d, c } = series(t);
+    const sig = signals(c, o.fast, o.slow, o.longOnly);
+    const W = [];
+    for (let i = 1; i < c.length; i++) if (d[i] >= o.start && d[i] <= o.end) W.push(i);
+    const eq = [1], bh = [1], dates = [d[W[0] - 1]], srs = [];
+    let prev = 0, changes = 0;
+    for (const i of W) {
+      const p = o.shift ? sig[i - 1] : sig[i];
+      const r = c[i] / c[i - 1] - 1;
+      const sr = p * r - o.cost * Math.abs(p - prev);
+      if (p !== prev) changes++;
+      prev = p;
+      srs.push(sr);
+      eq.push(eq[eq.length - 1] * (1 + sr));
+      bh.push(bh[bh.length - 1] * (1 + r));
+      dates.push(d[i]);
+    }
+    const mu = srs.reduce((a, b) => a + b, 0) / srs.length;
+    const sd = Math.sqrt(srs.reduce((a, b) => a + (b - mu) ** 2, 0) / (srs.length - 1));
+    const D = drawdown(eq), B = drawdown(bh);
+    return { dates, eq, bh, dd: D.dd, mdd: D.mdd, troughI: D.troughI, peakI: D.peakI, bhMdd: B.mdd,
+      cum: eq[eq.length - 1] - 1, bhCum: bh[bh.length - 1] - 1, sharpe: sd > 0 ? mu / sd * Math.sqrt(252) : 0, changes, n: W.length };
+  }
+  const pct = (x, k = 1) => (x >= 0 ? "+" : "−") + Math.abs(100 * x).toFixed(k) + "%";
+  const tl = x => (x < 0 ? "−" : "") + Math.round(Math.abs(x)).toLocaleString("en-US") + " TL";
+  const cls = x => x >= 0 ? "w-rules-backtest-pos" : "w-rules-backtest-neg";
+  return { TICK, series, run, pct, tl, cls };
+})();
+
+/* ===== 1. Toy vectorised backtest, row by row (section 2) ===== */
+(function () {
+  const C = [100, 104, 102, 105, 103, 108], S = [1, 1, -1, 1, 0, 1];
+  const rows = C.map((c, i) => ({ c, s: S[i] }));
+  let eq = 1, eqNo = 1;
+  rows.forEach((r, i) => {
+    if (i === 0) return;
+    r.ret = C[i] / C[i - 1] - 1;
+    r.sh = S[i - 1];
+    r.sr = r.sh * r.ret;
+    eq *= 1 + r.sr; r.eq = eq;
+    eqNo *= 1 + S[i] * r.ret;
+  });
+  const p2 = x => (x >= 0 ? "+" : "−") + Math.abs(100 * x).toFixed(2) + "%";
+  const sgn = v => v < 0 ? "−" + Math.abs(v) : String(v);
+  const frames = [{ k: 0, caption: "Elimizde Close ve Signal var. Signal her günün close'undan sonra hesaplandı. Şimdi satır satır üç sütunu dolduralım." }];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    frames.push({ k: i, caption: `Gün ${i + 1}: Return $= ${C[i]}/${C[i - 1]} - 1 = ${p2(r.ret).replace("−", "-").replace("%", "\\%")}$. Dünkü signal $${sgn(r.sh).replace("−", "-")}$ → Strategy_Return $= ${sgn(r.sh).replace("−", "-")} \\times ${p2(r.ret).replace("−", "-").replace("%", "\\%")} = ${p2(r.sr).replace("−", "-").replace("%", "\\%")}$. Equity $= ${r.eq.toFixed(4)}$.` });
+  }
+  frames.push({ k: rows.length - 1, final: true, caption: `Sonuç: strateji equity'si $${eq.toFixed(4)}$, yani $${p2(eq - 1).replace("−", "-").replace("%", "\\%")}$. Buy-and-hold: $108/100 - 1 = +8\\%$. Aynı tabloyu shift(1) olmadan (aynı satırdaki signal ile) hesaplasaydık equity $${eqNo.toFixed(4)}$ çıkardı: $${p2(eqNo - 1).replace("%", "\\%")}$. Bu fark tamamen look-ahead.` });
+  Lab.stepper(document.getElementById("w-toy-stepper"), {
+    title: "Signal.shift(1) × Return, satır satır",
+    interval: 1800,
+    frames,
+    render(f, idx, el) {
+      let h = `<div class="table-wrap"><table><tr><th>Gün</th><th>Close</th><th>Signal</th><th>Return</th><th>Signal.shift(1)</th><th>Strategy_Return</th><th>equity</th></tr>`;
+      rows.forEach((r, i) => {
+        const shown = i <= f.k && i > 0;
+        const cur = i === f.k && !f.final && i > 0;
+        h += `<tr class="${cur ? "w-rules-backtest-cur" : ""}"><td>${i + 1}</td><td>${r.c}</td><td>${sgn(r.s)}</td>` +
+          `<td>${i === 0 ? "NaN" : shown ? p2(r.ret) : ""}</td>` +
+          `<td>${i === 0 ? "NaN" : shown ? sgn(r.sh) : ""}</td>` +
+          `<td>${i === 0 ? "NaN" : shown ? `<b class="${r.sr >= 0 ? "w-rules-backtest-pos" : "w-rules-backtest-neg"}">${p2(r.sr)}</b>` : ""}</td>` +
+          `<td>${i === 0 ? "NaN" : shown ? r.eq.toFixed(4) : ""}</td></tr>`;
+      });
+      h += `</table></div>`;
+      el.innerHTML = h;
+    }
+  });
+})();
+
+/* ===== 2. Spot the leak (section 4) ===== */
+(function () {
+  const SN = [
+    { title: "A · Slayttaki kural, bir satır değişmiş", leak: 2, lines: [
+      'df["Return"] = df["Close"].pct_change()',
+      'df["Signal"] = (df["SMA20"] > df["SMA50"]).astype(int)',
+      'df["Strategy_Return"] = df["Signal"] * df["Return"]',
+      'equity = (1 + df["Strategy_Return"]).cumprod()'],
+      why: "Satır 3: shift(1) yok. Bugünün close'uyla hesaplanan signal, aynı close'a giden getiriyi kazanıyor. Düzeltme: <code>df[\"Signal\"].shift(1) * df[\"Return\"]</code>." },
+    { title: "B · Pivot low'da al", leak: 1, lines: [
+      'window = 5',
+      'df["PivotLow"] = df["Low"] == df["Low"].rolling(2*window+1, center=True).min()',
+      'df["Signal"] = df["PivotLow"].astype(int)',
+      'df["Strategy_Return"] = df["Signal"].shift(1) * df["Return"]'],
+      why: "Satır 2: <code>center=True</code> pencere t−5'ten t+5'e uzanıyor; t günündeki pivot, sonraki 5 bar'ı görüyor. Satır 4'teki shift(1) bunu kapatmaz. Düzeltme: <code>df[\"PivotLow\"].shift(window)</code> ile, pivot onaylandığı günden sonra işlem yap." },
+    { title: "C · Gelecek getiriden etiket", leak: 1, lines: [
+      'df["Fwd5"] = df["Close"].shift(-5) / df["Close"] - 1',
+      'df["Signal"] = (df["Fwd5"] > 0).astype(int)',
+      'df["Strategy_Return"] = df["Signal"].shift(1) * df["Return"]'],
+      why: "Satır 2: Fwd5'i hesaplamak tek başına sorun değil (scenario 3 bunu sonucu ölçmek için yapar). Sızıntı, onu signal'a çevirdiğin anda başlıyor: karar, 5 gün sonraki fiyata bakıyor." },
+    { title: "D · Fundamental filtre", leak: 0, lines: [
+      'fin = fin.set_index("quarter_end")',
+      'df = df.join(fin["revenue_growth"]).ffill()',
+      'df["Signal"] = (df["revenue_growth"] > 0.15).astype(int)',
+      'df["Strategy_Return"] = df["Signal"].shift(1) * df["Return"]'],
+      why: "Satır 1: bilanço quarter-end tarihine yazılıyor, ama şirket onu haftalar sonra açıklıyor. Aradaki günlerde signal henüz bilinmeyen bir rakamı kullanıyor. Brief §26'da hard block. Düzeltme: publication date'e göre index'le." },
+    { title: "E · ML ile yön tahmini (eski bir öğrenci projesinden uyarlandı)", leak: 2, lines: [
+      'df["Target"] = (df["Close"].shift(-1) > df["Close"]).astype(int)',
+      'X = df[["SMA5", "RSI14"]]',
+      'X_train, X_test, y_train, y_test = train_test_split(X, df["Target"], test_size=0.2, random_state=42)'],
+      why: "Satır 3: <code>train_test_split</code> varsayılan olarak karıştırır; 2026'nın günleri training'e, 2024'ün günleri test'e düşer. Model, test ettiğin günlerin komşularını görerek öğrenir. Düzeltme: zamana göre böl (scenario 2'deki <code>train_test_split_by_time</code>). Satır 1 sorun değil: yarının yönü bir <em>label</em>, input değil." },
+    { title: "F · Breakout (senin notebook'undan)", leak: -1, lines: [
+      'd["DonchianHigh"] = d.High.rolling(20).max().shift(1)',
+      'd["VolAvg"] = d.Volume.rolling(20).mean().shift(1)',
+      'd["SigBreakout"] = (d.Close > d.DonchianHigh) & (d.Volume > d.VolAvg)',
+      '# order is filled at the next bar\'s open'],
+      why: "Sızıntı yok. 20-bar high ve volume ortalaması bir bar kaydırılmış, yani bugünkü bar'ı içermiyor; karşılaştırma bugünün close'u ile dünkü seviyeler arasında. Emir ertesi open'da doluyor." }
+  ];
+  const root = document.getElementById("w-leak");
+  const state = SN.map(() => ({ done: false, first: null }));
+  const score = document.createElement("p");
+  score.className = "src";
+  function updScore() {
+    const done = state.filter(s => s.done).length, first = state.filter(s => s.first === true).length;
+    score.textContent = `Bulunan: ${done} / ${SN.length} · ilk denemede: ${first}`;
+  }
+  const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  SN.forEach((sn, k) => {
+    const box = document.createElement("div");
+    box.className = "w-rules-backtest-snip";
+    box.innerHTML = `<h4>${sn.title}</h4><div class="w-rules-backtest-code">` +
+      sn.lines.map((l, i) => `<button type="button" class="w-rules-backtest-line" data-i="${i}">${String(i + 1).padStart(2, " ")}  ${esc(l)}</button>`).join("") +
+      `</div><div class="w-rules-backtest-snip__foot"><button type="button" class="btn btn--sm" data-i="-1">Sızıntı yok</button><div class="w-rules-backtest-fb" aria-live="polite"></div></div>`;
+    const fb = box.querySelector(".w-rules-backtest-fb");
+    box.addEventListener("click", e => {
+      const b = e.target.closest("[data-i]");
+      if (!b || state[k].done) return;
+      const i = Number(b.dataset.i), ok = i === sn.leak;
+      if (state[k].first === null) state[k].first = ok;
+      if (ok) {
+        state[k].done = true;
+        if (i >= 0) b.classList.add("is-ok");
+        fb.innerHTML = `<b class="w-rules-backtest-pos">Doğru.</b> ${sn.why}`;
+      } else {
+        if (i >= 0) b.classList.add("is-bad");
+        fb.innerHTML = i === -1
+          ? `<b class="w-rules-backtest-neg">Burada bir sızıntı var.</b> Her satır için sor: bu değer karar anında biliniyor muydu?`
+          : sn.leak === -1
+            ? `<b class="w-rules-backtest-neg">Bu satır temiz.</b> Rolling pencere geriye bakıyor ve shift(1) bugünkü bar'ı dışarıda bırakıyor. Başka bir satıra ya da "Sızıntı yok"a bak.`
+            : `<b class="w-rules-backtest-neg">Sızıntının kaynağı bu satır değil.</b> Gelecek bilgisinin karar girdisine ilk nerede dönüştüğünü bul.`;
+      }
+      updScore();
+    });
+    root.appendChild(box);
+  });
+  root.appendChild(score);
+  updScore();
+})();
+
+/* ===== 3. Trade metrics calculator (section 6) ===== */
+(function () {
+  const P = {
+    AKBNK: { pnl: [-874.20, 18530.14, 48281.96, 10901.30, 20033.23, 6095.03], mdd: -19.41 },
+    ASELS: { pnl: [69655.71, 41246.58, 204064.00, -51148.03], mdd: -25.15 },
+    TUPRS: { pnl: [6433.41, 33820.80, 7574.74, -6038.40, 79197.70], mdd: -17.39 },
+    TCELL: { pnl: [0, 65.75, -5039.71, 5934.50, -6521.80], mdd: -18.92 },
+    FROTO: { pnl: [0, 13729.31, -1251.84, 10480.25, -8793.75, 0], mdd: -26.20 },
+    EREGL: { pnl: [0, 13304.18, 3296.00, 13070.21, 37116.85], mdd: -17.64 }
+  };
+  const ta = document.getElementById("w-calc-ta"), err = document.getElementById("w-calc-err"), out = document.getElementById("w-calc-out");
+  const pre = document.getElementById("w-calc-presets");
+  let loaded = null;
+  pre.innerHTML = `<span class="src">senin trade'lerin:</span>` + Object.keys(P).map(t => `<button type="button" class="btn btn--sm" data-p="${t}">${t}</button>`).join("");
+  const fmt = (x, k = 2) => (x < 0 ? "−" : "") + Math.abs(x).toLocaleString("en-US", { minimumFractionDigits: k, maximumFractionDigits: k });
+  function parse() {
+    const lines = ta.value.split("\n").map(s => s.trim()).filter(s => s !== "");
+    const vals = [], bad = [];
+    lines.forEach((s, i) => {
+      const t = s.replace(/\s*TL$/i, "").replace(/−/g, "-").replace(/^\+/, "");
+      if (/,/.test(t)) { bad.push(`Satır ${i + 1} ("${s}"): virgül var. Binlik ayırıcı kullanma, ondalık için nokta yaz (örnek: 18530.14).`); return; }
+      if (!/^-?\d+(\.\d+)?$/.test(t)) { bad.push(`Satır ${i + 1} ("${s}"): sayı değil. Örnek: -874.20`); return; }
+      vals.push(Number(t));
+    });
+    if (!lines.length) bad.push("Liste boş. Her satıra bir trade'in PnL'ini yaz ya da yukarıdan bir hisse seç.");
+    return { vals, bad };
+  }
+  function upd() {
+    const { vals, bad } = parse();
+    if (bad.length) { err.textContent = bad.slice(0, 3).join("\n"); out.innerHTML = ""; return; }
+    err.textContent = "";
+    const W = vals.filter(x => x > 0), L = vals.filter(x => x < 0), n = vals.length;
+    const gw = W.reduce((a, b) => a + b, 0), gl = L.reduce((a, b) => a + b, 0), net = gw + gl;
+    // L dolu ise gross loss < 0; kayıp yoksa kazanç varsa ∞, hiçbiri yoksa 0/0 tanımsız.
+    const pfKind = L.length ? "ratio" : gw > 0 ? "inf" : "undef";
+    const pf = pfKind === "ratio" ? gw / Math.abs(gl) : NaN;
+    let e = 100000, peak = e, mdd = 0;
+    vals.forEach(x => { e += x; peak = Math.max(peak, e); mdd = Math.min(mdd, e / peak - 1); });
+    const be = n - W.length - L.length;
+    const same = loaded && P[loaded].pnl.length === n && P[loaded].pnl.every((x, i) => Math.abs(x - vals[i]) < 1e-9);
+    const row = (a, b, note) => `<tr><td>${a}</td><td class="w-rules-backtest-mono">${b}</td><td class="src">${note || ""}</td></tr>`;
+    let h = `<div class="table-wrap"><table><tr><th>Metric</th><th>Değer</th><th></th></tr>`;
+    h += row("Net Profit", `<b class="${net >= 0 ? "w-rules-backtest-pos" : "w-rules-backtest-neg"}">${fmt(net)} TL</b>`, "Σ PnL");
+    h += row("Final Capital", `${fmt(100000 + net)} TL`, "100,000 + net");
+    h += row("Total Trades", n);
+    h += row("Winning / Losing / Break-even", `${W.length} / ${L.length} / ${be}`);
+    h += row("Win Rate", `${(100 * W.length / n).toFixed(2)}%`, "wins / all trades (notebook)");
+    if (be) h += row("Win Rate, break-even hariç", (W.length + L.length) ? `${(100 * W.length / (W.length + L.length)).toFixed(2)}%` : "tanımsız", "wins / (wins + losses)");
+    h += row("Profit Factor", pfKind === "ratio" ? pf.toFixed(2) : pfKind === "inf" ? "∞ (losing trade yok)" : "tanımsız (0 / 0: kazanç da kayıp da yok)", `${fmt(gw)} / ${fmt(Math.abs(gl))}`);
+    h += row("Average Trade", `${fmt(net / n)} TL`, "net / total");
+    h += row("Max Drawdown, kapanmış trade'lerden", `${(100 * mdd).toFixed(2)}%`, "sadece kapanış anları");
+    if (same) h += row("Max Drawdown, notebook (günlük equity)", `<b>${P[loaded].mdd.toFixed(2)}%</b>`, "açık pozisyondaki düşüş de sayılıyor");
+    h += `</table></div>`;
+    if (pfKind === "ratio") h += `<p class="src">${Math.abs(net) < 1e-9 ? "Profit factor 1: kazanç ve kayıp eşit; net sıfır." : pf > 1 ? "Profit factor 1'in üstünde: net pozitif." : "Profit factor 1'in altında: net negatif."}</p>`;
+    out.innerHTML = h;
+  }
+  pre.addEventListener("click", e => {
+    const b = e.target.closest("[data-p]");
+    if (!b) return;
+    loaded = b.dataset.p;
+    ta.value = P[loaded].pnl.map(x => x.toFixed(2)).join("\n");
+    upd();
+  });
+  ta.addEventListener("input", upd);
+  loaded = "AKBNK";
+  ta.value = P.AKBNK.pnl.map(x => x.toFixed(2)).join("\n");
+  upd();
+})();
+
+/* ===== 4. Maximum drawdown, day by day (section 7) ===== */
+(function () {
+  const E = [100, 110, 105, 120, 90, 95, 130, 117];
+  let peak = -Infinity, mdd = 0, mddAt = 0, mddPeak = 0, peakAt = 0;
+  const rows = E.map((x, i) => {
+    if (x > peak) { peak = x; peakAt = i; }
+    const dd = x / peak - 1;
+    if (dd < mdd) { mdd = dd; mddAt = i; mddPeak = peakAt; }
+    return { x, peak, dd, mdd, peakAt };
+  });
+  const p = x => (x < 0 ? "-" : "") + Math.abs(100 * x).toFixed(2) + "\\%";
+  const frames = rows.map((r, i) => ({ k: i, caption: `Gün ${i + 1}: equity ${r.x}. O güne kadarki en yüksek (cummax) ${r.peak}. $DD = ${r.x}/${r.peak} - 1 = ${p(r.dd)}$. Şimdiye kadarki en kötü: $${p(r.mdd)}$.` }));
+  frames.push({ k: E.length - 1, final: true, caption: `MDD $= ${p(mdd)}$: gün ${mddPeak + 1}'teki tepe (${E[mddPeak]}) → gün ${mddAt + 1}'teki dip (${E[mddAt]}). (130 − 90)/130 = 30.8% yanlış, çünkü 90 dibi 130 tepesinden önce. Cumulative return ise $117/100 - 1 = +17\\%$.` });
+  Lab.stepper(document.getElementById("w-mdd-stepper"), {
+    title: "dd = equity / equity.cummax() − 1",
+    interval: 1500,
+    frames,
+    render(f, idx, el) {
+      const mx = Math.max(...E);
+      let h = `<div class="table-wrap"><table><tr><th>Gün</th><th>equity</th><th>cummax</th><th>dd</th><th style="width:38%"></th></tr>`;
+      rows.forEach((r, i) => {
+        if (i > f.k) { h += `<tr><td>${i + 1}</td><td>${r.x}</td><td></td><td></td><td></td></tr>`; return; }
+        const hi = f.final ? (i === mddAt || i === mddPeak) : i === f.k;
+        const w = Math.round(100 * r.x / mx), wp = Math.round(100 * r.peak / mx);
+        h += `<tr class="${hi ? "w-rules-backtest-cur" : ""}"><td>${i + 1}${f.final && i === mddPeak ? " tepe" : ""}${f.final && i === mddAt ? " dip" : ""}</td><td>${r.x}</td><td>${r.peak}</td>` +
+          `<td><b class="${r.dd < 0 ? "w-rules-backtest-neg" : ""}">${(100 * r.dd).toFixed(2)}%</b></td>` +
+          `<td><div style="position:relative;height:12px;background:var(--stone-200);border-radius:4px;overflow:hidden"><div style="position:absolute;left:0;top:0;bottom:0;width:${wp}%;background:var(--orange-100)"></div><div style="position:absolute;left:0;top:0;bottom:0;width:${w}%;background:var(--blue-600)"></div></div></td></tr>`;
+      });
+      h += `</table></div><p class="src">Mavi: equity · açık turuncu: o güne kadarki tepe. Aradaki boşluk drawdown.</p>`;
+      el.innerHTML = h;
+    }
+  });
+})();
+
+/* ===== 5. SMA crossover lab with equity and underwater charts (section 8) ===== */
+(function () {
+  const $ = id => document.getElementById(id);
+  const sel = $("w-lab-t"), inF = $("w-lab-f"), inS = $("w-lab-s"), inC = $("w-lab-c"), chk = $("w-lab-shift"), mode = $("w-lab-m");
+  const err = $("w-lab-err"), out = $("w-lab-out");
+  sel.innerHTML = RBX.TICK.map(t => `<option>${t}</option>`).join("");
+  function readInt(inp, name, lo, hi) {
+    const raw = inp.value.trim();
+    if (!/^\d+$/.test(raw)) return { e: `${name} pozitif bir tam sayı olmalı (gün sayısı).` };
+    const v = Number(raw);
+    if (v < lo || v > hi) return { e: `${name} ${lo} ile ${hi} arasında olsun.` };
+    return { v };
+  }
+  function readCost() {
+    const raw = inC.value.trim().replace(",", ".");
+    if (!/^\d+(\.\d+)?$/.test(raw)) return { e: "Maliyet bir sayı olmalı (yüzde; örnek 0.1)." };
+    const v = Number(raw);
+    if (v > 1) return { e: "Maliyet %1'den büyük olmasın; gerçekçi değerler %0.05–0.3 arası." };
+    return { v: v / 100 };
+  }
+  function svgLine(W, H, pad, ys, yMin, yMax, logScale) {
+    const n = ys.length, X = i => pad.l + (W - pad.l - pad.r) * i / (n - 1);
+    const f = logScale ? Math.log : (v => v);
+    const Y = v => pad.t + (H - pad.t - pad.b) * (1 - (f(v) - f(yMin)) / (f(yMax) - f(yMin)));
+    return { X, Y };
+  }
+  function chart(res, ghost, W) {
+    const H = 210, pad = { l: 46, r: 10, t: 10, b: 22 };
+    const all = res.eq.concat(res.bh, ghost ? ghost.eq : []);
+    let lo = Math.min(...all), hi = Math.max(...all);
+    const logScale = hi / lo > 4;
+    if (!logScale) { const m = (hi - lo) * 0.06 || 0.05; lo -= m; hi += m; } else { lo /= 1.1; hi *= 1.1; }
+    const { X, Y } = svgLine(W, H, pad, res.eq, lo, hi, logScale);
+    const path = arr => arr.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+    let ticks = [];
+    if (logScale) { for (const m of [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200]) if (m >= lo && m <= hi) ticks.push(m); }
+    else { const step = [0.05, 0.1, 0.2, 0.25, 0.5, 1, 2].find(s => (hi - lo) / s <= 6) || 5; for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(+v.toFixed(4)); }
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Equity curve">`;
+    ticks.forEach(v => { s += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--stone-200)"/><text x="${pad.l - 4}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="var(--fg-subtle)">${Math.round(v * 100000 / 1000)}k</text>`; });
+    s += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(1)}" y2="${Y(1)}" stroke="var(--stone-500)" stroke-dasharray="3 3"/>`;
+    if (ghost) s += `<path d="${path(ghost.eq)}" fill="none" stroke="var(--orange-500)" stroke-width="1.3" stroke-dasharray="5 4"/>`;
+    s += `<path d="${path(res.bh)}" fill="none" stroke="var(--stone-500)" stroke-width="1.6"/>`;
+    s += `<path d="${path(res.eq)}" fill="none" stroke="var(--blue-600)" stroke-width="2"/>`;
+    s += `<circle cx="${X(res.peakI)}" cy="${Y(res.eq[res.peakI])}" r="4" fill="none" stroke="var(--fg)" stroke-width="1.5"/><circle cx="${X(res.troughI)}" cy="${Y(res.eq[res.troughI])}" r="4" fill="var(--orange-700)"/>`;
+    const n = res.dates.length;
+    [0, Math.floor(n / 2), n - 1].forEach((i, k) => { s += `<text x="${X(i)}" y="${H - 6}" font-size="11" text-anchor="${k === 0 ? "start" : k === 2 ? "end" : "middle"}" fill="var(--fg-subtle)">${res.dates[i].slice(0, 7)}</text>`; });
+    if (logScale) s += `<text x="${W - pad.r}" y="${pad.t + 10}" font-size="11" text-anchor="end" fill="var(--fg-subtle)">log ölçek</text>`;
+    return s + `</svg>`;
+  }
+  function under(res, W) {
+    const H = 120, pad = { l: 46, r: 10, t: 8, b: 20 };
+    const lo = Math.min(res.mdd * 1.15, -0.05), n = res.dd.length;
+    const X = i => pad.l + (W - pad.l - pad.r) * i / (n - 1), Y = v => pad.t + (H - pad.t - pad.b) * (v / lo);
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Drawdown">`;
+    const step = [0.05, 0.1, 0.2, 0.25].find(st => -lo / st <= 4) || 0.5;
+    for (let v = 0; v >= lo; v -= step) s += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--stone-200)"/><text x="${pad.l - 4}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="var(--fg-subtle)">${Math.round(v * 100)}%</text>`;
+    s += `<path d="M${X(0)},${Y(0)}` + res.dd.map((v, i) => `L${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("") + `L${X(n - 1)},${Y(0)}Z" fill="var(--orange-100)" stroke="var(--orange-600)" stroke-width="1"/>`;
+    s += `<line x1="${X(res.peakI)}" x2="${X(res.peakI)}" y1="${pad.t}" y2="${H - pad.b}" stroke="var(--fg)" stroke-dasharray="3 3"/>`;
+    s += `<circle cx="${X(res.troughI)}" cy="${Y(res.mdd)}" r="4" fill="var(--orange-700)"/>`;
+    const tx = X(res.troughI), anchor = tx > W * 0.7 ? "end" : "start";
+    s += `<text x="${tx + (anchor === "end" ? -7 : 7)}" y="${Math.min(Y(res.mdd), H - pad.b - 4)}" font-size="12" font-weight="700" text-anchor="${anchor}" fill="var(--orange-700)">MDD ${RBX.pct(res.mdd)}</text>`;
+    return s + `</svg>`;
+  }
+  let last = null;
+  function upd() {
+    const F = readInt(inF, "fast", 1, 100), S = readInt(inS, "slow", 2, 200), C = readCost();
+    const errs = [F, S, C].filter(x => x.e).map(x => x.e);
+    if (!errs.length && F.v >= S.v) errs.push("fast, slow'dan küçük olmalı: kısa ortalama ile uzun ortalamayı karşılaştırıyoruz.");
+    if (errs.length) { err.innerHTML = errs.join("<br>"); out.innerHTML = ""; last = null; return; }
+    err.innerHTML = "";
+    const o = { fast: F.v, slow: S.v, cost: C.v, longOnly: mode.value === "lo", shift: chk.checked, start: "2025-01-01", end: "2026-10-01" };
+    const res = RBX.run(sel.value, o), ghost = RBX.run(sel.value, Object.assign({}, o, { shift: !o.shift }));
+    last = { res, ghost, o };
+    draw();
+  }
+  function draw() {
+    if (!last) return;
+    const { res, ghost, o } = last;
+    const W = Math.max(320, Math.min(760, out.clientWidth - 14 || 640));
+    const k = (lab, val, c) => `<div class="w-rules-backtest-kpi"><span>${lab}</span><b class="${c || ""}">${val}</b></div>`;
+    const diff = res.cum - res.bhCum;
+    const lbl = o.fast === 1 ? `Close &gt; SMA${o.slow}` : `SMA${o.fast} &gt; SMA${o.slow}`;
+    let h = `<div class="w-rules-backtest-chart"><div class="w-rules-backtest-legend"><span><i style="background:var(--blue-600)"></i>${lbl}, ${o.shift ? "shift(1) ile" : "shift'siz"}</span><span><i style="background:var(--stone-500)"></i>buy-and-hold</span><span><i style="background:var(--orange-500)"></i>${o.shift ? "shift'siz" : "shift(1) ile"} (karşılaştırma)</span></div>${chart(res, ghost, W)}</div>`;
+    h += `<div class="w-rules-backtest-chart"><div class="w-rules-backtest-legend"><span>Underwater: dd = equity / cummax − 1 · kesikli çizgi = MDD'den önceki tepe (${res.dates[res.peakI]}) · nokta = dip (${res.dates[res.troughI]})</span></div>${under(res, W)}</div>`;
+    h += `<div class="w-rules-backtest-kpis">` +
+      k("Cumulative return", RBX.pct(res.cum), RBX.cls(res.cum)) +
+      k("Final capital", RBX.tl(100000 * (1 + res.cum))) +
+      k("Buy-and-hold", RBX.pct(res.bhCum), RBX.cls(res.bhCum)) +
+      k("Benchmark difference", (diff >= 0 ? "+" : "−") + Math.abs(100 * diff).toFixed(1) + " puan", RBX.cls(diff)) +
+      k("Max drawdown", RBX.pct(res.mdd), "w-rules-backtest-neg") +
+      k("Buy-and-hold MDD", RBX.pct(res.bhMdd), "w-rules-backtest-neg") +
+      k("Sharpe (r_f = 0)", res.sharpe.toFixed(2)) +
+      k("Pozisyon değişimi", res.changes) +
+      k(o.shift ? "Shift'siz olsaydı" : "shift(1) ile olsaydı", RBX.pct(ghost.cum), RBX.cls(ghost.cum)) +
+      `</div><p class="src">${res.n} işlem günü (2025-01-02 → 2026-10-01). Maliyet her pozisyon değişiminde ${(100 * o.cost).toFixed(2)}% × |Δpos|.</p>`;
+    out.innerHTML = h;
+  }
+  [sel, chk, mode].forEach(x => x.addEventListener("change", upd));
+  [inF, inS, inC].forEach(x => x.addEventListener("input", upd));
+  document.querySelectorAll("[data-wlab]").forEach(b => b.addEventListener("click", () => { const [f, s] = b.dataset.wlab.split(","); inF.value = f; inS.value = s; upd(); }));
+  let rt = null;
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(draw, 150); });
+  upd();
+})();
+
+/* ===== 6. Train / test splitter over a 20-combination grid (section 9) ===== */
+(function () {
+  const $ = id => document.getElementById(id);
+  const sel = $("w-tt-t"), mode = $("w-tt-m"), rng = $("w-tt-r"), rv = $("w-tt-rv"), out = $("w-tt-out");
+  sel.innerHTML = RBX.TICK.map(t => `<option>${t}</option>`).join("");
+  const FAST = [1, 5, 10, 20, 30], SLOW = [10, 20, 50, 100, 150];
+  function upd() {
+    const t = sel.value, ratio = Number(rng.value) / 100, lo = mode.value === "lo";
+    rv.textContent = rng.value + "%";
+    const { d } = RBX.series(t), k = Math.floor(d.length * ratio);
+    const tr = [d[1], d[k - 1]], te = [d[k], d[d.length - 1]];
+    const rows = [];
+    for (const f of FAST) for (const s of SLOW) {
+      if (f >= s) continue;
+      const base = { fast: f, slow: s, cost: 0, longOnly: lo, shift: true };
+      const a = RBX.run(t, Object.assign({ start: tr[0], end: tr[1] }, base)), b = RBX.run(t, Object.assign({ start: te[0], end: te[1] }, base));
+      rows.push({ f, s, tr: a.cum, te: b.cum, bhTr: a.bhCum, bhTe: b.bhCum });
+    }
+    rows.sort((x, y) => y.tr - x.tr);
+    const byTest = rows.slice().sort((x, y) => y.te - x.te);
+    rows.forEach(r => { r.teRank = byTest.indexOf(r) + 1; });
+    const best = rows[0], ref = rows.find(r => r.f === 20 && r.s === 50);
+    const name = r => r.f === 1 ? `Close / SMA${r.s}` : `${r.f} / ${r.s}`;
+    let h = `<p><b>Train</b> ${tr[0]} → ${tr[1]} · <b>Test</b> ${te[0]} → ${te[1]}</p>`;
+    h += `<p>Train'de en iyi: <b>${name(best)}</b>, train ${RBX.pct(best.tr)} → test <b class="${RBX.cls(best.te)}">${RBX.pct(best.te)}</b>, test'te ${best.teRank}. sırada (${rows.length} içinde). Slayttaki 20/50: train ${RBX.pct(ref.tr)}, test ${RBX.pct(ref.te)}. Buy-and-hold: train ${RBX.pct(best.bhTr)}, test ${RBX.pct(best.bhTe)}.</p>`;
+    h += `<div class="table-wrap"><table class="w-rules-backtest-tt"><tr><th>Train sırası</th><th>fast / slow</th><th>Train</th><th>Test</th><th>Test sırası</th></tr>`;
+    rows.forEach((r, i) => {
+      h += `<tr class="${r === best ? "is-best" : r === ref ? "is-ref" : ""}"><td>${i + 1}</td><td>${name(r)}</td><td class="${RBX.cls(r.tr)}">${RBX.pct(r.tr)}</td><td class="${RBX.cls(r.te)}">${RBX.pct(r.te)}</td><td>${r.teRank}</td></tr>`;
+    });
+    h += `</table></div><p class="src">Mavi satır: train'de seçilen. Turuncu satır: slayttaki 20/50. Maliyet yok, shift(1) açık.</p>`;
+    out.innerHTML = h;
+  }
+  [sel, mode].forEach(x => x.addEventListener("change", upd));
+  rng.addEventListener("input", upd);
+  upd();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 481: teknik gösterge grupları, SMA, EMA, lag ve noise, Wilder RSI'ı adım adım, RSI event'leri, MACD, volume ve az gösterge ilkesi. Gerçek BIST verisiyle." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Teknik göstergeler I: SMA, EMA, RSI, MACD ve volume · CSE 481 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-indicators-core { --ic-up: #2b8a3e; --ic-dn: #c92a2a; --ic-sma: var(--blue-600); --ic-ema: var(--orange-600); --ic-px: var(--ink-500); margin: var(--sp-3) 0; min-width: 0; }
+    .w-indicators-core-guess { margin: 12px 0 6px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-indicators-core-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-indicators-core-ctl label { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: .92rem; }
+    .w-indicators-core-ctl input[type="text"] { width: 4.2em; font: 500 .92rem 'JetBrains Mono', monospace; padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); }
+    .w-indicators-core-ctl input[type="range"] { flex: 1 1 140px; min-width: 0; accent-color: var(--blue-600); }
+    .w-indicators-core-ctl select { font: inherit; font-size: .92rem; padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); }
+    .w-indicators-core-ctl .btn.is-on { background: var(--blue-600); color: #fff; border-color: var(--blue-600); }
+    .w-indicators-core-err { color: var(--ic-dn); font-weight: 600; font-size: .92rem; margin: 4px 0; }
+    .w-indicators-core-err:empty { display: none; }
+    .w-indicators-core-ok { color: var(--ic-up); font-weight: 700; }
+    .w-indicators-core-bad { color: var(--ic-dn); font-weight: 700; }
+    .w-indicators-core-svg { display: block; width: 100%; height: auto; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); margin: 6px 0; }
+    .w-indicators-core-svg text { font: 10px 'JetBrains Mono', monospace; fill: var(--fg-subtle); }
+    .w-indicators-core-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .85rem; margin: 2px 0 6px; }
+    .w-indicators-core-legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+    .w-indicators-core-stats { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 6px 0; }
+    .w-indicators-core-stats div { min-width: 92px; }
+    .w-indicators-core-stats b { display: block; font-size: 1.3rem; font-weight: 800; color: var(--fg-brand); line-height: 1.2; }
+    .w-indicators-core-stats span { font-size: .78rem; color: var(--fg-subtle); }
+    .w-indicators-core-rsi td, .w-indicators-core-rsi th { font-family: 'JetBrains Mono', monospace; font-size: .8rem; white-space: nowrap; padding: 3px 6px; text-align: right; }
+    .w-indicators-core-rsi tr.is-cur { background: var(--blue-050); }
+    .w-indicators-core-rsi td.is-low { color: var(--ic-dn); font-weight: 700; }
+    .w-indicators-core-rsi td.is-high { color: var(--ic-up); font-weight: 700; }
+    .w-indicators-core-tag { display: inline-block; font-size: .72rem; font-weight: 700; color: #fff; background: var(--ic-up); border-radius: var(--radius-full); padding: 0 6px; margin-left: 4px; }
+    .w-indicators-core-sort { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 6px 12px; margin: 8px 0; }
+    .w-indicators-core-sort label { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); font-weight: 600; font-size: .9rem; min-width: 0; }
+    .w-indicators-core-sort label.is-ok { border-color: var(--ic-up); }
+    .w-indicators-core-sort label.is-bad { border-color: var(--ic-dn); }
+    .w-indicators-core-sort select { max-width: 60%; }
+    .w-indicators-core-fb { font-size: .9rem; margin: 6px 0; }
+    .w-indicators-core-fb li { margin: 2px 0; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 481</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 481</a> / Teknik göstergeler I</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L3</span><span class="chip chip--exam">Vize kapsamında</span><span class="chip">W1 + W3</span><span class="src">~45 dk · 11 bölüm</span></div>
+          <h1>Teknik göstergeler I: SMA, EMA, RSI, MACD ve volume</h1>
+          <p class="lead">Bir <em>technical indicator</em>, OHLCV verisinden sabit bir formülle hesaplanan yeni bir sütundur. Bu derste ilk dört göstergeyi (SMA, EMA, RSI, MACD) ve volume'ü göreceksin: her birinin formülünü, pandas kodunu, hangi soruya cevap verdiğini ve hangi hatalara açık olduğunu. Bütün grafikler senin quiz'de kullandığın gerçek BIST verisinden hesaplanıyor.</p>
+          <p class="src">Not: Hafta 3'ün "Technical Indicators" başlıklı ayrı bir slaytı repoda yok; repodaki hafta 3 slaytları dört stratejiyi anlatıyor. Bu ders hafta 1 slaytları (s.15, 20, 25), proje brief'i (§7, §8, §13, §29), hocanın starter code'u (<code>scenario3</code>) ve senin quiz notebook'un üzerinden anlatıldı. EMA'nın $\alpha = 2/(n+1)$ ayarı ve MACD'nin 12/26/9 periyotları hocanın materyalinde yazmıyor; ikisi de standart tanım olarak işaretlendi.</p>
+          <!-- Kaynak: week-01-bist-python-mcp.pdf s.15 (SMA/EMA/RSI/MACD+Volume görseli), s.20 (SMA kodu), s.25 (MCP tool listesi), s.33 (project scope) · week-02-agentic-harness.pdf s.9, s.17, s.19, s.24 · week-03-bist-trading-strategies.pdf s.25 ve s.33 (SMA200 trend filter) · term-project-brief.pdf s.4 (§7, §8), s.6 (§13), s.12 (§29) · code/scenario3_technical_reversal_events_3_periods.py (add_rsi, add_volume_features, detect_reversal_events, explain_rsi_local_trough) · assignments/2026-2027-fall-efe-kurucay/.../bist_algo_trading_challenge.ipynb hücre 0, 1, 5, 7, 27 · quiz-bist-algo-trading-challenge.pdf · weeks/01 ve weeks/03 (Notes — Efe bölümleri boş) · assignments/undated-term-project (eski öğrenci projesi, sadece tuzak örneği için). Veri: aynı notebook'un data/ klasöründeki ASELS, AKBNK, TCELL CSV'leri (Close ve Volume, 2024-01-02 → 2026-10-01). Bütün sayılar python ile, widget'lar aynı formüllerin JS portuyla hesaplandı ve karşılaştırıldı. -->
+        </header>
+
+        <article class="lesson" data-course="cse-481" data-lesson="indicators-core">
+
+<!-- 1 -->
+<section class="lsec" id="groups" data-min="4">
+  <h2>Gösterge nedir, hangi gruba girer?</h2>
+  <div class="quiz" id="q-groups-1">
+    <p class="quiz__q">Hafta 1 slaytı dört göstergeyi birer kelimeyle etiketliyor. RSI'nın etiketi hangisi?</p>
+    <button class="quiz__opt">Trend direction<span class="why">Bu SMA'nın etiketi. SMA fiyatın yönünü düzleştirir; RSI ise yükseliş ve düşüşlerin gücünü ölçer.</span></button>
+    <button class="quiz__opt" data-correct>Overbought / Oversold<span class="why">Doğru. RSI 0–100 arasında bir momentum göstergesi; 70 üstü overbought, 30 altı oversold okunur.</span></button>
+    <button class="quiz__opt">Participation<span class="why">Bu volume'ün etiketi: hareketin arkasında ne kadar işlem (katılım) olduğu. RSI volume kullanmaz, sadece Close'tan hesaplanır.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Günlük Close serisi gürültülüdür: bir gün +3%, ertesi gün −2%. Bir gösterge bu seriden bir soruyu sayıya çevirir. "Trend hangi yönde?" sorusunun cevabı bir moving average, "yükselişler mi baskın, düşüşler mi?" sorusunun cevabı RSI, "bu harekete katılım var mı?" sorusunun cevabı volume'dür. Gösterge yeni bir bilgi üretmez; zaten var olan fiyatı başka bir açıdan özetler.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Hafta 1 slaytı · Technical Indicators — Start Simple</span>
+    <div class="table-wrap"><table>
+      <tr><th>Gösterge</th><th>Açık adı</th><th>s.15 etiketi</th><th>s.20 etiketi</th></tr>
+      <tr><td>SMA</td><td>Simple Moving Average</td><td>Trend direction</td><td>Trend</td></tr>
+      <tr><td>EMA</td><td>Exponential Moving Average</td><td>Faster trend signal</td><td>(yok)</td></tr>
+      <tr><td>RSI</td><td>Relative Strength Index</td><td>Overbought / Oversold</td><td>Momentum</td></tr>
+      <tr><td>MACD + Volume</td><td>Moving Average Convergence Divergence</td><td>Momentum and activity</td><td>MACD: Trend + Momentum · Volume: Participation</td></tr>
+    </table></div>
+    <p>Slaytın alt notu: <strong>Start with a few indicators. Do not use too many signals at once. Combine indicators with support / resistance.</strong> Bu üç cümleye Bölüm 10'da döneceğiz.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · proje brief'i §7, gösterge grupları</span>
+    <div class="table-wrap"><table>
+      <tr><th>Group</th><th>Indicators</th><th>Research use</th></tr>
+      <tr><td>Trend</td><td>SMA, EMA, KAMA</td><td>Direction, slope, crossovers, distance from adaptive average</td></tr>
+      <tr><td>Momentum</td><td>RSI, MACD</td><td>Momentum regime, RSI local extrema, divergence candidates</td></tr>
+      <tr><td>Volatility</td><td>Bollinger Bands, ATR</td><td>Band touches, bandwidth, volatility regime</td></tr>
+      <tr><td>Trend State</td><td>Supertrend</td><td>Bullish/bearish state changes and post-flip returns</td></tr>
+      <tr><td>Cloud / Structure</td><td>Ichimoku Cloud</td><td>Price above/below cloud, cloud breakout/rejection, Tenkan/Kijun relationships</td></tr>
+      <tr><td>Market Structure</td><td>Support/Resistance</td><td>Pivot clustering, touches, recency, volume and reversal strength</td></tr>
+      <tr><td>Activity</td><td>Volume / turnover</td><td>Confirmation of breakouts and reversal events</td></tr>
+    </table></div>
+    <p>Bu ders ilk iki grubu ve Activity'yi kapsıyor. Bollinger, ATR, KAMA, Supertrend ve Ichimoku <a href="indicators-volatility-trend.html">Teknik göstergeler II</a>'de, support/resistance <a href="support-resistance.html">kendi dersinde</a>.</p>
+    <p>Projede göstergeleri hesaplayan şey bir MCP tool'u: <code>calculate_indicators(symbol)</code> → "SMA, RSI, MACD, volume" (hafta 1, s.25). Brief'in tool tablosu listeyi uzatıyor: SMA/EMA/RSI/MACD/Bollinger/ATR/KAMA/Supertrend/Ichimoku.</p>
+  </div>
+  <!-- Kaynak: week-01 s.15 (görsel, render edilerek okundu) ve s.20; term-project-brief.pdf s.4 §7 tablosu; week-01 s.25; brief §21 tool tablosu (calculate_indicators satırı). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>MACD'nin grubu iki kaynakta farklı yazıyor: s.20 "Trend + Momentum", brief §7 "Momentum". Projenin grubu sorulursa Momentum de, ama MACD'nin iki trend ortalamasından (iki EMA'dan) yapıldığını ekle; ikisi de doğru okuma.</li>
+      <li>Volume bir fiyat göstergesi değil. Yön söylemez, sadece katılımı ölçer. "Volume yükseldi, demek fiyat yükselecek" diye bir kural yok.</li>
+      <li>Support/resistance da brief'te bir gösterge grubu (Market Structure), ama bir formülden değil, pivot'lardan ve cluster'lardan çıkıyor.</li>
+    </ul>
+  </div>
+  <h3>Grupları yerleştir</h3>
+  <p class="w-indicators-core-guess"><b>Önce tahmin et:</b> On bir göstergenin her birini brief §7'deki yedi gruptan birine koy. Sonra "Kontrol et"e bas; her yanlışta doğru grup ve brief'teki research use yazılır.</p>
+  <div class="w-indicators-core" id="w-sort"></div>
+  <div class="box box--exam" data-exam="2026-27-quiz-allowed-indicators"><span class="box__label">Quiz (BIST Algorithmic Trading Challenge), izinli göstergeler · çıkmış soru</span>
+    <p>"You may use indicators such as moving averages, RSI, Bollinger Bands, momentum, volume, ATR, support/resistance, breakouts, mean reversion, trailing stops, or machine-learning features."</p>
+    <p>(Quiz brief'inin Student Task kısmından tek cümle. Soru kısmı bu ders için eklendi.) Bu listedeki her öğeyi brief §7'nin gruplarından birine koy. Hangileri gösterge değil, bir strateji fikri ya da risk mekanizması?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce listeyi ikiye ayır: bir formülle her gün bir sayı üreten şeyler, bir de "ne zaman al, ne zaman çık" diyen fikirler.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Quiz'in Risk Management Requirement kısmı stop-loss, ATR stop, trailing stop, Chandelier Exit'i "risk-management mechanism" olarak sayıyor. "Momentum" ise bir grubun adı.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ul>
+        <li><strong>Trend:</strong> moving averages (SMA, EMA; KAMA da bu grupta).</li>
+        <li><strong>Momentum:</strong> RSI ve listede tek kelimeyle geçen "momentum" (örneğin MACD).</li>
+        <li><strong>Volatility:</strong> Bollinger Bands, ATR.</li>
+        <li><strong>Market Structure:</strong> support/resistance.</li>
+        <li><strong>Activity:</strong> volume.</li>
+        <li><strong>Gösterge değil:</strong> breakouts ve mean reversion birer strateji mantığı (fiyat bir seviyeyi kırınca gir; aşırı uzaklaşınca ortalamaya dönmesini bekle). Trailing stop bir risk-management mekanizması. Machine-learning features göstergelerden türetilen girdiler; kendileri bir grup değil.</li>
+      </ul>
+      <p>Senin quiz stratejin bu listeden RSI (Entry A), breakout + volume (Entry B), ATR ve Kaufman ER (Chandelier stop) kullandı.</p>
+    </div></details>
+    <!-- Kaynak: quiz-bist-algo-trading-challenge.pdf s.1 Student Task (dosya repoda untracked, bu yüzden link yok); grup eşlemesi brief §7; Efe'nin notebook'u hücre 0. -->
+  </div>
+  <div class="quiz" id="q-groups-2">
+    <p class="quiz__q">Brief §7'ye göre ATR hangi grupta?</p>
+    <button class="quiz__opt">Trend<span class="why">Trend grubunda SMA, EMA, KAMA var. ATR fiyatın yönünü değil, günlük hareketin büyüklüğünü ölçer.</span></button>
+    <button class="quiz__opt">Momentum<span class="why">Momentum grubunda RSI ve MACD var. ATR yön ayırt etmez; yukarı ve aşağı hareketleri aynı şekilde sayar.</span></button>
+    <button class="quiz__opt" data-correct>Volatility<span class="why">Doğru. Bollinger Bands ile birlikte Volatility grubunda; research use: volatility regime. Ayrıntısı Teknik göstergeler II'de.</span></button>
+    <button class="quiz__opt">Activity<span class="why">Activity grubunda sadece volume / turnover var. ATR fiyattan (High, Low, Close) hesaplanır, işlem miktarından değil.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="sma" data-min="4">
+  <h2>SMA: son n kapanışın ortalaması</h2>
+  <div class="quiz" id="q-sma-1">
+    <p class="quiz__q">Close değerleri sırayla 10, 11, 12, 13, 14, 20. Son gün için SMA(3) kaç?</p>
+    <button class="quiz__opt">15<span class="why">Bu ilk altı değerin ortalamasına yakın ama değil; SMA(3) sadece son üç kapanışı alır: 13, 14, 20.</span></button>
+    <button class="quiz__opt" data-correct>15.67<span class="why">Doğru: $(13 + 14 + 20)/3 = 47/3 \approx 15.67$.</span></button>
+    <button class="quiz__opt">20<span class="why">Bu son günün kendisi. Ortalama, son günü önceki iki günle birlikte alır; bu yüzden fiyatın gerisinde kalır.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Tek bir günün kapanışı rastgele haberlerle oynar. Son 20 günün ortalaması bu oynamayı bastırır ve geriye yön kalır. Bedeli şu: ortalama geçmişi de taşıdığı için fiyatın gerisinden gelir. Buna <strong>lag</strong> denir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · SMA</span>
+    $$\text{SMA}_t(n) = \frac{C_t + C_{t-1} + \dots + C_{t-n+1}}{n}$$
+    <p>$C_t$, $t$ gününün Close'u. Pencere her gün bir bar kayar: en yeni kapanış girer, en eskisi çıkar. pandas'ta (hafta 1, s.20):</p>
+<pre><code>df["SMA20"] = df["Close"].rolling(20).mean()
+df["SMA50"] = df["Close"].rolling(50).mean()</code></pre>
+    <ul>
+      <li>İlk $n-1$ satır <code>NaN</code> olur: pencere dolmadan ortalama yok. Buna <strong>warm-up</strong> denir.</li>
+      <li>Kısa pencere (SMA20) fiyata yakın ve hızlı, uzun pencere (SMA50, SMA200) yavaş ve düzdür.</li>
+      <li>Düz bir trendde SMA($n$) fiyatın tam $\frac{n-1}{2}$ bar gerisindedir: son $n$ fiyatın ortalaması, ortadaki günün fiyatına eşittir. SMA20 için $9.5$ bar.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · SMA(3)</span>
+    <div class="table-wrap"><table>
+      <tr><th>$t$</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr>
+      <tr><td>Close</td><td>10</td><td>11</td><td>12</td><td>13</td><td>14</td><td>20</td></tr>
+      <tr><td>SMA(3)</td><td>NaN</td><td>NaN</td><td>11</td><td>12</td><td>13</td><td>15.67</td></tr>
+    </table></div>
+    <p>6. gün fiyat 14'ten 20'ye sıçradı, SMA 13'ten sadece 15.67'ye çıktı. Yeni bilgi pencerede 1/3 ağırlık taşıyor.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Kursta SMA nerede kullanılıyor?</span>
+    <ul>
+      <li>Hafta 1, s.21: <code>SMA20 &gt; SMA50 → BUY</code>, <code>SMA20 &lt; SMA50 → SELL</code>. Bu kuralın backtest'i <a href="rules-backtest.html">Kuraldan sinyale</a> dersinde.</li>
+      <li>Hafta 3, Volume Bubbles ve S/R Channels "How to Improve" slaytları: "Add a trend filter. Example: only long when price is above SMA200." Burada SMA bir sinyal değil, bir <strong>filter</strong>: uzun vadeli trend aşağıysa long açma.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: week-01 s.20 (kod), s.21 (kural); week-03 s.25 (metin) ve s.33 (görsel). Lag (n−1)/2 python ile doğrusal seride kontrol edildi: SMA20 için 9.5. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>250 bar'lık bir seride SMA200'ün ilk 199 değeri <code>NaN</code>: sadece 51 gün için değer var. Senin notebook'un bu yüzden veriyi 2024'ten yükleyip trade'leri 2025'te başlatıyor ("indicator warm-up only").</li>
+      <li><code>rolling(20)</code> bugünün kapanışını da içerir. Bu look-ahead değil, çünkü SMA günün kapanışında hesaplanır; ama ona göre verilen emir ancak ertesi bar'da gerçekleşebilir.</li>
+      <li>"Fiyat SMA'nın üstünde" (bir durum, her gün doğru ya da yanlış) ile "fiyat SMA'yı yukarı kesti" (bir event, tek günde olur) farklı şeyler.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sma-2">
+    <p class="quiz__q">Fiyat her gün tam 1 TL artıyor (düz bir trend). SMA20 fiyatın kaç TL altında kalır?</p>
+    <button class="quiz__opt">20 TL<span class="why">Pencerenin en eski günü 19 TL aşağıda, en yenisi 0 TL; ortalama bunların ortası. 20, pencere uzunluğunu lag sanmaktan geliyor.</span></button>
+    <button class="quiz__opt">10 TL<span class="why">Yakın ama tam değil: farklar 0, 1, …, 19, ortalamaları $19/2 = 9.5$.</span></button>
+    <button class="quiz__opt" data-correct>9.5 TL<span class="why">Doğru. Lag $\frac{n-1}{2} = 9.5$ bar, günde 1 TL ile 9.5 TL.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="ema" data-min="4">
+  <h2>EMA: yakın geçmişe daha çok ağırlık</h2>
+  <div class="quiz" id="q-ema-1">
+    <p class="quiz__q">Dünkü EMA 100, bugünkü Close 110, $\alpha = 0.2$. Bugünkü EMA kaç?</p>
+    <button class="quiz__opt">110<span class="why">EMA bugünkü fiyata tamamen geçmez; sadece aradaki farkın $\alpha$ kadarını kapatır.</span></button>
+    <button class="quiz__opt" data-correct>102<span class="why">Doğru: $100 + 0.2 \cdot (110 - 100) = 102$.</span></button>
+    <button class="quiz__opt">105<span class="why">Bu iki değerin düz ortalaması, yani $\alpha = 0.5$. Burada $\alpha = 0.2$.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>SMA son $n$ günün her birine eşit ağırlık verir ve $n+1$ gün önceki fiyatı birden atar. EMA ise her gün eski ortalamayı biraz unutur ve yeni fiyattan biraz alır. En yeni gün en büyük ağırlığı taşır, eski günlerin ağırlığı geometrik olarak azalır ama hiç tam sıfır olmaz. Slayt bunu "Faster trend signal" diye etiketliyor.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · EMA (standart tanım)</span>
+    $$\text{EMA}_t = \alpha\, C_t + (1-\alpha)\,\text{EMA}_{t-1}$$
+    $$\text{EMA}_t = \text{EMA}_{t-1} + \alpha\,(C_t - \text{EMA}_{t-1})$$
+    $$\alpha = \frac{2}{n+1}$$
+<pre><code>df["EMA20"] = df["Close"].ewm(span=20, adjust=False).mean()</code></pre>
+    <ul>
+      <li>Ağırlıklar: bugün $\alpha$, dün $\alpha(1-\alpha)$, önceki gün $\alpha(1-\alpha)^2$, …</li>
+      <li>Son bar'ın ağırlığı: SMA20'de $1/20 = 0.05$, EMA20'de $2/21 \approx 0.095$. Yaklaşık iki katı.</li>
+      <li><code>adjust=False</code> ile ilk değer ilk Close'tur; sonra yukarıdaki recursion işler.</li>
+    </ul>
+    <p>pandas'ta <code>ewm</code> üç şekilde ayarlanır ve hepsi aynı $\alpha$'ya çevrilir:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Yazılış</th><th>$\alpha$</th><th>Nerede</th></tr>
+      <tr><td><code>ewm(span=n)</code></td><td>$2/(n+1)$</td><td>EMA, MACD</td></tr>
+      <tr><td><code>ewm(alpha=1/14)</code></td><td>$1/14 \approx 0.0714$</td><td>RSI (Wilder), ATR: starter code ve senin notebook'un</td></tr>
+      <tr><td><code>ewm(com=c)</code></td><td>$1/(1+c)$</td><td><code>alpha=1/14</code> ile <code>com=13</code> aynı şey</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · aynı seri, EMA(3), $\alpha = 0.5$</span>
+    <div class="table-wrap"><table>
+      <tr><th>$t$</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr>
+      <tr><td>Close</td><td>10</td><td>11</td><td>12</td><td>13</td><td>14</td><td>20</td></tr>
+      <tr><td>SMA(3)</td><td>NaN</td><td>NaN</td><td>11</td><td>12</td><td>13</td><td>15.67</td></tr>
+      <tr><td>EMA(3)</td><td>10</td><td>10.5</td><td>11.25</td><td>12.125</td><td>13.0625</td><td>16.53</td></tr>
+    </table></div>
+    <p>6. gün: $\text{EMA} = 13.0625 + 0.5\,(20 - 13.0625) = 16.53$. Sıçramaya SMA'dan (15.67) daha çok tepki verdi.</p>
+  </div>
+  <!-- Kaynak: α = 2/(n+1) ve pandas ewm eşlemeleri standart tanım (pandas dokümantasyonu), hocanın slaytında yok. Tablo değerleri python ile kontrol edildi. Starter code add_rsi ve notebook rma() alpha=1/n kullanıyor. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><code>ewm(span=26)</code> yazıp <code>adjust</code>'ı vermezsen pandas <code>adjust=True</code> kullanır ve ilk değerler farklı çıkar (aynı örnekte 6. gün 16.63). Repodaki eski öğrenci projesi MACD'yi böyle hesaplamış. Uzun bir warm-up'tan sonra fark kaybolur.</li>
+      <li>"EMA her zaman daha erken" tam doğru değil. Düz bir trendde EMA($n$)'in lag'i de $\frac{n-1}{2}$ bar; $\alpha = 2/(n+1)$ zaten bunu sağlamak için seçiliyor. EMA'nın üstünlüğü ani değişimlerde görünür.</li>
+      <li>Wilder'ın 14'ü ile EMA'nın 14'ü aynı değil: <code>alpha=1/14</code>, <code>span=27</code>'ye denk gelir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ema-2">
+    <p class="quiz__q"><code>df["Close"].ewm(span=9, adjust=False).mean()</code> hangi $\alpha$'yı kullanır?</p>
+    <button class="quiz__opt">$1/9 \approx 0.111$<span class="why">Bu <code>alpha=1/9</code> yazılsaydı olurdu (Wilder tarzı). <code>span</code> verildiğinde $\alpha = 2/(n+1)$.</span></button>
+    <button class="quiz__opt" data-correct>$0.2$<span class="why">Doğru: $2/(9+1) = 0.2$. MACD'nin signal line'ı bu.</span></button>
+    <button class="quiz__opt">$0.1$<span class="why">Bu $1/(1+c)$ formülünü $c = 9$ ile kullanmak, yani <code>com=9</code>. Burada <code>span</code> var.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="lag" data-min="5">
+  <h2>Lag ve noise: aynı ayarın iki yüzü</h2>
+  <div class="quiz" id="q-lag-1">
+    <p class="quiz__q">Moving average'ın periyodu $n$'yi büyütürsen ne olur?</p>
+    <button class="quiz__opt">Hem daha erken hem daha az sinyal<span class="why">İkisi birden olmaz. Daha uzun pencere gürültüyü daha çok bastırır ama dönüşleri daha geç gösterir.</span></button>
+    <button class="quiz__opt" data-correct>Genellikle daha az crossover ama daha geç sinyal<span class="why">Doğru. Bu lag ile noise arasındaki trade-off: uzun pencere false crossover'ları genellikle azaltır, karşılığında lag artar. "Genellikle", çünkü kesişim sayısı her adımda düşmek zorunda değil (aşağıdaki kurala bak).</span></button>
+    <button class="quiz__opt">Daha çok crossover ve daha geç sinyal<span class="why">Genel eğilim bunun tersi: uzun pencere daha düz bir çizgi verir ve fiyat onu çoğu zaman daha seyrek keser.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Kısa bir ortalama fiyatı yakından takip eder: dönüşü erken yakalar, ama yatay piyasada her küçük dalgada fiyat onu keser ve yanlış sinyal (whipsaw) üretir. Uzun bir ortalama bu dalgaları yok sayar, ama gerçek dönüşü de geç görür. Tek bir "doğru" $n$ yok; seçtiğin $n$, ne kadar gecikmeye ne kadar gürültü karşılığında razı olduğunu söyler.</p>
+  </div>
+  <p class="w-indicators-core-guess"><b>Önce tahmin et:</b> ASELS'te $n = 20$ için fiyat SMA'yı mı, EMA'yı mı daha çok kez aşağıdan yukarı keser? Bir düşüşün dibinden bu kesişime kadar ortalama kaç bar geçer: 1 mi, 3 mü, 10 mu?</p>
+  <div class="w-indicators-core" id="w-lag">
+    <div class="w-indicators-core-ctl">
+      <label>Hisse <select data-stock><option>ASELS</option><option>AKBNK</option><option>TCELL</option></select></label>
+      <label>n = <input type="text" inputmode="numeric" value="20" data-n aria-label="periyot n" /></label>
+      <input type="range" min="2" max="100" step="1" value="20" data-r aria-label="periyot n slider" />
+    </div>
+    <div class="w-indicators-core-err" data-err aria-live="polite"></div>
+    <div data-out></div>
+  </div>
+  <p>Gecikme ölçüsü şöyle tanımlandı (bu ölçü bizim, hocanın materyalinde yok): fiyat ortalamayı aşağı kestikten sonra yukarı kestiği her an için, aradaki en düşük kapanıştan kesişime kadar geçen bar sayısı. Pencere quiz'in backtest dönemi: 2025-01-02 → 2026-10-01, 441 bar.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · lag ile noise arasındaki trade-off</span>
+    <ul>
+      <li>Kısa $n$: az lag, çok crossover, çok false signal.</li>
+      <li>Uzun $n$: çok lag, genellikle az crossover, geç ama daha seçici sinyal.</li>
+      <li>"Genellikle" bir eğilim demek, her $n$ için geçen bir invariant değil. ASELS'te SMA periyodunu 15'ten 16'ya çıkarınca aynı 441 bar'da yukarı kesişim 29'dan 31'e çıkıyor. $n$'yi 10'dan 50'ye çıkarmak gibi büyük bir adımda düşüş net (41'den 13'e); komşu iki $n$ arasında sayı artabilir. Widget'ta deneyebilirsin.</li>
+      <li>Aynı $n$'de EMA genelde biraz daha erken keser ama daha sık keser. ASELS, $n = 20$: SMA 22 kesişim ve ortalama 3.59 bar gecikme, EMA 25 kesişim ve 2.48 bar. $n = 50$'de ise EMA'nın ortalaması daha uzun (4.50'ye 3.92). Yani bu bir eğilim, kural değil.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: sayılar python (ind.py, v2.py) ve sayfadaki JS ile aynı çıktı: ASELS n=10 SMA 41/2.05 EMA 44/1.68; n=20 SMA 22/3.59 EMA 25/2.48; n=50 SMA 13/3.92 EMA 10/4.50; TCELL n=20 SMA 32/3.65 EMA 35/2.65. ASELS SMA yukarı kesişim n=15: 29, n=16: 31 (python, aynı pencere). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Daha erken sinyal daha iyi sinyaldir" değil. TCELL gibi yatay bir hissede $n = 20$ ile 441 bar'da 30'dan fazla yukarı kesişim var; çoğu birkaç gün sonra geri dönüyor.</li>
+      <li>Bir ortalamanın periyodunu sonuç iyi çıkana kadar değiştirmek overfitting'dir. Senin notebook'un limitations kısmı bunu açıkça söylüyor: parametreler aynı dönem üzerinde grid search ile seçildi.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-lag-2">
+    <p class="quiz__q">Widget'ta TCELL'i seç ve $n$'yi 10'dan 50'ye çıkar. Ne gözlemlersin?</p>
+    <button class="quiz__opt" data-correct>Kesişim sayısı azalır, ortalama gecikme artar<span class="why">Doğru: SMA'da 45 kesişim ve 2.32 bar gecikmeden 16 kesişim ve 4.31 bar gecikmeye geçiyor.</span></button>
+    <button class="quiz__opt">Kesişim sayısı aynı kalır, sadece çizgi düzleşir<span class="why">Çizgi düzleşince fiyat onu daha seyrek keser; kesişim sayısı belirgin düşer.</span></button>
+    <button class="quiz__opt">Gecikme azalır, çünkü uzun ortalama daha güvenilir<span class="why">"Güvenilir" ile "erken" karıştırılıyor. Uzun pencere daha az false signal verir ama daha geç.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="rsi" data-min="5">
+  <h2>RSI: yükselişlerin toplam hareketteki payı</h2>
+  <div class="quiz" id="q-rsi-1">
+    <p class="quiz__q">RSI(14) hesabında bugün avg gain 0.6, avg loss 0.4. RSI kaç?</p>
+    <button class="quiz__opt">1.5<span class="why">Bu RS, yani gain/loss oranı. RSI bu oranı 0–100 aralığına çevirir.</span></button>
+    <button class="quiz__opt" data-correct>60<span class="why">Doğru: $RS = 1.5$, $RSI = 100 - 100/2.5 = 60$. Ya da kısa yoldan $100 \cdot 0.6/(0.6 + 0.4) = 60$.</span></button>
+    <button class="quiz__opt">40<span class="why">Bu loss'un payı. RSI gain'in payıdır: yükselişler baskınsa 50'nin üstüne çıkar.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Her günlük hareketi ikiye ayır: yukarı hareketler (gain) ve aşağı hareketler (loss). RSI(14) iki seriyi ayrı ayrı ortalar ve toplam hareket büyüklüğünün yüzde kaçının yukarı yönde olduğunu söyler. Kurs kodundaki ortalama, period=14 ve $\alpha = 1/14$ kullanan Wilder smoothing'dir: en yeni günler en çok ağırlığı alır, 14 bardan eski hareketlerin etkisi de azalarak sürer. Hep yükselen bir hisse 100'e, hep düşen bir hisse 0'a yaklaşır. 50, yükseliş ve düşüşlerin dengede olduğu yerdir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · RSI(14)</span>
+    <ol>
+      <li>$\Delta_t = C_t - C_{t-1}$ (pandas: <code>df["Close"].diff()</code>)</li>
+      <li>$\text{gain}_t = \max(\Delta_t, 0)$, $\text{loss}_t = \max(-\Delta_t, 0)$. Loss pozitif bir sayı olarak tutulur.</li>
+      <li>avg gain ve avg loss: period=14 ve $\alpha = 1/14$ kullanan Wilder-smoothed gain/loss ortalamaları; 14 bardan eski hareketlerin etkisi de azalacak biçimde sürer. Kurs kodu bunu <code>ewm(alpha=1/14, adjust=False)</code> ile yapıyor (sonraki bölüm).</li>
+      <li>$RS = \dfrac{\text{avg gain}}{\text{avg loss}}$</li>
+      <li>$RSI = 100 - \dfrac{100}{1 + RS} = 100 \cdot \dfrac{\text{avg gain}}{\text{avg gain} + \text{avg loss}}$</li>
+    </ol>
+    <p>Okuma (hafta 1, s.15): <strong>70 üstü overbought</strong>, <strong>30 altı oversold</strong>. Starter code'un RSI grafiği 30, 50 ve 70'e yatay çizgi çiziyor.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · 5 günlük basit ortalama ile</span>
+    <p>Bu örnek, adımları elle görmek için Wilder smoothing yerine 5 günlük basit ortalama kullanıyor. Kurs kodunun RSI'sı bu değil; Wilder hesabı bir sonraki bölümde.</p>
+    <p>Close: 50, 51, 50.5, 52, 53, 52.5</p>
+    <div class="table-wrap"><table>
+      <tr><th>$\Delta$</th><td>+1</td><td>−0.5</td><td>+1.5</td><td>+1</td><td>−0.5</td></tr>
+      <tr><th>gain</th><td>1</td><td>0</td><td>1.5</td><td>1</td><td>0</td></tr>
+      <tr><th>loss</th><td>0</td><td>0.5</td><td>0</td><td>0</td><td>0.5</td></tr>
+    </table></div>
+    <p>avg gain $= 3.5/5 = 0.7$, avg loss $= 1/5 = 0.2$, $RS = 3.5$, $RSI = 100 - 100/4.5 = 77.78$. Beş günün üçü yukarı ve yukarı hareketler daha büyük: overbought bölgesi.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Hafta 2 · RSI'yı kim hesaplar?</span>
+    <p>Hafta 2 slaytındaki "example mistake": <em>"THYAO RSI is probably around 60"</em>. Bir LLM RSI tahmin etmemeli; doğru akış "LLM asks tool → tool calculates RSI → harness logs result". Aynı derste temporal memory örneği: ASELS'in RSI'sı 31 → 44 → 57 diye ilerliyor. RSI her gün değişen bir state; geçmişi saklanır ve tekrar oynatılabilir. Bu konu <a href="harness-mcp.html">harness dersinde</a>.</p>
+  </div>
+  <!-- Kaynak: week-01 s.15; scenario3 add_rsi ve plot_rsi (30/50/70 axhline); week-02 s.9 ve s.19. Örnek python ile kontrol edildi (77.78). ASELS RSI>70 gün sayısı ve %407 buy and hold: python + notebook hücre 3 çıktısı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Overbought, "sat" demek değil.</strong> ASELS'te 441 bar'ın 80'inde RSI 70'in üstündeydi; hisse aynı dönemde %407 yükseldi. Güçlü bir trendde RSI uzun süre 70 üstünde kalabilir.</li>
+      <li>Avg loss tam 0 ve avg gain &gt; 0 ise $RS$ sonsuza gider ve RSI'nin limit değeri 100'dür. İkisi de 0 ise sonuç tanımsızdır ($0/0$); kullanılan kodun edge-case politikası ayrıca belirtilmelidir. Birkaç gün düşüş olmaması Wilder avg loss'unu sıfırlamaz: avg loss 1.0 iken 14 gün üst üste loss 0 gelirse avg loss $(13/14)^{14} \approx 0.354$ olur. Starter code payda 0 olunca onu <code>NaN</code> ile değiştiriyor, iki durumda da RSI <code>NaN</code> çıkıyor. Senin notebook'un paydayı <code>clip(lower=1e-12)</code> ile sınırlıyor: avg gain &gt; 0 iken yaklaşık 100, ikisi de 0 iken 0 veriyor. İkisi de bilinçli bir seçim, ama aynı veride farklı sütun üretir.</li>
+      <li>RSI bir fiyat yüzdesi değil. "RSI 60" fiyatın %60 arttığı anlamına gelmez. RSI 60, smoothed gain'in smoothed gain + loss toplamındaki payının %60 olduğunu söyler; yükselen günlerin oranını söylemez. Yukarıdaki örnekte beş günün üçü yukarı (%60), ama RSI 77.78.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-rsi-2">
+    <p class="quiz__q">RSI 75 ve avg loss 0.5. Avg gain kaç?</p>
+    <button class="quiz__opt">0.375<span class="why">Bu $0.75 \cdot 0.5$: RSI'yı gain/loss oranı sanmak. RSI, gain'in toplamdaki payı.</span></button>
+    <button class="quiz__opt" data-correct>1.5<span class="why">Doğru: $0.75 = G/(G + 0.5)$ ⇒ $0.25\,G = 0.375$ ⇒ $G = 1.5$. Kontrol: $RS = 3$, $100 - 100/4 = 75$.</span></button>
+    <button class="quiz__opt">0.667<span class="why">Bu $0.5/0.75$; oran ters kurulmuş. Önce $RS = G/L$'yi bul: $RSI = 75$ ⇒ $RS = 3$.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="wilder" data-min="6">
+  <h2>Wilder smoothing: RSI'yı adım adım hesapla</h2>
+  <div class="quiz" id="q-wilder-1">
+    <p class="quiz__q">Dünkü avg loss 1.0. Bugün fiyat yükseldi (loss = 0). Wilder smoothing ile bugünkü avg loss kaç?</p>
+    <button class="quiz__opt">0<span class="why">Wilder ortalaması bir günde sıfırlanmaz; eski değerin 13/14'ünü taşır.</span></button>
+    <button class="quiz__opt">1.0<span class="why">Loss 0 olsa da güncelleme yapılır: avg loss her gün $13/14$ ile küçülür.</span></button>
+    <button class="quiz__opt" data-correct>0.9286<span class="why">Doğru: $(13 \cdot 1.0 + 0)/14 \approx 0.9286$.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · starter code'daki <code>add_rsi</code></span>
+<pre><code>delta = df["Close"].diff()
+gain = delta.clip(lower=0)
+loss = -delta.clip(upper=0)
+avg_gain = gain.ewm(alpha=1 / period, adjust=False).mean()
+avg_loss = loss.ewm(alpha=1 / period, adjust=False).mean()
+rs = avg_gain / avg_loss.replace(0, np.nan)
+df["RSI"] = 100 - (100 / (1 + rs))</code></pre>
+    <p><code>ewm(alpha=1/14, adjust=False)</code> şu recursion'dır (Wilder smoothing, notebook'unda <code>rma</code>):</p>
+    $$\text{avg}_t = \text{avg}_{t-1} + \frac{x_t - \text{avg}_{t-1}}{14} = \frac{13\,\text{avg}_{t-1} + x_t}{14}$$
+    <p>Bir RSI satırı için gereken her şey: dünkü avg gain ve avg loss, dünkü ve bugünkü Close.</p>
+  </div>
+  <p class="w-indicators-core-guess"><b>Önce tahmin et:</b> Mart 2025'te AKBNK dört günde 75.10'dan 53.75'e düştü. RSI'nın 30'u yukarı geri kestiği gün, Wilder ile basit ortalama ile aynı gün mü olur?</p>
+  <div class="w-indicators-core" id="w-rsi">
+    <div class="w-indicators-core-ctl">
+      <button class="btn btn--sm is-on" data-mode="wilder">Wilder: ewm(alpha=1/14)</button>
+      <button class="btn btn--sm" data-mode="simple">Basit: rolling(14).mean()</button>
+    </div>
+    <div data-stepper></div>
+    <p class="src" data-count></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Sen hesapla · AKBNK, 2025-03-25</span>
+    <p>Dün (2025-03-24): Close 53.95, avg gain 0.4833, avg loss 1.4950. Bugün Close 56.00. Wilder ile bugünkü RSI kaç? (İki ondalık yeter.)</p>
+    <div class="w-indicators-core-ctl">
+      <label>RSI = <input type="text" inputmode="decimal" data-rsi-in aria-label="RSI cevabı" style="width:6em" /></label>
+      <button class="btn btn--sm" data-rsi-check>Kontrol et</button>
+    </div>
+    <div data-rsi-fb aria-live="polite"></div>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$\Delta = 56.00 - 53.95 = 2.05$ ⇒ gain $= 2.05$, loss $= 0$.</p>
+      <p>avg gain $= (13 \cdot 0.4833 + 2.05)/14 = 8.3329/14 = 0.5952$</p>
+      <p>avg loss $= (13 \cdot 1.4950 + 0)/14 = 19.435/14 = 1.3882$</p>
+      <p>$RSI = 100 \cdot 0.5952/(0.5952 + 1.3882) = 30.01$. Dün RSI 24.43'tü: 30'u yukarı geri kesti.</p>
+    </div></details>
+  </div>
+  <!-- Kaynak: scenario3 add_rsi (satır 102–124); notebook hücre 5 rma ve RSI. Tablo değerleri python ile: 2025-03-24 avg gain 0.48328, avg loss 1.49496, RSI 24.43; 2025-03-25 RSI 30.009. Basit RSI 03-25'te 21.11, ilk yukarı kesişim 2025-04-14. Backtest döneminde 30'u yukarı kesiş: Wilder 7, basit 14. Starter code tohumu ile notebook tohumu arasındaki fark 2025'ten sonra < 1e-6, ilk bar'larda ~50 RSI puanı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Başlangıç değeri (seed).</strong> Starter code'da ilk <code>diff()</code> <code>NaN</code>, ortalama ilk gerçek gain'den başlıyor. Senin notebook'unda <code>diff().fillna(0)</code> var, ortalama 0'dan başlıyor. Wilder'ın kitabındaki orijinal yöntem (standart, kursta yok) ilk değeri 14 günün basit ortalamasıyla başlatır. İlk bar'larda bu üç versiyon AKBNK'te 50 RSI puanına kadar ayrışıyor; 2024'ten başlayan warm-up'tan sonra 2025'te fark 0.000001'in altında. Bu yüzden indicator'ı hiçbir zaman verinin ilk günlerinden okuma.</li>
+      <li>Wilder ortalaması ile 14 günlük basit ortalama aynı şey değil. Basit ortalamada 14 gün önceki büyük bir hareket birden pencereden çıkar ve RSI sıçrar. AKBNK'te backtest döneminde basit RSI 30'u 14 kez yukarı kesiyor, Wilder RSI 7 kez.</li>
+      <li>Avg loss'u güncellemeyi unutma: bugün loss 0 olsa bile avg loss $13/14$ ile küçülür.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-wilder-2">
+    <p class="quiz__q">Widget'ta 2025-03-25'te Wilder RSI 30.01, basit RSI 21.11. Fark neden bu kadar büyük?</p>
+    <button class="quiz__opt" data-correct>Basit ortalamada son 14 günün düşüşleri eşit ağırlıkta; Wilder'da eski, yükselişli günlerin etkisi hâlâ taşınıyor<span class="why">Doğru. Wilder ortalaması geçmişi geometrik olarak unutur; 14 gün öncesinden bile küçük bir pay kalır. Basit ortalama ise sadece 4 günlük çöküşü içeren 14 günü görür.</span></button>
+    <button class="quiz__opt">Basit RSI yanlış hesaplanmış<span class="why">İkisi de doğru hesaplanmış; farklı ortalama yöntemleri. Hangisinin kullanıldığını kod belirler ve bir strateji tanımında yazılmalı.</span></button>
+    <button class="quiz__opt">Wilder RSI geleceği kullanıyor<span class="why"><code>ewm(adjust=False)</code> sadece bugünü ve dünkü ortalamayı kullanır; look-ahead yok.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="rsi-events" data-min="5">
+  <h2>RSI'dan event'e: level, cross, local trough ve peak</h2>
+  <div class="quiz" id="q-events-1">
+    <p class="quiz__q">RSI değerleri sırayla 45, 37, 42. Starter code'un "RSI Local Trough" kuralı hangi günü işaretler?</p>
+    <button class="quiz__opt">37 olan günü<span class="why">Dip o gün, ama o gün bunu bilemezsin: ertesi gün RSI yükselmeden dip olduğu belli olmaz. Kod event'i bir gün sonra işaretler.</span></button>
+    <button class="quiz__opt" data-correct>42 olan günü<span class="why">Doğru. Kural $t$ gününde $RSI_{t-1} &lt; RSI_{t-2}$, $RSI_{t-1} &lt; RSI_t$ ve $RSI_{t-1} &lt; 40$ diye bakar; dip $t-1$'de, event $t$'de.</span></button>
+    <button class="quiz__opt">Hiçbirini, çünkü RSI 30'un altına inmedi<span class="why">Local trough bir level koşulu değil, bir şekil koşulu. Eşik 40: 37 &lt; 40 olduğu için sayılır.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · aynı RSI'dan dört farklı soru</span>
+    <div class="table-wrap"><table>
+      <tr><th>Tür</th><th>Soru</th><th>Kod</th></tr>
+      <tr><td>Level</td><td>RSI şu an 30'un altında mı?</td><td><code>df["RSI"] &lt; 30</code></td></tr>
+      <tr><td>Cross</td><td>RSI 30'un altından geri çıktı mı?</td><td><code>(RSI.shift(1) &lt; 30) &amp; (RSI &gt;= 30)</code></td></tr>
+      <tr><td>Local trough</td><td>RSI bir dip yapıp yukarı döndü mü?</td><td><code>(RSI.shift(1) &lt; RSI.shift(2)) &amp; (RSI.shift(1) &lt; RSI) &amp; (RSI.shift(1) &lt; 40)</code></td></tr>
+      <tr><td>Local peak</td><td>RSI bir tepe yapıp aşağı döndü mü?</td><td><code>(RSI.shift(1) &gt; RSI.shift(2)) &amp; (RSI.shift(1) &gt; RSI)</code></td></tr>
+    </table></div>
+    <p>Starter code sadece trough'u kodluyor. Brief ise ikisini de istiyor: §8'in mandatory event family listesinde <em>"RSI local trough and local peak events; optionally divergence candidates"</em>, §13'te <em>"RSI trough/peak behavior"</em>. Peak kuralı trough'un aynası: $t$ gününde $RSI_{t-1} &gt; RSI_{t-2}$ ve $RSI_{t-1} &gt; RSI_t$ ise tepe $t-1$'de, event $t$ gününde onaylanır. Brief peak için bir eşik vermiyor. Trough'taki 40'ın karşılığı olarak <code>RSI.shift(1) &gt; 60</code> gibi bir overbought eşiği eklemek senin proje kararın; kullanırsan strateji tanımında yaz.</p>
+    <p>Starter code'un kendi cümlesi: <em>"RSI &lt; 30 and RSI Local Trough are NOT the same concept. RSI &lt; 30: A level condition. RSI Local Trough: A shape/event condition."</em> Örneği: Day 1 RSI = 45, Day 2 RSI = 37 (local trough), Day 3 RSI = 42.</p>
+    <p>Level her gün doğru ya da yanlıştır ve günlerce doğru kalabilir. Cross ve trough tek bir günde olan <strong>event</strong>'lerdir; brief §8 bunları "timestamped research event" olarak kaydedip ileriye dönük return'ünü ölçmeyi istiyor.</p>
+  </div>
+  <div class="table-wrap" id="w-rsi-counts"></div>
+  <p class="src">Yukarıdaki tablo sayfadaki veriden hesaplanıyor (starter code'un RSI'sı, 2025-01-02 → 2026-10-01). Eşiksiz local peak her hissede 100'den fazla: eşik olmadan her küçük dalga bir event olur. Trough ile peak'i karşılaştıracaksan ikisine de bir eşik koy ya da ikisini de eşiksiz say.</p>
+  <!-- Kaynak: term-project-brief.pdf §8, Mandatory event families ("RSI local trough and local peak events; optionally divergence candidates"), §13 ("RSI trough/peak behavior and optional divergence candidates"). Starter code'da peak kuralı yok. Python: local peak eşiksiz ASELS 118, AKBNK 113, TCELL 108; > 60 ile 65, 44, 31. -->
+
+  <div class="box box--exam" data-exam="2026-27-quiz-entryA-rsi"><span class="box__label">Quiz (BIST Algorithmic Trading Challenge), Entry A · çıkmış soru</span>
+    <p>Quiz notebook'undaki strateji tablosundan: "Entry A, reversal | RSI(14) crosses back above 30" ve "Execution | The signal is calculated on the daily close and the order is filled at the next bar's open". Kod:</p>
+<pre><code>d["SigReversal"] = (d.RSI.shift(1) &lt; p["rsi_level"]) &amp; (d.RSI &gt;= p["rsi_level"])</code></pre>
+    <p>(Senin teslim ettiğin notebook, hücre 0 ve 7. Quiz'de her kararı açıklayabilmen isteniyordu: "you may be asked to explain, justify or modify any part of your code".) Bu kuralı kelimelerle açıkla: hangi gün hangi veriyle hesaplanıyor, emir ne zaman gerçekleşiyor ve neden "RSI &lt; 30 iken al" yerine bu kural seçilmiş?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p><code>shift(1)</code> dünkü değeri bugünün satırına taşır. İki koşulun ikisi de hangi günlerin RSI'sına bakıyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"RSI &lt; 30" bir level: AKBNK'te Mart 2025 düşüşünde RSI 30'un altına girdikten sonra fiyat düşmeye devam etti. Cross, düşüşün en azından bir gün durduğunu gösterir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Ne yapıyor:</strong> $t$ gününün kapanışında iki şeye bakar: dünkü RSI(14) 30'un altında mıydı (<code>RSI.shift(1) &lt; 30</code>) ve bugünkü RSI 30 veya üstünde mi (<code>RSI &gt;= 30</code>). İkisi birden doğruysa $t$ gününe bir reversal sinyali yazılır. RSI Wilder smoothing ile ($\alpha = 1/14$) hesaplanıyor.</p>
+      <p><strong>Ne zaman işlem:</strong> sinyal kapanıştan sonra bilinir; emir $t+1$ bar'ının Open'ında dolar. Böylece kural sadece $t$ anında bilinen bilgiyi kullanır, look-ahead yok.</p>
+      <p><strong>Neden level değil cross:</strong> RSI &lt; 30 (oversold) günlerce sürebilir ve fiyat bu sürede düşmeye devam edebilir; o günlerin her birinde almak düşen bıçağı tutmaktır. Cross, düşüşün ivmesinin azaldığını ve RSI'nın yukarı döndüğünü gösterir: satış baskısı en azından bir gün için zayıfladı. Ayrıca tek bir giriş günü verir, ardışık sinyal üretmez.</p>
+      <p><strong>Gerçek örnek:</strong> AKBNK 2025-03-25: RSI 24.43'ten 30.01'e çıktı, emir 2025-03-26 Open'ında 54.50'den doldu. Backtest döneminde AKBNK'te 7 böyle sinyal var; notebook'un final analysis'i beş RSI girişinin hepsinin stop ile daha yüksek bir fiyattan kapandığını söylüyor (54.50, 54.95, 66.65, 64.20, 64.20). Sinyal bir garanti değil: aynı kural FROTO'da düşen bir trendde zayıf toparlanmalar yakaladı.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/assignments/2026-2027-fall-efe-kurucay/bist-algo-trading-challenge/bist_algo_trading_challenge.ipynb">Orijinal notebook</a></p>
+    <!-- Kaynak: notebook hücre 0 (strateji tablosu), hücre 7 (SigReversal), hücre 7 çıktısı (Reversal signals: AKBNK 7, ASELS 1, TUPRS 2, TCELL 1, FROTO 3, EREGL 5; python ile birebir yeniden üretildi), hücre 27 (final analysis). 2025-03-26 Open = 54.50 CSV'den. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Local trough $t-1$'deki dibi, local peak $t-1$'deki tepeyi $t$'de işaretler. Kodu <code>shift(-1)</code> ile "dibin olduğu gün"e taşırsan yarının RSI'sını kullanırsın: look-ahead bias.</li>
+      <li>Starter code'un uyarısı: "The dots on the RSI chart are NOT automatic BUY signals. They are historical reversal events that we test statistically."</li>
+      <li>Cross kuralında eşitlik önemli: <code>&gt;= 30</code> ile tam 30.00'da da sinyal var, <code>&gt; 30</code> ile yok. Strateji tanımında hangisinin kullanıldığını yaz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-events-2">
+    <p class="quiz__q">Tablodaki ASELS satırında RSI backtest döneminde sadece 1 gün 30'un altında. Bu RSI cross kuralı için ne anlama gelir?</p>
+    <button class="quiz__opt">ASELS için kural daha güvenilir<span class="why">Tek bir event'ten güvenilirlik çıkmaz. Starter code 5'ten az event için "Very small sample size" uyarısı basıyor.</span></button>
+    <button class="quiz__opt" data-correct>Güçlü bir yükseliş trendinde bu kural neredeyse hiç sinyal üretmez; ASELS'te başka bir giriş gerekir<span class="why">Doğru. Notebook da bunu gösteriyor: ASELS'te 1 reversal sinyaline karşı 44 breakout sinyali vardı. Bu yüzden Entry B (breakout + volume) eklenmişti.</span></button>
+    <button class="quiz__opt">RSI ASELS'te yanlış hesaplanıyor<span class="why">Hesap doğru; yükselişler baskın olduğu için RSI çoğunlukla 50'nin üstünde kaldı (80 gün 70'in üstünde).</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="macd" data-min="5">
+  <h2>MACD: iki EMA'nın farkı ve onun EMA'sı</h2>
+  <div class="quiz" id="q-macd-1">
+    <p class="quiz__q">EMA12 = 101.2, EMA26 = 100.0, Signal = 1.5. Histogram kaç ve ne söyler?</p>
+    <button class="quiz__opt">+1.2: momentum artıyor<span class="why">1.2 MACD'nin kendisi (EMA12 − EMA26). Histogram MACD − Signal'dır.</span></button>
+    <button class="quiz__opt" data-correct>−0.3: EMA12 hâlâ EMA26'nın üstünde; MACD kendi Signal çizgisinin altında<span class="why">Doğru: MACD $= 1.2 &gt; 0$ ⇒ EMA12 &gt; EMA26. Histogram $= 1.2 - 1.5 = -0.3 &lt; 0$ ⇒ MACD &lt; Signal. Tek bir günden EMA farkının bugün daralıp daralmadığı çıkmaz; bunun için $\text{MACD}_t - \text{MACD}_{t-1}$ gerekir.</span></button>
+    <button class="quiz__opt">+2.7: güçlü yükseliş<span class="why">MACD ile Signal toplanmaz; farkı alınır.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Kısa bir EMA fiyata yakın, uzun bir EMA geriden gelir. İkisinin farkı (MACD) trendin yönünü söyler: fark pozitifse yükseliş tarafı. Farkın bugün büyüyüp küçüldüğünü $\text{MACD}_t - \text{MACD}_{t-1}$ söyler. Signal line bu farkın kendi EMA'sıdır; histogram sadece MACD'nin bu ortalamanın üstünde mi altında mı olduğunu söyler. Slayt görselinde MACD mavi, Signal kırmızı çizgi, altında yeşil ve kırmızı histogram ve volume bar'ları var: "Momentum and activity".</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · MACD (standart periyotlar 12, 26, 9)</span>
+    $$\text{MACD}_t = \text{EMA}_{12}(C)_t - \text{EMA}_{26}(C)_t$$
+    $$\text{Signal}_t = \text{EMA}_9(\text{MACD})_t$$
+    $$\text{Hist}_t = \text{MACD}_t - \text{Signal}_t$$
+<pre><code>ema12 = df["Close"].ewm(span=12, adjust=False).mean()
+ema26 = df["Close"].ewm(span=26, adjust=False).mean()
+df["MACD"] = ema12 - ema26
+df["Signal"] = df["MACD"].ewm(span=9, adjust=False).mean()
+df["Hist"] = df["MACD"] - df["Signal"]</code></pre>
+    <ul>
+      <li>$\text{MACD} &gt; 0$ ⇔ EMA12 &gt; EMA26: kısa vadeli ortalama uzun vadelinin üstünde.</li>
+      <li>MACD Signal'ı aşağıdan yukarı keser ⇔ histogram eksiden artıya geçer: bullish crossover. Tersi bearish crossover.</li>
+      <li>Histogram &lt; 0 ⇔ MACD &lt; Signal. Bu, MACD'nin düştüğü anlamına gelmez. Günlük genişleme ya da daralmayı $\text{MACD}_t - \text{MACD}_{t-1}$ ile oku. ASELS, 2026-09-10: MACD 5.0954'ten 5.2911'e çıktı (fark genişledi), histogram ise hâlâ −0.4316.</li>
+      <li>Hocanın slaytı periyot vermiyor; 12/26/9 standart değerler. Repodaki eski öğrenci projesi de <code>talib.MACD(fastperiod=12, slowperiod=26, signalperiod=9)</code> kullanıyor.</li>
+    </ul>
+  </div>
+  <p class="w-indicators-core-guess"><b>Önce tahmin et:</b> ASELS'in son 120 bar'ında MACD, Signal'ı kaç kez aşağıdan yukarı keser? MACD'nin ulaştığı en büyük mutlak değer yaklaşık kaç TL olur: 1, 10, yoksa 100?</p>
+  <div class="w-indicators-core" id="w-macd">
+    <div class="w-indicators-core-ctl">
+      <label>Hisse <select data-stock><option>ASELS</option><option>AKBNK</option><option>TCELL</option></select></label>
+      <span class="src">pencere:</span>
+      <button class="btn btn--sm is-on" data-win="120">son 120 bar</button>
+      <button class="btn btn--sm" data-win="250">son 250</button>
+      <button class="btn btn--sm" data-win="441">2025-01-02'den</button>
+    </div>
+    <div class="w-indicators-core-ctl">
+      <label>fast <input type="text" inputmode="numeric" value="12" data-f aria-label="fast EMA" /></label>
+      <label>slow <input type="text" inputmode="numeric" value="26" data-s aria-label="slow EMA" /></label>
+      <label>signal <input type="text" inputmode="numeric" value="9" data-g aria-label="signal EMA" /></label>
+      <button class="btn btn--sm" data-go>Hesapla</button>
+    </div>
+    <div class="w-indicators-core-err" data-err aria-live="polite"></div>
+    <div data-out></div>
+  </div>
+  <!-- Kaynak: week-01 s.15 görseli (MACD/Signal/histogram/volume panelleri, sayı yok). 12/26/9 standart. undated-term-project/20190808004.ipynb hücre 11 (talib.MACD ve df['macd'] = macd - signal), economics-term.ipynb hücre 4 (ewm(span=26) adjust varsayılanı). Python: backtest döneminde bullish/bearish crossover ASELS 14/15, AKBNK 13/14, TCELL 21/21; max |MACD| ASELS 28.99, AKBNK 4.84, TCELL 5.47. ASELS 2026-09-09 → 2026-09-10: MACD 5.0954 → 5.2911, Signal 5.7226, Hist −0.4316 (python). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>MACD'nin birimi TL'dir</strong>, 0–100 değil. ASELS'te backtest döneminde |MACD| 28.99'a kadar çıkıyor, AKBNK'te en fazla 4.84. "MACD 2'nin üstündeyse al" gibi sabit bir eşik hisseler arasında taşınamaz; RSI'nın aksine MACD normalize değil.</li>
+      <li>Repodaki eski öğrenci projesi <code>df['macd'] = macd - signal</code> yazmış. Bu sütun MACD değil, histogram. Sütun adı ile içeriği karıştırma.</li>
+      <li>MACD iki moving average'dan yapıldığı için o da lag taşır; signal line bir lag daha ekler. Crossover dönüşü değil, dönüşün <em>sonrasını</em> gösterir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-macd-2">
+    <p class="quiz__q">Histogram dün −0.4, bugün +0.1. Bugün ne oldu?</p>
+    <button class="quiz__opt">Fiyat 26 günlük ortalamasının üstüne çıktı<span class="why">Fiyatın EMA26'yı geçmesi Close ile EMA26 karşılaştırmasıdır. MACD'nin işaret değiştirmesi EMA12 ile EMA26'nın kesişmesidir. Histogram ise MACD ile Signal'ı karşılaştırır.</span></button>
+    <button class="quiz__opt" data-correct>MACD, Signal'ı aşağıdan yukarı kesti: bullish crossover<span class="why">Doğru. Histogram = MACD − Signal; eksiden artıya geçmesi MACD'nin Signal'ın üstüne çıkması demek.</span></button>
+    <button class="quiz__opt">MACD sıfırın üstüne çıktı<span class="why">MACD hâlâ negatif olabilir; histogram sadece MACD ile Signal'ı karşılaştırır.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="volume" data-min="4">
+  <h2>Volume: harekete katılım var mı?</h2>
+  <div class="quiz" id="q-volume-1">
+    <p class="quiz__q">Starter code'da <code>Volume_Rise</code> ne zaman <code>True</code>?</p>
+    <button class="quiz__opt">Volume dünkünden büyükse<span class="why">Dünle karşılaştırma çok gürültülü olurdu. Kod volume'ü kendi 20 günlük ortalamasıyla karşılaştırıyor.</span></button>
+    <button class="quiz__opt" data-correct>Volume 20 günlük ortalamasının üstündeyse<span class="why">Doğru: <code>df["Volume"] &gt; df["Volume_MA"]</code>, <code>Volume_MA = rolling(20).mean()</code>.</span></button>
+    <button class="quiz__opt">Fiyat yükseldiği gün volume pozitifse<span class="why">Volume her zaman pozitif bir sayıdır ve yön taşımaz. Volume_Rise fiyat yönüne bakmaz.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Volume, o gün el değiştiren hisse adedidir. Fiyat sert yükseldi ama çok az işlem oldu: birkaç alıcı fiyatı itti, hareket kırılgan. Aynı yükseliş yüksek volume ile olduysa çok kişi katıldı. Volume bir yön göstermez; başka bir sinyalin ne kadar ciddiye alınacağını gösterir. Brief §7: "Confirmation of breakouts and reversal events".</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki kaynakta volume feature'ı</span>
+<pre><code># starter code (scenario3), add_volume_features
+df["Volume_MA"] = df["Volume"].rolling(window).mean()     # window = 20
+df["Volume_Rise"] = df["Volume"] &gt; df["Volume_MA"]
+
+# senin notebook'un, Entry B için
+d["VolAvg"] = d.Volume.rolling(p["vol_len"]).mean().shift(1)   # vol_len = 20
+d["SigBreakout"] = (d.Close &gt; d.DonchianHigh) &amp; (d.Volume &gt; p["vol_mult"] * d.VolAvg)</code></pre>
+    <p>Fark <code>shift(1)</code>: starter code'un ortalaması bugünü de içeriyor, notebook'unki dünden geriye 20 günü alıyor ("the volume average exclude[s] the current bar"). İkisi de look-ahead değil, çünkü bugünün volume'ü kapanışta biliniyor ve işlem ertesi bar'da.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · 5 günlük ortalama ile iki versiyon</span>
+    <p>Önceki beş günün volume'ü: 60, 120, 80, 100, 100 (milyon lot). Bugün 95.</p>
+    <ul>
+      <li><code>shift(1)</code> ile: ortalama $(60+120+80+100+100)/5 = 92$ ⇒ $95 &gt; 92$, <strong>True</strong>.</li>
+      <li>Bugünü içeren ortalama: $(120+80+100+100+95)/5 = 99$ ⇒ $95 &gt; 99$ değil, <strong>False</strong>.</li>
+    </ul>
+    <p>Aynı gün, iki kod, iki farklı cevap. Gerçek veride bu nadir ama oluyor:</p>
+    <div class="table-wrap" id="w-vol-counts"></div>
+  </div>
+  <!-- Kaynak: scenario3 add_volume_features (satır 318–324), detect_reversal_events (RSI_Trough_Volume); notebook hücre 0 ("shifted by one bar"), 5, 7. Brief §7 Activity satırı, §10 "volume z-scores". Hafta 3 s.7: percentile (76th/90th/97th). Python: Volume_Rise günleri ASELS 195 / shift(1) 193 / farklı 6; AKBNK 189/189/12; TCELL 198/197/9 (441 bar). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>"Volume &gt; MA20" olağandışı demek değil.</strong> Tablodaki hisselerde günlerin yaklaşık %43–45'inde doğru. Hafta 3'teki Volume Bubbles "unusual" demek için percentile kullanıyor (76th, 90th, 97th percentile); brief §10 volume z-score öneriyor.</li>
+      <li>Volume'ü hisseler arasında karşılaştırma. 100 milyon lot AKBNK için normal, başka bir hisse için rekor olabilir. Her hisseyi kendi geçmişiyle karşılaştır. Brief "Volume / turnover" diyor; turnover (TL cinsinden işlem hacmi, price × volume) fiyat seviyesini de hesaba katar.</li>
+      <li>Volume yön söylemez. Slayt görselindeki yeşil ve kırmızı volume bar'larının rengi o günün candle'ından gelir, volume'den değil.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-volume-2">
+    <p class="quiz__q">Notebook'taki <code>VolAvg</code> neden <code>shift(1)</code> ile hesaplanmış?</p>
+    <button class="quiz__opt">Shift olmadan look-ahead bias olurdu<span class="why">Bugünün volume'ü kapanışta biliniyor ve emir ertesi bar'da; shift'siz versiyon da (starter code'daki gibi) look-ahead değil.</span></button>
+    <button class="quiz__opt" data-correct>Bugünün volume'ü kendi karşılaştırıldığı ortalamayı şişirmesin diye<span class="why">Doğru. Bugün bir volume patlaması varsa, onu içeren ortalama da yükselir ve "ortalamanın üstünde mi?" sorusu bugünü kendisiyle karşılaştırır. shift(1) bugünü sadece geçmişle karşılaştırır.</span></button>
+    <button class="quiz__opt">pandas rolling aksi halde NaN döndürür<span class="why"><code>rolling(20).mean()</code> ilk 19 satırdan sonra değer verir; shift NaN'ı azaltmaz, bir satır artırır.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="combine" data-min="4">
+  <h2>Az gösterge, net soru</h2>
+  <div class="quiz" id="q-combine-1">
+    <p class="quiz__q">RSI local trough event'ine "ve Volume_Rise" koşulunu eklersen event sayısına ne olur?</p>
+    <button class="quiz__opt">Artar, çünkü daha çok bilgi kullanıyorsun<span class="why">Bir AND koşulu eklemek event'leri ancak eler; hiçbir yeni event eklemez.</span></button>
+    <button class="quiz__opt" data-correct>Azalır; gerçek veride yaklaşık yarıya iner<span class="why">Doğru. Aşağıdaki tabloda AKBNK 30'dan 15'e, ASELS 13'ten 8'e iniyor. Daha seçici ama daha küçük bir sample.</span></button>
+    <button class="quiz__opt">Değişmez, çünkü dipte volume hep yüksektir<span class="why">Veri bunu desteklemiyor: trough günlerinin yaklaşık yarısında volume ortalamanın altında.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · hafta 1, s.15'in üç cümlesi</span>
+    <ol>
+      <li><strong>Start with a few indicators.</strong> Her gösterge bir soruya cevap verir; önce sorunu seç.</li>
+      <li><strong>Do not use too many signals at once.</strong> Her filtre event sayısını azaltır. Starter code'un final interpretation'ı: <em>"adding more indicators does NOT automatically improve the signal. More filters can reduce the event count too much and create a very small sample."</em></li>
+      <li><strong>Combine indicators with support / resistance.</strong> Gösterge "ne oluyor" der, S/R "nerede oluyor" der.</li>
+    </ol>
+    <p>Starter code event sayısını şöyle uyarır: 5'ten az "Very small sample size", 20'den az "Limited sample size", 20 ve üstü "Larger historical sample, but still requires validation".</p>
+  </div>
+  <div class="table-wrap" id="w-filter-counts"></div>
+  <p class="src">Tablo sayfadaki veriden hesaplanıyor (starter code'un RSI'sı ve Volume_Rise'ı, 2025-01-02 → 2026-10-01).</p>
+  <div class="box box--example">
+    <span class="box__label">Brief §13 · ASELS illustrative scenario</span>
+    <p>"The system finds 24 historical lower-Bollinger touches. In 15 cases, price moved higher within the next five trading days. When the lower-band touch occurred together with an RSI local trough, rising volume and a flattening KAMA, the five-day reversal was historically stronger. However, when price remained below a bearish Supertrend and below the Ichimoku cloud, several signals failed. The harness therefore compares single-indicator events against combined-event conditions."</p>
+    <p>Yani doğru soru "hangi gösterge en iyisi?" değil, "tek başına event ile birleşik event'i karşılaştırınca ne görüyorum, ve sample hâlâ yeterince büyük mü?". Brief §29'daki "A — Technical Only" varyantı da tam bu derste gördüklerini kullanıyor: Trend, RSI/MACD, Bollinger, support/resistance, volume.</p>
+  </div>
+  <!-- Kaynak: week-01 s.15; scenario3 FINAL INTERPRETATION ve explain_event_table (sample uyarıları); brief §13 (s.6), §29 (s.12). Python: RSI local trough / + Volume_Rise: ASELS 13/8, AKBNK 30/15, TCELL 26/13. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>RSI ve MACD ikisi de Close'tan, ikisi de momentum ölçüyor. İkisini birden koşul yapmak çoğu zaman aynı bilgiyi iki kez saymaktır. Farklı gruplardan (trend + momentum + activity) seçmek daha çok bilgi verir.</li>
+      <li>Sayıları gösterge kodu üretir, LLM değil (hafta 2). Bir agent'ın "RSI muhtemelen 60 civarında" demesi harness'te bir hata.</li>
+      <li>Bir göstergenin değeri $t$ anında sadece $t$'ye kadar olan veriyi kullanmalı. Notebook'unun kuralı: "an indicator value at bar t only uses data up to bar t", emir $t+1$'de.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-combine-2">
+    <p class="quiz__q">Bir arkadaşın 6 göstergeyi AND ile birleştirip 2025–2026'da 3 event bulmuş, üçü de kârlı. En doğru yorum hangisi?</p>
+    <button class="quiz__opt">Strateji %100 başarılı, kullanılabilir<span class="why">3 event'ten bir başarı oranı çıkmaz; starter code bunu "Very small sample size" diye işaretler. Ayrıca bu kadar filtreyle sonuç büyük ihtimalle bu döneme uydurulmuş.</span></button>
+    <button class="quiz__opt" data-correct>Sample çok küçük; filtreler event'leri neredeyse yok etmiş, sonuç kanıt sayılmaz<span class="why">Doğru. Daha az filtreyle daha çok event, ve sonucu başka bir dönemde test etmek gerekir.</span></button>
+    <button class="quiz__opt">Göstergelerden biri gereksiz, onu çıkarınca sonuç değişmez<span class="why">Hangisinin gereksiz olduğu test edilmeden bilinemez; çıkarınca event sayısı ve sonuç değişir.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q"><code>df["Close"].rolling(20).mean()</code> ile <code>df["Close"].ewm(span=20, adjust=False).mean()</code> için hangisi doğru?</p>
+    <button class="quiz__opt">İkisi de ilk 19 satırda NaN verir<span class="why"><code>ewm(adjust=False)</code> ilk satırdan itibaren değer verir (ilk değer ilk Close). Sadece <code>rolling(20)</code> ilk 19 satırda NaN.</span></button>
+    <button class="quiz__opt" data-correct>Son bar'ın ağırlığı birincide 0.05, ikincide yaklaşık 0.095<span class="why">Doğru: $1/20$ ve $2/21$. EMA yeni fiyata yaklaşık iki kat ağırlık verir.</span></button>
+    <button class="quiz__opt">EMA, 20 günden eski fiyatları hiç kullanmaz<span class="why">Tersi: EMA'da her eski fiyatın küçük bir ağırlığı kalır. 20 günden eskileri tamamen atan SMA'dır.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Dün avg gain 0.70, avg loss 0.70 (RSI 50). Bugün Close 1.40 TL düştü. Wilder RSI(14) kaç olur?</p>
+    <button class="quiz__opt">0<span class="why">Tek bir düşüş günü RSI'yı sıfırlamaz; eski ortalamaların 13/14'ü taşınır.</span></button>
+    <button class="quiz__opt" data-correct>yaklaşık 46.4<span class="why">Doğru: avg gain $= 13 \cdot 0.70/14 = 0.65$, avg loss $= (13 \cdot 0.70 + 1.40)/14 = 0.75$, $RSI = 100 \cdot 0.65/1.40 \approx 46.43$.</span></button>
+    <button class="quiz__opt">yaklaşık 33.3<span class="why">Bu loss'u 1.40 alıp ortalamayı güncellemeden kullanmak: $0.70/(0.70 + 1.40)$. Wilder bugünkü değere sadece $1/14$ ağırlık verir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Hangi ifade bir <em>event</em> tanımlar, bir <em>level</em> değil?</p>
+    <button class="quiz__opt"><code>df["RSI"] &lt; 30</code><span class="why">Bu bir level koşulu: RSI 30'un altında kaldıkça her gün True.</span></button>
+    <button class="quiz__opt"><code>df["Close"] &gt; df["SMA200"]</code><span class="why">Bu bir durum (trend filter): trend sürdükçe her gün True.</span></button>
+    <button class="quiz__opt" data-correct><code>(df["Hist"].shift(1) &lt;= 0) &amp; (df["Hist"] &gt; 0)</code><span class="why">Doğru. Histogram'ın eksiden artıya geçtiği tek günü işaretler: bullish MACD crossover.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Brief §7'ye göre hangi eşleşme yanlış?</p>
+    <button class="quiz__opt">EMA → Trend<span class="why">Doğru bir eşleşme: Trend grubunda SMA, EMA, KAMA var.</span></button>
+    <button class="quiz__opt" data-correct>Volume → Momentum<span class="why">Yanlış eşleşme bu, yani doğru cevap. Volume / turnover kendi grubunda: Activity.</span></button>
+    <button class="quiz__opt">MACD → Momentum<span class="why">Brief'te doğru bir eşleşme. Hafta 1 s.20 MACD'yi "Trend + Momentum" diye etiketliyor ama brief'in grubu Momentum.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">ASELS için "MACD &gt; 3 ise al" kuralını AKBNK'e aynen uygularsan ne olur?</p>
+    <button class="quiz__opt">Aynı şekilde çalışır, MACD her hisse için aynı ölçekte<span class="why">MACD TL cinsinden; fiyatı birkaç kat yüksek bir hissede MACD de kabaca o oranda büyük oynar.</span></button>
+    <button class="quiz__opt" data-correct>Çok daha seyrek sinyal verir, çünkü AKBNK'in fiyatı ve dolayısıyla MACD'si daha küçük<span class="why">Doğru. Backtest döneminde AKBNK'te |MACD| en fazla 4.84, ASELS'te 28.99. Sabit eşikler normalize olmayan göstergelerde hisseler arasında taşınmaz.</span></button>
+    <button class="quiz__opt">Hiç sinyal vermez, çünkü MACD 0–100 arasında<span class="why">0–100 aralığı RSI'nın; MACD sınırsız ve TL cinsinden.</span></button>
+  </div>
+  <!-- Sıradaki konu: Teknik göstergeler II (Bollinger Bands, ATR, KAMA, Supertrend, Ichimoku). Final soruları python ile kontrol edildi: 0.65, 0.75, 46.43. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+const ICD = {d:"1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,7,1,1,1,1,3,2,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,6,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,5,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,5,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1",s:{ASELS:{c:"46.9,46.6,47.46,47.44,47.64,46.94,47.48,46.88,47.54,47.62,48.08,48.3,48.4,47.46,47.12,47.26,48.4,48.48,49.18,51.4,50.85,50.6,51.3,51.15,52.35,52.3,51.25,51.35,52.1,53.45,54.95,54.9,55.85,58.3,58.5,59.55,60.4,62.4,63.3,66.5,63.25,60.9,60,59.2,58.55,56.6,54.9,57.25,58.55,56.6,55.8,55.6,56.4,57.65,55.15,56.2,55.95,57.9,56.35,55.2,53,55.7,55.45,56.1,54.9,52.45,52.45,53.85,58.45,58.8,58.1,58.55,57.7,57.65,58.7,57.8,58.3,57.45,59.1,62.05,60.75,62.1,62.2,62.4,62.3,62.4,63.4,63.4,62.4,60.85,59.95,60.7,61.45,62.2,61.4,61.5,60.5,59.25,60.05,59.6,57.55,60.1,58.65,60.4,59.2,59,60.45,60.65,58.3,57,57.6,60.15,59.35,60.7,61.5,61.75,59.9,58.9,59.9,58.6,56.25,56.95,58.5,60.1,60.75,63.3,64.55,65,64.9,63.8,63.25,63.5,63.15,63,63.25,64.3,62.8,64.45,64.6,62.7,62.75,62.5,63.3,60.8,56.75,56.25,58.25,59.2,57.95,57.05,58.35,57.55,58.7,57.75,58.85,58.05,56.6,56.15,55.1,54.5,56.5,57.1,58.4,59.25,57.65,56.8,57.5,57.35,56,56.45,54.9,55.95,58.35,57.35,58.1,57.75,58.65,59.2,59.3,62.45,61.15,59.25,59.25,59.25,58.4,56.2,57.8,61.15,59,58.15,58.75,56.7,56.1,55.35,56,57.05,58.25,59.35,57.6,58.35,61,60.85,60.85,60.2,61.5,60.85,63.85,63.5,65.15,63.55,65.35,65.25,65.8,66,68,68.35,67.7,67.45,67.9,66,68.05,68.5,69,67.55,68.4,70.15,69.45,70.2,70.2,70.3,71,71.2,71.25,71,69.3,69.2,69.2,67.55,68.05,70.75,69.9,69.8,72.05,72.65,74,74.4,73.95,73.2,72.5,73.5,74.85,75.5,77.3,76.6,78.2,78.35,78.8,78.55,78.3,80.25,81.05,82.35,80.65,82,84.05,85.15,85.85,89.65,88.2,88.8,88.7,88.25,88.4,86.2,85.95,85.7,81.55,81.75,78.1,79.65,79.3,80.7,84,83.8,84.1,82.75,83.75,81,86,90,93.45,98.05,101.7,105.4,112.2,108.2,110.3,117,115.9,116.3,117.1,121.7,123.4,112.3,117.5,110.5,120.4,117.5,116,117,119.9,118.3,117.3,117.4,116.7,118.8,117.1,123.1,119.2,119.3,116.6,121.2,128.5,129.9,127.9,131.7,134.5,135.3,138.6,137.4,135,129.8,129.8,137.4,144.2,154.6,149.2,140.4,136.8,138,137.5,138.6,132.3,133,137,136.2,136.3,137.6,135.1,132.2,129.6,129.3,127.6,134.7,139.5,139.2,141.3,144.7,141.5,138.9,144.5,141.5,144.1,146.3,147.1,142.6,148.4,140.3,146.5,150.8,148.4,145.6,149.8,151.2,151.3,152.2,149.7,152.5,154,155.5,161.7,161.9,166.2,176.8,176.5,180.1,182.6,183.2,181.3,179.3,180.3,187,184.4,188.5,185.1,181.6,179,180.5,178.7,172,174.2,170,170.4,171.7,172.4,181.5,180.3,181.5,180.2,185.5,183.3,183.8,183.3,178.5,174.2,178.8,182,175,173.5,173.7,177.4,172.1,173.9,185.2,195.2,194.1,192.2,204.4,213.6,211.2,217.5,218.3,217.3,216.3,215,218.1,217,216.1,215.2,209.5,215.6,219.2,213.5,214,212,207.5,204,194.9,203.9,205.6,207.6,206.5,203.9,208.8,211.4,205.7,203.6,202.6,197.3,194.1,187.4,185.1,186.4,181.4,183.6,177.8,176,188.3,188.2,184.3,184.8,184.7,184.4,180.1,184.1,184.5,183.4,187.2,187.7,185.9,185.1,188.2,193.7,202,205.8,204.9,204,212.2,209.3,201,204.4,211.1,212.8,221.7,224.7,222.7,226.1,221,229,231.7,230.2,240,257,263.5,262.75,280,283,289.75,288,302.5,309.25,316,336.75,303.25,300.25,300.75,323.25,310.5,307.5,319,303.25,299.5,296.75,302.5,285,288,292,298.25,294,301.5,302.25,296.5,294,310.25,307,313.25,310.5,309,306.25,311,322,340,322.25,333,345,333.5,319,334.25,335.75,330,322.25,320.5,341.25,348.75,338.75,353.25,352,337.5,338,330.75,320.5,320.25,320.25,336.5,330.5,337,342,362.25,376.75,398.5,415.25,411.75,416.75,411,414,408,396.5,396.5,392,415,414.5,425.5,420.25,431.75,427.25,434,428,428.5,431.75,419.25,412.75,415.5,415,402,393.5,377.75,410,401.75,380.25,380.25,380.25,380.25,384,407.75,383.5,362.25,363,368,357.25,376.75,377.75,371.25,375.75,394,395,410.75,402.5,394.75,392,367.5,373.5,361.5,357.5,345,371.25,384.75,399.5,401.75,383,377,358.75,370,352.5,348.5,352.5,351.5,354.5,360,370,376.25,380.25,360.5,358,354.5,337.5,342.25,336.25,349.25,346.75,363,353.75,356.25,356.25,381,395.75,387.5,389,381.25,403,402.25,403.25,399.75,403.75,398.25,403.75,404,386.25,384.5,380.75,380.25,388.25,392.5,390,402.25,398.5,393.75,372.5,377,360,379.75,372.75,378,374.5,381.5,367.75,372.25,367.25,338.5,336.5,370",v:"46539543,39344694,43861988,33674790,43664505,52583306,57482399,31073331,76692839,46519666,53819627,54705288,58145208,39019339,38100419,78260713,55825331,55345537,58229593,77168938,53800307,38591732,52346448,42299635,63952284,49009713,46596542,45379738,84705277,76921848,98030608,57461272,50932459,86096310,71032522,44216203,68778436,75583390,60833216,76750918,50795224,63130683,71158874,36058195,37331908,46990196,68492897,42697326,48483564,43414821,47136214,34663801,33423937,30402466,32974425,36266869,35420455,98022438,64620917,57628255,45063574,70104564,44828792,36930435,36518259,40110433,27609868,35320938,51084435,42430061,64499800,38372646,31102475,29092246,38894193,42585102,38922466,37597178,58760762,67954497,50125618,50934416,48311287,38288783,47045760,40599227,54756132,44107142,37212454,45554121,28428829,35385724,45859069,48112332,73861881,32854072,48867670,27191679,32310422,21384092,29777252,53570111,47345786,34921062,31677411,44861364,45916727,33499436,21200128,41799829,33627842,38365449,35075769,25040106,38508112,35918879,35275730,25244854,28291433,39111123,31245872,23244482,31200970,38457594,43403645,64180844,60439874,63812135,33859844,42547337,27807460,24499278,30979314,22694242,32933526,48903634,22064147,30015677,42463138,52626884,29716379,34319173,50069907,35195251,51367351,48593727,44247119,43719342,32652977,30906473,34581985,25520321,30218220,23237167,22745522,28174555,26117163,27944723,27850817,27668305,36574618,24028719,32734135,29417709,23944935,21959468,30715782,16075510,17754464,28094519,37445725,29329975,26844490,16299253,17527220,23483211,36242935,31901880,35309263,78142361,30400995,37548400,28656470,27972735,37759264,46633981,42269757,39808119,27616198,29016706,24880481,22562691,29313295,42077682,35292948,27564873,28678178,34854332,24244193,29023761,65759516,34359414,28316140,7089169,39535478,32641509,44140353,48800889,54259395,40269872,30815245,35606906,34627082,38586169,56324521,36258173,31127041,25156586,39450126,25645008,27754435,37108888,35049758,24455130,27601257,28599089,36825237,21238229,25353035,30704942,23510896,23089633,36646944,28454917,29563072,21842593,13791857,16669227,21700007,45206572,26172219,22794354,44640850,35526356,15689030,21477208,30264543,15733468,27815526,26506697,27667543,21399430,46375846,28639553,23867081,27031090,23151017,33725336,41783078,30229393,21433875,19993143,20518796,19910869,32844398,24082576,45575561,51430881,34854634,24681032,23591558,20492281,27977135,32504292,27242522,22943950,51630303,24098781,50265805,48323805,42286606,30049968,44845386,27999402,31337511,20946566,20137572,33624825,77775026,86597843,99828367,78386555,88344020,75414801,76781475,96915667,51755935,90000097,61955099,72620847,35017698,57042667,58847122,78521688,76894160,69700458,73404180,100179556,51094163,42818807,36533871,26643644,45528015,30956862,36119623,30048916,36638755,43491599,32305299,24518993,31099483,57457601,88444266,25485816,24934299,42482740,41709151,31222511,38791893,26663636,39393812,27383518,24859653,42909071,53124006,45723588,36613645,65721237,52831124,39980565,39271203,47312639,45130917,27390598,32790134,25281752,15398955,25937494,20977030,19670153,29057534,20620160,32067776,39191709,15261303,29996112,40042707,52557913,48698994,33034762,45384727,23678474,30274928,31320852,33863987,44459926,39703153,22953982,35646531,44361621,26946538,35818693,42289082,28599538,22896439,26600839,32979888,33507736,26734047,31432471,62542623,33834459,41835450,33414388,28536377,37748666,41750398,25124710,20263642,20734021,25425784,36147227,20662476,20992141,14575760,36492060,21739606,20700951,13886398,21753767,25254554,16553058,14923094,22600903,16197940,38944686,20439294,24210182,14214828,33825828,18713287,19222348,35688973,23196336,25999625,27613522,24151693,22814460,14491964,23875219,39929582,24580157,21574800,39453729,53887807,31237472,20834723,45499411,68105717,31683071,41049717,35589650,44830105,28386846,39223793,41278766,28112699,24107108,20279138,32163159,27020145,40301031,29717793,19071746,20036093,33134559,22182650,28317714,39630987,21489361,28052729,26059011,53541269,31221468,12129563,24507408,26205355,25081750,23546197,44519407,42870800,25678773,25412471,34898259,23347877,21915538,32083989,45680469,28742274,36852150,22196256,27716401,25804960,28775390,23280248,13460544,13710754,18915360,19794223,25981247,14532958,14533185,27158085,40458135,52526261,26064583,16173224,36336874,21248733,33541318,27863503,32709015,30091977,43793581,33914596,13579327,21511696,23826351,34829885,33390707,20364261,34329300,54994067,46562786,39424305,46746602,73292826,55044032,46382182,57149729,50889702,53303143,72992317,109808705,85588015,51219152,64694547,70509406,54249535,58984283,52704794,36840843,50541184,46636544,41435454,41861945,28749581,38575272,39497827,40207260,38043567,33971514,32315707,83188891,74721661,42689070,35880813,32333409,59100784,34047361,73945610,58565606,36583772,46372048,46519728,34172215,36349526,30058029,19131976,23419978,22428192,18105422,33575822,41934787,12565804,44437394,30707912,23956540,22025311,14929459,18317233,18067512,17723482,24822094,12968325,21266430,21595112,53570213,35915324,34383162,77119327,38474453,21183260,15450028,20981008,17267189,13215889,23228306,18264062,31236856,28763388,38292607,27047316,35686201,15706669,30033225,17211142,17958234,21073942,13835481,13698866,10379851,15045515,14506796,21017807,20097708,28455776,15337705,23629428,0,0,0,28628121,27766669,33258536,44493259,24157367,28237277,19113351,36066569,24887395,26510524,30445838,30390789,22440362,25136272,19250277,15420310,15103312,25534326,30370634,30569254,27586033,45256637,51344130,48201664,42574152,53832210,65463431,46688381,39044596,54713081,35331632,38210676,39755676,44877273,40499377,34390421,47861304,40700422,42885683,33473184,23084210,23389684,33703835,35132678,30271176,31914222,44255746,41509167,34419991,24549019,28492033,57068181,40507326,54376880,33600898,27561732,41440825,26923899,31717255,32277245,38377691,29752710,31779482,26903505,33990305,32059546,23651001,26909299,33219537,28176860,26814796,49335597,26436478,24340606,35221158,26299817,46419314,40373803,23957969,33482697,19564289,25790079,19974718,18048971,24903811,42040281,51610580,71906664"},AKBNK:{c:"36.54,35.34,36.3,36.78,40.44,39.84,40.74,41.12,43.26,43.18,41.8,42,41.02,40.92,40.06,38.16,40.4,40.34,40.32,39.66,39.66,39.54,40.08,39.26,40.22,41.04,40.44,40.38,40.26,41.16,40.52,41,41.86,41.48,41.54,43.1,43.5,42.34,42.9,41.66,41.6,40.46,41.58,40.3,39.02,39.38,38.7,40.96,41.84,42.8,43.78,41.8,40.56,39.72,40.14,42.32,42.64,45.04,45.82,46,44.28,44.4,46.78,46.78,47.8,49.3,49.24,52.4,55.65,55.5,58.4,55.85,56.05,58.55,62.5,59.85,60.3,57.45,59.05,60.35,59.45,58.15,60.05,60.25,61.6,60,59.4,57.8,56,57.5,57.2,59.15,62.9,64.5,67.35,66.25,66.55,66.5,68,69.8,66,65.7,66.4,66.8,63.5,62.35,61.15,59.3,59.45,60.6,62.2,61.5,61.1,63.8,66,67.15,65.2,64.8,66.85,64.05,61.95,62.7,66.25,67.25,66.75,67.7,64.6,64,66.7,66.7,68.3,67.85,68.2,68.75,69.3,69.3,67.5,65.55,65.65,64.65,62.75,61.9,63.2,60.2,56.9,55.65,55.7,55.85,52.95,54.2,55.75,56.2,58.35,56.85,60.25,59.9,59.15,59.55,58.1,58.5,59.1,58.7,58.3,61.45,60.95,61.1,60.6,59.65,58.05,56.45,55.3,56.8,56.6,56.2,57.85,58.55,61.35,60.15,61.25,63.85,63.9,63.1,63.55,61.6,57.65,52.85,51.55,54.35,55.65,56.05,57.2,55.75,55.55,53.9,54.35,54.5,53.25,50.15,48.46,49.9,49.12,49.68,49.98,49.96,51,50.6,49.92,46.96,46.4,47.46,48.4,51.2,52.55,53,53.9,55.4,54.85,55.05,53.55,52.2,56.9,60.6,59.6,59.2,59.45,59.7,60.85,61,63.4,62.75,63.45,65.3,66.35,65.15,63.9,63.65,63.55,62.7,62.7,62.9,61.15,60.7,59.3,60.25,65.05,65.65,66.25,65.65,64.85,66.2,66.2,66.8,64.75,63.6,65.9,64.4,62.8,63,63.2,64.15,66,67.15,68.55,69.6,68.15,66.45,66,67.1,66,65.5,64.85,63.8,65.7,64.9,64.45,63.5,62.7,63.2,62.85,64.05,64.85,64.5,65.1,64.3,65.6,64.8,64.8,66.15,67.5,67.8,67.3,73,72.15,73.1,73.45,73.75,73.9,71.9,73.55,74.8,74.9,75.1,73.25,65.95,59.7,53.75,53.95,56,53.95,52.8,52.25,52.85,52.55,52.25,52.1,51.95,49.78,49.4,49.88,50.1,50.35,50.55,51.3,49.54,49.78,50.4,53.5,51.5,49.36,48.94,48.5,49.5,48.58,49.26,49.48,49.9,49.88,51.9,52.25,51.8,50.7,51.95,52.55,52.5,53.65,51.9,51.95,50.95,51.65,52.8,50.95,52.05,55.65,56.2,56.25,59.85,60,59.2,59.5,59.9,58.6,58.35,57.15,57.2,57.9,61.05,60.95,60.8,62,68.2,68.1,69.15,68.8,69.7,67.95,67.7,69.3,70.35,69.75,66.9,65.45,67.85,67.3,68.6,67.6,67.55,68.2,68,67.15,67.15,67.2,67.5,66.55,66.85,66.75,66.7,68.55,67.9,68.25,68.25,68.35,66.75,67.2,66.5,65.85,67.2,68.25,69.85,69.25,70.5,69,69.5,68.25,69.2,66.05,60.8,61.6,62.45,61.55,62.8,63.9,61,62,65.45,66.6,67.35,65.05,66.65,67.7,66,65.55,64.65,61.8,61.2,62.7,64.25,62.45,59.45,58.45,59.1,58.1,57.35,57.5,55.95,53.5,53.6,55.3,54.85,57.95,57.6,57.9,58.55,60.2,58.8,58.55,59.5,60.8,61.1,61,61.2,62.45,60.9,59.9,58.3,58.9,58.7,58.3,58.35,58.85,61.35,61.9,61.8,62.9,63.4,63.5,63.75,64.75,66.25,66.05,66.7,64.4,67,68.3,69.3,68.65,69,69.55,71,71.3,70.7,71.15,71.8,72.9,71.95,69.85,69.75,69.25,69.55,69.75,69.8,73.5,73.2,74.4,72.3,72.7,73.8,73.5,74.5,74,73.85,74.9,77.3,78.2,79.9,77.8,78.85,79.65,79.55,84.85,89,92.95,90.95,87.95,85.65,84.4,83.85,85.45,83.55,83.95,91.15,88.7,89.5,88.9,90.5,87,88.35,90.35,91.55,91,91.7,90.15,82.75,78.9,78.45,79.6,74.05,73.6,77.1,77.55,75.75,72.55,72.7,75.8,75.7,73.6,73.1,70.3,70.9,67.25,66.9,65.6,66,68.25,69.25,68.75,70.3,69.25,75.75,75.3,78.4,77.4,78.45,78.9,78.1,83.55,81.85,80.75,79.25,77.9,77.7,75.95,73.7,73.2,70.65,70.7,74.35,75.2,75.25,75.85,72.75,71.55,72.35,70.25,70.1,69.1,62.2,63.6,65.4,64,64,64,64,63.7,65.95,64.85,67.15,64.5,66.9,67.15,66.1,66.8,72.6,76.75,77.1,78,81.1,81.85,82,80.5,80.95,77.2,77.25,77.2,77,77.85,77.95,73.75,73.5,73.6,70.65,70.2,68.75,67.65,69.1,68.6,66.5,66.85,66.7,66.55,67.05,67.6,66.45,65.8,63.3,61.6,63.4,66,68.1,67.55,67.1,67.4,66.8,66.15,68.8,69.05,68.8,68,67.65,70.3,69.2,69.7,72.1,72,73.15,72.85,73.2,71.85,71.95,71.5,71.55,71.85,73.05,74.95,72.95,72.1,72.7,72.55,69.55,65.2,71.55,70.7,72.45,73.1,72.95,70.65,70.9,70.1,69.9,67,67.55",v:"79522318,72162968,81318741,71031470,157542084,154543709,106339128,140335176,224445913,131860495,96953620,79328967,86320667,90860380,82754095,134993560,126878011,112890666,95380217,70494073,77863803,85127823,98906685,115940161,106046445,108159145,79274041,50325890,75056048,89795098,116086386,73043847,92683548,67801461,125687225,134595715,125634447,134406613,89110168,75850862,94955982,65362068,84001060,56995283,54636962,62977964,68429866,68053257,91797736,111987258,80572409,90998988,60599320,48651930,50299825,68129871,83857926,197399494,88011898,131880682,113101313,68362428,82871023,64583949,82619229,116052968,65659675,95493303,83579094,57245712,76419250,71099679,83747735,68368051,75560278,76153685,81096038,81800041,82044128,62512628,73215496,72988852,79154559,42522188,90335355,93629377,73846599,82417543,97974456,109276197,84317874,90178002,109988406,78966570,237249387,128164280,88163245,57836631,48715024,60706165,59905929,72102523,125307179,64050347,57120992,79136641,58237476,56386822,61061868,83153037,56287276,73408060,77088933,73779357,78091355,48584363,72232460,44844351,67130054,93609366,60193096,53669684,83985701,63807973,40181508,48655310,52290314,68851483,72253346,61965944,68267334,71919040,68522741,64526495,60858236,79986526,46627121,57750429,50467104,48235005,58543749,66376579,60901951,51224390,78640333,66017767,53241220,54436167,69362597,53996642,42431039,43279756,59873682,38230994,62201951,53769284,44932974,77072601,45431014,52432516,50349618,44035968,59991782,65892355,39817678,52460289,73000159,47969697,41425629,83896955,75066706,65586230,60916326,56443913,63758565,50251166,69509928,46349837,51143695,80820830,67382533,74452040,50044983,51038604,77832577,88773741,90545860,78835934,71560335,72150471,70533210,53590589,64292186,62964899,88715885,73785505,85709089,84785647,75933397,99981947,89298906,52616959,76473609,16412608,65076142,71978732,88745294,105181392,70344070,100567230,80452926,137637546,110744989,71434916,108010778,88119040,69735464,64130862,81005803,82952575,140474464,138626137,94300103,82554580,87604097,64810548,94895196,61113513,98242262,65767237,65084604,124670921,80969112,51082303,151479905,86612458,60368464,47291787,71159634,62942592,48926859,50837700,55068189,41096970,71638781,149601641,61695043,34533981,59635167,117926984,95587993,76614473,84326346,103420103,92848476,64530319,139456381,131704649,82878907,107524559,89903240,77100736,120771667,106457903,102087833,75476621,77948259,94405944,76913164,61541114,109025124,126671721,106971884,85561138,125920258,167653441,91025885,89657621,110641971,113560016,104854218,72150044,76126788,87123352,87059681,95491578,62767270,96236948,73360666,64519911,76126762,189115602,89272803,152425896,88047637,81465821,65581069,73305987,110555600,65910258,71228697,68606367,56440539,108314114,368315029,216452516,320436194,327099500,174001338,137011552,128162225,119712929,83226815,109948487,158254026,105625239,120588860,119834868,149545571,85256100,117217121,130823493,192376661,101035688,150006455,94162055,137574079,105000684,135445485,90830204,117050993,76343374,64057251,109155346,84243888,45378543,142020138,117215443,166915762,180394564,97368465,162478877,180165844,102916902,149130710,150177253,113854673,84875574,85748391,86026847,96666805,89954105,154539428,77849769,27098461,131249675,95399025,86668958,122185155,82820940,82694480,75596185,109589773,61392803,65149202,121576604,76102839,67990726,105749680,181852024,121101939,108603506,108444178,75862399,84094277,119840078,87400206,76512950,85433702,89913681,100313981,94074629,55596842,81161207,71079028,65856876,133795924,47837585,43729270,42197495,87762619,65151987,67032652,119780173,64184213,62955664,103053560,44365359,40565358,47787595,45283465,51928070,41335094,34848810,57276455,69912998,85706056,98409817,71331928,68803350,75024312,68689946,74843072,61462013,195347696,238502747,225698329,222024322,85842924,113444254,97477938,279575856,116877780,225592296,139190101,107131487,103300265,168004241,104159330,77666838,134901660,81998160,165377284,91622028,121790011,144114140,85094072,127994750,95526811,80150817,87488015,82498198,60948273,80296118,98138435,114118711,123768038,103779268,171472391,147773980,107375413,149438380,417538800,136831864,49490310,110517855,140413207,141234115,121773694,103469653,110806492,125949127,106712931,140154959,97514970,76597097,73427462,108194045,106742003,126977080,115990105,96592433,122292540,148040826,79768119,112590595,98579659,156666165,139090446,288126298,154221145,174274956,129704282,111936685,123335569,181861925,79782866,80518973,71275588,78876952,79132589,85809859,66552845,78667504,60517161,29010795,48721582,65331759,41656445,74571658,87346615,96172422,107913405,93336994,80616052,96406766,81393710,83494226,63952882,73254946,146855379,131731832,96843898,102660384,146538041,112988522,93416787,110809029,172690992,190801344,154140709,193525093,268386545,131179438,121806464,97424846,126338000,100678699,99579681,229968914,118646606,87548193,93633091,137839259,103799361,93436385,134597261,98805414,111915545,78520727,114684024,98769212,106917553,122155687,52412668,118526833,168363803,95851404,96519339,145752390,124021617,81045986,105162072,91425442,38275313,265710458,103386429,107675770,90829385,78516965,92947863,120022442,119338472,95329896,77195433,96991162,87632891,159266547,121611302,121958318,128526158,163378836,72630584,84412322,171211565,121572943,64597825,97886805,92696662,85905779,83163069,112160625,119107754,153716653,113971461,263674524,156929000,131973117,142376341,122754063,104825683,130258986,105928792,104054753,183781142,97702960,406472082,125346119,72536655,0,0,0,205912090,230426736,169675801,177397473,152389168,170008643,122734065,99313495,137050859,247723163,175534688,116731723,112738906,139070596,136887074,71939721,84757120,77633485,114519923,66354920,83449915,108359556,138758867,95377409,192059490,104545434,101711621,145917996,84840566,147110522,155690527,114435800,165218737,152675856,106779859,94739634,115581013,124594164,130918130,172388887,124096174,194948481,168767186,181079262,221170129,235067903,127280890,129735618,118586545,93235544,168547581,230729455,145657147,128800446,83855483,88354193,150170756,133413019,166762304,182768779,147641236,206790108,134916666,135778198,166818966,170045935,154689884,162759332,153672641,136106016,322399528,372553606,222813703,198445068,121396176,151461390,308313185,303189388,211343969,194040353,150636128,92373189,84660623,80139290,115640289,125048954,168163274,263017236"},TCELL:{c:"58.6,57.7,59,61.25,62.1,62.5,61.5,60.85,61,62.35,64.25,65,64.45,64.35,64.6,65.6,66,66.95,69,69.3,69.35,68.55,69.55,70.2,70.05,69.35,68.1,68.65,68.35,70.9,68.3,67.5,68.8,68.15,66.75,67.35,65.75,66.4,68.35,67.5,65.5,65.35,66.95,66.3,63.95,63.6,62.4,64.3,65.5,62.1,61.5,62,61.9,63.6,63.9,65.05,64.3,69.05,69.65,69.3,66.25,66.75,68.4,67.7,67.25,67,68.5,71.1,74,74.95,73.25,73.25,74.9,75.35,76.55,77.4,78.3,78.5,79.1,80.2,80.8,80.95,82.1,82.25,84.75,84,83.8,84,83.35,83.1,82.8,84.75,87.4,87.1,90.6,92.1,92.7,91.8,89.6,90.75,91.6,95.75,99.6,102.6,99.75,100.8,98.95,97.6,99,95.6,97.95,97.1,98.6,103.3,101,100,100.2,98.05,99.35,100.6,99.3,102,104.7,107.5,106,108.7,109.4,109,111.2,111.1,109,109.4,110.1,110.4,114.8,111.3,107.4,108,106.3,105.6,105.4,105.6,107.5,102.5,100.2,102.7,105.9,106,102.8,103.7,103.3,103.5,105,103.5,106.3,101.2,98.2,95,94,91,96.5,97.05,98.35,100,99.5,100.1,98.95,98,95.85,97.15,98.2,97.8,94.6,91.2,91.85,91.65,93.8,93.6,94.75,97.3,95.9,95.75,96.35,95.2,91.75,89.9,86.95,84.35,82.35,82.35,87.05,86.25,84.1,84.25,86.4,88,87.25,85.1,85.5,87.7,87,87,87.75,87.7,87.8,84.75,85.85,84.65,83.55,85.1,89,91.4,95.7,95.95,94.75,96,94.6,92.25,92.45,94,96,93.15,93.4,93.05,93.05,91.3,90.55,91.85,93.9,94.15,92.15,94.3,93.8,93.85,92.8,93.5,96,96.05,95.8,97.25,93.6,91.45,90.7,92.05,93.75,93.2,94.05,93.15,92.8,96.05,98.5,97.95,97.5,96.85,96.3,95.65,94.65,95.2,95.9,98.45,100.3,99.7,102,105,106.2,106.4,106.1,108.9,108,107.4,108.1,105.6,107.5,105.9,107.1,106,107,108.5,107.9,107.4,106.3,104,105,104.9,106.8,105.5,103.7,104.2,105.3,107.7,100.7,100.5,101.5,104.4,107.4,106,104.7,103.4,106,107.5,109.4,109.4,109.2,98.3,97.1,87.4,89.6,94.8,93.9,93.2,95.8,94.35,92,88.3,88.45,90.65,89.7,89.8,90.7,89.9,89.9,88.55,91.65,93,93.5,92.1,94.15,91.3,90.55,91.3,89.9,89.1,86.55,87.35,87.9,90.05,92.3,97.45,95.75,97.05,96.5,96.7,98.45,97.35,99.75,98,98.5,98,96.05,95.5,94.85,91,94.05,98.15,97.1,97.1,97.1,95.7,92.5,92.65,90.95,90.9,88.6,89.85,88.15,91.7,92.95,89.5,89.3,96.15,98.5,98.1,98,98.95,97,94,95.25,93.7,92.4,92.3,92.25,94.1,94.55,95.55,95.1,94.35,94.25,92.5,92.55,91.1,93.55,93.25,93.25,93.4,93.35,93,94.95,96.3,97.25,97.55,97.75,94.6,94.75,94.1,95.2,97.65,99,97.85,99.05,99.8,99.6,96.75,94.8,93.25,91.2,90.65,90.5,90.05,88.9,89.1,88.75,88.65,89.45,93.65,95.2,95.75,94.8,97,98.9,99.05,99.6,98.2,96.9,97.3,97.85,99.5,101.4,98.1,98.8,100.4,98.45,100.4,100.2,97.9,90.85,95.75,95.8,94.25,96.8,96.95,97.6,98.55,100.8,100,100.6,98.75,99.7,97.45,96.45,97.7,102,96.9,96.45,94.4,96.3,95.6,93.15,93.1,94,94.65,96.7,94.7,94.4,94,94.1,94.6,93.55,95.85,97.25,97.75,97.15,98,100.8,101.7,101.2,100.5,104.2,105.4,101.8,102.1,101.9,101,99.5,98.7,98.6,98.65,95.25,93.95,93.5,93.1,96,96.8,99.1,98.8,99.65,98.3,99.55,101.7,101.7,103.7,105.9,105.8,104.5,105.5,112.1,112.8,114.8,114.4,115.9,117.3,116.9,113.5,118.5,118.3,116.1,114.3,117,118.1,122.1,123.9,125.3,127.5,126,124.6,120.2,122.8,123.1,121.5,121,120.8,115.8,114,113.3,111,109.7,107.5,106.9,111.5,109.1,111.3,108.8,109.1,110.8,108.5,106.6,108.4,106.2,107.4,106,106.4,104.6,105.9,107.2,106.9,107.5,108.6,104.9,111.2,114.4,117.3,115.7,116.3,117.1,117.3,120.5,117.7,115.3,114.1,114.3,116.6,113.8,112.1,112.1,111,115.2,117.7,118.6,120,121.9,115,114,114.5,109.5,106.8,108.6,106,106.5,106.1,101,101,101,101,102.6,108.5,105.8,107.9,105.1,107.4,105.5,104.6,107.5,110.7,114.9,115.2,112.1,116,113.4,113.2,111,110.4,110.5,110.9,109.6,107.4,108.7,108.4,107.2,108.6,108.2,105.4,104.9,107,109,110.2,112.2,108.5,109.6,111.5,111,105,103.7,102.3,101.7,101.4,101.5,99.95,104.5,107.6,105.1,105.3,105.1,105.3,103.1,104.1,103.1,104.1,102.9,103.5,104,102.8,104.3,103.1,102.7,103.5,102.8,103.5,95.05,96.55,97.2,96.6,98.15,99.05,101.6,101.8,101.6,103.7,102.4,99.4,95.75,99.15,97.2,99.9,100.3,100.8,99.45,99.95,98.35,98.25,96.1,97.7",v:"38895345,22903817,41573149,33566147,28262037,27787702,31292698,21817667,56749135,45062809,43681590,32859024,18279199,30070653,27962315,31513401,17817393,27175107,61443022,42856609,46322243,26394826,38061511,28744825,25498965,33219302,27049820,20097011,24279017,44728581,29808683,28163335,33915379,23407878,32909943,33651559,30808097,34555730,35022192,34821585,22299482,23294352,32352913,15840853,18742920,25622901,22000473,20402386,22336141,48499523,23612053,40037115,30422117,30811646,21267608,24583045,26492559,75586189,28119213,38807689,24415556,23812654,21499475,18037093,25723617,42363211,43546310,42046821,32244035,23519909,20074197,20331083,31896733,31454419,40472000,27168652,24415751,19030504,22199065,23534815,34370136,34950463,30938078,31360081,41878037,14865767,17208847,24959574,17406143,23852483,30031137,20922023,25886332,22491227,28163303,17919695,19140962,17446698,17614684,26569661,27765368,35064091,61254876,51197784,47871236,40680718,24122577,25642189,39379068,27392700,26876590,21511022,20415199,27649541,20437993,21062314,18208694,21506877,16968371,25073154,19353285,15731733,18509880,16922082,12427330,31547385,18952400,14848661,25249752,15500542,18780623,15295908,16960370,13694488,23607849,20092476,23569779,24040787,19709820,19502047,11980151,15493373,16221397,14914616,24046908,20274373,18432247,13135194,13340945,12512458,12295446,16655502,14365633,11017443,15554465,26432583,28961389,27820449,23757933,22040316,27339822,24175798,22123890,15621840,13781479,20966836,15305726,13278555,13757141,20770497,20944249,25655405,43757433,21991691,13928571,14019922,21273411,27245065,14510299,20607728,21816886,17921895,13601402,16298537,20476962,17542122,20238422,41444323,27092939,60610603,45345625,14924555,21134084,28828435,26945883,20909594,29205353,16893748,16333478,18193824,15377209,18576266,22040047,4781098,18470733,21309050,16723968,16177892,18944500,24057110,29981371,48926876,32507341,19734005,28245378,23215440,11910430,18608665,26560665,27815768,17743179,29646543,23720305,26517082,24998417,17586824,22087462,18035665,25966121,24977477,20730197,24534380,24093797,18990136,15212847,19533013,23043832,18879237,16423128,19498720,21000656,20556226,11608137,12017427,13264928,22518150,12996043,9919999,30411093,25456327,23612083,16914134,20728400,55171599,63949640,68815580,29657937,29705386,27459027,28663576,24611477,15541254,35230834,37655437,24357310,21452079,16948094,22403824,13542855,10303713,14363000,23364270,18800662,18844943,13845791,13337725,13110229,21803247,18456330,21568493,19303623,31398461,19908671,19660364,18828700,24539235,10118769,17230508,17262304,20340765,55912447,35296848,27090395,30494400,31324387,43612457,40324118,42826920,42540769,25579493,42759554,43113382,46476030,53336668,68715432,67113226,50540400,38725633,52218037,28999635,16531097,21170947,27107015,40092365,32666983,23777346,26832828,23852342,18997626,13463216,15897516,17214828,36130600,18582557,18681581,16580237,21344164,19250801,12443065,13471617,16747107,11857830,20109028,19040030,12706877,9472446,21096700,25605711,18273646,22023275,16785711,20193486,20209768,24396622,20790985,17736832,14564179,15922185,17620852,11227882,21988269,19164113,19533540,17590216,4568835,19648358,22115914,19200887,37514853,22015099,20840559,17675694,15378625,18647650,13814071,20222393,14969936,21296642,23781242,31869770,22931237,30468941,37991868,19127895,17420394,27996136,29528060,51678802,34113547,20983751,31904736,22785369,17032369,22421083,25319021,18841404,27015704,16558559,14959023,20448237,34479113,30613485,20833967,25536834,19077347,24653198,32458085,27317047,30575347,24279575,23354586,31267542,21165402,29879709,26196524,29911774,30509433,20812609,30268751,31499249,42102454,38647989,22822919,22310273,46064008,28860514,24306494,26360963,20502483,28230791,26044213,42288008,25161467,41689139,31021660,24999951,23228085,27646401,23424396,20781955,25810836,18715065,20479920,16525433,31907935,26848612,24795225,26925304,21327043,25179472,26277542,22852402,20729900,24803567,72471042,44411364,70464111,22960512,23410978,15992665,18971970,14597575,39698906,17501419,8834835,29382651,22076768,36113347,16067665,72877809,61035430,45517118,18833540,32965798,28256239,17600808,21707149,21935274,18456486,22178304,25146071,16935118,22028464,21366816,15062171,13939432,21386147,19512779,16383048,27599676,19492316,18764753,25632228,20582512,20712990,24314726,23727235,19387318,43471930,22288011,14223014,26262921,23523159,21338002,16583216,7624844,13507434,17865290,24932643,21805241,24992694,30842626,26806209,28027333,43777974,29638733,35436049,35486294,20590616,32106493,30893209,40699556,40453792,27441607,52445559,48719272,30247061,41136402,38195142,51243562,41874598,48401453,38921850,32923125,34864735,24763989,26422983,37214388,43221109,36110224,28736197,35454141,29187288,36132241,24527936,21363716,25051140,25596391,22609607,19414935,40369729,23867243,22921483,23345789,19201927,19785973,20586776,20279734,26861646,29042706,17382176,17916915,21618652,14547188,6727623,40490725,19199144,18382699,13360748,12997298,12217036,26399921,20269458,11866267,12451195,14622485,14328344,30236268,18285350,19947292,20287504,21157315,16778888,13363899,30021383,21709957,16028473,11745637,17821582,17679081,12060946,16101303,20776856,18039824,20711842,26695676,19635844,23760991,32692016,20840911,16963274,12803500,19903864,19889483,18711055,18911672,59204874,21912157,20062194,0,0,0,40334030,33251902,16954999,21543072,17803817,19946451,24974372,15741213,21271708,26346795,20830584,16475601,14796658,24119790,15586355,14550413,14773578,14667029,22063525,13689963,19269939,32369286,21396487,24254193,18320027,21516917,20585649,23793273,17348384,28735489,25772489,26952128,31920323,21380344,23345238,26338460,18168253,46960951,36279077,24042654,24750726,30927124,33927976,29786987,36086911,35967044,19872010,19657136,12992616,16333999,25891640,30777849,21261695,35330035,21654442,20685840,27080113,22356652,31775662,33075155,30223432,35602536,44545296,23020770,102844450,60637136,37455551,16798447,32262214,27893079,33606041,39930128,18550168,48843234,16146248,22670297,46662512,41933901,31328659,26378446,14535393,14275674,11539980,11581164,21522366,22700470,22670157,16955769"}}};
+/* Indicators: ports of the course code (scenario3 starter code, Efe's quiz notebook). */
+const IC = (function () {
+  const base = Date.UTC(2024, 0, 1);
+  let t = base;
+  const dates = ICD.d.split(",").map(k => { t += (+k) * 864e5; return new Date(t).toISOString().slice(0, 10); });
+  const stocks = {};
+  for (const k in ICD.s) stocks[k] = { c: ICD.s[k].c.split(",").map(Number), v: ICD.s[k].v.split(",").map(Number) };
+  // df[col].rolling(n).mean()
+  function sma(x, n) {
+    const out = new Array(x.length).fill(null);
+    for (let i = n - 1; i < x.length; i++) { let q = 0; for (let j = i - n + 1; j <= i; j++) q += x[j]; out[i] = q / n; }
+    return out;
+  }
+  // series.ewm(alpha=a, adjust=False).mean(); leading nulls stay null
+  function ewm(x, a) {
+    const out = []; let m = null;
+    for (const v of x) {
+      if (v === null || v === undefined || Number.isNaN(v)) { out.push(m); continue; }
+      m = m === null ? v : (1 - a) * m + a * v;
+      out.push(m);
+    }
+    return out;
+  }
+  // scenario3 add_rsi: delta = diff(), gain/loss clipped, ewm(alpha=1/n, adjust=False), RS with loss 0 -> NaN
+  function rsi(c, n) {
+    n = n || 14;
+    const delta = c.map((v, i) => i === 0 ? null : v - c[i - 1]);
+    const gain = delta.map(d => d === null ? null : Math.max(d, 0));
+    const loss = delta.map(d => d === null ? null : Math.max(-d, 0));
+    const ag = ewm(gain, 1 / n), al = ewm(loss, 1 / n);
+    const r = ag.map((g, i) => (g === null || !al[i]) ? null : 100 - 100 / (1 + g / al[i]));
+    return { delta, gain, loss, ag, al, rsi: r };
+  }
+  // the same RSI with simple 14-bar averages (rolling mean) instead of Wilder smoothing
+  function rsiSimple(c, n) {
+    n = n || 14;
+    const R = rsi(c, n);
+    const g = R.gain.map(v => v === null ? 0 : v), l = R.loss.map(v => v === null ? 0 : v);
+    const sg = sma(g, n), sl = sma(l, n);
+    const r = sg.map((v, i) => (v === null || i < n) ? null : (sl[i] === 0 ? null : 100 - 100 / (1 + v / sl[i])));
+    return { ag: sg, al: sl, rsi: r };
+  }
+  function macd(c, f, s, g) {
+    const ef = ewm(c, 2 / (f + 1)), es = ewm(c, 2 / (s + 1));
+    const m = ef.map((v, i) => v - es[i]);
+    const sig = ewm(m, 2 / (g + 1));
+    const h = m.map((v, i) => v - sig[i]);
+    return { ef, es, m, sig, h };
+  }
+  function crosses(c, ma, a, b) {
+    const ups = [], downs = [];
+    for (let t = Math.max(a, 1); t <= b; t++) {
+      if (ma[t - 1] === null || ma[t] === null) continue;
+      if (c[t - 1] <= ma[t - 1] && c[t] > ma[t]) ups.push(t);
+      if (c[t - 1] >= ma[t - 1] && c[t] < ma[t]) downs.push(t);
+    }
+    return { ups, downs };
+  }
+  // for every up-cross after a down-cross: bars from the lowest close of that down-leg to the up-cross
+  function lagStats(c, ma, a, b) {
+    const { ups, downs } = crosses(c, ma, a, b);
+    const delays = [];
+    for (const t of ups) {
+      let t0 = -1;
+      for (const d of downs) if (d < t) t0 = d;
+      if (t0 < 0) continue;
+      let m = t0;
+      for (let i = t0; i <= t; i++) if (c[i] <= c[m]) m = i;
+      delays.push(t - m);
+    }
+    const mean = delays.length ? delays.reduce((p, q) => p + q, 0) / delays.length : null;
+    return { ups, downs, delays, mean };
+  }
+  return { dates, stocks, sma, ewm, rsi, rsiSimple, macd, crosses, lagStats };
+})();
+
+/* ── Chart and number helpers ── */
+const ICW = {
+  f(v, d) { return v === null || v === undefined || Number.isNaN(v) ? "–" : v.toFixed(d); },
+  parseNum(s) { s = String(s).trim().replace(",", "."); return /^-?\d+(\.\d+)?$/.test(s) ? parseFloat(s) : null; },
+  parseInt(s) { s = String(s).trim(); return /^\d+$/.test(s) ? parseInt(s, 10) : null; },
+  // o: { a, b, h, series: [{y, color, w}], bars: {y, up, dn}, hlines: [{y, color}], marks: [{i, y, color, up}], zero, ymin, ymax, label }
+  chart(o) {
+    const W0 = 640, H = o.h || 200, L = 46, R = 8, T = 8, B = 18, a = o.a, b = o.b;
+    const ok = (v) => v !== null && v !== undefined && !Number.isNaN(v);
+    let lo = Infinity, hi = -Infinity;
+    const take = (v) => { if (ok(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); } };
+    (o.series || []).forEach(s => { for (let i = a; i <= b; i++) take(s.y[i]); });
+    if (o.bars) for (let i = a; i <= b; i++) take(o.bars.y[i]);
+    if (o.zero) { take(0); }
+    if (o.ymin !== undefined) lo = o.ymin;
+    if (o.ymax !== undefined) hi = o.ymax;
+    if (!(hi > lo)) { hi = lo + 1; lo = lo - 1; }
+    const pad = (hi - lo) * 0.04; if (o.ymin === undefined) lo -= pad; if (o.ymax === undefined) hi += pad;
+    const X = (i) => L + (i - a) * (W0 - L - R) / Math.max(1, b - a);
+    const Y = (v) => T + (hi - v) * (H - T - B) / (hi - lo);
+    let s = `<svg class="w-indicators-core-svg" viewBox="0 0 ${W0} ${H}" role="img" aria-label="${o.label || "grafik"}">`;
+    const ticks = o.ticks || [lo + pad, (lo + hi) / 2, hi - pad];
+    ticks.forEach(v => {
+      s += `<line x1="${L}" x2="${W0 - R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" style="stroke:var(--border);stroke-width:1"/>`;
+      s += `<text x="${L - 4}" y="${(Y(v) + 3).toFixed(1)}" text-anchor="end">${Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(Math.abs(v) >= 10 ? 1 : 2)}</text>`;
+    });
+    (o.hlines || []).forEach(h => {
+      s += `<line x1="${L}" x2="${W0 - R}" y1="${Y(h.y).toFixed(1)}" y2="${Y(h.y).toFixed(1)}" style="stroke:${h.color};stroke-width:1;stroke-dasharray:4 3"/>`;
+    });
+    if (o.bars) {
+      const bw = Math.max(1, (W0 - L - R) / Math.max(1, b - a + 1) * 0.7);
+      for (let i = a; i <= b; i++) {
+        const v = o.bars.y[i]; if (!ok(v)) continue;
+        const y0 = Y(0), y1 = Y(v);
+        s += `<rect x="${(X(i) - bw / 2).toFixed(1)}" y="${Math.min(y0, y1).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0.5, Math.abs(y1 - y0)).toFixed(1)}" style="fill:${v >= 0 ? o.bars.up : o.bars.dn};opacity:.55"/>`;
+      }
+    }
+    (o.series || []).forEach(sr => {
+      let d = "", pen = false;
+      for (let i = a; i <= b; i++) {
+        const v = sr.y[i];
+        if (!ok(v)) { pen = false; continue; }
+        d += (pen ? "L" : "M") + X(i).toFixed(1) + " " + Y(v).toFixed(1);
+        pen = true;
+      }
+      s += `<path d="${d}" style="fill:none;stroke:${sr.color};stroke-width:${sr.w || 1.4}"/>`;
+    });
+    (o.marks || []).forEach(m => {
+      const x = X(m.i), y = Y(m.y), k = m.up ? 1 : -1, y2 = y + k * 9;
+      s += `<path d="M${x.toFixed(1)} ${(y + k * 3).toFixed(1)} L${(x - 4).toFixed(1)} ${y2.toFixed(1)} L${(x + 4).toFixed(1)} ${y2.toFixed(1)} Z" style="fill:${m.color}"/>`;
+    });
+    const D = IC.dates, mid = Math.round((a + b) / 2);
+    s += `<text x="${L}" y="${H - 4}">${D[a]}</text><text x="${X(mid)}" y="${H - 4}" text-anchor="middle">${D[mid]}</text><text x="${W0 - R}" y="${H - 4}" text-anchor="end">${D[b]}</text>`;
+    return s + "</svg>";
+  },
+  legend(items) { return `<div class="w-indicators-core-legend">${items.map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join("")}</div>`; },
+  START: IC.dates.indexOf("2025-01-02")
+};
+
+/* ── 1. Group sorter (brief §7) ── */
+(function () {
+  const box = document.getElementById("w-sort");
+  const G = ["Trend", "Momentum", "Volatility", "Trend State", "Cloud / Structure", "Market Structure", "Activity"];
+  const ITEMS = [
+    ["SMA", "Trend", "direction, slope, crossovers"], ["EMA", "Trend", "direction, slope, crossovers"],
+    ["KAMA", "Trend", "distance from adaptive average"], ["RSI", "Momentum", "momentum regime, RSI local extrema"],
+    ["MACD", "Momentum", "momentum regime, divergence candidates"], ["Bollinger Bands", "Volatility", "band touches, bandwidth"],
+    ["ATR", "Volatility", "volatility regime"], ["Supertrend", "Trend State", "bullish/bearish state changes, post-flip returns"],
+    ["Ichimoku Cloud", "Cloud / Structure", "price above/below cloud, Tenkan/Kijun"], ["Support/Resistance", "Market Structure", "pivot clustering, touches, recency"],
+    ["Volume / turnover", "Activity", "confirmation of breakouts and reversal events"]
+  ];
+  const opts = `<option value="">seç…</option>` + G.map(g => `<option>${g}</option>`).join("");
+  box.innerHTML = `<div class="w-indicators-core-sort">${ITEMS.map((it, k) => `<label data-k="${k}"><span>${it[0]}</span><select aria-label="${it[0]} grubu">${opts}</select></label>`).join("")}</div>
+    <div class="w-indicators-core-ctl"><button class="btn btn--sm btn--accent" data-check>Kontrol et</button><button class="btn btn--sm" data-reset>Sıfırla</button></div>
+    <div class="w-indicators-core-fb" data-fb aria-live="polite"></div>`;
+  const fb = box.querySelector("[data-fb]");
+  box.querySelector("[data-check]").addEventListener("click", () => {
+    let right = 0, empty = 0; const wrong = [];
+    box.querySelectorAll("label[data-k]").forEach(l => {
+      const it = ITEMS[+l.dataset.k], v = l.querySelector("select").value;
+      l.classList.remove("is-ok", "is-bad");
+      if (!v) { empty++; return; }
+      if (v === it[1]) { right++; l.classList.add("is-ok"); }
+      else { l.classList.add("is-bad"); wrong.push(`<li><b>${it[0]}</b>: ${v} değil, <b>${it[1]}</b> (research use: ${it[2]})</li>`); }
+    });
+    fb.innerHTML = `<p><span class="${right === ITEMS.length ? "w-indicators-core-ok" : "w-indicators-core-bad"}">${right} / ${ITEMS.length} doğru</span>${empty ? ` · ${empty} boş` : ""}</p>` + (wrong.length ? `<ul>${wrong.join("")}</ul>` : (empty ? "" : "<p>Hepsi brief §7 ile aynı.</p>"));
+  });
+  box.querySelector("[data-reset]").addEventListener("click", () => {
+    box.querySelectorAll("label[data-k]").forEach(l => { l.classList.remove("is-ok", "is-bad"); l.querySelector("select").value = ""; });
+    fb.innerHTML = "";
+  });
+})();
+
+/* ── 2. SMA vs EMA lag explorer ── */
+(function () {
+  const box = document.getElementById("w-lag");
+  const sel = box.querySelector("[data-stock]"), num = box.querySelector("[data-n]"), rng = box.querySelector("[data-r]");
+  const err = box.querySelector("[data-err]"), out = box.querySelector("[data-out]");
+  function draw() {
+    const n = ICW.parseInt(num.value);
+    if (n === null || n < 2 || n > 150) { err.textContent = "n, 2 ile 150 arasında bir tam sayı olmalı."; return; }
+    err.textContent = "";
+    rng.value = Math.min(100, n);
+    const c = IC.stocks[sel.value].c, a = ICW.START, b = IC.dates.length - 1;
+    const S = IC.sma(c, n), E = IC.ewm(c, 2 / (n + 1));
+    const ls = IC.lagStats(c, S, a, b), le = IC.lagStats(c, E, a, b);
+    const marks = ls.ups.map(i => ({ i, y: c[i], color: "var(--ic-sma)", up: true })).concat(le.ups.map(i => ({ i, y: c[i], color: "var(--ic-ema)", up: false })));
+    out.innerHTML = ICW.legend([["var(--ic-px)", "Close"], ["var(--ic-sma)", `SMA(${n}) · ▲ yukarı kesişim`], ["var(--ic-ema)", `EMA(${n}) · ▼ yukarı kesişim`]]) +
+      ICW.chart({ a, b, h: 230, label: `${sel.value} Close, SMA ve EMA`, series: [{ y: c, color: "var(--ic-px)", w: 1 }, { y: S, color: "var(--ic-sma)", w: 1.6 }, { y: E, color: "var(--ic-ema)", w: 1.6 }], marks }) +
+      `<div class="table-wrap"><table>
+        <tr><th></th><th>SMA(${n})</th><th>EMA(${n})</th></tr>
+        <tr><td>Son bar'ın ağırlığı</td><td>$1/${n} = ${ICW.f(1 / n, 3)}$</td><td>$2/${n + 1} = ${ICW.f(2 / (n + 1), 3)}$</td></tr>
+        <tr><td>Yukarı kesişim sayısı (441 bar)</td><td><b data-ls-n>${ls.ups.length}</b></td><td><b data-le-n>${le.ups.length}</b></td></tr>
+        <tr><td>Dipten kesişime ortalama gecikme</td><td><b data-ls-d>${ICW.f(ls.mean, 2)}</b> bar</td><td><b data-le-d>${ICW.f(le.mean, 2)}</b> bar</td></tr>
+        <tr><td>Düz trendde lag</td><td colspan="2">ikisinde de $(n-1)/2 = ${ICW.f((n - 1) / 2, 1)}$ bar</td></tr>
+      </table></div>`;
+    Lab.renderMath(out);
+  }
+  rng.addEventListener("input", () => { num.value = rng.value; draw(); });
+  num.addEventListener("change", draw);
+  num.addEventListener("keydown", e => { if (e.key === "Enter") draw(); });
+  sel.addEventListener("change", draw);
+  draw();
+})();
+
+/* ── 3. RSI step-through (AKBNK, March–April 2025) ── */
+(function () {
+  const box = document.getElementById("w-rsi");
+  const c = IC.stocks.AKBNK.c, D = IC.dates;
+  const i0 = D.indexOf("2025-03-14"), i1 = D.indexOf("2025-04-14");
+  const R = IC.rsi(c), S = IC.rsiSimple(c);
+  let mode = "wilder";
+  const crossCount = (r) => { let k = 0; for (let i = ICW.START; i < D.length; i++) if (r[i - 1] !== null && r[i] !== null && r[i - 1] < 30 && r[i] >= 30) k++; return k; };
+  box.querySelector("[data-count]").textContent = `AKBNK, 2025-01-02 → 2026-10-01: RSI 30'u aşağıdan yukarı ${crossCount(R.rsi)} kez kesiyor (Wilder), ${crossCount(S.rsi)} kez (basit ortalama).`;
+  function build() {
+    const M = mode === "wilder" ? { ag: R.ag, al: R.al, rsi: R.rsi } : S;
+    const rows = []; for (let i = i0; i <= i1; i++) rows.push(i);
+    const isCross = (i) => M.rsi[i - 1] < 30 && M.rsi[i] >= 30;
+    const frames = rows.map((i, k) => {
+      const d = R.delta[i], g = R.gain[i], l = R.loss[i];
+      let cap = `<b>${D[i]}</b>: Close ${ICW.f(c[i - 1], 2)} → ${ICW.f(c[i], 2)}, $\\Delta = ${ICW.f(d, 2)}$ ⇒ gain $= ${ICW.f(g, 2)}$, loss $= ${ICW.f(l, 2)}$. `;
+      if (mode === "wilder") {
+        cap += `avg gain $= (13 \\cdot ${ICW.f(M.ag[i - 1], 4)} + ${ICW.f(g, 2)})/14 = ${ICW.f(M.ag[i], 4)}$, avg loss $= (13 \\cdot ${ICW.f(M.al[i - 1], 4)} + ${ICW.f(l, 2)})/14 = ${ICW.f(M.al[i], 4)}$. `;
+      } else {
+        cap += `avg gain = son 14 gain'in ortalaması $= ${ICW.f(M.ag[i], 4)}$, avg loss = son 14 loss'un ortalaması $= ${ICW.f(M.al[i], 4)}$ (14 gün önceki ${ICW.f(R.delta[i - 14], 2)}'lik hareket pencereden çıktı). `;
+      }
+      cap += `$RS = ${ICW.f(M.ag[i] / M.al[i], 4)}$, $RSI = ${ICW.f(M.rsi[i], 2)}$.`;
+      if (isCross(i)) cap += mode === "wilder" ? ` <b>RSI 30'u yukarı geri kesti</b>: Entry A sinyali bu gün.` : ` <b>Basit RSI 30'u yukarı geri kesti.</b> Wilder RSI ile aynı cross 2025-03-25'teydi, 12 bar önce.`;
+      else if (M.rsi[i] < 30) cap += ` RSI 30'un altında: level koşulu doğru, ama henüz cross yok.`;
+      return { k, caption: cap };
+    });
+    Lab.stepper(box.querySelector("[data-stepper]"), {
+      title: `AKBNK · RSI(14) · ${mode === "wilder" ? "Wilder smoothing" : "basit 14 günlük ortalama"}`,
+      interval: 1500,
+      frames,
+      render(f, idx, el) {
+        let h = `<div class="table-wrap"><table class="w-indicators-core-rsi"><tr><th>Tarih</th><th>Close</th><th>Δ</th><th>gain</th><th>loss</th><th>avg gain</th><th>avg loss</th><th>RS</th><th>RSI</th></tr>`;
+        rows.forEach((i, k) => {
+          if (k > idx) { h += `<tr><td>${D[i]}</td><td>${ICW.f(c[i], 2)}</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`; return; }
+          const r = M.rsi[i], cls = r < 30 ? "is-low" : r > 70 ? "is-high" : "";
+          h += `<tr class="${k === idx ? "is-cur" : ""}"><td>${D[i]}</td><td>${ICW.f(c[i], 2)}</td><td>${ICW.f(R.delta[i], 2)}</td><td>${ICW.f(R.gain[i], 2)}</td><td>${ICW.f(R.loss[i], 2)}</td><td>${ICW.f(M.ag[i], 4)}</td><td>${ICW.f(M.al[i], 4)}</td><td>${ICW.f(M.ag[i] / M.al[i], 3)}</td><td class="${cls}">${ICW.f(r, 2)}${isCross(i) ? `<span class="w-indicators-core-tag">↑30</span>` : ""}</td></tr>`;
+        });
+        el.innerHTML = h + `</table></div>`;
+      }
+    });
+  }
+  box.querySelectorAll("[data-mode]").forEach(bt => bt.addEventListener("click", () => {
+    mode = bt.dataset.mode;
+    box.querySelectorAll("[data-mode]").forEach(x => x.classList.toggle("is-on", x === bt));
+    build();
+  }));
+  build();
+
+  /* typed check for 2025-03-25 */
+  const inp = document.querySelector("[data-rsi-in]"), fb = document.querySelector("[data-rsi-fb]");
+  const pg = 0.4833, pl = 1.4950, dl = 56.00 - 53.95;
+  const ag = (13 * pg + dl) / 14, al = (13 * pl) / 14, ans = 100 * ag / (ag + al);
+  const noLoss = 100 * ag / (ag + pl);                 // avg loss not updated
+  const simple = S.rsi[D.indexOf("2025-03-25")];
+  function check() {
+    const v = ICW.parseNum(inp.value);
+    if (v === null) { fb.innerHTML = `<p class="w-indicators-core-bad">Bir sayı yaz, örneğin 41.25 (virgül de olur).</p>`; return; }
+    if (v < 0 || v > 100) { fb.innerHTML = `<p class="w-indicators-core-bad">RSI 0 ile 100 arasında olmalı.</p>`; return; }
+    if (Math.abs(v - ans) <= 0.1) fb.innerHTML = `<p class="w-indicators-core-ok">Doğru: ${ICW.f(ans, 2)}. Dün 24.43'tü, bugün 30'un üstüne geri çıktı.</p>`;
+    else if (Math.abs(v - noLoss) <= 0.15) fb.innerHTML = `<p class="w-indicators-core-bad">Avg loss'u güncellemeyi unuttun (${ICW.f(noLoss, 2)} çıkıyor). Bugün loss 0, ama avg loss $13/14$ ile küçülür.</p>`;
+    else if (Math.abs(v - simple) <= 0.3) fb.innerHTML = `<p class="w-indicators-core-bad">Bu basit 14 günlük ortalamanın sonucu (${ICW.f(simple, 2)}). Soru Wilder smoothing istiyor.</p>`;
+    else fb.innerHTML = `<p class="w-indicators-core-bad">Değil. Önce avg gain ve avg loss'u $(13 \\cdot \\text{eski} + \\text{bugün})/14$ ile güncelle, sonra $100 \\cdot G/(G+L)$.</p>`;
+    Lab.renderMath(fb);
+  }
+  document.querySelector("[data-rsi-check]").addEventListener("click", check);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+})();
+
+/* ── 4. MACD panel ── */
+(function () {
+  const box = document.getElementById("w-macd");
+  const sel = box.querySelector("[data-stock]"), err = box.querySelector("[data-err]"), out = box.querySelector("[data-out]");
+  const fI = box.querySelector("[data-f]"), sI = box.querySelector("[data-s]"), gI = box.querySelector("[data-g]");
+  let win = 120;
+  function draw() {
+    const f = ICW.parseInt(fI.value), s = ICW.parseInt(sI.value), g = ICW.parseInt(gI.value);
+    if (f === null || s === null || g === null) { err.textContent = "Üç periyot da pozitif tam sayı olmalı."; return; }
+    if (f < 2 || s > 100 || f >= s) { err.textContent = "2 ≤ fast < slow ≤ 100 olmalı."; return; }
+    if (g < 2 || g > 50) { err.textContent = "signal 2 ile 50 arasında olmalı."; return; }
+    err.textContent = "";
+    const c = IC.stocks[sel.value].c, b = IC.dates.length - 1, a = b - win + 1;
+    const M = IC.macd(c, f, s, g);
+    const ups = [], dns = [];
+    for (let i = a; i <= b; i++) { if (M.h[i - 1] <= 0 && M.h[i] > 0) ups.push(i); if (M.h[i - 1] >= 0 && M.h[i] < 0) dns.push(i); }
+    let mx = 0; for (let i = a; i <= b; i++) mx = Math.max(mx, Math.abs(M.m[i]));
+    const marks = ups.map(i => ({ i, y: M.m[i], color: "var(--ic-up)", up: true })).concat(dns.map(i => ({ i, y: M.m[i], color: "var(--ic-dn)", up: false })));
+    const pmarks = ups.map(i => ({ i, y: c[i], color: "var(--ic-up)", up: true })).concat(dns.map(i => ({ i, y: c[i], color: "var(--ic-dn)", up: false })));
+    const all = ups.map(i => [i, "bullish"]).concat(dns.map(i => [i, "bearish"])).sort((x, y) => x[0] - y[0]).slice(-6);
+    out.innerHTML = ICW.legend([["var(--ic-px)", "Close"], ["var(--ic-sma)", `EMA${f}`], ["var(--ic-ema)", `EMA${s}`]]) +
+      ICW.chart({ a, b, h: 190, label: "Close ve iki EMA", series: [{ y: c, color: "var(--ic-px)", w: 1 }, { y: M.ef, color: "var(--ic-sma)" }, { y: M.es, color: "var(--ic-ema)" }], marks: pmarks }) +
+      ICW.legend([["var(--ic-sma)", `MACD = EMA${f} − EMA${s}`], ["var(--ic-ema)", `Signal = EMA${g}(MACD)`], ["var(--ic-up)", "Histogram ▲ bullish"], ["var(--ic-dn)", "▼ bearish crossover"]]) +
+      ICW.chart({ a, b, h: 160, zero: true, label: "MACD, Signal ve histogram", hlines: [{ y: 0, color: "var(--fg-subtle)" }], bars: { y: M.h, up: "var(--ic-up)", dn: "var(--ic-dn)" }, series: [{ y: M.m, color: "var(--ic-sma)", w: 1.6 }, { y: M.sig, color: "var(--ic-ema)", w: 1.4 }], marks }) +
+      `<div class="w-indicators-core-stats">
+        <div><b data-mu>${ups.length}</b><span>bullish crossover</span></div>
+        <div><b data-md>${dns.length}</b><span>bearish crossover</span></div>
+        <div><b data-mx>${ICW.f(mx, 2)}</b><span>en büyük |MACD| (TL)</span></div>
+        <div><b>${ICW.f(M.m[b], 2)} / ${ICW.f(M.sig[b], 2)}</b><span>son gün MACD / Signal</span></div>
+      </div>` +
+      (all.length ? `<div class="table-wrap"><table><tr><th>Son crossover'lar</th><th>Tür</th><th>Close</th><th>MACD</th></tr>${all.map(([i, t]) => `<tr><td>${IC.dates[i]}</td><td>${t}</td><td>${ICW.f(c[i], 2)}</td><td>${ICW.f(M.m[i], 2)}</td></tr>`).join("")}</table></div>` : "");
+  }
+  box.querySelectorAll("[data-win]").forEach(bt => bt.addEventListener("click", () => {
+    win = +bt.dataset.win;
+    box.querySelectorAll("[data-win]").forEach(x => x.classList.toggle("is-on", x === bt));
+    draw();
+  }));
+  sel.addEventListener("change", draw);
+  box.querySelector("[data-go]").addEventListener("click", draw);
+  [fI, sI, gI].forEach(x => x.addEventListener("keydown", e => { if (e.key === "Enter") draw(); }));
+  draw();
+})();
+
+/* ── 5. Event-count tables (computed from the embedded data) ── */
+(function () {
+  const a = ICW.START, D = IC.dates, b = D.length - 1;
+  const rows = [], vrows = [], frows = [];
+  for (const T of ["ASELS", "AKBNK", "TCELL"]) {
+    const c = IC.stocks[T].c, v = IC.stocks[T].v, R = IC.rsi(c).rsi;
+    const vm = IC.sma(v, 20);
+    const rise = v.map((x, i) => vm[i] !== null && x > vm[i]);
+    const rise1 = v.map((x, i) => i > 0 && vm[i - 1] !== null && x > vm[i - 1]);
+    let lt = 0, cr = 0, tr = 0, trv = 0, pk = 0, pk60 = 0, r0 = 0, r1 = 0, df = 0;
+    for (let i = a; i <= b; i++) {
+      if (R[i] < 30) lt++;
+      if (R[i - 1] < 30 && R[i] >= 30) cr++;
+      const t = R[i - 1] < R[i - 2] && R[i - 1] < R[i] && R[i - 1] < 40;
+      if (t) tr++; if (t && rise[i]) trv++;
+      const pkk = R[i - 1] > R[i - 2] && R[i - 1] > R[i];
+      if (pkk) pk++; if (pkk && R[i - 1] > 60) pk60++;
+      if (rise[i]) r0++; if (rise1[i]) r1++; if (rise[i] !== rise1[i]) df++;
+    }
+    const warn = (k) => k < 5 ? "Very small sample size" : k < 20 ? "Limited sample size" : "Larger sample, still requires validation";
+    rows.push(`<tr><td>${T}</td><td>${lt}</td><td>${cr}</td><td>${tr}</td><td>${pk}</td><td>${pk60}</td></tr>`);
+    vrows.push(`<tr><td>${T}</td><td>${r0}</td><td>${r1}</td><td>${df}</td></tr>`);
+    frows.push(`<tr><td>${T}</td><td>${tr}</td><td>${warn(tr)}</td><td>${trv}</td><td>${warn(trv)}</td></tr>`);
+  }
+  const n = b - a + 1;
+  document.getElementById("w-rsi-counts").innerHTML = `<table><tr><th>Hisse (${n} bar)</th><th>RSI &lt; 30 olan gün (level)</th><th>30'u yukarı kesiş (cross)</th><th>Local trough, &lt; 40 (event)</th><th>Local peak, eşiksiz (event)</th><th>Local peak, &gt; 60 (proje seçimi)</th></tr>${rows.join("")}</table>`;
+  document.getElementById("w-vol-counts").innerHTML = `<table><tr><th>Hisse (${n} bar)</th><th>Volume_Rise (starter code)</th><th>shift(1) ile</th><th>İkisinin farklı olduğu gün</th></tr>${vrows.join("")}</table>`;
+  document.getElementById("w-filter-counts").innerHTML = `<table><tr><th>Hisse</th><th>RSI local trough</th><th>Starter code uyarısı</th><th>+ Volume_Rise</th><th>Starter code uyarısı</th></tr>${frows.join("")}</table>`;
+})();
+</script>
+</body>
+</html>

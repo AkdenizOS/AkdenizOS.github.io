@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 481: Pandas ile time series. Daily ve weekly return, compounding, rolling mean, rolling volatility, volume z-score, groupby ile weekday istatistikleri, ISO week tablosu, Mon–Wed down / Thu–Fri up pattern'i, out-of-sample test ve multiple testing." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Pandas ile time series · CSE 481 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-time-series-patterns-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-time-series-patterns-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-time-series-patterns-ctl input[type="text"] { width: min(100%, 260px); }
+    .w-time-series-patterns-ctl input.w-time-series-patterns-short { width: 64px; }
+    .w-time-series-patterns-ctl input[type="range"] { width: min(100%, 200px); accent-color: var(--blue-600); }
+    .w-time-series-patterns-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-time-series-patterns-box { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px; background: var(--paper); margin: 8px 0; min-width: 0; }
+    .w-time-series-patterns-box svg { display: block; width: 100%; height: auto; }
+    .w-time-series-patterns-out { font-family: 'JetBrains Mono', monospace; font-size: .88rem; line-height: 1.6; }
+    .w-time-series-patterns-big { font-size: 1.05rem; font-weight: 700; color: var(--fg-brand); }
+    .w-time-series-patterns-pos { color: #2b8a3e; font-weight: 600; }
+    .w-time-series-patterns-neg { color: #c92a2a; font-weight: 600; }
+    .w-time-series-patterns-cur { background: var(--blue-050); }
+    .w-time-series-patterns-days { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin: 8px 0; }
+    .w-time-series-patterns-days div { border-radius: var(--radius-md); padding: 6px 4px; text-align: center; font-weight: 700; font-size: .9rem; border: 1px solid; }
+    .w-time-series-patterns-days .is-down { background: #fff0f0; border-color: #e8a0a0; color: #c92a2a; }
+    .w-time-series-patterns-days .is-up { background: #effaf1; border-color: #9fd3a9; color: #2b8a3e; }
+    .w-time-series-patterns-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+    .w-time-series-patterns-note { font-size: .88rem; color: var(--fg-muted); }
+    table.w-time-series-patterns-t td, table.w-time-series-patterns-t th { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 481</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 481</a> / Pandas ile time series</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W5 · W6 lab</span><span class="chip chip--exam">Vize kapsamında</span><span class="chip">Proje Scenario 2</span><span class="src">~55 dk · 12 bölüm</span></div>
+          <h1>Pandas ile time series: return'ler, rolling pencereler, weekday pattern'leri ve multiple testing</h1>
+          <p class="lead">Bir hisse "Pazartesi, Salı, Çarşamba düşüp Perşembe, Cuma yükseliyor" gibi bir alışkanlık gösteriyor mu? Bu soruyu pandas ile adım adım test edeceğiz: daily return, compounding, rolling pencereler, weekday tablosu, haftalık pattern tablosu, out-of-sample kontrol. Son durak en önemlisi: çok sayıda pattern denersen bazıları sırf şans eseri iyi görünür.</p>
+          <p class="src">Not: Week 5 (Time Series with Pandas) slaytları ve Week 6 (Lab: BIST Data) lab sheet'i repoda yok. Konu hocanın Scenario 2 starter code'u (<code>scenario2_thyao_weekday_patterns.py</code>), term project brief'i (§4, §10, §12, §18, §22, §31, §32, §34) ve Week 2 slaytı s.23 üzerinden anlatıldı. Slaytlar Teams'te paylaşılınca bu ders onlarla karşılaştırılmalı.</p>
+          <p class="src">Not: Starter code THYAO'yu 2020'den itibaren indiriyor; THYAO verisi repoda yok. Sayfadaki widget'lar quiz'deki altı hissenin repodaki gerçek verisiyle çalışıyor (AKBNK, ASELS, TUPRS, TCELL, FROTO, EREGL; 2024-01-02 → 2026-10-01, <code>Adj Close</code>). Bu yüzden "full period" burada 2024 başından başlıyor.</p>
+          <!-- Kaynak: resources/2026-2027-fall/code/scenario2_thyao_weekday_patterns.py (tamamı) · term-project-brief.pdf s.2 (§2–4), s.5 (§10, §12), s.8 (§18), s.9 (§22 tool tablosu), s.12 (§31), s.13 (§32), s.14 (§34) · week-02-agentic-harness.pdf s.23 · weeks/05 ve weeks/06 (slayt ve lab sheet "add when shared on Teams") · veri: assignments/2026-2027-fall-efe-kurucay/bist-algo-trading-challenge/data/*.csv -->
+        </header>
+
+        <article class="lesson" data-course="cse-481" data-lesson="time-series-patterns">
+
+<!-- 1 -->
+<section class="lsec" id="scenario" data-min="5">
+  <h2>Scenario 2: soru ne, cevap neye benzer?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · Week 2 slaytı s.23</span>
+    <p>Hocanın slaytındaki soru: <em>"Does a stock show patterns such as Mon–Tue–Wed down and Thu–Fri up?"</em> Slayttaki örnek hafta şöyle:</p>
+    <div class="w-time-series-patterns-days" aria-label="Slayttaki örnek hafta">
+      <div class="is-down">Mon<br>−1.2%</div><div class="is-down">Tue<br>−0.6%</div><div class="is-down">Wed<br>−0.4%</div><div class="is-up">Thu<br>+0.8%</div><div class="is-up">Fri<br>+1.0%</div>
+    </div>
+    <p>Gözle bakınca "Çarşamba akşamı al, Cuma akşamı sat" diye bir kural çıkıyor gibi. Bu derste bunun neden bir <strong>soru</strong> olduğunu, bir <strong>trading signal</strong> olmadığını göreceksin. Slaytın uyarısı: <em>"Some patterns appear by chance. The project must test whether they survive later periods."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · brief §12 Scenario 2</span>
+    <p><strong>Goal:</strong> test whether individual stocks or sectors exhibit recurring <strong>day-of-week</strong> or <strong>multi-day sequences</strong>, while recognizing that apparent patterns may disappear out of sample.</p>
+    <p>Brief'teki THYAO senaryosu öğrenciden şunları istiyor: pattern'in tradable olduğunu varsayma; sonra</p>
+    <ol>
+      <li><strong>count occurrences</strong>: pattern kaç kez görüldü?</li>
+      <li><strong>compare average and median returns</strong>: ikisi birbirine yakın mı?</li>
+      <li><strong>test different market regimes</strong>: yükselen, düşen, oynak dönemlerde de var mı?</li>
+      <li><strong>compare against random or unconditional returns</strong>: pattern'den sonraki return, sıradan bir haftadan iyi mi?</li>
+      <li><strong>include transaction costs</strong>: masraftan sonra ne kalıyor?</li>
+      <li><strong>evaluate whether the pattern remains in later unseen periods</strong>: out-of-sample'da yaşıyor mu?</li>
+    </ol>
+    <p>Brief bir de şunu ekliyor: <em>"A second stock may show the opposite pattern."</em></p>
+  </div>
+  <p>Cevap BUY ya da SELL değil. Brief §4'e göre sistemin çıktısı <strong>evidence-backed analytical state</strong> olur. Bu senaryo için brief'in kendi örneği: <em>'weekday pattern not statistically stable'</em>. Brief §31'de calendar pattern'leri için rapor edilecek metrikler de sabit: <strong>occurrence count, conditional mean/median return, out-of-sample stability, cost-adjusted result</strong>. Ders boyunca bu dördünü tek tek hesaplayacağız.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Brief §12'de test edilecek pattern örnekleri</th></tr>
+    <tr><td>Monday weakness followed by Friday strength.</td></tr>
+    <tr><td>Three consecutive down days followed by a two-day rebound.</td></tr>
+    <tr><td>Post-large-down-day mean reversion.</td></tr>
+    <tr><td>End-of-week continuation versus reversal.</td></tr>
+    <tr><td>Patterns conditional on XU100 direction, sector direction or macro-event weeks.</td></tr>
+  </table></div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · starter code'un yol haritası</span>
+    <p>Hocanın <code>scenario2_thyao_weekday_patterns.py</code> dosyası bu dersin omurgası. Ayarlar: <code>TICKER = "THYAO.IS"</code>, <code>FULL_START_DATE = "2020-01-01"</code>, <code>END_DATE = None</code> (bugüne kadar), <code>TRANSACTION_COST = 0.001</code> (0.10%), <code>TRAIN_RATIO = 0.70</code>. Fonksiyonlar sırayla:</p>
+    <ol>
+      <li><code>load_stock_data</code>: veriyi indir, <code>Return</code>, <code>Weekday</code>, <code>ISO_Year</code>, <code>ISO_Week</code> sütunlarını ekle (Bölüm 2).</li>
+      <li><code>weekday_statistics</code>: her gün için Observations, Average, Median, Std_Dev, Positive_Rate (Bölüm 5–7).</li>
+      <li><code>build_weekly_pattern_table</code> ve <code>detect_pattern</code>: her satırı bir hafta olan tablo (Bölüm 8).</li>
+      <li><code>pattern_summary</code>: count, frequency, Thu–Fri return, cost (Bölüm 9).</li>
+      <li><code>train_test_split_by_time</code>: 70/30 in-sample / out-of-sample (Bölüm 10).</li>
+      <li><code>run_three_analyses</code>: aynı analizi full period, last 2 years, last 1 year için tekrarla (Bölüm 10).</li>
+    </ol>
+    <p>Proje tarafında aynı iş MCP tool'u olarak tanımlı: <code>test_weekday_pattern</code> (input: ticker, pattern, period; output: occurrences, conditional returns, significance diagnostics). Brief §32'deki fonksiyon listesinde <code>test_weekday_pattern()</code> ve <code>detect_multiday_patterns()</code> var. <a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/resources/2026-2027-fall/code/scenario2_thyao_weekday_patterns.py" target="_blank" rel="noopener">Starter code'un orijinali</a></p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Slayttaki −1.2%, −0.6% … sayıları THYAO'nun gerçek verisi değil. Brief §39: <em>"all numerical examples in the four illustrative scenarios are hypothetical examples."</em> Sınavda "THYAO Pazartesi düşer" diye yazma.</li>
+      <li>"Pattern bulundu" ile "pattern tradable" aynı şey değil. Arada count, median, regime, unconditional karşılaştırma, cost ve out-of-sample kontrolü var.</li>
+      <li>Bir hissede bulunan pattern başka hisseye taşınmaz: brief ikinci bir hissenin tam tersini gösterebileceğini söylüyor.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w02-p23-scenario2">
+    <span class="box__label">Week 2 slaytı s.23 · slayt sorusu</span>
+    <p><em>"Does a stock show patterns such as Mon–Tue–Wed down and Thu–Fri up? Count how often the pattern appears. Measure average/median returns. Test stability out of sample. Include transaction costs. Important warning: Some patterns appear by chance. The project must test whether they survive later periods."</em></p>
+    <p>Slayt soruyu soruyor ama cevabı vermiyor. Sınavda "How would you test this pattern for THYAO, and why is an out-of-sample test necessary?" biçiminde gelebilir (bu soru biçimi bizim tahminimiz). Cevabı İngilizce, 5–6 cümleyle yaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Slaytın dört satırı cevabın iskeleti: count, average/median, out of sample, transaction costs. Her birine bir cümle yaz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Why out of sample?" sorusunun cevabı uyarı kutusunda: bazı pattern'ler şans eseri görünür. Şans eseri bulunan bir pattern yeni veride neden kaybolur?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><em>Model answer:</em> First I compute daily returns with <code>pct_change()</code>, label each day with its weekday and group the days into ISO weeks, keeping only complete weeks. Then I separate two questions. (1) Description: I <strong>count</strong> how many weeks match Mon &lt; 0, Tue &lt; 0, Wed &lt; 0, Thu &gt; 0, Fri &gt; 0 and compare that frequency with what chance alone would give (1/32 of the complete weeks if every day were a coin toss). The Thu–Fri return of these weeks is positive by construction, so this count says nothing about tradability. (2) Tradability: the trigger may use only what is known at Wednesday close, so I select every week in which Mon, Tue and Wed are all negative and measure the compounded Thu–Fri return (1 + Thu)(1 + Fri) − 1 of all of these weeks, losses included. I report the event count, the <strong>average and the median</strong>, and compare them with the unconditional Thu–Fri return of all complete weeks. I subtract the <strong>transaction cost</strong>. Then I split the data by time (for example 70% train, 30% test), fix the rule on the training part and check whether the net conditional return is still positive and above the unconditional return in the <strong>out-of-sample</strong> period. I also repeat the test over time windows (full period, last 2 years, last 1 year) and over market regimes defined by a stated rule, such as uptrend versus downtrend and high versus low volatility. Out-of-sample testing is necessary because some patterns appear by chance: if I search the past for a pattern, I will always find one that looked good there, and only unseen data shows whether it was real or noise.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/resources/2026-2027-fall/week-02-agentic-harness.pdf" target="_blank" rel="noopener">Orijinal slayt (s.23)</a></p>
+  </div>
+  <!-- Kaynak: week-02-agentic-harness.pdf s.23 (footer'da yanlışlıkla "Week 1 14" yazıyor) · brief s.2 §4, s.5–6 §12, s.9 §22 (test_weekday_pattern satırı), s.12 §31, s.13 §32, s.15 §39 · scenario2 kodu satır 33–38. -->
+  <div class="quiz" id="q-scenario-1">
+    <p class="quiz__q">Scenario 2 için brief'in beklediği çıktı hangisine benzer?</p>
+    <button class="quiz__opt">"BUY THYAO on Wednesday close, SELL on Friday close."<span class="why">Brief çıktının bir BUY/SELL etiketi değil, bir analytical state olmasını istiyor. Bu cümle test edilmemiş bir pattern'i trading kuralına çeviriyor.</span></button>
+    <button class="quiz__opt" data-correct>"Weekday pattern not statistically stable": occurrence count, mean/median, out-of-sample ve cost sonuçlarıyla birlikte.<span class="why">Doğru. Brief §4'ün kendi örneği bu. Kanıt (count, conditional mean/median, out-of-sample stability, cost-adjusted result) cümleyle birlikte verilir.</span></button>
+    <button class="quiz__opt">"THYAO falls on Monday with 80% probability."<span class="why">Geçmişteki bir frekans gelecekteki bir olasılık değildir. Üstelik slayttaki sayılar hypothetical. Historical evidence ile prediction'ı karıştırma.</span></button>
+  </div>
+  <div class="quiz" id="q-scenario-2">
+    <p class="quiz__q">Aşağıdakilerden hangisi brief §12'deki kontrol listesinde <strong>yok</strong>?</p>
+    <button class="quiz__opt">Compare against random or unconditional returns<span class="why">Listede var: pattern'den sonraki return sıradan haftalarla karşılaştırılmalı.</span></button>
+    <button class="quiz__opt">Include transaction costs<span class="why">Listede var; starter code'da <code>TRANSACTION_COST = 0.001</code>.</span></button>
+    <button class="quiz__opt" data-correct>Pattern en iyi çalıştığı döneme göre başlangıç tarihini seç<span class="why">Doğru, bu listede yok; tam tersi bir hata. Başlangıç tarihini sonuca bakarak seçmek data snooping'dir (Bölüm 11).</span></button>
+    <button class="quiz__opt">Test different market regimes<span class="why">Listede var. Starter code'un full period / last 2 years / last 1 year karşılaştırması bunu tam karşılamaz: o bir time-window stability check. Kurala bağlı regime breakdown Bölüm 10'da.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="returns" data-min="5">
+  <h2>Daily return ve tarih sütunları</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Fiyatlar farklı hisselerde farklı ölçekte: AKBNK 30 TL, FROTO 1000 TL. Günleri karşılaştırmak için fiyatı değil <strong>yüzde değişimi</strong> kullanırız. Fiyat 100 → 103 → 105.06 giderse daily return'ler +3% ve +2%'dir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · daily return</span>
+    $$r_t = \frac{P_t}{P_{t-1}} - 1 \qquad\text{pandas: } \texttt{df["Return"] = df["Close"].pct\_change()}$$
+    <p>İlk satırın bir önceki günü yok, bu yüzden return'ü <code>NaN</code> olur. Starter code bunu en sonda <code>dropna(subset=["Return"])</code> ile atar.</p>
+  </div>
+  <p><code>load_stock_data</code> fonksiyonu veriyi indirip dört sütun ekliyor. Satır satır ne yaptığı:</p>
+<pre><code>df = yf.download(ticker, start=start, end=end,
+                 auto_adjust=True, progress=False)      # Close, dividend/split'e göre düzeltilmiş
+if isinstance(df.columns, pd.MultiIndex):
+    df.columns = df.columns.get_level_values(0)        # ("Close","THYAO.IS") → "Close"
+df.index = pd.to_datetime(df.index)                    # index bir DatetimeIndex
+df["Return"] = df["Close"].pct_change()
+df["WeekdayNum"] = df.index.dayofweek                  # Monday = 0 … Friday = 4
+df["Weekday"] = df["WeekdayNum"].map({0:"Mon", 1:"Tue", 2:"Wed", 3:"Thu", 4:"Fri"})
+iso = df.index.isocalendar()
+df["ISO_Year"] = iso.year.astype(int)
+df["ISO_Week"] = iso.week.astype(int)
+return df.dropna(subset=["Return"])</code></pre>
+  <div class="box box--example">
+    <span class="box__label">Örnek · AKBNK'nın ilk günleri (repodaki veri)</span>
+    <div class="table-wrap"><table class="w-time-series-patterns-t">
+      <tr><th>Date</th><th>Adj Close</th><th>Return</th><th>WeekdayNum</th><th>Weekday</th></tr>
+      <tr><td>2024-01-02</td><td>33.1890</td><td>NaN</td><td>1</td><td>Tue</td></tr>
+      <tr><td>2024-01-03</td><td>32.0990</td><td>−3.284%</td><td>2</td><td>Wed</td></tr>
+      <tr><td>2024-01-04</td><td>32.9710</td><td>+2.716%</td><td>3</td><td>Thu</td></tr>
+      <tr><td>2024-01-05</td><td>33.4070</td><td>+1.322%</td><td>4</td><td>Fri</td></tr>
+    </table></div>
+    <p>Örneğin $32.0990 / 33.1890 - 1 = -0.03284$, yani −3.284%. İlk satır <code>dropna</code> ile gider; bu yüzden verinin ilk haftasında Salı'nın return'ü yoktur.</p>
+  </div>
+  <!-- Kaynak: scenario2 kodu satır 217–250 · week-01-bist-python-mcp.pdf s.22 (df["Return"] = df["Close"].pct_change()) · AKBNK.csv ilk dört satır, Adj Close (doğrulama: python3 -I verify.py). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Pazartesi'nin return'ü</strong> Cuma kapanışından Pazartesi kapanışına kadar olan değişimdir. Hafta sonundaki haberler Pazartesi'ye yazılır.</li>
+      <li><code>dayofweek</code> Pazartesi'yi 0 sayar, 1 değil. Cumartesi 5, Pazar 6 olurdu; borsa verisinde bu günler yok.</li>
+      <li>Düzeltilmemiş <code>Close</code> ile <code>pct_change</code> alırsan temettü ya da bölünme gününde sahte bir düşüş görürsün. Starter code bu yüzden <code>auto_adjust=True</code> kullanıyor (Close ve Adj Close farkı <a href="bist-ohlcv.html">BIST 100 ve OHLCV</a> dersinde).</li>
+      <li><strong>Veri temizliği:</strong> Yahoo bazı tatil günlerine sahte satır koyuyor. Repodaki altı hissede 27–29 Mayıs 2026 (Kurban Bayramı) satırlarında Volume = 0 ve fiyat bir önceki günle aynı; FROTO ve EREGL'de 2024-04-09 da öyle. Bu satırlar 0.000% return üretir: Positive_Rate'i düşürür, std'yi küçültür ve tatil haftasını complete gösterir. Starter code bunları temizlemiyor; <code>df = df[df["Volume"] &gt; 0]</code> satırı <code>pct_change</code>'ten <strong>önce</strong> konursa temizlenir.</li>
+      <li>yfinance yeni sürümlerde tek ticker için bile MultiIndex sütun döndürebiliyor. <code>get_level_values(0)</code> satırı olmadan <code>df["Close"]</code> beklediğin gibi tek bir sütun vermez.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-returns-1">
+    <p class="quiz__q">Fiyatlar 50 → 55 → 44. Üçüncü günün daily return'ü kaçtır?</p>
+    <button class="quiz__opt">−11%<span class="why">Bu, TL farkını (−11) yüzde sanmak. Return farkın bir önceki fiyata oranıdır: $-11/55$.</span></button>
+    <button class="quiz__opt" data-correct>−20%<span class="why">Doğru: $44/55 - 1 = -0.20$.</span></button>
+    <button class="quiz__opt">−12%<span class="why">Bu, değişimi ilk fiyata (50) göre hesaplamak: $44/50 - 1$. <code>pct_change</code> her zaman bir önceki satıra bakar.</span></button>
+  </div>
+  <div class="quiz" id="q-returns-2">
+    <p class="quiz__q">Starter code'da <code>dropna(subset=["Return"])</code> hangi satırları atar?</p>
+    <button class="quiz__opt" data-correct>Sadece verinin ilk satırını, çünkü onun bir önceki fiyatı yok.<span class="why">Doğru. <code>pct_change</code> ilk satıra NaN yazar; geri kalan her satırın bir öncesi var.</span></button>
+    <button class="quiz__opt">Tatil günlerini.<span class="why"><code>dropna</code> tatil takvimini kontrol etmez. Satırı olmayan tatil günleri haftalık tabloda eksik gün olarak çıkar (Bölüm 8). Volume = 0 ve return = 0 olan sahte tatil satırları ise NaN olmadıkları için kalır (yukarıdaki Tuzaklar kutusu).</span></button>
+    <button class="quiz__opt">Return'ü 0 olan günleri.<span class="why">0 bir sayıdır, NaN değil. <code>dropna</code> sadece NaN'ları atar.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="compound" data-min="5">
+  <h2>Compounding: return'ler toplanmaz, çarpılır</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>100 TL'lik hisse Perşembe +3% ile 103 TL olur. Cuma'nın +2%'si artık 100'ün değil 103'ün %2'sidir: 103 × 1.02 = 105.06 TL. İki günün toplamı 5% değil, <strong>5.06%</strong>. İkinci gün, birinci günün kazancı üzerinden de kazanır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · compounded return</span>
+    $$R_{\text{Thu–Fri}} = (1 + r_{\text{Thu}})(1 + r_{\text{Fri}}) - 1 \qquad R_{\text{week}} = \prod_{d=\text{Mon}}^{\text{Fri}} (1 + r_d) - 1$$
+    <p>Çarpım zincirlenince aradaki fiyatlar sadeleşir: $\prod (1 + r_t) = P_{\text{son}} / P_{\text{ilk}}$. Yani weekly return, Cuma kapanışının bir önceki Cuma kapanışına oranı eksi 1'dir (hafta eksiksizse).</p>
+    <p>Starter code'da <code>detect_pattern</code> içinde iki sütun böyle hesaplanıyor: <code>Weekly_Return</code> (beş günün çarpımı) ve <code>Thu_Fri_Return</code> (Perşembe ile Cuma'nın çarpımı).</p>
+  </div>
+  <h3>Hesap makinesi: topla ya da çarp</h3>
+  <p>Günlük return'leri yüzde olarak boşlukla ayırıp yaz. Makine 100 TL'den başlayan fiyat yolunu gerçekten yürütüyor; toplam ile compounded sonuç arasındaki farkı her adımda gösteriyor.</p>
+  <p class="w-time-series-patterns-guess"><b>Önce tahmin et:</b> −10% ve ardından +10%. Başa dönülür mü? Fiyat 100'den başlarsa iki gün sonra kaç TL olur?</p>
+  <div class="w-time-series-patterns-ctl">
+    <label for="w-tsp-cmp-in">Return'ler (%):</label>
+    <input id="w-tsp-cmp-in" type="text" value="3 2" class="btn btn--sm" autocomplete="off" />
+    <button class="btn btn--sm btn--accent" id="w-tsp-cmp-go">Hesapla</button>
+  </div>
+  <div class="w-time-series-patterns-ctl">
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-cmp="3 2">Thu +3, Fri +2</button>
+    <button class="btn btn--sm" data-cmp="-10 10">−10, +10</button>
+    <button class="btn btn--sm" data-cmp="-50 50">−50, +50</button>
+    <button class="btn btn--sm" data-cmp="-1.2 -0.6 -0.4 0.8 1.0">slayttaki hafta</button>
+  </div>
+  <div class="w-time-series-patterns-err" id="w-tsp-cmp-err" aria-live="polite"></div>
+  <div id="w-tsp-cmp-out"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Toplam, sadece küçük return'lerde yaklaşık doğrudur. −50% ve +50% toplamda 0 eder ama gerçekte −25%'tir.</li>
+      <li>Yüzde ile ondalığı karıştırma: formüle 3 değil 0.03 girer. $(1 + 3)(1 + 2) - 1 = 11$ yani "+1100%" çıkıyorsa birim hatası yaptın.</li>
+      <li>Slayttaki haftada Perşembe ve Cuma kazancı (+1.808%) Pazartesi–Çarşamba kaybını (−2.186%) karşılamıyor: hafta toplamda −0.417%. "Thu–Fri up" haftanın pozitif kapandığı anlamına gelmez.</li>
+      <li>pandas'ta bir gün NaN ise çarpım da NaN olur. Eksik günlü haftanın <code>Weekly_Return</code>'ü NaN çıkar (Bölüm 8).</li>
+    </ul>
+  </div>
+  <!-- Kaynak: scenario2 kodu satır 87–110 (Thu +3%, Fri +2% → +5.06%) ve 321–334 (Weekly_Return, Thu_Fri_Return) · slayt haftası: week-02 s.23. Sayılar verify.py ile kontrol edildi: 1.03·1.02−1 = 0.0506; 0.9·1.1−1 = −0.01; 0.5·1.5−1 = −0.25; slayt haftası −0.4171%, Thu–Fri +1.808%, Mon–Wed −2.1856%. -->
+  <div class="box box--exam" data-exam="scenario2-thu-fri-compound">
+    <span class="box__label">Scenario 2 kodu · hocanın örneği</span>
+    <p><em>"The compounded Thu-Fri return is calculated as: (1 + Thu_Return) * (1 + Fri_Return) - 1. Example: Thu = +3%, Fri = +2%. Combined return: ?"</em> (Kodun açıklama çıktısından; sonucu biz sildik.) Ayrıca: neden basitçe 3% + 2% = 5% demiyoruz?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Yüzdeleri ondalığa çevir: 1.03 ve 1.02.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>100 TL ile başla ve iki günü sırayla uygula. Cuma'nın %2'si hangi fiyatın %2'si?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$(1.03)(1.02) - 1 = 1.0506 - 1 = 0.0506 = +5.06\%$.</p>
+      <p><em>Why not 5%?</em> Friday's +2% is earned on Thursday's closing price (103), not on the original 100, so the gain is $103 \times 0.02 = 2.06$ instead of 2. Returns compound multiplicatively; adding them ignores the return earned on the previous day's gain. The difference is small here (0.06 points) but large for big moves: −50% followed by +50% is −25%, not 0%.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/resources/2026-2027-fall/code/scenario2_thyao_weekday_patterns.py#L87-L110" target="_blank" rel="noopener">Orijinal metin (kod satır 87–110)</a></p>
+  </div>
+  <div class="quiz" id="q-compound-1">
+    <p class="quiz__q">Bir hisse bir gün −10%, ertesi gün +10% yapıyor. İki günlük compounded return?</p>
+    <button class="quiz__opt">0%<span class="why">Bu toplama. +10% daha düşük bir fiyatın (90) %10'u olduğu için kaybı kapatmaz.</span></button>
+    <button class="quiz__opt" data-correct>−1%<span class="why">Doğru: $0.90 \times 1.10 - 1 = -0.01$. 100 → 90 → 99.</span></button>
+    <button class="quiz__opt">+1%<span class="why">İşaret ters. Önce düşüş geldiği için kazanç küçük bir taban üzerinden hesaplanıyor; sıralama ters olsa da sonuç yine −1% olurdu.</span></button>
+  </div>
+  <div class="quiz" id="q-compound-2">
+    <p class="quiz__q">Bir haftanın daily return'leri: Mon −1%, Tue 0%, Wed +2%, Thu +1%, Fri −2%. Hangisi weekly return'ü doğru verir?</p>
+    <button class="quiz__opt">$-1 + 0 + 2 + 1 - 2 = 0\%$<span class="why">Toplam bir yaklaşım; compounding'i atlıyor. Bu küçük return'lerde fark küçük ama sıfır değil.</span></button>
+    <button class="quiz__opt" data-correct>$0.99 \cdot 1.00 \cdot 1.02 \cdot 1.01 \cdot 0.98 - 1 \approx -0.05\%$<span class="why">Doğru. Çarpım 0.99950 civarında çıkıyor, yani −0.05%. Starter code'daki <code>Weekly_Return</code> tam olarak bu çarpım.</span></button>
+    <button class="quiz__opt">$(1 + 0.98) - 1 = 98\%$<span class="why">Sadece Cuma'yı alıp birimi de karıştırmışsın. Weekly return beş günün hepsini çarpar.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="rolling" data-min="6">
+  <h2>Rolling pencereler: rolling mean, rolling volatility, volume z-score</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>"Bugünkü volume yüksek mi?" sorusunun cevabı hisseye göre değişir: AKBNK için 100 milyon sıradan, küçük bir hisse için olağanüstü olabilir. Bugünü <strong>son n günün normaline</strong> göre ölçmek gerekir. Rolling window bunu yapar: her gün için son n günlük bir pencere açar ve o pencerenin ortalamasını ya da std'sini hesaplar. Pencere her gün bir satır kayar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · rolling hesaplar</span>
+    <ul>
+      <li><strong>Rolling mean:</strong> <code>df["Close"].rolling(20).mean()</code>, yani SMA20. İlk 19 satır NaN olur, çünkü pencere henüz dolmamıştır.</li>
+      <li><strong>Rolling volatility:</strong> <code>df["Return"].rolling(20).std()</code>. Son 20 günün daily return'lerinin standard deviation'ı; "son zamanlarda hisse ne kadar oynak?"</li>
+      <li><strong>Volume z-score:</strong> bugünkü volume normalden kaç std uzakta?
+      $$z_t = \frac{V_t - \text{mean}(V)}{\text{std}(V)}$$
+      $z = 2$ demek: bugünkü volume, pencerenin ortalamasından 2 std yukarıda.</li>
+    </ul>
+    <p>Brief §10 (Feature Engineering) listesinin ilk maddesi tam olarak bunlar: <em>"Daily and weekly returns, rolling volatility, ATR and volume z-scores."</em></p>
+  </div>
+  <p class="src">Not: z-score formülü brief'te sadece adıyla geçiyor; yukarıdaki tanım istatistikteki standart tanımdır. Hocanın Scenario 3 kodu volume için z-score değil <code>Volume_MA = Volume.rolling(20).mean()</code> ve <code>Volume_Rise = Volume &gt; Volume_MA</code> kullanıyor.</p>
+  <div class="box box--example">
+    <span class="box__label">Örnek · pencereye bugünü katmak ya da katmamak</span>
+    <p>Son beş günün volume'ü 100, 120, 80, 110, 90 (milyon) ve bugün 200.</p>
+    <ul>
+      <li><strong>Bugün hariç</strong> (<code>.shift(1)</code> ile): mean $= 100$, std $= \sqrt{(0^2 + 20^2 + 20^2 + 10^2 + 10^2)/4} = \sqrt{250} \approx 15.81$, $z = (200 - 100)/15.81 \approx 6.32$.</li>
+      <li><strong>Bugün dahil</strong> (pencere 120, 80, 110, 90, 200): mean $= 120$, std $= \sqrt{2250} \approx 47.43$, $z = (200 - 120)/47.43 \approx 1.69$.</li>
+    </ul>
+    <p>Aynı gün, aynı volume: bir hesapta "olağanüstü", ötekinde "biraz yüksek". Bugün pencereye girince hem ortalamayı yukarı çeker hem std'yi şişirir. Efe'nin quiz notebook'u bu yüzden <code>d.Volume.rolling(n).mean().shift(1)</code> yazıyor: "the volume average excludes the current bar".</p>
+  </div>
+  <!-- Kaynak: brief s.5 §10 · scenario3_technical_reversal_events_3_periods.py satır 318–324 (Volume_MA, Volume_Rise) · Efe'nin bist_algo_trading_challenge.ipynb hücre 5 (VolAvg ... shift(1)) · sayısal örnek bizim, verify.py ile kontrol edildi (z = 6.3246 ve 1.6865). -->
+  <h3>Kayan pencere, gerçek volume</h3>
+  <p>Seçtiğin hissenin son 15 işlem gününde pencere gün gün kayıyor. Mavi barlar pencere, turuncu bar bugün. Mean, std ve z her karede o pencereden yeniden hesaplanıyor (std, pandas gibi $n-1$ ile).</p>
+  <p class="w-time-series-patterns-guess"><b>Önce tahmin et:</b> "shift(1)" kutusunu kaldırınca, yani bugünü pencereye katınca, en yüksek volume'lü günün z-score'u büyür mü küçülür mü?</p>
+  <div class="w-time-series-patterns-ctl">
+    <label>Hisse <select id="w-tsp-roll-tk" class="btn btn--sm"></select></label>
+    <label>n = <input id="w-tsp-roll-n" type="text" inputmode="numeric" value="10" class="btn btn--sm w-time-series-patterns-short" /></label>
+    <label><input id="w-tsp-roll-shift" type="checkbox" checked /> shift(1): bugünü pencereye katma</label>
+    <button class="btn btn--sm btn--accent" id="w-tsp-roll-go">Kur</button>
+  </div>
+  <div class="w-time-series-patterns-err" id="w-tsp-roll-err" aria-live="polite"></div>
+  <div id="w-tsp-roll-stepper"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İlk $n-1$ satır NaN'dır. Bu satırlarla karşılaştırma yapan bir kural sessizce False döner.</li>
+      <li><code>rolling(..., center=True)</code> pencereyi bugünün iki yanına yayar, yani <strong>gelecek</strong> günleri kullanır. Grafik çizmek için olur, sinyal için look-ahead bias'tır (<a href="support-resistance.html">Support ve resistance</a> dersindeki pivot hesabı).</li>
+      <li>pandas'ın <code>.std()</code>'u $n-1$'e böler (sample std), numpy'nin <code>np.std</code>'u varsayılan olarak $n$'ye böler. Aynı veride farklı sayı görürsen sebep bu: yukarıdaki örnekte $15.81$ yerine $14.14$ çıkar.</li>
+      <li>Rolling volatility'yi fiyatın (<code>Close</code>) std'si ile karıştırma. Volatility, <strong>return'lerin</strong> std'sidir; fiyatın std'si trend varken büyür ve hisseler arasında karşılaştırılamaz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-rolling-1">
+    <p class="quiz__q">Son dört günün volume'ü 10, 14, 12, 12 (milyon), bugün 18. Pencere bugünü içermiyor. z-score yaklaşık kaçtır? (std, $n-1$ ile)</p>
+    <button class="quiz__opt" data-correct>≈ 3.67<span class="why">Doğru. mean $= 12$, sapmalar $-2, 2, 0, 0$, std $= \sqrt{8/3} \approx 1.633$, $z = 6/1.633 \approx 3.67$.</span></button>
+    <button class="quiz__opt">6<span class="why">Bu sadece $V - \text{mean}$, yani std'ye bölmeyi unutmuşsun. z-score'un birimi "kaç std"dir.</span></button>
+    <button class="quiz__opt">≈ 4.24<span class="why">Bu std'yi $n$ ile ($\sqrt{8/4} \approx 1.414$) hesaplamak. pandas <code>.std()</code> $n-1$ kullanır.</span></button>
+  </div>
+  <div class="quiz" id="q-rolling-2">
+    <p class="quiz__q"><code>df["Return"].rolling(20).std()</code> neyi ölçer?</p>
+    <button class="quiz__opt">Son 20 günde fiyatın ne kadar yükseldiğini.<span class="why">Yön std'de yoktur. Hep +1% yapan bir hissenin rolling std'si 0'dır.</span></button>
+    <button class="quiz__opt" data-correct>Son 20 günün daily return'lerinin ne kadar dağınık olduğunu, yani rolling volatility'yi.<span class="why">Doğru. Brief §10'daki "rolling volatility" budur.</span></button>
+    <button class="quiz__opt">Son 20 günün ortalama return'ünü.<span class="why">O <code>.rolling(20).mean()</code> olurdu.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="weekday-stats" data-min="5">
+  <h2>groupby ile weekday tablosu</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>689 günlük return'ü beş kutuya ayır: bütün Pazartesiler bir kutuda, bütün Salılar ötekinde... Sonra her kutu için aynı beş soruyu sor: kaç gün var, ortalama ne, ortadaki değer ne, ne kadar dağınık, yüzde kaçı pozitif?</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · <code>weekday_statistics(df)</code></span>
+<pre><code>stats = (
+    df.groupby("Weekday")["Return"]
+    .agg(
+        Observations="count",
+        Average_Return="mean",
+        Median_Return="median",
+        Std_Dev="std",
+        Positive_Rate=lambda x: (x &gt; 0).mean()
+    )
+)
+stats = stats.reindex(["Mon", "Tue", "Wed", "Thu", "Fri"])
+for col in ["Average_Return", "Median_Return", "Std_Dev", "Positive_Rate"]:
+    stats[col] *= 100</code></pre>
+    <ul>
+      <li><code>groupby("Weekday")</code>: satırları gün adına göre gruplar; <code>["Return"]</code>: sadece return sütunuyla çalış.</li>
+      <li><code>.agg(Ad="fonksiyon")</code>: her grup için bir sütun üretir. <strong>Named aggregation</strong> denir: sol taraf yeni sütunun adı.</li>
+      <li><code>(x &gt; 0).mean()</code>: True = 1, False = 0 olduğu için ortalama, pozitif günlerin <strong>oranıdır</strong>.</li>
+      <li><code>reindex</code>: groupby grupları alfabetik sıralar (Fri, Mon, Thu, Tue, Wed). reindex hafta sırasını geri getirir.</li>
+      <li>Son döngü yüzdeye çevirir. Observations'a dokunmaz, çünkü o bir sayımdır.</li>
+    </ul>
+  </div>
+  <h3>Gerçek veriyle weekday tablosu</h3>
+  <p>Starter code'un aynısını seçtiğin hisse ve pencere için tarayıcıda çalıştırıyor. Pencereler kodun <code>run_three_analyses</code> fonksiyonundaki gibi: full period, last 2 years, last 1 year. "Bugün" yerine verinin son günü (2026-10-01) alınıyor.</p>
+  <p class="w-time-series-patterns-guess"><b>Önce tahmin et:</b> Herhangi bir gün için Std_Dev, Average_Return'ün kabaca kaç katıdır: 2 katı mı, 10 katı mı, 50 katı mı?</p>
+  <div class="w-time-series-patterns-ctl">
+    <label>Hisse <select id="w-tsp-wd-tk" class="btn btn--sm"></select></label>
+    <label>Pencere <select id="w-tsp-wd-win" class="btn btn--sm"><option value="full">Full period</option><option value="2y">Last 2 years</option><option value="1y">Last 1 year</option></select></label>
+    <label><input id="w-tsp-wd-std" type="checkbox" /> Std_Dev'i aynı ölçekte çiz</label>
+    <label><input id="w-tsp-wd-clean" type="checkbox" /> Volume = 0 satırlarını at</label>
+  </div>
+  <div class="w-time-series-patterns-box">
+    <div id="w-tsp-wd-chart"></div>
+    <div class="table-wrap" id="w-tsp-wd-table"></div>
+    <div class="w-time-series-patterns-note" id="w-tsp-wd-note"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Observations her gün için aynı değildir. Tatiller farklı günlere denk gelir: AKBNK'nın full period'unda Perşembe 140, Salı 136 kez var.</li>
+      <li><code>reindex</code> satırını silersen tablo alfabetik çıkar ve grafiğin x ekseni Fri, Mon, Thu... olur. Hesap yanlış olmaz ama okuyan yanılır.</li>
+      <li><code>Positive_Rate</code> lambda'sında <code>&gt;</code> var, <code>&gt;=</code> değil: return'ü tam 0 olan gün pozitif sayılmaz.</li>
+      <li>"Volume = 0 satırlarını at" kutusunu işaretle: tatil günlerinin sahte 0.000% return'leri gidince Çarşamba, Perşembe ve Cuma'nın Observations'ı azalır, Positive_Rate'leri biraz değişir. Veri temizliği sonucu değiştirir; raporda yaz.</li>
+      <li>Pencere değişince en iyi gün de değişebiliyor. Widget'ta ASELS'te Perşembe'nin ortalamasının full period'dan last 1 year'a nasıl değiştiğine bak.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: scenario2 kodu satır 257–274 (weekday_statistics), 425–437 (yorum satırları), 637–672 (üç pencere) · widget sayıları python3 -I ana.py ile karşılaştırıldı (örnek: AKBNK full Mon 138 gözlem, ort. 0.292%, median 0.205%, std 2.736%, Positive_Rate 53.623%). -->
+  <div class="quiz" id="q-wdstats-1">
+    <p class="quiz__q"><code>Positive_Rate=lambda x: (x &gt; 0).mean()</code>. Bir grupta return'ler +1%, −2%, 0%, +3%. Sonuç (×100 sonrası) kaçtır?</p>
+    <button class="quiz__opt">75<span class="why">0%'ı pozitif saymışsın. <code>x &gt; 0</code>, 0 için False verir.</span></button>
+    <button class="quiz__opt" data-correct>50<span class="why">Doğru: True, False, False, True → ortalama 2/4 = 0.5 → 50.</span></button>
+    <button class="quiz__opt">0.5<span class="why">Lambda'nın kendisi 0.5 verir, ama kod sonra Positive_Rate'i 100 ile çarpıyor.</span></button>
+  </div>
+  <div class="quiz" id="q-wdstats-2">
+    <p class="quiz__q"><code>stats.reindex(["Mon", "Tue", "Wed", "Thu", "Fri"])</code> satırı neden var?</p>
+    <button class="quiz__opt">Eksik günleri doldurmak için.<span class="why">reindex eksik bir etiket için NaN satırı ekler ama burada amaç bu değil; beş günün hepsi zaten var.</span></button>
+    <button class="quiz__opt" data-correct>groupby'ın alfabetik sırasını hafta sırasına çevirmek için.<span class="why">Doğru. Gruplar string'e göre sıralanır: Fri, Mon, Thu, Tue, Wed.</span></button>
+    <button class="quiz__opt">Hafta sonu satırlarını atmak için.<span class="why">Borsa verisinde hafta sonu satırı yok. Olsaydı bile reindex onları sadece listeden çıkarırdı; asıl amaç sıralama.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="positive-rate" data-min="4">
+  <h2>Positive_Rate ve Std_Dev: frequency ≠ magnitude</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>On günün altısında +0.5%, dördünde −2% olsun. Positive_Rate 60%; kulağa iyi geliyor. Ama ortalama $(6 \cdot 0.5 - 4 \cdot 2)/10 = -0.5\%$. Sık sık az kazanıp seyrek ama çok kaybetmek mümkün.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · hocanın açıklamaları</span>
+    <ul>
+      <li><strong>Positive_Rate</strong> measures <strong>FREQUENCY, not MAGNITUDE</strong>. <em>"A high Positive_Rate does not automatically imply a high average return. Positive days may be small while negative days may be large."</em></li>
+      <li><strong>Std_Dev</strong> = variability of daily returns around the average. <em>"If Std_Dev is much larger than Average_Return, daily outcomes vary widely."</em></li>
+      <li><em>"A positive weekday average is NOT a deterministic rule."</em> Ortalama, tek tek günlerin ne yapacağını söylemez.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · kodun Thursday örneği</span>
+    <p>Kodun açıklamasında Perşembe'nin ortalaması +0.47%, ama tek tek Perşembeler <em>"+4.2%, −2.8%, +1.1%, −3.0%, +3.7%"</em> gibi görünebilir. Daily std 2–3% civarındayken günlük hareket, ortalama weekday etkisinden çok daha büyüktür.</p>
+    <p>Bu beş sayı sadece bir resim; kendi ortalamaları +0.64%, std'leri 3.44%. Beş Perşembe'nin ikisi −3% civarında. "Perşembe yükselir" diye işlem açan biri her iki-üç Perşembe'den birinde ciddi kayıp yaşar.</p>
+  </div>
+  <!-- Kaynak: scenario2 kodu satır 55–85 (Positive_Rate ve Thursday örneği), 431–437. Hesaplar verify.py: (6·0.5 − 4·2)/10 = −0.5; beş Perşembe ort. 0.64, std 3.4399. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Monday Positive_Rate = 51.6%" bir olasılık tahmini değil, geçmişteki bir sayımdır: <em>"approximately 51.6% of observed Mondays had a positive daily return."</em></li>
+      <li>51.6% ile 50% arasındaki fark, yazı-tura atarken bile kolayca çıkar. 120 Pazartesi'de 62 pozitif (51.7%) yazı-turada çok olağan bir sonuç.</li>
+      <li>Ortalama +0.4% ve std 2.5% ise "Perşembe +0.4% yapar" demek yanlış. Doğrusu: "Perşembeler ortalamada biraz pozitif, ama tek bir Perşembe −3% ile +3% arasında herhangi bir yerde olabilir."</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="scenario2-positive-rate-std">
+    <span class="box__label">Scenario 2 kodu · hocanın örneği</span>
+    <p><em>"Monday Positive_Rate = 51.6%"</em> ve <em>"Thursday average return = +0.47%. But individual Thursday returns may look like: +4.2%, -2.8%, +1.1%, -3.0%, +3.7%"</em>. (Kodun açıklama çıktısından, sonuç cümleleri kırpıldı.) İki ifadeyi İngilizce yorumla: Monday ve Thursday hakkında ne söyleyebilirsin, ne söyleyemezsin?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Positive_Rate neyi sayıyor: kaç kez mi, ne kadar mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>+0.47%'yi beş Perşembe'nin büyüklüğüyle karşılaştır. Std 2–3% iken +0.47% ne kadar küçük kalıyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><em>Monday:</em> Positive_Rate = 51.6% means that about 51.6% of the observed Mondays closed with a positive daily return. It measures frequency, not magnitude: it says nothing about how large the up and down Mondays were, so the average Monday return could still be negative if the down days were bigger. 51.6% is also very close to 50%, which a coin would give.</p>
+      <p><em>Thursday:</em> an average of +0.47% does not mean THYAO rises every Thursday. With a daily standard deviation of about 2–3%, single Thursdays range from about −3% to +4%, so the day-to-day noise is several times larger than the average weekday effect. Average behaviour is not a deterministic rule.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/resources/2026-2027-fall/code/scenario2_thyao_weekday_patterns.py#L51-L85" target="_blank" rel="noopener">Orijinal metin (kod satır 51–85)</a></p>
+  </div>
+  <div class="quiz" id="q-posrate-1">
+    <p class="quiz__q">Hisse A: Positive_Rate 65%, Average_Return −0.2%. Bu mümkün mü?</p>
+    <button class="quiz__opt">Hayır, pozitif günler çoğunluktaysa ortalama pozitif olmalı.<span class="why">Bu, frequency ile magnitude'u karıştırmak. Pozitif günler küçük, negatif günler büyükse ortalama negatif olur.</span></button>
+    <button class="quiz__opt" data-correct>Evet: pozitif günler küçük, negatif günler büyük olabilir.<span class="why">Doğru. Örneğin %65 gün +0.5%, %35 gün −1.5%: $0.65 \cdot 0.5 - 0.35 \cdot 1.5 = -0.2\%$.</span></button>
+    <button class="quiz__opt">Sadece veride hata varsa.<span class="why">Hata gerekmez; hocanın açıklaması tam bu durumu anlatıyor: "Positive days may be small while negative days may be large."</span></button>
+  </div>
+  <div class="quiz" id="q-posrate-2">
+    <p class="quiz__q">Bir gün için Average_Return = +0.4%, Std_Dev = 2.6%. En doğru yorum hangisi?</p>
+    <button class="quiz__opt">O gün hisse genelde +0.4% civarında kapanır.<span class="why">Std ortalamanın altı katından fazla; tek tek günler +0.4%'ün çok uzağına düşer. Ortalama tipik günü anlatmıyor.</span></button>
+    <button class="quiz__opt" data-correct>Ortalama hafif pozitif ama günlük gürültü bunun çok üstünde; bu bir kural değil.<span class="why">Doğru: "If Std_Dev is much larger than Average_Return, daily outcomes vary widely."</span></button>
+    <button class="quiz__opt">Std yüksek olduğu için ortalama yanlış hesaplanmıştır.<span class="why">Std büyüklüğü ortalamayı yanlış yapmaz; sadece ortalamanın tek günler için ne kadar az şey söylediğini gösterir.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="median" data-min="4">
+  <h2>Mean ve median birlikte okunur</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Beş pattern olayının sonrasında Thu–Fri return'leri +1%, +2%, +3%, +4%, +20% olsun. Ortalama +6%. Ama beş olayın dördü +4%'ün altında; ortalamayı tek bir +20% yukarı çekiyor. Ortadaki değer (median) +3%.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural</span>
+    <ul>
+      <li><strong>Median</strong>: değerleri sırala, ortadakini al (çift sayıda değer varsa ortadaki ikisinin ortalaması). <em>"The median is less sensitive to such extreme observations."</em></li>
+      <li><em>"Average and Median should be interpreted together. If they are close, the result is less likely to be driven by only a few extreme outcomes."</em></li>
+      <li>Mean ≫ median: birkaç büyük pozitif olay ortalamayı şişiriyor. Mean ≪ median: birkaç büyük kayıp ortalamayı aşağı çekiyor.</li>
+    </ul>
+  </div>
+  <h3>Bir outlier ne yapar?</h3>
+  <p>Değerleri yaz ya da hazır listelerden birini seç. Liste sıralanıp median kutusu işaretleniyor.</p>
+  <p class="w-time-series-patterns-guess"><b>Önce tahmin et:</b> +20'yi +200 yaparsan mean ve median ne olur?</p>
+  <div class="w-time-series-patterns-ctl">
+    <label for="w-tsp-med-in">Değerler (%):</label>
+    <input id="w-tsp-med-in" type="text" value="1 2 3 4 20" class="btn btn--sm" autocomplete="off" />
+    <button class="btn btn--sm btn--accent" id="w-tsp-med-go">Hesapla</button>
+  </div>
+  <div class="w-time-series-patterns-ctl">
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-med="1 2 3 4 20">kodun örneği</button>
+    <button class="btn btn--sm" data-med="1 2 3 4 200">+200</button>
+    <button class="btn btn--sm" data-med="1 2 3 4">outlier'sız</button>
+    <button class="btn btn--sm" data-med="1 2 3 4 -20">−20</button>
+  </div>
+  <div class="w-time-series-patterns-err" id="w-tsp-med-err" aria-live="polite"></div>
+  <div id="w-tsp-med-out"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Median'ı sıralamadan almak: [1, 20, 3, 2, 4] listesinin "ortadaki" elemanı 3'tür ama bu tesadüf. Önce sırala.</li>
+      <li>Median da tek başına yetmez: +20%'lik olay gerçekse o da bilginin bir parçası. İkisini birlikte raporla.</li>
+      <li>Az olayda (5 olay gibi) hem mean hem median oynaktır. Event count'u da yaz (Bölüm 9).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="scenario2-mean-median">
+    <span class="box__label">Scenario 2 kodu · hocanın örneği</span>
+    <p><em>"Median Thu-Fri return after pattern (%): The median is the middle Thu-Fri return after sorting all observed pattern returns. Example: +1%, +2%, +3%, +4%, +20%. Average = ? Median = ?"</em> (Kodun açıklama çıktısından; sonuçları biz sildik.) Bu iki sayıyı birlikte nasıl yorumlarsın?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Ortalama: topla, 5'e böl. Median: sıralı listede 3. değer.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Ortalama median'dan neden büyük? Hangi tek değer farkı yaratıyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Average $= (1 + 2 + 3 + 4 + 20)/5 = 30/5 = +6\%$. Median $= +3\%$ (sorted, the third of five values).</p>
+      <p><em>Interpretation:</em> the single +20% observation strongly increases the average, while the median is less sensitive to such extreme observations. Because the average (6%) is twice the median (3%), the result is driven by one extreme outcome; a typical event earned about 3%. Average and median should be interpreted together: if they are close, the result is less likely to be driven by only a few extreme outcomes.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/resources/2026-2027-fall/code/scenario2_thyao_weekday_patterns.py#L112-L127" target="_blank" rel="noopener">Orijinal metin (kod satır 112–127)</a></p>
+  </div>
+  <!-- Kaynak: scenario2 kodu satır 112–127. verify.py: mean 6, median 3; outlier'sız mean 2.5, median 2.5. -->
+  <div class="quiz" id="q-median-1">
+    <p class="quiz__q">Thu–Fri return'leri: −1%, +1%, +2%, +2%, +31%. Mean ve median?</p>
+    <button class="quiz__opt">Mean 2%, median 7%<span class="why">İkisini yer değiştirmişsin. Toplam 35, 5'e bölünce mean 7%; sıralı listenin ortası 2%.</span></button>
+    <button class="quiz__opt" data-correct>Mean 7%, median 2%<span class="why">Doğru. Mean, median'ın üç katından fazla: sonucu tek bir +31% taşıyor.</span></button>
+    <button class="quiz__opt">Mean 7%, median 1%<span class="why">Median sıralı listenin tam ortasındaki (3.) değerdir: −1, 1, <b>2</b>, 2, 31.</span></button>
+  </div>
+  <div class="quiz" id="q-median-2">
+    <p class="quiz__q">Bir pattern için Average Thu–Fri = +2.9%, Median = +0.1%. En iyi yorum?</p>
+    <button class="quiz__opt">Pattern güçlü, çünkü ortalama yüksek.<span class="why">Ortalamayı birkaç büyük olay şişirmiş olabilir; tipik olay neredeyse 0 kazanmış.</span></button>
+    <button class="quiz__opt" data-correct>Sonuç birkaç uç olaya dayanıyor; tipik olay neredeyse hiç kazandırmamış.<span class="why">Doğru. Mean ≫ median, sağa çarpık (right-skewed) bir dağılımın işaretidir.</span></button>
+    <button class="quiz__opt">Median yanlış hesaplanmış olmalı.<span class="why">Mean ile median'ın çok farklı olması normal; outlier olduğunu söyler, hata olduğunu söylemez.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="weekly-table" data-min="5">
+  <h2>ISO week ve pivot_table: her satır bir hafta</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>"Pazartesi, Salı, Çarşamba düştü, sonra Perşembe, Cuma yükseldi" sorusu <strong>aynı haftanın</strong> beş gününü yan yana görmeyi gerektirir. Günlük tabloda bu beş gün alt alta, beş ayrı satırda. Tabloyu döndürüp her haftayı tek satıra, her günü bir sütuna koyarız.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · <code>build_weekly_pattern_table</code> ve <code>detect_pattern</code></span>
+<pre><code>weekly = df.pivot_table(index=["ISO_Year", "ISO_Week"],
+                        columns="Weekday", values="Return",
+                        aggfunc="first").reset_index()
+# eksik gün sütunu yoksa NaN ile ekle, sonra sütunları Mon..Fri sırala
+
+weekly["Complete_Week"] = weekly[["Mon","Tue","Wed","Thu","Fri"]].notna().all(axis=1)
+weekly["Pattern"] = (weekly["Complete_Week"]
+    &amp; (weekly["Mon"] &lt; 0) &amp; (weekly["Tue"] &lt; 0) &amp; (weekly["Wed"] &lt; 0)
+    &amp; (weekly["Thu"] &gt; 0) &amp; (weekly["Fri"] &gt; 0))
+weekly["Weekly_Return"]  = (1+Mon)*(1+Tue)*(1+Wed)*(1+Thu)*(1+Fri) - 1
+weekly["Thu_Fri_Return"] = (1+Thu)*(1+Fri) - 1</code></pre>
+    <ul>
+      <li><strong>ISO_Year / ISO_Week</strong>: ISO 8601 haftası. Hafta Pazartesi başlar; bir yılın 1. haftası, o yılın ilk Perşembe'sini içeren haftadır. Kodun açıklaması: <em>"The purpose is to group Monday through Friday into the same weekly observation... ISO week numbering is especially useful around year-end and year-start boundaries."</em></li>
+      <li><code>aggfunc="first"</code>: bir (hafta, gün) hücresine tek bir return düşer; "first" o değeri olduğu gibi alır.</li>
+      <li><strong>Complete_Week</strong>: beş günün beşi de dolu mu? Tatil olan hafta eksiktir ve pattern'e giremez.</li>
+      <li><strong>Pattern</strong>: hedef dizi Mon &lt; 0, Tue &lt; 0, Wed &lt; 0, Thu &gt; 0, Fri &gt; 0.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · yılbaşı haftası, AKBNK (repodaki veri)</span>
+    <div class="table-wrap"><table class="w-time-series-patterns-t">
+      <tr><th>Date</th><th>Gün</th><th>Takvim yılı</th><th>ISO_Year</th><th>ISO_Week</th><th>Return</th></tr>
+      <tr><td>2024-12-30</td><td>Mon</td><td>2024</td><td>2025</td><td>1</td><td>−0.906%</td></tr>
+      <tr><td>2024-12-31</td><td>Tue</td><td>2024</td><td>2025</td><td>1</td><td>−1.219%</td></tr>
+      <tr><td>2025-01-01</td><td>Wed</td><td colspan="4">tatil, satır yok</td></tr>
+      <tr><td>2025-01-02</td><td>Thu</td><td>2025</td><td>2025</td><td>1</td><td>+2.082%</td></tr>
+      <tr><td>2025-01-03</td><td>Fri</td><td>2025</td><td>2025</td><td>1</td><td>0.000%</td></tr>
+    </table></div>
+    <p>ISO numarası dört günü aynı haftaya koyuyor. Takvim yılına göre gruplasaydın 30–31 Aralık 2024'e, 2–3 Ocak 2025'e düşer ve bir hafta ikiye bölünürdü. Bu hafta yine de <strong>eksik</strong> (Çarşamba tatil), yani <code>Complete_Week = False</code>. Tatil olmasaydı bile Cuma'nın 0.000%'ı <code>Fri &gt; 0</code> koşulunu bozardı.</p>
+    <p>AKBNK'nın full period'unda 144 ISO hafta var; 24'ü eksik (yılbaşı, 23 Nisan, 1 Mayıs, 19 Mayıs, 15 Temmuz, 30 Ağustos, 29 Ekim, bayramlar ve verinin ilk ve son haftası). Geriye 120 complete week kalıyor. 2026 Kurban Bayramı haftası eksik görünmüyor, çünkü Yahoo o günlere Volume = 0 ve aynı fiyatla satır koymuş (Bölüm 2'deki tuzak).</p>
+  </div>
+  <!-- Kaynak: scenario2 kodu satır 166–180 (ISO açıklaması), 281–298, 305–336 · AKBNK.csv; iso.py ile kontrol: 144 hafta, 24 eksik, 2024-12-30 → (2025, 1), 2025-01-03 return 0.0. İlk hafta 2024-W01: 1 Ocak tatil, 2 Ocak'ın return'ü NaN → sadece Wed, Thu, Fri. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><code>df.index.year</code> ile hafta numarasını birleştirme: yılbaşı haftası iki yıla bölünür. ISO_Year ile ISO_Week birlikte kullanılır.</li>
+      <li>Verinin <strong>ilk haftası</strong> çoğu zaman eksik çıkar: ilk günün return'ü NaN'dır ve <code>dropna</code> ile gider (AKBNK'da 2 Ocak 2024 Salı).</li>
+      <li>Return'ü tam 0 olan gün ne "&lt; 0" ne "&gt; 0" koşulunu sağlar. Pattern'i bozar.</li>
+      <li>Pandas'ta NaN ile yapılan çarpım NaN verir: eksik haftanın <code>Weekly_Return</code> ve çoğu zaman <code>Thu_Fri_Return</code>'ü NaN'dır. Bu yüzden özetler sadece complete week'ler üzerinden alınır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-weekly-1">
+    <p class="quiz__q">2025-12-29 Pazartesi'dir. ISO_Year ve ISO_Week nedir? (1 Ocak 2026 Perşembe.)</p>
+    <button class="quiz__opt">2025, 53<span class="why">Takvim yılına bakmışsın. ISO'da hafta, içerdiği Perşembe'nin yılına aittir; bu haftanın Perşembe'si 1 Ocak 2026.</span></button>
+    <button class="quiz__opt" data-correct>2026, 1<span class="why">Doğru. 1 Ocak 2026 Perşembe olduğu için onu içeren hafta 2026'nın 1. haftası; Pazartesi'si 29 Aralık 2025.</span></button>
+    <button class="quiz__opt">2025, 52 ve 2026, 1 arasında bölünür<span class="why">ISO numaralandırmasının amacı tam olarak bunu önlemek: Pazartesi–Cuma her zaman tek bir haftaya düşer.</span></button>
+  </div>
+  <div class="quiz" id="q-weekly-2">
+    <p class="quiz__q">Bir hafta: Mon −0.5%, Tue −1.1%, Wed (tatil), Thu +0.9%, Fri +1.4%. <code>Pattern</code> sütunu ne olur?</p>
+    <button class="quiz__opt">True, çünkü eldeki günler deseni bozmuyor.<span class="why">Kod önce <code>Complete_Week</code> ister. Çarşamba NaN olduğu için hafta eksik ve pattern False.</span></button>
+    <button class="quiz__opt" data-correct>False, çünkü hafta complete değil.<span class="why">Doğru. Kod, eksik günleri "muhtemelen düştü" diye tahmin etmez; o haftayı dışarıda bırakır.</span></button>
+    <button class="quiz__opt">NaN<span class="why"><code>Pattern</code> boolean bir sütun: <code>Complete_Week</code> False olunca bütün ifade False olur. NaN olan <code>Weekly_Return</code>'dür.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="pattern-summary" data-min="6">
+  <h2>Pattern özeti: count, frequency, Thu–Fri return, cost</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · <code>pattern_summary(weekly, transaction_cost=0.001)</code></span>
+    <div class="table-wrap"><table>
+      <tr><th>Satır</th><th>Hesap</th><th>Ne söyler</th></tr>
+      <tr><td>Complete weeks</td><td>beş günü dolu haftalar</td><td>paydanın büyüklüğü</td></tr>
+      <tr><td>Pattern occurrences</td><td>Pattern = True olan haftalar</td><td><strong>event count</strong></td></tr>
+      <tr><td>Pattern frequency (%)</td><td>occurrences / complete weeks</td><td>ne kadar sık</td></tr>
+      <tr><td>Average Thu-Fri return after pattern (%)</td><td>pattern haftalarında Thu_Fri_Return'ün mean'i</td><td>ortalama büyüklük</td></tr>
+      <tr><td>Median Thu-Fri return after pattern (%)</td><td>aynı değerlerin median'ı</td><td>outlier kontrolü</td></tr>
+      <tr><td>Positive Thu-Fri rate (%)</td><td>Thu_Fri_Return &gt; 0 olanların oranı</td><td>ne sıklıkla kazandırdı</td></tr>
+      <tr><td>Average after transaction cost (%)</td><td>average − 0.10%</td><td>masraftan sonra kalan</td></tr>
+    </table></div>
+    <p>Hocanın iki uyarısı: <em>"1 / 1 = 100% and 100 / 100 = 100%. Both are mathematically 100%, but they do NOT provide the same statistical evidence. Always interpret Positive Rate together with Event Count."</em> ve <em>"A strategy may look profitable before costs but lose much of its advantage after costs."</em> Transaction cost şunları temsil edebilir: brokerage commissions, bid-ask spread, fees, slippage.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Dikkat · kodda gözden kaçan bir nokta</span>
+    <p>Hedef pattern'in tanımında <code>Thu &gt; 0</code> ve <code>Fri &gt; 0</code> <strong>zaten var</strong>. Perşembe ve Cuma ikisi de pozitifse $(1 + r_{\text{Thu}})(1 + r_{\text{Fri}}) - 1$ de pozitiftir. Yani bu kodla "Average Thu-Fri return after pattern" her zaman pozitif, "Positive Thu-Fri rate" her zaman 100% çıkar. Sonucu, onu seçmek için kullandığın koşul belirliyor.</p>
+    <p>Pattern'in <strong>tradable</strong> olup olmadığını soran soru başka: "Mon–Wed düştüyse, Perşembe ve Cuma ne yaptı?" Bunun için sadece ilk üç günle koşullarsın (trigger), Thu–Fri'yi sonuç olarak ölçersin ve bunu bütün haftaların Thu–Fri ortalamasıyla (unconditional) karşılaştırırsın. Kodun açıklamasındaki "10 events, 8 positive" örneği de ancak böyle bir tanımda anlamlı. Aşağıdaki widget iki tanımı yan yana gösteriyor.</p>
+    <p class="src">Not: Bu gözlem bizim, hocanın notlarında yok. Sınavda kodun kendi tanımını sorarsa kodun tanımıyla cevap ver; yorum sorusu gelirse bu noktayı eklemek iyi bir artı olur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · "compare against random"</span>
+    <p>Günlerin yönü yazı-tura gibi olsaydı her bir beşli işaret dizisinin (32 tane: $2^5$) olasılığı $1/32 = 3.125\%$ olurdu. 120 complete week'te hedef pattern'in şans eseri beklenen sayısı $120/32 = 3.75$. Altı hissede full period'da gördüğümüz sayılar 0, 4, 4, 3, 3, 5: şanstan ayırt edilemiyor.</p>
+  </div>
+  <!-- Kaynak: scenario2 kodu satır 129–164 (8/10, 1/1 vs 100/100, 5.72 − 0.10, cost bileşenleri), 343–375 (pattern_summary) · brief s.6 §12 ("compare against random or unconditional returns") · pattern sayıları ana.py: AKBNK 0, ASELS 4, TUPRS 4, TCELL 3, FROTO 3, EREGL 5 (120 complete week); her hissede pattern Thu–Fri ortalaması pozitif (ör. ASELS 4.495%), by construction. -->
+  <h3>Pattern bulucu: hafta hafta</h3>
+  <p>Seçtiğin hisse ve pencerede Mon–Wed üçü de negatif olan bütün complete week'ler sırayla geliyor. Her karede o haftanın Thu–Fri compounded return'ü hesaplanıyor; Thu ve Fri ikisi de pozitifse hafta aynı zamanda kodun hedef pattern'i. Sonda iki tanımın özeti ve unconditional karşılaştırma var.</p>
+  <p class="w-time-series-patterns-guess"><b>Önce tahmin et:</b> Mon–Wed düşen haftalarda Thu–Fri ortalaması, bütün haftaların Thu–Fri ortalamasından belirgin biçimde yüksek çıkar mı?</p>
+  <div class="w-time-series-patterns-ctl">
+    <label>Hisse <select id="w-tsp-pf-tk" class="btn btn--sm"></select></label>
+    <label>Pencere <select id="w-tsp-pf-win" class="btn btn--sm"><option value="full">Full period</option><option value="2y">Last 2 years</option><option value="1y">Last 1 year</option></select></label>
+  </div>
+  <div id="w-tsp-pf-stepper"></div>
+  <div class="box box--exam" data-exam="scenario2-evidence-cost">
+    <span class="box__label">Scenario 2 kodu · hocanın örneği</span>
+    <p>Kodun açıklama çıktısından üç parça (sonuçları biz sildik):</p>
+    <ol>
+      <li><em>"10 pattern events, 8 positive outcomes, 2 negative outcomes. Positive Thu-Fri Rate = ?"</em></li>
+      <li><em>"1 / 1 = 100%, 100 / 100 = 100%."</em> Bunlar aynı kanıt mıdır?</li>
+      <li><em>"Average Thu-Fri Return = +5.72%, Transaction Cost = 0.10%, Net Average Return = ?"</em> Transaction cost neyi temsil eder?</li>
+    </ol>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(1) bir oran; (3) bir çıkarma. Asıl soru (2): örneklem büyüklüğü neyi değiştirir?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Tek bir olay şans eseri pozitif olabilir mi? 100 olayın 100'ünün şans eseri pozitif olma ihtimali ne kadar?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(1) Positive Thu-Fri Rate $= 8/10 = 80\%$.</p>
+      <p>(2) No. Both are mathematically 100%, but they do not provide the same statistical evidence. One positive event can easily happen by chance (like one coin toss landing heads); 100 positive events out of 100 is very unlikely by chance. A positive rate must always be reported together with the event count.</p>
+      <p>(3) Net average return $= 5.72\% - 0.10\% = +5.62\%$. The transaction cost may represent brokerage commissions, the bid-ask spread, fees and slippage. A strategy may look profitable before costs but lose much of its advantage after costs, especially if it trades often and its average gain per trade is small.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/resources/2026-2027-fall/code/scenario2_thyao_weekday_patterns.py#L129-L164" target="_blank" rel="noopener">Orijinal metin (kod satır 129–164)</a></p>
+  </div>
+  <div class="quiz" id="q-psum-1">
+    <p class="quiz__q">Pattern A: 3 olay, Positive rate 100%, average +4.1%. Pattern B: 60 olay, Positive rate 58%, average +0.6%. Hangisi daha güçlü kanıt?</p>
+    <button class="quiz__opt">A, çünkü hem rate hem average daha yüksek.<span class="why">3 olay şans eseri kolayca 3/3 pozitif çıkar (yazı-turada 1/8 ihtimal). Event count'u görmezden geliyorsun.</span></button>
+    <button class="quiz__opt" data-correct>Bu bilgilerle kanıt gücü sıralanamaz; B'nin örneklemi daha büyük, ancak dağılım, belirsizlik ve benchmark karşılaştırması gerekir.<span class="why">Doğru. Event count önemli ama tek başına yetmez. A'nın üç değeri birbirine çok yakın, B'nin 60 değeri çok dağınık olabilir; o zaman A'nın ortalaması, kendi std'sine göre ölçülünce, sıfırdan B'ninkinden daha uzak olur. Std, unconditional Thu–Fri ortalamasıyla fark, out-of-sample ve cost olmadan iki pattern karşılaştırılamaz.</span></button>
+    <button class="quiz__opt">İkisi eşit, çünkü ikisinin de ortalaması pozitif.<span class="why">Pozitif ortalama tek başına kanıt değil; kaç olaya dayandığı, ne kadar dağınık olduğu ve masraftan sonra ne kaldığı belirleyici.</span></button>
+    <button class="quiz__opt">B, çünkü 60 olay 3 olaydan çok daha fazla.<span class="why">Örneklem büyüklüğü kanıtın bir parçası, tamamı değil. 58% positive rate ve +0.6% ortalama, std büyükse şanstan ayırt edilemeyebilir. Ayrıca haftalar birbirinden bağımsız olmayabilir.</span></button>
+  </div>
+  <div class="quiz" id="q-psum-2">
+    <p class="quiz__q">Starter code'un tanımıyla (Pattern = Mon, Tue, Wed &lt; 0 ve Thu, Fri &gt; 0) "Positive Thu-Fri rate" bir hissede 100% çıktı. Bu ne anlama gelir?</p>
+    <button class="quiz__opt">Pattern bu hissede çok güçlü.<span class="why">Pattern'in tanımı Thu ve Fri'nin pozitif olmasını zaten şart koşuyor; 100% kaçınılmaz.</span></button>
+    <button class="quiz__opt" data-correct>Hiçbir şey: tanım gereği her zaman 100% çıkar.<span class="why">Doğru. Sonuç, seçim koşulunun içinde. Bilgi taşıyan ölçü, sadece Mon–Wed ile koşullayıp Thu–Fri'ye bakmak.</span></button>
+    <button class="quiz__opt">Look-ahead bias yok demektir.<span class="why">Look-ahead ile ilgisi yok. Aksine, Thu ve Fri'yi pattern'e katmak Çarşamba akşamı bilinmeyen bilgiyi kullanmak demek.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="out-of-sample" data-min="6">
+  <h2>Time-based split, üç pencere ve regime breakdown</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Bir öğrenci geçmiş sınavın cevaplarını ezberlerse aynı sınavda 100 alır. Yeni sınavda ne alacağı ayrı bir soru. Pattern'i bulduğun veri (in-sample) "geçmiş sınav", görmediğin veri (out-of-sample) "yeni sınav"dır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · <code>train_test_split_by_time(df, train_ratio=0.70)</code></span>
+<pre><code>split_index = int(len(df) * train_ratio)
+train = df.iloc[:split_index].copy()     # ilk %70: in-sample
+test  = df.iloc[split_index:].copy()     # son %30: out-of-sample</code></pre>
+    <ul>
+      <li>Split <strong>zamana göre</strong>, karıştırmadan (shuffle yok). Test, train'den sonra gelir; geleceği geçmişle değil, geçmişi gelecekle test etmiş olmayız.</li>
+      <li>Kod iki yarıda pattern'i ayrı ayrı arar ve <code>pattern_summary</code>'leri "In-Sample" ve "Out-of-Sample" sütunlarıyla yan yana basar.</li>
+      <li>Out-of-sample yorumu event count'a göre değişir. 0 olay: <em>"There is not enough unseen evidence to support a strong conclusion."</em> 1 olay: <em>"Even if the Positive Thu-Fri Rate is 100%, the statistical evidence is weak."</em> Daha fazlası: ortalamayı raporla.</li>
+      <li><em>"If the pattern is strong in-sample but weak out-of-sample, it may be overfit or regime-dependent."</em></li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · üç pencere (<code>run_three_analyses</code>)</span>
+    <p>Aynı analiz full period (2020'den), last 2 years ve last 1 year için koşulur. Son iki pencere bugünün tarihinden <code>relativedelta(years=2)</code> ve <code>relativedelta(years=1)</code> geriye gidilerek bulunur. Kodun final yorumu: <em>"The same pattern may behave differently across different time windows. Full-period performance alone is not sufficient... If the pattern is strong over the full period but weak in the last year, it may be regime-dependent rather than robust."</em></p>
+    <p>Bu üç pencere bir <strong>time-window stability check</strong>'tir: iç içe geçmiş üç takvim dilimi. Hangi haftanın bull, bear ya da high-volatility dönemde olduğunu söylemezler. Kodun "regime-dependent" yorumu bu yüzden bir şüphedir; regime testi değildir.</p>
+    <p>Robust bir pattern, kodun deyişiyle, <em>"bull markets, bear markets, high-volatility periods, low-volatility periods, and different interest-rate environments"</em> içinde yaşamalı; daha uzun dönemlerde, birden çok hissede ve masraftan sonra test edilmeli. Brief §18 bunu genelleştiriyor: data-mined kurallar için <strong>train/validation/test</strong> ya da <strong>rolling walk-forward</strong>; çok az olaydan gelen yüksek getiri işaretlenmeli (<em>"Report the number of signals"</em>); weekday/pattern bulguları için <em>"regime breakdowns and out-of-sample testing"</em>.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · regime breakdown</span>
+    <p>Regime breakdown her haftayı sonuca bakmadan yazılmış bir kurala göre bir gruba koyar ve pattern'i her grupta ayrı ölçer. Etiket, trigger gibi, Çarşamba kapanışında bilinen bilgiyle konur. Aşağıdaki widget'ın kuralı:</p>
+    <ul>
+      <li><strong>Trend:</strong> Çarşamba kapanışı, o güne kadarki 50 kapanışın ortalamasının (SMA50) üstündeyse <em>uptrend</em>, değilse <em>downtrend</em>.</li>
+      <li><strong>Volatility:</strong> Çarşambaya kadarki 20 daily return'ün std'si (20-day rolling volatility), penceredeki haftaların median'ının üstündeyse <em>high volatility</em>, değilse <em>low volatility</em>.</li>
+    </ul>
+    <p>Her regime için şunlar raporlanır: o regime'deki complete week sayısı, Mon–Wed down hafta sayısı (event count), bu haftaların Thu–Fri ortalaması, median'ı, positive rate'i, cost sonrası ortalaması ve aynı regime'deki bütün haftaların unconditional Thu–Fri ortalaması. Pattern'in değeri, aynı regime'deki sıradan haftalarla farkıdır.</p>
+    <p class="src">Not: Brief §12 "Patterns conditional on XU100 direction" diyor ama repodaki veride XU100 serisi yok. Widget bu yüzden trendi hissenin kendi SMA50'siyle ölçüyor; projede aynı tablo XU100 direction ile kurulur. Volatility eşiği (median) bütün pencereden hesaplandığı için bu ayrım tanımlayıcıdır, bir trading kuralı değildir.</p>
+  </div>
+  <h3>In-sample ve out-of-sample yan yana</h3>
+  <p>Kodun karşılaştırma tablosu, seçtiğin hisse, pencere ve train oranı için. Altta aynı hissenin üç pencere özeti (time-window stability check) ve seçtiğin penceredeki regime breakdown var. Son satırlar bizim "Mon–Wed down → Thu–Fri" tanımımız.</p>
+  <p class="w-time-series-patterns-guess"><b>Önce tahmin et:</b> Bir hissede Mon–Wed down haftalarından sonraki Thu–Fri ortalaması in-sample'da pozitifse, out-of-sample'da da pozitif kalır mı? Altı hisseyi tek tek dene ve say.</p>
+  <div class="w-time-series-patterns-ctl">
+    <label>Hisse <select id="w-tsp-oos-tk" class="btn btn--sm"></select></label>
+    <label>Pencere <select id="w-tsp-oos-win" class="btn btn--sm"><option value="full">Full period</option><option value="2y">Last 2 years</option><option value="1y">Last 1 year</option></select></label>
+    <label>Train oranı <input id="w-tsp-oos-ratio" type="range" min="50" max="90" step="5" value="70" /> <b id="w-tsp-oos-rv">70%</b></label>
+  </div>
+  <div class="w-time-series-patterns-box">
+    <div class="w-time-series-patterns-note" id="w-tsp-oos-info"></div>
+    <div class="table-wrap" id="w-tsp-oos-table"></div>
+    <div class="w-time-series-patterns-note" id="w-tsp-oos-msg"></div>
+    <div class="table-wrap" id="w-tsp-oos-three"></div>
+    <div class="w-time-series-patterns-note" id="w-tsp-oos-rinfo"></div>
+    <div class="table-wrap" id="w-tsp-oos-regime"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Rastgele split (shuffle) zaman serisinde yanlıştır: test haftalarının arasına train haftaları girer ve test "görülmemiş dönem" olmaktan çıkar.</li>
+      <li>Kod günlük satırları böler. Split günü bir haftanın ortasına denk gelirse o hafta iki yarıda da eksik kalır ve sayılmaz. AKBNK full period'da %70 split'i 2025-12-08 Pazartesi ile 2025-12-09 Salı arasından geçiyor.</li>
+      <li>Last 1 year, last 2 years'ın içinde; last 2 years da full period'un içinde. Üç pencere birbirinden bağımsız üç test değildir; market regime de değildir. "Last 1 year zayıf" sonucu, hangi koşulda zayıf olduğunu söylemez. Bunu regime breakdown söyler.</li>
+      <li>Bir regime'de event count çok küçükse (ör. 2–3 hafta) o satırın ortalaması Bölüm 9'daki "1/1 = 100%" kadar zayıf kanıttır.</li>
+      <li>"Last 1 year" bugünün tarihine göre hesaplandığı için kodu yarın çalıştıran farklı sonuç alır. Raporda tarihleri yaz (reproducibility).</li>
+      <li>Out-of-sample'da pattern'i tekrar tekrar deneyip "tutana kadar" ayar yaparsan test verisi de in-sample'a dönüşür.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: scenario2 kodu satır 182–210, 382–388, 527–608, 631–708 · brief s.8 §18 · split tarihi verify.py: int(689·0.7) = 482, train son günü 2025-12-08, test ilk günü 2025-12-09 · regime breakdown (SMA50 trend, 20-day std median) bizim kuralımız; JS çıktısı altı hisse × üç pencerede bağımsız python3 -I betiğiyle birebir doğrulandı (ör. AKBNK full: 111 etiketli hafta, 9 hafta dışarıda, eşik 2.6565%). -->
+  <div class="box box--exam" data-exam="scenario2-oos-one-event">
+    <span class="box__label">Scenario 2 kodu · hocanın örneği</span>
+    <p><em>"Out-of-sample interpretation: Suppose the target pattern appears only once in the out-of-sample period. If that one event is positive: Positive Rate = 100%."</em> (Kodun açıklama çıktısından; yorum kısmını biz sildik.) Bu sonucu nasıl raporlarsın? Pattern in-sample'da güçlü, out-of-sample'da zayıf çıksaydı ne derdin?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bölüm 9'daki "1/1 = 100%" uyarısını hatırla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İkinci soru için kodun iki kelimesi: overfit ve regime-dependent. Her birinin ne demek olduğunu bir cümleyle yaz.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>A 100% positive rate from one out-of-sample event is weak evidence, because it is based on only one observation; a single positive week can easily happen by chance. The correct interpretation is: <em>"Interesting observation, but insufficient out-of-sample evidence for a strong conclusion."</em> I would report the event count next to the rate and test the pattern on a longer period and on other stocks before drawing any conclusion.</p>
+      <p>If the pattern is strong in-sample but weak out-of-sample, it may be <strong>overfit</strong> (it describes noise in the training data, not a repeatable behaviour) or <strong>regime-dependent</strong> (it existed under the market conditions of the training period but not under the later ones). In both cases it is not robust and should not be treated as a tradable rule.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/resources/2026-2027-fall/code/scenario2_thyao_weekday_patterns.py#L182-L193" target="_blank" rel="noopener">Orijinal metin (kod satır 182–193)</a></p>
+  </div>
+  <div class="quiz" id="q-oos-1">
+    <p class="quiz__q">689 günlük return var, <code>TRAIN_RATIO = 0.70</code>. Test kümesi hangi satırlardan oluşur?</p>
+    <button class="quiz__opt">Rastgele seçilmiş 207 satır.<span class="why">Kod <code>iloc</code> ile sıralı keser, shuffle yok.</span></button>
+    <button class="quiz__opt" data-correct>482. indeksten sona kadar, yani son 207 satır.<span class="why">Doğru: <code>int(689 · 0.70) = int(482.3) = 482</code>; test = <code>iloc[482:]</code>, 689 − 482 = 207 satır.</span></button>
+    <button class="quiz__opt">İlk 207 satır.<span class="why">Ters: train önce gelir. Test her zaman en son dönemdir.</span></button>
+  </div>
+  <div class="quiz" id="q-oos-2">
+    <p class="quiz__q">Pattern full period'da güçlü, last 1 year'da zayıf. Kodun yorumu hangisi?</p>
+    <button class="quiz__opt">Full period daha uzun olduğu için ona güvenilir; son yıl gürültüdür.<span class="why">Kod tam tersini söylüyor: "Full-period performance alone is not sufficient." Son dönem, pattern'in bugün hâlâ var olup olmadığını gösterir.</span></button>
+    <button class="quiz__opt" data-correct>Pattern robust değil, regime-dependent olabilir.<span class="why">Doğru: "If the pattern is strong over the full period but weak in the last year, it may be regime-dependent rather than robust."</span></button>
+    <button class="quiz__opt">Last 1 year'da veri hatası vardır.<span class="why">Zayıflama veri hatası değil, piyasa koşullarının (regime) değiştiğinin işareti olabilir.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="multiple-testing" data-min="6">
+  <h2>Multiple testing ve data snooping</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Bir sınıfta 40 öğrenci 10 kez yazı-tura atıyor. Biri 9 yazı atar ve "yazı atma yeteneğim var" der. Yetenek yok. Tek bir öğrencinin 9 veya 10 yazı atma olasılığı $11/1024 \approx 1.1\%$; 40 kişi denediğinde en az birinin 9 veya 10 yazı atma olasılığı yaklaşık 35%'tir. Aday sayısı arttıkça "şanslı biri" bulmak kolaylaşır. Pattern aramak da böyle: 5 günün yön kombinasyonu 32 tane, buna hisseleri, pencereleri, eşikleri ekleyince yüzlerce "öğrenci" eder. En iyisi her zaman iyi görünür.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · brief §12 ve kodun uyarısı</span>
+    <p><em>"Students should explicitly discuss multiple-testing risk. Searching hundreds of combinations can create false patterns by chance."</em> (brief §12)</p>
+    <p><em>"A visible weekday pattern may appear purely by chance. If we test many possible combinations, some may look successful because of randomness. This is related to data snooping and multiple-testing bias."</em> (starter code)</p>
+    <ul>
+      <li><strong>Multiple testing</strong>: çok sayıda hipotezi aynı veride test etmek. Her biri tek başına "anlamlı" görünme şansı taşır; sayı arttıkça en az birinin şans eseri anlamlı görünmesi neredeyse kesinleşir.</li>
+      <li><strong>Data snooping</strong>: aynı veriye tekrar tekrar bakıp kuralı ona göre ayarlamak; sonunda kural verinin gürültüsünü ezberler.</li>
+    </ul>
+    <p>Önlemler, kaynaklarda geçtiği haliyle: daha uzun dönem, birden çok hisse, farklı regime'ler, transaction cost (kod); out-of-sample ve regime breakdown, sinyal sayısını raporlama (brief §18); ve <em>"Define event-based research questions before looking at outcomes where possible"</em> (brief §34, adım 5).</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · ne kadar hızlı büyüyor?</span>
+    <p>Her testin şans eseri "anlamlı" çıkma olasılığı 5% olsun ve testler bağımsız olsun. $k$ testte en az bir yanlış alarm olasılığı $1 - 0.95^k$:</p>
+    <div class="table-wrap"><table class="w-time-series-patterns-t">
+      <tr><th>$k$</th><th>1</th><th>8</th><th>20</th><th>32</th><th>100</th><th>240</th></tr>
+      <tr><td>$1 - 0.95^k$</td><td>5.0%</td><td>33.7%</td><td>64.2%</td><td>80.6%</td><td>99.4%</td><td>≈ 100%</td></tr>
+      <tr><td>beklenen yanlış alarm $0.05k$</td><td>0.05</td><td>0.4</td><td>1</td><td>1.6</td><td>5</td><td>12</td></tr>
+    </table></div>
+    <p class="src">Not: $1 - 0.95^k$ formülü ve 5% eşiği standart istatistikten; hocanın kaynaklarında sayı olarak geçmiyor. Brief sadece "significance diagnostics" ve "hundreds of combinations" diyor.</p>
+  </div>
+  <!-- Kaynak: brief s.6 §12, s.8 §18, s.14 §34 adım 5 · scenario2 kodu satır 195–210 ve 597–608 · tablo verify.py ile: 1−0.95^k = 0.05, 0.3366, 0.6415, 0.8063, 0.9941, 0.999995 · yazı-tura: P(≥9 yazı / 10) = 11/1024 = 0.01074, 1 − (1 − 11/1024)^40 = 0.3508. -->
+  <h3>Simülasyon: hiçbir şey yokken pattern bulmak</h3>
+  <p>Aşağıdaki "hisseler" tamamen rastgele: her günün return'ü ortalaması 0, std'si 2.5% olan bir normal dağılımdan çekiliyor. Yani gerçek hiçbir weekday etkisi yok. Her hisse 140 hafta. İlk 98 hafta (70%) in-sample. Her hisse için Mon–Tue–Wed'in sekiz işaret kombinasyonu (− − −, − − +, …) birer kural: "bu kombinasyondan sonra Thu–Fri'de al". Toplam test sayısı = hisse sayısı × 8. En yüksek in-sample ortalamayı veren kural seçilip out-of-sample'da test ediliyor.</p>
+  <p class="w-time-series-patterns-guess"><b>Önce tahmin et:</b> 30 hisse × 8 = 240 test. En iyi kuralın in-sample Thu–Fri ortalaması kaç çıkar? Out-of-sample'da ne olur?</p>
+  <div class="w-time-series-patterns-ctl">
+    <label>Hisse sayısı <input id="w-tsp-mt-m" type="range" min="1" max="30" step="1" value="30" /> <b id="w-tsp-mt-mv">30</b></label>
+    <span class="src" id="w-tsp-mt-k"></span>
+    <button class="btn btn--sm btn--accent" id="w-tsp-mt-go">Yeni rastgele veri</button>
+  </div>
+  <div class="w-time-series-patterns-box">
+    <div id="w-tsp-mt-chart"></div>
+    <div class="w-time-series-patterns-out" id="w-tsp-mt-out"></div>
+    <div class="w-time-series-patterns-note" id="w-tsp-mt-rep"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Kaç kombinasyon denediğini raporlamamak. "En iyi pattern +2%" cümlesi, 1 test sonrasında ve 240 test sonrasında çok farklı şeyler anlatır.</li>
+      <li>Out-of-sample'da kaybolan bir pattern için "regime değişti" demek kolay bir bahane olabilir. Önce şansı ele: kaç test yapıldı, şansla kaç tanesinin bu kadar iyi görünmesi beklenir?</li>
+      <li>Başlangıç tarihi, pencere uzunluğu, eşik, hisse seçimi: her serbest seçim bir test daha sayılır, ayrı satır olarak yazılmasa bile.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="brief-s12-multiple-testing">
+    <span class="box__label">Brief §12 · proje görevi</span>
+    <p><em>"Students should explicitly discuss multiple-testing risk. Searching hundreds of combinations can create false patterns by chance."</em></p>
+    <p>THYAO'da Mon–Wed down / Thu–Fri up pattern'ini araştıran bir öğrenci için multiple-testing riskini İngilizce, bir paragrafta tartış: risk nedir, neden ortaya çıkar, nasıl azaltılır?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kaç tane "pattern" denenebilir? Beş günün yönü için $2^5$; buna hisse sayısını, pencereleri ve eşikleri ekle.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Azaltma yolları kaynaklarda: out-of-sample, birden çok hisse ve regime, cost, sinyal sayısını raporlama ve soruyu sonuca bakmadan önce tanımlama.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><em>Model answer:</em> Multiple-testing risk is the risk that, when many patterns are tested on the same data, some of them look successful purely by chance. Five weekdays with an up or down sign already give $2^5 = 32$ possible sequences; testing them on 30 stocks, three time windows and a few thresholds makes thousands of tests. Even if no real weekday effect exists, with a 5% false-positive rate per test we expect about 5 false "discoveries" per 100 tests, and the best of them will look very convincing in-sample. This is data snooping: the rule is fitted to the noise of the historical sample. To control it I would (1) define the pattern and the test before looking at the results, (2) report how many combinations were tried and the event count of each result, (3) compare the result with what random or unconditional returns would give, (4) test the chosen pattern out of sample, on other stocks and in different market regimes, and (5) subtract transaction costs. A pattern that survives all of these checks is evidence; a pattern that only exists in the sample where it was found is a false pattern.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/resources/2026-2027-fall/term-project-brief.pdf" target="_blank" rel="noopener">Orijinal brief (§12, s.5–6)</a></p>
+  </div>
+  <div class="quiz" id="q-mt-1">
+    <p class="quiz__q">Bir öğrenci 200 farklı weekday/hisse kombinasyonu deniyor ve 11 tanesi in-sample'da "anlamlı" çıkıyor. Hiçbir gerçek etki yoksa ve eşik 5% ise, şans eseri kaç tane beklenir?</p>
+    <button class="quiz__opt">0<span class="why">Gerçek etki olmasa da her test 5% ihtimalle yanlış alarm verir. 200 testte sıfır beklemek multiple testing'i görmezden gelmek.</span></button>
+    <button class="quiz__opt" data-correct>Yaklaşık 10<span class="why">Doğru: $0.05 \times 200 = 10$. 11 "keşif" şanstan ayırt edilemiyor.</span></button>
+    <button class="quiz__opt">Yaklaşık 1<span class="why">Bu tek bir testin beklenen değerini 20 testle karıştırmak. 200 test × 0.05 = 10.</span></button>
+  </div>
+  <div class="quiz" id="q-mt-2">
+    <p class="quiz__q">Simülasyonda en iyi in-sample kural out-of-sample'da neden genelde sıfıra yakın çıkıyor?</p>
+    <button class="quiz__opt">Out-of-sample dönem daha kısa olduğu için.<span class="why">Kısa dönem sonucu oynatır, ama sistematik olarak sıfıra çekmez. Asıl sebep, seçilen kuralın şansla seçilmiş olması.</span></button>
+    <button class="quiz__opt" data-correct>Çünkü kural, in-sample gürültüsü en şanslı olduğu için seçildi; gerçek etkisi sıfır.<span class="why">Doğru. Bu selection bias'tır: çok testin en iyisi, in-sample'da gerçek değerinin üstünde görünür ve yeni veride gerçek değerine (burada 0) döner.</span></button>
+    <button class="quiz__opt">Çünkü regime değişti.<span class="why">Simülasyonda regime yok; bütün haftalar aynı dağılımdan çekildi. Kaybolmanın tek sebebi şans.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="5">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Perşembe −2%, Cuma +5%. <code>Thu_Fri_Return</code> kaçtır?</p>
+    <button class="quiz__opt">+3%<span class="why">Toplama. Kod çarpar: $(1 - 0.02)(1 + 0.05) - 1$.</span></button>
+    <button class="quiz__opt" data-correct>+2.9%<span class="why">Doğru: $0.98 \times 1.05 = 1.029$, yani +2.9%.</span></button>
+    <button class="quiz__opt">−10%<span class="why">Return'leri birbiriyle çarpmışsın: $(-2)(5)$. Çarpılan $(1 + r)$'lerdir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Weekday tablosunda Monday: Positive_Rate 56%, Average −0.15%, Median +0.10%, Std 2.4%. Hangisi doğru?</p>
+    <button class="quiz__opt">Pazartesi alım günüdür, çünkü günlerin çoğu pozitif.<span class="why">Positive_Rate frequency ölçer, magnitude değil; ortalama negatif. Üstelik std ortalamanın 16 katı.</span></button>
+    <button class="quiz__opt" data-correct>Pazartesiler çoğunlukla küçük artıyor ama düşüşler daha büyük; ortalama etki gürültünün yanında çok küçük.<span class="why">Doğru. Median pozitif, mean negatif: sola çarpık, birkaç büyük düşüş ortalamayı aşağı çekiyor. Std 2.4% ile bu bir kural değil.</span></button>
+    <button class="quiz__opt">Tablo çelişkili: Positive_Rate 50%'nin üstündeyse ortalama pozitif olmalı.<span class="why">Çelişki yok. Az sayıda büyük negatif gün, çok sayıda küçük pozitif günü dengeleyebilir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Bölüm 4'teki örnekte son beş günün volume'ü 100, 120, 80, 110, 90 ve bugün 200. Volume z-score'u hesaplarken pencereye bugünü katmanın etkisi nedir?</p>
+    <button class="quiz__opt">Hiçbir etkisi yok, pencere zaten uzun.<span class="why">Bugünkü volume uç bir değerse hem mean'i yükseltir hem std'yi şişirir; z belirgin biçimde küçülür (örnekte 6.32 yerine 1.69).</span></button>
+    <button class="quiz__opt" data-correct>z küçülür, çünkü bugünkü uç değer hem ortalamayı hem std'yi büyütür.<span class="why">Doğru: 6.32 yerine 1.69. Bu her veride böyle olmaz: kayan pencere bugünü alırken en eski günü de bırakır. Bırakılan gün uç bir değerse z büyüyebilir (geçmiş 100, 1, 2, 3, 4 ve bugün 5 ise z, −0.39'dan +1.26'ya çıkar). Bu yüzden "bugün normalden yüksek mi?" sorusu için pencere <code>.shift(1)</code> ile bugünü dışarıda bırakır.</span></button>
+    <button class="quiz__opt">Look-ahead bias oluşur.<span class="why">Bugünün verisi bugün kapanışta biliniyor; gelecek kullanılmıyor. Sorun look-ahead değil, ölçünün sönükleşmesi. Look-ahead <code>center=True</code> gibi gelecek günleri katınca olur.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Bir pattern in-sample'da 22 olay, ortalama +1.8%; out-of-sample'da 1 olay, +3.0%. En iyi rapor cümlesi?</p>
+    <button class="quiz__opt">"Pattern out-of-sample'da da doğrulandı, hatta güçlendi."<span class="why">Tek bir olay hiçbir şeyi doğrulamaz: "1/1 = 100%" zayıf kanıttır.</span></button>
+    <button class="quiz__opt" data-correct>"Interesting observation, but insufficient out-of-sample evidence for a strong conclusion."<span class="why">Doğru; hocanın kodundaki cümle. Ardından daha uzun dönem, başka hisseler ve cost ile test önerilir.</span></button>
+    <button class="quiz__opt">"Pattern overfit, çünkü out-of-sample sonucu in-sample'dan farklı."<span class="why">Bir olaydan overfit sonucu da çıkmaz. Yetersiz kanıt, iki yönde de güçlü sonuç vermez.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Hangisi multiple-testing riskini <strong>azaltmaz</strong>?</p>
+    <button class="quiz__opt">Pattern'i sonuçlara bakmadan önce tanımlamak.<span class="why">Azaltır: brief §34 adım 5, "define event-based research questions before looking at outcomes".</span></button>
+    <button class="quiz__opt">Bulunan pattern'i başka hisselerde ve out-of-sample'da test etmek.<span class="why">Azaltır: şansla bulunan pattern yeni veride tekrar etmez.</span></button>
+    <button class="quiz__opt" data-correct>Out-of-sample sonucu kötü çıkınca eşiği değiştirip testi tekrarlamak.<span class="why">Doğru, bu azaltmaz, artırır: her yeni deneme bir test daha ve test verisi in-sample'a dönüşür.</span></button>
+    <button class="quiz__opt">Kaç kombinasyon denendiğini raporlamak.<span class="why">Azaltır: okuyan, en iyi sonucun şansla ne kadar açıklanabileceğini görür.</span></button>
+  </div>
+  <!-- Sıradaki konu: Agentic harness ve MCP (test_weekday_pattern burada bir MCP tool'u olarak geri gelir). -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+/* Time-series engine: a line-by-line port of scenario2_thyao_weekday_patterns.py on the embedded CSV data. No DOM access. */
+const TSP = (function () {
+  const RAW = {"dates":"2024-01-02,2024-01-03,2024-01-04,2024-01-05,2024-01-08,2024-01-09,2024-01-10,2024-01-11,2024-01-12,2024-01-15,2024-01-16,2024-01-17,2024-01-18,2024-01-19,2024-01-22,2024-01-23,2024-01-24,2024-01-25,2024-01-26,2024-01-29,2024-01-30,2024-01-31,2024-02-01,2024-02-02,2024-02-05,2024-02-06,2024-02-07,2024-02-08,2024-02-09,2024-02-12,2024-02-13,2024-02-14,2024-02-15,2024-02-16,2024-02-19,2024-02-20,2024-02-21,2024-02-22,2024-02-23,2024-02-26,2024-02-27,2024-02-28,2024-02-29,2024-03-01,2024-03-04,2024-03-05,2024-03-06,2024-03-07,2024-03-08,2024-03-11,2024-03-12,2024-03-13,2024-03-14,2024-03-15,2024-03-18,2024-03-19,2024-03-20,2024-03-21,2024-03-22,2024-03-25,2024-03-26,2024-03-27,2024-03-28,2024-03-29,2024-04-01,2024-04-02,2024-04-03,2024-04-04,2024-04-05,2024-04-08,2024-04-09,2024-04-15,2024-04-16,2024-04-17,2024-04-18,2024-04-19,2024-04-22,2024-04-24,2024-04-25,2024-04-26,2024-04-29,2024-04-30,2024-05-02,2024-05-03,2024-05-06,2024-05-07,2024-05-08,2024-05-09,2024-05-10,2024-05-13,2024-05-14,2024-05-15,2024-05-16,2024-05-17,2024-05-20,2024-05-21,2024-05-22,2024-05-23,2024-05-24,2024-05-27,2024-05-28,2024-05-29,2024-05-30,2024-05-31,2024-06-03,2024-06-04,2024-06-05,2024-06-06,2024-06-07,2024-06-10,2024-06-11,2024-06-12,2024-06-13,2024-06-14,2024-06-20,2024-06-21,2024-06-24,2024-06-25,2024-06-26,2024-06-27,2024-06-28,2024-07-01,2024-07-02,2024-07-03,2024-07-04,2024-07-05,2024-07-08,2024-07-09,2024-07-10,2024-07-11,2024-07-12,2024-07-16,2024-07-17,2024-07-18,2024-07-19,2024-07-22,2024-07-23,2024-07-24,2024-07-25,2024-07-26,2024-07-29,2024-07-30,2024-07-31,2024-08-01,2024-08-02,2024-08-05,2024-08-06,2024-08-07,2024-08-08,2024-08-09,2024-08-12,2024-08-13,2024-08-14,2024-08-15,2024-08-16,2024-08-19,2024-08-20,2024-08-21,2024-08-22,2024-08-23,2024-08-26,2024-08-27,2024-08-28,2024-08-29,2024-09-02,2024-09-03,2024-09-04,2024-09-05,2024-09-06,2024-09-09,2024-09-10,2024-09-11,2024-09-12,2024-09-13,2024-09-16,2024-09-17,2024-09-18,2024-09-19,2024-09-20,2024-09-23,2024-09-24,2024-09-25,2024-09-26,2024-09-27,2024-09-30,2024-10-01,2024-10-02,2024-10-03,2024-10-04,2024-10-07,2024-10-08,2024-10-09,2024-10-10,2024-10-11,2024-10-14,2024-10-15,2024-10-16,2024-10-17,2024-10-18,2024-10-21,2024-10-22,2024-10-23,2024-10-24,2024-10-25,2024-10-28,2024-10-30,2024-10-31,2024-11-01,2024-11-04,2024-11-05,2024-11-06,2024-11-07,2024-11-08,2024-11-11,2024-11-12,2024-11-13,2024-11-14,2024-11-15,2024-11-18,2024-11-19,2024-11-20,2024-11-21,2024-11-22,2024-11-25,2024-11-26,2024-11-27,2024-11-28,2024-11-29,2024-12-02,2024-12-03,2024-12-04,2024-12-05,2024-12-06,2024-12-09,2024-12-10,2024-12-11,2024-12-12,2024-12-13,2024-12-16,2024-12-17,2024-12-18,2024-12-19,2024-12-20,2024-12-23,2024-12-24,2024-12-25,2024-12-26,2024-12-27,2024-12-30,2024-12-31,2025-01-02,2025-01-03,2025-01-06,2025-01-07,2025-01-08,2025-01-09,2025-01-10,2025-01-13,2025-01-14,2025-01-15,2025-01-16,2025-01-17,2025-01-20,2025-01-21,2025-01-22,2025-01-23,2025-01-24,2025-01-27,2025-01-28,2025-01-29,2025-01-30,2025-01-31,2025-02-03,2025-02-04,2025-02-05,2025-02-06,2025-02-07,2025-02-10,2025-02-11,2025-02-12,2025-02-13,2025-02-14,2025-02-17,2025-02-18,2025-02-19,2025-02-20,2025-02-21,2025-02-24,2025-02-25,2025-02-26,2025-02-27,2025-02-28,2025-03-03,2025-03-04,2025-03-05,2025-03-06,2025-03-07,2025-03-10,2025-03-11,2025-03-12,2025-03-13,2025-03-14,2025-03-17,2025-03-18,2025-03-19,2025-03-20,2025-03-21,2025-03-24,2025-03-25,2025-03-26,2025-03-27,2025-03-28,2025-04-02,2025-04-03,2025-04-04,2025-04-07,2025-04-08,2025-04-09,2025-04-10,2025-04-11,2025-04-14,2025-04-15,2025-04-16,2025-04-17,2025-04-18,2025-04-21,2025-04-22,2025-04-24,2025-04-25,2025-04-28,2025-04-29,2025-04-30,2025-05-02,2025-05-05,2025-05-06,2025-05-07,2025-05-08,2025-05-09,2025-05-12,2025-05-13,2025-05-14,2025-05-15,2025-05-16,2025-05-20,2025-05-21,2025-05-22,2025-05-23,2025-05-26,2025-05-27,2025-05-28,2025-05-29,2025-05-30,2025-06-02,2025-06-03,2025-06-04,2025-06-05,2025-06-10,2025-06-11,2025-06-12,2025-06-13,2025-06-16,2025-06-17,2025-06-18,2025-06-19,2025-06-20,2025-06-23,2025-06-24,2025-06-25,2025-06-26,2025-06-27,2025-06-30,2025-07-01,2025-07-02,2025-07-03,2025-07-04,2025-07-07,2025-07-08,2025-07-09,2025-07-10,2025-07-11,2025-07-14,2025-07-16,2025-07-17,2025-07-18,2025-07-21,2025-07-22,2025-07-23,2025-07-24,2025-07-25,2025-07-28,2025-07-29,2025-07-30,2025-07-31,2025-08-01,2025-08-04,2025-08-05,2025-08-06,2025-08-07,2025-08-08,2025-08-11,2025-08-12,2025-08-13,2025-08-14,2025-08-15,2025-08-18,2025-08-19,2025-08-20,2025-08-21,2025-08-22,2025-08-25,2025-08-26,2025-08-27,2025-08-28,2025-08-29,2025-09-01,2025-09-02,2025-09-03,2025-09-04,2025-09-05,2025-09-08,2025-09-09,2025-09-10,2025-09-11,2025-09-12,2025-09-15,2025-09-16,2025-09-17,2025-09-18,2025-09-19,2025-09-22,2025-09-23,2025-09-24,2025-09-25,2025-09-26,2025-09-29,2025-09-30,2025-10-01,2025-10-02,2025-10-03,2025-10-06,2025-10-07,2025-10-08,2025-10-09,2025-10-10,2025-10-13,2025-10-14,2025-10-15,2025-10-16,2025-10-17,2025-10-20,2025-10-21,2025-10-22,2025-10-23,2025-10-24,2025-10-27,2025-10-28,2025-10-30,2025-10-31,2025-11-03,2025-11-04,2025-11-05,2025-11-06,2025-11-07,2025-11-10,2025-11-11,2025-11-12,2025-11-13,2025-11-14,2025-11-17,2025-11-18,2025-11-19,2025-11-20,2025-11-21,2025-11-24,2025-11-25,2025-11-26,2025-11-27,2025-11-28,2025-12-01,2025-12-02,2025-12-03,2025-12-04,2025-12-05,2025-12-08,2025-12-09,2025-12-10,2025-12-11,2025-12-12,2025-12-15,2025-12-16,2025-12-17,2025-12-18,2025-12-19,2025-12-22,2025-12-23,2025-12-24,2025-12-25,2025-12-26,2025-12-29,2025-12-30,2025-12-31,2026-01-02,2026-01-05,2026-01-06,2026-01-07,2026-01-08,2026-01-09,2026-01-12,2026-01-13,2026-01-14,2026-01-15,2026-01-16,2026-01-19,2026-01-20,2026-01-21,2026-01-22,2026-01-23,2026-01-26,2026-01-27,2026-01-28,2026-01-29,2026-01-30,2026-02-02,2026-02-03,2026-02-04,2026-02-05,2026-02-06,2026-02-09,2026-02-10,2026-02-11,2026-02-12,2026-02-13,2026-02-16,2026-02-17,2026-02-18,2026-02-19,2026-02-20,2026-02-23,2026-02-24,2026-02-25,2026-02-26,2026-02-27,2026-03-02,2026-03-03,2026-03-04,2026-03-05,2026-03-06,2026-03-09,2026-03-10,2026-03-11,2026-03-12,2026-03-13,2026-03-16,2026-03-17,2026-03-18,2026-03-19,2026-03-23,2026-03-24,2026-03-25,2026-03-26,2026-03-27,2026-03-30,2026-03-31,2026-04-01,2026-04-02,2026-04-03,2026-04-06,2026-04-07,2026-04-08,2026-04-09,2026-04-10,2026-04-13,2026-04-14,2026-04-15,2026-04-16,2026-04-17,2026-04-20,2026-04-21,2026-04-22,2026-04-24,2026-04-27,2026-04-28,2026-04-29,2026-04-30,2026-05-04,2026-05-05,2026-05-06,2026-05-07,2026-05-08,2026-05-11,2026-05-12,2026-05-13,2026-05-14,2026-05-15,2026-05-18,2026-05-20,2026-05-21,2026-05-22,2026-05-25,2026-05-26,2026-05-27,2026-05-28,2026-05-29,2026-06-01,2026-06-02,2026-06-03,2026-06-04,2026-06-05,2026-06-08,2026-06-09,2026-06-10,2026-06-11,2026-06-12,2026-06-15,2026-06-16,2026-06-17,2026-06-18,2026-06-19,2026-06-22,2026-06-23,2026-06-24,2026-06-25,2026-06-26,2026-06-29,2026-06-30,2026-07-01,2026-07-02,2026-07-03,2026-07-06,2026-07-07,2026-07-08,2026-07-09,2026-07-10,2026-07-13,2026-07-14,2026-07-16,2026-07-17,2026-07-20,2026-07-21,2026-07-22,2026-07-23,2026-07-24,2026-07-27,2026-07-28,2026-07-29,2026-07-30,2026-07-31,2026-08-03,2026-08-04,2026-08-05,2026-08-06,2026-08-07,2026-08-10,2026-08-11,2026-08-12,2026-08-13,2026-08-14,2026-08-17,2026-08-18,2026-08-19,2026-08-20,2026-08-21,2026-08-24,2026-08-25,2026-08-26,2026-08-27,2026-08-28,2026-08-31,2026-09-01,2026-09-02,2026-09-03,2026-09-04,2026-09-07,2026-09-08,2026-09-09,2026-09-10,2026-09-11,2026-09-14,2026-09-15,2026-09-16,2026-09-17,2026-09-18,2026-09-21,2026-09-22,2026-09-23,2026-09-24,2026-09-25,2026-09-28,2026-09-29,2026-09-30,2026-10-01","stocks":{"AKBNK":{"c":[33.189,32.099,32.971,33.407,36.7313,36.1864,37.0038,37.349,39.2927,39.2201,37.9666,38.1483,37.2582,37.1673,36.3862,34.6604,36.695,36.6405,36.6223,36.0229,36.0229,35.9139,36.4044,35.6596,36.5315,37.2763,36.7313,36.6768,36.5678,37.3853,36.804,37.24,38.0211,37.676,37.7305,39.1474,39.5107,38.4571,38.9657,37.8395,37.785,36.7495,37.7668,36.6042,35.4416,35.7685,35.1509,37.2037,38.0029,38.8749,39.765,37.9666,36.8403,36.0774,36.4589,38.4389,38.7296,40.9095,41.618,41.7814,41.9686,42.0824,44.3381,44.3381,45.3049,46.7266,46.6697,49.6648,52.7451,52.603,null,55.3516,52.9347,53.1243,55.4938,59.2376,56.7259,57.1524,54.4512,55.9677,57.1998,56.3468,55.1146,56.9155,57.105,58.3846,56.8681,56.2994,54.7829,53.0769,54.4986,54.2142,56.0624,59.6167,61.1332,63.8344,62.7918,63.0762,63.0288,64.4505,66.1565,62.5549,62.2705,62.934,63.3131,60.1854,59.0954,57.958,56.2046,56.3468,57.4367,58.9532,58.2898,57.9107,60.4697,62.5549,63.6449,61.7966,61.4175,63.3605,60.7067,58.7163,59.4271,62.7918,63.7396,63.2657,64.1661,61.228,60.6593,63.2183,63.2183,64.7348,64.3083,64.64,65.1613,65.6826,65.6826,63.9766,62.1284,62.2231,61.2753,59.4745,58.6689,59.901,57.0576,53.9299,52.7451,52.7925,52.9347,50.1861,51.3708,52.8399,53.2664,55.3042,53.8825,57.105,56.7733,56.0624,56.4416,55.0672,55.4464,56.015,55.6359,55.2568,58.2424,57.7685,57.9107,57.4367,56.5363,55.0199,53.5034,52.4134,53.8351,53.6455,53.2664,54.8303,55.4938,58.1476,57.0102,58.0528,60.5171,60.5645,59.8063,60.2328,58.3846,54.6407,50.0913,48.8591,51.513,52.7451,53.1243,54.2142,52.8399,52.6504,51.0865,51.513,51.6552,50.4704,47.5322,45.9304,47.2953,46.556,47.0868,47.3711,47.3521,48.3379,47.9587,47.3142,44.5087,43.978,44.9826,45.8736,48.5274,49.807,50.2335,51.0865,52.5082,51.9869,52.1765,50.7548,49.4752,53.9299,57.4367,56.489,56.1098,56.3468,56.5837,57.6737,57.8159,60.0906,59.4745,60.138,61.8914,62.8866,61.7493,60.5645,60.3275,60.2328,59.4271,59.4271,59.6167,57.958,57.5315,56.2046,57.105,61.6545,62.2231,62.7918,62.2231,61.4649,62.7444,62.7444,63.3131,61.3701,60.2802,62.4601,61.0384,59.5219,59.7115,59.901,60.8014,62.5549,63.6449,64.9718,65.967,64.5927,62.9814,62.5549,63.5975,62.5549,62.081,61.4649,60.4697,62.2705,61.5123,61.0858,60.1854,59.4271,59.901,59.5693,60.7067,61.4649,61.1332,61.7019,60.9436,62.1758,61.4175,61.4175,62.697,63.9766,64.2609,63.787,69.1895,68.3839,69.2843,69.616,69.9003,70.0425,68.1469,69.7108,70.8955,70.9903,71.1799,69.4264,62.5075,56.5837,50.9443,51.1339,53.0769,52.2746,51.1603,50.6274,51.2087,50.9181,50.6274,50.482,50.3367,48.2341,47.8659,48.331,48.5441,48.7864,48.9802,49.7069,48.0015,48.2341,48.8348,51.8386,49.9007,47.8271,47.4202,46.9938,47.9628,47.0714,47.7302,47.9434,48.3504,48.331,50.2882,50.6274,50.1913,49.1255,50.3367,50.9181,50.8696,51.9839,50.2882,50.3367,49.3677,50.046,51.1603,49.3677,50.4336,53.9218,54.4547,54.5032,57.9914,58.1367,57.3615,57.6522,58.0398,56.7802,56.5379,55.3752,55.4237,56.1019,59.1541,59.0572,58.9119,60.0746,66.082,65.9852,67.0025,66.6634,67.5355,65.8398,65.5976,67.1479,68.1653,67.5839,64.8224,63.4174,65.7429,65.21,66.4696,65.5007,65.4522,66.082,65.8883,65.0647,65.0647,65.1131,65.4038,64.4833,64.774,64.6771,64.6286,66.4212,65.7914,66.1305,66.1305,66.2274,64.6771,65.1131,64.4348,63.805,65.1131,66.1305,67.6808,67.0994,68.3106,66.8572,67.3417,66.1305,67.051,63.9988,58.9119,59.687,60.5106,59.6386,60.8497,61.9156,59.1056,60.0746,63.4174,64.5317,65.2584,63.0299,64.5802,65.5976,63.9504,63.5143,62.6423,59.8808,59.2994,60.7528,62.2547,60.5106,57.6038,56.6348,57.2646,56.2957,55.569,55.7143,54.2125,51.8386,51.9354,53.5827,53.1466,56.1504,55.8112,56.1019,56.7317,58.3305,56.974,56.7317,57.6522,58.9119,59.2025,59.1056,59.2994,60.5106,59.0088,58.0398,56.4895,57.0709,56.8771,56.4895,56.5379,57.0224,59.4448,59.9777,59.8808,60.9466,61.4311,61.528,61.7702,62.7392,64.1926,63.9988,64.6286,62.4001,64.9193,66.1789,67.1479,66.5181,66.8572,67.3901,68.7951,69.0858,68.5044,68.9404,69.5703,70.6361,69.7156,67.6808,67.5839,67.0994,67.3901,67.5839,67.6324,71.2175,70.9268,72.0895,70.0547,70.4423,71.5081,71.2175,72.1864,71.7019,71.5566,72.574,74.8995,75.7715,77.4187,75.3839,76.4013,77.1765,77.0796,82.215,86.2361,90.0634,88.1255,85.2187,82.9901,81.779,81.246,82.7963,80.9554,81.3429,88.3193,85.9454,86.7206,86.1392,87.6895,84.2982,85.6063,87.5442,88.7069,88.174,88.8522,87.3504,80.1802,76.4498,76.0137,77.128,71.7504,71.3143,74.7057,75.1417,73.3976,70.297,70.4423,73.446,73.3491,71.3143,70.8299,68.1168,68.6982,67.25,66.9,65.6,66.0,68.25,69.25,68.75,70.3,69.25,75.75,75.3,78.4,77.4,78.45,78.9,78.1,83.55,81.85,80.75,79.25,77.9,77.7,75.95,73.7,73.2,70.65,70.7,74.35,75.2,75.25,75.85,72.75,71.55,72.35,70.25,70.1,69.1,62.2,63.6,65.4,64.0,64.0,64.0,64.0,63.7,65.95,64.85,67.15,64.5,66.9,67.15,66.1,66.8,72.6,76.75,77.1,78.0,81.1,81.85,82.0,80.5,80.95,77.2,77.25,77.2,77.0,77.85,77.95,73.75,73.5,73.6,70.65,70.2,68.75,67.65,69.1,68.6,66.5,66.85,66.7,66.55,67.05,67.6,66.45,65.8,63.3,61.6,63.4,66.0,68.1,67.55,67.1,67.4,66.8,66.15,68.8,69.05,68.8,68.0,67.65,70.3,69.2,69.7,72.1,72.0,73.15,72.85,73.2,71.85,71.95,71.5,71.55,71.85,73.05,74.95,72.95,72.1,72.7,72.55,69.55,65.2,71.55,70.7,72.45,73.1,72.95,70.65,70.9,70.1,69.9,67.0,67.55],"v":[79522,72163,81319,71031,157542,154544,106339,140335,224446,131860,96954,79329,86321,90860,82754,134994,126878,112891,95380,70494,77864,85128,98907,115940,106046,108159,79274,50326,75056,89795,116086,73044,92684,67801,125687,134596,125634,134407,89110,75851,94956,65362,84001,56995,54637,62978,68430,68053,91798,111987,80572,90999,60599,48652,50300,68130,83858,197399,88012,131881,113101,68362,82871,64584,82619,116053,65660,95493,83579,57246,null,76419,71100,83748,68368,75560,76154,81096,81800,82044,62513,73215,72989,79155,42522,90335,93629,73847,82418,97974,109276,84318,90178,109988,78967,237249,128164,88163,57837,48715,60706,59906,72103,125307,64050,57121,79137,58237,56387,61062,83153,56287,73408,77089,73779,78091,48584,72232,44844,67130,93609,60193,53670,83986,63808,40182,48655,52290,68851,72253,61966,68267,71919,68523,64526,60858,79987,46627,57750,50467,48235,58544,66377,60902,51224,78640,66018,53241,54436,69363,53997,42431,43280,59874,38231,62202,53769,44933,77073,45431,52433,50350,44036,59992,65892,39818,52460,73000,47970,41426,83897,75067,65586,60916,56444,63759,50251,69510,46350,51144,80821,67383,74452,50045,51039,77833,88774,90546,78836,71560,72150,70533,53591,64292,62965,88716,73786,85709,84786,75933,99982,89299,52617,76474,16413,65076,71979,88745,105181,70344,100567,80453,137638,110745,71435,108011,88119,69735,64131,81006,82953,140474,138626,94300,82555,87604,64811,94895,61114,98242,65767,65085,124671,80969,51082,151480,86612,60368,47292,71160,62943,48927,50838,55068,41097,71639,149602,61695,34534,59635,117927,95588,76614,84326,103420,92848,64530,139456,131705,82879,107525,89903,77101,120772,106458,102088,75477,77948,94406,76913,61541,109025,126672,106972,85561,125920,167653,91026,89658,110642,113560,104854,72150,76127,87123,87060,95492,62767,96237,73361,64520,76127,189116,89273,152426,88048,81466,65581,73306,110556,65910,71229,68606,56441,108314,368315,216453,320436,327100,174001,137012,128162,119713,83227,109948,158254,105625,120589,119835,149546,85256,117217,130823,192377,101036,150006,94162,137574,105001,135445,90830,117051,76343,64057,109155,84244,45379,142020,117215,166916,180395,97368,162479,180166,102917,149131,150177,113855,84876,85748,86027,96667,89954,154539,77850,27098,131250,95399,86669,122185,82821,82694,75596,109590,61393,65149,121577,76103,67991,105750,181852,121102,108604,108444,75862,84094,119840,87400,76513,85434,89914,100314,94075,55597,81161,71079,65857,133796,47838,43729,42197,87763,65152,67033,119780,64184,62956,103054,44365,40565,47788,45283,51928,41335,34849,57276,69913,85706,98410,71332,68803,75024,68690,74843,61462,195348,238503,225698,222024,85843,113444,97478,279576,116878,225592,139190,107131,103300,168004,104159,77667,134902,81998,165377,91622,121790,144114,85094,127995,95527,80151,87488,82498,60948,80296,98138,114119,123768,103779,171472,147774,107375,149438,417539,136832,49490,110518,140413,141234,121774,103470,110806,125949,106713,140155,97515,76597,73427,108194,106742,126977,115990,96592,122293,148041,79768,112591,98580,156666,139090,288126,154221,174275,129704,111937,123336,181862,79783,80519,71276,78877,79133,85810,66553,78668,60517,29011,48722,65332,41656,74572,87347,96172,107913,93337,80616,96407,81394,83494,63953,73255,146855,131732,96844,102660,146538,112989,93417,110809,172691,190801,154141,193525,268387,131179,121806,97425,126338,100679,99580,229969,118647,87548,93633,137839,103799,93436,134597,98805,111916,78521,114684,98769,106918,122156,52413,118527,168364,95851,96519,145752,124022,81046,105162,91425,38275,265710,103386,107676,90829,78517,92948,120022,119338,95330,77195,96991,87633,159267,121611,121958,128526,163379,72631,84412,171212,121573,64598,97887,92697,85906,83163,112161,119108,153717,113971,263675,156929,131973,142376,122754,104826,130259,105929,104055,183781,97703,406472,125346,72537,0,0,0,205912,230427,169676,177397,152389,170009,122734,99313,137051,247723,175535,116732,112739,139071,136887,71940,84757,77633,114520,66355,83450,108360,138759,95377,192059,104545,101712,145918,84841,147111,155691,114436,165219,152676,106780,94740,115581,124594,130918,172389,124096,194948,168767,181079,221170,235068,127281,129736,118587,93236,168548,230729,145657,128800,83855,88354,150171,133413,166762,182769,147641,206790,134917,135778,166819,170046,154690,162759,153673,136106,322400,372554,222814,198445,121396,151461,308313,303189,211344,194040,150636,92373,84661,80139,115640,125049,168163,263017]},"ASELS":{"c":[46.7638,46.4647,47.3222,47.3023,47.5017,46.8037,47.3422,46.7439,47.402,47.4818,47.9404,48.1598,48.2595,47.3222,46.9832,47.1228,48.2595,48.3393,49.0372,51.2508,50.7024,50.4531,51.1511,51.0015,52.198,52.1482,51.1012,51.2009,51.9487,53.2948,54.7905,54.7406,55.6879,58.1307,58.3302,59.3771,60.2247,62.2188,63.1162,66.3069,63.0664,60.7232,59.8258,59.0281,58.38,56.4357,54.7406,57.0838,58.38,56.4357,55.638,55.4386,56.2363,57.4826,54.9899,56.0368,55.7876,57.7319,56.1864,55.0397,52.8461,55.5383,55.289,55.9371,54.7406,52.2977,52.2977,53.6937,58.2803,58.6293,null,57.9313,58.38,57.5325,57.4826,58.5296,57.6322,58.1307,57.2832,58.9284,61.8699,60.5736,61.9197,62.0194,62.2188,62.1191,62.2188,63.2159,63.2159,62.2188,60.6733,59.776,60.5238,61.2716,62.0194,61.2217,61.3215,60.3244,59.078,59.8757,59.427,57.3829,59.9255,58.4797,60.2247,59.0281,58.8287,60.2745,60.4739,58.1307,56.8345,57.4328,59.9754,59.1777,60.5238,61.3215,61.5707,59.7261,58.729,59.7261,58.4299,56.0867,56.7847,58.3302,59.9255,60.5736,63.1162,64.3626,64.8113,64.7116,63.6148,63.0664,63.3156,62.9667,62.8171,63.0664,64.1133,62.6177,64.2629,64.4125,62.518,62.5678,62.3186,63.1162,60.6235,56.5852,56.0867,58.0809,59.0281,57.7818,56.8844,58.1806,57.3829,58.5296,57.5823,58.6791,57.8815,56.4357,55.987,54.94,54.3418,56.336,56.9342,58.2305,59.078,57.4826,56.6351,57.3331,57.1835,55.8374,56.2861,54.7406,55.7876,58.1806,57.1835,57.9313,57.5823,58.4797,59.0281,59.1278,62.2687,60.9725,59.078,59.078,59.078,58.2305,56.0368,57.6322,60.9725,58.8287,57.9812,58.5794,56.5354,55.9371,55.1893,55.8374,56.8844,58.0809,59.1777,57.4328,58.1806,60.8229,60.6733,60.6733,60.0252,61.3215,60.6733,63.6646,63.3156,64.9609,63.3655,65.1603,65.0606,65.609,65.8084,67.8026,68.1516,67.5035,67.2542,67.7029,65.8084,67.8524,68.3011,68.9122,67.464,68.313,70.0607,69.3616,70.1107,70.1107,70.2105,70.9097,71.1094,71.1593,70.9097,69.2118,69.1119,69.1119,67.464,67.9634,70.66,69.8111,69.7112,71.9583,72.5576,73.9058,74.3053,73.8559,73.1068,72.4077,73.4065,74.7548,75.4039,77.2016,76.5025,78.1005,78.2503,78.6997,78.4501,78.2004,80.1479,80.9469,82.2452,80.5474,81.8957,83.943,85.0416,85.7408,89.5359,88.0878,88.687,88.5871,88.1377,88.2875,86.0903,85.8406,85.5909,81.4462,81.646,78.0006,79.5486,79.1991,80.5973,83.8931,83.6934,83.993,82.6447,83.6434,80.8969,85.8906,89.8855,93.3311,97.9252,101.5706,105.2659,112.0572,108.0623,110.1596,116.8511,115.7525,116.152,116.951,121.5451,123.243,112.1571,117.3505,110.3594,120.2468,117.3505,115.8524,116.8511,119.7474,118.1495,117.1507,117.2506,116.5515,118.6488,116.951,122.9434,119.0483,119.1482,116.4516,121.0458,128.3365,129.7347,127.7373,131.5324,134.3288,135.1278,138.4236,137.2252,134.8282,129.6348,129.6348,137.2252,144.0165,154.4033,149.0101,140.2213,136.6259,137.8244,137.325,138.4236,132.1317,132.8308,136.8257,136.0267,136.1266,137.4249,134.9281,132.0318,129.4351,129.1355,127.4376,134.5286,139.3225,139.0229,141.1202,144.5159,141.3199,138.7233,144.3161,141.3199,143.9166,146.1138,146.9128,142.4185,148.2112,140.1215,146.3136,150.6081,148.2112,145.4147,149.6094,151.0076,151.1075,152.0063,149.5095,152.3059,153.804,155.3021,161.4942,161.694,165.9885,176.575,176.2754,179.8708,182.3676,182.9669,181.0693,179.0718,180.0706,186.762,184.1653,188.2601,184.8645,181.3689,178.7722,180.2703,178.4726,171.7811,173.9783,169.7837,170.1832,171.4815,172.1806,181.269,180.0706,181.269,179.9707,185.2639,183.0668,183.5661,183.0668,178.2729,173.9783,178.5725,181.7684,174.7773,173.2792,173.479,177.1743,171.881,173.6787,184.9643,194.9516,193.853,191.9554,204.1399,213.3282,210.9312,217.2232,218.0222,217.0235,216.0248,214.7264,217.8225,216.7239,215.825,214.9261,209.2334,215.3257,218.9211,213.2283,213.7277,211.7302,207.236,203.7404,194.652,203.6405,205.3384,207.3358,206.2372,203.6405,208.5343,211.131,205.4382,203.3409,202.3422,197.0489,193.853,187.1615,184.8645,186.1628,181.1692,183.3664,177.5737,175.776,188.0604,187.9605,184.0655,184.5648,184.465,184.1653,180.1,184.1,184.5,183.4,187.2,187.7,185.9,185.1,188.2,193.7,202.0,205.8,204.9,204.0,212.2,209.3,201.0,204.4,211.1,212.8,221.7,224.7,222.7,226.1,221.0,229.0,231.7,230.2,240.0,257.0,263.5,262.75,280.0,283.0,289.75,288.0,302.5,309.25,316.0,336.75,303.25,300.25,300.75,323.25,310.5,307.5,319.0,303.25,299.5,296.75,302.5,285.0,288.0,292.0,298.25,294.0,301.5,302.25,296.5,294.0,310.25,307.0,313.25,310.5,309.0,306.25,311.0,322.0,340.0,322.25,333.0,345.0,333.5,319.0,334.25,335.75,330.0,322.25,320.5,341.25,348.75,338.75,353.25,352.0,337.5,338.0,330.75,320.5,320.25,320.25,336.5,330.5,337.0,342.0,362.25,376.75,398.5,415.25,411.75,416.75,411.0,414.0,408.0,396.5,396.5,392.0,415.0,414.5,425.5,420.25,431.75,427.25,434.0,428.0,428.5,431.75,419.25,412.75,415.5,415.0,402.0,393.5,377.75,410.0,401.75,380.25,380.25,380.25,380.25,384.0,407.75,383.5,362.25,363.0,368.0,357.25,376.75,377.75,371.25,375.75,394.0,395.0,410.75,402.5,394.75,392.0,367.5,373.5,361.5,357.5,345.0,371.25,384.75,399.5,401.75,383.0,377.0,358.75,370.0,352.5,348.5,352.5,351.5,354.5,360.0,370.0,376.25,380.25,360.5,358.0,354.5,337.5,342.25,336.25,349.25,346.75,363.0,353.75,356.25,356.25,381.0,395.75,387.5,389.0,381.25,403.0,402.25,403.25,399.75,403.75,398.25,403.75,404.0,386.25,384.5,380.75,380.25,388.25,392.5,390.0,402.25,398.5,393.75,372.5,377.0,360.0,379.75,372.75,378.0,374.5,381.5,367.75,372.25,367.25,338.5,336.5,370.0],"v":[46540,39345,43862,33675,43665,52583,57482,31073,76693,46520,53820,54705,58145,39019,38100,78261,55825,55346,58230,77169,53800,38592,52346,42300,63952,49010,46597,45380,84705,76922,98031,57461,50932,86096,71033,44216,68778,75583,60833,76751,50795,63131,71159,36058,37332,46990,68493,42697,48484,43415,47136,34664,33424,30402,32974,36267,35420,98022,64621,57628,45064,70105,44829,36930,36518,40110,27610,35321,51084,42430,null,64500,38373,31102,29092,38894,42585,38922,37597,58761,67954,50126,50934,48311,38289,47046,40599,54756,44107,37212,45554,28429,35386,45859,48112,73862,32854,48868,27192,32310,21384,29777,53570,47346,34921,31677,44861,45917,33499,21200,41800,33628,38365,35076,25040,38508,35919,35276,25245,28291,39111,31246,23244,31201,38458,43404,64181,60440,63812,33860,42547,27807,24499,30979,22694,32934,48904,22064,30016,42463,52627,29716,34319,50070,35195,51367,48594,44247,43719,32653,30906,34582,25520,30218,23237,22746,28175,26117,27945,27851,27668,36575,24029,32734,29418,23945,21959,30716,16076,17754,28095,37446,29330,26844,16299,17527,23483,36243,31902,35309,78142,30401,37548,28656,27973,37759,46634,42270,39808,27616,29017,24880,22563,29313,42078,35293,27565,28678,34854,24244,29024,65760,34359,28316,7089,39535,32642,44140,48801,54259,40270,30815,35607,34627,38586,56325,36258,31127,25157,39450,25645,27754,37109,35050,24455,27601,28599,36825,21238,25353,30705,23511,23090,36647,28455,29563,21843,13792,16669,21700,45207,26172,22794,44641,35526,15689,21477,30265,15733,27816,26507,27668,21399,46376,28640,23867,27031,23151,33725,41783,30229,21434,19993,20519,19911,32844,24083,45576,51431,34855,24681,23592,20492,27977,32504,27243,22944,51630,24099,50266,48324,42287,30050,44845,27999,31338,20947,20138,33625,77775,86598,99828,78387,88344,75415,76781,96916,51756,90000,61955,72621,35018,57043,58847,78522,76894,69700,73404,100180,51094,42819,36534,26644,45528,30957,36120,30049,36639,43492,32305,24519,31099,57458,88444,25486,24934,42483,41709,31223,38792,26664,39394,27384,24860,42909,53124,45724,36614,65721,52831,39981,39271,47313,45131,27391,32790,25282,15399,25937,20977,19670,29058,20620,32068,39192,15261,29996,40043,52558,48699,33035,45385,23678,30275,31321,33864,44460,39703,22954,35647,44362,26947,35819,42289,28600,22896,26601,32980,33508,26734,31432,62543,33834,41835,33414,28536,37749,41750,25125,20264,20734,25426,36147,20662,20992,14576,36492,21740,20701,13886,21754,25255,16553,14923,22601,16198,38945,20439,24210,14215,33826,18713,19222,35689,23196,26000,27614,24152,22814,14492,23875,39930,24580,21575,39454,53888,31237,20835,45499,68106,31683,41050,35590,44830,28387,39224,41279,28113,24107,20279,32163,27020,40301,29718,19072,20036,33135,22183,28318,39631,21489,28053,26059,53541,31221,12130,24507,26205,25082,23546,44519,42871,25679,25412,34898,23348,21916,32084,45680,28742,36852,22196,27716,25805,28775,23280,13461,13711,18915,19794,25981,14533,14533,27158,40458,52526,26065,16173,36337,21249,33541,27864,32709,30092,43794,33915,13579,21512,23826,34830,33391,20364,34329,54994,46563,39424,46747,73293,55044,46382,57150,50890,53303,72992,109809,85588,51219,64695,70509,54250,58984,52705,36841,50541,46637,41435,41862,28750,38575,39498,40207,38044,33972,32316,83189,74722,42689,35881,32333,59101,34047,73946,58566,36584,46372,46520,34172,36350,30058,19132,23420,22428,18105,33576,41935,12566,44437,30708,23957,22025,14929,18317,18068,17723,24822,12968,21266,21595,53570,35915,34383,77119,38474,21183,15450,20981,17267,13216,23228,18264,31237,28763,38293,27047,35686,15707,30033,17211,17958,21074,13835,13699,10380,15046,14507,21018,20098,28456,15338,23629,0,0,0,28628,27767,33259,44493,24157,28237,19113,36067,24887,26511,30446,30391,22440,25136,19250,15420,15103,25534,30371,30569,27586,45257,51344,48202,42574,53832,65463,46688,39045,54713,35332,38211,39756,44877,40499,34390,47861,40700,42886,33473,23084,23390,33704,35133,30271,31914,44256,41509,34420,24549,28492,57068,40507,54377,33601,27562,41441,26924,31717,32277,38378,29753,31779,26904,33990,32060,23651,26909,33220,28177,26815,49336,26436,24341,35221,26300,46419,40374,23958,33483,19564,25790,19975,18049,24904,42040,51611,71907]},"TUPRS":{"c":[108.0665,105.4398,107.8413,107.9164,105.0646,103.6387,104.8395,104.7644,104.8395,105.74,107.4661,106.6406,104.9896,104.5393,105.9652,105.0646,106.9408,108.6668,110.7681,114.2953,112.7944,112.5692,116.0964,116.5467,116.3966,115.9463,115.7962,118.4228,118.3478,122.1751,120.5241,123.526,125.6273,125.3271,129.8298,128.5541,123.9763,123.0757,123.1507,120.5241,120.2239,121.1995,121.4247,123.6761,121.1245,123.9012,126.828,128.404,127.7285,125.5522,124.4265,122.4753,124.1264,122.3252,123.9763,130.3552,128.9293,130.5803,129.0794,127.5785,127.1282,127.3533,132.7567,132.8317,133.9574,131.9311,129.8415,135.5041,143.3201,146.0318,null,145.952,148.3447,148.7435,148.2649,151.4552,150.3386,149.7803,151.2159,153.2098,156.3202,156.1607,162.7007,160.5472,159.9092,158.1546,153.6883,150.8171,149.3017,147.3876,146.4306,144.7557,144.1974,150.8171,153.0503,155.1239,155.4429,153.3693,151.7742,150.9766,149.541,148.1852,145.8723,140.9275,138.6943,134.4673,133.1912,130.4796,130.7188,129.4427,128.3261,130.7986,132.4734,133.1912,137.2587,136.2219,136.86,135.5041,131.9151,134.5471,131.9949,130.6391,129.5225,134.228,138.8538,138.2955,136.9397,134.6268,133.9888,136.0624,134.3078,132.7924,132.6329,132.5532,131.5961,130.1605,131.1973,130.001,128.6452,130.32,129.6022,128.8844,130.2402,131.0378,126.8906,122.5838,126.0132,129.9212,131.5961,130.2402,129.044,129.3629,126.8108,129.682,128.9642,131.7556,130.7986,131.5163,130.4796,128.4059,128.4059,131.3569,131.9151,134.4673,136.0624,133.271,131.5961,129.5225,129.2034,128.6452,127.6881,124.2586,124.9764,129.682,130.32,131.6759,131.2771,134.7863,132.3139,134.3875,136.3017,134.7863,135.5839,136.0444,133.128,133.128,131.6697,129.0964,132.5275,130.3831,131.8413,131.2408,128.6675,127.1235,124.8075,124.979,126.2657,126.4372,124.3786,124.1212,125.2364,123.2635,125.2364,125.3221,127.8097,127.1235,124.0355,124.4644,122.3199,121.0332,123.8639,124.2928,126.0084,125.2364,123.5208,125.4079,126.8661,127.0377,126.2657,123.0919,120.7759,124.2928,125.5795,127.3808,126.6946,125.6652,126.4372,126.2657,126.3515,127.5524,130.7262,129.6968,130.4688,132.5275,132.0986,132.1844,129.4395,129.6968,127.4666,127.3808,125.4937,123.8639,124.8075,122.9203,122.2341,123.3492,123.2635,123.6924,122.2341,121.7194,125.3221,128.6675,126.6946,125.5795,123.7781,124.8932,123.0919,123.435,124.3786,126.0941,127.3808,127.0377,124.8932,122.3199,123.9497,123.1777,122.8346,120.6043,120.2612,119.9181,121.5479,121.119,118.8888,118.031,118.3741,120.0897,121.7194,119.2319,118.5456,117.0016,115.9723,115.1145,114.4283,111.5976,107.8233,109.5389,107.7376,108.0807,105.9362,107.566,110.3967,110.654,110.5682,108.0807,111.1687,118.031,119.7466,121.5479,121.5479,123.2635,123.5208,123.8639,125.3221,124.3786,118.2025,121.7194,116.3154,118.3741,121.7194,122.2341,121.9768,125.23,122.5076,123.415,121.8724,120.8742,117.5165,115.3386,116.4276,116.5183,116.2461,115.2479,113.3422,113.1607,113.3422,112.4347,112.9792,113.7052,113.7052,112.5255,113.5237,113.1607,113.2515,112.0718,108.5327,106.7177,116.3368,116.7906,122.0539,122.6891,122.7798,119.513,121.8724,118.424,117.2443,116.9721,116.6998,116.8813,114.4312,114.4312,114.3404,112.5255,112.0718,115.2479,120.6927,118.6963,118.9685,119.513,118.8777,119.15,117.7888,122.3261,124.3225,130.4933,131.2193,134.6676,124.5948,121.9631,121.3279,123.415,127.0449,128.5876,131.31,132.8527,133.5786,132.6712,127.4986,132.4897,136.301,141.7458,141.1106,138.3882,142.744,145.2849,151.5464,152.0909,149.8223,151.2742,151.6372,149.2778,147.5536,149.7315,153.2706,150.5482,148.7333,150.3667,151.5464,149.0963,148.824,149.187,146.1017,148.1888,145.1942,147.6443,146.1924,145.3757,148.824,152.8169,156.719,156.8097,155.7208,155.267,155.1763,156.2652,157.1727,154.3596,155.0855,153.1799,152.0002,150.5482,152.7262,154.7225,158.8061,157.3542,166.7011,171.5106,172.5996,173.6885,176.9554,177.5906,177.4999,179.3148,182.0372,174.959,175.4127,175.9994,180.7178,180.246,174.6782,171.7527,170.4316,170.3372,172.7908,170.4316,162.7876,164.2975,168.3554,166.2793,163.4482,167.4117,166.1849,171.4696,176.4712,181.001,181.8503,185.6251,184.9645,186.4744,187.5125,177.4149,184.3983,187.0406,186.8519,185.5307,181.5672,184.1152,186.5688,187.9843,190.3436,192.5141,194.8733,193.4577,190.0604,184.0208,179.3023,182.1334,183.2658,183.8321,187.7956,186.8519,185.6251,185.9082,186.4744,187.8899,186.38,186.8519,186.2857,186.4744,184.0208,176.1881,178.6417,178.0755,174.2064,175.2444,174.7726,177.4149,177.698,174.6782,172.7908,175.905,174.0176,176.4712,182.039,188.7393,187.8899,185.6251,186.1913,191.5704,196.6663,206.1977,206.292,209.9724,210.2556,214.1247,208.6513,213.936,213.0866,214.2191,214.4078,228.5633,234.4142,231.0169,216.6727,220.825,216.2952,213.7472,210.4443,207.4245,202.3285,203.744,210.7274,209.1231,210.9161,207.6132,209.595,209.0287,209.1231,214.2191,209.5006,205.4427,203.744,206.1977,212.143,221.7686,217.9939,232.9043,243.4737,236.16,234.0367,234.3198,249.8436,248.664,250.5108,247.0724,250.2652,248.7916,250.5108,254.4404,246.0901,235.9714,236.2661,242.6517,253.7036,249.2828,251.4932,250.7564,251.9844,255.4228,246.5813,250.5108,250.0196,259.3524,262.7908,256.6508,263.282,248.546,250.5108,249.0372,258.37,264.2644,269.1763,264.7556,270.6499,266.2292,266.2292,265.9836,266.2292,254.686,253.9492,254.9316,250.5108,246.3356,249.0372,253.9492,249.5284,245.5988,237.445,238.8203,229.9788,232.0418,232.0418,232.0418,232.0418,240.5886,245.8445,233.7119,228.1122,236.5608,234.596,225.4597,230.6664,231.8453,229.6841,227.8175,221.4319,222.709,220.1548,222.9055,216.8147,216.5199,212.9833,215.3411,215.3411,215.4393,223.4949,232.14,235.5784,243.8305,243.0446,253.458,251.9844,259.598,262.2996,263.5276,265.9836,281.2107,284.1579,302.0866,304.0514,308.2266,308.9633,298.8938,287.1051,288.333,292.5082,282.9299,290.0522,285.3859,285.1403,298.4026,315.8401,317.8049,334.0144,330.576,345.0664,339.9088,355.3815,362.2583,367.4159,388.5374,388.2918,399.5893,393.4494,367.1703,373.3102,374.0471,389.0286,393.2038,395.6598,385.3446,384.1166,381.6606,387.3094,387.555,406.9573,409.4133,406.2205,408.4309,405.2381,394.6774,404.7469,409.9045,407.4485,390.011,403.7645,403.5189,398.8525,391.239,376.5031,376.25,387.0],"v":[17311,22429,22305,10850,37178,18401,22986,19508,20433,17635,24448,17273,14071,16493,18154,15545,14289,18689,20730,31073,20110,24227,30376,22339,20771,25400,35172,39578,25534,56442,37134,38001,31453,25007,50102,30293,31679,24783,20212,22704,25319,26612,21884,23876,22192,38992,41547,21715,18233,22031,23649,19323,18138,17476,27552,29599,22793,22397,17239,24050,19164,17249,23372,17100,25053,23886,20792,23027,27073,25779,null,28306,29003,23811,16128,32121,20895,18471,17058,20164,18540,19614,33006,12683,13631,25356,17697,22206,18870,21146,22560,19893,25634,55458,46950,58136,27933,48582,15673,15783,12636,14689,18768,32142,32734,28853,37923,28556,23154,28287,32966,37398,24388,22649,27520,16476,22144,17193,18048,22485,27584,28407,24181,26996,31246,23022,21245,22489,18553,16350,18704,20809,19106,27454,20444,21047,38320,23177,16829,20719,16937,16473,25321,18857,19238,29396,33671,22408,22668,20216,20053,17306,14863,17221,16484,17146,15308,22232,16607,12957,20312,17496,16410,34038,24671,20255,16201,15829,13685,15830,15272,22881,23564,22427,14642,14367,14940,19620,17592,20210,25015,21073,25044,21516,14283,28026,18762,17037,14960,13272,16719,13450,11104,14641,14599,23139,15773,16219,14816,13765,17567,16133,12244,11194,6684,12974,13117,13600,10422,23596,18839,11033,24658,19270,13307,26906,19364,12155,13402,20235,12724,16801,21518,26561,13473,14742,10642,13397,14382,21305,30793,16996,14109,19841,22448,14008,16663,12178,12031,12320,10914,9915,11712,11289,10116,8760,14969,11510,7990,12765,22679,21471,15206,19044,17833,14033,16906,24827,26430,19828,17000,13610,18082,23296,18576,19693,14731,16768,22451,20562,19644,14326,20211,21699,22427,14304,17555,17002,16314,18356,24102,20261,19497,41381,37595,21998,25567,15181,19674,18812,21115,22294,26261,19990,32815,39302,35416,31978,24035,37855,26188,22888,28482,22172,41836,33370,31740,26640,27937,17725,17431,22484,14175,18977,10993,19011,18061,19775,15535,12478,10980,10497,12886,14989,10198,17262,11991,12337,9654,10384,14328,20859,9820,8457,21565,16555,27959,49311,25607,14192,12574,16441,14529,12246,11141,10638,9948,7731,8591,8344,8010,10864,8626,10347,13125,3873,11379,15803,20327,29518,26619,30394,32518,33796,28696,42384,48478,22467,16399,22688,36759,23128,30598,20802,18296,16387,19672,20793,17196,36244,26121,19327,16953,27182,25184,18158,15472,15073,13533,11843,15363,26455,28986,13286,16159,22059,14674,14490,10343,13005,14319,11752,12435,13438,10165,15114,21579,22422,29439,18570,19137,17652,13550,24773,20456,39029,22960,20742,14977,16044,24782,17328,36236,22154,35308,27523,14313,18538,19364,17350,16787,18513,21561,23552,19432,21490,24827,13651,15210,15080,16771,15148,14581,16020,17737,17028,20628,12050,14188,19265,10766,19080,29376,34808,20181,9843,16631,21756,29108,29499,27109,19202,15749,21997,22394,16057,21204,17311,26956,19148,18613,16681,15480,33944,25347,16260,15845,13120,18605,21350,23566,15678,18630,17647,12198,21659,19044,18911,19898,30436,22416,15205,19888,19107,13621,13592,4794,7567,10412,10377,11055,9105,31955,23004,19011,14273,20138,22770,31054,38028,24580,20085,23063,25440,27079,21608,15705,16867,18009,32930,30420,20940,37418,40105,25878,22290,21125,32632,28403,26533,33907,25622,24525,22832,38748,48543,28777,29764,28612,21523,23198,30857,50537,56799,39760,45689,60994,64829,62051,45120,48447,42791,30654,28369,43841,23336,74838,33436,32828,47878,83104,35658,52767,44304,36737,19514,28508,39634,94111,48998,35352,57422,47235,24204,28420,42934,29512,28762,31894,27517,24278,23526,20917,23821,28400,17750,40935,30381,21062,27916,26347,21811,13082,17959,18239,13220,14316,30890,20529,10921,0,0,0,30773,24827,33697,30774,20110,19276,16658,18163,15396,21446,32242,29077,21271,22048,22166,17162,16679,13274,28117,11220,16066,29482,31095,24457,26165,21105,27253,39550,20337,25522,24415,24519,29372,23702,41017,24005,22169,27084,28589,25755,19989,25309,22983,22052,21759,30714,54128,42412,36486,38604,39267,35148,22785,34622,25998,26574,40013,29319,25719,22742,44738,34727,21154,28201,35329,29832,34117,41601,23203,25451,38569,41066,34087,20262,21817,22225,32765,28915,24130,35807,36292,28930,15459,16641,17665,16647,21289,22803]},"TCELL":{"c":[54.6322,53.7932,55.0052,57.1028,57.8953,58.2682,57.3359,56.7299,56.8697,58.1283,59.8997,60.5989,60.0861,59.9929,60.226,61.1583,61.5312,62.4169,64.3281,64.6077,64.6544,63.9085,64.8408,65.4468,65.307,64.6544,63.489,64.0018,63.7221,66.0994,63.6755,62.9296,64.1416,63.5356,62.2304,62.7898,61.2981,61.9041,63.7221,62.9296,61.065,60.9252,62.4169,61.8109,59.62,59.2937,58.1749,59.9463,61.065,57.8953,57.3359,57.802,57.7088,59.2937,59.5734,60.6455,59.9463,64.3747,64.934,64.6077,61.7643,62.2304,63.7687,63.1161,62.6965,62.4635,63.8619,66.2859,68.9895,69.8752,null,68.2903,68.2903,69.8286,70.2481,71.3669,72.1593,72.9984,73.1848,73.7442,74.7697,75.3291,75.4689,76.5411,76.6809,79.0116,78.3124,78.126,78.3124,77.7064,77.4734,77.1937,79.0116,81.4822,81.2025,84.4655,85.864,86.4233,85.5843,83.5332,84.6054,85.3978,89.2668,92.8562,95.653,92.996,93.9749,92.2502,90.9916,92.2968,89.127,91.3179,90.5254,91.9239,96.3056,94.1614,93.2291,93.4155,91.4111,92.6231,93.7884,92.5765,95.0937,97.6108,100.2213,98.8228,101.34,101.9926,101.6197,103.6707,103.5775,101.6197,101.9926,102.6452,102.9249,107.027,103.764,100.128,100.6874,99.1025,98.4499,98.2634,98.4499,100.2213,95.5598,93.4155,95.7463,98.7296,98.8228,95.8395,96.6785,96.3056,96.4921,97.8905,96.4921,99.1025,94.3478,91.5509,88.5676,87.6353,84.8385,89.966,90.4788,91.6908,93.2291,92.7629,93.3223,92.2502,91.3645,89.3601,90.572,91.5509,91.178,88.1947,85.0249,85.6309,85.4445,87.4489,87.2624,88.3345,90.7119,89.4067,89.2668,89.8262,88.7541,85.5377,83.8129,81.0627,78.6387,76.7741,76.7741,81.1559,80.4101,78.4056,78.5455,80.5499,82.0416,81.3424,79.3379,79.7109,81.7619,81.1093,81.1093,81.8085,81.7619,81.8551,79.0116,80.0371,78.9184,77.8929,79.3379,82.9739,85.2114,89.2202,89.4533,88.3345,89.4999,88.1947,86.0038,86.1903,87.6353,89.4999,86.8429,87.076,86.7496,86.7496,85.1181,84.4189,85.6309,87.5421,87.7752,88.5954,90.6625,90.1818,90.2299,89.2204,89.8934,92.2969,92.345,92.1046,93.4987,89.9895,87.9224,87.2014,88.4993,90.1337,89.6049,90.4221,89.5569,89.2204,92.345,94.7005,94.1717,93.7391,93.1141,92.5854,91.9604,90.999,91.5278,92.2008,94.6524,96.4311,95.8542,98.0655,100.9498,102.1035,102.2958,102.0073,104.6993,103.834,103.2572,103.9302,101.5266,103.3533,101.8151,102.9688,101.9112,102.8726,104.3148,103.7379,103.2572,102.1996,99.9883,100.9498,100.8536,102.6803,101.4305,99.6999,100.1806,101.2382,103.5456,96.8156,96.6233,97.5848,100.3729,103.2572,101.9112,100.6613,99.4115,101.9112,103.3533,105.18,105.18,104.9877,94.5082,93.3545,84.0287,86.1438,91.1432,90.2779,89.6049,92.1046,90.7106,88.4512,84.8939,85.0382,87.1533,86.2399,86.3361,87.2014,86.4322,86.4322,85.1343,88.1147,89.4127,89.8934,88.5474,90.5183,87.7782,87.0572,87.7782,86.4322,85.6631,83.2114,83.9806,84.5094,86.5764,88.7397,93.691,92.0566,93.3064,92.7776,92.9699,94.6524,93.5949,95.9023,94.2198,94.7005,94.2198,92.345,91.8162,91.1913,87.4898,90.4221,94.364,93.3545,93.3545,93.3545,92.0085,88.9319,89.0762,87.4417,87.3937,85.1824,88.194,86.5253,90.0099,91.2369,87.8505,87.6541,94.3779,96.6846,96.292,96.1938,97.1263,95.2122,92.2675,93.4945,91.973,90.697,90.5989,90.5498,92.3657,92.8074,93.789,93.3472,92.6111,92.5129,90.7952,90.8442,89.421,91.8258,91.5313,91.5313,91.6786,91.6295,91.2859,93.2,94.5251,95.4576,95.7521,95.9484,92.8565,93.0037,92.3657,93.4454,95.8503,97.1754,96.0466,97.2244,97.9606,97.7643,94.9668,93.0528,91.5313,89.5191,88.9793,88.832,88.3903,87.2615,87.4578,87.1143,87.0161,87.8014,91.924,93.4454,93.9853,93.0528,95.2122,97.0772,97.2244,97.7643,96.3901,95.1141,95.5067,96.0466,97.6662,99.5311,96.292,96.9791,98.5496,96.6355,98.5496,98.3532,96.0956,89.1756,93.9853,94.0343,92.5129,95.0159,95.1631,95.8012,96.7337,98.9422,98.1569,98.7459,96.93,97.8625,95.6539,94.6724,95.8993,100.1201,95.1141,94.6724,92.6601,94.5251,93.838,91.4332,91.3841,92.2675,92.9055,94.9178,92.9546,92.6601,92.2675,92.3657,92.8565,91.8258,94.0834,95.4576,95.9484,95.3595,96.1938,98.9422,99.8256,99.3348,98.6477,102.2795,103.4574,99.9238,100.2182,100.0219,99.1385,97.6662,96.8809,96.7827,96.8318,95.25,93.95,93.5,93.1,96.0,96.8,99.1,98.8,99.65,98.3,99.55,101.7,101.7,103.7,105.9,105.8,104.5,105.5,112.1,112.8,114.8,114.4,115.9,117.3,116.9,113.5,118.5,118.3,116.1,114.3,117.0,118.1,122.1,123.9,125.3,127.5,126.0,124.6,120.2,122.8,123.1,121.5,121.0,120.8,115.8,114.0,113.3,111.0,109.7,107.5,106.9,111.5,109.1,111.3,108.8,109.1,110.8,108.5,106.6,108.4,106.2,107.4,106.0,106.4,104.6,105.9,107.2,106.9,107.5,108.6,104.9,111.2,114.4,117.3,115.7,116.3,117.1,117.3,120.5,117.7,115.3,114.1,114.3,116.6,113.8,112.1,112.1,111.0,115.2,117.7,118.6,120.0,121.9,115.0,114.0,114.5,109.5,106.8,108.6,106.0,106.5,106.1,101.0,101.0,101.0,101.0,102.6,108.5,105.8,107.9,105.1,107.4,105.5,104.6,107.5,110.7,114.9,115.2,112.1,116.0,113.4,113.2,111.0,110.4,110.5,110.9,109.6,107.4,108.7,108.4,107.2,108.6,108.2,105.4,104.9,107.0,109.0,110.2,112.2,108.5,109.6,111.5,111.0,105.0,103.7,102.3,101.7,101.4,101.5,99.95,104.5,107.6,105.1,105.3,105.1,105.3,103.1,104.1,103.1,104.1,102.9,103.5,104.0,102.8,104.3,103.1,102.7,103.5,102.8,103.5,95.05,96.55,97.2,96.6,98.15,99.05,101.6,101.8,101.6,103.7,102.4,99.4,95.75,99.15,97.2,99.9,100.3,100.8,99.45,99.95,98.35,98.25,96.1,97.7],"v":[38895,22904,41573,33566,28262,27788,31293,21818,56749,45063,43682,32859,18279,30071,27962,31513,17817,27175,61443,42857,46322,26395,38062,28745,25499,33219,27050,20097,24279,44729,29809,28163,33915,23408,32910,33652,30808,34556,35022,34822,22299,23294,32353,15841,18743,25623,22000,20402,22336,48500,23612,40037,30422,30812,21268,24583,26493,75586,28119,38808,24416,23813,21499,18037,25724,42363,43546,42047,32244,23520,null,20074,20331,31897,31454,40472,27169,24416,19031,22199,23535,34370,34950,30938,31360,41878,14866,17209,24960,17406,23852,30031,20922,25886,22491,28163,17920,19141,17447,17615,26570,27765,35064,61255,51198,47871,40681,24123,25642,39379,27393,26877,21511,20415,27650,20438,21062,18209,21507,16968,25073,19353,15732,18510,16922,12427,31547,18952,14849,25250,15501,18781,15296,16960,13694,23608,20092,23570,24041,19710,19502,11980,15493,16221,14915,24047,20274,18432,13135,13341,12512,12295,16656,14366,11017,15554,26433,28961,27820,23758,22040,27340,24176,22124,15622,13781,20967,15306,13279,13757,20770,20944,25655,43757,21992,13929,14020,21273,27245,14510,20608,21817,17922,13601,16299,20477,17542,20238,41444,27093,60611,45346,14925,21134,28828,26946,20910,29205,16894,16333,18194,15377,18576,22040,4781,18471,21309,16724,16178,18944,24057,29981,48927,32507,19734,28245,23215,11910,18609,26561,27816,17743,29647,23720,26517,24998,17587,22087,18036,25966,24977,20730,24534,24094,18990,15213,19533,23044,18879,16423,19499,21001,20556,11608,12017,13265,22518,12996,9920,30411,25456,23612,16914,20728,55172,63950,68816,29658,29705,27459,28664,24611,15541,35231,37655,24357,21452,16948,22404,13543,10304,14363,23364,18801,18845,13846,13338,13110,21803,18456,21568,19304,31398,19909,19660,18829,24539,10119,17231,17262,20341,55912,35297,27090,30494,31324,43612,40324,42827,42541,25579,42760,43113,46476,53337,68715,67113,50540,38726,52218,29000,16531,21171,27107,40092,32667,23777,26833,23852,18998,13463,15898,17215,36131,18583,18682,16580,21344,19251,12443,13472,16747,11858,20109,19040,12707,9472,21097,25606,18274,22023,16786,20193,20210,24397,20791,17737,14564,15922,17621,11228,21988,19164,19534,17590,4569,19648,22116,19201,37515,22015,20841,17676,15379,18648,13814,20222,14970,21297,23781,31870,22931,30469,37992,19128,17420,27996,29528,51679,34114,20984,31905,22785,17032,22421,25319,18841,27016,16559,14959,20448,34479,30613,20834,25537,19077,24653,32458,27317,30575,24280,23355,31268,21165,29880,26197,29912,30509,20813,30269,31499,42102,38648,22823,22310,46064,28861,24306,26361,20502,28231,26044,42288,25161,41689,31022,25000,23228,27646,23424,20782,25811,18715,20480,16525,31908,26849,24795,26925,21327,25179,26278,22852,20730,24804,72471,44411,70464,22961,23411,15993,18972,14598,39699,17501,8835,29383,22077,36113,16068,72878,61035,45517,18834,32966,28256,17601,21707,21935,18456,22178,25146,16935,22028,21367,15062,13939,21386,19513,16383,27600,19492,18765,25632,20583,20713,24315,23727,19387,43472,22288,14223,26263,23523,21338,16583,7625,13507,17865,24933,21805,24993,30843,26806,28027,43778,29639,35436,35486,20591,32106,30893,40700,40454,27442,52446,48719,30247,41136,38195,51244,41875,48401,38922,32923,34865,24764,26423,37214,43221,36110,28736,35454,29187,36132,24528,21364,25051,25596,22610,19415,40370,23867,22921,23346,19202,19786,20587,20280,26862,29043,17382,17917,21619,14547,6728,40491,19199,18383,13361,12997,12217,26400,20269,11866,12451,14622,14328,30236,18285,19947,20288,21157,16779,13364,30021,21710,16028,11746,17822,17679,12061,16101,20777,18040,20712,26696,19636,23761,32692,20841,16963,12804,19904,19889,18711,18912,59205,21912,20062,0,0,0,40334,33252,16955,21543,17804,19946,24974,15741,21272,26347,20831,16476,14797,24120,15586,14550,14774,14667,22064,13690,19270,32369,21396,24254,18320,21517,20586,23793,17348,28735,25772,26952,31920,21380,23345,26338,18168,46961,36279,24043,24751,30927,33928,29787,36087,35967,19872,19657,12993,16334,25892,30778,21262,35330,21654,20686,27080,22357,31776,33075,30223,35603,44545,23021,102844,60637,37456,16798,32262,27893,33606,39930,18550,48843,16146,22670,46663,41934,31329,26378,14535,14276,11540,11581,21522,22700,22670,16956]},"FROTO":{"c":[64.9175,62.796,63.6446,63.2627,65.6388,64.0265,65.1721,66.0207,66.7844,68.9059,69.415,67.9724,67.7178,67.633,67.5905,68.524,70.2212,71.1971,73.064,73.1913,72.7245,74.846,75.2703,76.2038,77.5191,79.5982,78.0707,79.1739,81.1256,83.629,80.9983,82.3137,81.4226,81.8469,81.4226,83.6714,83.332,86.8961,85.9626,87.1507,87.5749,87.7447,86.302,85.5383,83.4168,84.1381,88.4235,89.6964,94.194,95.6366,94.3637,91.9876,93.7697,91.7331,90.6299,94.194,96.2306,102.4253,97.0792,93.9394,93.8545,93.006,98.0126,96.0609,97.5035,95.8912,96.6549,98.8613,103.4437,102.6782,102.6782,100.5666,101.4464,98.3669,98.279,98.5429,98.7189,97.2231,95.9913,97.5751,97.3111,98.015,100.2146,99.6867,100.9185,100.9185,98.5429,100.3906,101.0945,100.7425,104.3499,104.7898,105.7577,106.1976,106.8135,106.9015,107.5173,102.7662,98.8069,98.7189,98.191,95.7274,95.1995,96.1673,95.0235,89.7444,92.12,89.3925,90.1844,89.6565,88.6886,93.7037,92.9999,94.9355,96.3433,95.2875,95.6394,98.4549,96.9592,99.5107,98.8949,96.7832,97.0472,98.103,99.0708,98.8069,97.2231,93.7917,91.4161,94.8476,94.0557,92.9999,92.6479,93.0879,92.296,93.3518,91.5041,88.8646,87.8968,88.1607,86.621,87.5008,87.4568,86.7969,83.4535,78.3064,79.5822,77.4266,78.9223,76.4587,75.9308,77.4266,77.4266,78.3064,77.8225,80.814,81.6059,82.5297,82.4857,79.6262,78.0425,79.4942,80.946,84.8173,84.2454,82.3537,81.7378,83.3655,82.1338,80.682,78.7023,75.6229,77.9105,80.594,78.7023,80.2861,80.638,81.5179,80.4181,80.2421,81.2979,80.3301,81.6498,81.9578,80.77,78.8783,77.4266,75.7109,77.6905,80.462,82.0018,84.7293,83.9814,82.5297,79.8022,80.1981,80.55,85.1692,85.1252,84.6853,87.6328,87.9847,88.9526,89.3045,88.3367,86.401,86.0931,85.7411,85.1692,85.8731,86.9729,88.4247,92.384,91.2402,94.2317,96.7832,98.279,94.7596,96.6952,92.384,87.1049,89.4805,89.3243,88.6105,88.5212,86.8257,86.3796,86.2903,87.0934,88.7443,88.9228,88.6551,89.0566,88.4766,87.3612,88.7889,88.075,88.5658,87.5396,86.8257,85.398,84.9964,84.7287,83.0332,83.2117,83.8364,84.7287,85.2641,83.8364,83.6133,83.9256,84.9072,84.5056,84.2379,83.9702,84.1041,82.3194,81.5609,81.1147,81.3824,82.4086,82.2748,82.364,82.7209,82.7655,85.3087,83.2117,81.5609,82.007,82.2301,83.9702,82.944,78.8838,79.9993,81.2039,82.007,82.3194,81.9178,81.9624,80.1777,81.6501,81.7393,80.9808,83.3902,83.4348,81.8286,80.6685,79.5977,79.2854,79.3746,79.4638,78.75,79.5085,79.1069,82.9886,86.915,87.7181,88.6105,91.466,92.0014,93.4291,93.8753,95.0354,95.66,90.3951,93.9645,88.8335,92.983,93.1614,92.2691,91.7337,94.5,92.8937,97.6205,95.0802,93.9915,93.6286,90.5439,91.179,90.1357,90.3625,86.3706,82.6508,83.2405,83.0591,83.7849,82.923,83.6488,84.1932,83.5581,83.0137,80.3373,81.2899,80.0198,79.6115,79.1579,82.5147,83.0137,88.8655,88.6841,87.5954,84.8282,87.7768,83.422,81.426,80.2012,78.8404,80.0198,78.1599,77.4341,76.5722,72.7164,73.7144,77.298,79.793,79.4301,78.7043,78.4775,75.7103,75.0753,75.4835,76.3,75.2567,74.1226,75.8918,77.1166,78.5682,78.7496,76.7083,76.3454,80.9724,81.7889,85.1911,84.42,84.8282,83.921,84.2385,86.0077,87.4139,86.4613,87.1417,86.6427,85.6448,83.4674,83.8756,85.0551,84.6921,85.554,83.8303,84.3292,83.0137,86.5974,86.3252,88.4119,91.179,92.177,92.9028,96.4411,95.1709,96.3504,96.4411,95.3524,95.0802,95.4431,97.0762,100.7052,103.4269,103.6084,103.8806,104.9693,107.3281,102.8826,101.431,101.3403,100.5237,95.1709,95.4431,94.8988,97.0762,95.806,93.3564,93.175,91.6326,91.4512,95.5338,98.3463,95.2617,94.4451,95.9875,95.3524,92.2677,91.6326,93.5379,91.3605,90.181,89.8635,90.9976,90.6347,89.6367,87.5954,88.3212,87.0056,85.3272,84.8736,84.0571,83.8756,83.2405,82.1518,84.1932,87.55,88.9109,88.6387,87.9583,90.7254,89.2284,88.4573,87.3232,90.0449,90.8161,89.3645,90.0903,88.8202,88.0944,87.5046,85.6448,85.5994,85.9169,85.9169,85.8262,85.4633,86.2345,86.5974,85.3272,85.4633,85.6901,86.1891,86.3252,85.8262,87.6861,89.0923,87.207,87.3521,87.7871,89.189,88.3189,87.4971,90.5426,93.6847,96.0051,94.1681,94.0231,92.8629,92.1861,91.3644,91.316,92.2828,91.9444,91.171,88.0288,89.5757,89.5757,92.4279,93.0079,94.9899,94.3132,94.8449,95.1833,95.5217,97.552,98.2288,100.8392,101.9027,100.2591,99.5823,99.679,100.4525,101.6126,104.223,105.5766,106.6401,108.3804,109.9273,110.024,112.6344,111.9576,111.3775,111.8609,115.4381,112.0543,116.2116,122.9793,124.7196,129.8437,123.5594,119.7888,116.7917,117.2751,116.5983,115.6315,113.2145,114.6647,112.0543,107.9936,104.8998,104.223,107.7036,104.8998,105.2865,108.3804,107.8969,108.2837,106.06,105.6,107.9,105.7,109.8,108.9,104.2,104.6,102.7,103.8,100.0,101.1,102.5,100.7,99.6,100.4,96.7,101.8,102.2,105.3,104.9,106.1,106.8,105.9,109.3,107.5,103.5,102.3,104.5,102.6,99.15,98.05,98.0,96.0,98.05,99.0,98.9,97.5,97.0,94.1,93.45,93.45,91.45,87.35,86.65,82.35,86.85,87.6,84.15,84.15,84.15,84.15,85.2,88.9,88.95,88.6,86.2,87.1,86.3,87.45,86.55,86.7,90.1,91.3,89.55,91.85,91.1,89.85,87.95,86.45,86.35,86.25,85.45,84.55,85.2,83.7,83.75,82.0,83.0,80.8,80.85,81.8,81.55,81.05,84.4,83.6,82.65,81.1,81.45,79.4,79.0,78.25,77.55,76.1,76.7,80.1,79.05,80.55,80.45,78.6,78.1,77.4,78.85,79.75,79.7,79.1,79.0,78.9,79.35,79.6,80.2,80.1,78.6,79.55,78.45,78.4,76.95,77.25,76.25,75.65,77.2,79.65,82.8,83.95,81.9,82.85,81.75,78.4,74.65,77.45,76.0,77.85,79.2,78.5,77.4,76.8,74.95,74.4,73.55,75.45],"v":[9620,11448,9068,12138,18656,14111,14634,11785,12366,15673,8302,8411,7549,5367,6174,12247,7831,11544,12646,12263,9525,13309,8938,8916,9481,12952,9910,7161,15252,14562,13653,10089,14673,11147,12700,13146,10792,11264,13606,9905,10603,10491,11882,8536,7589,17132,29123,20575,18270,18168,7872,12485,8250,10363,8130,11959,15846,19658,10918,11609,9761,6607,12058,10716,7891,8297,5040,10908,13068,10734,0,9174,10160,11019,7913,10127,8142,9112,8042,8556,11512,15968,10485,6301,9822,9226,7024,8261,8582,8333,11872,7942,9227,13961,10025,15933,8463,10865,13488,6784,9866,12259,11151,10389,8176,19780,17644,12806,8064,7896,9870,15393,10041,13009,8444,8656,12136,20754,11714,9521,11706,9064,6899,7645,9548,6527,6799,10468,14040,9753,8832,13118,10014,6836,5813,10521,8342,9431,6594,7581,6390,7852,7434,9101,9533,11481,11983,24272,15841,9638,10203,14779,9155,8672,9050,8475,8197,12989,8426,11022,7437,7265,8198,12457,10813,8067,7820,9213,8772,5608,8507,12362,14922,11683,7670,7194,5979,6343,8402,7182,9562,10836,11126,7548,9412,8969,8727,10028,7029,13203,13061,12801,9636,10448,8920,11481,7183,14585,14282,10576,16868,12850,9875,9813,2249,12643,8113,6577,8173,7452,20571,11364,13936,7215,14078,15035,15483,11511,11911,33619,19468,13714,12996,14216,9243,11824,10869,11597,9866,14916,17827,8526,9744,8990,10938,19119,7815,5923,7761,7574,6382,6107,7411,7423,6369,4318,7725,7261,5744,8079,9007,9810,12922,12018,11982,8499,9769,15260,9436,10593,10788,7972,10653,8319,7736,17931,9732,9181,8953,11914,13615,9701,22815,16619,17641,13033,8644,16145,12590,13683,14510,9908,10397,25885,19954,13685,14879,9827,11058,10206,13861,14711,21093,9973,19383,18793,13556,12663,17935,11080,9658,9502,7628,12349,27026,23445,22000,20279,15971,20652,12953,9911,12455,14891,10783,12225,10169,10184,9102,8623,6024,12083,16781,18700,12244,15706,6627,9708,8208,7191,7492,12630,11081,8675,14615,11484,9948,10120,14760,13610,9606,9925,8154,14283,10430,15330,11355,14417,14186,9318,10409,18106,11363,12426,8636,2883,12728,18400,15135,13496,8196,10597,7964,7898,10276,10941,12264,11159,7662,11011,24183,16708,18672,12080,8753,8913,12559,15392,9546,11158,10602,13621,22991,17714,16431,21176,14518,21257,10658,12367,7895,22062,20033,17139,15204,12790,13727,16902,11590,8709,9508,7315,9463,9092,11853,15630,18225,8849,10236,12199,12305,11719,9244,10973,9998,17243,10480,10520,16063,12893,14856,12171,17141,14017,24524,15359,16237,17536,15779,19157,14905,12136,15049,15927,12157,15693,21963,13756,13134,12975,14475,14236,14284,13663,17439,12075,16940,16763,19673,19550,17719,16765,15185,30668,14600,7151,11151,25898,13023,12807,13749,20900,17546,17111,22345,10602,10807,8711,13170,11277,14509,10481,10851,12853,13316,12834,15189,11821,19472,26119,31288,13795,24452,20097,14792,16845,26615,22878,19230,13308,10962,16444,12707,9780,10725,9638,4525,7920,14775,15516,9174,11144,16665,18203,16924,15483,16610,19155,26670,23310,25501,23560,16678,13606,16829,18250,16389,21764,30433,24065,23142,28055,27580,24195,16417,20186,18213,23719,29452,26263,20866,14641,25438,24248,24942,20532,12235,19621,11239,11550,11812,20585,12792,9127,14708,11062,9780,12365,19430,12361,12888,11432,7015,8779,8836,5828,20578,9155,9535,6551,5790,9008,16039,8555,9273,8412,8428,15131,24372,17776,18846,23746,25658,15994,15348,23426,13292,18704,17534,28419,17924,17994,14001,15950,17225,21241,40692,24442,27708,27755,19341,31412,17733,19520,40639,41170,35428,38740,26998,59931,0,0,0,67373,37597,38219,30792,28866,30953,23535,22402,22312,32244,31869,27787,18556,22272,19820,14695,15845,13113,17172,12593,18611,24438,22497,24167,15526,23729,20884,21794,14058,20503,21213,21887,25750,20985,20625,21468,18288,27339,19851,24815,22783,24288,27627,24404,18007,19148,30306,26647,20577,21254,29836,24256,20045,17683,19627,17401,18794,18110,22376,17993,20986,21924,18441,14591,32074,16984,15737,14950,15014,27029,34196,28847,21286,18320,14701,23105,41850,41861,23081,24699,21870,17386,10683,13792,17480,12602,20932,18811]},"EREGL":{"c":[20.4015,19.9477,20.4304,20.5753,20.9228,20.7104,21.7435,21.1932,21.1449,21.2704,21.3863,20.9711,20.527,20.3532,20.2953,20.4401,20.4594,20.6718,20.9035,21.1063,20.9228,20.8263,21.1063,20.9808,21.0097,21.338,21.7339,21.9559,22.3808,22.4001,22.2649,22.4966,22.7284,23.7132,23.327,23.9546,23.4815,23.2594,22.4484,22.0042,22.6704,22.6415,21.9753,22.178,22.2166,21.9173,21.3766,22.0428,22.1587,22.1008,21.8594,21.4635,21.4056,21.4346,21.2801,21.367,21.1353,21.1642,20.9035,20.7394,20.3339,20.189,20.3339,20.4304,19.938,18.7794,18.4801,19.0304,19.9766,20.247,20.247,19.9477,19.8011,19.6056,19.762,20.1431,20.3191,20.3777,20.3288,20.9152,21.443,21.0423,21.8046,21.5896,21.4821,22.2151,22.0978,22.2347,22.8895,22.6354,22.7331,21.9512,22.2835,22.8993,23.4368,23.427,23.6127,23.7105,24.1503,24.033,24.1503,23.7398,23.9157,23.427,24.2382,24.0232,23.7886,23.7202,23.427,22.694,22.5865,23.3586,24.1503,25.2156,26.3151,25.6798,26.0463,25.6554,25.4355,25.8997,26.0219,25.2889,25.069,26.8282,26.8526,26.8771,26.7305,26.6816,26.8771,26.9504,26.9992,27.8055,27.7078,27.3169,28.1232,29.0272,28.5141,28.172,27.6834,27.4879,27.1703,27.3169,27.3902,27.9766,26.9015,24.4826,24.1405,24.6292,25.5088,24.7269,24.1014,24.1405,24.0623,24.3653,23.7593,24.0818,23.945,23.9059,24.1405,23.5736,22.8699,23.1631,23.2413,23.6225,24.0916,23.6811,23.2902,23.4759,23.1045,22.8308,22.7331,23.1631,22.8699,23.1827,23.2706,23.6029,23.5736,24.1503,24.2871,24.1112,24.9957,25.1178,25.0201,25.7042,26.1441,25.7531,24.9957,24.4337,24.507,24.2675,23.2804,23.2413,23.212,23.9059,23.5932,23.6714,24.16,23.9548,23.4857,23.2218,23.2218,22.5767,22.7917,23.1631,23.3879,23.3782,23.2609,23.427,22.9384,23.3391,23.8277,24.1991,24.9712,24.8979,24.5803,24.4581,24.9712,24.5803,24.678,24.2089,23.4466,24.336,24.4826,24.7758,24.4826,24.1405,24.6487,25.196,25.4501,25.411,25.5088,25.3329,25.3329,26.3884,25.5674,25.4697,25.7238,25.9584,25.4697,25.5674,25.196,24.7269,24.5314,24.3946,24.2969,24.4923,24.2187,24.3751,24.0428,23.8473,23.945,24.16,24.1014,23.5345,23.1045,23.3195,23.2413,22.5767,22.3031,22.3226,22.479,22.5376,22.3226,22.1272,22.1076,22.1662,22.7722,22.5963,22.6745,22.4008,22.4008,21.9317,21.1889,21.5212,21.2084,21.9903,22.8895,22.3422,22.8699,22.8699,22.7917,22.8113,22.9872,23.124,22.2835,22.4594,21.873,21.6189,21.3648,21.3844,21.8535,21.8144,21.9903,21.5407,23.2022,24.1209,24.2382,23.8864,24.2578,24.7074,24.8442,25.0006,25.0006,25.0787,22.5767,22.8308,20.622,21.2084,22.1858,22.0099,21.8535,22.0099,22.1467,21.9708,21.1107,20.8175,21.1107,20.4852,20.8175,20.8566,21.3062,21.3062,21.0521,20.9152,20.622,20.4852,20.7784,21.4626,22.1076,22.4008,22.2444,21.9903,22.909,23.4954,23.2609,22.1272,22.7331,23.4368,23.9646,24.4337,24.1014,24.1209,24.2382,24.2969,23.6909,23.3391,23.0068,22.9872,23.2609,23.3195,23.2804,22.909,22.4985,22.8895,23.2022,23.0068,23.6518,23.6127,24.336,24.2382,25.3133,25.9974,25.8802,24.8246,25.7629,25.3329,25.411,25.2156,24.9419,25.2351,26.0561,26.0952,27.0522,26.9338,27.1114,26.6575,26.4602,26.5391,26.8943,26.7957,26.5391,26.4208,26.7167,26.5194,26.8943,26.6773,26.6773,26.7365,26.5786,26.3616,26.0656,26.2629,26.3616,26.5786,26.8746,26.7562,27.1114,26.8943,26.7957,27.1114,27.1508,27.4863,27.2495,27.289,28.3939,28.9661,28.9069,29.1635,29.0056,29.2621,29.2819,29.1832,29.4002,29.4594,29.4397,28.1374,28.1177,27.802,26.9732,26.1445,25.9077,25.671,25.3552,25.3552,27.1311,27.2495,27.1508,26.8746,28.5518,29.2227,31.2353,31.0182,32.0048,29.9133,28.9661,29.0056,29.4989,29.2621,28.9464,28.6307,28.611,27.4468,27.6244,27.4863,27.0324,25.6118,27.3284,26.7759,26.0459,26.8154,26.993,26.48,26.48,26.8746,27.3087,27.21,27.1114,27.1114,28.4531,28.7886,26.697,26.1642,25.7696,24.9014,24.1516,24.0135,23.9543,23.5794,23.678,23.4807,23.8556,24.1121,23.7964,23.6189,23.5597,23.678,23.5597,23.5399,23.6583,23.5991,23.5794,23.461,23.4807,23.8359,23.9148,23.8162,24.0529,24.2305,24.5265,24.1713,24.3687,24.27,24.2305,24.0135,23.7372,23.8359,23.7175,23.5202,23.3229,23.6189,23.5005,23.8951,24.1911,24.783,24.1121,24.3884,24.3292,24.5462,24.8028,25.2171,25.1382,25.7104,26.2234,25.3355,25.5723,26.401,26.697,27.2298,27.0719,27.5257,28.098,27.802,27.1706,28.3742,28.4334,28.315,28.6307,29.5976,28.8083,28.8478,29.4989,29.1832,29.6962,28.7096,29.2424,29.0253,29.6568,31.0577,31.551,30.959,31.4721,32.2219,31.0774,28.7491,28.4729,28.4926,27.8217,27.9401,28.9267,28.5715,28.2755,28.019,27.7822,28.315,27.9006,27.5257,28.2755,27.4073,27.5455,26.5391,27.5257,27.21,27.8414,28.3939,27.8217,28.8083,29.6568,28.4531,29.1832,29.6962,30.8801,31.5707,31.038,31.2156,30.4855,31.6102,32.8533,33.2677,32.1627,32.5573,33.1493,32.5376,33.2677,34.6489,35.3395,36.7207,37.1745,37.9638,40.7065,40.3119,39.5423,39.9567,39.2069,39.0885,38.023,38.1217,34.7081,38.1611,38.9504,38.6544,38.6544,38.6544,38.6544,39.4634,40.45,40.3,40.1,39.16,39.02,38.64,38.64,38.4,39.36,40.2,40.3,39.4,40.0,40.02,40.34,39.82,39.94,40.32,42.12,41.2,40.48,40.44,40.8,40.1,41.52,41.26,39.94,40.06,40.4,40.86,41.88,44.06,42.34,43.6,42.3,42.24,44.2,43.28,43.26,43.86,43.16,42.4,42.54,40.7,41.74,41.98,41.56,38.68,36.88,36.86,37.18,38.24,37.38,37.94,37.7,37.76,38.1,38.14,38.18,38.24,38.7,38.6,39.16,38.78,37.78,37.6,36.58,37.2,38.32,39.92,39.08,38.98,39.4,38.86,38.26,34.78,36.14,36.42,37.38,37.82,38.54,37.94,37.74,37.48,36.76,35.94,36.62],"v":[174870,91656,135478,111756,136151,136931,359702,267908,171597,146334,166402,122858,167444,110794,129825,153499,235912,171059,191940,177045,155385,166308,212890,239158,176131,303764,321791,279541,242384,197503,413752,272179,293333,670127,345805,329761,651323,307525,307203,260505,537585,972826,509332,370724,438864,242060,265443,245728,258663,251909,295772,240474,177434,145841,167190,149798,163962,255461,156786,202412,246039,131760,126430,134364,142734,209911,143712,184098,218817,164648,0,133820,128332,121225,124755,170914,150513,108882,139653,262321,188386,137679,264265,190219,145053,342280,170227,233046,410894,268129,233548,237683,185022,293333,325440,632573,320169,279972,284185,290809,305349,193524,214939,276176,325693,324093,300175,210765,140512,119415,143249,199171,241818,370221,272302,191389,250172,170815,233239,311197,339722,330726,246143,442656,429737,345200,302059,259298,291696,253958,221258,314194,307334,281410,752946,644117,330995,226930,230930,168393,171064,202263,189992,234769,217093,314076,207838,267855,192319,156741,202172,238349,200145,225260,270931,221616,186747,187098,186191,171556,168928,170229,109732,244786,155635,124207,125008,135860,86438,122401,187505,190500,175721,151730,212788,161799,141466,159774,190839,136735,213346,204642,205775,223990,206546,173120,161714,163118,197002,146431,232657,147753,208531,304171,254365,218793,204976,199416,194497,125115,193603,220041,92095,93374,42636,145297,182262,160004,97755,111208,247302,143821,155703,127494,120643,184381,124744,86981,169584,161735,138633,188362,216333,174953,112239,106718,136396,197072,156158,141492,146054,104055,131239,516944,248486,177046,167698,147167,96681,138114,112696,126601,135020,100429,115615,92731,170871,129320,93895,129518,120043,192519,157063,194578,179954,143879,168118,155856,138027,131908,140909,171252,174811,156253,153563,209527,223507,203826,159958,147656,196800,144802,207919,221158,174105,189513,286917,227220,222179,276504,184322,224378,162200,200109,230298,131089,212581,111916,118322,127865,224928,310004,214054,152738,407354,343131,182982,155260,275982,213765,235975,226677,150167,223501,273884,232010,261013,247449,198989,160004,152557,125171,138022,142842,153292,203039,121711,131818,128718,127459,107799,74559,94259,134328,71406,116121,129041,160253,221880,205926,159591,186169,149919,265996,123425,169854,115849,166792,176422,193269,218503,133521,151216,151024,114560,160285,123160,106426,167526,128168,188769,123409,135685,133314,145591,39607,156133,132007,384158,251915,340108,314994,327680,197391,310135,122650,206796,127888,116478,146871,230956,260446,408758,170295,162134,130320,156281,153154,221305,160587,73944,149177,118918,118876,121146,132516,134156,116386,63864,47975,63830,111326,120676,154596,150253,95981,126233,182648,117527,244487,152662,185744,117412,76058,274671,302846,210967,160970,282621,187416,326761,169071,174067,182501,184926,287684,253697,132684,147734,141521,149782,198038,220352,104849,199744,137883,173725,172328,261480,201175,516898,352104,248168,330616,313054,236876,276019,192805,103390,192954,130621,247780,156041,107859,160368,139074,284680,197354,154992,171041,229141,167726,157273,318410,235291,71033,158018,239474,274380,236156,501229,312815,227331,225737,256989,174600,156447,147781,184435,194563,253691,173535,170259,151607,272111,157424,198607,164537,367881,170709,265920,103688,153972,267977,218984,179907,195477,234072,174068,174872,157759,105975,117115,78705,106149,102758,48631,121984,103245,113878,77806,110879,150581,198828,218789,183521,96529,151454,195916,240477,210814,222811,189647,221942,149685,209665,181200,178992,122598,132392,209411,169333,284228,250373,133080,155639,161121,251920,196848,152773,173453,185710,207574,263115,495856,217678,169052,349199,190182,199107,214829,252101,185985,187133,144122,108938,109263,151156,131985,81216,95133,66534,52233,120584,104511,29772,126259,75144,107733,94609,105281,118013,136529,109457,141972,202952,201392,159194,241676,438647,298404,249550,230803,122720,124045,214958,235691,173341,158119,121435,139797,113230,266433,223930,221761,235341,306892,156242,270521,335273,229567,183857,134597,152183,135048,85624,123679,210745,187516,41627,0,0,0,235926,200429,114552,177176,158976,114927,127526,90963,92773,130986,183654,113675,122868,135803,118895,125535,96694,90039,117386,237056,143587,178177,125101,179552,99354,171886,167373,156421,106075,95320,150699,115287,130425,96997,119619,112010,96835,183664,142858,73460,96030,109800,98597,94060,116694,152313,89840,110422,309273,243729,213353,191079,279816,187307,186294,138617,163846,247798,220804,171430,143057,244590,145434,196956,160254,121583,158433,127469,83902,114617,182718,173346,112131,121720,93223,129246,227522,312019,123505,162933,81721,99750,78919,67493,81549,58655,108430,95951]}}};
+  const DATES = RAW.dates.split(",");
+  const TICKERS = Object.keys(RAW.stocks);
+  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
+  function utc(d) { const [y, m, dd] = d.split("-").map(Number); return new Date(Date.UTC(y, m - 1, dd)); }
+  /* pandas dayofweek: Monday = 0 */
+  function weekday(d) { return (utc(d).getUTCDay() + 6) % 7; }
+  /* ISO 8601 year and week (pandas isocalendar) */
+  function isoWeek(d) {
+    const t = utc(d), dn = (t.getUTCDay() + 6) % 7;
+    t.setUTCDate(t.getUTCDate() - dn + 3);
+    const year = t.getUTCFullYear(), jan4 = new Date(Date.UTC(year, 0, 4));
+    const week = 1 + Math.round(((t - jan4) / 86400000 - 3 + ((jan4.getUTCDay() + 6) % 7)) / 7);
+    return { year, week };
+  }
+  function series(tk, clean) {
+    const s = RAW.stocks[tk], out = [];
+    for (let i = 0; i < DATES.length; i++) {
+      if (s.c[i] === null) continue;
+      if (clean && s.v[i] === 0) continue;
+      out.push({ d: DATES[i], c: s.c[i], v: s.v[i] * 1000 });
+    }
+    return out;
+  }
+  function shiftYears(d, k) { const [y, m, dd] = d.split("-"); return (Number(y) + k) + "-" + m + "-" + dd; }
+  /* start date of a window, "today" = the last date in the data (run_three_analyses uses today) */
+  function windowStart(tk, win) {
+    const s = series(tk, false);
+    if (win === "full") return s[0].d;
+    return shiftYears(s[s.length - 1].d, win === "2y" ? -2 : -1);
+  }
+  /* load_stock_data: download from start, pct_change, dropna */
+  function returns(tk, win, clean) {
+    const start = windowStart(tk, win);
+    const s = series(tk, clean).filter(r => r.d >= start), out = [];
+    for (let i = 1; i < s.length; i++) {
+      const iso = isoWeek(s[i].d);
+      out.push({ d: s[i].d, r: s[i].c / s[i - 1].c - 1, wd: weekday(s[i].d), y: iso.year, w: iso.week });
+    }
+    return out;
+  }
+  const mean = a => a.reduce((s, x) => s + x, 0) / a.length;
+  function median(a) { const b = [...a].sort((x, y) => x - y), n = b.length; return n % 2 ? b[(n - 1) / 2] : (b[n / 2 - 1] + b[n / 2]) / 2; }
+  function std(a) { if (a.length < 2) return NaN; const m = mean(a); return Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1)); }
+  /* weekday_statistics: values already multiplied by 100 except Observations */
+  function weekdayStats(rets) {
+    return DAYS.map((name, k) => {
+      const x = rets.filter(r => r.wd === k).map(r => r.r);
+      return { day: name, n: x.length, avg: 100 * mean(x), med: 100 * median(x), sd: 100 * std(x), pos: 100 * x.filter(v => v > 0).length / x.length };
+    });
+  }
+  /* build_weekly_pattern_table + detect_pattern */
+  function weekly(rets) {
+    const map = new Map();
+    for (const r of rets) {
+      const key = r.y + "-" + r.w;
+      if (!map.has(key)) map.set(key, { y: r.y, w: r.w, days: [null, null, null, null, null], dates: [null, null, null, null, null] });
+      const row = map.get(key);
+      if (row.days[r.wd] === null) { row.days[r.wd] = r.r; row.dates[r.wd] = r.d; } /* aggfunc="first" */
+    }
+    const rows = [...map.values()].sort((a, b) => a.y - b.y || a.w - b.w);
+    for (const row of rows) {
+      const [m, t, w, th, f] = row.days;
+      row.complete = row.days.every(x => x !== null);
+      row.trigger = row.complete && m < 0 && t < 0 && w < 0;
+      row.pattern = row.trigger && th > 0 && f > 0;
+      row.tf = row.complete ? (1 + th) * (1 + f) - 1 : null;
+      row.wk = row.complete ? row.days.reduce((p, x) => p * (1 + x), 1) - 1 : null;
+    }
+    return rows;
+  }
+  /* pattern_summary, plus the Mon-Wed trigger version and the unconditional Thu-Fri return */
+  function summary(rows, cost) {
+    const comp = rows.filter(r => r.complete), pat = comp.filter(r => r.pattern), trig = comp.filter(r => r.trigger);
+    const tf = a => a.map(r => r.tf);
+    const block = a => a.length ? { n: a.length, avg: 100 * mean(tf(a)), med: 100 * median(tf(a)), pos: 100 * tf(a).filter(v => v > 0).length / a.length, net: 100 * (mean(tf(a)) - cost) } : { n: 0, avg: NaN, med: NaN, pos: NaN, net: NaN };
+    return {
+      complete: comp.length,
+      occ: pat.length,
+      freq: comp.length ? 100 * pat.length / comp.length : NaN,
+      pat: block(pat),
+      trig: block(trig),
+      trigFreq: comp.length ? 100 * trig.length / comp.length : NaN,
+      uncond: comp.length ? 100 * mean(tf(comp)) : NaN
+    };
+  }
+  /* Regime breakdown. Each complete week is labelled with what is known at Wednesday close:
+     trend = Close > SMA50, volatility = 20-day std of daily returns above or below its median over the labelled weeks.
+     History before the window start feeds SMA50 and the std, as a downloaded series with a warm-up would. */
+  function regimes(tk, win, cost) {
+    const s = series(tk, false), idx = new Map(s.map((r, i) => [r.d, i]));
+    const ret = s.map((r, i) => (i ? r.c / s[i - 1].c - 1 : NaN));
+    const rows = weekly(returns(tk, win, false)).filter(r => r.complete), lab = [];
+    for (const row of rows) {
+      const i = idx.get(row.dates[2]);
+      if (i < 49) continue;
+      const sma = mean(s.slice(i - 49, i + 1).map(r => r.c));
+      lab.push({ row, up: s[i].c > sma, vol: std(ret.slice(i - 19, i + 1)) });
+    }
+    const med = median(lab.map(x => x.vol));
+    const group = (name, a) => {
+      const t = a.filter(x => x.row.trigger).map(x => x.row.tf), all = a.map(x => x.row.tf);
+      return { name, weeks: a.length, n: t.length, avg: t.length ? 100 * mean(t) : NaN, med: t.length ? 100 * median(t) : NaN, pos: t.length ? 100 * t.filter(v => v > 0).length / t.length : NaN, net: t.length ? 100 * (mean(t) - cost) : NaN, uncond: all.length ? 100 * mean(all) : NaN };
+    };
+    return {
+      volMed: 100 * med, skipped: rows.length - lab.length, labelled: lab.length,
+      groups: [
+        group("Uptrend (Close > SMA50)", lab.filter(x => x.up)),
+        group("Downtrend (Close ≤ SMA50)", lab.filter(x => !x.up)),
+        group("High volatility", lab.filter(x => x.vol > med)),
+        group("Low volatility", lab.filter(x => x.vol <= med))
+      ]
+    };
+  }
+  /* train_test_split_by_time */
+  function split(rets, ratio) { const k = Math.floor(rets.length * ratio); return { train: rets.slice(0, k), test: rets.slice(k), k }; }
+
+  /* Multiple-testing simulator: seeded random walks with no weekday effect */
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function normal(rng) { let u = 0; while (u === 0) u = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rng()); }
+  const SIGNS = [0, 1, 2, 3, 4, 5, 6, 7].map(b => [b & 4 ? "+" : "−", b & 2 ? "+" : "−", b & 1 ? "+" : "−"]);
+  function simulate(M, seed, opt) {
+    opt = opt || {};
+    const W = opt.weeks || 140, sd = opt.sd || 0.025, trainW = Math.round(W * 0.7), minN = 3;
+    const rng = mulberry32(seed), tests = [];
+    for (let s = 0; s < M; s++) {
+      const weeks = [];
+      for (let w = 0; w < W; w++) { const d = []; for (let k = 0; k < 5; k++) d.push(sd * normal(rng)); weeks.push(d); }
+      for (let b = 0; b < 8; b++) {
+        const want = [b & 4, b & 2, b & 1].map(Boolean);
+        const hit = d => want.every((up, k) => up ? d[k] > 0 : d[k] < 0);
+        const res = part => { const x = part.filter(hit).map(d => (1 + d[3]) * (1 + d[4]) - 1); return { n: x.length, avg: x.length ? 100 * mean(x) : NaN, pos: x.length ? 100 * x.filter(v => v > 0).length / x.length : NaN }; };
+        const inS = res(weeks.slice(0, trainW)), outS = res(weeks.slice(trainW));
+        tests.push({ stock: s + 1, signs: SIGNS[b].join(" "), inS, outS });
+      }
+    }
+    const ok = tests.filter(t => t.inS.n >= minN);
+    const best = ok.reduce((a, t) => (a === null || t.inS.avg > a.inS.avg ? t : a), null);
+    return { tests, best, k: tests.length, trainW, W, minN };
+  }
+  function repeatSim(M, runs, seed0) {
+    let bi = 0, bo = 0, cnt = 0, oosPos = 0;
+    for (let r = 0; r < runs; r++) {
+      const s = simulate(M, seed0 + 7919 * r);
+      if (!s.best || !s.best.outS.n) continue;
+      bi += s.best.inS.avg; bo += s.best.outS.avg; cnt++;
+      if (s.best.outS.avg > 0) oosPos++;
+    }
+    return { runs: cnt, bestIn: bi / cnt, bestOut: bo / cnt, oosPos: 100 * oosPos / cnt };
+  }
+  return { TICKERS, DAYS, DATES, series, returns, windowStart, weekdayStats, weekly, summary, regimes, split, simulate, repeatSim, mean, median, std, isoWeek, weekday };
+})();
+
+/* Widgets. All numbers come from TSP (the port of the starter code) or from the inputs. */
+(function () {
+  const $ = id => document.getElementById(id);
+  const MINUS = "−";
+  const f = (x, d) => (x === null || Number.isNaN(x) ? "—" : (x < 0 ? MINUS : "") + Math.abs(x).toFixed(d === undefined ? 3 : d));
+  const fs = (x, d) => (x === null || Number.isNaN(x) ? "—" : (x > 0 ? "+" : x < 0 ? MINUS : "") + Math.abs(x).toFixed(d === undefined ? 3 : d));
+  const cls = x => (x > 0 ? "w-time-series-patterns-pos" : x < 0 ? "w-time-series-patterns-neg" : "");
+  const pct = (x, d) => `<span class="${cls(x)}">${fs(x, d)}%</span>`;
+  const COST = 0.001;
+  function fillTickers(sel, def) { sel.innerHTML = TSP.TICKERS.map(t => `<option value="${t}"${t === def ? " selected" : ""}>${t}</option>`).join(""); }
+  function parseList(raw, opts) {
+    const toks = raw.replace(/−/g, "-").split(/[\s,;]+/).filter(Boolean);
+    if (!toks.length) return { e: "En az bir sayı yaz (örneğin: 3 2)." };
+    if (toks.length > opts.max) return { e: `En fazla ${opts.max} sayı yaz; şu an ${toks.length} tane var.` };
+    const vals = [];
+    for (const t of toks) {
+      const s = t.replace(/%$/, "");
+      if (!/^[+-]?(\d+(\.\d*)?|\.\d+)$/.test(s)) return { e: `"${t}" bir sayı değil. Ondalık için nokta kullan (1.5), sayıları boşlukla ayır.` };
+      const v = Number(s);
+      if (opts.minExcl !== undefined && v <= opts.minExcl) return { e: `${t}%: bir hisse en fazla %100 düşebilir; −100'ün altında ya da eşit bir return olmaz.` };
+      if (Math.abs(v) > 1000) return { e: `${t}: bu kadar büyük bir yüzde widget'ın amacı dışında; ±1000'in içinde kal.` };
+      vals.push(v);
+    }
+    return { vals };
+  }
+
+  /* A. compound vs sum calculator */
+  (function () {
+    const inp = $("w-tsp-cmp-in"), out = $("w-tsp-cmp-out"), err = $("w-tsp-cmp-err");
+    function run() {
+      const p = parseList(inp.value, { max: 20, minExcl: -100 });
+      if (p.e) { err.textContent = p.e; out.innerHTML = ""; return; }
+      err.textContent = "";
+      let price = 100, sum = 0, h = `<div class="table-wrap"><table class="w-time-series-patterns-t"><tr><th>Gün</th><th>Return</th><th>Fiyat (100'den)</th><th>Toplam</th><th>Compounded</th></tr><tr><td>0</td><td></td><td>100.00</td><td></td><td></td></tr>`;
+      p.vals.forEach((r, i) => {
+        price *= 1 + r / 100; sum += r;
+        h += `<tr><td>${i + 1}</td><td>${pct(r, 2)}</td><td>${price.toFixed(2)}</td><td>${fs(sum, 2)}%</td><td>${pct(price - 100, 4)}</td></tr>`;
+      });
+      const comp = price - 100;
+      const prod = p.vals.map(r => `(1 ${r < 0 ? "-" : "+"} ${Math.abs(r / 100).toFixed(4).replace(/0+$/, "").replace(/\.$/, "")})`).join("");
+      h += `</table></div><p class="w-time-series-patterns-out">$${prod} - 1 = ${(comp / 100).toFixed(6)}$</p>`;
+      h += `<p class="w-time-series-patterns-big">Toplam: ${fs(sum, 2)}% · Compounded: ${fs(comp, 4)}% · fark: ${f(Math.abs(comp - sum), 4)} puan</p>`;
+      if (Math.abs(comp - sum) >= 1) h += `<p class="w-time-series-patterns-note">Fark 1 puanı geçti: büyük return'lerde toplam yanıltıcıdır.</p>`;
+      out.innerHTML = h; Lab.renderMath(out);
+    }
+    $("w-tsp-cmp-go").addEventListener("click", run);
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") run(); });
+    document.querySelectorAll("[data-cmp]").forEach(b => b.addEventListener("click", () => { inp.value = b.dataset.cmp; run(); }));
+    run();
+  })();
+
+  /* B. rolling volume z-score stepper on real data */
+  (function () {
+    const tk = $("w-tsp-roll-tk"), nIn = $("w-tsp-roll-n"), sh = $("w-tsp-roll-shift"), err = $("w-tsp-roll-err"), box = $("w-tsp-roll-stepper");
+    fillTickers(tk, "AKBNK");
+    const DAYS_SHOWN = 15;
+    function build() {
+      const raw = nIn.value.trim();
+      if (!/^\d+$/.test(raw)) { err.textContent = "n pozitif bir tam sayı olmalı (örneğin 10)."; return; }
+      const n = Number(raw);
+      if (n < 3) { err.textContent = "n en az 3 olmalı: 1 ya da 2 günlük pencerede std anlamsız."; return; }
+      if (n > 30) { err.textContent = "n en fazla 30: grafik 15 gün + pencere kadar bar gösteriyor, daha uzunu telefonda okunmuyor."; return; }
+      err.textContent = "";
+      const s = TSP.series(tk.value, false), shift = sh.checked;
+      const L = s.length, first = L - DAYS_SHOWN, lo = first - n;
+      const frames = [];
+      for (let t = first; t < L; t++) {
+        const a = shift ? t - n : t - n + 1, b = shift ? t - 1 : t;
+        const win = s.slice(a, b + 1).map(x => x.v / 1e6);
+        const m = TSP.mean(win), sd = TSP.std(win), v = s[t].v / 1e6, z = (v - m) / sd;
+        frames.push({ t, a, b, m, sd, v, z, caption: `${s[t].d}: $V = ${v.toFixed(1)}$M. Pencere ${shift ? "dünden geriye" : "bugün dahil"} ${n} gün (${s[a].d} → ${s[b].d}): mean $= ${m.toFixed(1)}$M, std $= ${sd.toFixed(1)}$M. $z = (${v.toFixed(1)} - ${m.toFixed(1)}) / ${sd.toFixed(1)}$ = <b>${f(z, 2)}</b>.` });
+      }
+      const vmax = Math.max(...s.slice(lo).map(x => x.v / 1e6));
+      Lab.stepper(box, {
+        title: `${tk.value} volume, n = ${n}, ${shift ? "shift(1)" : "bugün dahil"}`,
+        interval: 1300,
+        frames,
+        render(fr, idx, el) {
+          const cnt = L - lo, W = 600, H = 170, pad = 22, bw = W / cnt;
+          let g = `<svg viewBox="0 0 ${W} ${H + 24}" role="img" aria-label="volume barları ve rolling pencere">`;
+          for (let i = lo; i < L; i++) {
+            const x = (i - lo) * bw, hgt = (H - pad) * (s[i].v / 1e6) / vmax;
+            const inWin = i >= fr.a && i <= fr.b, today = i === fr.t;
+            const col = today ? "var(--accent)" : inWin ? "var(--blue-600)" : "var(--stone-300)";
+            g += `<rect x="${x + 1}" y="${H - hgt}" width="${Math.max(1, bw - 2)}" height="${hgt}" rx="2" style="fill:${col}" />`;
+            if (today) g += `<text x="${Math.min(W - 30, Math.max(30, x + bw / 2))}" y="${H + 20}" text-anchor="middle" style="font-size:16px;fill:var(--fg)">${s[i].d.slice(5)}</text>`;
+          }
+          const ym = H - (H - pad) * fr.m / vmax;
+          g += `<line x1="0" x2="${W}" y1="${ym}" y2="${ym}" style="stroke:var(--blue-800);stroke-dasharray:5 4;stroke-width:1.5" />`;
+          g += `<text x="4" y="${ym - 5}" style="font-size:16px;font-weight:700;fill:var(--blue-800)">mean ${fr.m.toFixed(1)}M</text></svg>`;
+          el.innerHTML = `<div class="w-time-series-patterns-box">${g}<div class="w-time-series-patterns-big">z = ${f(fr.z, 2)}</div></div>`;
+        }
+      });
+    }
+    $("w-tsp-roll-go").addEventListener("click", build);
+    nIn.addEventListener("keydown", e => { if (e.key === "Enter") build(); });
+    tk.addEventListener("change", build); sh.addEventListener("change", build);
+    build();
+  })();
+
+  /* C. weekday statistics table and chart */
+  (function () {
+    const tk = $("w-tsp-wd-tk"), win = $("w-tsp-wd-win"), sd = $("w-tsp-wd-std"), clean = $("w-tsp-wd-clean");
+    fillTickers(tk, "AKBNK");
+    function run() {
+      const rets = TSP.returns(tk.value, win.value, clean.checked), st = TSP.weekdayStats(rets);
+      const showSd = sd.checked;
+      const scale = Math.max(...st.map(x => Math.abs(x.avg)), showSd ? Math.max(...st.map(x => x.sd)) : 0) * 1.1;
+      const W = 600, H = 220, mid = H / 2, bw = W / 5;
+      let g = `<svg viewBox="0 0 ${W} ${H + 26}" role="img" aria-label="weekday average return barları">`;
+      g += `<line x1="0" x2="${W}" y1="${mid}" y2="${mid}" style="stroke:var(--stone-500)" />`;
+      st.forEach((x, i) => {
+        const cx = i * bw + bw / 2;
+        if (showSd) {
+          const hs = (mid - 12) * x.sd / scale;
+          g += `<rect x="${cx - bw * 0.3}" y="${mid - hs}" width="${bw * 0.6}" height="${2 * hs}" rx="3" style="fill:var(--blue-200);opacity:.7" />`;
+        }
+        const h = (mid - 12) * Math.abs(x.avg) / scale, y = x.avg >= 0 ? mid - h : mid;
+        g += `<rect x="${cx - bw * 0.18}" y="${y}" width="${bw * 0.36}" height="${Math.max(1, h)}" rx="2" style="fill:${x.avg >= 0 ? "#2b8a3e" : "#c92a2a"}" />`;
+        g += `<text x="${cx}" y="${x.avg >= 0 ? y - 5 : y + h + 18}" text-anchor="middle" style="font-size:17px;font-weight:700;fill:var(--fg)">${fs(x.avg, 2)}%</text>`;
+        g += `<text x="${cx}" y="${H + 20}" text-anchor="middle" style="font-size:18px;fill:var(--fg)">${x.day}</text>`;
+      });
+      $("w-tsp-wd-chart").innerHTML = g + `</svg>`;
+      let t = `<table class="w-time-series-patterns-t"><tr><th>Weekday</th><th>Observations</th><th>Average_Return</th><th>Median_Return</th><th>Std_Dev</th><th>Positive_Rate</th><th>Std / |Avg|</th></tr>`;
+      st.forEach(x => { t += `<tr><td>${x.day}</td><td>${x.n}</td><td>${pct(x.avg)}</td><td>${fs(x.med)}%</td><td>${f(x.sd)}%</td><td>${f(x.pos)}%</td><td>${Math.abs(x.avg) > 1e-9 ? f(x.sd / Math.abs(x.avg), 1) + "×" : "—"}</td></tr>`; });
+      $("w-tsp-wd-table").innerHTML = t + `</table>`;
+      const minRatio = Math.min(...st.map(x => x.sd / Math.abs(x.avg)));
+      $("w-tsp-wd-note").innerHTML = `Data period: ${rets[0].d} → ${rets[rets.length - 1].d} · Daily observations: ${rets.length}. Std_Dev en az ${f(minRatio, 1)} kat, Average_Return'den büyük.${showSd ? " Açık mavi barlar ±Std_Dev; ortalamalar onların yanında neredeyse görünmüyor." : ""}`;
+    }
+    [tk, win, sd, clean].forEach(el => el.addEventListener("change", run));
+    run();
+  })();
+
+  /* D. mean vs median */
+  (function () {
+    const inp = $("w-tsp-med-in"), out = $("w-tsp-med-out"), err = $("w-tsp-med-err");
+    function run() {
+      const p = parseList(inp.value, { max: 25 });
+      if (p.e) { err.textContent = p.e; out.innerHTML = ""; return; }
+      err.textContent = "";
+      const v = p.vals, srt = [...v].sort((a, b) => a - b), n = v.length;
+      const m = TSP.mean(v), md = TSP.median(v), marks = {};
+      if (n % 2) marks[(n - 1) / 2] = "pivot"; else { marks[n / 2 - 1] = "pivot"; marks[n / 2] = "pivot"; }
+      let h = `<p class="src">Sıralı liste, median ${n % 2 ? "ortadaki kutu" : "ortadaki iki kutunun ortalaması"}:</p>` + Lab.arrayView(srt.map(x => fs(x, 2).replace(".00", "")), { marks, hideIndex: true });
+      h += `<p class="w-time-series-patterns-big">Mean = ${fs(m, 2)}% · Median = ${fs(md, 2)}% · n = ${n}</p>`;
+      const gap = m - md;
+      let msg = "Mean ve median yakın: sonucu tek bir uç değer taşımıyor.";
+      if (Math.abs(gap) > Math.max(1, 0.5 * Math.abs(md))) msg = gap > 0 ? "Mean, median'ın belirgin biçimde üstünde: birkaç büyük pozitif değer ortalamayı yukarı çekiyor." : "Mean, median'ın belirgin biçimde altında: birkaç büyük kayıp ortalamayı aşağı çekiyor.";
+      out.innerHTML = h + `<p class="w-time-series-patterns-note">${msg}</p>`;
+    }
+    $("w-tsp-med-go").addEventListener("click", run);
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") run(); });
+    document.querySelectorAll("[data-med]").forEach(b => b.addEventListener("click", () => { inp.value = b.dataset.med; run(); }));
+    run();
+  })();
+
+  function summaryRows(cols) {
+    /* cols: [{name, s}] where s = TSP.summary(...) */
+    const R = [
+      ["Complete weeks", s => s.complete, 0],
+      ["Pattern occurrences", s => s.occ, 0],
+      ["Pattern frequency (%)", s => s.freq, 3],
+      ["Average Thu-Fri return after pattern (%)", s => s.pat.avg, 3],
+      ["Median Thu-Fri return after pattern (%)", s => s.pat.med, 3],
+      ["Positive Thu-Fri rate (%)", s => s.pat.pos, 3],
+      ["Average after transaction cost (%)", s => s.pat.net, 3],
+      null,
+      ["Mon–Wed down weeks", s => s.trig.n, 0],
+      ["Avg Thu–Fri after Mon–Wed down (%)", s => s.trig.avg, 3],
+      ["Median Thu–Fri after Mon–Wed down (%)", s => s.trig.med, 3],
+      ["Positive Thu–Fri rate after Mon–Wed down (%)", s => s.trig.pos, 3],
+      ["… after transaction cost (%)", s => s.trig.net, 3],
+      ["Unconditional Thu–Fri avg, all complete weeks (%)", s => s.uncond, 3]
+    ];
+    let h = `<table class="w-time-series-patterns-t"><tr><th></th>${cols.map(c => `<th>${c.name}</th>`).join("")}</tr>`;
+    R.forEach(r => {
+      if (!r) { h += `<tr><td colspan="${cols.length + 1}" class="src">bizim tanımımız: sadece Mon, Tue, Wed &lt; 0 ile koşulla, Thu–Fri'yi ölç</td></tr>`; return; }
+      h += `<tr><td>${r[0]}</td>${cols.map(c => { const v = r[1](c.s); return `<td>${r[2] === 0 ? v : f(v)}</td>`; }).join("")}</tr>`;
+    });
+    return h + `</table>`;
+  }
+
+  /* E. pattern finder stepper */
+  (function () {
+    const tk = $("w-tsp-pf-tk"), win = $("w-tsp-pf-win"), box = $("w-tsp-pf-stepper");
+    fillTickers(tk, "EREGL");
+    function build() {
+      const rows = TSP.weekly(TSP.returns(tk.value, win.value, false));
+      const trig = rows.filter(r => r.trigger), s = TSP.summary(rows, COST);
+      const frames = [];
+      let nPat = 0, sumT = 0;
+      trig.forEach((r, i) => {
+        sumT += r.tf; if (r.pattern) nPat++;
+        const [m, t, w, th, fr] = r.days.map(x => 100 * x);
+        frames.push({ upto: i, cap: `${r.y}-W${r.w} (${r.dates[0]} haftası): Mon ${fs(m, 2)}%, Tue ${fs(t, 2)}%, Wed ${fs(w, 2)}% → üçü de negatif, trigger. $\\text{Thu\\_Fri} = (1 ${th < 0 ? "-" : "+"} ${Math.abs(th / 100).toFixed(4)})(1 ${fr < 0 ? "-" : "+"} ${Math.abs(fr / 100).toFixed(4)}) - 1 = ${(100 * r.tf).toFixed(3)}\\%$. ${r.pattern ? "Thu ve Fri ikisi de pozitif: kodun <b>Pattern = True</b>." : "Thu ya da Fri pozitif değil: kodun Pattern'i False, ama trigger sonucunu yine sayıyoruz."} Şu ana kadar ${i + 1} trigger, ${nPat} pattern, trigger ortalaması ${fs(100 * sumT / (i + 1))}%.` });
+      });
+      frames.push({ upto: trig.length - 1, final: true, cap: `${s.complete} complete week. Kodun pattern'i ${s.occ} kez (şans beklentisi $${s.complete}/32 = ${(s.complete / 32).toFixed(2)}$); Mon–Wed down ${s.trig.n} kez (şans beklentisi $${s.complete}/8 = ${(s.complete / 8).toFixed(2)}$). Pattern haftalarının Thu–Fri'si tanım gereği pozitif; bilgi taşıyan karşılaştırma trigger ortalaması ${fs(s.trig.avg)}% ile bütün haftaların ortalaması ${fs(s.uncond)}%.` });
+      Lab.stepper(box, {
+        title: `${tk.value} · ${win.options[win.selectedIndex].text}: Mon–Wed down haftaları`,
+        interval: 1500,
+        frames: frames.map(x => ({ ...x, caption: x.cap })),
+        render(fr, idx, el) {
+          if (fr.final) { el.innerHTML = `<div class="table-wrap">${summaryRows([{ name: tk.value, s }])}</div>`; return; }
+          const r = trig[fr.upto];
+          let h = `<div class="w-time-series-patterns-days">${r.days.map((x, k) => `<div class="${x < 0 ? "is-down" : x > 0 ? "is-up" : ""}">${TSP.DAYS[k]}<br>${fs(100 * x, 2)}%</div>`).join("")}</div>`;
+          h += `<div class="table-wrap"><table class="w-time-series-patterns-t"><tr><th>ISO_Year</th><th>ISO_Week</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Thu_Fri</th><th>Pattern</th></tr>`;
+          const from = Math.max(0, fr.upto - 5);
+          for (let i = from; i <= fr.upto; i++) {
+            const q = trig[i];
+            h += `<tr class="${i === fr.upto ? "w-time-series-patterns-cur" : ""}"><td>${q.y}</td><td>${q.w}</td>${q.days.map(x => `<td>${pct(100 * x, 2)}</td>`).join("")}<td>${pct(100 * q.tf, 2)}</td><td>${q.pattern ? "True" : "False"}</td></tr>`;
+          }
+          el.innerHTML = h + `</table></div>${from > 0 ? `<p class="src">Önceki ${from} trigger haftası yukarıda gizli.</p>` : ""}`;
+        }
+      });
+    }
+    tk.addEventListener("change", build); win.addEventListener("change", build);
+    build();
+  })();
+
+  /* F. in-sample vs out-of-sample and three windows */
+  (function () {
+    const tk = $("w-tsp-oos-tk"), win = $("w-tsp-oos-win"), ratio = $("w-tsp-oos-ratio"), rv = $("w-tsp-oos-rv");
+    fillTickers(tk, "AKBNK");
+    function run() {
+      const q = Number(ratio.value) / 100; rv.textContent = ratio.value + "%";
+      const rets = TSP.returns(tk.value, win.value, false), sp = TSP.split(rets, q);
+      const sIn = TSP.summary(TSP.weekly(sp.train), COST), sOut = TSP.summary(TSP.weekly(sp.test), COST);
+      $("w-tsp-oos-info").innerHTML = `Daily observations: ${rets.length}. <code>split_index = int(${rets.length} × ${q.toFixed(2)}) = ${sp.k}</code>. In-sample: ${sp.train[0].d} → ${sp.train[sp.k - 1].d} · Out-of-sample: ${sp.test[0].d} → ${sp.test[sp.test.length - 1].d}.`;
+      $("w-tsp-oos-table").innerHTML = summaryRows([{ name: "In-Sample", s: sIn }, { name: "Out-of-Sample", s: sOut }]);
+      const k = sOut.occ;
+      let msg;
+      if (k === 0) msg = "Kodun çıktısı: <em>\"The target pattern did not appear in the out-of-sample period. There is not enough unseen evidence to support a strong conclusion.\"</em>";
+      else if (k === 1) msg = `Kodun çıktısı: <em>"The target pattern appeared once in the out-of-sample period... Important: this result is based on only one observation. Even if the Positive Thu-Fri Rate is 100%, the statistical evidence is weak."</em>`;
+      else msg = `Kodun çıktısı: <em>"The target pattern appeared ${k} times in the out-of-sample period. Average Thu-Fri return after the pattern: ${f(sOut.pat.avg)}%"</em>`;
+      const tin = sIn.trig.avg, tout = sOut.trig.avg;
+      if (!Number.isNaN(tin) && !Number.isNaN(tout)) msg += ` · Mon–Wed down sonrası Thu–Fri: in-sample ${fs(tin)}% (${sIn.trig.n} hafta), out-of-sample ${fs(tout)}% (${sOut.trig.n} hafta)${(tin > 0) === (tout > 0) ? ", işaret korunmuş" : ", işaret değişmiş"}.`;
+      $("w-tsp-oos-msg").innerHTML = msg;
+      const three = ["full", "2y", "1y"].map(w => ({ name: { full: "Full Period", "2y": "Last 2 Years", "1y": "Last 1 Year" }[w], s: TSP.summary(TSP.weekly(TSP.returns(tk.value, w, false)), COST) }));
+      $("w-tsp-oos-three").innerHTML = `<p class="src" style="margin-top:10px">FINAL COMPARISON: ${tk.value}, üç pencere (split yok), time-window stability check</p>` + summaryRows(three);
+      const rg = TSP.regimes(tk.value, win.value, COST);
+      $("w-tsp-oos-rinfo").innerHTML = `<b>Regime breakdown</b>, ${tk.value}, seçili pencere (split yok). Etiketli complete week: ${rg.labelled}; SMA50 için yeterli geçmişi olmayan ${rg.skipped} hafta dışarıda. Volatility eşiği (20-day rolling std'nin median'ı): ${f(rg.volMed)}%.`;
+      let rh = `<table class="w-time-series-patterns-t"><tr><th>Regime</th><th>Complete weeks</th><th>Mon–Wed down weeks</th><th>Avg Thu–Fri after (%)</th><th>Median (%)</th><th>Positive rate (%)</th><th>After cost (%)</th><th>Unconditional Thu–Fri avg (%)</th></tr>`;
+      rg.groups.forEach(g => { rh += `<tr><td>${g.name}</td><td>${g.weeks}</td><td>${g.n}</td><td>${f(g.avg)}</td><td>${f(g.med)}</td><td>${f(g.pos)}</td><td>${f(g.net)}</td><td>${f(g.uncond)}</td></tr>`; });
+      $("w-tsp-oos-regime").innerHTML = rh + `</table>`;
+    }
+    [tk, win].forEach(el => el.addEventListener("change", run));
+    ratio.addEventListener("input", run);
+    run();
+  })();
+
+  /* G. multiple-testing simulator */
+  (function () {
+    const mIn = $("w-tsp-mt-m"), mv = $("w-tsp-mt-mv"), kEl = $("w-tsp-mt-k");
+    let seed = 20262113;
+    function run() {
+      const M = Number(mIn.value); mv.textContent = M; kEl.textContent = `test sayısı k = ${M} × 8 = ${8 * M}`;
+      const sim = TSP.simulate(M, seed), ok = sim.tests.filter(t => t.inS.n >= sim.minN), b = sim.best;
+      const xs = ok.map(t => t.inS.avg).concat(b && b.outS.n ? [b.outS.avg] : []);
+      const lim = Math.max(3, ...xs.map(Math.abs)) * 1.08, W = 600, H = 190, X = v => W / 2 + (W / 2 - 10) * v / lim;
+      const anchor = x => (x > W * 0.7 ? "end" : x < W * 0.3 ? "start" : "middle");
+      let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="bütün testlerin in-sample ortalamaları">`;
+      g += `<line x1="${X(0)}" x2="${X(0)}" y1="4" y2="${H - 26}" style="stroke:var(--stone-500);stroke-dasharray:3 3" />`;
+      ok.forEach((t, i) => { const y = 12 + ((i * 37) % 76); g += `<circle cx="${X(t.inS.avg)}" cy="${y}" r="4" style="fill:var(--stone-500);opacity:.55" />`; });
+      if (b) {
+        const xb = X(b.inS.avg);
+        g += `<circle cx="${xb}" cy="122" r="9" style="fill:var(--accent)" /><text x="${xb}" y="152" text-anchor="${anchor(xb)}" style="font-size:17px;fill:var(--orange-700);font-weight:700">en iyi kural, in-sample</text>`;
+        if (b.outS.n) { const xo = X(b.outS.avg); g += `<rect x="${xo - 7}" y="115" width="14" height="14" transform="rotate(45 ${xo} 122)" style="fill:var(--blue-600)" /><text x="${xo}" y="106" text-anchor="${anchor(xo)}" style="font-size:17px;fill:var(--blue-600);font-weight:700">aynı kural, out-of-sample</text>`; }
+      }
+      g += `<text x="4" y="${H - 4}" style="font-size:16px;fill:var(--fg-muted)">${MINUS}${lim.toFixed(1)}%</text><text x="${X(0)}" y="${H - 4}" text-anchor="middle" style="font-size:16px;fill:var(--fg-muted)">0</text><text x="${W - 4}" y="${H - 4}" text-anchor="end" style="font-size:16px;fill:var(--fg-muted)">+${lim.toFixed(1)}%</text>`;
+      $("w-tsp-mt-chart").innerHTML = g + `</svg><p class="src">Her gri nokta bir kural: in-sample'daki ortalama Thu–Fri return'ü (en az ${sim.minN} olayı olanlar, ${ok.length} kural). Gerçek değerlerin hepsi 0.</p>`;
+      if (!b) { $("w-tsp-mt-out").textContent = "Yeterli olayı olan kural yok; hisse sayısını artır."; return; }
+      $("w-tsp-mt-out").innerHTML = `En iyi kural: sahte hisse #${b.stock}, Mon Tue Wed = ${b.signs} → Thu–Fri al.<br>In-sample (${sim.trainW} hafta): ${b.inS.n} olay, ortalama ${pct(b.inS.avg)}, positive rate ${f(b.inS.pos, 1)}%.<br>Out-of-sample (${sim.W - sim.trainW} hafta): ${b.outS.n ? `${b.outS.n} olay, ortalama ${pct(b.outS.avg)}, positive rate ${f(b.outS.pos, 1)}%.` : "0 olay: pattern hiç görünmedi."}`;
+      const rep = TSP.repeatSim(M, 200, seed + 1);
+      $("w-tsp-mt-rep").innerHTML = `Aynı deneyi 200 farklı rastgele veriyle tekrarladık (k = ${8 * M}): en iyi kuralın in-sample ortalaması ortalama <b>${fs(rep.bestIn, 2)}%</b>, out-of-sample ortalaması ortalama <b>${fs(rep.bestOut, 2)}%</b>. Out-of-sample'da pozitif kalma oranı ${f(rep.oosPos, 0)}%, yani yazı-tura civarı.`;
+    }
+    mIn.addEventListener("input", () => { mv.textContent = mIn.value; kEl.textContent = `test sayısı k = ${mIn.value} × 8 = ${8 * Number(mIn.value)}`; });
+    mIn.addEventListener("change", run);
+    $("w-tsp-mt-go").addEventListener("click", () => { seed += 101; run(); });
+    run();
+  })();
+})();
+</script>
+</body>
+</html>

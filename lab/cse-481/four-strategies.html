@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 481: dört algorithmic trading stratejisi tek çerçevede. Volume Bubbles (delta, cluster, percentile), Liquidity Swings, Support &amp; Resistance Channels, Dual-Phase Reversal ve aynı stratejinin altı BIST hissesinde neden farklı sonuç verdiği." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Dört strateji, tek çerçeve · CSE 481 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-four-strategies-lab { margin: var(--sp-3) 0; min-width: 0; }
+    .w-four-strategies-guess { margin: 0 0 var(--sp-2); padding: var(--sp-2) var(--sp-3); border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); color: var(--ink-900); }
+    .w-four-strategies-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; }
+    .w-four-strategies-row label { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 600; font-size: .92rem; color: var(--fg); }
+    .w-four-strategies-row input[type=text] { flex: 1 1 180px; min-width: 0; max-width: 100%; font: 500 .92rem 'JetBrains Mono', monospace; padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); }
+    .w-four-strategies-row input.w-four-strategies-num { flex: 0 0 auto; width: 7em; }
+    .w-four-strategies-row select, .w-four-strategies-card select { font: inherit; font-size: .9rem; padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); max-width: 100%; }
+    .w-four-strategies-field { display: flex; flex: 1 1 240px; min-width: 0; gap: 6px; align-items: center; }
+    .w-four-strategies-row .btn { width: auto; flex: 0 0 auto; }
+    .w-four-strategies-err { color: #c92a2a; font-size: .92rem; font-weight: 600; margin: 4px 0; }
+    .w-four-strategies-err:empty { display: none; }
+    .w-four-strategies-cut { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+    .w-four-strategies-cut div { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 4px 10px; min-width: 92px; background: var(--paper); }
+    .w-four-strategies-cut b { display: block; font-size: 1.15rem; font-family: 'JetBrains Mono', monospace; }
+    .w-four-strategies-cut span { font-size: .78rem; color: var(--fg-subtle); }
+    .w-four-strategies-cut .is-hit { border-color: #2b8a3e; box-shadow: inset 0 0 0 1px #2b8a3e; }
+    .w-four-strategies-bubble { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 800; color: #111; border: 2px solid rgba(0,0,0,.25); }
+    .w-four-strategies-chain { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; margin: 6px 0; }
+    .w-four-strategies-chain div { flex: 1 1 110px; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 6px 8px; font-size: .86rem; background: var(--paper); }
+    .w-four-strategies-chain div b { display: block; font-size: .8rem; color: var(--fg-subtle); font-weight: 600; }
+    .w-four-strategies-chain .is-ok { border-color: #2b8a3e; background: rgba(43,138,62,.10); }
+    .w-four-strategies-chain .is-no { border-color: #c92a2a; background: rgba(201,42,42,.10); }
+    .w-four-strategies-chain .is-skip { opacity: .45; }
+    .w-four-strategies-spark { display: block; width: 100%; max-width: 560px; height: auto; }
+    .w-four-strategies-out { margin: 6px 0; padding: var(--sp-2) var(--sp-3); background: var(--stone-050); border-radius: var(--radius-md); min-height: 2.4em; color: var(--fg); }
+    .w-four-strategies-closes { margin: 6px 0; font-size: .86rem; }
+    .w-four-strategies-closes p { margin: 4px 0 0; font-family: 'JetBrains Mono', monospace; overflow-wrap: anywhere; }
+    .w-four-strategies-ok { color: #2b8a3e; font-weight: 700; }
+    .w-four-strategies-no { color: #c92a2a; font-weight: 700; }
+    .w-four-strategies-heat { border-collapse: collapse; font-size: .88rem; min-width: 560px; }
+    .w-four-strategies-heat th, .w-four-strategies-heat td { padding: 5px 7px; text-align: right; white-space: nowrap; border: 1px solid var(--border); }
+    .w-four-strategies-heat th:first-child, .w-four-strategies-heat td:first-child { text-align: left; }
+    .w-four-strategies-heat th button { font: inherit; font-weight: 700; background: none; border: 0; color: var(--fg-link); cursor: pointer; padding: 0; }
+    .w-four-strategies-heat td.is-na { color: var(--fg-faint); }
+    .w-four-strategies-tag { display: inline-block; font-size: .72rem; font-weight: 700; border-radius: var(--radius-full); padding: 0 7px; margin-left: 4px; }
+    .w-four-strategies-tag.is-good { background: rgba(43,138,62,.16); color: #2b8a3e; }
+    .w-four-strategies-tag.is-bad { background: rgba(201,42,42,.14); color: #c92a2a; }
+    .w-four-strategies-card { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .w-four-strategies-card td { padding: 5px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .w-four-strategies-card td:first-child { width: 34%; font-weight: 600; }
+    .w-four-strategies-card select { width: 100%; }
+    .w-four-strategies-card .w-four-strategies-fb { display: block; font-size: .82rem; margin-top: 3px; }
+    @media (max-width: 520px) {
+      .w-four-strategies-card td { display: block; width: auto; border-bottom: 0; padding: 3px 0; }
+      .w-four-strategies-card td:first-child { width: auto; padding-top: 8px; border-top: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 481</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 481</a> / Dört strateji, tek çerçeve</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W3</span><span class="chip chip--exam">Quiz Final Analysis</span><span class="src">~50 dk · 12 bölüm</span></div>
+          <h1>Dört strateji, tek çerçeve</h1>
+          <p class="lead">Hafta 3'te hoca dört algorithmic trading stratejisini aynı soruyla karşılaştırdı: <em>bu strateji piyasada hangi davranışı yakalamaya çalışıyor?</em> Bu derste önce ortak çerçeveyi kuracaksın. Sonra Volume Bubbles'ı ayrıntılı, Liquidity Swings, Support &amp; Resistance Channels ve Dual-Phase Reversal'ı mantığı ve BIST sonuçlarıyla göreceksin. Son bölümde quiz'deki Final Analysis Question'ı, yani "aynı strateji altı hissede neden farklı sonuç verdi?" sorusunu cevaplayacaksın.</p>
+          <p class="src">Not: Stop, R, +1R activation, trailing stop ve positive skew hesapları <a href="trade-management.html">Trade management</a> dersinde. Bu derste yalnızca stratejilerin hangi satırında kullanıldıklarını göreceksin.</p>
+          <!-- Kaynak: resources/2026-2027-fall/week-03-bist-trading-strategies.pdf s.1–39 (s.6–9, 28–39 görsel, render edilerek okundu) · resources/2026-2027-fall/quiz-bist-algo-trading-challenge.pdf s.1–3 · assignments/2026-2027-fall-efe-kurucay/bist-algo-trading-challenge/bist_algo_trading_challenge.ipynb hücre 0, 5, 13, 15, 26, 27 · data/*.csv (widget'lar). weeks/03 dosyasındaki "Notes — Efe" bölümü boş. -->
+        </header>
+
+        <article class="lesson" data-course="cse-481" data-lesson="four-strategies">
+
+<!-- 1 -->
+<section class="lsec" id="big-idea" data-min="4">
+  <h2>Strateji, piyasaya sorulan bir soru</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · "A strategy is not a magic formula"</span>
+    <p>Hocanın ilk cümlesi şu: <strong>"A strategy is not a magic formula. It is a structured question asked to the market."</strong> Bir strateji (strategy) "bu hisse yükselecek mi?" diye sormaz. Daha dar bir soru sorar: "Şu anda olağandışı bir alım baskısı var mı?", "Price bir zone'u kırdı mı?" gibi. Cevap evet olunca kuralına göre hareket eder.</p>
+    <p>BIST'te hisseler aynı dönemde bile farklı davranır: biri güçlü trend yapar, biri yatay gider, birinde ani bir volume olayı olur, biri dönüş bölgesine gelir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · dört piyasa davranışı (s.2)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Davranış</th><th>Slayttaki tanım</th><th>Türkçesi</th></tr>
+      <tr><td><strong>Trend</strong></td><td>Price keeps moving in one direction.</td><td>Price tek yönde gitmeye devam eder.</td></tr>
+      <tr><td><strong>Range</strong></td><td>Price moves sideways between levels.</td><td>Price iki seviye arasında yatay gider.</td></tr>
+      <tr><td><strong>Volume Event</strong></td><td>Unusual activity appears suddenly.</td><td>Birden olağandışı bir aktivite görünür.</td></tr>
+      <tr><td><strong>Reversal</strong></td><td>A move loses strength and turns.</td><td>Bir hareket gücünü kaybeder ve döner.</td></tr>
+    </table></div>
+    <p><strong>Main lesson:</strong> The real question is not "Which strategy is always best?" The real question is <strong>"Which market behavior does each strategy try to detect?"</strong></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · dört strateji, dört soru (s.4)</span>
+    <div class="table-wrap"><table>
+      <tr><th>#</th><th>Strateji</th><th>Piyasaya sorduğu soru</th></tr>
+      <tr><td>1</td><td>Volume Bubbles</td><td>"Is unusual buying or selling pressure appearing?"</td></tr>
+      <tr><td>2</td><td>Liquidity Swings</td><td>"Is price reacting around liquidity areas?"</td></tr>
+      <tr><td>3</td><td>Support &amp; Resistance Channels</td><td>"Is price near, breaking, or rejecting a key zone?"</td></tr>
+      <tr><td>4</td><td>Dual-Phase Reversal</td><td>"Has a price sequence become exhausted enough to reverse?"</td></tr>
+    </table></div>
+    <p>Hoca hedefi de yazıyor: sinyalleri ezberlemeyeceğiz. Her stratejinin <strong>market logic</strong>'ini açıklayacağız: ne görüyor, neden giriyor, riski nasıl yönetiyor ve sonuçları BIST hisseleri arasında neden farklı.</p>
+  </div>
+  <!-- Kaynak: week-03 s.1–2 (Big idea, dört davranış), s.4 (The Strategies We Will Study). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Hangi strateji en iyi?" sorusu bu dersin cevaplamadığı sorudur. Sınavda bir stratejiyi "iyi" ya da "kötü" diye değil, <strong>hangi davranışı yakaladığı ve hangi regime'de çalıştığı</strong> üzerinden anlat.</li>
+      <li>Volume Bubbles'ın sorusu "hisse ucuz mu?" değildir. Strateji bilanço okumaz, undervalued olup olmadığına bakmaz (s.10).</li>
+      <li>Liquidity Swings ile S/R Channels ikisi de zone kırılmasıyla girer. Farkı sorunun adında: biri <em>liquidity area</em>'lara tepkiyi (swing high/low), öteki <em>key zone</em> yakınında olma, kırma ya da reddetmeyi sorar.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w03-p4-behaviour">
+    <span class="box__label">Hafta 3 slayt s.4 · hocanın sorusu</span>
+    <p>"Which market behavior does each strategy try to detect?" (Volume Bubbles, Liquidity Swings, Support &amp; Resistance Channels, Dual-Phase Reversal)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>s.2'deki dört davranışı yaz: Trend, Range, Volume Event, Reversal. Her stratejiyi en az birine bağla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her stratejinin <em>giriş</em> anında ne olduğuna bak: olağandışı delta mı, bir zone'un üstünde close mu, alt zone'dan dönüş mü?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Volume Bubbles:</strong> a <em>volume event</em>. It looks for unusually strong buying or selling pressure (a large positive or negative delta cluster compared with the stock's own history), then tries to ride the following trend. The slides call it a momentum strategy.</li>
+        <li><strong>Liquidity Swings:</strong> price reacting around <em>liquidity areas</em>, the swing high and swing low zones. A close above the swing high zone is a breakout that suggests liquidity has been taken and an upward move may begin.</li>
+        <li><strong>Support &amp; Resistance Channels:</strong> price near, breaking or rejecting a <em>key zone</em>. It is a breakout strategy: it buys resistance breaks and uses the support zone as the risk reference.</li>
+        <li><strong>Dual-Phase Reversal:</strong> <em>exhaustion and reversal</em>. It waits until a decline loses strength, buys a confirmed rebound from the lower pivot zone and exits near the upper pivot zone.</li>
+      </ol>
+      <p>So the first three prefer trending markets with follow-through, and the last one prefers markets where price swings between zones and rebounds cleanly.</p>
+    </div></details>
+    <!-- Kaynak: week-03 s.4 soru başlığı; cevap s.9, s.10, s.29, s.32, s.36'dan derlendi. Cevap İngilizce, çünkü sınav İngilizce. -->
+  </div>
+  <div class="quiz" id="q-big-1">
+    <p class="quiz__q">Dual-Phase Reversal piyasaya hangi soruyu sorar?</p>
+    <button class="quiz__opt">"Is unusual buying or selling pressure appearing?"<span class="why">Bu Volume Bubbles'ın sorusu. Delta ve cluster'a bakan strateji o.</span></button>
+    <button class="quiz__opt" data-correct>"Has a price sequence become exhausted enough to reverse?"<span class="why">Doğru. Dual-Phase bir reversal stratejisi: düşüş gücünü kaybettiğinde alt zone'dan dönüşü alır.</span></button>
+    <button class="quiz__opt">"Is price near, breaking, or rejecting a key zone?"<span class="why">Bu Support &amp; Resistance Channels'ın sorusu. Zone kullanmak her stratejide var; ayırt edici olan dönüşü mü, kırılmayı mı beklediği.</span></button>
+    <button class="quiz__opt">"Which strategy is always best?"<span class="why">Hoca bunun yanlış soru olduğunu söylüyor. Doğru soru, her stratejinin hangi davranışı yakaladığı.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="regimes" data-min="6">
+  <h2>Neden tek strateji yetmez: trend ve sideways</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · s.3</span>
+    <p>Piyasa davranışı hisseden hisseye ve dönemden döneme değişir. Güçlü bir trend'de iyi çalışan bir yöntem sideways bir piyasada başarısız olabilir. Bir reversal yöntemi de hareketin yorulduğu yerde işe yarar ama güçlü bir breakout sırasında zayıf kalır. Hocanın özeti: <strong>"So we need a toolbox, not a single tool."</strong></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · regime → strateji ailesi (s.3)</span>
+    <div class="table-wrap"><table>
+      <tr><th>#</th><th>Piyasa durumu</th><th>Uygun olabilecek mantık</th></tr>
+      <tr><td>1</td><td>Trending Market</td><td>Momentum strategy may work well</td></tr>
+      <tr><td>2</td><td>Sideways Market</td><td>Mean-reversion logic may be better</td></tr>
+      <tr><td>3</td><td>High-Volume Event</td><td>Volume / liquidity strategy may react</td></tr>
+      <tr><td>4</td><td>Reversal Area</td><td>Reversal strategy may become useful</td></tr>
+    </table></div>
+    <p>Hepsinde "may" var: uygunluk bir olasılık, garanti değil.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · s.3'teki iki dizi</span>
+    <p><strong>100 → 105 → 110 → 120:</strong> açık bir yükseliş trend'i. Momentum stratejisi iyi çalışabilir, çünkü price aynı yönde gitmeye devam ediyor.</p>
+    <p><strong>100 → 105 → 99 → 104 → 98 → 103:</strong> piyasa sideways (unclear trend). Price net bir yön olmadan inip çıkıyor. Momentum stratejisi burada daha çok false signal ve stop-out üretir: "The same signal can stop out many times."</p>
+  </div>
+  <h3>Trend'i bir sayıyla ölçmek</h3>
+  <p>Slayt trend ile sideways'i gözle ayırıyor. Bunu bir sayıya çevirmenin bir yolu <strong>Kaufman Efficiency Ratio (ER)</strong>: net hareketin, yol boyunca atılan bütün adımların toplamına oranı. ER bu slaytta yok; KAMA'nın içinde geçiyor (<a href="indicators-volatility-trend.html">Teknik göstergeler II</a>) ve Efe quiz notebook'unda trend filtresi olarak kullandı.</p>
+  <div class="box box--rule">
+    <span class="box__label">Ölçü · Efficiency Ratio (bizim ekimiz)</span>
+    $$ER_t = \frac{|C_t - C_{t-n}|}{\sum_{i=t-n+1}^{t} |C_i - C_{i-1}|}$$
+    <p>ER = 1: price dümdüz tek yöne gitmiş. ER 0'a yakın: çok yol yürümüş ama yerinde saymış. Efe'nin notebook'unda $n = 40$ ve "ER &gt; 0.15 ise trending" eşiği var. Bu eşik hocanın değil, onun seçimi.</p>
+  </div>
+  <div class="w-four-strategies-lab" id="fs-er">
+    <p class="w-four-strategies-guess"><b>Önce tahmin et:</b> s.3'teki iki dizinin ER'si kaç çıkar? Trend dizisi tam 1 mi? Sideways dizisi 0.15'in altında mı kalır?</p>
+    <div class="w-four-strategies-row">
+      <div class="w-four-strategies-field"><label for="fs-er-in">Dizi</label><input type="text" id="fs-er-in" autocomplete="off" spellcheck="false" aria-describedby="fs-er-err" /></div>
+      <button class="btn btn--sm btn--accent" data-run>Çalıştır</button>
+    </div>
+    <div class="w-four-strategies-row" role="group" aria-label="Hazır diziler">
+      <button class="btn btn--sm" data-preset="0">s.3 trend</button>
+      <button class="btn btn--sm" data-preset="1">s.3 sideways</button>
+      <button class="btn btn--sm" data-preset="2">Düşüş trend'i</button>
+    </div>
+    <p class="w-four-strategies-err" id="fs-er-err" role="alert"></p>
+    <div id="fs-er-stepper"></div>
+  </div>
+  <p>Şimdi aynı ölçüyü gerçek veride dene. Aşağıdaki lab, altı quiz hissesinin (AKBNK, ASELS, TUPRS, TCELL, FROTO, EREGL) Yahoo Finance günlük close'larından rastgele 40 bar'lık bir pencere seçer. Hisse adı tahmininden sonra açılır.</p>
+  <div class="w-four-strategies-lab" id="fs-regime">
+    <p class="w-four-strategies-guess"><b>Önce tahmin et:</b> Grafiğe bak ve regime'i seç. Tahmininden sonra lab ER(40)'ı bu pencerenin close'larından hesaplar ve sonraki 20 bar'ı da çizer.</p>
+    <div class="w-four-strategies-row">
+      <button class="btn btn--sm btn--accent" data-new>Yeni pencere</button>
+      <button class="btn btn--sm" data-guess="up">Trend ↑</button>
+      <button class="btn btn--sm" data-guess="down">Trend ↓</button>
+      <button class="btn btn--sm" data-guess="side">Sideways</button>
+      <span class="src" data-score></span>
+    </div>
+    <div data-chart></div>
+    <details class="w-four-strategies-closes" id="fs-regime-closes"><summary>Close değerlerini metin olarak göster</summary><p data-closes></p></details>
+    <div class="w-four-strategies-out" data-out aria-live="polite"></div>
+  </div>
+  <!-- Kaynak: week-03 s.3. ER formülü ve 0.15 eşiği: Efe'nin notebook'u hücre 0 ve 5 (er_len=40, er_thr=0.15). Lab'ın ER hesabı, notebook'taki "Trending bars (%)" değerlerini (AKBNK 55.78, ASELS 62.36, TUPRS 57.60, TCELL 29.93, FROTO 54.20, EREGL 53.74) python ile birebir verdi. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Regime geçmişe bakarak ölçülür. 40 bar trending olan bir pencere sonraki 20 bar'da da trend yapacak diye bir kural yok. Lab'daki kesikli çizgi bunu gösteriyor.</li>
+      <li>"Sideways = momentum işe yaramaz" kesin değil. Slaytın dili "may": sideways'te aynı sinyal <em>birçok kez</em> stop-out olur, bu yüzden win rate düşer.</li>
+      <li>Düşen bir trend de trend'dir (ER yüksek). Long-only bir momentum stratejisi orada alım yapmamalı; reversal denemeleri de zayıf bounce'lara takılabilir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-regimes-1">
+    <p class="quiz__q">Price 50 → 53 → 49 → 52 → 48 → 51 gidiyor. s.3'e göre hangi değerlendirme doğru?</p>
+    <button class="quiz__opt">Trending market; momentum stratejisi büyük hareketi yakalar.<span class="why">Net hareket sadece +1, yol ise 3+4+3+4+3 = 17. ER ≈ 0.06; bu dizi yön değiştirip duruyor, trend değil.</span></button>
+    <button class="quiz__opt" data-correct>Sideways market; momentum sinyalleri tekrar tekrar stop-out olabilir, mean-reversion mantığı daha uygun olabilir.<span class="why">Doğru. Bu s.3'teki ikinci dizinin aynı kalıbı: net yön yok, aynı sinyal birçok kez stop-out olur.</span></button>
+    <button class="quiz__opt">Volume event; Volume Bubbles girer.<span class="why">Dizide volume ya da delta bilgisi yok. Volume event'i yalnızca price'tan çıkaramazsın.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="framework" data-min="4">
+  <h2>Sekiz soruluk ortak çerçeve</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Dört stratejiyi karşılaştırabilmek için hepsini aynı formla anlatmak gerekir. Hoca bunun için sekiz soru veriyor: "One framework makes strategies comparable." Her stratejiyi bu sekiz satıra yazınca farkları satır satır görürsün.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · A Common Framework for All Strategies (s.5)</span>
+    <div class="table-wrap"><table>
+      <tr><th>#</th><th>Satır</th><th>Sorduğu soru</th><th>Örnek: Volume Bubbles</th></tr>
+      <tr><td>1</td><td>Input Data</td><td>What data does it use?</td><td>Lower-timeframe volume</td></tr>
+      <tr><td>2</td><td>Signal Detection</td><td>What event does it detect?</td><td>Unusual positive or negative delta cluster</td></tr>
+      <tr><td>3</td><td>Filters</td><td>Which extra conditions must be true?</td><td>Market context check</td></tr>
+      <tr><td>4</td><td>Entry</td><td>When does it buy or sell?</td><td>Valid buyer or seller cluster</td></tr>
+      <tr><td>5</td><td>Initial Stop</td><td>Where is the first risk boundary?</td><td>Cluster candle low'un biraz altı (s.8)</td></tr>
+      <tr><td>6</td><td>Trade Management</td><td>How does it manage the open trade?</td><td>+1R'den sonra trailing stop (s.8)</td></tr>
+      <tr><td>7</td><td>Exit</td><td>When does the trade close?</td><td>Stop, trailing stop, target, or time rule</td></tr>
+      <tr><td>8</td><td>Performance</td><td>How well did it work?</td><td>s.26'daki BIST sonuçları</td></tr>
+    </table></div>
+    <p>Slayttaki örnek yalnızca 1, 2, 3, 4 ve 7. satırları dolduruyor. 5, 6 ve 8. satırları Volume Bubbles'ın kendi slaytlarından ekledik.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · "Is this strategy good or bad?" yerine dört soru (s.5)</span>
+    <ul>
+      <li>What behavior does it detect?</li>
+      <li>What market regime does it prefer?</li>
+      <li>How does it control risk?</li>
+      <li>Do results come from entries or exits?</li>
+    </ul>
+    <p>Son soru bir ayrımı açar: kazanç sinyalin kendisinden mi geliyor, yoksa trade'i yöneten exit sisteminden mi? Bu soru Volume Bubbles'ın "Control Test"inde ve S/R Channels'ın "Control Question"ında tekrar gelecek.</p>
+  </div>
+  <!-- Kaynak: week-03 s.5. 5., 6., 8. satırlar: s.8 (Trade Management 3/4), s.26. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Signal ≠ Entry.</strong> Signal bir olayın tespiti (cluster var). Entry, filtrelerden geçtikten sonra alınan karar. Sinyal olup entry olmaması normaldir.</li>
+      <li><strong>Initial Stop ≠ Exit.</strong> Initial stop ilk risk sınırıdır (satır 5). Exit trade'in hangi kuralla kapandığıdır (satır 7) ve stop yalnızca exit kurallarından biridir.</li>
+      <li><strong>Trade Management</strong> açık trade'e yapılanlardır: stop'u yukarı taşımak gibi. Entry'den önce uygulanan koşullar Filters satırına girer.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-framework-1">
+    <p class="quiz__q">"Sadece price SMA200'ün üstündeyken long aç" kuralı sekiz satırdan hangisine yazılır?</p>
+    <button class="quiz__opt">Signal Detection<span class="why">Sinyal, yakalanan olaydır (örneğin büyük bir buyer cluster). SMA200 koşulu olayın kendisi değil, olayın kabul edilmesi için ek bir şart.</span></button>
+    <button class="quiz__opt" data-correct>Filters<span class="why">Doğru. "Which extra conditions must be true?" Slaytın iyileştirme önerisinde de bu bir trend filter olarak geçiyor.</span></button>
+    <button class="quiz__opt">Trade Management<span class="why">Trade management açık trade'e uygulanır. Bu koşul trade açılmadan önce bakılan bir koşul.</span></button>
+    <button class="quiz__opt">Initial Stop<span class="why">Initial stop zararın sınırını belirler; ne zaman girileceğini değil.</span></button>
+  </div>
+  <div class="quiz" id="q-framework-2">
+    <p class="quiz__q">Price lehine gittikçe yukarı taşınan trailing stop hangi satırdadır?</p>
+    <button class="quiz__opt">Initial Stop<span class="why">Initial stop entry anında konan ilk sınırdır ve sabittir. Hareket eden stop sonraki satırın konusu.</span></button>
+    <button class="quiz__opt" data-correct>Trade Management<span class="why">Doğru. "How does it manage the open trade?" Trailing stop açık trade'i yönetir; tetiklendiğinde de Exit satırı çalışır.</span></button>
+    <button class="quiz__opt">Performance<span class="why">Performance trade'ler bittikten sonra ölçülen sonuçtur (net profit, win rate).</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="vb-delta" data-min="5">
+  <h2>Volume Bubbles I: delta</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · The Big Idea (s.10)</span>
+    <p>Strateji "ucuz mu, pahalı mı?" diye başlamaz. Bilanço okumaz. Tek bir soru sorar: <strong>"Is unusual buying or selling pressure appearing right now?"</strong> Cevap evetse bir bubble işaretler. Sonra trade bir stop ile, price iyi giderse de bir trailing stop ile yönetilir.</p>
+    <p>Slaytın tek satırlık özeti: <em>Find unusual pressure → enter only if the signal is valid → protect the trade → let strong trends run.</em> Yani <strong>Signal + Risk Control</strong>.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Visual Pseudocode Guide 1/4 (s.6)</span>
+    <ol>
+      <li><strong>Lower-timeframe volume data:</strong> intraday volume (örneğin 1–5 dakikalık).</li>
+      <li><strong>Estimate buy volume and sell volume:</strong> volume'u buyer-initiated ve seller-initiated olarak ikiye ayır.</li>
+      <li><strong>Compute Net Delta</strong> = Buy Volume − Sell Volume. Pozitif delta: buyers stronger; negatif delta: sellers stronger.</li>
+      <li><strong>Compare today's Volume / |Delta| with historical percentiles:</strong> geçmişe göre olağandışı yüksek aktiviteyi bul.</li>
+      <li><strong>Classify cluster:</strong> Small / Medium / Big, volume ve delta'nın geçmiş percentile'lara göre büyüklüğüne bakarak.</li>
+      <li><strong>Decide: Buyer Cluster or Seller Cluster?</strong> Delta pozitifse buyer cluster, negatifse seller cluster.</li>
+      <li><strong>If valid entry signal appears → Enter trade:</strong> stratejinin onay kurallarına uy (cluster size, trend filter gibi).</li>
+      <li><strong>Protect with stop + optional trailing stop:</strong> initial stop koy, price lehine gittikçe trailing stop ile kârı koru.</li>
+    </ol>
+    <p>Aynı slaytın altındaki iki tanım: <strong>Stop:</strong> used to limit losses. <strong>Trailing Stop:</strong> used to protect profits while allowing the trade to stay open as long as the trend continues.</p>
+    <p>Slayttaki grafikte dört şey var: sarı <em>mixed cluster (unclear)</em>, yeşil <em>buy signal (buyer cluster)</em>, kırmızı <em>seller cluster (exit or short signal)</em> ve price'ın altından basamak basamak yükselen kırmızı <em>trailing stop</em> çizgisi.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · delta (s.11, s.12, s.7)</span>
+    $$\text{Net Delta} = \text{Buy Volume} - \text{Sell Volume}$$
+    <div class="table-wrap"><table>
+      <tr><th>Örnek</th><th>Buy Volume</th><th>Sell Volume</th><th>Net Delta</th><th>Anlamı</th></tr>
+      <tr><td>s.11 / s.7 A</td><td>1,500,000 lot</td><td>900,000 lot</td><td>+600,000</td><td>buyers dominate</td></tr>
+      <tr><td>s.12 pozitif</td><td>150,000</td><td>100,000</td><td>+50,000</td><td>buyers dominate this candle</td></tr>
+      <tr><td>s.12 negatif</td><td>70,000</td><td>110,000</td><td>−40,000</td><td>sellers dominate this candle</td></tr>
+      <tr><td>s.7 B</td><td>700,000</td><td>1,100,000</td><td>−400,000</td><td>sellers dominate</td></tr>
+    </table></div>
+    <p>Delta tek bir candle'ın <strong>içindeki</strong> alıcı ve satıcı baskısını karşılaştırır. Pozitif delta: Buy Volume &gt; Sell Volume. Negatif delta: Sell Volume &gt; Buy Volume.</p>
+  </div>
+  <!-- Kaynak: week-03 s.6 (1/4), s.7 (2/4 kutu 1), s.10, s.11, s.12. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>"Positive delta does NOT guarantee price will rise."</strong> Delta sadece o candle'daki baskıyı anlatır, bir sonraki candle hakkında bir şey söylemez (s.7, s.11).</li>
+      <li>Delta ≠ volume. Volume toplam işlemdir; delta alım ile satım arasındaki farktır. 2.4M volume'lu bir candle'ın delta'sı +600k olabilir, sıfır da olabilir.</li>
+      <li>Günlük OHLCV verisinde (bu dersteki CSV'ler gibi) tek bir Volume sütunu var, buy/sell ayrımı yok. Bu yüzden strateji lower-timeframe veriden buy ve sell volume'u <em>tahmin ediyor</em> (adım 2).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-delta-1">
+    <p class="quiz__q">Bir candle'da Buy Volume = 420,000, Sell Volume = 650,000. Net Delta ve anlamı?</p>
+    <button class="quiz__opt">+230,000; buyers dominate<span class="why">Çıkarma sırası ters. Formül Buy − Sell: 420,000 − 650,000.</span></button>
+    <button class="quiz__opt" data-correct>−230,000; sellers dominate this candle<span class="why">Doğru. Satış baskısı bu candle'da daha güçlü. Bu, sonraki candle'ın düşeceği anlamına gelmez.</span></button>
+    <button class="quiz__opt">1,070,000; çok yüksek aktivite<span class="why">Bu toplam volume. Delta toplamı değil, farkı ölçer.</span></button>
+    <button class="quiz__opt">−230,000; price kesin düşecek<span class="why">Sayı doğru ama yorum yanlış: delta geleceği garanti etmez, sadece o candle'ın içini anlatır.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="vb-cluster" data-min="6">
+  <h2>Volume Bubbles II: high delta, cluster, renk ve boy</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · "High delta is relative" (s.13)</span>
+    <p>+20,000'lik bir delta bir hisse için çok büyük, başka bir hisse için sıradan olabilir. Bu yüzden strateji bugünü <strong>aynı hissenin yakın geçmişiyle</strong> karşılaştırır: "Is today's delta unusually large compared with this stock's own past?"</p>
+    <p>s.13 örneği: son delta'lar +5, +8, −3, +12, +7, +9; bugün +60. Bu olağandışı yüksek.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · cluster (s.14, s.7)</span>
+    <p><strong>A cluster is a candle (bar) or zone with unusually strong volume and/or delta compared with recent history.</strong> s.14'te normal candle'lar +8, +12, +5, −7, +10; sonra +95'lik ani bir candle geliyor. Strateji şunu der: "This is not normal. Mark it as a cluster."</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · renk (s.15)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Bubble</th><th>Anlamı</th><th>Koşul</th></tr>
+      <tr><td>🟢 Green</td><td>Buyer cluster</td><td>Candle pozitif kapanır, net delta pozitif ve threshold aşılmış.</td></tr>
+      <tr><td>🔴 Red</td><td>Seller cluster</td><td>Candle negatif kapanır, net delta negatif ve threshold aşılmış.</td></tr>
+      <tr><td>🟡 Yellow</td><td>Mixed / unclear</td><td>Aktivite yüksek, ama strateji bunu açıkça buyer ya da seller diye sınıflayamıyor.</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · boy ve percentile (s.16, s.7)</span>
+    <p>Boy, olayın yakın geçmişe göre ne kadar <strong>nadir</strong> olduğunu söyler.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Boy</th><th>Percentile</th><th>Anlamı</th></tr>
+      <tr><td>Small</td><td>76th percentile</td><td>unusual: normalden büyük ama aşırı değil</td></tr>
+      <tr><td>Medium</td><td>90th percentile</td><td>stronger: normalden belirgin şekilde büyük</td></tr>
+      <tr><td>Big</td><td>97th percentile</td><td>very rare: yakın geçmişin en büyük olaylarından biri</td></tr>
+    </table></div>
+    <p><strong>97th percentile:</strong> son 100 delta değerini küçükten büyüğe diz. Bugünkü delta bunların yaklaşık 97'sinden güçlü; yalnızca yaklaşık 3'ü daha büyük. "Large bubble = rare event."</p>
+    <p><strong>Selected threshold exceeded</strong> = bugünkü volume ya da |delta| seçilen historical cutoff'tan büyük (s.7).</p>
+  </div>
+  <p>Aşağıdaki lab cutoff'ları senin yazdığın geçmişten hesaplıyor (numpy'deki varsayılan linear interpolation ile), sonra bugünkü |delta|'yı bunlarla karşılaştırıp boyu, candle yönü ile delta işaretinden rengi buluyor. Son adım s.18'deki entry zinciri.</p>
+  <div class="w-four-strategies-lab" id="fs-delta">
+    <p class="w-four-strategies-guess"><b>Önce tahmin et:</b> s.13'teki geçmiş (+5, +8, −3, +12, +7, +9) ve bugün +60, candle pozitif kapanmış. Bubble hangi boyda ve renkte olur? Bugün +11 olsaydı ne olurdu? Tahminini aşağıdan seç, sonra çalıştır.</p>
+    <div class="w-four-strategies-row">
+      <div class="w-four-strategies-field"><label for="fs-delta-hist">Geçmiş delta'lar</label><input type="text" id="fs-delta-hist" autocomplete="off" spellcheck="false" aria-describedby="fs-delta-err" /></div>
+    </div>
+    <div class="w-four-strategies-row">
+      <label for="fs-delta-today">Bugünkü delta <input type="text" class="w-four-strategies-num" id="fs-delta-today" autocomplete="off" spellcheck="false" /></label>
+      <label for="fs-delta-candle">Candle <select id="fs-delta-candle"><option value="up">pozitif kapanış</option><option value="down">negatif kapanış</option></select></label>
+    </div>
+    <div class="w-four-strategies-row">
+      <label for="fs-delta-min">Entry için en az <select id="fs-delta-min"><option value="1">Small</option><option value="2">Medium</option><option value="3" selected>Big</option></select></label>
+      <label><input type="checkbox" id="fs-delta-ctx" checked /> Context filter OK</label>
+    </div>
+    <div class="w-four-strategies-row">
+      <label for="fs-delta-gsize">Tahminin: boy <select id="fs-delta-gsize"><option value="">seç</option><option value="0">bubble yok</option><option value="1">Small</option><option value="2">Medium</option><option value="3">Big</option></select></label>
+      <label for="fs-delta-gcol">renk <select id="fs-delta-gcol"><option value="">seç</option><option value="none">yok</option><option value="green">green</option><option value="red">red</option><option value="yellow">yellow</option></select></label>
+      <button class="btn btn--sm btn--accent" data-run>Çalıştır</button>
+    </div>
+    <div class="w-four-strategies-row" role="group" aria-label="Hazır örnekler">
+      <button class="btn btn--sm" data-preset="0">s.13 (+60)</button>
+      <button class="btn btn--sm" data-preset="1">s.13, bugün +11</button>
+      <button class="btn btn--sm" data-preset="2">s.14 (+95)</button>
+      <button class="btn btn--sm" data-preset="3">Seller</button>
+      <button class="btn btn--sm" data-preset="4">Mixed</button>
+      <button class="btn btn--sm" data-preset="5">100 değerlik geçmiş</button>
+    </div>
+    <p class="w-four-strategies-err" id="fs-delta-err" role="alert"></p>
+    <div id="fs-delta-stepper"></div>
+  </div>
+  <!-- Kaynak: week-03 s.7 (2/4: cluster, percentile, threshold), s.13, s.14, s.15, s.16, s.18. "Entry için en az" ayarı bizim: slayt hangi boyun entry için yettiğini sabitlemiyor (s.6 adım 7: "e.g., cluster size"). "100 değerlik geçmiş" preset'i sabit seed'li rastgele üretilmiş örnek veri, gerçek bir hisse değil. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Boy ≠ renk.</strong> s.7'deki çizimde Small yeşil, Medium sarı, Big kırmızı top olarak çizilmiş. Bu renkler boyu gösteriyor, buyer/seller'ı değil. Big bir cluster yeşil de olabilir (s.17'deki "Big Cluster" bir BUY).</li>
+      <li>"97th percentile" "%97 ihtimalle yükselir" demek değil. Sadece bugünkü değerin geçmişteki değerlerin yaklaşık %97'sinden büyük olduğunu söyler.</li>
+      <li>Boy |delta| ile ölçülür, işaretle değil. −60 da +60 kadar nadirdir; işaret rengi belirler.</li>
+      <li>Geçmiş çok kısaysa (6 değer gibi) bütün cutoff'lar en büyük değerin yakınına toplanır. Slayt bu yüzden "100 recent delta values" ile anlatıyor.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-cluster-1">
+    <p class="quiz__q">Bugünkü |delta| son 100 değerin 97th percentile cutoff'unu aşıyor. Bu ne demek?</p>
+    <button class="quiz__opt">Price'ın yükselme ihtimali %97.<span class="why">Percentile bir olasılık değil, sıralamadır. Delta geleceği garanti etmez.</span></button>
+    <button class="quiz__opt" data-correct>Bugünkü olay geçmişteki yaklaşık 97 değerden güçlü, sadece yaklaşık 3'ü daha büyük: Big cluster, very rare.<span class="why">Doğru. s.16'nın tanımı bu. Boy nadirliği ölçer.</span></button>
+    <button class="quiz__opt">Bugünkü delta geçmiş ortalamanın 97 katı.<span class="why">Percentile oran değil, sıradaki yerdir. Ortalamanın kaç katı olduğu ayrı bir ölçü.</span></button>
+  </div>
+  <div class="quiz" id="q-cluster-2">
+    <p class="quiz__q">Bir candle'da |delta| 97th percentile'ı aşmış ve delta pozitif, ama candle negatif kapanmış. s.15'e göre bubble hangi renk?</p>
+    <button class="quiz__opt">Green, çünkü delta pozitif.<span class="why">Green için üç şart birlikte gerekir: pozitif kapanış, pozitif delta, threshold aşımı. Kapanış negatif.</span></button>
+    <button class="quiz__opt">Red, çünkü candle negatif kapandı.<span class="why">Red için delta'nın da negatif olması gerekir. İki işaret çelişiyor.</span></button>
+    <button class="quiz__opt" data-correct>Yellow: aktivite yüksek ama buyer mı seller mı açık değil.<span class="why">Doğru. "Activity is high, but the strategy cannot clearly classify it as buyer or seller."</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="vb-entry" data-min="6">
+  <h2>Volume Bubbles III: sinyal etiketi, entry ve iyileştirmeler</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · "BUY 71.60 — Big Cluster" nasıl okunur (s.17, s.7)</span>
+    <ol>
+      <li>Strateji çok güçlü (very strong) bir positive delta cluster gördü.</li>
+      <li>71.60 civarında bir long trade açtı.</li>
+      <li>Bu, hissenin ucuz olduğu anlamına <strong>gelmez</strong>.</li>
+      <li>Güçlü bir alım baskısı ortaya çıktığı anlamına gelir.</li>
+    </ol>
+    <p>Etiketin yanındaki sayılar: <strong>"Big" = signal strength</strong>, <strong>+1699 = position size / lots</strong>. "Do not confuse them."</p>
+  </div>
+  <div class="box box--exam" data-exam="w03-p17-label">
+    <span class="box__label">Hafta 3 slayt s.17 · hocanın sorusu</span>
+    <p>"How to Read 'BUY 71.60 — Big Cluster'" (chart label shown together with +1699)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Etiketi dört parçaya ayır: BUY, 71.60, Big, Cluster. Yanındaki +1699 bunlardan hangisiyle karıştırılmamalı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Strateji fiyatın değerine mi, baskıya mı bakıyor? s.10'daki Big Idea'yı hatırla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ul>
+        <li><strong>BUY:</strong> the strategy opened a long trade.</li>
+        <li><strong>71.60:</strong> the approximate entry price.</li>
+        <li><strong>Big Cluster:</strong> the signal strength. Today's |delta| exceeded the 97th-percentile cutoff of the stock's recent history, so it is a very rare, very strong positive delta cluster (a buyer cluster).</li>
+        <li><strong>+1699:</strong> the position size in lots, not the signal strength.</li>
+        <li>It does <strong>not</strong> mean the stock is cheap or undervalued. The strategy does not read balance sheets; it only says that strong buying pressure appeared.</li>
+      </ul>
+    </div></details>
+    <!-- Kaynak: week-03 s.17 ve s.7 kutu 4. -->
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Entry zinciri (s.18)</span>
+    <p><strong>Unusual Volume / Delta?</strong> → <strong>Buyer or Seller?</strong> → <strong>Large enough cluster?</strong> → <strong>Context filter OK?</strong> → <strong>Enter trade</strong></p>
+    <p>"The strategy should not enter every green candle." Bubble yeterince güçlü olduğunda ve seçilen kurallar izin verdiğinde girer.</p>
+    <p><strong>Context filter OK?</strong> Sinyal var olabilir, ama strateji bir soru daha sorar: <em>"Is this signal happening in a suitable market environment?"</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · risk tarafı, kısaca (s.6, s.8)</span>
+    <p>Entry'den sonra trade şöyle korunur: initial stop cluster candle low'un biraz altına konur ($\text{Initial Stop} = \text{Cluster Candle Low} \times (1 - \text{Buffer})$, ayara göre ATR de kullanılabilir). Risk unit $R = \text{Entry} - \text{Initial Stop}$. Price +1R'ye gelince trailing stop devreye girer ve price lehine gittikçe yukarı taşınır. Trade, stop ya da target'a değince ya da başka bir exit kuralı çalışınca kapanır. Sayılı örnekler (71.60 / 67.66 / 75.54 / 84) <a href="trade-management.html">Trade management</a> dersinde.</p>
+    <p><strong>Core idea (s.9):</strong> <em>This is a momentum strategy.</em> It looks for unusually strong buying pressure, then tries to ride the trend with disciplined risk control.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Improvement Ideas to Test (s.25, s.9 D)</span>
+    <ol>
+      <li><strong>Add a trend filter:</strong> örneğin sadece price SMA200'ün üstündeyken long.</li>
+      <li><strong>Use stricter consensus:</strong> "any window" yerine 3 window'dan 2'sinin aynı fikirde olmasını iste.</li>
+      <li><strong>Raise thresholds:</strong> medium ve big cluster'lar için 90/97 yerine 92/98 ya da 95/99 kullan; zayıf sinyaller azalır.</li>
+      <li><strong>Require Volume + Delta:</strong> hem toplam volume hem delta anormal olsun.</li>
+      <li><strong>Test +1R vs +1.5R vs +2R:</strong> volatile hisselerde trailing stop çok erken devreye girebilir.</li>
+    </ol>
+    <p>Altındaki uyarı: <strong>"Do not optimize only for one stock. Test the same settings across many stocks."</strong></p>
+  </div>
+  <!-- Kaynak: week-03 s.6 (stop tanımları), s.8 (3/4), s.9 (4/4: Core idea, D) What to improve, Control Test), s.17, s.18, s.25. s.25'in köşesinde "16" yazıyor, numaralandırmada 15 atlanmış; içerik eksik değil. -->
+  <div class="box box--exam" data-exam="w03-p9-control-test">
+    <span class="box__label">Hafta 3 slayt s.9 · Control Test</span>
+    <p>"If random or fixed-interval entries produce similar results, the main edge may come more from the exit system (trailing stop) than from the entry signal itself." Explain what this test checks and how you would run it for Volume Bubbles.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>s.5'teki dört sorudan sonuncusunu hatırla: "Do results come from entries or exits?"</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Exit sistemini hiç değiştirmeden sadece entry'yi değiştirirsen, aradaki fark neyi ölçer?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>What it checks:</strong> whether the profit comes from the entry signal (the delta cluster) or from the trade management and exit rules (initial stop, +1R activation, trailing stop).</li>
+        <li><strong>How:</strong> keep the exit system exactly the same. Replace the cluster entries with random entries, or with entries at fixed intervals (for example every N bars), on the same stocks and the same period. Run many random versions.</li>
+        <li><strong>Reading the result:</strong> if the random or fixed-interval versions earn about as much as the real strategy, the entry signal has not shown any added value. The profit may come from market movement and/or from the exit system (trailing stop). If the cluster entries clearly beat them, the signal itself adds an edge.</li>
+        <li>Either way, compare across all six stocks, not one ("Do not optimize only for one stock").</li>
+      </ol>
+      <p>Slaytın dili "may". Sonuçlar benzerse entry sinyalinin ek katkısı gösterilmemiştir. Kazanç piyasa hareketinden ve/veya exit sisteminden geliyor olabilir; test bunlardan hangisi olduğunu tek başına ayırmaz.</p>
+    </div></details>
+    <!-- Kaynak: week-03 s.9 Control Test kutusu ve s.5 sağ alt sorular. Cevaptaki "many random versions" ve "every N bars" ayrıntısı bizim açıklamamız. -->
+  </div>
+  <div class="box box--exam" data-exam="w03-p25-improvement-ideas">
+    <span class="box__label">Hafta 3 slayt s.25 · Improvement Ideas to Test (1–4)</span>
+    <p>"1 Add a trend filter. Example: only long when price is above SMA200. · 2 Use stricter consensus. Require 2 of 3 windows to agree instead of any window. · 3 Raise thresholds. Use 92/98 or 95/99 to reduce weak signals. · 4 Require Volume + Delta. Both total volume and delta must be abnormal. … Do not optimize only for one stock. Test the same settings across many stocks."</p>
+    <p>(5. madde, +1R vs +1.5R vs +2R, Trade management dersinde.) İlk dört fikrin her biri için: (a) sekiz soruluk çerçevenin hangi satırını değiştirir? (b) Trade sayısına ne olur, ne kazanmayı umuyoruz? (c) Fikri adil bir şekilde nasıl test edersin?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Satırlara bak: sinyali tanımlayan kural (Signal Detection), sinyal geldikten sonra ek şart (Filters). SMA200 koşulu bir cluster'ı tanımlıyor mu, yoksa cluster'ı kabul edip etmemeye mi karar veriyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>s.16'yı hatırla: 97th percentile, 100 değerden yaklaşık 3'ünün daha büyük olduğu yer. Cutoff 98 ya da 99 olunca 100 bar'da kaç bar kalır? Test için Control Test'teki gibi tek bir şeyi değiştir, gerisini sabit tut.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Fikir</th><th>Çerçeve satırı</th><th>Trade sayısı ve umulan etki</th></tr>
+        <tr><td>1. Trend filter (price &gt; SMA200)</td><td>Filters</td><td>Azalır. Düşen trendde açılan long'lar elenir; TCELL ve FROTO gibi hisselerdeki tekrar eden stop-out'ların azalması umulur.</td></tr>
+        <tr><td>2. Stricter consensus (2 of 3 windows)</td><td>Signal Detection</td><td>Azalır. Tek bir pencerede tesadüfen büyük görünen delta artık sinyal sayılmaz.</td></tr>
+        <tr><td>3. Raise thresholds (90/97 → 92/98 ya da 95/99)</td><td>Signal Detection (cluster boyutu)</td><td>Azalır. Big cluster 100 bar'da yaklaşık 3 olaydan 2'ye (98) ya da 1'e (99) iner; medium 10'dan 8'e ya da 5'e. Sadece en nadir baskı kalır.</td></tr>
+        <tr><td>4. Volume + Delta</td><td>Signal Detection (ya da Filters)</td><td>Azalır. Delta yüksek ama toplam volume sıradan olan bar'lar elenir; baskının gerçek katılımla gelmesi istenir.</td></tr>
+      </table></div>
+      <p><strong>Common point:</strong> "All four ideas make the strategy more selective, so they all reduce the number of trades. The hope is fewer weak signals and fewer stop-outs. The risk is that the strategy also misses some of the few large winners that positive skew depends on, and that with fewer trades the statistics become weaker."</p>
+      <p><strong>How to test:</strong> "Change one idea at a time and keep everything else fixed, especially the exit system. Run the same settings on all six stocks over the same period and compare net profit, win rate, profit factor, maximum drawdown and the number of trades with the original strategy. Do not keep a setting just because it is the best for one stock (for example ASELS); that is overfitting. If possible, confirm the chosen setting on a later period that played no part in choosing it."</p>
+    </div></details>
+    <!-- Kaynak: week-03 s.25 (madde 1–4 ve alttaki uyarı), s.9 D) What to improve, s.16 (76/90/97 percentile cutoff'ları), s.5 (sekiz satır). 100 bar'da 3 → 2 → 1 ve 10 → 8 → 5 sayıları 100 − percentile; python ile kontrol edildi. Satır eşlemesi ve test tarifi bizim açıklamamız. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>+1699'u "1699 kat güçlü sinyal" diye okuma. Güç "Big" kelimesinde; 1699 kaç lot alındığı.</li>
+      <li>Seller cluster long-only bir sistemde yeni bir long açmaz. s.6'daki grafikte red bubble "exit or short signal" olarak işaretli.</li>
+      <li>Threshold'ları yükseltmek (92/98, 95/99) daha az ama daha seçici sinyal verir. Daha az trade, daha az zayıf sinyal demek; kâr artar diye bir garanti yok, test edilmesi gerekir ("Ideas to Test").</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-entry-1">
+    <p class="quiz__q">Bir candle'da büyük bir buyer cluster var, ama hisse uzun süredir SMA200'ün altında düşüyor ve sistem trend filter kullanıyor. Ne olur?</p>
+    <button class="quiz__opt">Big cluster olduğu için trade açılır.<span class="why">Zincirin dördüncü kutusu atlanamaz: "The strategy should not enter every green candle."</span></button>
+    <button class="quiz__opt" data-correct>Sinyal var ama Context filter OK? kutusundan geçmez, trade açılmaz.<span class="why">Doğru. Sinyal ile entry ayrı adımlar. Filtre "suitable market environment" sorusunu soruyor.</span></button>
+    <button class="quiz__opt">Short açılır, çünkü trend aşağı.<span class="why">Short için seller cluster gerekir. Burada cluster buyer; filtre sadece long'u engelliyor.</span></button>
+  </div>
+  <div class="quiz" id="q-entry-2">
+    <p class="quiz__q">"Raise thresholds: use 92/98" önerisi ne değiştirir?</p>
+    <button class="quiz__opt" data-correct>Medium ve Big cluster için cutoff'lar 90/97'den 92/98'e çıkar; daha az ve daha nadir olaylar sinyal sayılır.<span class="why">Doğru. Amaç zayıf sinyalleri azaltmak (s.9: "Raise percentile thresholds for medium and big clusters").</span></button>
+    <button class="quiz__opt">Stop'u entry'nin %92–98 altına koyar.<span class="why">Bu sayılar stop mesafesi değil, percentile cutoff'larıdır.</span></button>
+    <button class="quiz__opt">Trailing stop'u +0.92R ile +0.98R arasında açar.<span class="why">Trailing activation için öneri ayrı: +1R, +1.5R, +2R test etmek.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="vb-results" data-min="5">
+  <h2>Volume Bubbles sonuçları: yüksek win rate şart değil</h2>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Volume Bubbles BIST Test Results (s.26)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Stock</th><th>Net Profit</th><th>Total Trades</th><th>Winning</th><th>Losing</th><th>Win Rate</th></tr>
+      <tr><td>AKBNK</td><td>+84,000 TL</td><td>13</td><td>7</td><td>6</td><td>53.8%</td></tr>
+      <tr><td>ASELS</td><td>+239,000 TL</td><td>13</td><td>8</td><td>5</td><td>61.5%</td></tr>
+      <tr><td>TUPRS</td><td>+72,000 TL</td><td>16</td><td>8</td><td>8</td><td>50.0%</td></tr>
+      <tr><td>TCELL</td><td>−18,000 TL</td><td>17</td><td>4</td><td>13</td><td>23.5%</td></tr>
+      <tr><td>FROTO</td><td>+3,000 TL</td><td>20</td><td>3</td><td>17</td><td>15.0%</td></tr>
+      <tr><td>EREGL</td><td>+39,000 TL</td><td>17</td><td>5</td><td>12</td><td>29.4%</td></tr>
+    </table></div>
+    <p>Test period: 1 January 2025 – 28 September 2026. Win rate = Winning Trades / Total Trades; altı satırın hepsi bu formülle tutuyor (7/13 = 53.8% gibi).</p>
+    <p><strong>Key observation:</strong> A high win rate is not required for profitability; a few larger winners can offset many smaller losses.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · What Do the Results Suggest? (s.27)</span>
+    <ol>
+      <li><strong>More balanced results:</strong> AKBNK, ASELS ve TUPRS yaklaşık %50 ya da üstü win rate ve pozitif net profit gösteriyor. Signal quality ve trend continuation daha dengeli.</li>
+      <li><strong>Low win rate can still survive:</strong> FROTO 20 trade'in sadece 3'ünü kazanıyor, yine de net sonuç hafif pozitif. Birkaç büyük kazanç birçok küçük kaybı telafi edebilir.</li>
+      <li><strong>SIDEWAYS markets are difficult:</strong> TCELL ve EREGL'nin win rate'i düşük; bu, tekrar eden reversal'lara ve stop-out'lara işaret ediyor. Price tek yönde devam etmeyince momentum tarzı entry'ler zorlanıyor.</li>
+    </ol>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Why Results Differ Across Stocks (s.23, s.9)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Trend-friendly (ASELS, AKBNK, TUPRS)</th><th>Sideways / mean-reverting, unclear trend (TCELL, FROTO, EREGL)</th></tr>
+      <tr><td>Güçlü pozitif cluster'ları sürekli bir price expansion izliyor.</td><td>Buyer cluster'lar çıkıyor ama price çabuk dönüyor.</td></tr>
+      <tr><td>Trailing stop trend sürdükçe trade'i açık tutuyor.</td><td>Strateji giriyor, sonra stop oluyor; tekrar eden stop-out'lar win rate'i düşürüyor.</td></tr>
+      <tr><td>Birkaç büyük kazanç toplam performansa hâkim.</td><td>Büyük bir hareket gelene kadar birçok küçük kayıp oluşuyor.</td></tr>
+    </table></div>
+    <p>"The strategy works best when strong pressure is followed by trend continuation." Bu davranışın adı <strong>positive skew</strong>: many small losses + a few very large gains. s.24'teki örnek: 7 küçük kayıp toplam −17%, 3 kazanç +5%, +20%, +35% toplam +60%, net +43% (slayttaki gibi düz toplam).</p>
+  </div>
+  <p class="src">Not: s.23'ün metninde trend-friendly örnekleri "ASELS, AKBNK" olarak geçiyor; s.9'da listeye TUPRS da ekli. s.27 ise EREGL'yi TCELL ile birlikte "sideways" grubuna koyuyor, FROTO'yu ayrı yorumluyor.</p>
+  <p class="src">Not: Quiz'deki benchmark tablosu (AKBNK +84,000 … EREGL +39,000) bu tablonun aynısı. Quiz dönemi 1 January 2025 – 1 October 2026 diyor, s.26 ise 28 September 2026. Rakamlar aynı, tarihler farklı.</p>
+  <!-- Kaynak: week-03 s.9 (A, B, C), s.23, s.24, s.26, s.27; quiz brief s.1 Benchmark Results. Win rate'ler python ile hesaplandı. -->
+  <div class="box box--exam" data-exam="w03-p27-froto">
+    <span class="box__label">Hafta 3 slayt s.27 · hocanın sorusu</span>
+    <p>"FROTO wins only 3 of 20 trades, yet the net result remains slightly positive." Explain how this is possible and what it says about the size of FROTO's winning trades.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Net profit = (kazanan trade sayısı × ortalama kazanç) − (kaybeden trade sayısı × ortalama kayıp). FROTO için sayıları yerine koy.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Ortalama kazanç ortalama kaybın $r$ katı olsun. Net sıfır olsun diye $r$ en az kaç olmalı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>Win rate = 3/20 = 15%. FROTO has 3 winning and 17 losing trades, and net profit is +3,000 TL.</li>
+        <li>Let $\bar W$ be the average win and $\bar L$ the average loss. Then $3\bar W - 17\bar L = +3{,}000 &gt; 0$, so $\bar W &gt; \tfrac{17}{3}\bar L \approx 5.67\,\bar L$.</li>
+        <li>In other words, an average winner was more than about 5.7 times the average loser. The break-even win rate for a payoff ratio $\bar W / \bar L$ is $p^* = \dfrac{\bar L}{\bar W + \bar L}$. At the boundary $\bar W / \bar L = 17/3$, $p^* = \dfrac{1}{1 + 17/3} = \dfrac{3}{20} = 15\%$. FROTO's actual payoff ratio exceeds that boundary, so its actual $p^*$ is below 15%, and its actual win rate of 15% sits above it. The totals do not give the exact $p^*$, because $\bar W$ and $\bar L$ are not reported separately.</li>
+        <li>This is <strong>positive skew</strong>: the stop keeps the many losses small, and the trailing stop lets the few winners run. A high win rate is not required for profitability.</li>
+        <li>The weakness: the margin is thin. Losing one of the three winners, or slightly larger losses, would turn the result negative. FROTO behaves more like a sideways stock where clusters reverse quickly.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: week-03 s.27 madde 2, s.26 tablo, s.9 C) Positive Skew. 17/3 ve break-even win rate hesabı bizim ekimiz; python ile doğrulandı: sınırda 1/(1+17/3) = 0.15, oran 17/3'ü aşınca 1/(1+r) < 0.15. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Win rate ile net profit aynı sırayı vermez. EREGL %29.4 win rate ile +39,000 TL; TUPRS %50 ile +72,000 TL; TCELL %23.5 ile −18,000 TL.</li>
+      <li>Quiz'in geçme kuralı: <strong>her hisse kendi benchmark'ını ayrı ayrı</strong> geçmeli. Toplam portföy kârı bir hissedeki başarısızlığı kapatmaz. Quiz'in örneği: AKBNK +90,000 PASS, ASELS +250,000 PASS, TUPRS +60,000 FAIL (benchmark +72,000), ve challenge geçilmez.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-vbres-1">
+    <p class="quiz__q">Volume Bubbles'ta EREGL %29.4 win rate ile +39,000 TL kazanırken TCELL %23.5 ile −18,000 TL kaybetmiş. Hangi açıklama slaytlarla uyumlu?</p>
+    <button class="quiz__opt">EREGL'nin win rate'i daha yüksek, bu yüzden kârlı.<span class="why">Fark sadece 6 puan. FROTO %15 ile bile kârlı; belirleyici olan kazananların kaybedenlere göre büyüklüğü.</span></button>
+    <button class="quiz__opt" data-correct>Sonucu kazanan trade'lerin ne kadar uzağa gittiği belirliyor: EREGL'deki birkaç kazanç kayıpları karşılamış, TCELL'de karşılamamış.<span class="why">Doğru. Key observation: "a few larger winners can offset many smaller losses."</span></button>
+    <button class="quiz__opt">TCELL'de daha az trade yapılmış.<span class="why">İkisinde de 17 trade var. Trade sayısı farkı açıklamıyor.</span></button>
+  </div>
+  <div class="quiz" id="q-vbres-2">
+    <p class="quiz__q">Quiz'de bir öğrencinin sonuçları: beş hisse benchmark'ının üstünde, TUPRS +60,000 TL (benchmark +72,000). Toplam kârı benchmark toplamından yüksek. Sonuç?</p>
+    <button class="quiz__opt">PASS, çünkü toplam kâr daha yüksek.<span class="why">Quiz bunu açıkça reddediyor: "overall portfolio profit is not used for passing the challenge."</span></button>
+    <button class="quiz__opt" data-correct>FAIL, çünkü TUPRS kendi benchmark'ını geçmedi.<span class="why">Doğru. "Each stock must beat its own benchmark individually."</span></button>
+    <button class="quiz__opt">5/6 hisse geçtiği için kısmi PASS.<span class="why">Kısmi geçme yok: "You must beat the benchmark for all six stocks individually."</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="liquidity" data-min="5">
+  <h2>Liquidity Swings: swing zone'ları ve breakout</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Price'ın daha önce zorlandığı tepe bölgelerinde ve destek bulduğu dip bölgelerinde bekleyen emirler (liquidity) birikir. Strateji bu bölgeleri işaretler ve price'ın üst bölgeyi kapanışla geçmesini bekler: geçerse "liquidity alındı, yükseliş başlayabilir" der.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · How Does the Logic Work? (s.29)</span>
+    <ol>
+      <li><strong>Swing High Zone:</strong> price'ın daha önce zorlandığı ve liquidity'nin bulunduğu üst bölge. Burada satış baskısı artabilir. Breakout olana kadar resistance gibi çalışır.</li>
+      <li><strong>Swing Low Zone:</strong> price'ın daha önce support bulduğu ve liquidity'nin bulunduğu alt bölge. Burada alım ilgisi artabilir. Breakdown olana kadar support gibi çalışır.</li>
+      <li><strong>Entry Logic (Long):</strong> price Swing High zone'un <strong>üstünde kapanırsa</strong> bir "swing breakout" olur. Bu, liquidity'nin alındığını ve yukarı bir hareketin başlayabileceğini düşündürür. Breakout'tan sonra long açılabilir.</li>
+      <li><strong>Protection (Stop):</strong> stop genellikle en yakın Swing Low zone'un altına konur. İstenirse Chandelier stop ya da trailing stop ile yönetilir. Price pozisyonun tersine dönerse trade kapanır.</li>
+    </ol>
+    <p><strong>Strategy Workflow Steps:</strong> 1. Data (price data chart'ta izlenir) → 2. Swing zones (Swing High üst zone, Swing Low alt zone) → 3. Breakout (Swing High'ın üstüne kırılırsa long fırsatı; Swing Low'un altına kırılırsa short fırsatı çıkabilir) → 4. Position management (stop Swing Low'un altında, Chandelier/trailing stop ile yönetilir) → 5. Exit (reverse breakout, stop ya da time-limit exit).</p>
+    <p>Slayttaki grafikte "Reverse breakout (Sell)" ve "Time limit reached (Exit)" iki ayrı çıkış örneği olarak işaretli.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Results Summary (s.28), 1 January 2025 – 28 September 2026</span>
+    <div class="table-wrap"><table>
+      <tr><th>Stock</th><th>Net Profit</th><th>Total</th><th>Winning</th><th>Losing</th><th>Win Rate</th></tr>
+      <tr><td>AKBNK</td><td>+51k TL</td><td>3</td><td>2</td><td>1</td><td>66.7%</td></tr>
+      <tr><td>TCELL</td><td>−9k TL</td><td>4</td><td>1</td><td>3</td><td>25.0%</td></tr>
+      <tr><td>ASELS</td><td>+154k TL</td><td>4</td><td>3</td><td>1</td><td>75.0%</td></tr>
+      <tr><td>TUPRS</td><td>+94k TL</td><td>3</td><td>2</td><td>1</td><td>66.7%</td></tr>
+      <tr><td>FROTO</td><td>−7k TL</td><td>4</td><td>2</td><td>2</td><td>50.0%</td></tr>
+      <tr><td>EREGL</td><td>−800 TL</td><td>5</td><td>3</td><td>2</td><td>60.0%</td></tr>
+    </table></div>
+    <p>Win rate sütununu biz ekledik. Slaytın Overall Assessment'ı: strongest result ASELS; strong results TUPRS ve AKBNK; weak results TCELL ve FROTO; EREGL için "the win rate is decent, but the net result is weak." Core idea: <em>The same strategy does not work the same way on every stock; trend structure and breakout quality determine the result.</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · neden bazı hisselerde güçlü, bazılarında zayıf? (s.30, s.31)</span>
+    <p><strong>Trend-friendly: AKBNK, ASELS, TUPRS</strong> (sıralama ASELS, TUPRS, AKBNK).</p>
+    <ul>
+      <li>AKBNK +51k: price breakout'tan sonra devam edebildi; az trade ama seçici; swing low'lar tuttu.</li>
+      <li>ASELS +154k: trend uzadıkça kazanç büyüdü; breakout zone'ları net çalıştı; swing low'lar tuttu, trend kırılmadı.</li>
+      <li>TUPRS +94k: price breakout'tan sonra güçlü devam etti; az trade, yüksek başarı; trend-friendly yapıda uzun trend hareketleri oluştu.</li>
+      <li><strong>Common feature:</strong> breakout'tan sonra dönmek yerine price trend'e devam etti.</li>
+    </ul>
+    <p><strong>Zayıf kalanlar: TCELL, FROTO, EREGL.</strong></p>
+    <ul>
+      <li>TCELL −9k (4 trade, 1 kazanan): price breakout'tan sonra çabuk döndü; sideways market, unclear trend; stop-out'lar ya da reverse breakout'lar baskı yaptı.</li>
+      <li>FROTO −7k (4 trade, 2 kazanan): kazanan ve kaybedenler dengeli ama kazançlar küçük kaldı; trend continuation zayıftı.</li>
+      <li>EREGL −800 TL (5 trade, 3 kazanan): win rate kötü değil ama kazanan trade'ler yeterince büyük değildi; net sonuç break-even'a yakın.</li>
+    </ul>
+    <p><strong>What Can Be Improved?</strong> 1. Add a trend filter. 2. Require stronger breakout confirmation. 3. Filter out sideways market periods. 4. Test stop and time-limit settings.</p>
+    <p>Sonuç cümlesi: <strong>"The Liquidity Swings strategy likes clean breakouts; it struggles more in sideways and uncertain markets."</strong></p>
+  </div>
+  <p class="src">Not: s.28'in özetinde zayıf sonuçlar "TCELL and FROTO" olarak geçiyor, EREGL ayrı bir kutuda. s.31 ise EREGL'yi de "weak" örneklere katıyor.</p>
+  <!-- Kaynak: week-03 s.28 (1/4), s.29 (2/4), s.30 (3/4), s.31 (4/4); hepsi görsel, render edilerek okundu. Win rate'ler python ile hesaplandı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Entry şartı Swing High zone'a <em>değmek</em> değil, zone'un <strong>üstünde kapanmak</strong>. Değip dönen price bir breakout değildir.</li>
+      <li>EREGL'de win rate %60, sonuç yine −800 TL. Yüksek win rate kârı garanti etmez; kazananların büyüklüğü belirler.</li>
+      <li>Trade sayıları çok küçük (3–5). AKBNK'nin 3 trade'lik sonucu, Volume Bubbles'ın 13–20 trade'lik sonuçlarından çok daha az güvenilir bir örneklem.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-liq-1">
+    <p class="quiz__q">Liquidity Swings'te long entry hangi olayla tetiklenir?</p>
+    <button class="quiz__opt">Price Swing Low zone'a inip oradan dönünce.<span class="why">Bu bir reversal girişi (Dual-Phase'in mantığına benzer). Liquidity Swings breakout ile girer.</span></button>
+    <button class="quiz__opt" data-correct>Price Swing High zone'un üstünde kapanınca (swing breakout).<span class="why">Doğru. s.29: "If price closes above the Swing High zone, a 'swing breakout' occurs."</span></button>
+    <button class="quiz__opt">Büyük bir positive delta cluster görülünce.<span class="why">Bu Volume Bubbles'ın sinyali. Liquidity Swings price zone'larına bakar.</span></button>
+  </div>
+  <div class="quiz" id="q-liq-2">
+    <p class="quiz__q">Liquidity Swings'te stop genellikle nereye konur ve trade hangi durumlarda kapanır?</p>
+    <button class="quiz__opt" data-correct>En yakın Swing Low zone'un altına; trade reverse breakout, stop ya da time limit ile kapanır.<span class="why">Doğru. s.29'un Protection kutusu ve workflow'un 5. adımı.</span></button>
+    <button class="quiz__opt">Swing High zone'un hemen altına; trade sadece target'ta kapanır.<span class="why">Stop referansı alt zone. Slaytta target'tan söz edilmiyor; üç çıkış yolu var.</span></button>
+    <button class="quiz__opt">Cluster candle low × (1 − buffer); trade +1R'de kapanır.<span class="why">Bu formül Volume Bubbles'ın initial stop'u. +1R de bir kapanış değil, trailing activation seviyesi.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="sr-channels" data-min="5">
+  <h2>Support &amp; Resistance Channels: gerçek breakout'u almak</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · How It Works (s.32)</span>
+    <p><em>A breakout strategy that buys resistance breaks and manages risk around support channels.</em></p>
+    <ol>
+      <li><strong>Identify the channel:</strong> strateji support ve resistance zone'larını yakın geçmişteki swing low ve swing high'lardan işaretler.</li>
+      <li><strong>Wait for a resistance breakout:</strong> price resistance channel'ın üstüne çıkınca long açılır.</li>
+      <li><strong>Use support as the risk reference:</strong> support zone ya da channel floor initial stop'u belirlemeye yardım eder. İstenirse bir Chandelier stop trade'i takip eder.</li>
+      <li><strong>Hold while the trend continues:</strong> price breakout bölgesinin üstünde kaldıkça strateji hareketin sürmesine izin verir.</li>
+      <li><strong>Exit when the breakout fails:</strong> trade reverse breakdown, stop hit ya da time-based exit ile kapanır.</li>
+    </ol>
+    <p>Grafiğin lejantı: green zone = support, red zone = resistance, blue arrow = long entry, purple marker = exit / reverse breakdown. <strong>Core idea:</strong> buy <em>real</em> breakouts, avoid failed breakouts, and protect the trade with disciplined exits.</p>
+    <p>Bu dersin S/R kısmı stratejinin kendisi. Support ve resistance zone'larının nasıl bulunduğu (local high/low, pivot, cluster, strength score) <a href="support-resistance.html">Support ve resistance</a> dersinde.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Backtest Results Across 6 BIST Stocks (s.33), 1 Jan 2025 – 28 Sep 2026</span>
+    <div class="table-wrap"><table>
+      <tr><th>Stock</th><th>Net Profit</th><th>Total</th><th>Winning</th><th>Losing</th><th>Win Rate</th></tr>
+      <tr><td>AKBNK</td><td>−6k TL</td><td>27</td><td>12</td><td>15</td><td>44.4%</td></tr>
+      <tr><td>TCELL</td><td>−30k TL</td><td>28</td><td>8</td><td>20</td><td>28.6%</td></tr>
+      <tr><td>ASELS</td><td>+158k TL</td><td>12</td><td>5</td><td>7</td><td>41.7%</td></tr>
+      <tr><td>TUPRS</td><td>+44k TL</td><td>8</td><td>4</td><td>4</td><td>50.0%</td></tr>
+      <tr><td>FROTO</td><td>−23k TL</td><td>24</td><td>7</td><td>17</td><td>29.2%</td></tr>
+      <tr><td>EREGL</td><td>+35k TL</td><td>24</td><td>9</td><td>15</td><td>37.5%</td></tr>
+    </table></div>
+    <p>Key Insights: profitable ASELS, TUPRS, EREGL; losing AKBNK, TCELL, FROTO; best profit ASELS (+158k); most difficult TCELL (−30k). <strong>Takeaway: Profitability depended more on breakout follow-through than on win rate alone.</strong></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Why Results Differ Across Stocks (s.34)</span>
+    <div class="table-wrap"><table>
+      <tr><th>A) Breakout-friendly: ASELS, TUPRS, EREGL</th><th>B) Failed-breakout / SIDEWAYS: AKBNK, TCELL, FROTO</th></tr>
+      <tr><td>Resistance breakout'larını daha güçlü trend continuation izliyor.</td><td>Price resistance'ı kırıyor ama devam çoğu zaman çabuk başarısız oluyor.</td></tr>
+      <tr><td>Daha az false breakout, daha iyi follow-through.</td><td>Tekrar eden reverse-breakdown exit'leri performansı düşürüyor.</td></tr>
+      <tr><td>Orta bir win rate bile iyi kâr verebilir, çünkü kazananlar daha uzağa gidiyor.</td><td>Trade'lerin çoğu düşük kaliteli breakout ise daha fazla trade işe yaramaz.</td></tr>
+    </table></div>
+    <p>Core idea: <em>this is a breakout strategy, so it works best when breakouts lead to real trend expansion.</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · How to Improve the Strategy (s.35)</span>
+    <ol>
+      <li><strong>Add a trend filter:</strong> örneğin sadece SMA200'ün üstünde long.</li>
+      <li><strong>Require a stronger breakout confirmation:</strong> resistance'ın üstünde net bir close.</li>
+      <li><strong>Use volume confirmation:</strong> zayıf katılımlı, sessiz breakout'lardan kaçın.</li>
+      <li><strong>Reduce overtrading:</strong> sinyaller arasında daha fazla mesafe ya da zaman iste.</li>
+      <li><strong>Tune exits:</strong> kazananları açık tut, failed breakout'ları daha hızlı kes.</li>
+      <li><strong>Separate stock types:</strong> trending ve sideways hisseler farklı kurallar isteyebilir.</li>
+    </ol>
+    <p>Yandaki çizim: <em>Good breakout (with confirmation)</em> kırılımdan sonra yükselişe devam ediyor; <em>Failed breakout (weak and fake)</em> zone'un üstüne kısa süre çıkıp geri düşüyor. Final takeaway: The strategy is most effective when it selects high-quality breakouts and avoids noisy, low-conviction setups.</p>
+  </div>
+  <!-- Kaynak: week-03 s.32–35 (görsel, render edilerek okundu). Win rate'ler python ile hesaplandı. -->
+  <div class="box box--exam" data-exam="w03-p35-control-question">
+    <span class="box__label">Hafta 3 slayt s.35 · Control Question</span>
+    <p>"Is the edge coming from the breakout entry itself, or mostly from the exit logic?" Answer it using the S/R Channels results.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>s.33'teki win rate'lere bak. Kârlı ve zararlı hisseler win rate'e göre ayrılıyor mu?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Win rate'ler benzer olduğunda farkı ne yaratır: kaç trade'in kazandığı mı, kazananların ne kadar uzağa gittiği mi? Bu, entry'nin mi exit'in mi işi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>Win rates are similar across winners and losers: ASELS 41.7% (+158k) and EREGL 37.5% (+35k) are profitable, while AKBNK 44.4% (−6k) loses. So the share of successful breakouts alone does not explain the result.</li>
+        <li>What separates them is follow-through: on ASELS, TUPRS and EREGL the winners travel farther, and the exit (hold above the breakout area, optional Chandelier stop) keeps them open. On AKBNK, TCELL and FROTO many breakouts fail quickly and end in reverse-breakdown exits.</li>
+        <li>These results show that win rate alone does not explain profitability. They do not establish whether the edge comes from entries or exits; the control comparison in step 4 is required.</li>
+        <li>To answer it properly, run the control test: keep the exits, replace the breakout entries with random or fixed-interval entries, and compare.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: week-03 s.35 Control Question, s.33 tablo, s.34. Cevap slayt verisinden çıkarılan bizim yorumumuz; hocanın verdiği bir cevap yok. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Daha fazla trade ≠ daha fazla kâr. TCELL 28 trade ile en kötü sonuç (−30k), TUPRS 8 trade ile +44k.</li>
+      <li>EREGL Volume Bubbles'ta "sideways" grubundaydı, burada "breakout-friendly". Hisse etiketleri stratejiye göre değişiyor; "EREGL sideways bir hisse" diye genelleme.</li>
+      <li>Support burada entry noktası değil, risk referansı. Bu strateji support'tan dönüşü değil, resistance kırılmasını alır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sr-1">
+    <p class="quiz__q">S/R Channels'ta AKBNK %44.4 win rate ile −6k, ASELS %41.7 ile +158k. Slaytın Takeaway'i bunu nasıl açıklar?</p>
+    <button class="quiz__opt">AKBNK'de daha çok trade var, komisyon kârı yemiş.<span class="why">Testte komisyon konuşulmuyor. Slaytın açıklaması breakout kalitesi.</span></button>
+    <button class="quiz__opt" data-correct>Profitability depended more on breakout follow-through than on win rate alone.<span class="why">Doğru. ASELS'teki kazananlar çok uzağa gitti; AKBNK'de breakout'lar çabuk başarısız oldu.</span></button>
+    <button class="quiz__opt">ASELS'in win rate'i daha yüksek.<span class="why">Tersine, AKBNK'nin win rate'i biraz daha yüksek. Win rate bu farkı açıklamıyor.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="dual-phase" data-min="5">
+  <h2>Dual-Phase Reversal: alt zone'dan al, üst zone'da çık</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · How It Works (s.36)</span>
+    <p><em>A reversal-based system that buys from lower pivot zones and exits into upper pivot zones.</em></p>
+    <ol>
+      <li><strong>Identify the pivot structure:</strong> strateji yakın price action'dan lower, middle ve upper pivot zone'ları kurar.</li>
+      <li><strong>Wait for a bullish reversal:</strong> price lower zone'dan sekip reversal'ı onaylayınca bir long trade çıkar.</li>
+      <li><strong>Enter near the lower phase:</strong> amaç, aşağı baskı zayıflayıp price yukarı döndüğünde almak.</li>
+      <li><strong>Manage risk with the lower band:</strong> rebound başarısız olursa lower zone risk sınırını ya da stop bölgesini belirler.</li>
+      <li><strong>Exit near the upper phase:</strong> trade bir sell signal, upper-zone reaction ya da failed continuation ile kapanır.</li>
+    </ol>
+    <p>Grafik "Example: EREGL (Illustrative)": green zone = lower pivot / buy area, blue line = middle pivot, red zone = upper pivot / sell area, green marker = buy, purple marker = sell / reversal. <strong>Core idea:</strong> buy structured rebounds from lower zones and take profits as price reaches the upper phase.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Backtest Results Across 6 BIST Stocks (s.37)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Stock</th><th>Net Profit</th><th>Total</th><th>Winning</th><th>Losing</th><th>Win Rate</th></tr>
+      <tr><td>EREGL</td><td>+34k TL</td><td>4</td><td>3</td><td>1</td><td>75.0%</td></tr>
+      <tr><td>TCELL</td><td>+17k TL</td><td>4</td><td>2</td><td>2</td><td>50.0%</td></tr>
+      <tr><td>TUPRS</td><td>+76k TL</td><td>5</td><td>5</td><td>0</td><td>100%</td></tr>
+      <tr><td>AKBNK</td><td>+68k TL</td><td>7</td><td>4</td><td>3</td><td>57.1%</td></tr>
+      <tr><td>ASELS</td><td>+88k TL</td><td>4</td><td>3</td><td>1</td><td>75.0%</td></tr>
+      <tr><td>FROTO</td><td>−23k TL</td><td>6</td><td>2</td><td>4</td><td>33.3%</td></tr>
+    </table></div>
+    <p>Key Insights: profitable EREGL, TCELL, TUPRS, AKBNK, ASELS; only losing stock FROTO; best profit ASELS (+88k); best win rate TUPRS (5 of 5). <strong>Takeaway:</strong> the strategy was profitable on 5 of 6 stocks, but performance still depended on stock-specific reversal quality.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Why Results Differ (s.38) ve How to Improve (s.39)</span>
+    <div class="table-wrap"><table>
+      <tr><th>A) Strong reversal-friendly: TUPRS, ASELS, AKBNK, EREGL</th><th>B) Mixed / difficult: TCELL, FROTO</th></tr>
+      <tr><td>Price lower pivot zone'lardan çoğu zaman temiz seker.</td><td>Bazı reversal'lar çalışır ama follow-through daha az tutarlı.</td></tr>
+      <tr><td>Kazanan trade'ler kayıpları aşacak kadar uzağa gidebilir.</td><td>FROTO'da daha çok failed rebound ve daha zayıf devam var.</td></tr>
+      <tr><td>Az sayıda trade bile güçlü kâr getirebilir.</td><td>Daha fazla trade aktivitesi daha iyi performansı garanti etmez.</td></tr>
+    </table></div>
+    <p>Core idea: <em>this strategy works best when lower-zone reversals lead to real upside follow-through.</em></p>
+    <p><strong>İyileştirmeler:</strong> 1. Add a trend filter (broader trend destekliyorken long reversal'ları tercih et). 2. Wait for cleaner confirmation (lower zone'a her değdiğinde alma; görünür bir bounce iste). 3. Focus on stronger stocks (TUPRS, ASELS, AKBNK, EREGL daha iyi davrandı). 4. Cut failed rebounds faster (price lower phase'i tutamazsa erken çık). 5. Keep good rebounds open (güçlü hareketler upper pivot zone'a doğru devam etsin). 6. Separate stock types (FROTO gibi zayıf ya da gürültülü hisselerde daha sıkı kurallar).</p>
+    <p>Çizim: <em>Good reversal</em> lower pivot zone'da (reversal area) döner, clean bounce and continuation ile upper pivot zone'a (take profit area) ulaşır. <em>Weak reversal</em> lower zone'u test eder ama başarısız olur (tested but failed): weak bounce and renewed decline, upper zone'a hiç ulaşılmaz (unreached). Final takeaway: the strategy improves when it becomes more selective, protects weak rebounds, and stays with high-quality moves.</p>
+  </div>
+  <!-- Kaynak: week-03 s.36–39 (görsel, render edilerek okundu). Win rate'ler python ile hesaplandı. -->
+  <div class="box box--exam" data-exam="w03-p39-control-question">
+    <span class="box__label">Hafta 3 slayt s.39 · Control Question</span>
+    <p>"Is the edge coming from true reversal quality, or from only a few large winners?" Discuss it with the Dual-Phase results.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her hissede kaç trade var? 4–7 trade'lik bir örneklemde tek bir büyük kazanç sonucu ne kadar değiştirir?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"True reversal quality" ise ne beklersin: birçok hissede tutarlı, temiz bounce'lar. "A few large winners" ise: sonucun birkaç trade'e bağlı olması.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>Evidence for reversal quality: the strategy is profitable on 5 of 6 stocks, and the win rates are fairly high (TUPRS 5/5, EREGL 3/4, ASELS 3/4, AKBNK 4/7). On TUPRS, ASELS, AKBNK and EREGL price often rebounds cleanly from the lower pivot zones.</li>
+        <li>Evidence for caution: each stock has only 4 to 7 trades (30 in total). With so few trades, one or two large winners can decide the net profit, so a 100% win rate on 5 trades is weak statistical evidence.</li>
+        <li>FROTO (2 wins, 4 losses, −23k) shows that when rebounds fail, the same rules lose money, so the result depends on stock-specific reversal quality.</li>
+        <li>Conclusion: the results are consistent with real reversal quality on the stronger stocks, but the sample is too small to rule out that a few large winners drive them. Test on more stocks and another period, and look at the profit without the largest trade.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: week-03 s.39 Control Question, s.37 tablo, s.38. Toplam 30 trade (4+4+5+7+4+6) python ile toplandı. "En büyük trade olmadan kâra bak" önerisi bizim. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>TUPRS'ta %100 win rate 5 trade'den geliyor. Küçük örneklemde yüksek win rate güçlü bir kanıt değil.</li>
+      <li>TCELL diğer üç stratejide zarar ederken (Volume Bubbles −18k, Liquidity Swings −9k, S/R −30k) burada +17k. Trend arayan stratejilerin sevmediği yatay hisse, reversal mantığına daha uygun olabilir (s.3).</li>
+      <li>Reversal stratejisi her düşüşte almaz. Lower zone'a değmek yetmez, görünür bir bounce ile onay gerekir. Güçlü bir düşüşte erken almak "failed rebound" üretir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-dp-1">
+    <p class="quiz__q">Dual-Phase Reversal'da trade nerede açılır ve nerede kapanır?</p>
+    <button class="quiz__opt">Upper zone'un kırılmasında açılır, lower zone'a düşünce kapanır.<span class="why">Bu bir breakout stratejisinin mantığı. Dual-Phase reversal stratejisi: aşağıdan alır.</span></button>
+    <button class="quiz__opt" data-correct>Lower pivot zone'dan onaylı rebound'da açılır, upper phase yakınında (sell signal, upper-zone reaction ya da failed continuation) kapanır.<span class="why">Doğru. "Buy structured rebounds from lower zones and take profits as price reaches the upper phase."</span></button>
+    <button class="quiz__opt">Middle pivot'a her değdiğinde açılır, trailing stop ile kapanır.<span class="why">Middle pivot (mavi çizgi) yapının parçası ama entry lower zone yakınında.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="compare" data-min="7">
+  <h2>Tek çerçeve, dört sonuç: aynı strateji neden farklı çalışır?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Dört tablonun hepsi aynı altı hisse ve aynı dönem için. Yan yana koyunca iki şey görünür: bir stratejinin sonucu hisseye göre değişir, bir hissenin sonucu da stratejiye göre değişir. Hisseye kalıcı bir "iyi" ya da "kötü" etiketi yapıştırmak yerine, <strong>o dönemdeki davranışının stratejinin aradığı davranışla eşleşip eşleşmediğine</strong> bakmak gerekir.</p>
+  </div>
+  <p>Aşağıdaki tabloda dört strateji slaytlardan, Efe'nin quiz stratejisi notebook'undan geliyor. Buy &amp; hold ve trending bar oranı bu sayfada CSV close'larından canlı hesaplanıyor (buy &amp; hold: 2025'in ilk açılışında 100,000 TL ile alıp 1 October 2026 kapanışında tutmak; trending: ER(40) &gt; 0.15 olan bar'ların payı).</p>
+  <div class="w-four-strategies-lab" id="fs-heat">
+    <p class="w-four-strategies-guess"><b>Önce tahmin et:</b> Hangi hisse dört stratejinin hepsinde kâr etti? Hangisi yalnızca birinde? Sonra "Kârlı strateji" sütununa göre sırala.</p>
+    <div class="w-four-strategies-row">
+      <label for="fs-heat-metric">Gösterilen <select id="fs-heat-metric"><option value="net">Net profit (k TL)</option><option value="wr">Win rate (%)</option><option value="n">Total trades</option></select></label>
+      <label for="fs-heat-group">Slaytın gruplaması <select id="fs-heat-group"><option value="">yok</option><option value="VB">Volume Bubbles (s.9)</option><option value="LS">Liquidity Swings (s.30–31)</option><option value="SR">S/R Channels (s.34)</option><option value="DP">Dual-Phase (s.38)</option></select></label>
+    </div>
+    <div class="table-wrap" data-table></div>
+    <p class="src" data-note></p>
+  </div>
+  <!-- Kaynak: week-03 s.26, s.28, s.33, s.37 tablolar; s.9, s.30–31, s.34, s.38 gruplamalar · Efe'nin notebook'u hücre 13 (METRICS) · CSV'ler: data/*.csv, Close ve Open sütunları. Buy & hold yüzdeleri notebook hücre 26'daki "Buy&Hold (%)" ile aynı: 3.21, 407.20, 171.77, 4.83, −19.82, 49.47. -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · Final Analysis'te tartışılacak yedi faktör (quiz brief)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Faktör</th><th>Ne soruyor</th><th>Bu derste kanıt</th></tr>
+      <tr><td>Trending vs. sideways markets</td><td>Hisse o dönemde tek yöne mi gitti, yatay mı kaldı?</td><td>Trending bar oranı: ASELS %62, TCELL %30. s.9, s.23, s.34.</td></tr>
+      <tr><td>Volatility</td><td>Günlük salınım ne kadar büyük? Stop ne kadar uzakta?</td><td>s.25: "Trailing stop may activate too early in volatile stocks."</td></tr>
+      <tr><td>False breakouts</td><td>Kırılımlar devam etti mi, geri mi döndü?</td><td>S/R'de AKBNK, TCELL, FROTO; Liquidity Swings'te TCELL.</td></tr>
+      <tr><td>Momentum strength</td><td>Hareket ne kadar uzağa gitti?</td><td>ASELS dört stratejinin hepsinde en büyük kâr.</td></tr>
+      <tr><td>Reversal behavior</td><td>Dipten dönüşler temiz mi, başarısız mı?</td><td>Dual-Phase: TUPRS 5/5, FROTO failed rebounds.</td></tr>
+      <tr><td>Volume characteristics</td><td>Sinyaller güçlü katılımla mı geldi?</td><td>Volume Bubbles'ın tamamı; S/R iyileştirmesi "volume confirmation".</td></tr>
+      <tr><td>Stop-loss frequency</td><td>Trade'lerin ne kadarı stop-loss ile kapandı?</td><td>Slaytlarda yalnızca losing-trade frequency var: Volume Bubbles TCELL 13/17, FROTO 17/20 kaybeden trade. Kaybeden her trade stop ile kapanmaz (exit satırı: stop, trailing stop, target, time rule). Stop-loss frequency için exit-reason log'u gerekir; Efe'nin notebook'unda var.</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--exam" data-exam="w03-p5-framework">
+    <span class="box__label">Hafta 3 slayt s.5 · A Common Framework for All Strategies</span>
+    <p>"Use the same eight questions to explain every algorithmic trading system: Input Data · Signal Detection · Filters · Entry · Initial Stop · Trade Management · Exit · Performance. … Instead of asking 'Is this strategy good or bad?', ask: • What behavior does it detect? • What market regime does it prefer? • How does it control risk? • Do results come from entries or exits?"</p>
+    <p>Slayt çerçeveyi yalnızca Volume Bubbles için dolduruyor (Bölüm 3'teki tablo). Aynı sekiz satırı Support &amp; Resistance Channels ve Dual-Phase Reversal için doldur, sonra dört soruyu iki strateji için cevapla.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>s.32 ve s.36'daki "How It Works" beş adımı satır 1–7'ye dağılır. Satır 8 s.33 ve s.37'deki tablolardan gelir. Slayt bir satırı açıkça doldurmuyorsa bunu söyle.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Dört soru için s.34 ve s.38'deki A/B hisse gruplarını ve iki Control Question'ı (s.35, s.39) kullan.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Satır</th><th>S/R Channels (s.32–33)</th><th>Dual-Phase Reversal (s.36–37)</th></tr>
+        <tr><td>1 Input Data</td><td>Price data: recent swing highs and swing lows</td><td>Price data: recent price action, turned into lower, middle and upper pivot zones</td></tr>
+        <tr><td>2 Signal Detection</td><td>Price breaks above the resistance channel</td><td>Price rebounds from the lower pivot zone and confirms the reversal</td></tr>
+        <tr><td>3 Filters</td><td>Slaytta ayrı bir filtre yok. s.35'in önerileri buraya yazılır: SMA200 trend filter, clear close above resistance, volume confirmation</td><td>Slaytta reversal confirmation dışında filtre yok. s.39'un önerileri: trend filter, visible bounce</td></tr>
+        <tr><td>4 Entry</td><td>Long on the resistance breakout</td><td>Long near the lower phase, when downside pressure weakens and price turns up</td></tr>
+        <tr><td>5 Initial Stop</td><td>Support zone / channel floor</td><td>Lower band / lower zone</td></tr>
+        <tr><td>6 Trade Management</td><td>Hold while price stays above the breakout area; optional Chandelier stop</td><td>Keep good rebounds open toward the upper zone (s.39 önerisi: cut failed rebounds faster)</td></tr>
+        <tr><td>7 Exit</td><td>Reverse breakdown, stop hit or time-based exit</td><td>Sell signal, upper-zone reaction or failed continuation</td></tr>
+        <tr><td>8 Performance</td><td>3 of 6 stocks profitable (ASELS +158k, TUPRS +44k, EREGL +35k); 123 trades; win rate 28.6–50.0%</td><td>5 of 6 profitable (only FROTO −23k); 30 trades, 4–7 per stock; TUPRS 5/5</td></tr>
+      </table></div>
+      <p><strong>The four questions.</strong></p>
+      <ul>
+        <li><em>Behavior:</em> S/R Channels detects a breakout of a key zone that continues. Dual-Phase detects exhaustion: a fall that loses strength and turns up from a lower zone.</li>
+        <li><em>Regime:</em> S/R Channels needs breakouts that turn into trends (ASELS, TUPRS, EREGL) and suffers in sideways, failed-breakout stocks (AKBNK, TCELL, FROTO). Dual-Phase needs clean rebounds with follow-through (TUPRS, ASELS, AKBNK, EREGL) and suffers where rebounds fail (FROTO).</li>
+        <li><em>Risk:</em> S/R uses the support zone as the stop and exits on a reverse breakdown. Dual-Phase uses the lower zone as the risk boundary and exits when the rebound fails.</li>
+        <li><em>Entries or exits:</em> S/R win rates are low and similar in winners and losers (28.6–50.0%), so profit depended on how far winners travelled after the breakout (s.33: "Profitability depended more on breakout follow-through than on win rate alone"). These totals do not show whether that follow-through comes from entry quality or from the exits; a control test is needed. Dual-Phase has only 4–7 trades per stock, so a few large winners can decide the result. Bu iki cevabın ayrıntısı s.35 ve s.39'un kutularında (Bölüm 9 ve 10).</li>
+      </ul>
+    </div></details>
+    <!-- Kaynak: week-03 s.5 (sekiz soru ve dört soru), s.32 (S/R How It Works), s.33 (tablo), s.34, s.35, s.36 (Dual-Phase How It Works), s.37 (tablo), s.38, s.39. Toplamlar python ile kontrol edildi: S/R 123 trade, 45 kazanan, 3 kârlı hisse, win rate 28.6–50.0; Dual-Phase 30 trade, 19 kazanan, 5 kârlı hisse, 4–7 trade. Filters satırındaki "slaytta yok" notu ve satır eşlemesi bizim. -->
+  </div>
+  <div class="box box--exam" data-exam="2026-27-quiz-final-analysis">
+    <span class="box__label">Quiz 2026-27 (BIST Algorithmic Trading Challenge) · Final Analysis Question · çıkmış soru</span>
+    <p>"Explain why the same strategy performed differently across the six stocks. Discuss factors such as trending vs. sideways markets, volatility, false breakouts, momentum strength, reversal behavior, volume characteristics, and stop-loss frequency."</p>
+    <p>Burada Volume Bubbles için cevaplıyoruz, çünkü quiz'in benchmark'ı onun sonuçları. Efe'nin kendi stratejisi için yazdığı cevap notebook'unun 10. bölümünde.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce hisseleri iki gruba ayır (s.9): trend-friendly ve sideways / mean-reverting. Her grup için bir rakamsal kanıt yaz (net profit, win rate, kaybeden trade sayısı).</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sonra yedi faktörü tek tek bu iki gruba bağla. Her faktör için "bu stratejinin hangi kuralı bu yüzden farklı sonuç verdi?" sorusunu cevapla: entry (cluster), exit (stop, trailing stop).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Model answer (Volume Bubbles, 1 Jan 2025 – 28 Sep 2026):</strong></p>
+      <ol>
+        <li><strong>Same rules, different market structure.</strong> Volume Bubbles is a momentum strategy: it buys an unusually strong buyer cluster and rides the move with a trailing stop. It only works when strong pressure is followed by trend continuation.</li>
+        <li><strong>Trending vs. sideways.</strong> ASELS, AKBNK and TUPRS trended for much of the period (ER(40) &gt; 0.15 on 62%, 56% and 58% of bars). Their clusters were followed by sustained moves, win rates were about 50% or higher, and net profit was +239k, +84k and +72k TL. TCELL was the most sideways stock (trending on only 30% of bars): clusters reversed quickly and it lost 18k TL.</li>
+        <li><strong>Momentum strength.</strong> The size of the winners decides the result. ASELS's strong momentum produced the largest profit with 8 wins out of 13.</li>
+        <li><strong>Stop-loss frequency.</strong> The results table reports losing-trade frequency, not exit reasons: TCELL lost 13 of 17 trades, FROTO 17 of 20, EREGL 12 of 17. A losing trade need not have closed through the stop, so the true stop-loss frequency needs the exit-reason log. The slides' reading is that in sideways names the strategy enters and is stopped out repeatedly.</li>
+        <li><strong>Positive skew.</strong> A low win rate can still be profitable if losses are small and winners large. FROTO won only 3 of 20 (15%) and still finished +3k, so its average winner was more than 17/3 ≈ 5.7 times its average loser. EREGL made +39k with a 29.4% win rate.</li>
+        <li><strong>False breakouts and reversals.</strong> In TCELL, FROTO and EREGL, buyer clusters appeared but price reversed quickly, which is the same failure the S/R strategy shows as failed breakouts.</li>
+        <li><strong>Volume characteristics.</strong> High delta is relative to each stock's own history, so a cluster is a stock-specific event. In some stocks big clusters lead to follow-through, in others they mark short-lived spikes. Requiring both volume and delta to be abnormal is one suggested improvement.</li>
+        <li><strong>Volatility.</strong> In volatile stocks the trailing stop may activate too early (+1R comes quickly) and cut good trades; testing +1R vs +1.5R vs +2R addresses this.</li>
+        <li><strong>Conclusion.</strong> The difference comes from the match between the strategy's behaviour (momentum after a volume event) and each stock's behaviour in this period, not from the strategy being "good" or "bad". The same settings should be tested across many stocks, not optimised for one.</li>
+      </ol>
+      <p>Efe'nin cevabı da aynı iskeleti kuruyor: trending ve sideways (ER filtresi), momentum strength, reversal behaviour (AKBNK'de 5 RSI reversal), false breakouts (TCELL'in 5 entry'sinden 4'ü breakout), volatility (ATR/price), volume, stop frequency (31 trade'in 30'u stop ile kapandı) ve limitations (parametreler aynı dönemde grid search ile seçildi).</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/assignments/2026-2027-fall-efe-kurucay/bist-algo-trading-challenge/bist_algo_trading_challenge.ipynb" target="_blank" rel="noopener">Efe'nin notebook'u (Final analysis, 10. bölüm)</a></p>
+    <!-- Kaynak: quiz-bist-algo-trading-challenge.pdf s.2 Final Analysis Question (dosya origin/main'de yok, link verilmedi) · week-03 s.9, s.23, s.25–27 · trending yüzdeleri: notebook hücre 26 ve bu sayfanın ER hesabı. Cevap anahtarı yok; notebook hücre 27 Efe'nin kendi cevabı, notu bilinmiyor. -->
+  </div>
+  <h3>Kendini dene: sekiz satırı doldur</h3>
+  <p>Bir strateji seç ve s.5'teki sekiz satırı slaytlara göre doldur. Slaytın bir satır hakkında bir şey söylemediği yerde doğru cevap "Slayt belirtmiyor".</p>
+  <div class="w-four-strategies-lab" id="fs-card">
+    <p class="w-four-strategies-guess"><b>Önce tahmin et:</b> Dört stratejiden hangisinin Filters satırı slaytta dolu? Kartları doldurmadan önce bir tahmin yap.</p>
+    <div class="w-four-strategies-row" role="group" aria-label="Strateji seç">
+      <button class="btn btn--sm" data-s="VB">Volume Bubbles</button>
+      <button class="btn btn--sm" data-s="LS">Liquidity Swings</button>
+      <button class="btn btn--sm" data-s="SR">S/R Channels</button>
+      <button class="btn btn--sm" data-s="DP">Dual-Phase</button>
+    </div>
+    <div data-cardhost></div>
+    <div class="w-four-strategies-row"><button class="btn btn--sm btn--accent" data-check>Kontrol et</button><span class="src" data-cardscore aria-live="polite"></span></div>
+  </div>
+  <!-- Kaynak: kart cevapları week-03 s.5, s.6, s.8, s.9, s.26 (VB); s.28–29 (LS); s.32–33 (SR); s.36–37 (DP). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Net profit tek başına bir stratejiyi değerlendirmez. Dual-Phase 5/6 hissede kârlı ama hisse başına 4–7 trade'le; Volume Bubbles 13–20 trade'le.</li>
+      <li>Toplamları karşılaştırırken dikkat: Volume Bubbles'ın altı hisse toplamı +419k, Liquidity Swings +282.2k, Dual-Phase +260k, S/R +178k. Bu sıra, her hissede aynı sırayı vermez (TCELL'de en iyisi Dual-Phase).</li>
+      <li>Buy &amp; hold ile karşılaştır: ASELS'te buy &amp; hold yaklaşık +407k; hiçbir strateji onu geçmiyor. Strateji kâr ettiği hâlde buy &amp; hold'un gerisinde kalabilir. FROTO'da buy &amp; hold −20k, Volume Bubbles +3k.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-compare-1">
+    <p class="quiz__q">TCELL Volume Bubbles, Liquidity Swings ve S/R Channels'ta zarar ederken Dual-Phase'te +17k kazanıyor. En iyi açıklama hangisi?</p>
+    <button class="quiz__opt">Dual-Phase daha iyi bir strateji.<span class="why">Dual-Phase FROTO'da −23k kaybediyor. "Which strategy is always best?" yanlış soru.</span></button>
+    <button class="quiz__opt" data-correct>TCELL bu dönemde yataydı (bar'ların yalnızca %30'u trending); trend ve breakout arayan stratejiler stop-out oldu, reversal mantığı yatay yapıya daha uygundu.<span class="why">Doğru. s.3: sideways market'te mean-reversion / reversal mantığı daha iyi olabilir.</span></button>
+    <button class="quiz__opt">Dual-Phase'te TCELL'de daha çok trade yapıldı.<span class="why">Dual-Phase'te TCELL'de yalnızca 4 trade var; diğerlerinde 4, 17, 28. Trade sayısı açıklamıyor.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="5">
+  <h2>Son kontrol</h2>
+  <p>Önce kâğıda cevabını yaz, sonra seç.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Bir candle'da Buy = 2,100,000, Sell = 1,300,000 lot, candle pozitif kapanmış ve |delta| geçmişin 90th percentile cutoff'unu aşmış ama 97th'i aşmamış. Bubble?</p>
+    <button class="quiz__opt">Big green bubble<span class="why">Big için 97th percentile cutoff'u aşmak gerekir. Burada yalnızca 90th aşılmış.</span></button>
+    <button class="quiz__opt" data-correct>Medium green bubble (buyer cluster), delta +800,000<span class="why">Doğru. Delta pozitif ve kapanış pozitif: green. 90th aşıldı, 97th aşılmadı: Medium.</span></button>
+    <button class="quiz__opt">Medium yellow bubble<span class="why">Yellow, kapanış yönüyle delta işareti çelişince ya da sınıflama belirsizken çıkar. Burada ikisi de pozitif.</span></button>
+    <button class="quiz__opt">Bubble yok, çünkü delta 3,400,000'ın altında<span class="why">3,400,000 toplam volume. Bubble boyu geçmiş percentile cutoff'larına göre belirlenir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Hangi eşleştirme doğru?</p>
+    <button class="quiz__opt">Liquidity Swings → reversal; Dual-Phase → breakout<span class="why">Tersi. Liquidity Swings Swing High'ın üstünde kapanışla (breakout) girer; Dual-Phase lower zone'dan dönüşle (reversal).</span></button>
+    <button class="quiz__opt" data-correct>Volume Bubbles → volume event + momentum; S/R Channels → breakout; Dual-Phase → reversal<span class="why">Doğru. s.4'teki soruların ve her stratejinin "Core idea"sının özeti.</span></button>
+    <button class="quiz__opt">Dördü de mean-reversion stratejisi<span class="why">Sadece Dual-Phase dönüş mantığına yakın. Diğer üçü trend continuation ister.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">"Profitability depended more on breakout follow-through than on win rate alone." Bu cümle hangi stratejinin sonuç slaytında?</p>
+    <button class="quiz__opt">Volume Bubbles<span class="why">Volume Bubbles'ın key observation'ı benzer ama farklı: "A high win rate is not required for profitability."</span></button>
+    <button class="quiz__opt" data-correct>Support &amp; Resistance Channels<span class="why">Doğru. s.33'ün Takeaway'i. AKBNK %44.4 ile zarar, ASELS %41.7 ile +158k.</span></button>
+    <button class="quiz__opt">Dual-Phase Reversal<span class="why">Dual-Phase'in takeaway'i "reversal quality" üzerine: "profitable on 5 of 6 stocks, but performance still depended on stock-specific reversal quality."</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Bir öğrenci trailing stop'unu ASELS'te en iyi sonucu verecek şekilde ayarlayıp altı hisseye uyguluyor. Slayttaki hangi uyarıyı çiğniyor?</p>
+    <button class="quiz__opt" data-correct>"Do not optimize only for one stock. Test the same settings across many stocks."<span class="why">Doğru. Tek hisseye göre seçilen ayar o hissenin geçmişine uyar, diğerlerinde ve gelecekte tutmayabilir.</span></button>
+    <button class="quiz__opt">"The strategy should not enter every green candle."<span class="why">Bu uyarı entry ile ilgili; burada sorun parametrenin tek hisseye göre seçilmesi.</span></button>
+    <button class="quiz__opt">"Positive delta does not guarantee price will rise."<span class="why">Bu delta yorumuyla ilgili; parametre seçimini konu etmiyor.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Bir stratejide 20 trade'in 4'ü kazanıyor. Net sıfır olsun diye ortalama kazanç ortalama kaybın kaç katı olmalı?</p>
+    <button class="quiz__opt">5 katı<span class="why">Bu 20/4, yani toplam trade'in kazanana oranı. Kazananları kaybedenlerle karşılaştırmalısın: 16 kaybeden, 4 kazanan.</span></button>
+    <button class="quiz__opt" data-correct>4 katı<span class="why">Doğru. $4\bar W - 16\bar L = 0 \Rightarrow \bar W = 4\bar L$. Break-even win rate $= 1/(1+4) = 20\%$, yani bu stratejinin win rate'inin tam kendisi.</span></button>
+    <button class="quiz__opt">16 katı<span class="why">16 kaybeden trade'in sayısı. Her kazanç 4 kaybı karşılamalı, 16'yı değil, çünkü 4 kazanan var.</span></button>
+    <button class="quiz__opt">0.25 katı<span class="why">Bu 4/16, yani oranın tersi. Ortalama kazanç ortalama kayıptan küçükse %20 win rate ile kesin zarar edersin.</span></button>
+  </div>
+  <!-- Sıradaki konu: Pandas ile time series. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+/* Fresh stepper host so an old play timer never writes into the new one */
+function freshHost(box) { box.innerHTML = ""; const d = document.createElement("div"); box.appendChild(d); return d; }
+const escH = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (x, d = 2) => (Math.round(x * 10 ** d) / 10 ** d).toFixed(d);
+const sgn = x => (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toLocaleString("en-US");
+
+/* numpy.percentile with the default linear interpolation */
+function pctl(arr, q) {
+  const s = [...arr].sort((a, b) => a - b), n = s.length, h = (n - 1) * q / 100, lo = Math.floor(h), hi = Math.min(lo + 1, n - 1);
+  return s[lo] + (h - lo) * (s[hi] - s[lo]);
+}
+/* Parse a typed list of numbers; returns { a } or { err } with a Turkish message */
+function parseNums(text, name, min, max) {
+  const t = text.replace(/−/g, "-").trim();
+  if (!t) return { err: `${name} boş. Sayıları boşluk ya da virgülle ayırarak yaz, örneğin 5 8 -3 12.` };
+  const parts = t.split(/[\s,;]+/).filter(Boolean);
+  for (const p of parts) if (!/^[+-]?\d+(\.\d+)?$/.test(p)) return { err: `${name}: "${p}" bir sayı değil. Ondalık için nokta kullan, sayıları boşluk ya da virgülle ayır.` };
+  const a = parts.map(Number);
+  if (a.length < min) return { err: `${name}: en az ${min} değer gerekli, sen ${a.length} tane yazdın.` };
+  if (a.length > max) return { err: `${name}: en fazla ${max} değer olabilir, sen ${a.length} tane yazdın.` };
+  if (a.some(v => Math.abs(v) > 1e12)) return { err: `${name}: değerler çok büyük. 10^12'den küçük sayılar yaz.` };
+  return { a };
+}
+
+/* ── Delta → bubble lab (section vb-cluster) ── */
+(function () {
+  const root = document.getElementById("fs-delta");
+  const hist = document.getElementById("fs-delta-hist"), today = document.getElementById("fs-delta-today");
+  const candle = document.getElementById("fs-delta-candle"), minSel = document.getElementById("fs-delta-min"), ctx = document.getElementById("fs-delta-ctx");
+  const gSize = document.getElementById("fs-delta-gsize"), gCol = document.getElementById("fs-delta-gcol");
+  const err = document.getElementById("fs-delta-err"), box = document.getElementById("fs-delta-stepper");
+  const SIZE = ["bubble yok", "Small", "Medium", "Big"], QS = [76, 90, 97];
+  const COL = { green: "#2f9e44", red: "#e03131", yellow: "#f2c200" };
+  /* Seeded generator so the 100-value preset is the same on every visit */
+  function longHistory() {
+    let s = 20261029; const rnd = () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648);
+    return Array.from({ length: 100 }, () => Math.round((rnd() + rnd() + rnd() - 1.5) * 40));
+  }
+  const PRESETS = [
+    ["5 8 -3 12 7 9", "60", "up"],
+    ["5 8 -3 12 7 9", "11", "up"],
+    ["8 12 5 -7 10", "95", "up"],
+    ["5 8 -3 12 7 9", "-70", "down"],
+    ["5 8 -3 12 7 9", "60", "down"],
+    [longHistory().join(" "), "35", "up"]
+  ];
+  function analyse(h, d, up) {
+    const ab = h.map(Math.abs), cuts = QS.map(q => pctl(ab, q)), a = Math.abs(d);
+    const size = a > cuts[2] ? 3 : a > cuts[1] ? 2 : a > cuts[0] ? 1 : 0;
+    const below = ab.filter(x => x < a).length, rank = 100 * below / ab.length;
+    let col = "none";
+    if (size > 0) col = d > 0 && up ? "green" : d < 0 && !up ? "red" : "yellow";
+    return { ab, cuts, a, size, rank, below, col };
+  }
+  function bubble(col, size) {
+    if (col === "none") return `<span class="src">bubble yok</span>`;
+    const px = [0, 34, 48, 64][size];
+    return `<span class="w-four-strategies-bubble" style="width:${px}px;height:${px}px;background:${COL[col]}" aria-label="${col} ${SIZE[size]}">${SIZE[size][0]}</span>`;
+  }
+  function build() {
+    const r = parseNums(hist.value, "Geçmiş delta'lar", 3, 200);
+    if (r.err) { err.textContent = r.err; return; }
+    const t = parseNums(today.value, "Bugünkü delta", 1, 1);
+    if (t.err) { err.textContent = t.err; return; }
+    err.textContent = "";
+    const d = t.a[0], up = candle.value === "up", A = analyse(r.a, d, up), need = +minSel.value, ctxOk = ctx.checked;
+    const sorted = [...A.ab].sort((x, y) => x - y), show = sorted.length <= 24;
+    const frames = [];
+    frames.push({ k: "sort", caption: `<b>1. Geçmişi sırala.</b> ${r.a.length} değerin mutlak değeri (|delta|) küçükten büyüğe dizildi. Boy için işaret değil büyüklük önemli.` + (show ? "" : ` Değer çok olduğu için yalnızca en küçük ve en büyük 6 değer gösteriliyor.`) });
+    frames.push({ k: "cuts", caption: `<b>2. Cutoff'ları hesapla.</b> 76th, 90th ve 97th percentile: $${fmt(A.cuts[0])}$, $${fmt(A.cuts[1])}$, $${fmt(A.cuts[2])}$.` + (r.a.length < 20 ? " Geçmiş kısa olduğu için üç cutoff da en büyük değerlere yakın." : "") });
+    frames.push({ k: "cmp", caption: `<b>3. Bugünü karşılaştır.</b> $|${d}| = ${A.a}$. Geçmişteki değerlerin ${A.below}/${A.ab.length}'i (yaklaşık %${fmt(A.rank, 0)}) bundan küçük. ` + (A.size ? `En yüksek aşılan cutoff ${QS[A.size - 1]}th: <b>${SIZE[A.size]} cluster</b>.` : "Hiçbir cutoff aşılmadı: normal bir candle, cluster yok.") });
+    const why = A.col === "green" ? "Kapanış pozitif, delta pozitif, threshold aşıldı: <b>buyer cluster</b>." :
+      A.col === "red" ? "Kapanış negatif, delta negatif, threshold aşıldı: <b>seller cluster</b>." :
+      A.col === "yellow" ? "Aktivite yüksek ama kapanış yönü ile delta işareti uyuşmuyor: <b>mixed / unclear</b>." : "Threshold aşılmadığı için renk verilmez.";
+    frames.push({ k: "col", caption: `<b>4. Renk.</b> ${why}` });
+    const steps = [
+      ["Unusual Volume / Delta?", A.size > 0, A.size > 0 ? `evet (${SIZE[A.size]})` : "hayır"],
+      ["Buyer or Seller?", A.col === "green", A.col === "green" ? "buyer" : A.col === "red" ? "seller: long açılmaz" : A.col === "yellow" ? "belirsiz" : "—"],
+      ["Large enough cluster?", A.size >= need, `en az ${SIZE[need]} gerekli`],
+      ["Context filter OK?", ctxOk, ctxOk ? "evet" : "hayır"]
+    ];
+    let stopAt = steps.findIndex(s => !s[1]);
+    const enter = stopAt === -1;
+    let res = enter ? `Bütün kutular geçildi: <b>Enter trade</b> (long).` : `<b>${steps[stopAt][0]}</b> kutusunda durdu: trade yok.`;
+    if (A.col === "red") res += " s.6'daki grafikte red bubble açık bir long için \"exit or short signal\".";
+    let g = "";
+    if (gSize.value !== "" || gCol.value !== "") {
+      const okS = gSize.value === "" ? null : +gSize.value === A.size, okC = gCol.value === "" ? null : gCol.value === A.col;
+      const part = (ok, label) => ok === null ? "" : `${label}: <span class="${ok ? "w-four-strategies-ok" : "w-four-strategies-no"}">${ok ? "tuttu" : "tutmadı"}</span>. `;
+      g = ` Tahminin: ${part(okS, "boy")}${part(okC, "renk")}`;
+    }
+    frames.push({ k: "chain", steps, stopAt, caption: `<b>5. Entry zinciri (s.18).</b> ${res}${g}` });
+    Lab.stepper(freshHost(box), {
+      title: `Delta → bubble · bugün ${d > 0 ? "+" : ""}${d}, ${up ? "pozitif" : "negatif"} kapanış`, interval: 1500, frames,
+      render(f, idx, el) {
+        const vals = show ? sorted : [...sorted.slice(0, 6), "…", ...sorted.slice(-6)];
+        const marks = {};
+        if (idx >= 2) vals.forEach((v, k) => { if (typeof v === "number") marks[k] = v < A.a ? "small" : "big"; });
+        let html = `<div class="src">Geçmiş |delta| (sıralı)</div>${Lab.arrayView(vals, { marks })}`;
+        if (idx >= 1) html += `<div class="w-four-strategies-cut">${QS.map((q, k) => `<div class="${idx >= 2 && A.a > A.cuts[k] ? "is-hit" : ""}"><span>${q}th percentile → ${SIZE[k + 1]}</span><b>${fmt(A.cuts[k])}</b></div>`).join("")}<div><span>bugün |delta|</span><b>${A.a}</b></div></div>`;
+        if (idx >= 3) html += `<div class="w-four-strategies-row">${bubble(A.col, A.size)} <span>${A.col === "none" ? "" : A.col + " · " + SIZE[A.size]}</span></div>`;
+        if (idx >= 4) html += `<div class="w-four-strategies-chain">${f.steps.map((s, k) => `<div class="${f.stopAt !== -1 && k > f.stopAt ? "is-skip" : s[1] ? "is-ok" : "is-no"}"><b>${k + 1}. ${s[0]}</b>${s[2]}</div>`).join("")}<div class="${f.stopAt === -1 ? "is-ok" : "is-skip"}"><b>5. Enter trade</b>${f.stopAt === -1 ? "long" : "—"}</div></div>`;
+        el.innerHTML = html;
+      }
+    });
+  }
+  root.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b || b.closest(".stepper")) return;
+    if (b.dataset.preset !== undefined) { const p = PRESETS[+b.dataset.preset]; hist.value = p[0]; today.value = p[1]; candle.value = p[2]; build(); }
+    else if (b.hasAttribute("data-run")) build();
+  });
+  [hist, today].forEach(x => x.addEventListener("keydown", e => { if (e.key === "Enter") build(); }));
+  [candle, minSel, ctx].forEach(x => x.addEventListener("change", build));
+  hist.value = PRESETS[0][0]; today.value = PRESETS[0][1]; build();
+})();
+
+/* ── ER stepper on the slide's sequences (section regimes) ── */
+(function () {
+  const root = document.getElementById("fs-er"), inp = document.getElementById("fs-er-in");
+  const err = document.getElementById("fs-er-err"), box = document.getElementById("fs-er-stepper");
+  const PRESETS = ["100 105 110 120", "100 105 99 104 98 103", "120 112 115 104 106 95"];
+  function build() {
+    const r = parseNums(inp.value, "Dizi", 3, 16);
+    if (r.err) { err.textContent = r.err; return; }
+    const x = r.a;
+    if (x.slice(1).every((v, k) => v === x[k])) { err.textContent = "Dizi hiç değişmiyor: path toplamı 0 olur ve ER tanımsız kalır. En az bir adımda değer değişsin."; return; }
+    err.textContent = "";
+    const frames = []; let path = 0;
+    frames.push({ k: 0, path: 0, caption: `Başlangıç $C_0 = ${x[0]}$. Henüz adım yok.` });
+    for (let k = 1; k < x.length; k++) {
+      const st = Math.abs(x[k] - x[k - 1]); path += st;
+      const net = Math.abs(x[k] - x[0]), er = path ? net / path : 0;
+      let cap = `Adım ${k}: $|${x[k]} - ${x[k - 1]}| = ${fmt(st, 2).replace(/\.00$/, "")}$, path $= ${fmt(path, 2).replace(/\.00$/, "")}$, net $= |${x[k]} - ${x[0]}| = ${fmt(net, 2).replace(/\.00$/, "")}$, $ER = ${fmt(er, 3)}$.`;
+      if (k === x.length - 1) cap += er > 0.15 ? ` <b>ER &gt; 0.15: trending</b> (${x[k] > x[0] ? "yukarı" : "aşağı"}).` : ` <b>ER ≤ 0.15: sideways.</b> Çok yol yüründü, net ilerleme az.`;
+      frames.push({ k, path, net, er, caption: cap });
+    }
+    Lab.stepper(freshHost(box), {
+      title: "Efficiency Ratio adım adım", interval: 1100, frames,
+      render(f, idx, el) {
+        const marks = {};
+        for (let k = 0; k <= f.k; k++) marks[k] = "done";
+        if (f.k > 0) marks[f.k] = "cmp";
+        const pct = f.k ? Math.round(100 * f.er) : 0;
+        el.innerHTML = Lab.arrayView(x, { marks, pointers: f.k ? { t: f.k } : {} }) +
+          `<div class="w-four-strategies-cut"><div><span>path (Σ|adım|)</span><b>${fmt(f.path, 2).replace(/\.00$/, "")}</b></div><div><span>net |C_t − C_0|</span><b>${f.k ? fmt(f.net, 2).replace(/\.00$/, "") : "—"}</b></div><div><span>ER</span><b>${f.k ? fmt(f.er, 3) : "—"}</b></div></div>` +
+          `<svg viewBox="0 0 300 18" class="w-four-strategies-spark" role="img" aria-label="ER çubuğu"><rect x="0" y="4" width="300" height="10" rx="5" style="fill:var(--stone-200)"/><rect x="0" y="4" width="${3 * pct}" height="10" rx="5" style="fill:var(--blue-600)"/><line x1="45" y1="0" x2="45" y2="18" style="stroke:var(--accent);stroke-width:2"/></svg><div class="src">Turuncu çizgi: 0.15 eşiği</div>`;
+      }
+    });
+  }
+  root.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b || b.closest(".stepper")) return;
+    if (b.dataset.preset !== undefined) { inp.value = PRESETS[+b.dataset.preset]; build(); }
+    else if (b.hasAttribute("data-run")) build();
+  });
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") build(); });
+  inp.value = PRESETS[0]; build();
+})();
+
+/* Daily closes of the six quiz stocks (Yahoo Finance, 2024-01-02 … 2026-10-01), from the quiz notebook's data/*.csv.
+   d0: first date as days after 2024-01-01; dd: day gaps; c: Close; o0: first Open of 2025; w0/w1: index of the first/last bar of the backtest window. */
+const FS_DATA = {"AKBNK":{"d0":1,"dd":[0,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,7,1,1,1,1,3,2,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,6,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,5,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,5,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1],"c":[36.540001,35.34,36.299999,36.779999,40.439999,39.84,40.740002,41.119999,43.259998,43.18,41.799999,42,41.02,40.919998,40.060001,38.16,40.400002,40.34,40.32,39.66,39.66,39.540001,40.080002,39.259998,40.220001,41.040001,40.439999,40.380001,40.259998,41.16,40.52,41,41.860001,41.48,41.540001,43.099998,43.5,42.34,42.900002,41.66,41.599998,40.459999,41.580002,40.299999,39.02,39.380001,38.700001,40.959999,41.84,42.799999,43.779999,41.799999,40.560001,39.720001,40.139999,42.32,42.639999,45.040001,45.82,46,44.279999,44.400002,46.779999,46.779999,47.799999,49.299999,49.240002,52.400002,55.650002,55.5,58.400002,55.849998,56.049999,58.549999,62.5,59.849998,60.299999,57.450001,59.049999,60.349998,59.450001,58.150002,60.049999,60.25,61.599998,60,59.400002,57.799999,56,57.5,57.200001,59.150002,62.900002,64.5,67.349998,66.25,66.550003,66.5,68,69.800003,66,65.699997,66.400002,66.800003,63.5,62.349998,61.150002,59.299999,59.450001,60.599998,62.200001,61.5,61.099998,63.799999,66,67.150002,65.199997,64.800003,66.849998,64.050003,61.950001,62.700001,66.25,67.25,66.75,67.699997,64.599998,64,66.699997,66.699997,68.300003,67.849998,68.199997,68.75,69.300003,69.300003,67.5,65.550003,65.650002,64.650002,62.75,61.900002,63.200001,60.200001,56.900002,55.650002,55.700001,55.849998,52.950001,54.200001,55.75,56.200001,58.349998,56.849998,60.25,59.900002,59.150002,59.549999,58.099998,58.5,59.099998,58.700001,58.299999,61.450001,60.950001,61.099998,60.599998,59.650002,58.049999,56.450001,55.299999,56.799999,56.599998,56.200001,57.849998,58.549999,61.349998,60.150002,61.25,63.849998,63.900002,63.099998,63.549999,61.599998,57.650002,52.849998,51.549999,54.349998,55.650002,56.049999,57.200001,55.75,55.549999,53.900002,54.349998,54.5,53.25,50.150002,48.459999,49.900002,49.119999,49.68,49.98,49.959999,51,50.599998,49.919998,46.959999,46.400002,47.459999,48.400002,51.200001,52.549999,53,53.900002,55.400002,54.849998,55.049999,53.549999,52.200001,56.900002,60.599998,59.599998,59.200001,59.450001,59.700001,60.849998,61,63.400002,62.75,63.450001,65.300003,66.349998,65.150002,63.900002,63.650002,63.549999,62.700001,62.700001,62.900002,61.150002,60.700001,59.299999,60.25,65.050003,65.650002,66.25,65.650002,64.849998,66.199997,66.199997,66.800003,64.75,63.599998,65.900002,64.400002,62.799999,63,63.200001,64.150002,66,67.150002,68.550003,69.599998,68.150002,66.449997,66,67.099998,66,65.5,64.849998,63.799999,65.699997,64.900002,64.449997,63.5,62.700001,63.200001,62.849998,64.050003,64.849998,64.5,65.099998,64.300003,65.599998,64.800003,64.800003,66.150002,67.5,67.800003,67.300003,73,72.150002,73.099998,73.449997,73.75,73.900002,71.900002,73.550003,74.800003,74.900002,75.099998,73.25,65.949997,59.700001,53.75,53.950001,56,53.950001,52.799999,52.25,52.849998,52.549999,52.25,52.099998,51.950001,49.779999,49.400002,49.880001,50.099998,50.349998,50.549999,51.299999,49.540001,49.779999,50.400002,53.5,51.5,49.360001,48.939999,48.5,49.5,48.580002,49.259998,49.48,49.900002,49.880001,51.900002,52.25,51.799999,50.700001,51.950001,52.549999,52.5,53.650002,51.900002,51.950001,50.950001,51.650002,52.799999,50.950001,52.049999,55.650002,56.200001,56.25,59.849998,60,59.200001,59.5,59.900002,58.599998,58.349998,57.150002,57.200001,57.900002,61.049999,60.950001,60.799999,62,68.199997,68.099998,69.150002,68.800003,69.699997,67.949997,67.699997,69.300003,70.349998,69.75,66.900002,65.449997,67.849998,67.300003,68.599998,67.599998,67.550003,68.199997,68,67.150002,67.150002,67.199997,67.5,66.550003,66.849998,66.75,66.699997,68.550003,67.900002,68.25,68.25,68.349998,66.75,67.199997,66.5,65.849998,67.199997,68.25,69.849998,69.25,70.5,69,69.5,68.25,69.199997,66.050003,60.799999,61.599998,62.450001,61.549999,62.799999,63.900002,61,62,65.449997,66.599998,67.349998,65.050003,66.650002,67.699997,66,65.550003,64.650002,61.799999,61.200001,62.700001,64.25,62.450001,59.450001,58.450001,59.099998,58.099998,57.349998,57.5,55.950001,53.5,53.599998,55.299999,54.849998,57.950001,57.599998,57.900002,58.549999,60.200001,58.799999,58.549999,59.5,60.799999,61.099998,61,61.200001,62.450001,60.900002,59.900002,58.299999,58.900002,58.700001,58.299999,58.349998,58.849998,61.349998,61.900002,61.799999,62.900002,63.400002,63.5,63.75,64.75,66.25,66.050003,66.699997,64.400002,67,68.300003,69.300003,68.650002,69,69.550003,71,71.300003,70.699997,71.150002,71.800003,72.900002,71.949997,69.849998,69.75,69.25,69.550003,69.75,69.800003,73.5,73.199997,74.400002,72.300003,72.699997,73.800003,73.5,74.5,74,73.849998,74.900002,77.300003,78.199997,79.900002,77.800003,78.849998,79.650002,79.550003,84.849998,89,92.949997,90.949997,87.949997,85.650002,84.400002,83.849998,85.449997,83.550003,83.949997,91.150002,88.699997,89.5,88.900002,90.5,87,88.349998,90.349998,91.550003,91,91.699997,90.150002,82.75,78.900002,78.449997,79.599998,74.050003,73.599998,77.099998,77.550003,75.75,72.550003,72.699997,75.800003,75.699997,73.599998,73.099998,70.300003,70.900002,67.25,66.900002,65.599998,66,68.25,69.25,68.75,70.300003,69.25,75.75,75.300003,78.400002,77.400002,78.449997,78.900002,78.099998,83.550003,81.849998,80.75,79.25,77.900002,77.699997,75.949997,73.699997,73.199997,70.650002,70.699997,74.349998,75.199997,75.25,75.849998,72.75,71.550003,72.349998,70.25,70.099998,69.099998,62.200001,63.599998,65.400002,64,64,64,64,63.700001,65.949997,64.849998,67.150002,64.5,66.900002,67.150002,66.099998,66.800003,72.599998,76.75,77.099998,78,81.099998,81.849998,82,80.5,80.949997,77.199997,77.25,77.199997,77,77.849998,77.949997,73.75,73.5,73.599998,70.650002,70.199997,68.75,67.650002,69.099998,68.599998,66.5,66.849998,66.699997,66.550003,67.050003,67.599998,66.449997,65.800003,63.299999,61.599998,63.400002,66,68.099998,67.550003,67.099998,67.400002,66.800003,66.150002,68.800003,69.050003,68.800003,68,67.650002,70.300003,69.199997,69.699997,72.099998,72,73.150002,72.849998,73.199997,71.849998,71.949997,71.5,71.550003,71.849998,73.050003,74.949997,72.949997,72.099998,72.699997,72.550003,69.550003,65.199997,71.550003,70.699997,72.449997,73.099998,72.949997,70.650002,70.900002,70.099998,69.900002,67,67.550003],"o0":65.449997,"w0":249,"w1":689},"ASELS":{"d0":1,"dd":[0,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,7,1,1,1,1,3,2,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,6,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,5,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,5,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1],"c":[46.900002,46.599998,47.459999,47.439999,47.639999,46.939999,47.48,46.880001,47.540001,47.619999,48.080002,48.299999,48.400002,47.459999,47.119999,47.259998,48.400002,48.48,49.18,51.400002,50.849998,50.599998,51.299999,51.150002,52.349998,52.299999,51.25,51.349998,52.099998,53.450001,54.950001,54.900002,55.849998,58.299999,58.5,59.549999,60.400002,62.400002,63.299999,66.5,63.25,60.900002,60,59.200001,58.549999,56.599998,54.900002,57.25,58.549999,56.599998,55.799999,55.599998,56.400002,57.650002,55.150002,56.200001,55.950001,57.900002,56.349998,55.200001,53,55.700001,55.450001,56.099998,54.900002,52.450001,52.450001,53.849998,58.450001,58.799999,58.099998,58.549999,57.700001,57.650002,58.700001,57.799999,58.299999,57.450001,59.099998,62.049999,60.75,62.099998,62.200001,62.400002,62.299999,62.400002,63.400002,63.400002,62.400002,60.849998,59.950001,60.700001,61.450001,62.200001,61.400002,61.5,60.5,59.25,60.049999,59.599998,57.549999,60.099998,58.650002,60.400002,59.200001,59,60.450001,60.650002,58.299999,57,57.599998,60.150002,59.349998,60.700001,61.5,61.75,59.900002,58.900002,59.900002,58.599998,56.25,56.950001,58.5,60.099998,60.75,63.299999,64.550003,65,64.900002,63.799999,63.25,63.5,63.150002,63,63.25,64.300003,62.799999,64.449997,64.599998,62.700001,62.75,62.5,63.299999,60.799999,56.75,56.25,58.25,59.200001,57.950001,57.049999,58.349998,57.549999,58.700001,57.75,58.849998,58.049999,56.599998,56.150002,55.099998,54.5,56.5,57.099998,58.400002,59.25,57.650002,56.799999,57.5,57.349998,56,56.450001,54.900002,55.950001,58.349998,57.349998,58.099998,57.75,58.650002,59.200001,59.299999,62.450001,61.150002,59.25,59.25,59.25,58.400002,56.200001,57.799999,61.150002,59,58.150002,58.75,56.700001,56.099998,55.349998,56,57.049999,58.25,59.349998,57.599998,58.349998,61,60.849998,60.849998,60.200001,61.5,60.849998,63.849998,63.5,65.150002,63.549999,65.349998,65.25,65.800003,66,68,68.349998,67.699997,67.449997,67.900002,66,68.050003,68.5,69,67.550003,68.400002,70.150002,69.449997,70.199997,70.199997,70.300003,71,71.199997,71.25,71,69.300003,69.199997,69.199997,67.550003,68.050003,70.75,69.900002,69.800003,72.050003,72.650002,74,74.400002,73.949997,73.199997,72.5,73.5,74.849998,75.5,77.300003,76.599998,78.199997,78.349998,78.800003,78.550003,78.300003,80.25,81.050003,82.349998,80.650002,82,84.050003,85.150002,85.849998,89.650002,88.199997,88.800003,88.699997,88.25,88.400002,86.199997,85.949997,85.699997,81.550003,81.75,78.099998,79.650002,79.300003,80.699997,84,83.800003,84.099998,82.75,83.75,81,86,90,93.449997,98.050003,101.699997,105.400002,112.199997,108.199997,110.300003,117,115.900002,116.300003,117.099998,121.699997,123.400002,112.300003,117.5,110.5,120.400002,117.5,116,117,119.900002,118.300003,117.300003,117.400002,116.699997,118.800003,117.099998,123.099998,119.199997,119.300003,116.599998,121.199997,128.5,129.899994,127.900002,131.699997,134.5,135.300003,138.600006,137.399994,135,129.800003,129.800003,137.399994,144.199997,154.600006,149.199997,140.399994,136.800003,138,137.5,138.600006,132.300003,133,137,136.199997,136.300003,137.600006,135.100006,132.199997,129.600006,129.300003,127.599998,134.699997,139.5,139.199997,141.300003,144.699997,141.5,138.899994,144.5,141.5,144.100006,146.300003,147.100006,142.600006,148.399994,140.300003,146.5,150.800003,148.399994,145.600006,149.800003,151.199997,151.300003,152.199997,149.699997,152.5,154,155.5,161.699997,161.899994,166.199997,176.800003,176.5,180.100006,182.600006,183.199997,181.300003,179.300003,180.300003,187,184.399994,188.5,185.100006,181.600006,179,180.5,178.699997,172,174.199997,170,170.399994,171.699997,172.399994,181.5,180.300003,181.5,180.199997,185.5,183.300003,183.800003,183.300003,178.5,174.199997,178.800003,182,175,173.5,173.699997,177.399994,172.100006,173.899994,185.199997,195.199997,194.100006,192.199997,204.399994,213.600006,211.199997,217.5,218.300003,217.300003,216.300003,215,218.100006,217,216.100006,215.199997,209.5,215.600006,219.199997,213.5,214,212,207.5,204,194.899994,203.899994,205.600006,207.600006,206.5,203.899994,208.800003,211.399994,205.699997,203.600006,202.600006,197.300003,194.100006,187.399994,185.100006,186.399994,181.399994,183.600006,177.800003,176,188.300003,188.199997,184.300003,184.800003,184.699997,184.399994,180.100006,184.100006,184.5,183.399994,187.199997,187.699997,185.899994,185.100006,188.199997,193.699997,202,205.800003,204.899994,204,212.199997,209.300003,201,204.399994,211.100006,212.800003,221.699997,224.699997,222.699997,226.100006,221,229,231.699997,230.199997,240,257,263.5,262.75,280,283,289.75,288,302.5,309.25,316,336.75,303.25,300.25,300.75,323.25,310.5,307.5,319,303.25,299.5,296.75,302.5,285,288,292,298.25,294,301.5,302.25,296.5,294,310.25,307,313.25,310.5,309,306.25,311,322,340,322.25,333,345,333.5,319,334.25,335.75,330,322.25,320.5,341.25,348.75,338.75,353.25,352,337.5,338,330.75,320.5,320.25,320.25,336.5,330.5,337,342,362.25,376.75,398.5,415.25,411.75,416.75,411,414,408,396.5,396.5,392,415,414.5,425.5,420.25,431.75,427.25,434,428,428.5,431.75,419.25,412.75,415.5,415,402,393.5,377.75,410,401.75,380.25,380.25,380.25,380.25,384,407.75,383.5,362.25,363,368,357.25,376.75,377.75,371.25,375.75,394,395,410.75,402.5,394.75,392,367.5,373.5,361.5,357.5,345,371.25,384.75,399.5,401.75,383,377,358.75,370,352.5,348.5,352.5,351.5,354.5,360,370,376.25,380.25,360.5,358,354.5,337.5,342.25,336.25,349.25,346.75,363,353.75,356.25,356.25,381,395.75,387.5,389,381.25,403,402.25,403.25,399.75,403.75,398.25,403.75,404,386.25,384.5,380.75,380.25,388.25,392.5,390,402.25,398.5,393.75,372.5,377,360,379.75,372.75,378,374.5,381.5,367.75,372.25,367.25,338.5,336.5,370],"o0":72.949997,"w0":249,"w1":689},"TUPRS":{"d0":1,"dd":[0,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,7,1,1,1,1,3,2,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,6,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,5,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,5,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1],"c":[144,140.5,143.699997,143.800003,140,138.100006,139.699997,139.600006,139.699997,140.899994,143.199997,142.100006,139.899994,139.300003,141.199997,140,142.5,144.800003,147.600006,152.300003,150.300003,150,154.699997,155.300003,155.100006,154.5,154.300003,157.800003,157.699997,162.800003,160.600006,164.600006,167.399994,167,173,171.300003,165.199997,164,164.100006,160.600006,160.199997,161.5,161.800003,164.800003,161.399994,165.100006,169,171.100006,170.199997,167.300003,165.800003,163.199997,165.399994,163,165.199997,173.699997,171.800003,174,172,170,169.399994,169.699997,176.899994,177,178.5,175.800003,162.800003,169.899994,179.699997,183.100006,183,186,186.5,185.899994,189.899994,188.5,187.800003,189.600006,192.100006,196,195.800003,204,201.300003,200.5,198.300003,192.699997,189.100006,187.199997,184.800003,183.600006,181.5,180.800003,189.100006,191.899994,194.5,194.899994,192.300003,190.300003,189.300003,187.5,185.800003,182.899994,176.699997,173.899994,168.600006,167,163.600006,163.899994,162.300003,160.899994,164,166.100006,167,172.100006,170.800003,171.600006,169.899994,165.399994,168.699997,165.5,163.800003,162.399994,168.300003,174.100006,173.399994,171.699997,168.800003,168,170.600006,168.399994,166.5,166.300003,166.199997,165,163.199997,164.5,163,161.300003,163.399994,162.5,161.600006,163.300003,164.300003,159.100006,153.699997,158,162.899994,165,163.300003,161.800003,162.199997,159,162.600006,161.699997,165.199997,164,164.899994,163.600006,161,161,164.699997,165.399994,168.600006,170.600006,167.100006,165,162.399994,162,161.300003,160.100006,155.800003,156.699997,162.600006,163.399994,165.100006,164.600006,169,165.899994,168.5,170.899994,169,170,158.600006,155.199997,155.199997,153.5,150.5,154.5,152,153.699997,153,150,148.199997,145.5,145.699997,147.199997,147.399994,145,144.699997,146,143.699997,146,146.100006,149,148.199997,144.600006,145.100006,142.600006,141.100006,144.399994,144.899994,146.899994,146,144,146.199997,147.899994,148.100006,147.199997,143.5,140.800003,144.899994,146.399994,148.5,147.699997,146.5,147.399994,147.199997,147.300003,148.699997,152.399994,151.199997,152.100006,154.5,154,154.100006,150.899994,151.199997,148.600006,148.5,146.300003,144.399994,145.5,143.300003,142.5,143.800003,143.699997,144.199997,142.5,141.899994,146.100006,150,147.699997,146.399994,144.300003,145.600006,143.5,143.899994,145,147,148.5,148.100006,145.600006,142.600006,144.5,143.600006,143.199997,140.600006,140.199997,139.800003,141.699997,141.199997,138.600006,137.600006,138,140,141.899994,139,138.199997,136.399994,135.199997,134.199997,133.399994,130.100006,125.699997,127.699997,125.599998,126,123.5,125.400002,128.699997,129,128.899994,126,129.600006,137.600006,139.600006,141.699997,141.699997,143.699997,144,144.399994,146.100006,145,137.800003,141.899994,135.600006,138,141.899994,142.5,142.199997,138,135,136,134.300003,133.199997,129.5,127.099998,128.300003,128.399994,128.100006,127,124.900002,124.699997,124.900002,123.900002,124.5,125.300003,125.300003,124,125.099998,124.699997,124.800003,123.5,119.599998,117.599998,128.199997,128.699997,134.5,135.199997,135.300003,131.699997,134.300003,130.5,129.199997,128.899994,128.600006,128.800003,126.099998,126.099998,126,124,123.5,127,133,130.800003,131.100006,131.699997,131,131.300003,129.800003,134.800003,137,143.800003,144.600006,148.399994,137.300003,134.399994,133.699997,136,140,141.699997,144.699997,146.399994,147.199997,146.199997,140.5,146,150.199997,156.199997,155.5,152.5,157.300003,160.100006,167,167.600006,165.100006,166.699997,167.100006,164.5,162.600006,165,168.899994,165.899994,163.899994,165.699997,167,164.300003,164,164.399994,161,163.300003,160,162.699997,161.100006,160.199997,164,168.399994,172.699997,172.800003,171.600006,171.100006,171,172.199997,173.199997,170.100006,170.899994,168.800003,167.5,165.899994,168.300003,170.5,175,173.399994,183.699997,189,190.199997,191.399994,195,195.699997,195.600006,197.600006,200.600006,192.800003,193.300003,186.5,191.5,191,185.100006,182,180.600006,180.5,183.100006,180.600006,172.5,174.100006,178.399994,176.199997,173.199997,177.399994,176.100006,181.699997,187,191.800003,192.699997,196.699997,196,197.600006,198.699997,188,195.399994,198.199997,198,196.600006,192.399994,195.100006,197.699997,199.199997,201.699997,204,206.5,205,201.399994,195,190,193,194.199997,194.800003,199,198,196.699997,197,197.600006,199.100006,197.5,198,197.399994,197.600006,195,186.699997,189.300003,188.699997,184.600006,185.699997,185.199997,188,188.300003,185.100006,183.100006,186.399994,184.399994,187,192.899994,200,199.100006,196.699997,197.300003,203,208.399994,218.5,218.600006,222.5,222.800003,226.899994,221.100006,226.699997,225.800003,227,227.199997,242.199997,248.399994,244.800003,229.600006,234,229.199997,226.5,223,219.800003,214.399994,215.899994,223.300003,221.600006,223.5,220,222.100006,221.5,221.600006,227,222,217.699997,215.899994,218.5,224.800003,235,231,246.800003,258,250.25,248,248.300003,264.75,263.5,255,251.5,254.75,253.25,255,259,250.5,240.199997,240.5,247,258.25,253.75,256,255.25,256.5,260,251,255,254.5,264,267.5,261.25,268,253,255,253.5,263,269,274,269.5,275.5,271,271,270.75,271,259.25,258.5,259.5,255,250.75,253.5,258.5,254,250,241.699997,243.100006,234.100006,236.199997,236.199997,236.199997,236.199997,244.899994,250.25,237.899994,232.199997,240.800003,238.800003,229.5,234.800003,236,233.800003,231.899994,225.399994,226.699997,224.100006,226.899994,220.699997,220.399994,216.800003,219.199997,219.199997,219.300003,227.5,236.300003,239.800003,248.199997,247.399994,258,256.5,264.25,267,268.25,270.75,286.25,289.25,307.5,309.5,313.75,314.5,304.25,292.25,293.5,297.75,288,295.25,290.5,290.25,303.75,321.5,323.5,340,336.5,351.25,346,361.75,368.75,374,395.5,395.25,406.75,400.5,373.75,380,380.75,396,400.25,402.75,392.25,391,388.5,394.25,394.5,414.25,416.75,413.5,415.75,412.5,401.75,412,417.25,414.75,397,411,410.75,406,398.25,383.25,376.25,387],"o0":142.399994,"w0":249,"w1":689},"TCELL":{"d0":1,"dd":[0,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,7,1,1,1,1,3,2,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,6,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,5,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,5,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1],"c":[58.599998,57.700001,59,61.25,62.099998,62.5,61.5,60.849998,61,62.349998,64.25,65,64.449997,64.349998,64.599998,65.599998,66,66.949997,69,69.300003,69.349998,68.550003,69.550003,70.199997,70.050003,69.349998,68.099998,68.650002,68.349998,70.900002,68.300003,67.5,68.800003,68.150002,66.75,67.349998,65.75,66.400002,68.349998,67.5,65.5,65.349998,66.949997,66.300003,63.950001,63.599998,62.400002,64.300003,65.5,62.099998,61.5,62,61.900002,63.599998,63.900002,65.050003,64.300003,69.050003,69.650002,69.300003,66.25,66.75,68.400002,67.699997,67.25,67,68.5,71.099998,74,74.949997,73.25,73.25,74.900002,75.349998,76.550003,77.400002,78.300003,78.5,79.099998,80.199997,80.800003,80.949997,82.099998,82.25,84.75,84,83.800003,84,83.349998,83.099998,82.800003,84.75,87.400002,87.099998,90.599998,92.099998,92.699997,91.800003,89.599998,90.75,91.599998,95.75,99.599998,102.599998,99.75,100.800003,98.949997,97.599998,99,95.599998,97.949997,97.099998,98.599998,103.300003,101,100,100.199997,98.050003,99.349998,100.599998,99.300003,102,104.699997,107.5,106,108.699997,109.400002,109,111.199997,111.099998,109,109.400002,110.099998,110.400002,114.800003,111.300003,107.400002,108,106.300003,105.599998,105.400002,105.599998,107.5,102.5,100.199997,102.699997,105.900002,106,102.800003,103.699997,103.300003,103.5,105,103.5,106.300003,101.199997,98.199997,95,94,91,96.5,97.050003,98.349998,100,99.5,100.099998,98.949997,98,95.849998,97.150002,98.199997,97.800003,94.599998,91.199997,91.849998,91.650002,93.800003,93.599998,94.75,97.300003,95.900002,95.75,96.349998,95.199997,91.75,89.900002,86.949997,84.349998,82.349998,82.349998,87.050003,86.25,84.099998,84.25,86.400002,88,87.25,85.099998,85.5,87.699997,87,87,87.75,87.699997,87.800003,84.75,85.849998,84.650002,83.550003,85.099998,89,91.400002,95.699997,95.949997,94.75,96,94.599998,92.25,92.449997,94,96,93.150002,93.400002,93.050003,93.050003,91.300003,90.550003,91.849998,93.900002,94.150002,92.150002,94.300003,93.800003,93.849998,92.800003,93.5,96,96.050003,95.800003,97.25,93.599998,91.449997,90.699997,92.050003,93.75,93.199997,94.050003,93.150002,92.800003,96.050003,98.5,97.949997,97.5,96.849998,96.300003,95.650002,94.650002,95.199997,95.900002,98.449997,100.300003,99.699997,102,105,106.199997,106.400002,106.099998,108.900002,108,107.400002,108.099998,105.599998,107.5,105.900002,107.099998,106,107,108.5,107.900002,107.400002,106.300003,104,105,104.900002,106.800003,105.5,103.699997,104.199997,105.300003,107.699997,100.699997,100.5,101.5,104.400002,107.400002,106,104.699997,103.400002,106,107.5,109.400002,109.400002,109.199997,98.300003,97.099998,87.400002,89.599998,94.800003,93.900002,93.199997,95.800003,94.349998,92,88.300003,88.449997,90.650002,89.699997,89.800003,90.699997,89.900002,89.900002,88.550003,91.650002,93,93.5,92.099998,94.150002,91.300003,90.550003,91.300003,89.900002,89.099998,86.550003,87.349998,87.900002,90.050003,92.300003,97.449997,95.75,97.050003,96.5,96.699997,98.449997,97.349998,99.75,98,98.5,98,96.050003,95.5,94.849998,91,94.050003,98.150002,97.099998,97.099998,97.099998,95.699997,92.5,92.650002,90.949997,90.900002,88.599998,89.849998,88.150002,91.699997,92.949997,89.5,89.300003,96.150002,98.5,98.099998,98,98.949997,97,94,95.25,93.699997,92.400002,92.300003,92.25,94.099998,94.550003,95.550003,95.099998,94.349998,94.25,92.5,92.550003,91.099998,93.550003,93.25,93.25,93.400002,93.349998,93,94.949997,96.300003,97.25,97.550003,97.75,94.599998,94.75,94.099998,95.199997,97.650002,99,97.849998,99.050003,99.800003,99.599998,96.75,94.800003,93.25,91.199997,90.650002,90.5,90.050003,88.900002,89.099998,88.75,88.650002,89.449997,93.650002,95.199997,95.75,94.800003,97,98.900002,99.050003,99.599998,98.199997,96.900002,97.300003,97.849998,99.5,101.400002,98.099998,98.800003,100.400002,98.449997,100.400002,100.199997,97.900002,90.849998,95.75,95.800003,94.25,96.800003,96.949997,97.599998,98.550003,100.800003,100,100.599998,98.75,99.699997,97.449997,96.449997,97.699997,102,96.900002,96.449997,94.400002,96.300003,95.599998,93.150002,93.099998,94,94.650002,96.699997,94.699997,94.400002,94,94.099998,94.599998,93.550003,95.849998,97.25,97.75,97.150002,98,100.800003,101.699997,101.199997,100.5,104.199997,105.400002,101.800003,102.099998,101.900002,101,99.5,98.699997,98.599998,98.650002,95.25,93.949997,93.5,93.099998,96,96.800003,99.099998,98.800003,99.650002,98.300003,99.550003,101.699997,101.699997,103.699997,105.900002,105.800003,104.5,105.5,112.099998,112.800003,114.800003,114.400002,115.900002,117.300003,116.900002,113.5,118.5,118.300003,116.099998,114.300003,117,118.099998,122.099998,123.900002,125.300003,127.5,126,124.599998,120.199997,122.800003,123.099998,121.5,121,120.800003,115.800003,114,113.300003,111,109.699997,107.5,106.900002,111.5,109.099998,111.300003,108.800003,109.099998,110.800003,108.5,106.599998,108.400002,106.199997,107.400002,106,106.400002,104.599998,105.900002,107.199997,106.900002,107.5,108.599998,104.900002,111.199997,114.400002,117.300003,115.699997,116.300003,117.099998,117.300003,120.5,117.699997,115.300003,114.099998,114.300003,116.599998,113.800003,112.099998,112.099998,111,115.199997,117.699997,118.599998,120,121.900002,115,114,114.5,109.5,106.800003,108.599998,106,106.5,106.099998,101,101,101,101,102.599998,108.5,105.800003,107.900002,105.099998,107.400002,105.5,104.599998,107.5,110.699997,114.900002,115.199997,112.099998,116,113.400002,113.199997,111,110.400002,110.5,110.900002,109.599998,107.400002,108.699997,108.400002,107.199997,108.599998,108.199997,105.400002,104.900002,107,109,110.199997,112.199997,108.5,109.599998,111.5,111,105,103.699997,102.300003,101.699997,101.400002,101.5,99.949997,104.5,107.599998,105.099998,105.300003,105.099998,105.300003,103.099998,104.099998,103.099998,104.099998,102.900002,103.5,104,102.800003,104.300003,103.099998,102.699997,103.5,102.800003,103.5,95.050003,96.550003,97.199997,96.599998,98.150002,99.050003,101.599998,101.800003,101.599998,103.699997,102.400002,99.400002,95.75,99.150002,97.199997,99.900002,100.300003,100.800003,99.449997,99.949997,98.349998,98.25,96.099998,97.699997],"o0":93.199997,"w0":249,"w1":689},"FROTO":{"d0":1,"dd":[0,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,6,1,1,1,1,3,2,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,6,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,5,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,5,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1],"c":[76.5,74,75,74.550003,77.349998,75.449997,76.800003,77.800003,78.699997,81.199997,81.800003,80.099998,79.800003,79.699997,79.650002,80.75,82.75,83.900002,86.099998,86.25,85.699997,88.199997,88.699997,89.800003,91.349998,93.800003,92,93.300003,95.599998,98.550003,95.449997,97,95.949997,96.449997,95.949997,98.599998,98.199997,102.400002,101.300003,102.699997,103.199997,103.400002,101.699997,100.800003,98.300003,99.150002,104.199997,105.699997,111,112.699997,111.199997,108.400002,110.5,108.099998,106.800003,111,113.400002,120.699997,114.400002,110.699997,110.599998,109.599998,115.5,113.199997,114.900002,113,113.900002,116.5,121.900002,116.699997,116.699997,114.300003,115.300003,111.800003,111.699997,112,112.199997,110.5,109.099998,110.900002,110.599998,111.400002,113.900002,113.300003,114.699997,114.699997,112,114.099998,114.900002,114.5,118.599998,119.099998,120.199997,120.699997,121.400002,121.5,122.199997,116.800003,112.300003,112.199997,111.599998,108.800003,108.199997,109.300003,108,102,104.699997,101.599998,102.5,101.900002,100.800003,106.5,105.699997,107.900002,109.5,108.300003,108.699997,111.900002,110.199997,113.099998,112.400002,110,110.300003,111.5,112.599998,112.300003,110.5,106.599998,103.900002,107.800003,106.900002,105.699997,105.300003,105.800003,104.900002,106.099998,104,101,99.900002,100.199997,98.449997,99.449997,99.400002,98.650002,94.849998,89,90.449997,88,89.699997,86.900002,86.300003,88,88,89,88.449997,91.849998,92.75,93.800003,93.75,90.5,88.699997,90.349998,92,96.400002,95.75,93.599998,92.900002,94.75,93.349998,91.699997,89.449997,85.949997,88.550003,91.599998,89.449997,91.25,91.650002,92.650002,91.400002,91.199997,92.400002,91.300003,92.800003,93.150002,91.800003,89.650002,88,86.050003,88.300003,91.449997,93.199997,96.300003,95.449997,93.800003,90.699997,91.150002,91.550003,96.800003,96.75,96.25,99.599998,100,101.099998,101.5,100.400002,98.199997,97.849998,97.449997,96.800003,97.599998,98.849998,100.5,105,103.699997,107.099998,110,111.699997,107.699997,109.900002,105,99,101.699997,100.099998,99.300003,99.199997,97.300003,96.800003,96.699997,97.599998,99.449997,99.650002,99.349998,99.800003,99.150002,97.900002,99.5,98.699997,99.25,98.099998,97.300003,95.699997,95.25,94.949997,93.050003,93.25,93.949997,94.949997,95.550003,93.949997,93.699997,94.050003,95.150002,94.699997,94.400002,94.099998,94.25,92.25,91.400002,90.900002,91.199997,92.349998,92.199997,92.300003,92.699997,92.75,95.599998,93.25,91.400002,91.900002,92.150002,94.099998,92.949997,88.400002,89.650002,91,91.900002,92.25,91.800003,91.849998,89.849998,91.5,91.599998,90.75,93.449997,93.5,91.699997,90.400002,89.199997,88.849998,88.949997,89.050003,88.25,89.099998,88.650002,93,97.400002,98.300003,99.300003,102.5,103.099998,104.699997,105.199997,106.5,107.199997,101.300003,105.300003,99.550003,104.199997,104.400002,103.400002,102.800003,105.900002,104.099998,107.599998,104.800003,103.599998,103.199997,99.800003,100.5,99.349998,99.599998,95.199997,91.099998,91.75,91.550003,92.349998,91.400002,92.199997,92.800003,92.099998,91.5,88.550003,89.599998,88.199997,87.75,87.25,90.949997,91.5,97.949997,97.75,96.550003,93.5,96.75,91.949997,89.75,88.400002,86.900002,88.199997,86.150002,85.349998,84.400002,80.150002,81.25,85.199997,87.949997,87.550003,86.75,86.5,83.449997,82.75,83.199997,84.099998,82.949997,81.699997,83.650002,85,86.599998,86.800003,84.550003,84.150002,89.25,90.150002,93.900002,93.050003,93.5,92.5,92.849998,94.800003,96.349998,95.300003,96.050003,95.5,94.400002,92,92.449997,93.75,93.349998,94.300003,92.400002,92.949997,91.5,95.449997,95.150002,97.449997,100.5,101.599998,102.400002,106.300003,104.900002,106.199997,106.300003,105.099998,104.800003,105.199997,107,111,114,114.199997,114.5,115.699997,118.300003,113.400002,111.800003,111.699997,110.800003,104.900002,105.199997,104.599998,107,105.599998,102.900002,102.699997,101,100.800003,105.300003,108.400002,105,104.099998,105.800003,105.099998,101.699997,101,103.099998,100.699997,99.400002,99.050003,100.300003,99.900002,98.800003,96.550003,97.349998,95.900002,94.050003,93.550003,92.650002,92.449997,91.75,90.550003,92.800003,96.5,98,97.699997,96.949997,100,98.349998,97.5,96.25,99.25,100.099998,98.5,99.300003,97.900002,97.099998,96.449997,94.400002,94.349998,94.699997,94.699997,94.599998,94.199997,95.050003,95.449997,94.050003,94.199997,94.449997,95,95.150002,94.599998,96.650002,98.199997,90.199997,90.349998,90.800003,92.25,91.349998,90.5,93.650002,96.900002,99.300003,97.400002,97.25,96.050003,95.349998,94.5,94.449997,95.449997,95.099998,94.300003,91.050003,92.650002,92.650002,95.599998,96.199997,98.25,97.550003,98.099998,98.449997,98.800003,100.900002,101.599998,104.300003,105.400002,103.699997,103,103.099998,103.900002,105.099998,107.800003,109.199997,110.300003,112.099998,113.699997,113.800003,116.5,115.800003,115.199997,115.699997,119.400002,115.900002,120.199997,127.199997,129,134.300003,127.800003,123.900002,120.800003,121.300003,120.599998,119.599998,117.099998,118.599998,115.900002,111.699997,108.5,107.800003,111.400002,108.5,108.900002,112.099998,111.599998,112,109.699997,105.599998,107.900002,105.699997,109.800003,108.900002,104.199997,104.599998,102.699997,103.800003,100,101.099998,102.5,100.699997,99.599998,100.400002,96.699997,101.800003,102.199997,105.300003,104.900002,106.099998,106.800003,105.900002,109.300003,107.5,103.5,102.300003,104.5,102.599998,99.150002,98.050003,98,96,98.050003,99,98.900002,97.5,97,94.099998,93.449997,93.449997,91.449997,87.349998,86.650002,82.349998,86.849998,87.599998,84.150002,84.150002,84.150002,84.150002,85.199997,88.900002,88.949997,88.599998,86.199997,87.099998,86.300003,87.449997,86.550003,86.699997,90.099998,91.300003,89.550003,91.849998,91.099998,89.849998,87.949997,86.449997,86.349998,86.25,85.449997,84.550003,85.199997,83.699997,83.75,82,83,80.800003,80.849998,81.800003,81.550003,81.050003,84.400002,83.599998,82.650002,81.099998,81.449997,79.400002,79,78.25,77.550003,76.099998,76.699997,80.099998,79.050003,80.550003,80.449997,78.599998,78.099998,77.400002,78.849998,79.75,79.699997,79.099998,79,78.900002,79.349998,79.599998,80.199997,80.099998,78.599998,79.550003,78.449997,78.400002,76.949997,77.25,76.25,75.650002,77.199997,79.650002,82.800003,83.949997,81.900002,82.849998,81.75,78.400002,74.650002,77.449997,76,77.849998,79.199997,78.5,77.400002,76.800003,74.949997,74.400002,73.550003,75.449997],"o0":94.099998,"w0":250,"w1":690},"EREGL":{"d0":1,"dd":[0,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,6,1,1,1,1,3,2,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,6,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,5,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,4,1,1,1,3,1,1,1,1,3,1,1,1,5,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,2,3,1,1,1,4,1,1,1,1,3,1,1,1,1,3,2,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,2,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1,1,3,1,1,1],"c":[21.129999,20.66,21.16,21.309999,21.67,21.450001,22.52,21.950001,21.9,22.030001,22.15,21.719999,21.26,21.08,21.02,21.17,21.190001,21.41,21.65,21.860001,21.67,21.57,21.860001,21.73,21.76,22.1,22.51,22.74,23.18,23.200001,23.059999,23.299999,23.540001,24.559999,24.16,24.809999,24.32,24.09,23.25,22.790001,23.48,23.450001,22.76,22.969999,23.01,22.700001,22.139999,22.83,22.950001,22.889999,22.639999,22.23,22.17,22.200001,22.040001,22.129999,21.889999,21.92,21.65,21.48,21.059999,20.91,21.059999,21.16,20.65,19.450001,19.139999,19.709999,20.690001,20.969999,20.969999,20.66,20.26,20.059999,20.219999,20.610001,20.790001,20.85,20.799999,21.4,21.940001,21.530001,22.309999,22.09,21.98,22.73,22.610001,22.75,23.42,23.16,23.26,22.459999,22.799999,23.43,23.98,23.969999,24.16,24.26,24.709999,24.59,24.709999,24.290001,24.469999,23.969999,24.799999,24.58,24.34,24.27,23.969999,23.219999,23.110001,23.9,24.709999,25.799999,26.924999,26.275,26.65,26.25,26.025,26.5,26.625,25.875,25.65,27.450001,27.475,27.5,27.35,27.299999,27.5,27.575001,27.625,28.450001,28.35,27.950001,28.775,29.700001,29.174999,28.825001,28.325001,28.125,27.799999,27.950001,28.025,28.625,27.525,25.049999,24.700001,25.200001,26.1,25.299999,24.66,24.700001,24.620001,24.93,24.309999,24.639999,24.5,24.459999,24.700001,24.120001,23.4,23.700001,23.780001,24.17,24.65,24.23,23.83,24.02,23.639999,23.360001,23.26,23.700001,23.4,23.719999,23.809999,24.15,24.120001,24.709999,24.85,24.67,25.575001,25.700001,25.6,26.299999,26.75,26.35,25.575001,25,25.075001,24.83,23.82,23.780001,23.75,24.459999,24.139999,24.219999,24.719999,24.51,24.030001,23.76,23.76,23.1,23.32,23.700001,23.93,23.92,23.799999,23.969999,23.469999,23.879999,24.379999,24.76,25.549999,25.475,25.15,25.025,25.549999,25.15,25.25,24.77,23.99,24.9,25.049999,25.35,25.049999,24.700001,25.219999,25.780001,26.040001,26,26.1,25.92,25.92,27,26.16,26.059999,26.32,26.559999,26.059999,26.16,25.780001,25.299999,25.1,24.959999,24.860001,25.059999,24.780001,24.940001,24.6,24.4,24.5,24.719999,24.66,24.08,23.639999,23.860001,23.780001,23.1,22.82,22.84,23,23.059999,22.84,22.639999,22.620001,22.68,23.299999,23.120001,23.200001,22.92,22.92,22.440001,21.68,22.02,21.700001,22.5,23.42,22.860001,23.4,23.4,23.32,23.34,23.52,23.66,22.799999,22.98,22.379999,22.120001,21.860001,21.879999,22.360001,22.32,22.5,22.040001,23.74,24.68,24.799999,24.440001,24.82,25.280001,25.42,25.58,25.58,25.66,23.1,23.360001,21.1,21.700001,22.700001,22.52,22.360001,22.52,22.66,22.48,21.6,21.299999,21.6,20.959999,21.299999,21.34,21.799999,21.799999,21.540001,21.4,21.1,20.959999,21.26,21.959999,22.620001,22.92,22.76,22.5,23.440001,24.040001,23.799999,22.639999,23.26,23.98,24.52,25,24.66,24.68,24.799999,24.860001,24.24,23.879999,23.540001,23.52,23.799999,23.860001,23.82,23.440001,23.02,23.42,23.74,23.540001,24.200001,24.16,24.9,24.799999,25.9,26.6,26.48,25.4,26.360001,25.92,26,25.799999,25.52,25.82,26.66,26.700001,27.42,27.299999,27.48,27.02,26.82,26.9,27.26,27.16,26.9,26.780001,27.08,26.879999,27.26,27.040001,27.040001,27.1,26.940001,26.719999,26.42,26.620001,26.719999,26.940001,27.24,27.120001,27.48,27.26,27.16,27.48,27.52,27.860001,27.620001,27.66,28.780001,29.360001,29.299999,29.559999,29.4,29.66,29.68,29.58,29.799999,29.860001,29.84,28.52,28.5,28.18,27.34,26.5,26.26,26.02,25.700001,25.700001,27.5,27.620001,27.52,27.24,28.940001,29.620001,31.66,31.440001,32.439999,30.32,29.360001,29.4,29.9,29.66,29.34,29.02,29,27.82,28,27.860001,27.4,25.959999,27.700001,27.139999,26.4,27.18,27.360001,26.84,26.84,27.24,27.68,27.58,27.48,27.48,28.84,29.18,27.059999,26.52,26.120001,25.24,24.48,24.34,24.280001,23.9,24,23.799999,24.18,24.440001,24.120001,23.940001,23.879999,24,23.879999,23.860001,23.98,23.92,23.9,23.780001,23.799999,24.16,24.24,24.139999,24.379999,24.559999,24.860001,24.5,24.700001,24.6,24.559999,24.34,24.059999,24.16,24.040001,23.84,23.639999,23.940001,23.82,24.219999,24.52,25.120001,24.440001,24.719999,24.66,24.879999,25.139999,25.559999,25.48,26.059999,26.58,25.68,25.92,26.76,27.059999,27.6,27.440001,27.9,28.48,28.18,27.540001,28.76,28.82,28.700001,29.02,30,29.200001,29.24,29.9,29.58,30.1,29.1,29.639999,29.42,30.059999,31.48,31.98,31.379999,31.9,32.66,31.5,29.139999,28.860001,28.879999,28.200001,28.32,29.32,28.959999,28.66,28.4,28.16,28.700001,28.280001,27.9,28.66,27.780001,27.92,26.9,27.9,27.58,28.219999,28.780001,28.200001,29.200001,30.059999,28.84,29.58,30.1,31.299999,32,31.459999,31.639999,30.9,32.040001,33.299999,33.720001,32.599998,33,33.599998,32.98,33.720001,35.119999,35.82,37.220001,37.68,38.48,41.259998,40.860001,40.080002,40.5,39.740002,39.619999,38.540001,38.639999,35.18,38.68,39.48,39.18,39.18,39.18,39.18,40,41,40.299999,40.099998,39.16,39.02,38.639999,38.639999,38.400002,39.360001,40.200001,40.299999,39.400002,40,40.02,40.34,39.82,39.939999,40.32,42.119999,41.200001,40.48,40.439999,40.799999,40.099998,41.52,41.259998,39.939999,40.060001,40.400002,40.860001,41.880001,44.060001,42.34,43.599998,42.299999,42.240002,44.200001,43.279999,43.259998,43.860001,43.16,42.400002,42.540001,40.700001,41.740002,41.98,41.560001,38.68,36.880001,36.860001,37.18,38.240002,37.380001,37.939999,37.700001,37.759998,38.099998,38.139999,38.18,38.240002,38.700001,38.599998,39.16,38.779999,37.779999,37.599998,36.580002,37.200001,38.32,39.919998,39.080002,38.98,39.400002,38.860001,38.259998,34.779999,36.139999,36.419998,37.380001,37.82,38.540001,37.939999,37.740002,37.48,36.759998,35.939999,36.619999],"o0":24.5,"w0":250,"w1":690}};
+const FS_TICK = ["AKBNK", "ASELS", "TUPRS", "TCELL", "FROTO", "EREGL"];
+function fsDates(t) {
+  const D = FS_DATA[t], out = []; let day = D.d0;
+  D.dd.forEach((g, k) => { day += k ? g : 0; out.push(new Date(Date.UTC(2024, 0, 1 + day))); });
+  return out;
+}
+function fsER(c, i, n) {
+  if (i < n) return 0;
+  let den = 0; for (let j = i - n + 1; j <= i; j++) den += Math.abs(c[j] - c[j - 1]);
+  return den ? Math.abs(c[i] - c[i - n]) / den : 0;
+}
+const isoD = d => d.toISOString().slice(0, 10);
+
+/* ── Regime matcher on real windows (section regimes) ── */
+(function () {
+  const root = document.getElementById("fs-regime"), chart = root.querySelector("[data-chart]"), out = root.querySelector("[data-out]"), score = root.querySelector("[data-score]"), closes = root.querySelector("[data-closes]");
+  const N = 40, F = 20;
+  /* closes are rescaled to 100 at the first bar: ER and the direction do not depend on scale, and the raw price level would give away the ticker */
+  function listCloses(revealed) {
+    const c = FS_DATA[cur.t].c, i = cur.i, lo = i - N, base = c[lo];
+    const txt = a => a.map(v => fmt(100 * v / base, 1)).join(", ");
+    let s = `Bar 0–${N} (ilk bar = 100): ${txt(c.slice(lo, i + 1))}.`;
+    if (revealed) s += ` Sonraki ${F} bar: ${txt(c.slice(i + 1, i + F + 1))}.`;
+    closes.textContent = s;
+  }
+  let cur = null, tries = 0, hits = 0;
+  function draw(revealed) {
+    const c = FS_DATA[cur.t].c, i = cur.i, lo = i - N, hi = revealed ? i + F : i;
+    const seg = c.slice(lo, hi + 1), mn = Math.min(...seg), mx = Math.max(...seg);
+    const W = 520, H = 190, P = 14, sx = k => P + (W - 2 * P) * k / (N + F), sy = v => H - P - (H - 2 * P) * (v - mn) / ((mx - mn) || 1);
+    const pts = (a, off) => a.map((v, k) => `${fmt(sx(k + off), 1)},${fmt(sy(v), 1)}`).join(" ");
+    let svg = `<svg viewBox="0 0 ${W} ${H}" class="w-four-strategies-spark" role="img" aria-label="40 bar'lık close grafiği" aria-describedby="fs-regime-closes">`;
+    svg += `<rect x="0" y="0" width="${W}" height="${H}" rx="8" style="fill:var(--paper);stroke:var(--border)"/>`;
+    svg += `<polyline points="${pts(c.slice(lo, i + 1), 0)}" style="fill:none;stroke:var(--blue-600);stroke-width:2.2"/>`;
+    if (revealed) {
+      svg += `<line x1="${sx(N)}" y1="${P}" x2="${sx(N)}" y2="${H - P}" style="stroke:var(--border-strong);stroke-dasharray:3 3"/>`;
+      svg += `<polyline points="${pts(c.slice(i, i + F + 1), N)}" style="fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:5 4"/>`;
+    }
+    svg += `</svg>`;
+    chart.innerHTML = svg;
+    listCloses(revealed);
+  }
+  function fresh() {
+    const t = FS_TICK[Math.floor(Math.random() * FS_TICK.length)], D = FS_DATA[t];
+    const i = D.w0 + N + Math.floor(Math.random() * (D.w1 - F - D.w0 - N + 1));
+    cur = { t, i, done: false }; draw(false);
+    out.innerHTML = "Hisse gizli. Mavi çizgi 40 bar'lık close serisi. Regime'i seç.";
+  }
+  function guess(g) {
+    if (!cur) return;
+    if (cur.done) { out.innerHTML += " <b>Bu pencere için tahmin verildi; yeni pencere aç.</b>"; return; }
+    const D = FS_DATA[cur.t], c = D.c, i = cur.i, er = fsER(c, i, N), net = c[i] / c[i - N] - 1, fwd = c[i + F] / c[i] - 1;
+    const truth = er > 0.15 ? (net > 0 ? "up" : "down") : "side", ok = g === truth;
+    tries++; if (ok) hits++; cur.done = true;
+    const dates = fsDates(cur.t), name = { up: "Trend ↑", down: "Trend ↓", side: "Sideways" };
+    const fam = truth === "up" ? "Momentum ve breakout mantığı (Volume Bubbles, Liquidity Swings, S/R Channels) bu yapıyı sever (s.3: \"Momentum strategy may work well\")." :
+      truth === "side" ? "Aynı sinyal birçok kez stop-out olabilir; mean-reversion ya da reversal mantığı (Dual-Phase) daha uygun olabilir (s.3)." :
+      "Long-only momentum stratejileri burada alım yapmamalı. Reversal denemeleri zayıf bounce'lara takılabilir.";
+    draw(true);
+    out.innerHTML = `<span class="${ok ? "w-four-strategies-ok" : "w-four-strategies-no"}">${ok ? "Tuttu." : "Tutmadı."}</span> ` +
+      `<b>${cur.t}</b>, ${isoD(dates[i - N])} – ${isoD(dates[i])}. $ER(40) = ${fmt(er, 3)}$, 40 bar'lık net değişim ${net >= 0 ? "+" : ""}${fmt(100 * net, 1)}%. ` +
+      `Eşik 0.15 ile sınıf: <b>${name[truth]}</b> (senin seçimin: ${name[g]}). ${fam} ` +
+      `<br>Sonraki 20 bar (turuncu kesikli): ${fwd >= 0 ? "+" : ""}${fmt(100 * fwd, 1)}%. Regime etiketi geçmişi ölçer; devamını garanti etmez.`;
+    score.textContent = `Skor: ${hits} / ${tries}`;
+    Lab.renderMath(out);
+  }
+  root.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.hasAttribute("data-new")) fresh();
+    else if (b.dataset.guess) guess(b.dataset.guess);
+  });
+  fresh();
+})();
+
+/* ── Results heatmap (section compare) ── */
+(function () {
+  const root = document.getElementById("fs-heat"), host = root.querySelector("[data-table]"), note = root.querySelector("[data-note]");
+  const metric = document.getElementById("fs-heat-metric"), group = document.getElementById("fs-heat-group");
+  /* [net profit in k TL, total trades, winning trades] from the slides and the notebook */
+  const R = {
+    VB: { AKBNK: [84, 13, 7], ASELS: [239, 13, 8], TUPRS: [72, 16, 8], TCELL: [-18, 17, 4], FROTO: [3, 20, 3], EREGL: [39, 17, 5] },
+    LS: { AKBNK: [51, 3, 2], ASELS: [154, 4, 3], TUPRS: [94, 3, 2], TCELL: [-9, 4, 1], FROTO: [-7, 4, 2], EREGL: [-0.8, 5, 3] },
+    SR: { AKBNK: [-6, 27, 12], ASELS: [158, 12, 5], TUPRS: [44, 8, 4], TCELL: [-30, 28, 8], FROTO: [-23, 24, 7], EREGL: [35, 24, 9] },
+    DP: { AKBNK: [68, 7, 4], ASELS: [88, 4, 3], TUPRS: [76, 5, 5], TCELL: [17, 4, 2], FROTO: [-23, 6, 2], EREGL: [34, 4, 3] },
+    EF: { AKBNK: [102.967, 6, 5], ASELS: [263.818, 4, 3], TUPRS: [120.988, 5, 4], TCELL: [-5.561, 5, 2], FROTO: [14.164, 6, 2], EREGL: [66.787, 5, 4] }
+  };
+  const GROUP = {
+    VB: { good: ["ASELS", "AKBNK", "TUPRS"], g: "trend-friendly", b: "sideways" },
+    LS: { good: ["AKBNK", "ASELS", "TUPRS"], g: "trend-friendly", b: "weak" },
+    SR: { good: ["ASELS", "TUPRS", "EREGL"], g: "breakout-friendly", b: "failed-breakout" },
+    DP: { good: ["TUPRS", "ASELS", "AKBNK", "EREGL"], g: "reversal-friendly", b: "mixed" }
+  };
+  const COLS = [["VB", "Volume Bubbles"], ["LS", "Liquidity Swings"], ["SR", "S/R Channels"], ["DP", "Dual-Phase"], ["EF", "Efe (quiz)"], ["BH", "Buy &amp; hold"], ["TR", "Trending %"], ["CNT", "Kârlı strateji"]];
+  const live = {};
+  FS_TICK.forEach(t => {
+    const D = FS_DATA[t], c = D.c; let tr = 0;
+    for (let i = D.w0; i <= D.w1; i++) if (fsER(c, i, 40) > 0.15) tr++;
+    live[t] = { bh: 100 * (c[D.w1] / D.o0 - 1), tr: 100 * tr / (D.w1 - D.w0 + 1) };
+  });
+  let sortKey = null, sortDir = -1;
+  function val(t, k, m) {
+    if (k === "BH") return m === "net" ? live[t].bh : null;
+    if (k === "TR") return live[t].tr;
+    if (k === "CNT") return ["VB", "LS", "SR", "DP"].filter(s => R[s][t][0] > 0).length;
+    const r = R[k][t];
+    return m === "net" ? r[0] : m === "wr" ? 100 * r[2] / r[1] : r[1];
+  }
+  function cell(v, k, m) {
+    if (v === null) return `<td class="is-na">—</td>`;
+    if (k === "TR") return `<td>${fmt(v, 1)}</td>`;
+    if (k === "CNT") return `<td><b>${v}</b> / 4</td>`;
+    let bg = "";
+    if (m === "net") { const a = Math.min(1, Math.abs(v) / 160); bg = v >= 0 ? `rgba(47,158,68,${0.08 + 0.42 * a})` : `rgba(224,49,49,${0.10 + 0.40 * Math.min(1, Math.abs(v) / 30)})`; }
+    else if (m === "wr") { const a = Math.abs(v - 50) / 50; bg = v >= 50 ? `rgba(47,158,68,${0.08 + 0.35 * a})` : `rgba(224,49,49,${0.08 + 0.35 * a})`; }
+    const txt = m === "net" ? (v > 0 ? "+" : v < 0 ? "−" : "") + (Math.abs(v) < 1 ? fmt(Math.abs(v), 1) : fmt(Math.abs(v), 0)) : m === "wr" ? fmt(v, 1) : String(v);
+    return `<td style="background:${bg}">${txt}</td>`;
+  }
+  function render() {
+    const m = metric.value, gk = group.value;
+    let rows = [...FS_TICK];
+    if (sortKey) rows.sort((a, b) => { const va = val(a, sortKey, m), vb = val(b, sortKey, m); return ((va ?? -1e9) - (vb ?? -1e9)) * sortDir; });
+    let h = `<table class="w-four-strategies-heat"><tr><th>Stock</th>${COLS.map(([k, n]) => `<th><button data-sort="${k}" aria-label="${n} sütununa göre sırala">${n}${sortKey === k ? (sortDir < 0 ? " ▼" : " ▲") : ""}</button></th>`).join("")}</tr>`;
+    rows.forEach(t => {
+      let tag = "";
+      if (gk) { const G = GROUP[gk], good = G.good.includes(t); tag = `<span class="w-four-strategies-tag ${good ? "is-good" : "is-bad"}">${good ? G.g : G.b}</span>`; }
+      h += `<tr><td><b>${t}</b>${tag}</td>${COLS.map(([k]) => cell(val(t, k, m), k, m)).join("")}</tr>`;
+    });
+    host.innerHTML = h + `</table>`;
+    const unit = m === "net" ? "Net profit k TL cinsinden (100,000 TL başlangıç sermayesi). Buy &amp; hold: 100,000 TL ile alıp tutmanın kârı." : m === "wr" ? "Win rate = Winning / Total. Buy &amp; hold için tanımsız." : "Total trades. Buy &amp; hold tek bir işlem.";
+    note.innerHTML = unit + " Başlığa tıklayınca o sütuna göre sıralanır. Kârlı strateji: dört slayt stratejisinden kaçında net profit &gt; 0." + (gk ? ` Etiketler ${gk === "VB" ? "s.9" : gk === "LS" ? "s.30–31" : gk === "SR" ? "s.34" : "s.38"}'daki gruplama.` : "");
+  }
+  host.addEventListener("click", e => {
+    const b = e.target.closest("button[data-sort]"); if (!b) return;
+    const k = b.dataset.sort;
+    if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = -1; }
+    render();
+  });
+  metric.addEventListener("change", render); group.addEventListener("change", render);
+  render();
+})();
+
+/* ── Eight-question card builder (section compare) ── */
+(function () {
+  const root = document.getElementById("fs-card"), host = root.querySelector("[data-cardhost]"), scoreEl = root.querySelector("[data-cardscore]");
+  const ROWS = ["1. Input Data", "2. Signal Detection", "3. Filters", "4. Entry", "5. Initial Stop", "6. Trade Management", "7. Exit", "8. Performance"];
+  const NS = "Slayt belirtmiyor";
+  const CARD = {
+    VB: ["Lower-timeframe (intraday 1–5 dk) volume, buy/sell volume'a ayrılmış", "Unusual positive ya da negative delta cluster", "Market context check (cluster size, trend filter)", "Valid buyer cluster'da long", "Cluster candle low × (1 − buffer), ya da ATR", "+1R'den sonra trailing stop", "Stop, trailing stop, target ya da time rule", "5/6 hisse kârda; FROTO %15 win rate ile +3k"],
+    LS: ["Chart'taki price data", "Swing High zone'un üstünde close (swing breakout)", NS, "Swing breakout'tan sonra long", "En yakın Swing Low zone'un altı", "Chandelier stop ya da trailing stop", "Reverse breakout, stop ya da time limit", "3/6 hisse kârda; ASELS +154k, EREGL −800 TL"],
+    SR: ["Yakın swing high/low'lardan support ve resistance zone'ları", "Resistance breakout", NS, "Price resistance channel'ın üstüne çıkınca long", "Support zone / channel floor", "Breakout bölgesinin üstünde kaldıkça tut; optional Chandelier stop", "Reverse breakdown, stop hit ya da time-based exit", "3/6 hisse kârda; ASELS +158k, TCELL −30k"],
+    DP: ["Yakın price action'dan lower, middle, upper pivot zone'ları", "Lower zone'dan onaylı bullish reversal (rebound)", NS, "Lower phase yakınında, price yukarı dönünce long", "Lower band / lower zone risk sınırı", NS, "Sell signal, upper-zone reaction ya da failed continuation", "5/6 hisse kârda; yalnızca FROTO −23k"]
+  };
+  const SRC = { VB: "s.5, 6, 8, 26", LS: "s.28–29", SR: "s.32–33", DP: "s.36–37" };
+  /* Same shuffle on every visit: options are sorted by a fixed hash */
+  const hash = s => [...s].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  let cur = null;
+  function show(s) {
+    cur = s;
+    root.querySelectorAll("[data-s]").forEach(b => b.classList.toggle("btn--accent", b.dataset.s === s));
+    let h = `<table class="w-four-strategies-card"><tbody>`;
+    ROWS.forEach((r, k) => {
+      const opts = [...new Set(Object.values(CARD).map(c => c[k]).concat(NS))].sort((a, b) => hash(a + k) - hash(b + k));
+      h += `<tr><td>${r}</td><td><select data-row="${k}" name="fs-card-${k}" aria-label="${r}"><option value="">seç</option>${opts.map(o => `<option>${escH(o)}</option>`).join("")}</select><span class="w-four-strategies-fb" data-fb="${k}"></span></td></tr>`;
+    });
+    host.innerHTML = h + `</tbody></table>`;
+    scoreEl.textContent = "";
+  }
+  function check() {
+    if (!cur) { scoreEl.textContent = "Önce bir strateji seç."; return; }
+    let ok = 0;
+    ROWS.forEach((r, k) => {
+      const sel = host.querySelector(`[data-row="${k}"]`), fb = host.querySelector(`[data-fb="${k}"]`), right = CARD[cur][k];
+      if (sel.value === right) { ok++; fb.innerHTML = `<span class="w-four-strategies-ok">✓</span>`; }
+      else fb.innerHTML = `<span class="w-four-strategies-no">✗</span> Doğrusu: ${escH(right)}`;
+    });
+    scoreEl.textContent = `${ok} / 8 doğru (kaynak: ${SRC[cur]})`;
+  }
+  root.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.s) show(b.dataset.s); else if (b.hasAttribute("data-check")) check();
+  });
+  show("VB");
+})();
+</script>
+</body>
+</html>

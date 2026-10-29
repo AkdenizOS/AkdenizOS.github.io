@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 481: agentic harness'in tanımı, ana ilke, Result + Why + Risks + Human Review, OS kernel / FSM / CI/CD benzetmeleri, MCP tool'ları, uzman agent'lar, stateful harness state'leri, temporal / episodic / procedural memory, evidence bundle ve committed evidence, data quality ve risk gate, human review, decision log, strategy variant'ları ve harness deneyleri." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Agentic harness ve MCP · CSE 481 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-harness-mcp-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-harness-mcp-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-harness-mcp-ctl label { display: inline-flex; gap: 6px; align-items: center; }
+    .w-harness-mcp-ctl input[type="text"] { width: 80px; font: inherit; padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); }
+    .w-harness-mcp-wrap { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); padding: 10px; margin: 8px 0; min-width: 0; }
+    .w-harness-mcp-chain { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 8px; }
+    .w-harness-mcp-st { font-family: 'JetBrains Mono', monospace; font-size: .68rem; padding: 2px 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); color: var(--fg-subtle); background: var(--stone-050); overflow-wrap: anywhere; }
+    .w-harness-mcp-st.is-done { background: #e6f4ea; border-color: #2b8a3e; color: #1e5e2c; }
+    .w-harness-mcp-st.is-cur { background: var(--blue-100); border-color: var(--blue-600); color: var(--blue-800); font-weight: 700; }
+    .w-harness-mcp-st.is-bad { background: var(--orange-100); border-color: var(--orange-600); color: var(--orange-700); font-weight: 700; }
+    .w-harness-mcp-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    @media (min-width: 720px) { .w-harness-mcp-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+    .w-harness-mcp-panel { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; font-size: .88rem; min-width: 0; overflow-wrap: anywhere; }
+    .w-harness-mcp-panel h4 { margin: 0 0 4px; font-size: .82rem; color: var(--fg-brand); text-transform: uppercase; letter-spacing: .02em; }
+    .w-harness-mcp-panel ul { margin: 0; padding-left: 18px; }
+    .w-harness-mcp-tools { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+    .w-harness-mcp-tools .btn { font-family: 'JetBrains Mono', monospace; font-size: .72rem; overflow-wrap: anywhere; text-align: left; }
+    .w-harness-mcp-tools .btn.is-allowed { border-color: #2b8a3e; }
+    .w-harness-mcp-msg { margin: 6px 0; padding: 6px 8px; border-radius: var(--radius-sm); font-size: .9rem; min-height: 1.4em; overflow-wrap: anywhere; }
+    .w-harness-mcp-msg.is-ok { background: #e6f4ea; border-left: 3px solid #2b8a3e; }
+    .w-harness-mcp-msg.is-bad { background: var(--orange-100); border-left: 3px solid var(--orange-600); }
+    .w-harness-mcp-log { font-family: 'JetBrains Mono', monospace; font-size: .74rem; max-height: 180px; overflow: auto; background: var(--stone-050); border-radius: var(--radius-sm); padding: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .w-harness-mcp-kpis { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .85rem; margin: 4px 0; }
+    .w-harness-mcp-kpis b { font-family: 'JetBrains Mono', monospace; }
+    .w-harness-mcp-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; margin: 6px 0; background: var(--paper); }
+    .w-harness-mcp-card p { margin: 0 0 4px; }
+    .w-harness-mcp-card.is-ok { border-left: 4px solid #2b8a3e; }
+    .w-harness-mcp-card.is-bad { border-left: 4px solid var(--orange-600); }
+    .w-harness-mcp-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+    .w-harness-mcp-fb { font-size: .88rem; margin-top: 4px; }
+    .w-harness-mcp-score { font-weight: 700; margin: 6px 0; }
+    .w-harness-mcp-ev { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px 6px; align-items: start; padding: 5px 4px; border-bottom: 1px solid var(--border); font-size: .9rem; }
+    .w-harness-mcp-ev:last-child { border-bottom: 0; }
+    .w-harness-mcp-ev small { display: block; color: var(--fg-subtle); font-family: 'JetBrains Mono', monospace; font-size: .72rem; overflow-wrap: anywhere; }
+    .w-harness-mcp-ev .w-harness-mcp-fb { grid-column: 2; margin: 0; }
+    .w-harness-mcp-out { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: .95rem; }
+    .w-harness-mcp-pos { color: #2b8a3e; }
+    .w-harness-mcp-neg { color: var(--orange-700); }
+    .w-harness-mcp-arch { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 8px 0; font-size: .85rem; }
+    .w-harness-mcp-arch .w-harness-mcp-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+    .w-harness-mcp-arch span { border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 3px 8px; background: var(--paper); text-align: center; }
+    .w-harness-mcp-arch .is-tool { font-family: 'JetBrains Mono', monospace; font-size: .74rem; background: var(--stone-050); }
+    .w-harness-mcp-arch i { font-style: normal; color: var(--fg-subtle); }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 481</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 481</a> / Agentic harness ve MCP</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W2</span><span class="chip">W1 s.24–26</span><span class="chip">Brief §20–30</span><span class="chip chip--exam">Vize</span><span class="src">~53 dk · 12 bölüm</span></div>
+          <h1>Agentic harness ve MCP</h1>
+          <p class="lead">Bir AI agent'a "ASELS uygun mu?" diye sormak kolay. Zor olan, agent'ın hangi adımı ne zaman atacağını, hangi tool'u çağırabileceğini, hangi kanıtı sonuca koyabileceğini ve sonucu kimin onaylayacağını belirlemek. Bunu yapan kontrol katmanına <em>harness</em> denir. Bu derste harness'i parça parça kuracağız: state machine, MCP tool'ları, memory, evidence, risk gate ve human review.</p>
+          <p class="src">Not: Week 12 (MCP AI Agent) slaytları henüz repoda yok; MCP kısmı W1 s.24–26, W2 s.15–17 ve term project brief §22 üzerinden anlatıldı. Sayfa numaraları PDF sayfa numarasıdır; W2 PDF'inde bazı slaytların altında yanlışlıkla "Week 1" yazıyor.</p>
+          <!-- Kaynak: week-02-agentic-harness.pdf s.1–21 (s.2–3 görsel slayt, render edilip okundu; s.22–24 senaryolar scenarios-fundamentals dersinde) · week-01-bist-python-mcp.pdf s.24–26, 29–31, 37 · term-project-brief.pdf §2, §3, §4, §16, §17, §20–30, §31, §33–38 · README.md "Instructor's answers on Teams" · weeks/02 ve weeks/12 · papers/ (yalnız özetler). -->
+        </header>
+
+        <article class="lesson" data-course="cse-481" data-lesson="harness-mcp">
+
+<!-- 1 -->
+<section class="lsec" id="what" data-min="4">
+  <h2>Harness nedir?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · W2 s.2, illustrative crisis pattern</span>
+    <p>Week 2 genel bir kriz örüntüsüyle açılıyor. Beş adım:</p>
+    <ol>
+      <li>Concentration in illiquid stocks</li>
+      <li>Artificial price rise</li>
+      <li>Strong public narrative &amp; new inflows</li>
+      <li>Warnings appear in news / videos / regulatory notes</li>
+      <li>Rule tightening → redemptions → forced selling → collapse</li>
+    </ol>
+    <p>Uyarılar 4. adımda zaten ortada, ama farklı kanallara dağılmış: bir haber, bir video, bir düzenleyici notu. Hepsine tek tek bakan biri bunları kolay birleştiremez. Slayttaki "Why the Harness Matters" kutusu, kontrollü bir AI sisteminin burada ne kazandırdığını sayıyor: <em>listens to multiple information channels, captures repeated warnings earlier, combines qualitative and quantitative evidence, produces explainable alerts instead of unsupported guesses.</em></p>
+  </div>
+  <p>Hemen sonraki slayt (W2 s.3) aynı fikri bir sisteme çeviriyor: <strong>Agentic Harness for Early Detection of Speculative Fund Risk</strong>. Beş sütunu soldan sağa oku; bu dersin bütün parçaları burada küçük hâliyle var.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Sütun</th><th>İçinde ne var</th></tr>
+    <tr><td>Input Sources</td><td>Market Data (prices, volume, volatility, fund holdings / concentration, illiquid stock exposure) · News Monitoring · Video Speech-to-Text · Regulatory &amp; Macro Signals</td></tr>
+    <tr><td>MCP Tools</td><td>News Scraper · Speech-to-Text · Entity / Keyword Extractor · Market Data Connector · Risk Event Retriever · Alert Delivery Tool</td></tr>
+    <tr><td>Stateful Agentic Harness</td><td><strong>State</strong> (current stage, data quality, alert status) · <strong>Memory</strong> (episodic, temporal, evidence log) · <strong>Evidence Rules</strong> (requires multi-source evidence before alert) · <strong>Risk Gates</strong> (stop, escalate, request human review) · <strong>Reasoning Controller</strong> (orchestrates tools step by step) · <strong>Audit Trail</strong> (why the alert was produced)</td></tr>
+    <tr><td>Detected Red Flags</td><td>Unusual concentration in illiquid assets · Extreme price appreciation · Self-reinforcing inflow loop · Repeated "speculative / ponzi-like" commentary · Redemption pressure · Regulatory tightening · Liquidity stress / default risk</td></tr>
+    <tr><td>Outputs</td><td>Early Warning Alert · Watchlist · Evidence Summary (news + STT + market signals + timeline) · Human Review (analyst confirms / rejects / escalates)</td></tr>
+  </table></div>
+  <p>Slaytın altındaki cümle dersin özeti: <strong>"Agent thinks. Harness controls."</strong></p>
+  <div class="box box--rule">
+    <span class="box__label">Tanım · W2 s.4</span>
+    <p><strong>A harness is the control layer around an AI agent.</strong> It manages steps, tool permissions, evidence, risk gates, memory, logging and human review.</p>
+    <p>Kısa tanım: <em>"The agent decides what seems useful; the harness decides what is allowed next."</em> Aynı slaytın diğer cümlesi: <em>"The agent reasons about what to do. The harness controls what it is allowed to do."</em> Harness'in görevi agent'ın reasoning'ini <strong>controlled, ordered, and safe</strong> hâle getirmektir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · W2 s.5, "Is ASELS Suitable?"</span>
+    <p>Kullanıcı soruyor: "Is ASELS suitable?" Agent düşünüyor: "I should first run technical analysis." Harness bu cümleyi kabul etmeden önce şunları kontrol ediyor:</p>
+    <ul>
+      <li>Is market data loaded?</li>
+      <li>Did data quality pass?</li>
+      <li>Is technical tool allowed now?</li>
+      <li>Are fundamentals required?</li>
+      <li>Can final result be generated before backtest?</li>
+    </ul>
+    <p>Harness'in altı parçası slaytta şöyle sıralanıyor: <strong>State · Tool permissions · Memory · Evidence rules · Risk gates · Logging</strong>. Slaytın son cümlesi: <em>"a harness is not just a workflow. It is the control system that makes an AI analysis safe, reproducible and explainable."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Projenin hedefi · W2 s.6</span>
+    <p><em>"Not to guess prices with magic. Build a controlled system that analyzes, verifies and explains."</em> Akış: <strong>Data → Tools → Harness → Backtest</strong>. Final output: <em>educational analytical conclusion + evidence + warnings + human review.</em></p>
+    <p>Sistemin katmanları: BIST 100 stocks · technical analysis + sector analysis · fundamentals from Fintables · macro data, news and speech context · MCP tools + stateful AI harness · backtesting + evidence + human review.</p>
+  </div>
+  <!-- Kaynak: week-02-agentic-harness.pdf s.2 (görsel), s.3 (görsel), s.4, s.5, s.6. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Harness model değildir. Agent'ı daha akıllı yapmaz; ne zaman, neyi yapabileceğini sınırlar.</li>
+      <li>Harness "sadece bir workflow" değildir. Sırayı tutmanın yanında izin, kanıt, risk ve log kontrolünü de yapar (s.5 son cümle).</li>
+      <li>"Agent thinks" agent'ın hesap yaptığı anlamına gelmez. Agent hangi adımın faydalı olduğunu düşünür; sayıları tool'lar üretir (bölüm 2).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-what-1">
+    <p class="quiz__q">ASELS örneğinde agent "I should first run technical analysis" diyor. Harness bu cümleye nasıl karşılık verir?</p>
+    <button class="quiz__opt" data-correct>Kontrol eder: market data yüklendi mi, data quality geçti mi, technical tool şu an izinli mi?<span class="why">Doğru. W2 s.5'teki "Harness checks" listesi bu. Harness adımın faydalı olup olmadığına değil, şu an izinli olup olmadığına bakar.</span></button>
+    <button class="quiz__opt">Teknik analizin ASELS için doğru yöntem olup olmadığını tartışır.<span class="why">Bu agent'ın işi, yani reasoning. "The agent decides what seems useful; the harness decides what is allowed next."</span></button>
+    <button class="quiz__opt">RSI'ı kendisi hesaplar ve agent'a verir.<span class="why">Hesap deterministic bir tool'un işidir. Harness hesaplamaz; tool çağrısına izin verir ve sonucu log'a yazar.</span></button>
+    <button class="quiz__opt">Hiçbir şey yapmaz; agent'ın kararını uygular.<span class="why">O zaman ortada harness olmazdı. Tanım gereği harness "what is allowed next" sorusunun cevabını verir.</span></button>
+  </div>
+  <div class="quiz" id="q-what-2">
+    <p class="quiz__q">Hangisi W2 s.4–5'e göre harness'in parçalarından biri <strong>değildir</strong>?</p>
+    <button class="quiz__opt">Memory<span class="why">s.4'teki tanımda var: "steps, tool permissions, evidence, risk gates, memory, logging and human review".</span></button>
+    <button class="quiz__opt">Logging<span class="why">Hem s.4'teki tanımda hem s.5'teki altı parçanın içinde var.</span></button>
+    <button class="quiz__opt">Human review<span class="why">s.4'teki tanımın son maddesi.</span></button>
+    <button class="quiz__opt" data-correct>Fiyatı tahmin eden model<span class="why">Doğru. s.6: "Not to guess prices with magic." Harness fiyat tahmin etmez; analizi kontrol eder, doğrular ve açıklatır.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="principle" data-min="4">
+  <h2>Neden harness? Ana ilke</h2>
+  <p>W2 s.9 aynı soruyu harness'siz ve harness'li bir sistemde karşılaştırıyor:</p>
+  <div class="table-wrap"><table>
+    <tr><th>Without a harness</th><th>With a harness</th></tr>
+    <tr><td>The LLM may guess RSI, P/E (Price-to-Earnings Ratio) or ROE (Return on Equity).</td><td>The LLM must call deterministic tools.</td></tr>
+    <tr><td>The workflow may skip validation.</td><td>The workflow follows fixed states.</td></tr>
+    <tr><td>Different runs may give different conclusions.</td><td>Evidence is stored and replayable.</td></tr>
+    <tr><td>No clear evidence chain is preserved.</td><td>Unsafe analyses can be blocked.</td></tr>
+    <tr><td>Backtesting may be forgotten or done incorrectly.</td><td>Backtesting verifies historical claims.</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">The Main Principle · W2 s.10</span>
+    <div class="table-wrap"><table>
+      <tr><th>Kim</th><th>Ne yapar</th></tr>
+      <tr><td>LLM</td><td><strong>reasons and explains</strong></td></tr>
+      <tr><td>Python tools</td><td><strong>calculate</strong></td></tr>
+      <tr><td>Harness</td><td><strong>controls the workflow</strong></td></tr>
+      <tr><td>Backtest</td><td><strong>verifies historical claims</strong></td></tr>
+      <tr><td>Human</td><td><strong>makes the final decision</strong></td></tr>
+    </table></div>
+    <p>Slayttaki örnek: <em>"The LLM should never estimate THYAO's RSI, ASELS's ROE, or TUPRS's Net Debt/EBITDA. The AI agent orchestrates analysis. The numerical facts must come from deterministic tools."</em></p>
+    <p>Term project brief (§2) aynı ilkeyi bir madde ekleyerek yazıyor: <em>"LLM reasons and explains. Python tools calculate. The harness controls. Backtests verify. <strong>Evidence is logged.</strong> A human makes the final decision."</em></p>
+  </div>
+  <p><strong>Deterministic</strong> şu demek: aynı input her seferinde aynı output'u verir. Aynı OHLCV verisiyle RSI fonksiyonunu yüz kez çalıştırırsan yüz kez aynı sayıyı alırsın. Bir LLM'e aynı soruyu iki kez sorduğunda ise iki farklı cevap alabilirsin ("different runs may give different conclusions"). Sayıların tool'dan gelmesi bu yüzden şart.</p>
+  <div class="box box--example">
+    <span class="box__label">AI Use Policy · W1 s.31</span>
+    <p>Aynı ilke senin için de geçerli. Slayttaki üç kelime: <strong>AI ASSISTS · Python CALCULATES · Student EXPLAINS</strong>.</p>
+    <ul>
+      <li>AI tools may support idea generation, coding assistance and understanding.</li>
+      <li>Students remain responsible for the analysis, interpretation and final work.</li>
+      <li>Prompts and materially used AI outputs should be documented in the appendix.</li>
+      <li>Financial outputs must be verified against the underlying data and code.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: week-02-agentic-harness.pdf s.9, s.10 · term-project-brief.pdf §2 (Core Design Principle), §16 ("Never replace numerical market/fundamental data with a language-model guess") · week-01-bist-python-mcp.pdf s.31. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>LLM'in tahmini doğru çıksa bile hata hatadır. THYAO'nun RSI'sı gerçekten 60 olabilir; sorun sayının yanlış olması değil, <strong>kaynağının olmaması</strong>. İzlenemez, tekrar üretilemez, log'da yoktur.</li>
+      <li>Harness "controls"; doğrulamayı backtest yapar. Final kararı human verir. Bu üç rolü karıştırma.</li>
+      <li>Brief §16: <em>"Never replace numerical market/fundamental data with a language-model guess."</em> Haber ya da video metninden çıkan sayılar da önce tool ile kontrol edilir (bölüm 8).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w02-p9-thyao-rsi"><span class="box__label">W2 s.9 · slayt sorusu</span>
+    <p>Slayttaki "Example mistake": <em>"THYAO RSI is probably around 60"</em>. Bu cümlede yanlış olan ne? Doğru pattern nedir?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bu sayıyı kim üretti? Aynı soruyu yarın tekrar sorsan aynı sayıyı alır mısın?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Ana ilkede RSI'ı kimin hesapladığına bak (s.10). Slaytın sağ altında "Correct pattern" üç adımdan oluşuyor.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Wrong:</strong> The LLM <em>estimates</em> a numerical fact. The value is not calculated from OHLCV data, so it cannot be traced to a source, it is not reproducible (different runs may give different numbers), and it is not stored as evidence. The word "probably" expresses the LLM's confidence, which is not a statistical probability. The main principle says the LLM should never estimate THYAO's RSI; numerical facts must come from deterministic tools.</p>
+      <p><strong>Correct pattern:</strong> LLM asks tool → tool calculates RSI → harness logs result. For example the agent calls <code>calculate_indicators('THYAO.IS')</code>, the Python function computes RSI from the price history, and the harness records the call, its input and its output. The explanation may then cite that logged value as evidence.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/resources/2026-2027-fall/week-02-agentic-harness.pdf">Orijinal slayt (W2 s.9)</a></p>
+  </div>
+  <div class="quiz" id="q-principle-1">
+    <p class="quiz__q">Ana ilkeye göre (W2 s.10) "historical claims"i kim doğrular?</p>
+    <button class="quiz__opt" data-correct>Backtest<span class="why">Doğru: "Backtest verifies historical claims."</span></button>
+    <button class="quiz__opt">LLM<span class="why">LLM "reasons and explains". Kendi iddiasını kendisi doğrulayamaz.</span></button>
+    <button class="quiz__opt">Harness<span class="why">Harness workflow'u kontrol eder; doğrulama adımının atlanmasını engeller ama doğrulamayı backtest yapar.</span></button>
+    <button class="quiz__opt">Human<span class="why">Human final kararı verir. Geçmiş iddiaların sayısal doğrulaması backtest'in işi.</span></button>
+  </div>
+  <div class="quiz" id="q-principle-2">
+    <p class="quiz__q">Agent "TUPRS'un Net Debt/EBITDA'sı muhtemelen 1.5 civarında" diyor. Harness'li bir sistemde doğru davranış hangisi?</p>
+    <button class="quiz__opt" data-correct>Agent <code>get_fundamental_metrics</code> tool'unu çağırır; değer tool output'undan gelir ve log'a yazılır.<span class="why">Doğru. "LLM asks tool → tool calculates → harness logs result."</span></button>
+    <button class="quiz__opt">Değer makul göründüğü için kabul edilir.<span class="why">Makul görünmek yetmez. Sayının kaynağı bir tool olmalı; s.10 TUPRS'un Net Debt/EBITDA'sını açıkça örnek veriyor.</span></button>
+    <button class="quiz__opt">Aynı soru LLM'e üç kez sorulur, cevapların ortalaması alınır.<span class="why">Üç tahminin ortalaması da tahmindir. LLM confidence ≠ statistical probability; farklı run'lar farklı sonuç verebilir.</span></button>
+    <button class="quiz__opt">Human reviewer değeri kendi bilgisiyle düzeltir.<span class="why">Human final kararı verir, sayı üretmez. Sayılar deterministic tool'lardan gelir.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="output" data-min="5">
+  <h2>Final output: Result + Why + Risks + Human Review</h2>
+  <div class="box box--rule">
+    <span class="box__label">Final output'un dört parçası · W2 s.7</span>
+    <div class="table-wrap"><table>
+      <tr><th>Result</th><th>Why?</th><th>Risks</th><th>Human Review</th></tr>
+      <tr><td>Educational analytical conclusion</td><td>Supporting evidence from tools</td><td>Warnings and uncertainty</td><td>Accept / Modify / Reject</td></tr>
+    </table></div>
+    <p><em>"The system should not output only 'BUY' or 'SELL'. It should explain what it found, why it found it, what the risks are, and how the human reviewer responded."</em></p>
+    <ul>
+      <li><strong>Educational analytical conclusion:</strong> not investment advice; it is a research/analysis label.</li>
+      <li><strong>Evidence</strong> must come from deterministic Python tools, Fintables data, backtest results or verified context.</li>
+      <li><strong>Warnings</strong> show uncertainty, weak samples, missing data, high volatility or historical limitations.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · W2 s.8, "Example Final Output for a BIST Stock" (THYAO)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Parça</th><th>İçerik</th></tr>
+      <tr><td>Educational Analytical Conclusion</td><td><code>POTENTIAL_CATCH_UP_CANDIDATE</code></td></tr>
+      <tr><td>Evidence</td><td>Stock is 8% behind sector median. · KAMA slope turned positive. · Revenue Growth improved. · Backtest outperformed XU100.</td></tr>
+      <tr><td>Warnings</td><td>Only 12 similar historical cases. · Market volatility is high. · Historical performance is not a future guarantee.</td></tr>
+      <tr><td>Human Review</td><td><strong>REJECT</strong>. Reason: Maximum drawdown is too high.</td></tr>
+    </table></div>
+    <p>Key idea: <em>"the AI agent explains a reproducible analysis; it does not make the final decision."</em> Dört evidence'ın her biri farklı bir tool'dan geliyor: sector ranking, indicator hesabı, fundamental metrics ve backtest. Bunu bölüm 6'daki simülatörde kendin üreteceksin.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Finite action space · brief §17</span>
+    <p>Strategy katmanı sonucu serbest metinle değil, sabit bir listeden seçer. <em>Allowed educational actions:</em></p>
+    <p><code>HOLD</code> · <code>WATCH</code> · <code>INVESTIGATE</code> · <code>POTENTIAL_CATCH_UP_CANDIDATE</code> · <code>TECHNICAL_REVERSAL_CANDIDATE</code> · <code>FUNDAMENTAL_IMPROVEMENT_CANDIDATE</code> · <code>REJECT_SIGNAL</code> · <code>ANALYSIS_UNSAFE</code></p>
+    <p><em>"Optional BUY/SELL labels may be used only as educational backtest labels. No real broker execution is allowed."</em> Brief §2: sistem bir broker'a bağlanmaz, gerçek emir göndermez, gerçek para yönetmez ve kişisel yatırım tavsiyesi sunmaz. §4: faydalı bir output, <em>"an evidence-backed analytical state such as 'sector laggard with improving fundamentals', 'historically repeated lower-Bollinger reversal', or 'weekday pattern not statistically stable'"</em>.</p>
+  </div>
+  <!-- Kaynak: week-02-agentic-harness.pdf s.7, s.8 · term-project-brief.pdf §2, §4, §17, §38. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><code>POTENTIAL_CATCH_UP_CANDIDATE</code> bir BUY değildir. Brief §11: "The lagging bank is not automatically a BUY"; label backtest doğrulaması için konur.</li>
+      <li>Human REJECT, AI'ın hesap hatası yaptığını göstermez. s.8'de evidence yerinde; reviewer riski (maximum drawdown) kabul etmiyor.</li>
+      <li>"Only 12 similar historical cases" bir evidence değil, bir <strong>warning</strong>: örnek küçük (weak sample).</li>
+      <li>Label tek başına eksik bir output'tur. Why, Risks ve Human Review olmadan dört parçalı format tamamlanmaz.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="brief-s38-distinctions"><span class="box__label">Term project brief §38 · seven distinctions · sınav tipi soru</span>
+    <p><em>"Students should be able to explain the following distinctions:"</em> Prediction ≠ profitable strategy · Correlation ≠ causation · Backtest ≠ future guarantee · Historical evidence ≠ investment advice · LLM confidence ≠ statistical probability · Fundamental strength ≠ guaranteed stock-price increase · Expert commentary ≠ verified fact.</p>
+    <p>exams/README.md bu listeyi vizenin "core concepts"i olarak gösteriyor. Her birini bir iki cümleyle ve dersten bir örnekle açıkla.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her ayrımda sol taraf "elimizde olan", sağ taraf "ondan otomatik çıkmayan" şey. Neden otomatik çıkmadığını tek bir mekanizmayla söyle: maliyet, şans, rejim değişimi, ölçülmemiş güven…</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Örnekler bu derste ve kardeş derslerde: "THYAO RSI is probably around 60" (s.9), "Only 12 similar historical cases" (s.8), "Historical performance is not a future guarantee" (s.8), §14 "not 'good earnings = price rises'", §16 "Expert opinion is contextual evidence, not ground truth".</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Prediction ≠ profitable strategy.</strong> A model can predict direction often and still lose money: transaction costs, a few large losses or poor timing can outweigh many small correct calls. That is why the brief (§19) reports ML metrics (accuracy, precision, recall, F1) separately from financial metrics (cumulative return, Sharpe, maximum drawdown).</li>
+        <li><strong>Correlation ≠ causation.</strong> Two series moving together does not mean one drives the other. A weekday pattern found by searching hundreds of combinations can appear by chance (multiple-testing risk, §12).</li>
+        <li><strong>Backtest ≠ future guarantee.</strong> A backtest only shows what a rule would have done on past data. Regimes change; the W2 s.8 output lists "Historical performance is not a future guarantee" as a warning.</li>
+        <li><strong>Historical evidence ≠ investment advice.</strong> The output is an educational analytical conclusion, "not investment advice; it is a research/analysis label" (W2 s.7). A human still decides, and no order is sent.</li>
+        <li><strong>LLM confidence ≠ statistical probability.</strong> "THYAO RSI is probably around 60" is a feeling of the model, not a measured frequency. A probability-like number comes from counted outcomes, e.g. a reversal that worked in 11 of 17 cases.</li>
+        <li><strong>Fundamental strength ≠ guaranteed stock-price increase.</strong> Good financials may already be priced in or be outweighed by macro conditions; §14 says the research question is not "good earnings = price rises".</li>
+        <li><strong>Expert commentary ≠ verified fact.</strong> Commentary is timestamped contextual evidence. Numerical claims in it must be checked with deterministic tools before they enter the committed evidence set (§16).</li>
+      </ol>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/resources/2026-2027-fall/term-project-brief.pdf">Orijinal metin (brief §38)</a></p>
+  </div>
+  <div class="quiz" id="q-output-1">
+    <p class="quiz__q">Hangisi bir harness'in final output'u olarak kabul edilebilir?</p>
+    <button class="quiz__opt">BUY<span class="why">s.7: "The system should not output only BUY or SELL." BUY/SELL yalnızca educational backtest label'ı olabilir (§17).</span></button>
+    <button class="quiz__opt" data-correct><code>TECHNICAL_REVERSAL_CANDIDATE</code> + tool'lardan gelen evidence + warnings + human review: ACCEPT<span class="why">Doğru. Label action space'te var ve dört parça (Result, Why, Risks, Human Review) tamam.</span></button>
+    <button class="quiz__opt">Tek başına <code>POTENTIAL_CATCH_UP_CANDIDATE</code><span class="why">Label doğru listeden ama output eksik: Why, Risks ve Human Review yok.</span></button>
+    <button class="quiz__opt">"THYAO'yu al, hedef fiyat 400 TL."<span class="why">Bu kişisel yatırım tavsiyesi. Brief §2: sistem "must not ... present personalized investment advice".</span></button>
+  </div>
+  <div class="quiz" id="q-output-2">
+    <p class="quiz__q">W2 s.8'de human reviewer REJECT veriyor. Bu ne demek?</p>
+    <button class="quiz__opt" data-correct>Analiz kayda geçer ama sonuç onaylanmaz; ret nedeni (maximum drawdown is too high) de log'a yazılır.<span class="why">Doğru. Brief §27: "Recorded for: educational decision-memory and later replay."</span></button>
+    <button class="quiz__opt">AI bir hesap hatası yapmış demektir.<span class="why">Evidence yerinde olabilir. REJECT bir risk kararıdır, hata raporu değil.</span></button>
+    <button class="quiz__opt">Sistem otomatik olarak SELL emri gönderir.<span class="why">§27: "The system must never silently convert an AI conclusion into a real market order." Broker bağlantısı yok.</span></button>
+    <button class="quiz__opt">Analiz silinir ve yeniden başlatılır.<span class="why">Tam tersi: kayıt saklanır, episodic memory'ye ve replay'e girer.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="metaphors" data-min="4">
+  <h2>Üç benzetme: OS kernel, FSM, CI/CD</h2>
+  <p>Hoca harness'i bildiğin üç sistemle anlatıyor. Her biri harness'in başka bir yüzünü öne çıkarıyor.</p>
+  <div class="box box--rule">
+    <span class="box__label">Metaphor 1 · Harness as an Operating System Kernel (W2 s.11)</span>
+    <div class="table-wrap"><table>
+      <tr><th>AI Agent</th><th>MCP Tools</th><th>Stateful Harness</th></tr>
+      <tr><td>= User Process</td><td>= System Calls</td><td>= Kernel</td></tr>
+    </table></div>
+    <p><em>"The agent cannot do anything directly. It requests approved tools through the harness."</em> Örnek istek "Calculate RSI for ASELS.IS" için harness üç şeye bakar: 1) Is RSI tool allowed? 2) Is market data loaded? 3) Is this the right state?</p>
+    <p>OS analogy: processes use system calls; agents use MCP tools. The kernel controls permissions; the harness controls allowed actions. State prevents the agent from jumping to unsupported conclusions.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Metaphor 2 · Harness as a Finite State Machine (W2 s.12)</span>
+    <p>START → LOAD DATA → CHECK QUALITY → CALCULATE TECHNICALS → LOAD FUNDAMENTALS → BUILD EVIDENCE → PREVIEW STRATEGY → RUN BACKTEST → RISK GATE → EXPLAIN → HUMAN REVIEW → CLOSE</p>
+    <p><em>"Stateful means the system remembers: current state + completed steps + available evidence + allowed tools."</em> BIST example: <em>"if Backtest = NOT RUN, the FSM does not allow a final strong conclusion."</em></p>
+  </div>
+  <p class="src">Not: s.12'deki çizimde BUILD EVIDENCE'tan inen ok HUMAN REVIEW kutusuna değiyor gibi görünüyor. Okuma sırası ikinci satırda soldan sağa (PREVIEW STRATEGY → … → CLOSE); s.18 ve brief §23 de BUILD EVIDENCE'tan sonra PREVIEW'u koyuyor.</p>
+  <div class="box box--rule">
+    <span class="box__label">Metaphor 3 · Harness as a CI/CD Pipeline for AI Reasoning (W2 s.13)</span>
+    <div class="table-wrap"><table>
+      <tr><th>CI/CD aşaması</th><th>Finansal karşılığı</th></tr>
+      <tr><td>Commit</td><td>question</td></tr>
+      <tr><td>Build</td><td>data</td></tr>
+      <tr><td>Unit tests</td><td>quality checks</td></tr>
+      <tr><td>Integration</td><td>analysis</td></tr>
+      <tr><td>Backtest</td><td>verification</td></tr>
+      <tr><td>Risk scan</td><td>warnings</td></tr>
+      <tr><td>Release</td><td>explanation</td></tr>
+    </table></div>
+    <p>CI/CD idea: <em>a system should not deploy if tests fail.</em> Financial harness idea: <em>the AI should not generate a strong conclusion if data quality or backtest verification fails.</em> Example failure: <em>future financial-statement data appears inside a historical backtest → HARD BLOCK.</em></p>
+    <ul>
+      <li>Each stage produces an artifact (generated output): data table, indicator table, evidence bundle, backtest report, warning list.</li>
+      <li>The final explanation is like a release artifact: it must be reproducible and traceable.</li>
+      <li>AI reasoning also needs engineering controls.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Üçünü birleştirmek · W2 s.14</span>
+    <p>User Question: "Is THYAO a catch-up candidate?" Tek bir adım şöyle görünür:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Harness State</th><th>Tool Call</th><th>Tool Result</th><th>Next State</th></tr>
+      <tr><td><code>LOAD_MARKET_DATA</code></td><td><code>get_stock_history()</code></td><td>OHLCV data</td><td><code>CHECK_QUALITY</code></td></tr>
+    </table></div>
+    <ul>
+      <li><strong>OS Kernel</strong> controls permissions: which tools can be called.</li>
+      <li><strong>Finite State Machine</strong> controls order: what happens next.</li>
+      <li><strong>CI/CD Pipeline</strong> controls verification: quality gates and backtests.</li>
+      <li><strong>AI Agent Harness</strong> combines all three for safe analysis.</li>
+    </ul>
+    <p><em>"The agent can reason, but the harness decides what it is allowed to do next. Stateful = the system remembers where it is, what it has done, and what must happen before the next step."</em></p>
+  </div>
+  <!-- Kaynak: week-02-agentic-harness.pdf s.11, s.12 (çizim render edilip kontrol edildi), s.13, s.14. -->
+  <h3>Hangi benzetme?</h3>
+  <p class="w-harness-mcp-guess"><b>Önce tahmin et:</b> "Each stage produces an artifact" cümlesi hangi benzetmeye ait? Kartlara geçmeden kafanda bir cevap seç.</p>
+  <div id="w-meta-sort"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>OS benzetmesinde MCP tool'ları <strong>system call</strong>'dır, kernel değil. Kernel = stateful harness, user process = agent.</li>
+      <li>Üç benzetme üç ayrı harness anlatmıyor. Aynı harness'in üç kontrolü: permission (kernel), order (FSM), verification (CI/CD).</li>
+      <li>CI/CD'deki "release" final explanation'dır, bir alım satım emri değil.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-meta-1">
+    <p class="quiz__q">OS kernel benzetmesinde MCP tool'ları neye karşılık gelir?</p>
+    <button class="quiz__opt" data-correct>System calls<span class="why">Doğru: "processes use system calls; agents use MCP tools."</span></button>
+    <button class="quiz__opt">Kernel<span class="why">Kernel stateful harness'tir; izinleri o kontrol eder. Tool'lar kernel'ın izin verdiği çağrılardır.</span></button>
+    <button class="quiz__opt">User process<span class="why">User process AI agent'tır: doğrudan bir şey yapamaz, tool ister.</span></button>
+    <button class="quiz__opt">Hardware<span class="why">Slayttaki eşlemede hardware yok: agent, MCP tools, harness.</span></button>
+  </div>
+  <div class="quiz" id="q-meta-2">
+    <p class="quiz__q">Future financial-statement data, historical bir backtest'in içine girmiş. CI/CD benzetmesine göre ne olur?</p>
+    <button class="quiz__opt" data-correct>HARD BLOCK: güçlü bir sonuç "release" edilmez.<span class="why">Doğru. W2 s.13'teki "Example failure" tam olarak bu.</span></button>
+    <button class="quiz__opt">Bir warning eklenir, sonuç yayımlanır.<span class="why">Bu bir soft warning değil. Look-ahead içeren backtest'in sonucu geçersizdir; test'i geçmeyen kod deploy edilmez.</span></button>
+    <button class="quiz__opt">Backtest aynı veriyle tekrar çalıştırılır, ikinci sonuç kullanılır.<span class="why">Aynı veri aynı sızıntıyı içerir; tekrar çalıştırmak hiçbir şeyi düzeltmez.</span></button>
+    <button class="quiz__opt">LLM açıklamada bunu belirtir ve devam eder.<span class="why">Açıklamaya not düşmek kontrolü atlamaktır. Doğrulama başarısızsa "the AI should not generate a strong conclusion".</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="mcp" data-min="6">
+  <h2>MCP, tool'lar ve uzman agent'lar</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · W1 s.24, "MCP AI Agent — What Changes?"</span>
+    <p><strong>Without an agent:</strong> user manually runs scripts and interprets outputs. <strong>With an MCP agent:</strong> the AI can discover and call tools, then explain the result.</p>
+    <p>Zincir: <strong>AI Agent → MCP Server → Python Tools</strong> (Yahoo Finance, Support/Resistance, Backtest, Fundamental Metrics).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">What is MCP in This Project? · W2 s.17</span>
+    <p><strong>MCP (Model Context Protocol)</strong> lets the AI agent call approved tools in a controlled way.</p>
+    <ul>
+      <li>The agent does not run arbitrary code.</li>
+      <li>The agent sees only allowed tools.</li>
+      <li>Each tool has a known input and output schema.</li>
+      <li>This makes the workflow safer and more reproducible.</li>
+    </ul>
+    <p>Örnek: <code>calculate_indicators('ASELS.IS')</code> returns RSI, MACD, SMA, EMA …</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">AI Agent Example · W1 s.25–26</span>
+    <p>User: <em>"Analyze ASELS.IS. Find support/resistance and compare the strategy with BIST 100."</em> Agent'ın çağrı sırası:</p>
+    <ol>
+      <li><code>get_stock_history(symbol, start, end)</code>: download OHLCV data</li>
+      <li><code>find_support_resistance(symbol)</code>: return strongest price zones</li>
+      <li><code>calculate_indicators(symbol)</code>: SMA, RSI, MACD, volume</li>
+      <li><code>run_backtest(symbol, strategy)</code>: evaluate strategy performance</li>
+      <li>Explain result</li>
+    </ol>
+    <p>W1 s.25'teki beşinci tool <code>get_fundamental_metrics(symbol)</code>: read key company metrics. Slaytın alt cümlesi: <em>"The LLM decides which tool to call; the financial calculations remain in deterministic Python functions."</em></p>
+  </div>
+  <p>W2 s.15 büyük resmi çiziyor: <strong>Data Sources</strong> (Yahoo Finance, Fintables, TCMB / TÜİK / Fed, News / YouTube STT) → <strong>Deterministic Tools</strong> (<code>get_stock_history()</code>, <code>calculate_indicators()</code>, <code>find_support_resistance()</code>, <code>get_fundamentals()</code>, <code>run_backtest()</code>) → <strong>Stateful Harness</strong> (load data, check quality, build evidence, preview strategies, run backtest, generate explanation) → <strong>Output</strong> (analytical state, evidence bundle, backtest result, warnings, human review, replayable log).</p>
+  <div class="box box--rule">
+    <span class="box__label">MCP Tool Architecture · brief §22 (15 tool)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Tool</th><th>Input</th><th>Output</th></tr>
+      <tr><td><code>get_stock_history</code></td><td>ticker, start, end</td><td>OHLCV + metadata</td></tr>
+      <tr><td><code>get_index_history</code></td><td>index, start, end</td><td>benchmark time series</td></tr>
+      <tr><td><code>calculate_indicators</code></td><td>ticker/series, config</td><td>SMA/EMA/RSI/MACD/Bollinger/ATR/KAMA/Supertrend/Ichimoku</td></tr>
+      <tr><td><code>detect_reversal_events</code></td><td>series, event_config</td><td>timestamped technical events</td></tr>
+      <tr><td><code>find_support_resistance</code></td><td>OHLCV, tolerance</td><td>levels, zones, touch count, strength</td></tr>
+      <tr><td><code>rank_sector_relative_strength</code></td><td>sector, horizon</td><td>peer returns, lag score, rank</td></tr>
+      <tr><td><code>test_weekday_pattern</code></td><td>ticker, pattern, period</td><td>occurrences, conditional returns, significance diagnostics</td></tr>
+      <tr><td><code>get_fundamental_metrics</code></td><td>ticker, period</td><td>point-in-time financial metrics</td></tr>
+      <tr><td><code>calculate_fundamental_change</code></td><td>ticker, periods</td><td>quarterly/annual changes</td></tr>
+      <tr><td><code>get_macro_context</code></td><td>date_range</td><td>FX, rates, inflation and publication metadata</td></tr>
+      <tr><td><code>get_news_events</code></td><td>ticker/topic, date_range</td><td>timestamped legally accessible event metadata</td></tr>
+      <tr><td><code>get_speech_features</code></td><td>video/source id</td><td>timestamped transcript-derived topics/claims/stance</td></tr>
+      <tr><td><code>run_backtest</code></td><td>strategy spec, universe, period</td><td>performance + trade/event log</td></tr>
+      <tr><td><code>check_data_quality</code></td><td>analysis bundle</td><td>warnings, blocks, stale/leakage flags</td></tr>
+      <tr><td><code>build_evidence_bundle</code></td><td>analysis id</td><td>full and committed evidence sets</td></tr>
+    </table></div>
+  </div>
+  <h3>Uzman agent'lar</h3>
+  <p>W2 s.16 projede bir <strong>Financial Orchestrator Agent</strong> ve onun altında beş agent gösteriyor: Market &amp; Sector Analysis Agent, Fundamental &amp; Macro Analysis Agent, News &amp; Speech Intelligence Agent, Strategy &amp; Backtest Agent ve onun altında Risk &amp; Data Quality Agent. Slaytın fikri: <em>"not every data source becomes an agent. Reasoning agents interpret. Deterministic services calculate."</em></p>
+  <div class="box box--rule">
+    <span class="box__label">Agentic AI Architecture · brief §20</span>
+    <p><em>"A small set of specialized agents is recommended. Data collection and indicator calculation remain deterministic services/workers rather than separate reasoning agents."</em></p>
+    <div class="table-wrap"><table>
+      <tr><th>Agent</th><th>Responsibility</th></tr>
+      <tr><td>Financial Orchestrator Agent</td><td>Controls workflow, chooses allowed next state, merges evidence, detects contradictions and requests verification.</td></tr>
+      <tr><td>Market &amp; Relative-Value Agent</td><td>Interprets price/volume, sector lag, weekday patterns, technical indicators and reversal-event statistics.</td></tr>
+      <tr><td>Fundamental &amp; Macro Agent</td><td>Interprets Fintables metrics together with FX, domestic rates, Fed policy and inflation context.</td></tr>
+      <tr><td>News &amp; Speech Intelligence Agent</td><td>Summarizes timestamped news and public commentary while distinguishing opinion, claim and verified fact.</td></tr>
+      <tr><td>Strategy &amp; Backtest Agent</td><td>Constructs permitted strategy variants and requests historical verification.</td></tr>
+      <tr><td>Risk &amp; Data Quality Agent</td><td>Checks missing/stale data, period alignment, leakage, look-ahead bias and unsupported conclusions.</td></tr>
+    </table></div>
+  </div>
+  <p>Brief §21'deki mimari şeması (yukarıdan aşağı):</p>
+  <div class="w-harness-mcp-arch" aria-label="Brief §21 System Architecture">
+    <span><b>Financial Orchestrator Agent</b></span><i>↓</i>
+    <div class="w-harness-mcp-row"><span>Market / Sector Analysis Agent</span><span>Fundamental / Macro Analysis Agent</span><span>News / Speech Intelligence Agent</span></div><i>↓</i>
+    <div class="w-harness-mcp-row"><span>Evidence Builder</span><span>Risk &amp; Data Quality Gate</span></div><i>↓</i>
+    <span>Strategy / Backtest Verification Agent</span><i>↓</i>
+    <span>Human Review + Decision Log / Replay</span><i>Deterministic MCP Tools below the agents:</i>
+    <div class="w-harness-mcp-row"><span class="is-tool">Yahoo OHLCV</span><span class="is-tool">Technical Indicators</span><span class="is-tool">Sector Ranking</span><span class="is-tool">Fintables Metrics</span><span class="is-tool">Macro Series</span><span class="is-tool">Event Detection</span><span class="is-tool">News Metadata</span><span class="is-tool">STT Features</span><span class="is-tool">Backtest</span></div>
+  </div>
+  <p>W1'deki proje slaytları MCP'yi projenin son katmanı olarak koyuyor: s.29'da dördüncü faz <em>"Final AI-Agent Demo: Ask natural-language questions and execute approved analysis tools"</em>, s.30'da beklenen çıktı <em>"Simple MCP AI agent that uses project tools safely"</em>, s.37'de öneri <em>"expose technical/fundamental functions as MCP tools for an AI agent"</em>.</p>
+  <!-- Kaynak: week-01-bist-python-mcp.pdf s.24, s.25, s.26, s.29, s.30, s.37 · week-02-agentic-harness.pdf s.15, s.16 (görsel render edilip kontrol edildi), s.17 · term-project-brief.pdf §20, §21, §22. -->
+  <p class="src">Not: Kaynaklar arasında küçük farklar var. Fundamental tool'u W1 s.25'te <code>get_fundamental_metrics(symbol)</code>, W2 s.15'te <code>get_fundamentals()</code>, brief §22'de <code>get_fundamental_metrics(ticker, period)</code>. Market agent'ı s.16'da "Market &amp; Sector Analysis Agent", §20'de "Market &amp; Relative-Value Agent". s.16'da Risk &amp; Data Quality Agent, Strategy &amp; Backtest Agent'ın altında; §21'de ise Risk &amp; Data Quality Gate, backtest agent'ından önce geliyor. Sınavda brief §20–22'deki adları kullanmak en güvenlisi.</p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>MCP bir model değildir ve hesap yapmaz. Agent'ın onaylı tool'ları nasıl gördüğünü ve çağırdığını tanımlar; hesap Python tool'unda yapılır.</li>
+      <li>MCP state tutmaz. "Şu an hangi adımdayız, hangi tool izinli?" sorusu harness'in işidir. MCP tool'ları gösterir, harness hangilerinin o anda açık olduğunu belirler.</li>
+      <li>Her veri kaynağı bir agent değildir. OHLCV indirmek ya da RSI hesaplamak bir worker/service işidir; agent yorumlar.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-mcp-1">
+    <p class="quiz__q">W2 s.17'ye göre MCP'nin sağladığı şey hangisi?</p>
+    <button class="quiz__opt" data-correct>Agent yalnız onaylı tool'ları görür ve her tool'un input/output schema'sı bilinir.<span class="why">Doğru. Bu, workflow'u "safer and more reproducible" yapar.</span></button>
+    <button class="quiz__opt">Agent istediği Python kodunu çalıştırabilir.<span class="why">Slayt tam tersini söylüyor: "The agent does not run arbitrary code."</span></button>
+    <button class="quiz__opt">MCP, RSI'ı LLM'in içinde hesaplar.<span class="why">Hesap deterministic Python fonksiyonunda yapılır. MCP sadece çağrının yolu.</span></button>
+    <button class="quiz__opt">MCP, analizin hangi state'te olduğunu tutar.<span class="why">State harness'in işidir (OS benzetmesinde kernel). MCP tool'ları, yani system call'ları tanımlar.</span></button>
+  </div>
+  <div class="quiz" id="q-mcp-2">
+    <p class="quiz__q">Brief §20'ye göre hangisi ayrı bir reasoning agent değil, deterministic bir service/worker olmalı?</p>
+    <button class="quiz__opt" data-correct>OHLCV indirip indicator hesaplayan bileşen<span class="why">Doğru: "Data collection and indicator calculation remain deterministic services/workers rather than separate reasoning agents."</span></button>
+    <button class="quiz__opt">News &amp; Speech Intelligence Agent<span class="why">Bu bir reasoning agent: opinion, claim ve verified fact'i ayırarak özetler. Bu yorum işidir.</span></button>
+    <button class="quiz__opt">Risk &amp; Data Quality Agent<span class="why">§20'de agent olarak var: leakage, look-ahead bias ve unsupported conclusion'ları kontrol eder.</span></button>
+    <button class="quiz__opt">Financial Orchestrator Agent<span class="why">Workflow'u kontrol eden, evidence birleştiren ve çelişki arayan agent. Hesap yapmaz ama yorumlar ve karar verir.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="fsm" data-min="6">
+  <h2>Stateful harness: state'ler ve izinli tool'lar</h2>
+  <p>Hoca state machine'i üç ayrı ayrıntı düzeyinde veriyor. Hepsi aynı omurgayı taşıyor: <strong>data → quality → analysis → evidence → backtest → gate → explanation → human</strong>.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Kaynak</th><th>State sayısı</th><th>Sıra</th></tr>
+    <tr><td>W2 s.12 (FSM)</td><td>12</td><td>START, LOAD DATA, CHECK QUALITY, CALCULATE TECHNICALS, LOAD FUNDAMENTALS, BUILD EVIDENCE, PREVIEW STRATEGY, RUN BACKTEST, RISK GATE, EXPLAIN, HUMAN REVIEW, CLOSE</td></tr>
+    <tr><td>W2 s.18 (step-by-step workflow)</td><td>9</td><td>1 LOAD MARKET DATA, 2 CHECK DATA QUALITY, 3 CALCULATE TECHNICALS, 4 LOAD FUNDAMENTALS, 5 LOAD MACRO / NEWS, 6 BUILD EVIDENCE, 7 PREVIEW STRATEGIES, 8 RUN BACKTEST, 9 HUMAN REVIEW</td></tr>
+    <tr><td>Brief §23 (Stateful Agent Harness)</td><td>17</td><td>START, SELECT_UNIVERSE, LOAD_MARKET_DATA, CHECK_DATA_QUALITY, CALCULATE_TECHNICALS, RUN_SECTOR_RELATIVE_ANALYSIS, RUN_PATTERN_AND_REVERSAL_ANALYSIS, LOAD_FUNDAMENTALS, LOAD_MACRO_CONTEXT, LOAD_NEWS_AND_SPEECH_CONTEXT, BUILD_EVIDENCE, PREVIEW_STRATEGIES, RUN_BACKTEST, RISK_GATE, GENERATE_EXPLANATION, HUMAN_REVIEW, LOG_AND_CLOSE</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Kurallar · brief §23 ve W2 s.18</span>
+    <ul>
+      <li><em>"Each state should expose only a defined subset of MCP tools."</em></li>
+      <li><em>"The LLM must not invent new actions or skip mandatory quality/backtest states."</em></li>
+      <li><em>"The agent cannot jump directly to a final conclusion before data validation and backtest verification."</em> (s.18)</li>
+      <li>Stateful = current state + completed steps + available evidence + allowed tools (s.12).</li>
+    </ul>
+    <p>17 state'i ezberlemek için altı gruba ayır (2 + 2 + 3 + 3 + 4 + 3): <strong>setup</strong> (START, SELECT_UNIVERSE) · <strong>data</strong> (LOAD_MARKET_DATA, CHECK_DATA_QUALITY) · <strong>analysis</strong> (CALCULATE_TECHNICALS, RUN_SECTOR_RELATIVE_ANALYSIS, RUN_PATTERN_AND_REVERSAL_ANALYSIS) · <strong>context</strong> (LOAD_FUNDAMENTALS, LOAD_MACRO_CONTEXT, LOAD_NEWS_AND_SPEECH_CONTEXT) · <strong>verification</strong> (BUILD_EVIDENCE, PREVIEW_STRATEGIES, RUN_BACKTEST, RISK_GATE) · <strong>output</strong> (GENERATE_EXPLANATION, HUMAN_REVIEW, LOG_AND_CLOSE).</p>
+  </div>
+  <!-- Kaynak: week-02-agentic-harness.pdf s.12, s.18 · term-project-brief.pdf §22, §23, §29, §32, §33. Simülatördeki state → tool eşlemesi bizim: brief her state için izin listesini vermiyor; §22 tool output'ları ve §33 adımlarından kuruldu. -->
+  <h3>Harness simülatörü</h3>
+  <p>Agent sensin. Soru: <em>"Is THYAO a catch-up candidate?"</em> Tool'lara tıkla, sonra "İleri" ile bir sonraki state'e geç. Harness her çağrıyı kontrol ediyor: tool bu state'te izinli mi, bu state'in zorunlu çağrısı yapıldı mı? "Raw LLM" modunda bu kontroller kapalı (brief §30'daki A aşaması); istediğin anda sonuç yazdırıp kaç iddianın bir tool output'una dayandığını görebilirsin.</p>
+  <p class="src">Not: Hangi state'te hangi tool'un açık olduğunu brief tek tek vermiyor. Buradaki izin listesi bizim; §22'deki tool output'larından ve §33'teki adımlardan kuruldu. Tool output'ları W2 s.8'deki örnek rakamlar; gerçek THYAO verisi değil.</p>
+  <p class="w-harness-mcp-guess"><b>Önce tahmin et:</b> CALCULATE_TECHNICALS state'indeyken <code>run_backtest</code>'e basarsan ne olur? Raw LLM modunda hiçbir tool çağırmadan sonuç yazdırırsan altı iddianın kaçı desteklenir?</p>
+  <div class="w-harness-mcp-wrap" id="w-fsm">
+    <div class="w-harness-mcp-ctl">
+      <button class="btn btn--sm btn--accent" data-mode="harness">Harness</button>
+      <button class="btn btn--sm" data-mode="raw">Raw LLM</button>
+      <label><input type="checkbox" id="w-fsm-fault" /> Veri hatası koy: backtest'e henüz yayımlanmamış bir bilanço sızsın</label>
+      <button class="btn btn--sm" id="w-fsm-reset">Sıfırla</button>
+    </div>
+    <div id="w-fsm-board"></div>
+    <div class="w-harness-mcp-tools" id="w-fsm-tools"></div>
+    <div class="w-harness-mcp-ctl">
+      <button class="btn btn--sm btn--accent" id="w-fsm-next">İleri → sonraki state</button>
+      <button class="btn btn--sm" id="w-fsm-jump">Sonucu şimdi yaz</button>
+      <span id="w-fsm-review" class="w-harness-mcp-btns"></span>
+    </div>
+    <div class="w-harness-mcp-msg" id="w-fsm-msg" aria-live="polite"></div>
+    <div class="w-harness-mcp-kpis" id="w-fsm-kpis"></div>
+    <div class="w-harness-mcp-log" id="w-fsm-log"></div>
+  </div>
+  <p>Aşağıdaki oynatıcı aynı motoru kurallara uyan bir agent'la baştan sona çalıştırıyor: her state'te izinli tool'ların hepsini çağırıyor, human review'da slayttaki gibi REJECT veriyor.</p>
+  <div class="w-harness-mcp-ctl"><label><input type="checkbox" id="w-auto-fault" /> Veri hatasıyla oynat</label></div>
+  <div id="w-auto"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>CHECK_DATA_QUALITY'nin geçmesi analizin temiz olduğunu göstermez. O anda sadece fiyat verisi yüklü; bilanço sızıntısı ancak fundamental'lar ve backtest geldikten sonra, RISK_GATE'te yakalanır. Simülatörde veri hatasını açıp dene.</li>
+      <li>Analiz state'lerinin kendi arasındaki sırası bir tasarım tercihi: §23 technicals'ı sector analizinden önce, §33 sector ranking'i technicals'tan önce koyuyor. Değişmeyen kısım omurga: quality analizden önce, backtest ve gate explanation'dan önce.</li>
+      <li>s.18'deki 9 adımlık listede RISK GATE ve EXPLAIN kutusu yok; bu, onların atlanabileceği anlamına gelmez. s.12 ve §23'te ikisi de var.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w02-practice-fsm-draw"><span class="box__label">Hafta 2 practice listesi · ödev sorusu</span>
+    <p><em>"Draw the harness state machine from memory."</em></p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce omurgayı yaz: data → quality → analysis → evidence → backtest → gate → explanation → human → close. Sonra her halkayı brief §23'teki adlarla aç.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Altı grup, 2 + 2 + 3 + 3 + 4 + 3 = 17 state. Context grubunda üç LOAD var: fundamentals, macro, news and speech.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>START → SELECT_UNIVERSE → LOAD_MARKET_DATA → CHECK_DATA_QUALITY → CALCULATE_TECHNICALS → RUN_SECTOR_RELATIVE_ANALYSIS → RUN_PATTERN_AND_REVERSAL_ANALYSIS → LOAD_FUNDAMENTALS → LOAD_MACRO_CONTEXT → LOAD_NEWS_AND_SPEECH_CONTEXT → BUILD_EVIDENCE → PREVIEW_STRATEGIES → RUN_BACKTEST → RISK_GATE → GENERATE_EXPLANATION → HUMAN_REVIEW → LOG_AND_CLOSE</p>
+      <p>Annotate the drawing with the rules: each state exposes only a defined subset of MCP tools; the LLM must not invent new actions or skip the mandatory quality and backtest states; while Backtest = NOT RUN, no final strong conclusion is allowed; the harness remembers the current state, completed steps, available evidence and allowed tools. The shorter slide version (W2 s.12) is also accepted: START → LOAD DATA → CHECK QUALITY → CALCULATE TECHNICALS → LOAD FUNDAMENTALS → BUILD EVIDENCE → PREVIEW STRATEGY → RUN BACKTEST → RISK GATE → EXPLAIN → HUMAN REVIEW → CLOSE.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/weeks/02-algorithmic-trading-and-agentic-harness.md">Orijinal liste (weeks/02)</a></p>
+  </div>
+  <div class="box box--exam" data-exam="w02-practice-thyao-tools"><span class="box__label">Hafta 2 practice listesi · ödev sorusu</span>
+    <p><em>"For 'Is THYAO a catch-up candidate?', list which tool each state calls."</em></p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>§22'deki 15 tool'un output sütununa bak: her output hangi state'in ürettiği artifact'e benziyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p><code>check_data_quality</code> iki kez geçer. Bazı state'ler tool çağırmaz: orada işi bir agent ya da human yapar.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>State</th><th>Tool call(s)</th></tr>
+        <tr><td>START</td><td>none (the question is received)</td></tr>
+        <tr><td>SELECT_UNIVERSE</td><td>none from §22; the orchestrator fixes the universe and THYAO's peer group (§32: <code>load_universe()</code>, <code>build_sector_peer_groups()</code>)</td></tr>
+        <tr><td>LOAD_MARKET_DATA</td><td><code>get_stock_history('THYAO.IS', start, end)</code>, <code>get_index_history('XU100', start, end)</code></td></tr>
+        <tr><td>CHECK_DATA_QUALITY</td><td><code>check_data_quality(bundle)</code></td></tr>
+        <tr><td>CALCULATE_TECHNICALS</td><td><code>calculate_indicators</code> (KAMA slope, RSI, …), <code>find_support_resistance</code></td></tr>
+        <tr><td>RUN_SECTOR_RELATIVE_ANALYSIS</td><td><code>rank_sector_relative_strength(sector, horizon)</code> → lag score vs sector median</td></tr>
+        <tr><td>RUN_PATTERN_AND_REVERSAL_ANALYSIS</td><td><code>detect_reversal_events</code>, <code>test_weekday_pattern</code></td></tr>
+        <tr><td>LOAD_FUNDAMENTALS</td><td><code>get_fundamental_metrics</code> (point-in-time), <code>calculate_fundamental_change</code></td></tr>
+        <tr><td>LOAD_MACRO_CONTEXT</td><td><code>get_macro_context(date_range)</code></td></tr>
+        <tr><td>LOAD_NEWS_AND_SPEECH_CONTEXT</td><td><code>get_news_events</code>, <code>get_speech_features</code></td></tr>
+        <tr><td>BUILD_EVIDENCE</td><td><code>build_evidence_bundle(analysis_id)</code></td></tr>
+        <tr><td>PREVIEW_STRATEGIES</td><td>none from §22; the Strategy &amp; Backtest Agent writes the variants A–E (§29, §32 <code>generate_strategy_variants()</code>)</td></tr>
+        <tr><td>RUN_BACKTEST</td><td><code>run_backtest(strategy spec, universe, period)</code></td></tr>
+        <tr><td>RISK_GATE</td><td><code>check_data_quality</code> again, now on the full bundle (leakage, weak samples)</td></tr>
+        <tr><td>GENERATE_EXPLANATION</td><td>none; the LLM writes Result + Why + Risks citing only committed evidence</td></tr>
+        <tr><td>HUMAN_REVIEW</td><td>none; a human accepts, modifies or rejects</td></tr>
+        <tr><td>LOG_AND_CLOSE</td><td>none from §22; the decision log is saved for replay (§32 <code>log_decision()</code>)</td></tr>
+      </table></div>
+      <p>The per-state lists are a reasonable design, not given verbatim in the slides; what the grader checks is that every numerical claim comes from a tool and that quality, backtest and gate states are not skipped.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/weeks/02-algorithmic-trading-and-agentic-harness.md">Orijinal liste (weeks/02)</a></p>
+  </div>
+  <div class="quiz" id="q-fsm-1">
+    <p class="quiz__q">Brief §23'te RUN_BACKTEST'ten hemen sonra hangi state gelir?</p>
+    <button class="quiz__opt" data-correct>RISK_GATE<span class="why">Doğru. Gate backtest'ten sonra, explanation'dan önce: leakage ve weak sample burada yakalanır.</span></button>
+    <button class="quiz__opt">GENERATE_EXPLANATION<span class="why">Bu RISK_GATE'i atlamak olur. "The LLM must not ... skip mandatory quality/backtest states."</span></button>
+    <button class="quiz__opt">HUMAN_REVIEW<span class="why">Human review'dan önce hem gate hem explanation var; reviewer'ın inceleyeceği bir sonuç olmalı.</span></button>
+    <button class="quiz__opt">PREVIEW_STRATEGIES<span class="why">PREVIEW backtest'ten <em>önce</em> gelir: önce variant'lar tanımlanır, sonra test edilir.</span></button>
+  </div>
+  <div class="quiz" id="q-fsm-2">
+    <p class="quiz__q">"Stateful means the system remembers …" (W2 s.12). Hangisi bu listede <strong>yok</strong>?</p>
+    <button class="quiz__opt">Current state<span class="why">Listede var: sistem nerede olduğunu bilir.</span></button>
+    <button class="quiz__opt">Completed steps<span class="why">Listede var: backtest çalıştı mı, quality geçti mi?</span></button>
+    <button class="quiz__opt">Allowed tools<span class="why">Listede var: o state'te açık olan tool'lar.</span></button>
+    <button class="quiz__opt" data-correct>Agent'ın fiyat tahmini<span class="why">Doğru. Liste: current state + completed steps + available evidence + allowed tools. Harness tahmin saklamaz; tool output'larını saklar.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="memory" data-min="4">
+  <h2>Memory: temporal, episodic, procedural</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · W2 s.19</span>
+    <p>Bir finansal agent'ın üç farklı şeyi hatırlaması gerekir. <strong>Ne değişti?</strong> (fiyat, volume, RSI, ROE, FX, inflation). <strong>Geçmişte ne oldu?</strong> (state → signal → backtest → human decision). <strong>Doğru yol ne?</strong> (data → validation → analysis → backtest → explanation).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Üç memory türü · W2 s.19–20 ve brief §24</span>
+    <div class="table-wrap"><table>
+      <tr><th>Tür</th><th>Ne saklar</th><th>Slayt örnekleri</th><th>Brief §24</th></tr>
+      <tr><td><strong>Temporal</strong></td><td>time-series facts; "What changed over time?"</td><td>ASELS RSI moved from 31 → 44 → 57. · TUPRS quarterly EBITDA growth changed across four quarters.</td><td>Historical prices, indicators, macro series, financial metrics, event histories.</td></tr>
+      <tr><td><strong>Episodic</strong></td><td>past cases; "What happened in past analyses?"</td><td>Last month the system marked THYAO as MONITOR/WATCH. Human later rejected it because drawdown was high. · "AKBNK lagged its sector, then caught up after a successful backtest."</td><td>Past analysis cases: state → evidence → action → backtest result → human decision.</td></tr>
+      <tr><td><strong>Procedural</strong></td><td>steps and rules; "What is the correct workflow?"</td><td>The system knows it must run the risk gate before generating the final explanation. · "Never use future financial statements inside a historical backtest."</td><td>Approved workflow order, tool permissions, validation rules and analysis templates.</td></tr>
+    </table></div>
+    <p>Slaytın kuralı: <strong>Temporal = data history · Episodic = case history · Procedural = workflow history.</strong></p>
+    <p>Brief: <em>"A student implementation may use SQLite, PostgreSQL, Parquet/CSV, JSON and Pandas data structures. Enterprise infrastructure is not required."</em></p>
+  </div>
+  <!-- Kaynak: week-02-agentic-harness.pdf s.19, s.20 · term-project-brief.pdf §24 · W2 s.3 (State / Memory: episodic, temporal, evidence log). Sorter'daki 7–12. kartlar bizim örneklerimiz. -->
+  <p class="w-harness-mcp-guess"><b>Önce tahmin et:</b> "Hangi state'te hangi tool çağrılabilir" listesi hangi memory'de durur? Sonra kartları sırala; ilk altı kart slaytlardan, son altısı yeni.</p>
+  <div id="w-mem-sort"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Geçmiş" kelimesi episodic demek değildir. RSI'ın geçmişi (31 → 44 → 57) bir zaman serisidir, yani temporal. Episodic bir <strong>vaka</strong>dır: o gün hangi state'teydik, ne önerdik, human ne dedi.</li>
+      <li>Procedural memory'deki "history", kuralların ve workflow'un kaydıdır; bir hissenin geçmişi değil.</li>
+      <li>Episodic memory bir evidence değildir. "Geçen ay THYAO WATCH'tı" bilgisi bu ayın sonucunu tek başına desteklemez; sadece bağlam verir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-mem-1">
+    <p class="quiz__q">"Never use future financial statements inside a historical backtest." Bu hangi memory'de saklanır?</p>
+    <button class="quiz__opt" data-correct>Procedural<span class="why">Doğru. Bir kural; W2 s.20'deki procedural örneği tam olarak bu cümle.</span></button>
+    <button class="quiz__opt">Temporal<span class="why">Temporal zaman serisi tutar (fiyat, RSI, EBITDA growth). Bu bir veri değil, bir kural.</span></button>
+    <button class="quiz__opt">Episodic<span class="why">Episodic geçmiş bir vakayı tutar. Bu cümle bir vaka değil, her vakada uygulanan kural.</span></button>
+    <button class="quiz__opt">Hiçbiri; kurallar memory'de durmaz.<span class="why">§24: procedural memory "approved workflow order, tool permissions, validation rules and analysis templates" saklar.</span></button>
+  </div>
+  <div class="quiz" id="q-mem-2">
+    <p class="quiz__q">"AKBNK lagged its sector, then caught up after a successful backtest." Hangi memory?</p>
+    <button class="quiz__opt">Temporal<span class="why">İçinde bir zaman sırası var ama kaydedilen şey bir seri değil, bir analiz vakasının sonucu.</span></button>
+    <button class="quiz__opt" data-correct>Episodic<span class="why">Doğru. W2 s.20'deki episodic örneği: geçmiş bir vaka, sonucu ile birlikte.</span></button>
+    <button class="quiz__opt">Procedural<span class="why">Bir kural ya da adım sırası söylemiyor; ne olduğunu anlatıyor.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="evidence" data-min="5">
+  <h2>Evidence bundle ve committed evidence set</h2>
+  <div class="box box--rule">
+    <span class="box__label">Observed context ≠ committed evidence · W2 s.21 ve brief §25</span>
+    <p><strong>Observed context</strong> (evidence bundle): sistemin gördüğü her şey. W2 s.21'de: RSI, MACD, SMA, EMA · sector lag score · revenue growth · ROE and leverage · USD/TRY and inflation · news events · speech topics. Brief §25: "30+ technical/fundamental/macro/news features".</p>
+    <p><strong>Committed evidence set</strong>: bunlardan sonucu gerçekten destekleyen küçük küme, numaralı (E1, E2, …).</p>
+    <p><em>"The system must distinguish between all observed features and the smaller set actually used to justify a conclusion."</em> ve <em>"The AI explanation may cite only evidence that exists in tool outputs."</em></p>
+    <div class="table-wrap"><table>
+      <tr><th>W2 s.21</th><th>Brief §25</th></tr>
+      <tr><td>E1: Stock is 8% behind sector median.<br>E2: KAMA slope turned positive.<br>E3: Revenue growth improved.<br>E4: Lower Bollinger reversals worked in 11/17 similar cases.<br>E5: Backtest variant B outperformed XU100.</td><td>E1: Stock is 8.5 percentage points behind sector median over 20 days<br>E2: KAMA slope turned positive<br>E3: Lower Bollinger reversal historically succeeded 11/17 comparable events<br>E4: Revenue and EBITDA growth improved in the latest disclosed quarter<br>E5: Net Debt/EBITDA declined<br>E6: Macro regime not flagged as hard-risk<br>E7: Backtest variant B outperformed benchmark after costs<br><br>Educational Analytical State: <code>POTENTIAL_CATCH_UP_CANDIDATE</code><br>Warnings: Historical evidence only; no guarantee of future return.</td></tr>
+    </table></div>
+    <p>Slaytın fikri: <em>"the system may see many features, but it should clearly state which ones actually support the final conclusion."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">News ve speech evidence'ı · brief §16 ve hocanın Teams cevabı</span>
+    <ul>
+      <li>Numerical claims in commentary must be checked against deterministic data tools before entering the committed evidence set.</li>
+      <li>Expert opinion is contextual evidence, not ground truth.</li>
+      <li>Kaynak ve zaman korunur: video URL, speaker/channel, publication time, transcript time range; haberde publication timestamp.</li>
+      <li>Teams: KAP bildirimleri şirket olayları için uygun, çünkü resmi bildirim zaman damgası taşırlar. <em>"Text is timestamped contextual evidence, not a replacement for numerical financial data."</em></li>
+    </ul>
+  </div>
+  <!-- Kaynak: week-02-agentic-harness.pdf s.21 · term-project-brief.pdf §11, §14, §16, §25 · README.md "Instructor's answers on Teams" (News and speech layer). Committer'daki kartlar bizim; banka getirileri W2 s.22'den. -->
+  <h3>Evidence committer</h3>
+  <p>W2 s.22'deki illustrative banka örneğini kullanalım: son 20 işlem gününde GARAN +16%, AKBNK +12%, ISCTR +11%, YKBNK +3%. Soru: YKBNK için <code>POTENTIAL_CATCH_UP_CANDIDATE</code> label'ını hangi evidence taşır? Brief §10'daki tanım: <em>"stock return minus sector-median return"</em>.</p>
+  $$\text{lag score} = r_{\text{stock}} - \text{median}(r_{\text{peers}})$$
+  <p>Geride kalan hissenin lag score'u negatiftir. Bu alıştırmada pozitif bir sayıyla çalışmak için sector median'ın gerisinde kalma miktarını soruyoruz: $\text{gerisinde kalma} = -\text{lag score} = \text{median}(r_{\text{peers}}) - r_{\text{stock}}$.</p>
+  <p class="w-harness-mcp-guess"><b>Önce tahmin et:</b> Dört bankanın median getirisi kaç? 12 mi, 11.5 mi, 10.5 mi? Sonra aşağıdaki kutuya YKBNK'nin sector median'ın kaç puan gerisinde kaldığını yaz.</p>
+  <div class="w-harness-mcp-wrap" id="w-ev">
+    <div class="w-harness-mcp-ctl">
+      <label for="w-ev-lag">Sector median'ın gerisinde kalma miktarı (yüzde puan):</label>
+      <input type="text" id="w-ev-lag" inputmode="decimal" placeholder="ör. 7.25" />
+      <button class="btn btn--sm" id="w-ev-lag-go">Kontrol et</button>
+    </div>
+    <div class="w-harness-mcp-msg" id="w-ev-lag-msg" aria-live="polite"></div>
+    <p class="src">Gözlenen bağlam (observed context). Sonucu destekleyenleri işaretle, sonra "Commit".</p>
+    <div id="w-ev-list"></div>
+    <div class="w-harness-mcp-ctl"><button class="btn btn--sm btn--accent" id="w-ev-go">Commit</button><button class="btn btn--sm" id="w-ev-reset">Sıfırla</button></div>
+    <div class="w-harness-mcp-msg" id="w-ev-out" aria-live="polite"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Committed set "gördüğün her şey" değildir. Weekday istatistiği ya da USD/TRY seviyesi bundle'da durur ama catch-up sonucunu taşımaz.</li>
+      <li>Bir yorumcunun video'da söylediği sayı, tool ile doğrulanmadan committed set'e giremez. Expert commentary ≠ verified fact.</li>
+      <li>Banka için Net Debt/EBITDA anlamlı bir oran değildir. Brief §14: <em>"bank analysis should not blindly use industrial-company ratios."</em> §25'teki E5 sanayi şirketi örneği için.</li>
+      <li>11/17 bir sayımdır (≈ %64.7), bir LLM güveni değil. "Probably" yerine sayılmış bir oran kullanmak, LLM confidence ≠ statistical probability ayrımının ta kendisi.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ev-1">
+    <p class="quiz__q">Brief §25'e göre AI explanation hangi evidence'ı kullanabilir?</p>
+    <button class="quiz__opt" data-correct>Yalnızca tool output'larında bulunan evidence'ı<span class="why">Doğru: "The AI explanation may cite only evidence that exists in tool outputs."</span></button>
+    <button class="quiz__opt">LLM'in yüksek güvenle doğru bulduğu her şeyi<span class="why">LLM confidence ≠ statistical probability. Güven bir kaynak değildir.</span></button>
+    <button class="quiz__opt">Tanınmış bir uzmanın video'da söylediklerini<span class="why">Expert commentary contextual evidence'tır; sayısal iddialar önce tool ile kontrol edilir (§16).</span></button>
+    <button class="quiz__opt">Observed context'teki 30+ feature'ın hepsini<span class="why">Committed set bunların içinden sonucu gerçekten destekleyen küçük kümedir.</span></button>
+  </div>
+  <div class="quiz" id="q-ev-2">
+    <p class="quiz__q">GARAN +16%, AKBNK +12%, ISCTR +11%, YKBNK +3%. YKBNK sector median'ın kaç puan gerisinde?</p>
+    <button class="quiz__opt">9<span class="why">Bu 12 − 3. Ama 12 median değil, sıralı listenin (3, 11, 12, 16) üçüncü elemanı. Dört sayıda median ortadaki iki değerin ortalamasıdır.</span></button>
+    <button class="quiz__opt" data-correct>8.5<span class="why">Doğru. Sıralı: 3, 11, 12, 16; median = (11 + 12) / 2 = 11.5; 11.5 − 3 = 8.5. Lag score'u 3 − 11.5 = −8.5 pp. Brief §25'teki E1 rakamıyla aynı.</span></button>
+    <button class="quiz__opt">7.5<span class="why">Bu ortalamayla hesap: 10.5 − 3. Soru sector <em>median</em>'ı soruyor; YKBNK'nin düşük değeri ortalamayı aşağı çekiyor, median'ı çekmiyor.</span></button>
+    <button class="quiz__opt">13<span class="why">Bu en iyi bankaya (GARAN) göre fark. Lag score ve gerisinde kalma miktarı median'a göre ölçülür.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="gate" data-min="4">
+  <h2>Data quality ve risk gate</h2>
+  <div class="box box--rule">
+    <span class="box__label">Data Quality and Risk Gate · brief §26</span>
+    <div class="table-wrap"><table>
+      <tr><th>Hard blocks</th><th>Soft warnings</th></tr>
+      <tr><td>
+        <ul>
+          <li>Future financial-statement information enters an earlier historical date.</li>
+          <li>Look-ahead bias in indicator/signal construction.</li>
+          <li>Wrong ticker or broken price history.</li>
+          <li>Critical period mismatch between price and financial data.</li>
+          <li>Backtest uses information unavailable at decision time.</li>
+        </ul>
+      </td><td>
+        <ul>
+          <li>Macro series unavailable for a limited interval.</li>
+          <li>News coverage is sparse.</li>
+          <li>Video transcript quality is low.</li>
+          <li>Small number of historical technical events.</li>
+          <li>Sector peer group is temporarily too small.</li>
+        </ul>
+      </td></tr>
+    </table></div>
+    <p><strong>Possible gate outputs:</strong> <code>PASS</code> · <code>PASS_WITH_WARNINGS</code> · <code>INVESTIGATE</code> · <code>ANALYSIS_UNSAFE</code> · <code>HARD_BLOCK</code></p>
+    <p>Ayrım şu: hard block'ta sonuç <strong>yanlış olabilir</strong> (geleceği görmüş, yanlış hisseyi ölçmüş). Soft warning'de sonuç geçerli ama <strong>daha belirsizdir</strong>; warning output'un Risks kısmına yazılır.</p>
+  </div>
+  <p>Brief hangi durumun hangi output'a gittiğini tek tek yazmıyor. İsimlerden ve §33'ten çıkan okuma şu (bizim): hard block varsa <code>HARD_BLOCK</code>; yalnız soft warning varsa <code>PASS_WITH_WARNINGS</code>; hiçbiri yoksa <code>PASS</code>. <code>INVESTIGATE</code> ve <code>ANALYSIS_UNSAFE</code> yargı isteyen durumlar için: orchestrator bir çelişki bulup doğrulama istediğinde (§20), ya da §33'teki gibi gate "leakage, weak samples or unstable results" yüzünden sonucu reddettiğinde. §34'ün son maddesi bu durumların raporda yazılmasını istiyor: <em>"Document limitations and cases where the system returns INVESTIGATE or ANALYSIS_UNSAFE."</em> <code>INVESTIGATE</code> ve <code>ANALYSIS_UNSAFE</code> aynı zamanda §17'deki action space'te de var.</p>
+  <!-- Kaynak: term-project-brief.pdf §17, §20, §26, §33 (adım 12), §34 (madde 12) · week-02-agentic-harness.pdf s.13 (Example failure → HARD BLOCK). Sorter'daki son beş kart ve gate hesap kuralı bizim. -->
+  <p class="w-harness-mcp-guess"><b>Önce tahmin et:</b> "Signal sütununda <code>shift(1)</code> yok" hard block mu, soft warning mı? İlk on kart brief §26'dan, son beşi yeni.</p>
+  <div id="w-gate-sort"></div>
+  <h3>Gate output'u</h3>
+  <p>Bir analizde aynı anda görülen sorunları işaretle; gate output'u yukarıdaki okumayla hesaplanıyor.</p>
+  <div class="w-harness-mcp-wrap" id="w-gate-out"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Az sayıda event" bir hard block değildir; sonuç geçerli ama zayıftır. W2 s.8'deki "Only 12 similar historical cases" bu yüzden Warnings sütununda.</li>
+      <li>Soft warning'leri sessizce silmek yasak değil ama yanlış: output'un Risks kısmı tam olarak bunlar için var.</li>
+      <li>Look-ahead bias sadece "geleceğin bilançosu" değildir: <code>shift(1)</code>'siz signal, <code>rolling(center=True)</code> ile bulunan pivot'lar ya da t+1 kapanışıyla t günü verilen karar da aynı hard block sınıfına girer. Bunlar <a href="rules-backtest.html">backtest dersinde</a>.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-gate-1">
+    <p class="quiz__q">Hangisi brief §26'ya göre bir <strong>hard block</strong>?</p>
+    <button class="quiz__opt">News coverage is sparse.<span class="why">Soft warning: bağlam eksik ama sayısal analiz geçersiz değil.</span></button>
+    <button class="quiz__opt">Small number of historical technical events.<span class="why">Soft warning: örnek küçük, sonuç belirsiz ama sızıntı yok.</span></button>
+    <button class="quiz__opt" data-correct>Wrong ticker or broken price history.<span class="why">Doğru. Yanlış hisseyi ölçen bir analizin sonucu bütünüyle geçersizdir.</span></button>
+    <button class="quiz__opt">Macro series unavailable for a limited interval.<span class="why">Soft warning: "limited interval" ifadesi zaten geçici bir boşluk diyor.</span></button>
+  </div>
+  <div class="quiz" id="q-gate-2">
+    <p class="quiz__q">Gate yalnız iki soft warning buldu (sparse news, peer group küçük). En uygun output hangisi?</p>
+    <button class="quiz__opt" data-correct>PASS_WITH_WARNINGS<span class="why">Doğru. Analiz devam eder; warning'ler output'un Risks kısmına yazılır.</span></button>
+    <button class="quiz__opt">PASS<span class="why">Warning'ler kaybolur. Risks kısmında görünmeleri gerekir.</span></button>
+    <button class="quiz__opt">HARD_BLOCK<span class="why">Hard block yalnız §26'daki beş durum için: geleceğin bilgisi, look-ahead, yanlış ticker, dönem uyuşmazlığı.</span></button>
+    <button class="quiz__opt">ANALYSIS_UNSAFE<span class="why">İki hafif uyarı analizi güvensiz yapmaz; ANALYSIS_UNSAFE sonucun hiç savunulamadığı durumlar için.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="human" data-min="4">
+  <h2>Human review, decision log ve replay</h2>
+  <div class="box box--rule">
+    <span class="box__label">Human-in-the-Loop · brief §27</span>
+    <p><em>"A human reviewer evaluates the educational analytical conclusion. The system must never silently convert an AI conclusion into a real market order."</em></p>
+    <p>Agent conclusion: <code>POTENTIAL_CATCH_UP_CANDIDATE</code> · Human review: <strong>REJECT</strong> · Reason: historical maximum drawdown is too high · Recorded for: educational decision-memory and later replay.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Decision Log and Replay · brief §28</span>
+    <ul>
+      <li>Ticker and sector</li>
+      <li>Analysis timestamp and market-data period</li>
+      <li>Data versions and publication timestamps</li>
+      <li>Tools called and tool outputs</li>
+      <li>Technical / sector / fundamental / macro states</li>
+      <li>News and speech source metadata</li>
+      <li>Full Evidence Bundle and Committed Evidence Set</li>
+      <li>Strategy variant and backtest result</li>
+      <li>Risk/Data Quality gate status</li>
+      <li>Agent conclusion and explanation</li>
+      <li>Human review result and reason</li>
+    </ul>
+    <p><strong>Replay</strong>: aynı data version'ları ve aynı tool output'larıyla analizi yeniden oynatmak. Sonucun neden çıktığı adım adım izlenebilir; CI/CD benzetmesindeki "reproducible and traceable release artifact" budur.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Uçtan uca · brief §33, "Example End-to-End Harness Scenario"</span>
+    <p>User Question: <em>"Find BIST 100 stocks that are lagging a strong sector but may be entering a historically favorable catch-up state."</em></p>
+    <div class="table-wrap"><table>
+      <tr><th>#</th><th>Adım (§33)</th><th>§23 state'i</th></tr>
+      <tr><td>1</td><td>Orchestrator selects the 30-stock universe.</td><td>SELECT_UNIVERSE</td></tr>
+      <tr><td>2</td><td>Market tool loads OHLCV and XU100.</td><td>LOAD_MARKET_DATA</td></tr>
+      <tr><td>3</td><td>Data Quality Agent validates dates, missing data and adjustments.</td><td>CHECK_DATA_QUALITY</td></tr>
+      <tr><td>4</td><td>Sector tool ranks each stock versus its peers.</td><td>RUN_SECTOR_RELATIVE_ANALYSIS</td></tr>
+      <tr><td>5</td><td>Technical tools detect Bollinger/KAMA/Supertrend/Ichimoku states and reversal history.</td><td>CALCULATE_TECHNICALS, RUN_PATTERN_AND_REVERSAL_ANALYSIS</td></tr>
+      <tr><td>6</td><td>Fundamental tool loads only financial data that was public by the analysis date.</td><td>LOAD_FUNDAMENTALS</td></tr>
+      <tr><td>7</td><td>Macro tool loads FX, CBRT/Fed rate context and TÜİK inflation.</td><td>LOAD_MACRO_CONTEXT</td></tr>
+      <tr><td>8</td><td>News/Speech tool returns timestamped contextual events and verified claims.</td><td>LOAD_NEWS_AND_SPEECH_CONTEXT</td></tr>
+      <tr><td>9</td><td>Evidence Builder separates observed context from committed evidence.</td><td>BUILD_EVIDENCE</td></tr>
+      <tr><td>10</td><td>Strategy Agent creates several candidate rule sets.</td><td>PREVIEW_STRATEGIES</td></tr>
+      <tr><td>11</td><td>Backtest tool evaluates each rule across earlier periods.</td><td>RUN_BACKTEST</td></tr>
+      <tr><td>12</td><td>Risk Gate rejects leakage, weak samples or unstable results.</td><td>RISK_GATE</td></tr>
+      <tr><td>13</td><td>Orchestrator writes an educational analytical conclusion.</td><td>GENERATE_EXPLANATION</td></tr>
+      <tr><td>14</td><td>Human reviewer accepts, modifies or rejects it.</td><td>HUMAN_REVIEW</td></tr>
+      <tr><td>15</td><td>Entire workflow is saved for replay.</td><td>LOG_AND_CLOSE</td></tr>
+    </table></div>
+  </div>
+  <!-- Kaynak: term-project-brief.pdf §27, §28, §33 · week-02-agentic-harness.pdf s.8 (REJECT örneği), s.19 (episodic memory örneği). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Human review bir onay düğmesi değil, bir karar ve gerekçe kaydıdır. Gerekçesiz "REJECT" log'a eksik girer; §28 "result and reason" istiyor.</li>
+      <li>Log sadece sonucu değil, data version'larını ve publication timestamp'lerini de tutar. Bunlar olmadan replay mümkün değildir.</li>
+      <li>Human ACCEPT bile bir emre dönüşmez: sistem eğitim amaçlıdır ve broker'a bağlı değildir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w02-p8-human-reject"><span class="box__label">W2 s.8 ve brief §27 · slayt sorusu</span>
+    <p>W2 s.8'deki örnekte agent <code>POTENTIAL_CATCH_UP_CANDIDATE</code> öneriyor, human reviewer <em>"REJECT. Reason: Maximum drawdown is too high."</em> diyor. Bu ret neden log'a yazılır? Kayıt sonraki analizlerde nasıl kullanılır?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Brief §27'deki "Recorded for" satırını oku. İki kelime var: decision-memory ve replay.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>W2 s.19'daki episodic memory örneği bu vakanın bir benzeri: "Last month the system marked THYAO as MONITOR/WATCH. Human later rejected it because drawdown was high."</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Final decision belongs to the human.</strong> The AI explains a reproducible analysis; it does not make the final decision. Logging the human's result and reason makes that decision explicit and auditable, and it shows that no AI conclusion was silently turned into an order.</li>
+        <li><strong>Decision-memory (episodic memory).</strong> The case (state → evidence → action → backtest result → human decision) is stored. In a later analysis of THYAO or a similar stock, the harness can recall that a similar candidate was rejected for high drawdown and surface drawdown as a warning earlier.</li>
+        <li><strong>Replay.</strong> The decision log (§28) keeps the tools called, data versions, evidence sets, backtest result, gate status, conclusion and the human review result and reason. The whole analysis can be replayed to see why the system proposed the label and why it was rejected.</li>
+        <li><strong>Evaluation.</strong> Comparing agent conclusions with human decisions over many cases measures how useful the harness is; this is stage E of the harness experiments (D + Memory + Human Review).</li>
+      </ol>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-481-Engineering-Economics/blob/main/resources/2026-2027-fall/week-02-agentic-harness.pdf">Orijinal slayt (W2 s.8)</a></p>
+  </div>
+  <div class="quiz" id="q-human-1">
+    <p class="quiz__q">Hangisi brief §28'deki decision log alanlarından biri <strong>değildir</strong>?</p>
+    <button class="quiz__opt">Data versions and publication timestamps<span class="why">Listede var; replay için şart.</span></button>
+    <button class="quiz__opt">Tools called and tool outputs<span class="why">Listede var; evidence zincirinin kendisi.</span></button>
+    <button class="quiz__opt">Human review result and reason<span class="why">Listenin son maddesi.</span></button>
+    <button class="quiz__opt" data-correct>Broker'a gönderilen emrin numarası<span class="why">Doğru. Sistem bir broker'a bağlanmaz ve emir göndermez (§2, §27).</span></button>
+  </div>
+  <div class="quiz" id="q-human-2">
+    <p class="quiz__q">§33'te "Risk Gate rejects leakage, weak samples or unstable results" adımı hangi adımdan hemen sonra gelir?</p>
+    <button class="quiz__opt" data-correct>Backtest tool evaluates each rule across earlier periods.<span class="why">Doğru: adım 11 backtest, adım 12 gate. Bu senaryoda gate, backtest sonuçlarını da inceleyebilmek için backtest'ten sonra çalışır; küçük event sayısı daha önceki event analizinde de görülebilir.</span></button>
+    <button class="quiz__opt">Evidence Builder separates observed context from committed evidence.<span class="why">Bu adım 9; arada strategy variant'ları (10) ve backtest (11) var.</span></button>
+    <button class="quiz__opt">Orchestrator writes an educational analytical conclusion.<span class="why">Bu adım 13, gate'ten <em>sonra</em>. Gate'ten önce sonuç yazılmaz.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="experiments" data-min="4">
+  <h2>Strategy variant'ları ve harness deneyleri</h2>
+  <p>Harness sadece kural koymaz, karşılaştırma da yapar. Brief iki ayrı A–E listesi veriyor; harfler aynı ama anlamları farklı.</p>
+  <div class="box box--rule">
+    <span class="box__label">Previewable Strategy Space · brief §29</span>
+    <p><em>"Before selecting a conclusion, the harness should compare multiple strategy definitions."</em></p>
+    <div class="table-wrap"><table>
+      <tr><th>Variant</th><th>Evidence Used</th></tr>
+      <tr><td>A — Technical Only</td><td>Trend, RSI/MACD, Bollinger, support/resistance, volume</td></tr>
+      <tr><td>B — Technical + Sector Relative</td><td>A + peer lag/leader state</td></tr>
+      <tr><td>C — Technical + Sector + Fundamental</td><td>B + quarterly financial quality/change</td></tr>
+      <tr><td>D — Full Structured</td><td>C + macro context</td></tr>
+      <tr><td>E — Full Contextual</td><td>D + verified news/speech context</td></tr>
+    </table></div>
+    <p><em>"Every variant should be previewed through the same backtesting metrics and data-quality rules."</em> W2 s.21'deki "E5: Backtest variant B outperformed XU100" bu tablodaki B'dir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Agent Harness Experiments · brief §30</span>
+    <div class="table-wrap"><table>
+      <tr><th>System Version</th><th>Description</th></tr>
+      <tr><td>A — Raw LLM</td><td>All data are passed as text; no deterministic tool requirement.</td></tr>
+      <tr><td>B — LLM + Tools</td><td>MCP tools provide calculations.</td></tr>
+      <tr><td>C — Tools + Stateful Harness</td><td>Tool permissions and ordered states are enforced.</td></tr>
+      <tr><td>D — C + Evidence + Quality Gate</td><td>Committed evidence and blocking rules are added.</td></tr>
+      <tr><td>E — D + Memory + Human Review</td><td>Replayable memory and human decisions are added.</td></tr>
+    </table></div>
+    <p>Suggested harness-engineering metrics: numerical hallucination rate · invalid tool-call rate · unsupported conclusion rate · evidence completeness · analysis reproducibility · backtest correctness · number of tool calls · latency / workflow cost.</p>
+    <p><strong>Hocanın Teams cevabı:</strong> <em>no LLM is mandatory. Keep one model fixed and compare the architecture stages: Raw LLM → LLM + Tools → Tools + Stateful Harness → + Evidence/Quality Gate → + Memory + Human Review. The question is how much more reliable and reproducible the system gets at each stage, not which LLM is better.</em></p>
+  </div>
+  <p>Simülatörde bu deneyin küçük bir hâlini gördün: Raw LLM modunda (A) yazılan sonuçtaki iddiaların bir kısmı hiçbir tool output'una dayanmıyordu (unsupported conclusion), harness modunda (C–E) izinsiz tool çağrıları engellendi ve sayıldı (invalid tool-call rate).</p>
+  <p>Brief'in değerlendirme ölçütleri de aynı şeyi istiyor. §31 agent harness için "hallucination/tool/evidence/reproducibility metrics"; §37 kalite ölçütleri arasında "clear distinction among tools, workers/services and reasoning agents", "controlled MCP tool use and explicit harness states", "evidence-backed explanations with committed evidence", "proper risk/data-quality gates and safe failure states", "useful decision logging and replay"; §36 teslimlerinde "MCP tool definitions and stateful harness implementation", "decision-log and replay demonstration", "agent-harness experiment comparison" var. §34'te sıra: tool'ları MCP'ye bağla ve stateful harness'i kur (9) → evidence bundle, memory, quality gate ve human review ekle (10) → A–E deneylerini çalıştır, reproducibility ve safety'yi karşılaştır (11).</p>
+  <div class="box box--rule">
+    <span class="box__label">Key Final Principle · brief §38</span>
+    <p><em>"The purpose of the AI agent is not to invent or predict financial facts. Its role is to orchestrate deterministic analytical tools, manage evidence and state, enforce a controlled analysis workflow, and explain reproducible results."</em></p>
+    <p>Aynı bölümün ilk cümlesi: bir finansal AI sistemi <em>"is not valuable because it can produce a confident sentence. It is valuable when its data are correctly timed, its calculations are reproducible, its actions are constrained, its evidence is inspectable, its historical claims are verified, and its conclusions can be challenged by a human."</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Ek okuma · W2'nin önerdiği üç makale</span>
+    <ul>
+      <li><strong>Meta-Harness</strong> (Lee et al., arXiv 2603.28052): harness'i "the code that determines what information to store, retrieve, and present to the model" diye tanımlıyor ve harness kodunu otomatik arayan bir sistem öneriyor. Girişteki gözlem: aynı model etrafındaki harness değişince aynı benchmark'ta 6 kata varan performans farkı çıkabiliyor. Hocanın "modeli sabit tut, architecture'ı karşılaştır" cevabıyla aynı fikir.</li>
+      <li><strong>Code as Agent Harness</strong> (Ning et al., arXiv 2605.18747): bir survey. Harness'i üç katmanda inceliyor: harness interface, harness mechanisms (planning, memory, tool use, feedback-driven control) ve multi-agent ölçekleme. Açık sorunlar arasında "human oversight for safety-critical actions" var.</li>
+      <li><strong>Harness-G</strong> (Hou et al., arXiv 2607.27652): search agent'larda serbest metin sorgu üretimini <em>finite action selection</em>'a çeviriyor; menüyü environment kuruyor, retrieval state'ini izliyor, her seçimi doğrulayıp çalıştırıyor. §17'deki finite action space ve state başına izinli tool fikrinin bir benzeri.</li>
+    </ul>
+  </div>
+  <p class="src">Not: Bu üç makale weeks/02'de "Reading" olarak listeli; sınavda sorulup sorulmayacağı belli değil. Yukarıdaki özetler makalelerin abstract ve girişlerinden.</p>
+  <!-- Kaynak: term-project-brief.pdf §29, §30, §31, §34, §36, §37, §38 · README.md "Instructor's answers on Teams" (Model for the harness experiments) · papers/meta-harness-2603.28052.pdf (abstract, introduction ilk paragraf) · papers/code-as-agent-harness-2605.18747.pdf (abstract) · papers/harness-g-2607.27652.pdf (abstract). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İki A–E listesini karıştırma. §29 strategy variant'ları (hangi evidence kullanılıyor), §30 system version'ları (harness'in ne kadarı açık).</li>
+      <li>Harness deneyinin sorusu "hangi LLM daha iyi?" değil. Model sabit, değişen architecture.</li>
+      <li>E variant'ı "verified" news/speech context kullanır; doğrulanmamış yorum E'ye bile girmez.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-exp-1">
+    <p class="quiz__q">Hocanın Teams cevabına göre harness deneylerinde neyi sabit tutarsın?</p>
+    <button class="quiz__opt" data-correct>Modeli; değişen şey architecture stage'i<span class="why">Doğru: "Keep one model fixed and compare the architecture stages."</span></button>
+    <button class="quiz__opt">Architecture'ı; farklı LLM'leri karşılaştırırsın<span class="why">Tam tersi: "not which LLM is better".</span></button>
+    <button class="quiz__opt">Hiçbir şeyi; her aşamada en iyi modeli seçersin<span class="why">O zaman farkın modelden mi architecture'dan mı geldiğini bilemezsin.</span></button>
+    <button class="quiz__opt">Backtest sonucunu<span class="why">Backtest correctness ölçülen metriklerden biri; sabit tutulan şey değil.</span></button>
+  </div>
+  <div class="quiz" id="q-exp-2">
+    <p class="quiz__q">Brief §29'da variant C neyi ekler?</p>
+    <button class="quiz__opt">A'ya peer lag/leader state<span class="why">Bu B: Technical + Sector Relative.</span></button>
+    <button class="quiz__opt" data-correct>B'ye quarterly financial quality/change<span class="why">Doğru: C = Technical + Sector + Fundamental.</span></button>
+    <button class="quiz__opt">C'ye macro context<span class="why">Bu D: Full Structured.</span></button>
+    <button class="quiz__opt">D'ye verified news/speech context<span class="why">Bu E: Full Contextual.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="final" data-min="3">
+  <h2>Son kontrol</h2>
+  <p>Bölümlere dönmeden çöz.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Hangi sıra brief §23'e uyar?</p>
+    <button class="quiz__opt">LOAD_MARKET_DATA → CALCULATE_TECHNICALS → CHECK_DATA_QUALITY → RUN_BACKTEST<span class="why">Quality kontrolü analizden önce gelir: kirli veriyle gösterge hesaplamanın anlamı yok.</span></button>
+    <button class="quiz__opt" data-correct>BUILD_EVIDENCE → PREVIEW_STRATEGIES → RUN_BACKTEST → RISK_GATE → GENERATE_EXPLANATION<span class="why">Doğru. Verification grubu, sonra output.</span></button>
+    <button class="quiz__opt">RUN_BACKTEST → GENERATE_EXPLANATION → RISK_GATE → HUMAN_REVIEW<span class="why">Gate explanation'dan önce gelir; aksi hâlde sızıntılı bir sonuç önce yazılmış olur.</span></button>
+    <button class="quiz__opt">GENERATE_EXPLANATION → HUMAN_REVIEW → RUN_BACKTEST<span class="why">"If Backtest = NOT RUN, the FSM does not allow a final strong conclusion."</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Bir yorumcu video'da "ASELS'in ROE'si %40" diyor. Bu sayının committed evidence set'e girmesi için ne gerekir?</p>
+    <button class="quiz__opt">Yorumcunun tanınmış biri olması<span class="why">Expert commentary ≠ verified fact. Ünlü olmak doğrulama değildir.</span></button>
+    <button class="quiz__opt" data-correct>Sayının <code>get_fundamental_metrics</code> ile kontrol edilip doğrulanması<span class="why">Doğru. §16: "Numerical claims in commentary must be checked against deterministic data tools before entering the committed evidence set."</span></button>
+    <button class="quiz__opt"><code>get_speech_features</code>'ın bu iddiayı çıkarması<span class="why">Bu tool iddiayı transcript'ten çıkarır (topics/claims/stance), ama doğru olduğunu göstermez.</span></button>
+    <button class="quiz__opt">LLM'in iddiayı makul bulması<span class="why">LLM confidence ≠ statistical probability. Makul bulmak doğrulama değildir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">"ASELS RSI moved from 31 → 44 → 57." Bu bilgi hangi memory'de durur ve hangi tool üretir?</p>
+    <button class="quiz__opt" data-correct>Temporal memory; <code>calculate_indicators</code><span class="why">Doğru. Zaman içinde değişen bir değer (data history), ve RSI'ı indicator tool'u hesaplar.</span></button>
+    <button class="quiz__opt">Episodic memory; <code>detect_reversal_events</code><span class="why">Bir vaka değil, bir zaman serisi. RSI değeri de bir event tool'unun değil, indicator tool'unun output'u.</span></button>
+    <button class="quiz__opt">Procedural memory; <code>check_data_quality</code><span class="why">Procedural kuralları tutar; RSI değeri bir kural değil.</span></button>
+    <button class="quiz__opt">Temporal memory; LLM<span class="why">Memory türü doğru ama RSI'ı LLM üretemez: "The LLM should never estimate THYAO's RSI."</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Harness deneylerinde C'den D'ye geçince ne eklenir?</p>
+    <button class="quiz__opt">MCP tools<span class="why">Tool'lar B'de eklenir (LLM + Tools).</span></button>
+    <button class="quiz__opt">Tool permissions and ordered states<span class="why">Bunlar C'nin kendisi (Tools + Stateful Harness).</span></button>
+    <button class="quiz__opt" data-correct>Committed evidence and blocking rules<span class="why">Doğru: D = C + Evidence + Quality Gate.</span></button>
+    <button class="quiz__opt">Replayable memory and human decisions<span class="why">Bunlar E'de eklenir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">OS kernel, FSM ve CI/CD benzetmeleri sırasıyla harness'in hangi kontrolünü öne çıkarır?</p>
+    <button class="quiz__opt" data-correct>Permissions, order, verification<span class="why">Doğru (W2 s.14): kernel hangi tool'un çağrılabileceğini, FSM sırada ne geleceğini, CI/CD quality gate ve backtest'i kontrol eder.</span></button>
+    <button class="quiz__opt">Order, permissions, verification<span class="why">İlk ikisi yer değiştirmiş: sıra FSM'in, izin kernel'ın işi.</span></button>
+    <button class="quiz__opt">Verification, order, permissions<span class="why">CI/CD verification'ı temsil eder, kernel değil.</span></button>
+    <button class="quiz__opt">Memory, evidence, human review<span class="why">Bunlar harness'in parçaları ama s.14'teki üç benzetmenin karşılıkları değil.</span></button>
+  </div>
+  <!-- Sıradaki konu: scenarios-fundamentals (dört araştırma senaryosu). -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+(function () {
+  "use strict";
+
+/*ENGINE-START*/
+const HM = (function () {
+  const TOOLS = ["get_stock_history", "get_index_history", "calculate_indicators", "detect_reversal_events", "find_support_resistance", "rank_sector_relative_strength", "test_weekday_pattern", "get_fundamental_metrics", "calculate_fundamental_change", "get_macro_context", "get_news_events", "get_speech_features", "run_backtest", "check_data_quality", "build_evidence_bundle"];
+  const STATES = [
+    { id: "START", tools: [], need: [] },
+    { id: "SELECT_UNIVERSE", tools: [], need: [] },
+    { id: "LOAD_MARKET_DATA", tools: ["get_stock_history", "get_index_history"], need: ["get_stock_history", "get_index_history"] },
+    { id: "CHECK_DATA_QUALITY", tools: ["check_data_quality"], need: ["check_data_quality"] },
+    { id: "CALCULATE_TECHNICALS", tools: ["calculate_indicators", "find_support_resistance"], need: ["calculate_indicators"] },
+    { id: "RUN_SECTOR_RELATIVE_ANALYSIS", tools: ["rank_sector_relative_strength"], need: ["rank_sector_relative_strength"] },
+    { id: "RUN_PATTERN_AND_REVERSAL_ANALYSIS", tools: ["detect_reversal_events", "test_weekday_pattern"], need: ["detect_reversal_events"] },
+    { id: "LOAD_FUNDAMENTALS", tools: ["get_fundamental_metrics", "calculate_fundamental_change"], need: ["get_fundamental_metrics"] },
+    { id: "LOAD_MACRO_CONTEXT", tools: ["get_macro_context"], need: ["get_macro_context"] },
+    { id: "LOAD_NEWS_AND_SPEECH_CONTEXT", tools: ["get_news_events", "get_speech_features"], need: ["get_news_events"] },
+    { id: "BUILD_EVIDENCE", tools: ["build_evidence_bundle"], need: ["build_evidence_bundle"] },
+    { id: "PREVIEW_STRATEGIES", tools: [], need: [] },
+    { id: "RUN_BACKTEST", tools: ["run_backtest"], need: ["run_backtest"] },
+    { id: "RISK_GATE", tools: ["check_data_quality"], need: ["check_data_quality"] },
+    { id: "GENERATE_EXPLANATION", tools: [], need: [] },
+    { id: "HUMAN_REVIEW", tools: [], need: [] },
+    { id: "LOG_AND_CLOSE", tools: [], need: [] }
+  ];
+  /* Tool outputs: the THYAO numbers of W2 s.8 (illustrative). ev = evidence, warn = warning. */
+  const OUT = {
+    get_stock_history: { text: "THYAO.IS OHLCV + metadata" },
+    get_index_history: { text: "XU100 benchmark time series" },
+    calculate_indicators: { text: "SMA/EMA/RSI/MACD/Bollinger/ATR/KAMA/... ; KAMA slope turned positive; XU100 volatility regime high", ev: "KAMA slope turned positive.", warn: "Market volatility is high." },
+    find_support_resistance: { text: "levels, zones, touch count, strength" },
+    rank_sector_relative_strength: { text: "peer returns, lag score, rank: stock is 8% behind sector median", ev: "Stock is 8% behind sector median." },
+    detect_reversal_events: { text: "timestamped events: 12 comparable historical cases", warn: "Only 12 similar historical cases." },
+    test_weekday_pattern: { text: "occurrences, conditional returns (observed context only)" },
+    get_fundamental_metrics: { text: "point-in-time metrics: Revenue Growth improved", ev: "Revenue Growth improved." },
+    calculate_fundamental_change: { text: "quarterly/annual changes" },
+    get_macro_context: { text: "FX, rates, inflation + publication metadata" },
+    get_news_events: { text: "timestamped event metadata" },
+    get_speech_features: { text: "transcript topics/claims/stance (contextual, unverified)" },
+    build_evidence_bundle: { text: "full bundle + committed evidence set" },
+    run_backtest: { text: "performance + trade log: backtest outperformed XU100", ev: "Backtest outperformed XU100.", warn: "Historical performance is not a future guarantee." }
+  };
+  const MANDATORY = ["CHECK_DATA_QUALITY", "RUN_BACKTEST", "RISK_GATE"];
+  const idx = (id) => STATES.findIndex((x) => x.id === id);
+
+  function create(mode, fault) {
+    return { mode: mode, fault: !!fault, i: 0, calls: {}, used: {}, ev: [], warn: [], log: [], gate: null, conclusion: null, review: null, closed: false, toolCalls: 0, toolRejected: 0, violations: 0, record: null };
+  }
+  function hard(s) { return s.fault && !!s.used.get_fundamental_metrics && !!s.used.run_backtest; }
+  /* Workflow violations (early advance, early conclusion, misplaced review) are counted apart from tool calls,
+     so the invalid tool-call rate stays rejected tool calls / attempted tool calls. */
+  function res(s, ok, msg) { if (!ok) s.violations++; return { ok: ok, msg: msg }; }
+  function quality(s) {
+    if (hard(s)) return { text: "HARD_BLOCK: future financial-statement data inside a historical backtest", gate: "HARD_BLOCK" };
+    if (s.warn.length) return { text: "PASS_WITH_WARNINGS: " + s.warn.length + " warning", gate: "PASS_WITH_WARNINGS" };
+    return { text: "PASS: dates, missing values, adjustments checked", gate: "PASS" };
+  }
+  function call(s, tool) {
+    if (s.closed) return { ok: false, msg: "Analiz kapandı. Yeniden başlamak için Sıfırla." };
+    s.toolCalls++;
+    const st = STATES[s.i];
+    if (s.mode === "harness" && st.tools.indexOf(tool) < 0) {
+      const home = STATES.filter((x) => x.tools.indexOf(tool) >= 0).map((x) => x.id);
+      s.toolRejected++;
+      return { ok: false, msg: "BLOCKED: " + tool + "() " + st.id + " state'inde izinli değil. Bu state'te izinli: " + (st.tools.length ? st.tools.join(", ") : "hiçbir tool") + ". " + tool + "() şu state'te açılır: " + home.join(" / ") + "." };
+    }
+    const list = s.calls[s.i] || (s.calls[s.i] = []);
+    if (list.indexOf(tool) < 0) list.push(tool);
+    s.used[tool] = true;
+    let out = OUT[tool];
+    if (tool === "check_data_quality") { out = quality(s); s.gate = out.gate; }
+    if (out.ev && s.ev.indexOf(out.ev) < 0) s.ev.push(out.ev);
+    if (out.warn && s.warn.indexOf(out.warn) < 0) s.warn.push(out.warn);
+    s.log.push(st.id + " | " + tool + "() → " + out.text);
+    return res(s, true, tool + "() → " + out.text);
+  }
+  function explain(s) {
+    if (s.gate === "HARD_BLOCK") {
+      s.conclusion = { label: "ANALYSIS_UNSAFE", why: ["Risk gate: HARD_BLOCK (future financial-statement data inside a historical backtest)."], risks: ["No strong conclusion is allowed."] };
+    } else {
+      s.conclusion = { label: "POTENTIAL_CATCH_UP_CANDIDATE", why: s.ev.slice(), risks: s.warn.slice() };
+    }
+    s.log.push("GENERATE_EXPLANATION | Result: " + s.conclusion.label + " | Why: " + s.conclusion.why.length + " evidence | Risks: " + s.conclusion.risks.length + " warning");
+    return s.conclusion;
+  }
+  function advance(s) {
+    if (s.closed) return { ok: false, msg: "Analiz kapandı. Yeniden başlamak için Sıfırla." };
+    const st = STATES[s.i];
+    if (s.mode === "harness") {
+      const done = s.calls[s.i] || [];
+      const miss = st.need.filter((t) => done.indexOf(t) < 0);
+      if (miss.length) return res(s, false, "BLOCKED: " + st.id + " bitmedi. Önce şu çağrılmalı: " + miss.map((t) => t + "()").join(", ") + ".");
+      if (st.id === "HUMAN_REVIEW" && !s.review) return res(s, false, "BLOCKED: HUMAN_REVIEW bir karar bekliyor: ACCEPT, MODIFY ya da REJECT.");
+    }
+    if (st.id === "GENERATE_EXPLANATION" && !s.conclusion) explain(s);
+    if (st.id === "LOG_AND_CLOSE") {
+      s.closed = true;
+      s.record = { conclusion: s.conclusion ? s.conclusion.label : "none", gate: s.gate || "NOT RUN", review: s.review ? s.review.decision : "none", tools: Object.keys(s.used).length };
+      s.log.push("LOG_AND_CLOSE | decision log saved for replay");
+      return { ok: true, msg: "Decision log kaydedildi: Result " + s.record.conclusion + ", gate " + s.record.gate + ", human " + s.record.review + "." };
+    }
+    s.i++;
+    const nx = STATES[s.i];
+    let msg = st.id + " tamam → " + nx.id + ".";
+    if (st.id === "GENERATE_EXPLANATION") msg = "Result: " + s.conclusion.label + " (" + s.conclusion.why.length + " evidence, " + s.conclusion.risks.length + " warning) → HUMAN_REVIEW.";
+    if (st.id === "RISK_GATE") msg = "Gate: " + s.gate + " → GENERATE_EXPLANATION.";
+    return { ok: true, msg: msg };
+  }
+  const REASONS = { ACCEPT: "Evidence and warnings reviewed.", MODIFY: "Label kept as WATCH until more cases accumulate.", REJECT: "Maximum drawdown is too high." };
+  const UNSAFE_REASONS = { ACCEPT: "ANALYSIS_UNSAFE accepted; no conclusion is drawn.", MODIFY: "Rerun requested after point-in-time alignment of the statements.", REJECT: "Backtest leaked future financial statements; fix the data and rerun." };
+  function review(s, decision) {
+    if (s.closed) return { ok: false, msg: "Analiz kapandı." };
+    if (STATES[s.i].id !== "HUMAN_REVIEW") return res(s, false, "BLOCKED: human review yalnız HUMAN_REVIEW state'inde verilir.");
+    const reason = s.gate === "HARD_BLOCK" ? UNSAFE_REASONS[decision] : REASONS[decision];
+    s.review = { decision: decision, reason: reason };
+    s.log.push("HUMAN_REVIEW | " + decision + " | Reason: " + reason);
+    return { ok: true, msg: "Human review: " + decision + ". Reason: " + reason };
+  }
+  const RAW_CLAIMS = [
+    { t: "THYAO RSI is probably around 60.", ok: () => false },
+    { t: "Stock is 8% behind sector median.", ok: (s) => !!s.used.rank_sector_relative_strength },
+    { t: "Revenue Growth improved.", ok: (s) => !!s.used.get_fundamental_metrics },
+    { t: "Backtest outperformed XU100.", ok: (s) => !!s.used.run_backtest && !hard(s) },
+    { t: "Data quality is fine.", ok: (s) => !!s.used.check_data_quality && !hard(s) },
+    { t: "Final answer: BUY.", ok: () => false }
+  ];
+  function conclude(s) {
+    if (s.closed) return { ok: false, msg: "Analiz kapandı." };
+    const st = STATES[s.i];
+    if (s.mode === "harness") {
+      if (st.id === "GENERATE_EXPLANATION") return advance(s);
+      const status = MANDATORY.map((id) => id + " = " + (s.i > idx(id) ? "DONE" : "NOT RUN"));
+      return res(s, false, "BLOCKED: final sonuç yalnız GENERATE_EXPLANATION state'inde yazılır; şu an " + st.id + ". " + status.join(", ") + ".");
+    }
+    const checked = RAW_CLAIMS.map((c) => ({ t: c.t, ok: c.ok(s) }));
+    const sup = checked.filter((c) => c.ok).length;
+    s.conclusion = { label: "BUY (raw)", claims: checked, supported: sup };
+    s.closed = true;
+    s.log.push("RAW LLM | " + sup + "/" + checked.length + " claims supported by a tool output");
+    return { ok: true, msg: "Raw LLM sonucu yazdı: " + sup + "/" + checked.length + " iddia bir tool output'una dayanıyor." };
+  }
+  function snap(s, caption) {
+    return { i: s.i, closed: s.closed, done: s.closed ? STATES.length : s.i, ev: s.ev.slice(), warn: s.warn.slice(), gate: s.gate, conclusion: s.conclusion, review: s.review, caption: caption };
+  }
+  function scripted(fault) {
+    const s = create("harness", fault);
+    const frames = [snap(s, "User question: \"Is THYAO a catch-up candidate?\" Harness START state'inde.")];
+    let guard = 0;
+    while (!s.closed && guard++ < 100) {
+      const st = STATES[s.i];
+      st.tools.forEach((t) => { const r = call(s, t); frames.push(snap(s, st.id + ": " + r.msg)); });
+      if (st.id === "HUMAN_REVIEW") { const r = review(s, "REJECT"); frames.push(snap(s, r.msg)); }
+      const r = advance(s);
+      frames.push(snap(s, r.msg));
+    }
+    return { s: s, frames: frames };
+  }
+  return { TOOLS: TOOLS, STATES: STATES, create: create, call: call, advance: advance, review: review, conclude: conclude, scripted: scripted, snap: snap, idx: idx };
+})();
+/*ENGINE-END*/
+
+  const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  /* ---------- Board (shared by the interactive simulator and the stepper) ---------- */
+  function board(f, mode) {
+    let h = '<div class="w-harness-mcp-chain">';
+    HM.STATES.forEach((st, k) => {
+      let cls = "";
+      if (k < f.done) cls = " is-done";
+      if (!f.closed && k === f.i) cls = " is-cur";
+      if (f.gate === "HARD_BLOCK" && st.id === "RISK_GATE" && k <= f.done) cls = " is-bad";
+      h += '<span class="w-harness-mcp-st' + cls + '">' + esc(st.id) + "</span>";
+    });
+    h += "</div>";
+    const cur = HM.STATES[f.i];
+    const allowed = mode === "raw" ? "hepsi (Raw LLM: kontrol yok)" : (cur.tools.length ? cur.tools.map((t) => t + "()").join(", ") : "tool yok");
+    h += '<div class="w-harness-mcp-grid">';
+    h += '<div class="w-harness-mcp-panel"><h4>Current state</h4>' + (f.closed ? "kapandı" : "<b>" + esc(cur.id) + "</b>") + "<br>Allowed tools: " + esc(f.closed ? "-" : allowed) + "<br>Completed steps: " + f.done + " / " + HM.STATES.length + "<br>Gate: " + esc(f.gate || "NOT RUN") + "</div>";
+    h += '<div class="w-harness-mcp-panel"><h4>Available evidence</h4>' + (f.ev.length ? "<ul>" + f.ev.map((e) => "<li>" + esc(e) + "</li>").join("") + "</ul>" : "henüz yok") + "<h4 style=\"margin-top:6px\">Warnings</h4>" + (f.warn.length ? "<ul>" + f.warn.map((e) => "<li>" + esc(e) + "</li>").join("") + "</ul>" : "henüz yok") + "</div>";
+    h += "</div>";
+    if (f.conclusion) {
+      const c = f.conclusion;
+      if (c.claims) {
+        h += '<div class="w-harness-mcp-panel" style="margin-top:8px"><h4>Raw LLM output</h4><ul>' + c.claims.map((x) => '<li class="' + (x.ok ? "w-harness-mcp-pos" : "w-harness-mcp-neg") + '">' + esc(x.t) + (x.ok ? " (tool output var)" : " (desteksiz)") + "</li>").join("") + "</ul>Desteklenen iddia: <b>" + c.supported + " / " + c.claims.length + "</b> · unsupported claim rate: <b>" + Math.round(100 * (c.claims.length - c.supported) / c.claims.length) + "%</b></div>";
+      } else {
+        h += '<div class="w-harness-mcp-panel" style="margin-top:8px"><h4>Result + Why + Risks + Human Review</h4><span class="w-harness-mcp-out">' + esc(c.label) + "</span><br>Why: " + c.why.map((e, k) => "E" + (k + 1) + " " + esc(e)).join(" · ") + "<br>Risks: " + (c.risks.length ? c.risks.map(esc).join(" · ") : "-") + "<br>Human review: " + (f.review ? "<b>" + esc(f.review.decision) + "</b> (" + esc(f.review.reason) + ")" : "bekliyor") + "</div>";
+      }
+    }
+    return h;
+  }
+
+  /* ---------- Interactive simulator ---------- */
+  (function () {
+    const root = document.getElementById("w-fsm");
+    if (!root) return;
+    let mode = "harness";
+    let s = HM.create(mode, false);
+    const boardEl = document.getElementById("w-fsm-board");
+    const toolsEl = document.getElementById("w-fsm-tools");
+    const msgEl = document.getElementById("w-fsm-msg");
+    const kpiEl = document.getElementById("w-fsm-kpis");
+    const logEl = document.getElementById("w-fsm-log");
+    const revEl = document.getElementById("w-fsm-review");
+    const faultEl = document.getElementById("w-fsm-fault");
+    function draw(r) {
+      boardEl.innerHTML = board(HM.snap(s, ""), mode);
+      const cur = HM.STATES[s.i];
+      toolsEl.innerHTML = HM.TOOLS.map((t) => '<button class="btn btn--sm' + (mode === "harness" && cur.tools.indexOf(t) >= 0 && !s.closed ? " is-allowed" : "") + '" data-tool="' + t + '">' + t + "()</button>").join("");
+      revEl.innerHTML = (!s.closed && cur.id === "HUMAN_REVIEW") ? ["ACCEPT", "MODIFY", "REJECT"].map((d) => '<button class="btn btn--sm" data-rev="' + d + '">' + d + "</button>").join("") : "";
+      if (r) { msgEl.className = "w-harness-mcp-msg " + (r.ok ? "is-ok" : "is-bad"); msgEl.textContent = r.msg; }
+      const rate = s.toolCalls ? Math.round(100 * s.toolRejected / s.toolCalls) : 0;
+      kpiEl.innerHTML = "<span>Mode: <b>" + (mode === "harness" ? "Harness" : "Raw LLM") + "</b></span><span>Tool call denemesi: <b>" + s.toolCalls + "</b></span><span>Reddedilen tool call: <b>" + s.toolRejected + "</b></span><span>Invalid tool-call rate: <b>" + rate + "%</b></span><span>Workflow ihlali (erken İleri / sonuç / review): <b>" + s.violations + "</b></span>";
+      logEl.textContent = s.log.length ? s.log.join("\n") : "Log boş. Bir tool çağır ya da İleri'ye bas.";
+    }
+    function reset(r) { s = HM.create(mode, faultEl.checked); draw(r || { ok: true, msg: (mode === "harness" ? "Harness modu" : "Raw LLM modu") + ": START. İlk state'in tool'u yok; İleri'ye bas." }); }
+    root.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      if (b.dataset.mode) {
+        mode = b.dataset.mode;
+        root.querySelectorAll("[data-mode]").forEach((x) => x.classList.toggle("btn--accent", x.dataset.mode === mode));
+        reset();
+      } else if (b.dataset.tool) draw(HM.call(s, b.dataset.tool));
+      else if (b.dataset.rev) draw(HM.review(s, b.dataset.rev));
+      else if (b.id === "w-fsm-next") draw(HM.advance(s));
+      else if (b.id === "w-fsm-jump") draw(HM.conclude(s));
+      else if (b.id === "w-fsm-reset") reset();
+    });
+    faultEl.addEventListener("change", () => reset());
+    reset();
+  })();
+
+  /* ---------- Autoplay stepper: the same engine with a rule-following agent ---------- */
+  (function () {
+    const el = document.getElementById("w-auto");
+    const fe = document.getElementById("w-auto-fault");
+    if (!el || !window.Lab) return;
+    function build() {
+      const run = HM.scripted(fe.checked);
+      Lab.stepper(el, {
+        title: "Is THYAO a catch-up candidate?" + (fe.checked ? " (veri hatasıyla)" : ""),
+        interval: 900,
+        frames: run.frames,
+        render(f, i, stage) { stage.innerHTML = board(f, "harness"); }
+      });
+    }
+    fe.addEventListener("change", build);
+    build();
+  })();
+
+  /* ---------- Card sorter (metaphors, memory, gate) ---------- */
+  function sorter(id, cats, items) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    let first = {};
+    function draw() {
+      el.innerHTML = items.map((it, k) => '<div class="w-harness-mcp-card" data-k="' + k + '"><p>' + it.t + '</p><div class="w-harness-mcp-btns">' + cats.map((c) => '<button class="btn btn--sm" data-c="' + c.k + '">' + c.label + "</button>").join("") + '</div><div class="w-harness-mcp-fb" aria-live="polite"></div></div>').join("") + '<div class="w-harness-mcp-score"></div><button class="btn btn--sm" data-reset>Sıfırla</button>';
+      first = {};
+      score();
+    }
+    function score() {
+      const n = Object.keys(first).length;
+      const ok = Object.values(first).filter(Boolean).length;
+      el.querySelector(".w-harness-mcp-score").textContent = "İlk denemede doğru: " + ok + " / " + n + " (toplam " + items.length + " kart)";
+    }
+    el.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      if (b.hasAttribute("data-reset")) { draw(); return; }
+      const card = b.closest(".w-harness-mcp-card");
+      const k = +card.dataset.k;
+      const it = items[k];
+      const ok = b.dataset.c === it.c;
+      if (!(k in first)) first[k] = ok;
+      card.classList.toggle("is-ok", ok);
+      card.classList.toggle("is-bad", !ok);
+      const lab = cats.find((c) => c.k === it.c).label;
+      card.querySelector(".w-harness-mcp-fb").innerHTML = (ok ? "<b>Doğru.</b> " : "<b>Hayır, " + lab + ".</b> ") + it.why;
+      score();
+    });
+    draw();
+  }
+
+  sorter("w-meta-sort", [{ k: "os", label: "OS kernel" }, { k: "fsm", label: "FSM" }, { k: "ci", label: "CI/CD" }], [
+    { t: "The agent cannot do anything directly. It requests approved tools through the harness.", c: "os", why: "W2 s.11: process'ler kernel'dan system call ister, agent da harness'ten tool ister." },
+    { t: "MCP tools = system calls.", c: "os", why: "W2 s.11'deki eşleme." },
+    { t: "\"Is RSI tool allowed?\"", c: "os", why: "İzin kontrolü kernel benzetmesinin işi (s.11'deki ilk kontrol)." },
+    { t: "If Backtest = NOT RUN, no final strong conclusion is allowed.", c: "fsm", why: "W2 s.12'deki BIST example: bir state tamamlanmadan sonraki state'lere geçilmez." },
+    { t: "The system remembers current state + completed steps + available evidence + allowed tools.", c: "fsm", why: "W2 s.12: \"Stateful means the system remembers …\"" },
+    { t: "Controls order: what happens next.", c: "fsm", why: "W2 s.14: FSM sırayı kontrol eder." },
+    { t: "A system should not deploy if tests fail.", c: "ci", why: "W2 s.13'teki CI/CD idea." },
+    { t: "Each stage produces an artifact: data table, indicator table, evidence bundle, backtest report, warning list.", c: "ci", why: "W2 s.13: her pipeline aşaması bir artifact üretir." },
+    { t: "The final explanation is like a release artifact: reproducible and traceable.", c: "ci", why: "W2 s.13: explanation = release." },
+    { t: "Future financial-statement data inside a historical backtest → HARD BLOCK.", c: "ci", why: "W2 s.13'teki example failure: test geçmezse release yok." },
+    { t: "Controls permissions: which tools can be called.", c: "os", why: "W2 s.14: kernel izinleri kontrol eder." }
+  ]);
+
+  sorter("w-mem-sort", [{ k: "t", label: "Temporal" }, { k: "e", label: "Episodic" }, { k: "p", label: "Procedural" }], [
+    { t: "ASELS RSI moved from 31 → 44 → 57.", c: "t", why: "W2 s.19: zaman içinde değişen bir değer, yani data history." },
+    { t: "Last month the system marked THYAO as MONITOR/WATCH. Human later rejected it because drawdown was high.", c: "e", why: "W2 s.19: geçmiş bir analiz vakası ve human kararı." },
+    { t: "The system knows it must run the risk gate before generating the final explanation.", c: "p", why: "W2 s.19: workflow sırası, yani procedural." },
+    { t: "TUPRS quarterly EBITDA growth changed across four quarters.", c: "t", why: "W2 s.20: dört çeyreklik bir seri." },
+    { t: "AKBNK lagged its sector, then caught up after a successful backtest.", c: "e", why: "W2 s.20: bir vaka ve sonucu." },
+    { t: "Never use future financial statements inside a historical backtest.", c: "p", why: "W2 s.20: bir doğrulama kuralı." },
+    { t: "USD/TRY ve TÜİK enflasyon serisinin aylık geçmişi", c: "t", why: "§24: macro series temporal memory'de durur." },
+    { t: "Hangi state'te hangi tool'un çağrılabileceği listesi", c: "p", why: "§24: tool permissions procedural memory'nin parçası." },
+    { t: "Geçen hafta EREGL analizi: state → evidence → TECHNICAL_REVERSAL_CANDIDATE → backtest → human ACCEPT", c: "e", why: "§24'teki episodic formatın kendisi: state → evidence → action → backtest result → human decision." },
+    { t: "ASELS'in 24 lower-Bollinger touch'ının tarih listesi", c: "t", why: "§24: event histories temporal memory'de. Tarih sırasıyla tutulan bir veri, bir vaka değil." },
+    { t: "Analysis template: Result + Why + Risks + Human Review", c: "p", why: "§24: analysis templates procedural memory'de." },
+    { t: "Önceki bir THYAO analizinde gate'in HARD_BLOCK verdiği ve nedeni", c: "e", why: "Belirli bir analizde ne olduğunun kaydı: bir vaka." }
+  ]);
+
+  const GATE_ITEMS = [
+    { t: "Future financial-statement information enters an earlier historical date.", c: "h", why: "§26 hard block: geleceğin bilgisi geçmiş bir karara girmiş." },
+    { t: "Look-ahead bias in indicator/signal construction.", c: "h", why: "§26 hard block." },
+    { t: "Wrong ticker or broken price history.", c: "h", why: "§26 hard block: yanlış veriyle bütün analiz geçersiz." },
+    { t: "Critical period mismatch between price and financial data.", c: "h", why: "§26 hard block." },
+    { t: "Backtest uses information unavailable at decision time.", c: "h", why: "§26 hard block." },
+    { t: "Macro series unavailable for a limited interval.", c: "s", why: "§26 soft warning: geçici, sınırlı bir boşluk." },
+    { t: "News coverage is sparse.", c: "s", why: "§26 soft warning: bağlam eksik, sayısal analiz geçerli." },
+    { t: "Video transcript quality is low.", c: "s", why: "§26 soft warning." },
+    { t: "Small number of historical technical events.", c: "s", why: "§26 soft warning: weak sample." },
+    { t: "Sector peer group is temporarily too small.", c: "s", why: "§26 soft warning." },
+    { t: "Signal sütununda <code>shift(1)</code> yok: t günü kapanışıyla hesaplanan signal t günü işlem yapıyor.", c: "h", why: "Look-ahead bias in signal construction: kararı karar anında bilinmeyen bir bilgiyle veriyor." },
+    { t: "Bilanço değerleri disclosure date'e değil, quarter-end tarihine hizalanmış.", c: "h", why: "Bilanço quarter-end'de değil, yayımlandığında bilinir. Arada kalan günlerde geleceğin bilgisi kullanılmış olur (§9, §18)." },
+    { t: "Fed faiz serisinde iki haftalık bir boşluk var.", c: "s", why: "Macro series unavailable for a limited interval." },
+    { t: "THYAO'nun sektöründe (Transportation / Airlines) yalnız PGSUS var; peer group iki hisse.", c: "s", why: "Sector peer group too small: median iki değerden çıkıyor, sonuç zayıf ama sızıntı yok." },
+    { t: "Pivot'lar <code>rolling(center=True)</code> ile bulunmuş ve backtest'te o günün sinyali olarak kullanılmış.", c: "h", why: "center=True pencere sağdaki gelecek bar'ları da görür: look-ahead." }
+  ];
+  sorter("w-gate-sort", [{ k: "h", label: "Hard block" }, { k: "s", label: "Soft warning" }], GATE_ITEMS);
+
+  /* ---------- Gate output ---------- */
+  (function () {
+    const el = document.getElementById("w-gate-out");
+    if (!el) return;
+    el.innerHTML = GATE_ITEMS.map((it, k) => '<label class="w-harness-mcp-ev"><input type="checkbox" data-g="' + k + '" /><span>' + it.t + "</span></label>").join("") + '<div class="w-harness-mcp-msg" id="w-gate-res" aria-live="polite"></div>';
+    const out = el.querySelector("#w-gate-res");
+    function upd() {
+      const on = [...el.querySelectorAll("[data-g]")].filter((x) => x.checked).map((x) => GATE_ITEMS[+x.dataset.g]);
+      const nh = on.filter((x) => x.c === "h").length, ns = on.length - nh;
+      let o, cls, note;
+      if (nh) { o = "HARD_BLOCK"; cls = "is-bad"; note = nh + " hard block. Güçlü bir sonuç yazılmaz; analiz ANALYSIS_UNSAFE olarak kapanır ya da veri düzeltilip baştan çalışır."; }
+      else if (ns) { o = "PASS_WITH_WARNINGS"; cls = "is-ok"; note = ns + " soft warning output'un Risks kısmına yazılır."; }
+      else { o = "PASS"; cls = "is-ok"; note = "İşaretli sorun yok."; }
+      out.className = "w-harness-mcp-msg " + cls;
+      out.innerHTML = 'Gate output: <span class="w-harness-mcp-out">' + o + "</span>. " + note;
+    }
+    el.addEventListener("change", upd);
+    upd();
+  })();
+
+  /* ---------- Evidence committer ---------- */
+  (function () {
+    const root = document.getElementById("w-ev");
+    if (!root) return;
+    const PEERS = { GARAN: 16, AKBNK: 12, ISCTR: 11, YKBNK: 3 };
+    const vals = Object.values(PEERS).slice().sort((a, b) => a - b);
+    const mid = vals.length % 2 ? vals[(vals.length - 1) / 2] : (vals[vals.length / 2 - 1] + vals[vals.length / 2]) / 2;
+    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const LAG = PEERS.YKBNK - mid;
+    const GAP = -LAG;
+    const HIT = Math.round(1000 * 11 / 17) / 10;
+    const r1 = (x) => String(Math.round(x * 100) / 100);
+    const ITEMS = [
+      { t: "Peer returns (20 days): GARAN +16%, AKBNK +12%, ISCTR +11%, YKBNK +3%; lag score " + r1(LAG) + " pp", src: "rank_sector_relative_strength", k: "sup", why: "Sonucun temeli: güçlü bir sektörde geride kalan hisse." },
+      { t: "KAMA slope turned positive.", src: "calculate_indicators", k: "sup", why: "Teknik trend toparlanıyor (§11 (b))." },
+      { t: "RSI, MACD, SMA, EMA değerleri", src: "calculate_indicators", k: "obs", why: "Gözlenen bağlam; tek başına catch-up iddiasını taşımıyor." },
+      { t: "Lower Bollinger reversals worked in 11/17 similar cases (" + HIT + "%).", src: "detect_reversal_events", k: "sup", why: "Geçmişte benzer zayıflığın döndüğünü gösteren sayılmış bir oran (§11 (c))." },
+      { t: "Revenue growth improved in the latest disclosed quarter.", src: "get_fundamental_metrics", k: "sup", why: "Fundamental'lar bozulmuyor (§11 (a)); disclosure tarihine göre." },
+      { t: "Net Debt/EBITDA declined.", src: "calculate_fundamental_change", k: "bad", why: "Banka için anlamlı değil: \"bank analysis should not blindly use industrial-company ratios\" (§14)." },
+      { t: "Macro regime not flagged as hard-risk.", src: "get_macro_context", k: "sup", why: "Gerikalmayı makro bir neden açıklamıyor (§11 (d)); §25'te E6." },
+      { t: "USD/TRY ve aylık CPI seviyeleri", src: "get_macro_context", k: "obs", why: "Bağlam; sonucu doğrudan desteklemiyor." },
+      { t: "3 haber başlığı \"banking regulation\" etiketli", src: "get_news_events", k: "obs", why: "Zaman damgalı bağlam; yönü belirsiz, evidence değil." },
+      { t: "Video: bir yorumcu \"YKBNK bu yıl ikiye katlar\" diyor.", src: "get_speech_features", k: "bad", why: "Expert commentary ≠ verified fact. Sayısal iddia doğrulanmadan committed set'e giremez (§16)." },
+      { t: "LLM notu: \"RSI is probably around 35, so it is oversold.\"", src: "LLM (tool yok)", k: "bad", why: "Bir tool output'u değil: \"The AI explanation may cite only evidence that exists in tool outputs.\"" },
+      { t: "Episodic memory: geçen ay THYAO WATCH olarak işaretlenmişti.", src: "memory", k: "bad", why: "Başka bir hisse, başka bir vaka. Bağlam olabilir, bu sonucun evidence'ı olamaz." },
+      { t: "Weekday pattern: pazartesi getirileri ortalamada daha düşük", src: "test_weekday_pattern", k: "obs", why: "Catch-up sorusuyla ilgisiz; gözlenen bağlamda kalır." },
+      { t: "Backtest variant B outperformed XU100 after costs.", src: "run_backtest", k: "sup", why: "Label backtest doğrulaması ister; §25'te E7." }
+    ];
+    const NEED = [0, 1, 4, 13];
+    const list = document.getElementById("w-ev-list");
+    const out = document.getElementById("w-ev-out");
+    function draw() {
+      list.innerHTML = ITEMS.map((it, k) => '<label class="w-harness-mcp-ev"><input type="checkbox" data-e="' + k + '" /><span>' + esc(it.t) + "<small>source: " + esc(it.src) + '</small></span><div class="w-harness-mcp-fb" id="w-ev-fb-' + k + '"></div></label>').join("");
+      out.className = "w-harness-mcp-msg"; out.textContent = "";
+    }
+    document.getElementById("w-ev-go").addEventListener("click", () => {
+      const on = new Set([...list.querySelectorAll("[data-e]")].filter((x) => x.checked).map((x) => +x.dataset.e));
+      let bad = 0, obs = 0;
+      ITEMS.forEach((it, k) => {
+        const fb = document.getElementById("w-ev-fb-" + k);
+        if (on.has(k)) {
+          if (it.k === "sup") fb.innerHTML = '<span class="w-harness-mcp-pos">E olarak kabul.</span> ' + esc(it.why);
+          else if (it.k === "obs") { obs++; fb.innerHTML = '<span class="w-harness-mcp-neg">Gözlendi ama sonucu desteklemiyor.</span> ' + esc(it.why); }
+          else { bad++; fb.innerHTML = '<span class="w-harness-mcp-neg">Reddedildi.</span> ' + esc(it.why); }
+        } else fb.innerHTML = it.k === "sup" ? '<span class="src">İşaretlenmedi; destekleyen bir evidence.</span>' : "";
+      });
+      const miss = NEED.filter((k) => !on.has(k));
+      const nE = [...on].filter((k) => ITEMS[k].k === "sup").length;
+      if (bad) { out.className = "w-harness-mcp-msg is-bad"; out.textContent = bad + " madde bir tool output'u değil ya da geçersiz. Explanation bu set'le yazılamaz."; }
+      else if (miss.length) { out.className = "w-harness-mcp-msg is-bad"; out.textContent = "Set eksik: " + miss.map((k) => ITEMS[k].src).join(", ") + " çıktısı yok. Sector lag, teknik toparlanma, fundamental ve backtest olmadan label taşınmaz."; }
+      else { out.className = "w-harness-mcp-msg is-ok"; out.textContent = "Committed set geçerli: " + nE + " evidence (E1–E" + nE + ")" + (obs ? ", " + obs + " gözlenen madde fazladan seçildi, set'ten çıkarılmalı" : "") + ". POTENTIAL_CATCH_UP_CANDIDATE bu set'le açıklanabilir."; }
+    });
+    document.getElementById("w-ev-reset").addEventListener("click", draw);
+    const inp = document.getElementById("w-ev-lag"), lm = document.getElementById("w-ev-lag-msg");
+    function check() {
+      const raw = inp.value.trim().replace(",", ".");
+      if (!/^[-+]?\d+(\.\d+)?$/.test(raw)) { lm.className = "w-harness-mcp-msg is-bad"; lm.textContent = "Bir sayı yaz (ör. 7.25). Yüzde işareti koyma."; return; }
+      const v = parseFloat(raw);
+      if (Math.abs(v - GAP) < 0.01) { lm.className = "w-harness-mcp-msg is-ok"; lm.textContent = "Doğru. Sıralı getiriler " + vals.join(", ") + "; median = " + r1(mid) + "; gerisinde kalma = " + r1(mid) + " − " + PEERS.YKBNK + " = " + r1(GAP) + " puan. Lag score = " + PEERS.YKBNK + " − " + r1(mid) + " = " + r1(LAG) + " pp."; }
+      else if (Math.abs(v - LAG) < 0.01) { lm.className = "w-harness-mcp-msg is-bad"; lm.textContent = "Bu lag score'un kendisi (" + r1(LAG) + " pp). Kutu gerisinde kalma miktarını, yani −lag score'u istiyor."; }
+      else if (Math.abs(v - (mean - PEERS.YKBNK)) < 0.01) { lm.className = "w-harness-mcp-msg is-bad"; lm.textContent = "Bu ortalamaya göre (" + r1(mean) + " − 3). Median'ı kullan: dört sayıda ortadaki iki değerin ortalaması."; }
+      else if (Math.abs(v - (12 - PEERS.YKBNK)) < 0.01) { lm.className = "w-harness-mcp-msg is-bad"; lm.textContent = "12 median değil. Dört sayı var; median ortadaki iki değerin ortalaması."; }
+      else { lm.className = "w-harness-mcp-msg is-bad"; lm.textContent = "Tutmadı. Getirileri sırala, ortadaki iki değerin ortalamasını al, YKBNK'nin getirisini çıkar."; }
+    }
+    document.getElementById("w-ev-lag-go").addEventListener("click", check);
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") check(); });
+    draw();
+  })();
+})();
+</script>
+</body>
+</html>
