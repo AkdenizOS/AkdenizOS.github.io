@@ -1,0 +1,1822 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 321: probabilistic model y = β₀ + β₁x + ε, least squares ile β̂₀ ve β̂₁, model assumption'ları ve s, slope için t test ve confidence interval, r ve r², E(y) için confidence interval ve yeni y için prediction interval, residual plot'lar ve SciPy linregress çıktısı." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Simple linear regression ve correlation · CSE 321 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=8" />
+  <style>
+    .w-simple-regression-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-simple-regression-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-simple-regression-ctl label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: .92rem; max-width: 100%; min-width: 0; }
+    .w-simple-regression-ctl input[type="text"] { width: 84px; }
+    .w-simple-regression-ctl select { max-width: 100%; min-width: 0; }
+    .w-simple-regression-data { width: 100%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: .85rem; min-height: 54px; }
+    .w-simple-regression-range { display: grid; grid-template-columns: minmax(96px, auto) minmax(0, 1fr) 70px; gap: 8px; align-items: center; margin: 4px 0; font-size: .9rem; }
+    .w-simple-regression-range input[type="range"] { width: 100%; min-width: 0; accent-color: var(--accent); }
+    .w-simple-regression-range span:last-child { font-family: 'JetBrains Mono', monospace; text-align: right; }
+    .w-simple-regression-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-simple-regression-plot { width: 100%; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); }
+    .w-simple-regression-plot svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+    .w-simple-regression-plot circle.w-simple-regression-pt { cursor: grab; }
+    .w-simple-regression-nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 6px; margin: 8px 0; }
+    .w-simple-regression-nums div { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; background: var(--paper); font-size: .85rem; min-width: 0; }
+    .w-simple-regression-nums b { display: block; font-family: 'JetBrains Mono', monospace; font-size: .98rem; overflow-wrap: anywhere; }
+    .w-simple-regression-nums .is-mine b { color: var(--orange-700); }
+    .w-simple-regression-out { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 12px; background: var(--paper); margin: 8px 0; overflow-x: auto; }
+    .w-simple-regression-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: .85rem; margin: 4px 0; }
+    .w-simple-regression-legend i { display: inline-block; width: 18px; height: 8px; vertical-align: middle; margin-right: 4px; border-radius: 2px; }
+    .w-simple-regression-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+    .w-simple-regression-pair h4 { margin: 4px 8px; font-size: .9rem; color: var(--fg-brand); }
+    .w-simple-regression-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+    .w-simple-regression-fb { min-height: 1.4em; margin: 6px 0; }
+    .w-simple-regression-fb.is-ok { color: #2b8a3e; font-weight: 600; }
+    .w-simple-regression-fb.is-no { color: var(--orange-700); font-weight: 600; }
+    .w-simple-regression-tbl td, .w-simple-regression-tbl th { text-align: right; font-family: 'JetBrains Mono', monospace; font-size: .85rem; white-space: nowrap; }
+    .w-simple-regression-tbl tr.is-cur { background: var(--blue-050); }
+    .w-simple-regression-out pre { margin: 0; font-size: .82rem; }
+    .w-simple-regression-tw, .w-simple-regression-out, .w-simple-regression-plot { position: relative; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 321</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 321</a> / Simple linear regression ve correlation</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W11 · McClave Ch.11</span><span class="chip">Walpole Ch.11</span><span class="src">~57 dk · 11 bölüm</span></div>
+          <h1>Simple linear regression ve correlation</h1>
+          <p class="lead">Şimdiye kadar bir population mean'i sabit bir sayı gibi tahmin ettik. Regression'da mean sabit değil: başka bir variable'a bağlı olarak değişiyor. CPU load arttıkça ortalama response time da artıyor mu, artıyorsa ne kadar? Bu derste veriye <strong>least squares</strong> ile bir doğru oturtmayı, eğimin gerçekten sıfırdan farklı olup olmadığını test etmeyi, $r$ ve $r^2$'yi okumayı ve bir mean'i tahmin etmekle tek bir yeni değeri tahmin etmenin farkını göreceksin.</p>
+          <p class="src">Not: Bu haftanın (W11) slaytları ve notebook'u repoda yok; konu McClave &amp; Sincich 13e Ch.11 ve Walpole 9e Ch.11 üzerinden, McClave'in sırası ve gösterimiyle anlatıldı. Repoda bu konuda çıkmış sınav sorusu da yok; kutulardaki sorular McClave'in bölüm içi alıştırmaları.</p>
+          <!-- Kaynak: resources/books/mcclave-sincich-statistics-13e.pdf Ch.11 (§11.1–11.7, kitap s.612–668; Example 11.1–11.8, Statistics in Action dowsing, Example 11.5 casino, §11.7 fire damage) · resources/books/walpole-probability-and-statistics-9e.pdf Ch.11 (§11.8 ANOVA approach, §11.10 diagnostic plots of residuals, §11.11 wood density case study) · resources/2026-2027-fall/00-course-info.pdf (W11 = Ch.11; "Regression and ANOVA diagnostics" notebook'ları) · 02-probability-toolkit-and-sampling-distributions.pdf slayt 13–18 (covariance ve correlation by hand; görüntü olarak okundu) · question-bank-1-weeks-01-04.pdf Q8 verisi (CPU load / response time). QB2'ye dokunulmadı. Bütün sayılar python3 -I ile (kendi t CDF'imiz, t tablosu değerleriyle karşılaştırıldı) kontrol edildi; McClave'in çıktılarıyla birebir tuttu (drug, dowsing, casino, fire damage). -->
+        </header>
+
+        <article class="lesson" data-course="cse-321" data-lesson="simple-regression">
+
+<!-- 1 -->
+<section class="lsec" id="model" data-min="4">
+  <h2>Deterministic ve probabilistic model</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · aynı load, farklı süre</span>
+    <p>Bir sunucuda CPU load %40 iken ölçülen response time'lar hep aynı mı? Değil. Cache'in durumu, network, arka planda çalışan başka işler her ölçümü biraz oynatır. Load'u bilmek response time'ı <em>tam olarak</em> söylemez; sadece ortalamasını kaydırır.</p>
+    <p>McClave aynı fikri bir ilaç deneyiyle anlatır: kandaki ilaç yüzdesi $x$, bir uyarana tepki süresi $y$. Aynı $x$'e sahip iki kişinin tepki süresi aynı olmaz; uyku, yaş, günün saati de işin içinde.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki tür model</span>
+    <ul>
+      <li><strong>Deterministic model:</strong> $y$, $x$'ten tam olarak belirlenir. Örnek: $y = 1.5x$. Hataya yer yoktur; bütün noktalar doğrunun üstündedir.</li>
+      <li><strong>Probabilistic model:</strong> $y = \text{Deterministic component} + \text{Random error}$. Random error'un mean'i her $x$ için 0 kabul edilir; bu yüzden $E(y) = \text{Deterministic component}$.</li>
+    </ul>
+    <p><strong>First-order (straight-line) probabilistic model:</strong></p>
+    $$y = \beta_0 + \beta_1 x + \varepsilon$$
+    <ul>
+      <li>$y$ = <strong>dependent</strong> ya da <strong>response variable</strong> (modellenen, tahmin edilen quantitative variable)</li>
+      <li>$x$ = <strong>independent</strong> ya da <strong>predictor variable</strong> ($y$'yi tahmin etmekte kullanılan quantitative variable)</li>
+      <li>$\varepsilon$ = random error component</li>
+      <li>$\beta_0$ = <strong>y-intercept</strong>: doğrunun $y$ eksenini kestiği nokta</li>
+      <li>$\beta_1$ = <strong>slope</strong>: $x$ bir birim artınca deterministic component'in ne kadar değiştiği</li>
+    </ul>
+    <p>Deterministic kısma <strong>line of means</strong> denir, çünkü $E(y) = \beta_0 + \beta_1 x$. $\beta_0$ ve $\beta_1$ population parameter'larıdır; sadece bütün $(x, y)$ population'ını görseydik bilinirdi.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · simple linear regression'ın beş adımı (McClave)</span>
+    <ol>
+      <li>$E(y)$'yi $x$'e bağlayan deterministic component'i hipotez olarak yaz (bu derste hep düz doğru).</li>
+      <li>Sample verisiyle bilinmeyen parameter'ları ($\beta_0$, $\beta_1$) tahmin et.</li>
+      <li>Random error'un probability distribution'ını belirle ve standard deviation'ını tahmin et.</li>
+      <li>Modelin işe yarayıp yaramadığını istatistiksel olarak değerlendir.</li>
+      <li>Model işe yarıyorsa onu estimation ve prediction için kullan.</li>
+    </ol>
+    <p>Dersin geri kalanı bu beş adımı sırayla izliyor: Bölüm 2–3 adım 2, Bölüm 4 adım 3, Bölüm 5–7 adım 4, Bölüm 8 adım 5.</p>
+  </div>
+  <p><strong>İsim nereden geliyor?</strong> Francis Galton 1886'da anne-baba ve yetişkin çocuk boylarını topladı. Uzun anne-babaların çocukları da uzundu ama ortalamada anne-babaları kadar değil; boylar population mean'ine doğru "geri dönüyordu". Galton buna "law of universal regression" dedi; Karl Pearson'la birlikte bu veriye düz doğru oturtunca <em>regression model</em> adı yerleşti.</p>
+  <!-- Kaynak: McClave §11.1 (kitap s.614–617), Figure 11.1–11.2, Galton biyografisi, "Conducting a Simple Linear Regression" kutusu. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Independent variable" burada Chapter 3'teki probabilistic independence anlamına gelmez. Sadece "predictor" demektir.</li>
+      <li>Line of means, tek tek $y$ değerlerinin değil, <strong>mean</strong>'in doğrusudur. Gözlenen $y$'ler doğrunun etrafına saçılır.</li>
+      <li>$\beta_1$ (population, bilinmez) ile $\hat\beta_1$ (sample'dan hesaplanan) farklı şeyler. Şapkayı unutma: sınavda "$\beta_1 = 0.7$" yazmak, population'ı bildiğini iddia etmektir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.14"><span class="box__label">McClave 11.14 · kitap alıştırması</span>
+    <p>"Forecasting movie revenues with Twitter. A study presented at the 2010 IEEE International Conference on Web Intelligence and Intelligent Agent Technology investigated whether the volume of chatter on Twitter.com could be used to forecast the box office revenues of movies. For each in a sample of 24 recent movies, opening weekend box office revenue (in millions of dollars) was measured as well as the movie's tweet rate (the average number of tweets referring to the movie one week prior to the movie's release).</p>
+    <p>a. In this study, identify the dependent and independent variables. b. Explain why a probabilistic model is more appropriate than a deterministic model. c. Write the equation of the straight-line, probabilistic model."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Araştırmacılar neyi <em>tahmin etmek</em> istiyor, neyi tahmin için <em>kullanıyor</em>? Tahmin edilen $y$ olur.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Aynı tweet rate'e sahip iki filmin hasılatı aynı olur mu? Hasılatı başka neler etkiler?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>a.</strong> Dependent variable $y$ = opening weekend box office revenue (milyon dolar). Independent variable $x$ = tweet rate.</p>
+      <p><strong>b.</strong> Aynı tweet rate'e sahip filmlerin hasılatı aynı olmaz: tür, oyuncular, gösterim salonu sayısı, rakip filmler, bütçe de etkiler. Tweet rate hasılatı tam olarak belirlemez, bu yüzden modelde random error'a yer olmalı.</p>
+      <p><strong>c.</strong> $y = \beta_0 + \beta_1 x + \varepsilon$. Burada $\beta_0$ y-intercept, $\beta_1$ slope (tweet rate bir birim artınca mean revenue'nun değişimi), $\varepsilon$ random error.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/mcclave-sincich-statistics-13e.pdf" target="_blank" rel="noopener">Orijinal soru (kitap PDF'i, s.618)</a></p>
+    <!-- Kaynak: McClave Exercise 11.14 (kitap s.618). Kitabın cevap anahtarı repodaki PDF'te yok. -->
+  </div>
+  <div class="quiz" id="q-model-1">
+    <p class="quiz__q">$y = \beta_0 + \beta_1 x + \varepsilon$ modelinde $x = 10$ için $E(y) = 25$ ise, $x = 10$ olan <strong>her</strong> gözlem için $y = 25$ mi?</p>
+    <button class="quiz__opt">Evet, çünkü $y$ line of means'in üstündedir<span class="why">Bu deterministic model düşüncesi. Probabilistic modelde $y = E(y) + \varepsilon$; her gözlemin kendi random error'u var.</span></button>
+    <button class="quiz__opt" data-correct>Hayır; 25, $x = 10$'daki $y$'lerin mean'i, tek tek $y$'ler $\varepsilon$ kadar sapar<span class="why">Doğru. Line of means $y$'lerin ortalamasını verir. Tek bir gözlem $25 + \varepsilon$'dur ve $\varepsilon$ her gözlemde farklıdır.</span></button>
+    <button class="quiz__opt">Sadece $\varepsilon$'un mean'i 0 değilse hayır<span class="why">Ters. $E(\varepsilon) = 0$ olsa bile tek tek $\varepsilon$ değerleri 0 değildir; mean'in 0 olması "ortalamada 0" demek.</span></button>
+    <button class="quiz__opt">Sadece $\beta_1 = 0$ ise evet<span class="why">$\beta_1 = 0$ doğruyu yataylaştırır ama random error'u ortadan kaldırmaz. $y$'ler yine $E(y)$ etrafına saçılır.</span></button>
+  </div>
+  <div class="quiz" id="q-model-2">
+    <p class="quiz__q">Bir ekip, bir web servisinde istek boyutundan (KB) yola çıkarak response time'ı (ms) tahmin etmek istiyor. Hangisi doğru?</p>
+    <button class="quiz__opt" data-correct>$y$ = response time, $x$ = istek boyutu<span class="why">Doğru. Tahmin edilen variable response (dependent) variable'dır; tahmin için kullanılan predictor (independent) variable'dır.</span></button>
+    <button class="quiz__opt">$y$ = istek boyutu, $x$ = response time<span class="why">Rolleri ters çevirdin. Hangi variable'ın tahmin edildiğine bak: response time.</span></button>
+    <button class="quiz__opt">İkisi de $x$ olabilir; regression'da yön önemli değil<span class="why">Regression'da yön önemli: $y$'yi $x$'ten tahmin eden doğru ile $x$'i $y$'den tahmin eden doğru farklıdır. Correlation simetriktir, regression değildir.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="least-squares" data-min="6">
+  <h2>Least squares: en iyi doğru hangisi?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · cetveli kaydırmak</span>
+    <p>McClave'in ilaç verisi (Table 11.1): beş kişi, $x$ = kandaki ilaç yüzdesi, $y$ = tepki süresi (saniye).</p>
+    <div class="table-wrap w-simple-regression-tw"><table class="w-simple-regression-tbl">
+      <tr><th>$x$</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td></tr>
+      <tr><th>$y$</th><td>1</td><td>1</td><td>2</td><td>2</td><td>4</td></tr>
+    </table></div>
+    <p>Göz kararı bir cetvel koyalım: üç noktadan geçen $\tilde y = -1 + x$. Her noktada <strong>error of prediction</strong> $y - \tilde y$ dikey uzaklıktır:</p>
+    <div class="table-wrap w-simple-regression-tw"><table class="w-simple-regression-tbl">
+      <tr><th>$x$</th><th>$y$</th><th>$\tilde y = -1 + x$</th><th>$y - \tilde y$</th><th>$(y - \tilde y)^2$</th></tr>
+      <tr><td>1</td><td>1</td><td>0</td><td>1</td><td>1</td></tr>
+      <tr><td>2</td><td>1</td><td>1</td><td>0</td><td>0</td></tr>
+      <tr><td>3</td><td>2</td><td>2</td><td>0</td><td>0</td></tr>
+      <tr><td>4</td><td>2</td><td>3</td><td>−1</td><td>1</td></tr>
+      <tr><td>5</td><td>4</td><td>4</td><td>0</td><td>0</td></tr>
+      <tr><th colspan="3">Toplam</th><th>0</th><th>SSE = 2</th></tr>
+    </table></div>
+    <p>Error'ların toplamı 0. Ama cetveli kaydırırsan error toplamı 0 olan sonsuz sayıda doğru bulursun. Bu yüzden ölçüt toplam değil, <strong>sum of squared errors</strong> (SSE): büyük sapmaları daha çok cezalandırır. SSE'yi en küçük yapan doğru <strong>tek</strong>tir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · least squares line</span>
+    <p>Fitted line $\hat y = \hat\beta_0 + \hat\beta_1 x$. Şapkalar tahmin demek: $\hat y$, $E(y)$'nin estimator'ı ve gelecekteki bir $y$'nin predictor'ı.</p>
+    $$SSE = \sum (y_i - \hat y_i)^2 = \sum \left[y_i - (\hat\beta_0 + \hat\beta_1 x_i)\right]^2$$
+    <p>SSE'yi minimum yapan $\hat\beta_0$, $\hat\beta_1$'e <strong>least squares estimates</strong>, doğruya <strong>least squares line</strong> (regression line, least squares prediction equation) denir. İki özelliği var:</p>
+    <ol>
+      <li>Error'ların toplamı 0'dır (mean error of prediction = 0).</li>
+      <li>SSE, başka her düz doğrununkinden küçüktür.</li>
+    </ol>
+    $$\hat\beta_1 = \frac{SS_{xy}}{SS_{xx}}, \qquad \hat\beta_0 = \bar y - \hat\beta_1 \bar x$$
+    $$SS_{xy} = \sum (x_i - \bar x)(y_i - \bar y) = \sum x_i y_i - \frac{(\sum x_i)(\sum y_i)}{n}, \qquad SS_{xx} = \sum (x_i - \bar x)^2 = \sum x_i^2 - \frac{(\sum x_i)^2}{n}$$
+    <p>Formüller, SSE'nin $\beta_0$ ve $\beta_1$'e göre partial derivative'leri 0'a eşitlenerek bulunur. $\hat\beta_0$ formülü bir şey daha söyler: least squares line her zaman $(\bar x, \bar y)$ noktasından geçer.</p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · W2'deki covariance'ın aynısı</span>
+    <p>W2 slayt 13'teki "Product" sütununun toplamı tam olarak $SS_{xy}$'dir; covariance onu $n - 1$'e böler. $SS_{xx}/(n-1) = s_x^2$. Bölenler sadeleşir:</p>
+    $$\hat\beta_1 = \frac{SS_{xy}}{SS_{xx}} = \frac{\text{Cov}(x, y)}{s_x^2}$$
+    <p>Yani slope, "covariance'ı $x$'in variance'ına böl" demek. Covariance'ın birimi ($x$ birimi × $y$ birimi) $x$ biriminin karesine bölününce slope'un birimi "$y$ birimi / $x$ birimi" olur.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · ilaç verisi (McClave Example 11.2)</span>
+    <p>$\bar x = 15/5 = 3$, $\bar y = 10/5 = 2$.</p>
+    <div class="table-wrap w-simple-regression-tw"><table class="w-simple-regression-tbl">
+      <tr><th>$x$</th><th>$y$</th><th>$x - 3$</th><th>$y - 2$</th><th>$(x-3)(y-2)$</th><th>$(x-3)^2$</th></tr>
+      <tr><td>1</td><td>1</td><td>−2</td><td>−1</td><td>2</td><td>4</td></tr>
+      <tr><td>2</td><td>1</td><td>−1</td><td>−1</td><td>1</td><td>1</td></tr>
+      <tr><td>3</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+      <tr><td>4</td><td>2</td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
+      <tr><td>5</td><td>4</td><td>2</td><td>2</td><td>4</td><td>4</td></tr>
+      <tr><th colspan="4">Toplam</th><th>$SS_{xy} = 7$</th><th>$SS_{xx} = 10$</th></tr>
+    </table></div>
+    <p>$\hat\beta_1 = 7/10 = 0.7$, $\hat\beta_0 = 2 - 0.7(3) = -0.1$. Least squares line: $\hat y = -0.1 + 0.7x$.</p>
+    <p>$x = 2$ için tahmin: $\hat y = -0.1 + 0.7(2) = 1.3$ saniye. Bu doğrunun SSE'si 1.10; göz kararı doğrunun 2.0'ından küçük, olması gerektiği gibi.</p>
+  </div>
+  <!-- Kaynak: McClave §11.2 (kitap s.618–623), Table 11.1–11.2, Example 11.2, Figure 11.5–11.8 (SAS/SPSS/MINITAB çıktıları β̂0 = −.1, β̂1 = .7, SSE = 1.10). W2 slayt 13 (Covariance by hand) görüntü olarak okundu. -->
+
+  <h3>Tabloyu adım adım kur</h3>
+  <p class="w-simple-regression-guess"><strong>Önce tahmin et:</strong> CPU verisinde ($x$ = 20, 30, 40, 50, 60) $\hat\beta_1$ kaç çıkar? Bir sayı söyle, sonra adımları izle.</p>
+  <div class="w-simple-regression-ctl">
+    <label>Veri <select id="sr-st-data">
+      <option value="drug">İlaç (Table 11.1)</option>
+      <option value="cpu">CPU load (QB1 Q8 verisi)</option>
+      <option value="hours">Çalışma saati (W2 slayt 13)</option>
+    </select></label>
+  </div>
+  <div id="sr-st-stepper"></div>
+
+  <h3>Kendin dene: least squares oyun alanı</h3>
+  <p class="w-simple-regression-guess"><strong>Önce tahmin et:</strong> İlaç verisinde turuncu doğrunun iki ayarıyla oynayarak SSE'yi 1.10'un altına indirebilir misin? Kareleri izle: toplam alanları SSE ile orantılı.</p>
+  <div class="w-simple-regression-ctl">
+    <label>Veri <select id="sr-pg-data">
+      <option value="drug">İlaç (McClave Table 11.1)</option>
+      <option value="cpu">CPU load ve response time</option>
+      <option value="own">Kendi verin</option>
+    </select></label>
+    <label><input type="checkbox" id="sr-pg-ls" checked /> LS doğrusu</label>
+    <label>Kareler <select id="sr-pg-sq"><option value="mine">turuncu doğru</option><option value="ls">LS doğrusu</option><option value="none">gizle</option></select></label>
+  </div>
+  <div id="sr-pg-ownbox" hidden>
+    <label for="sr-pg-own" class="src">$(x, y)$ çiftleri, aralarında boşluk ya da noktalı virgül: <code>1,1 2,1 3,2</code> (3–30 nokta)</label>
+    <textarea id="sr-pg-own" class="w-simple-regression-data">1,2 2,3 3,3 4,5 5,4 6,6</textarea>
+    <button class="btn btn--sm" id="sr-pg-own-go">Çiz</button>
+  </div>
+  <div class="w-simple-regression-err" id="sr-pg-err" aria-live="polite"></div>
+  <div class="w-simple-regression-range"><label for="sr-pg-b1">Turuncu slope</label><input type="range" id="sr-pg-b1" /><span id="sr-pg-b1v"></span></div>
+  <div class="w-simple-regression-range"><label for="sr-pg-h">$\bar x$'teki yükseklik</label><input type="range" id="sr-pg-h" /><span id="sr-pg-hv"></span></div>
+  <div class="w-simple-regression-plot" id="sr-pg-plot"></div>
+  <div class="w-simple-regression-legend"><span><i style="background:var(--blue-600)"></i>LS doğrusu</span><span><i style="background:var(--accent)"></i>turuncu doğru (senin)</span><span><i style="background:var(--stone-300)"></i>noktalar sürüklenebilir</span></div>
+  <div class="w-simple-regression-nums" id="sr-pg-nums"></div>
+  <p class="src">Turuncu doğruyu $\bar x$'teki yüksekliği $\bar y$'ye eşitleyerek ve slope'u $\hat\beta_1$'e getirerek LS doğrusuyla çakıştırabilirsin. Error toplamı her yükseklikte 0 olmaz: sadece doğru $(\bar x, \bar y)$'den geçerken 0 olur.</p>
+
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$\hat\beta_1 = SS_{xy}/SS_{xx}$; payda $x$'in sum of squares'i. $SS_{yy}$ ile bölersen $y$'den $x$'i tahmin eden doğrunun eğimini bulursun.</li>
+      <li>$SS$'ler bölünmez. $SS_{xx}$'i $n - 1$'e bölersen variance olur; formülde bölünmemiş hali var. (İkisini de bölersen oran değişmez, ama birini bölüp diğerini bölmezsen sonuç yanlış.)</li>
+      <li>$\hat\beta_0 = \bar y - \hat\beta_1 \bar x$; $\bar x - \hat\beta_1 \bar y$ değil.</li>
+      <li>"Error toplamı 0" tek başına LS doğrusunu belirlemez: $(\bar x, \bar y)$'den geçen her doğrunun error toplamı 0'dır. LS'yi belirleyen SSE'nin minimum olması.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.18-11.19"><span class="box__label">McClave 11.18 ve 11.19 · kitap alıştırması</span>
+    <p>"11.18 The accompanying table is used to make the preliminary computations for finding the least squares line for the given pairs of x and y values. a. Complete the table. b. Find SS<sub>xy</sub>. c. Find SS<sub>xx</sub>. d. Find $\hat\beta_1$. e. Find $\bar x$ and $\bar y$. f. Find $\hat\beta_0$. g. Find the least squares line."</p>
+    <div class="table-wrap w-simple-regression-tw"><table class="w-simple-regression-tbl">
+      <tr><th>$x_i$</th><td>1</td><td>7</td><td>9</td><td>6</td><td>9</td><td>10</td><td>7</td></tr>
+      <tr><th>$y_i$</th><td>8</td><td>3</td><td>10</td><td>9</td><td>10</td><td>10</td><td>8</td></tr>
+    </table></div>
+    <p>"11.19 Refer to Exercise 11.18. After the least squares line has been obtained, the following table can be used (1) to compare the observed and predicted values of y and (2) to compute SSE. … b. Plot the least squares line on a scatterplot of the data. Plot the following line on the same graph: $\hat y = 8.20 - .45x$. c. Show that SSE is larger for the line in part b than it is for the least squares line." (Tablolar kısaltıldı.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kısayol formülü: $\sum x_i = 49$, $\sum y_i = 58$. $\sum x_i^2$ ve $\sum x_i y_i$'yi bulup $SS_{xx} = \sum x^2 - (\sum x)^2/n$, $SS_{xy} = \sum xy - (\sum x)(\sum y)/n$ ile hesapla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>11.19 için her $x$'te iki doğrunun da $\hat y$'sini hesapla, $(y - \hat y)$ ve karelerini topla. LS doğrusunun error toplamı 0 olmalı.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>a–c.</strong> $n = 7$, $\sum x = 49$, $\sum y = 58$, $\sum x^2 = 397$, $\sum xy = 419$.</p>
+      <p>$SS_{xy} = 419 - \dfrac{49 \cdot 58}{7} = 419 - 406 = 13$, $\quad SS_{xx} = 397 - \dfrac{49^2}{7} = 397 - 343 = 54$.</p>
+      <p><strong>d–g.</strong> $\hat\beta_1 = 13/54 = 0.2407$. $\bar x = 7$, $\bar y = 58/7 = 8.2857$. $\hat\beta_0 = 8.2857 - 0.2407(7) = 6.6005$. Least squares line: $\hat y = 6.60 + 0.241x$.</p>
+      <div class="table-wrap w-simple-regression-tw"><table class="w-simple-regression-tbl">
+        <tr><th>$x$</th><th>$y$</th><th>$\hat y$ (LS)</th><th>$y - \hat y$</th><th>$8.20 - .45x$</th><th>$y - (8.20 - .45x)$</th></tr>
+        <tr><td>1</td><td>8</td><td>6.841</td><td>1.159</td><td>7.75</td><td>0.25</td></tr>
+        <tr><td>7</td><td>3</td><td>8.286</td><td>−5.286</td><td>5.05</td><td>−2.05</td></tr>
+        <tr><td>9</td><td>10</td><td>8.767</td><td>1.233</td><td>4.15</td><td>5.85</td></tr>
+        <tr><td>6</td><td>9</td><td>8.045</td><td>0.955</td><td>5.50</td><td>3.50</td></tr>
+        <tr><td>9</td><td>10</td><td>8.767</td><td>1.233</td><td>4.15</td><td>5.85</td></tr>
+        <tr><td>10</td><td>10</td><td>9.008</td><td>0.992</td><td>3.70</td><td>6.30</td></tr>
+        <tr><td>7</td><td>8</td><td>8.286</td><td>−0.286</td><td>5.05</td><td>2.95</td></tr>
+        <tr><th colspan="3">Toplam</th><th>0</th><th></th><th>22.65</th></tr>
+      </table></div>
+      <p><strong>11.19.</strong> LS doğrusu: $SSE = 34.30$ (error toplamı 0). $\hat y = 8.20 - .45x$: $SSE = 133.35$ (error toplamı 22.65). İkinci doğrunun SSE'si çok daha büyük; LS doğrusu en küçük SSE'yi verir. Not: $SSE$'yi $SS_{yy} - \hat\beta_1 SS_{xy} = 37.4286 - 0.24074(13) = 34.30$ ile de bulabilirsin (Bölüm 4).</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/mcclave-sincich-statistics-13e.pdf" target="_blank" rel="noopener">Orijinal soru (kitap PDF'i, s.625)</a></p>
+    <!-- Kaynak: McClave Exercises 11.18–11.19 (kitap s.625). Bütün değerler python3 -I ile hesaplandı. -->
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.20"><span class="box__label">McClave 11.20 · kitap alıştırması</span>
+    <p>"Construct a scatterplot of the following data. x: .5, 1, 1.5; y: 2, 1, 3. a. Plot the following two lines on your scatterplot: y = 3 − x and y = 1 + x. b. Which of these lines would you choose to characterize the relationship between x and y? Explain. c. Show that the sum of errors for both of these lines equals 0. d. Which of these lines has the smaller SSE? e. Find the least squares line for the data, and compare it with the two lines described in part a."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her doğru için üç $x$'te $\hat y$'yi bul, $y - \hat y$'leri topla, sonra karelerini topla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(e) için $\bar x = 1$, $\bar y = 2$. $SS_{xx}$ ve $SS_{xy}$'yi deviation tablosuyla hesapla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>c.</strong> $y = 3 - x$: tahminler 2.5, 2, 1.5; error'lar $-0.5, -1, 1.5$, toplam 0. $y = 1 + x$: tahminler 1.5, 2, 2.5; error'lar $0.5, -1, 0.5$, toplam 0.</p>
+      <p><strong>d.</strong> $SSE(3 - x) = 0.25 + 1 + 2.25 = 3.5$; $SSE(1 + x) = 0.25 + 1 + 0.25 = 1.5$. $y = 1 + x$ daha küçük.</p>
+      <p><strong>b.</strong> Veri genel olarak artıyor ve $1 + x$'in SSE'si küçük; $y = 1 + x$ seçilir.</p>
+      <p><strong>e.</strong> $x - \bar x = -0.5, 0, 0.5$; $y - \bar y = 0, -1, 1$. $SS_{xy} = 0 + 0 + 0.5 = 0.5$, $SS_{xx} = 0.5$. $\hat\beta_1 = 1$, $\hat\beta_0 = 2 - 1(1) = 1$. LS doğrusu $\hat y = 1 + x$; (a)'daki ikinci doğruyla aynı. İki doğrunun da error toplamı 0'dı; farkı SSE yaptı.</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 11.20 (kitap s.625). -->
+  </div>
+  <div class="quiz" id="q-ls-1">
+    <p class="quiz__q">Bir veri setinde $\bar x = 4$, $\bar y = 10$, $SS_{xy} = -12$, $SS_{xx} = 8$, $SS_{yy} = 30$. Least squares line hangisi?</p>
+    <button class="quiz__opt" data-correct>$\hat y = 16 - 1.5x$<span class="why">Doğru. $\hat\beta_1 = -12/8 = -1.5$, $\hat\beta_0 = 10 - (-1.5)(4) = 16$.</span></button>
+    <button class="quiz__opt">$\hat y = 4 - 1.5x$<span class="why">$\hat\beta_0 = \bar y - \hat\beta_1 \bar x$'te eksi çarpı eksi artı yapar: $10 + 6 = 16$. İşaret hatası.</span></button>
+    <button class="quiz__opt">$\hat y = 11.6 - 0.4x$<span class="why">$SS_{yy}$'ye bölmüşsün: $-12/30 = -0.4$. Slope'un paydası $SS_{xx}$.</span></button>
+    <button class="quiz__opt">$\hat y = 10 - 1.5x$<span class="why">Intercept $\bar y$ değil. Doğru $(\bar x, \bar y) = (4, 10)$'dan geçmeli: $10 - 1.5(4) = 4 \ne 10$.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="interpret" data-min="4">
+  <h2>β̂₀ ve β̂₁'i yorumlamak</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · yorum (McClave)</span>
+    <ul>
+      <li><strong>y-intercept:</strong> $\hat\beta_0$, $x = 0$'daki tahmini $y$'dir. Dikkat: $x = 0$ anlamsızsa ya da sample'daki $x$ aralığının dışındaysa yorumu yoktur.</li>
+      <li><strong>slope:</strong> $\hat\beta_1$, $x$ bir birim arttığında $y$'nin mean'indeki tahmini artış (ya da azalış). Dikkat: sadece sample'daki $x$ aralığında geçerlidir.</li>
+    </ul>
+    <p>Bu ikisi tahmindir; başka bir sample başka değerler verir. Ne kadar güvenebileceğimizi Bölüm 5 söyleyecek.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · ilaç verisi, $\hat y = -0.1 + 0.7x$</span>
+    <p>$\hat\beta_0 = -0.1$: "ilaç %0 iken mean tepki süresi $-0.1$ saniye". Negatif süre olamaz. Sorun modelde değil, yorumda: sample'da $x$ 1 ile 5 arasında, $x = 0$ bu aralığın dışında. Yorumlanmaz.</p>
+    <p>$\hat\beta_1 = 0.7$: kandaki ilaç oranı 1 yüzde puanı arttığında (ör. %2'den %3'e) mean tepki süresinin 0.7 saniye arttığı tahmin ediliyor, %1–%5 aralığında. Bu, %5'ten %10'a çıkınca süre 3.5 saniye artar demek değil; %10 öldürücü bir doz bile olabilir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · CPU load (Soru bankası 1 Q8 verisi)</span>
+    <p>$x$ = CPU load (%): 20, 30, 40, 50, 60. $y$ = mean response time (ms): 110, 125, 120, 145, 150. Probability toolkit dersinde bu veriden $SS_{xy} = 1000$ ve $r = 0.93$ bulmuştuk. $SS_{xx} = 1000$.</p>
+    <p>$\hat\beta_1 = 1000/1000 = 1.0$ ms / %, $\hat\beta_0 = 130 - 1.0(40) = 90$. Doğru: $\hat y = 90 + 1.0x$.</p>
+    <ul>
+      <li><strong>Slope:</strong> CPU load 1 puan arttığında mean response time'ın yaklaşık 1 ms arttığı tahmin ediliyor (%20–%60 aralığında).</li>
+      <li><strong>Intercept:</strong> "%0 load'da 90 ms". %0 sample aralığının dışında; boş bir sunucunun davranışı ölçülmedi. Yorumlama.</li>
+      <li>Veri gözlemsel: load'u biz ayarlamadık. "Load response time'ı 1 ms artırır" diye sebep cümlesi kurma; "birlikte artıyor, ortalamada 1 ms/%" de.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · W2'deki çalışma saati verisi</span>
+    <p>Saat 2, 4, 6, 8; not 50, 60, 65, 85. Slayt 13'teki product toplamı $SS_{xy} = 110$, slayt 16'daki kare toplamı $SS_{xx} = 20$. $\hat\beta_1 = 110/20 = 5.5$ puan/saat, $\hat\beta_0 = 65 - 5.5(5) = 37.5$. Her ek çalışma saati ortalama 5.5 puanla ilişkili (2–8 saat aralığında).</p>
+  </div>
+  <!-- Kaynak: McClave §11.2 "Interpreting the Estimates of β0 and β1" kutusu (kitap s.623), Example 11.2d. question-bank-1 Q8 verisi (çözüm burada yeni: least squares line). W2 slayt 13, 16. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Extrapolation:</strong> doğruyu sample'daki $x$ aralığının dışına uzatmak. Doğru o aralıkta iyi olabilir, dışında ilişki bükülebilir.</li>
+      <li>Slope'un birimi var: "$y$ birimi / $x$ birimi". "1.0" değil, "1.0 ms / CPU yüzde puanı" yaz.</li>
+      <li>Slope $y$'nin <strong>mean</strong>'indeki değişim. Tek bir gözlemin tam o kadar değişeceğini söylemez.</li>
+      <li>Yüksek bir slope güçlü bir ilişki demek değil. Birimi değiştirirsen (ms yerine saniye) slope 1000 kat küçülür; ilişkinin gücünü $r$ ölçer (Bölüm 6).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.25"><span class="box__label">McClave 11.25 · kitap alıştırması</span>
+    <p>"New method for blood typing. … The researchers applied blood drops to the paper and recorded the rate of absorption (called blood wicking). The table gives the wicking lengths (millimeters) for six blood drops, each at a different antibody concentration. Let y = wicking length and x = antibody concentration.</p>
+    <div class="table-wrap w-simple-regression-tw"><table class="w-simple-regression-tbl">
+      <tr><th>Length $y$ (mm)</th><td>22.50</td><td>16.00</td><td>13.50</td><td>14.00</td><td>13.75</td><td>12.50</td></tr>
+      <tr><th>Concentration $x$</th><td>0.0</td><td>0.2</td><td>0.4</td><td>0.6</td><td>0.8</td><td>1.0</td></tr>
+    </table></div>
+    <p>a. Give the equation of the straight-line model relating y to x. b. … Give the equation of the least squares line. c. Give practical interpretations (if possible) of the estimated y-intercept and slope of the line." (Kitaptaki SPSS çıktısı yerine elle çözüyoruz.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$\bar x = 0.5$, $\bar y = 15.375$. Deviation tablosunu kur; $SS_{xx}$ küçük bir sayı çıkacak (0.7).</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Intercept'i yorumlamadan önce sor: $x = 0$ sample'da var mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>a.</strong> $y = \beta_0 + \beta_1 x + \varepsilon$.</p>
+      <p><strong>b.</strong> $SS_{xy} = -5.625$, $SS_{xx} = 0.7$. $\hat\beta_1 = -5.625/0.7 = -8.036$, $\hat\beta_0 = 15.375 - (-8.036)(0.5) = 19.393$. Doğru: $\hat y = 19.39 - 8.04x$.</p>
+      <p><strong>c.</strong> Intercept: antibody concentration 0 iken mean wicking length'in 19.39 mm olduğu tahmin ediliyor. Burada $x = 0$ sample'da var (ilk damla), bu yüzden yorum anlamlı. Slope: concentration 1 birim arttığında mean wicking length'in 8.04 mm azaldığı tahmin ediliyor. Concentration 0 ile 1 arasında ölçüldüğü için "0.1 birim artışta yaklaşık 0.80 mm azalış" demek daha doğal.</p>
+      <p>Dikkat: $x = 0$'daki 22.50 diğerlerinden çok yüksek; doğru bu noktayı tam yakalamıyor ($\hat y = 19.39$). Bölüm 9'da bu tür desenleri residual plot ile okuyacağız.</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 11.25 (kitap s.627). python3 -I ile hesaplandı. -->
+  </div>
+  <div class="quiz" id="q-int-1">
+    <p class="quiz__q">Bir sample'da sunucu sayısı $x$ = 4 ile 16 arasında; doğru $\hat y = 250 - 9x$ ($y$ = mean latency, ms). Hangi cümle doğru?</p>
+    <button class="quiz__opt" data-correct>Bir sunucu eklemek mean latency'nin yaklaşık 9 ms düşmesiyle ilişkili (4–16 sunucu aralığında)<span class="why">Doğru. Slope, $x$'in bir birimlik artışında $y$'nin mean'indeki değişim; aralık kaydı da şart.</span></button>
+    <button class="quiz__opt">Hiç sunucu yokken mean latency 250 ms<span class="why">$x = 0$ sample aralığının (4–16) dışında, intercept burada yorumlanmaz. Sunucusuz sistem zaten çalışmaz.</span></button>
+    <button class="quiz__opt">30 sunucuyla mean latency $250 - 270 = -20$ ms olur<span class="why">Extrapolation. 30, sample aralığının çok dışında; negatif latency bunun işareti.</span></button>
+    <button class="quiz__opt">Her istek bir sunucu eklenince tam 9 ms hızlanır<span class="why">Slope tek tek gözlemleri değil, mean'i anlatır. Tek bir isteğin süresi random error yüzünden farklı değişir.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="assumptions" data-min="5">
+  <h2>Model assumption'ları ve s</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · random error için dört assumption</span>
+    <ol>
+      <li>$\varepsilon$'un probability distribution'ının mean'i 0'dır (her $x$ için). Bu, $E(y) = \beta_0 + \beta_1 x$ demektir.</li>
+      <li>$\varepsilon$'un variance'ı her $x$ için aynı sabittir: $\sigma^2$.</li>
+      <li>$\varepsilon$'un distribution'ı normal'dir.</li>
+      <li>Herhangi iki gözlemin $\varepsilon$'ları independent'tır.</li>
+    </ol>
+  </div>
+  <figure style="margin:8px 0">
+    <svg viewBox="0 0 360 190" role="img" aria-label="Line of means ve x = 5, 10, 15'te aynı genişlikte üç normal error distribution" style="width:100%;max-width:460px;height:auto;display:block">
+      <line x1="30" y1="170" x2="350" y2="170" style="stroke:var(--stone-300)" />
+      <line x1="30" y1="170" x2="30" y2="10" style="stroke:var(--stone-300)" />
+      <line x1="40" y1="160" x2="340" y2="35" style="stroke:var(--blue-600);stroke-width:2" />
+      <g id="sr-fig-bells"></g>
+      <text x="96" y="186" style="font-size:11px;fill:var(--fg-muted)">x = 5</text>
+      <text x="186" y="186" style="font-size:11px;fill:var(--fg-muted)">x = 10</text>
+      <text x="276" y="186" style="font-size:11px;fill:var(--fg-muted)">x = 15</text>
+      <text x="250" y="30" style="font-size:11px;fill:var(--blue-600)">E(y) = β₀ + β₁x</text>
+    </svg>
+    <figcaption class="src">McClave Figure 11.9'un taslağı: her $x$'te error'lar normal, mean'leri doğrunun üstünde (0), genişlikleri aynı ($\sigma$).</figcaption>
+  </figure>
+  <div class="box box--rule">
+    <span class="box__label">Kural · $\sigma^2$'nin tahmini</span>
+    $$s^2 = \frac{SSE}{\text{Degrees of freedom for error}} = \frac{SSE}{n - 2}, \qquad SSE = \sum (y_i - \hat y_i)^2 = SS_{yy} - \hat\beta_1 SS_{xy}$$
+    $$SS_{yy} = \sum (y_i - \bar y)^2 = \sum y_i^2 - \frac{(\sum y_i)^2}{n}, \qquad s = \sqrt{s^2} = \sqrt{\frac{SSE}{n-2}}$$
+    <p>$s$'ye <strong>estimated standard error of the regression model</strong> denir. Neden $n - 2$? İki parameter ($\beta_0$, $\beta_1$) tahmin etmek için 2 degree of freedom harcandı; error variance'ına $n - 2$ kaldı. (Tek bir mean'de $\bar y$ için 1 df harcayıp $n - 1$'e bölmüştük; aynı mantık.)</p>
+    <p><strong>Yorum:</strong> gözlenen $y$'lerin çoğunun (≈ %95) kendi $\hat y$'lerinin $2s$ yakınında olmasını bekleriz.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · ilaç verisi (McClave Example 11.3)</span>
+    <p>$SSE = 1.10$, $n = 5$, df $= 3$. $s^2 = 1.10/3 = 0.367$, $s = \sqrt{0.367} = 0.61$ saniye.</p>
+    <p>Kontrol: $SS_{yy} = 1 + 1 + 0 + 0 + 4 = 6$, $SSE = 6 - 0.7(7) = 1.10$. ✓</p>
+    <p>Yorum: tepki sürelerinin çoğu, doğrunun $2s = 1.22$ saniye yakınında. Beş noktanın beşi de bu bandın içinde. SAS çıktısında $s^2$ "Error" satırının "Mean Square" sütununda (0.36667), $s$ "Root MSE" yanında (0.60553) durur.</p>
+  </div>
+  <!-- Kaynak: McClave §11.3 (kitap s.631–634), dört assumption, Figure 11.9, "Estimation of σ² for a (First-Order) Straight-Line Model" kutusu, CAUTION (altı anlamlı basamak), Example 11.3, Figure 11.10. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$s^2 = SSE/(n-2)$; $n - 1$ değil. $n - 1$, tek variable'ın sample variance'ında.</li>
+      <li>$s$ ile $s_y$ farklı: $s_y = \sqrt{SS_{yy}/(n-1)}$ $y$'lerin kendi mean'i etrafındaki saçılması; $s$ doğru etrafındaki saçılma. Doğru işe yarıyorsa $s &lt; s_y$.</li>
+      <li>$SSE = SS_{yy} - \hat\beta_1 SS_{xy}$; $SS_{yy} - SS_{xy}$ değil.</li>
+      <li>Ara sonuçları erken yuvarlama. McClave en az altı anlamlı basamak taşı diyor: $SS_{yy}$ ile $\hat\beta_1 SS_{xy}$ birbirine yakın büyük sayılar olabilir, farkları yuvarlamaya çok duyarlı.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.39-11.40"><span class="box__label">McClave 11.39 ve 11.40a–b · kitap alıştırması</span>
+    <p>"11.39 Calculate SSE and s² for each of the following cases: a. n = 25, SS<sub>yy</sub> = 110, SS<sub>xy</sub> = 60, $\hat\beta_1$ = .80 b. n = 50, Σy² = 900, Σy = 90, SS<sub>xy</sub> = 2,500, $\hat\beta_1$ = .25 c. n = 25, Σ(y<sub>i</sub> − ȳ)² = 75, SS<sub>xy</sub> = 100, SS<sub>xx</sub> = 200</p>
+    <p>11.40 Suppose you fit a least squares line to 12 data points and the calculated value of SSE is .429. a. Find s², the estimator of σ² (the variance of the random error term ε). b. Find s, the estimate of σ."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Hepsinde $SSE = SS_{yy} - \hat\beta_1 SS_{xy}$, $s^2 = SSE/(n - 2)$. (b)'de önce $SS_{yy}$'yi kısayol formülüyle bul.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c)'de $\hat\beta_1$ verilmemiş: $SS_{xy}/SS_{xx}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>11.39a.</strong> $SSE = 110 - 0.80(60) = 62$, $s^2 = 62/23 = 2.696$.</p>
+      <p><strong>11.39b.</strong> $SS_{yy} = 900 - 90^2/50 = 900 - 162 = 738$. $SSE = 738 - 0.25(2500) = 113$, $s^2 = 113/48 = 2.354$.</p>
+      <p><strong>11.39c.</strong> $\hat\beta_1 = 100/200 = 0.5$. $SSE = 75 - 0.5(100) = 25$, $s^2 = 25/23 = 1.087$.</p>
+      <p><strong>11.40.</strong> df $= 12 - 2 = 10$. $s^2 = 0.429/10 = 0.0429$, $s = \sqrt{0.0429} = 0.207$. Noktaların çoğu doğrunun $2s \approx 0.41$ yakınında beklenir.</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercises 11.39, 11.40a–b (kitap s.634). -->
+  </div>
+  <div class="quiz" id="q-as-1">
+    <p class="quiz__q">$n = 12$ noktaya doğru oturtuldu, $SS_{yy} = 50$, $SS_{xy} = 40$, $\hat\beta_1 = 1.0$. $s^2$ kaç?</p>
+    <button class="quiz__opt" data-correct>$1.0$<span class="why">Doğru. $SSE = 50 - 1.0(40) = 10$, df $= 12 - 2 = 10$, $s^2 = 10/10 = 1.0$.</span></button>
+    <button class="quiz__opt">$0.909$<span class="why">$n - 1 = 11$'e bölmüşsün. Regression'da iki parameter tahmin edildi, df $n - 2$.</span></button>
+    <button class="quiz__opt">$4.545$<span class="why">$SS_{yy}/(n-1) = 50/11$, yani $s_y^2$. Bu $y$'nin kendi variance'ı; doğru etrafındaki saçılma değil.</span></button>
+    <button class="quiz__opt">$1.0$'ın karekökü, yani $s^2 = 1$ ama $s = 0.5$<span class="why">$s = \sqrt{s^2} = \sqrt{1} = 1$. Variance ile standard deviation arasında geçerken karekök al, ikiye bölme.</span></button>
+  </div>
+  <div class="quiz" id="q-as-2">
+    <p class="quiz__q">Hangisi simple linear regression'ın random error assumption'larından <strong>biri değil</strong>?</p>
+    <button class="quiz__opt">$\varepsilon$'un variance'ı her $x$'te aynı<span class="why">Bu assumption 2 (constant variance). Listede var.</span></button>
+    <button class="quiz__opt" data-correct>$x$ değerleri normal dağılır<span class="why">Doğru: assumption'lar $\varepsilon$ (dolayısıyla verilen $x$'teki $y$) hakkında. $x$'in distribution'ı hakkında bir şart yok; $x$'i deneyci seçebilir de.</span></button>
+    <button class="quiz__opt">Error'lar birbirinden independent<span class="why">Bu assumption 4. Zaman sırasıyla toplanan veride bozulabilir.</span></button>
+    <button class="quiz__opt">$\varepsilon$ normal dağılır, mean'i 0<span class="why">Bunlar assumption 1 ve 3.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="slope-test" data-min="7">
+  <h2>Slope için t test ve confidence interval</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · düz çizgi = bilgi yok</span>
+    <p>İlaç yüzdesi tepki süresi hakkında hiçbir şey söylemiyorsa, $x$ değişince $E(y)$ değişmez: line of means yataydır, $\beta_1 = 0$, model $y = \beta_0 + \varepsilon$'a döner. Modelin işe yarayıp yaramadığını sormak, "$\beta_1$ 0'dan farklı mı?" diye sormaktır. Ama elimizde $\beta_1$ değil, bir sample'dan gelen $\hat\beta_1 = 0.7$ var. Başka beş kişi başka bir $\hat\beta_1$ verirdi. Soru: 0.7, gerçek slope 0 iken şans eseri çıkabilecek bir değer mi?</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · $\hat\beta_1$'in sampling distribution'ı</span>
+    <p>Dört assumption altında $\hat\beta_1$ normal dağılır; mean'i $\beta_1$ (unbiased), standard deviation'ı</p>
+    $$\sigma_{\hat\beta_1} = \frac{\sigma}{\sqrt{SS_{xx}}}, \qquad \text{tahmini: } s_{\hat\beta_1} = \frac{s}{\sqrt{SS_{xx}}}$$
+    <p>$s_{\hat\beta_1}$'e <strong>estimated standard error of the least squares slope</strong> denir. $\sigma$ bilinmediği ve $s$ ile tahmin edildiği için istatistik $z$ değil $t$'dir; df, $s$'nin df'i: $n - 2$.</p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · $\sigma/\sqrt{SS_{xx}}$ nereden geliyor?</span>
+    <p>$\hat\beta_1 = \sum (x_i - \bar x)\, y_i \,/\, SS_{xx}$ yazılabilir: independent $y_i$'lerin bir linear combination'ı, katsayıları $c_i = (x_i - \bar x)/SS_{xx}$. W2'deki kural: independent'larda variance'lar katsayıların karesiyle toplanır, Cov terimi yoktur:</p>
+    $$\text{Var}(\hat\beta_1) = \sum c_i^2\, \sigma^2 = \sigma^2 \frac{\sum (x_i - \bar x)^2}{SS_{xx}^2} = \frac{\sigma^2}{SS_{xx}}$$
+    <p>Sonuç: $x$'ler ne kadar yayılırsa ($SS_{xx}$ büyük) slope o kadar kesin tahmin edilir. Deney tasarlarken $x$'leri geniş aralığa yaymak bu yüzden işe yarar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · test of model utility</span>
+    $$t_c = \frac{\hat\beta_1 - 0}{s_{\hat\beta_1}} = \frac{\hat\beta_1}{s/\sqrt{SS_{xx}}}, \qquad df = n - 2$$
+    <div class="table-wrap w-simple-regression-tw"><table>
+      <tr><th></th><th>Lower-tailed</th><th>Upper-tailed</th><th>Two-tailed</th></tr>
+      <tr><th>Hipotezler</th><td>$H_0: \beta_1 = 0$<br>$H_a: \beta_1 &lt; 0$</td><td>$H_0: \beta_1 = 0$<br>$H_a: \beta_1 &gt; 0$</td><td>$H_0: \beta_1 = 0$<br>$H_a: \beta_1 \ne 0$</td></tr>
+      <tr><th>Rejection region</th><td>$t_c &lt; -t_\alpha$</td><td>$t_c &gt; t_\alpha$</td><td>$|t_c| &gt; t_{\alpha/2}$</td></tr>
+      <tr><th>p-value</th><td>$P(t &lt; t_c)$</td><td>$P(t &gt; t_c)$</td><td>$2P(t &gt; |t_c|)$</td></tr>
+    </table></div>
+    <p>Karar: p-value $&lt; \alpha$ ise (ya da $t_c$ rejection region'daysa) $H_0$'ı reddet. Geçerlilik koşulu: Bölüm 4'teki dört assumption.</p>
+    <p><strong>Confidence interval:</strong> $\hat\beta_1 \pm t_{\alpha/2}\, s_{\hat\beta_1}$, df $n - 2$.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · ilaç verisi, dört adım (McClave Example 11.4)</span>
+    <ol>
+      <li><strong>Hipotezler:</strong> $H_0: \beta_1 = 0$ (ilaç yüzdesi tepki süresi hakkında linear bilgi vermiyor), $H_a: \beta_1 \ne 0$. $\alpha = 0.05$.</li>
+      <li><strong>Test statistic:</strong> $s_{\hat\beta_1} = 0.6055/\sqrt{10} = 0.1915$. $t = 0.7/0.1915 = 3.66$, df $= 5 - 2 = 3$. (McClave $s$'yi 0.61'e yuvarlayıp 3.7 yazar.)</li>
+      <li><strong>Rejection region / p-value:</strong> $|t| &gt; t_{.025, 3} = 3.182$. $3.66 &gt; 3.182$, rejection region'da. p-value $= 2P(t_3 &gt; 3.66) = 0.035 &lt; 0.05$. (t tablosundan: $t_{.025} = 3.182 &lt; 3.66 &lt; t_{.01} = 4.541$, yani $0.02 &lt; p &lt; 0.05$.)</li>
+      <li><strong>Sonuç:</strong> $H_0$ reddedilir. Kandaki ilaç yüzdesi, düz doğru modeliyle tepki süresini tahmin etmek için bilgi veriyor ($\alpha = 0.05$).</li>
+    </ol>
+    <p><strong>95% CI:</strong> $0.7 \pm 3.182(0.1915) = 0.7 \pm 0.61 = (0.09,\ 1.31)$. İlaç oranı 1 yüzde puanı artınca mean tepki süresindeki gerçek artışın 0.09 ile 1.31 saniye arasında olduğuna %95 güveniyoruz (%1–%5 aralığında). Aralık geniş, çünkü sadece 5 nokta var. Aralıkta 0 yok; bu, two-tailed testin $\alpha = 0.05$'te reddetmesiyle aynı bilgi.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · çıktıdaki p-value'yu one-tailed teste çevirmek</span>
+    <p>Yazılımlar (SAS, SPSS, MINITAB, SciPy) her $\beta$ için <strong>two-tailed</strong> p-value verir. Çıktıdaki değer $p$ ise:</p>
+    <ul>
+      <li>Upper-tailed ($H_a: \beta_1 &gt; 0$): $t &gt; 0$ ise $p/2$, $t &lt; 0$ ise $1 - p/2$.</li>
+      <li>Lower-tailed ($H_a: \beta_1 &lt; 0$): $t &lt; 0$ ise $p/2$, $t &gt; 0$ ise $1 - p/2$.</li>
+    </ul>
+    <p><strong>$\beta_0$'ı neden test etmiyoruz?</strong> $H_0: \beta_0 = 0$, "$x = 0$'da $E(y) = 0$ mı?" demek. $x = 0$ genelde anlamsız ya da sample aralığının dışında; o zaman bu test anlamsız. Sadece $x = 0$ anlamlı ve aralığın içindeyse yapılır.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · dowsing deneyi (McClave Statistics in Action)</span>
+    <p>1980'lerde Almanya'da "su bulucular" (dowser) test edildi: $x$ = dowser'ın tahmini, $y$ = borunun gerçek yeri (metre), en iyi üç dowser'ın en iyi serileri, $n = 26$. $\hat\beta_1 = 0.31$, $s_{\hat\beta_1} = 0.19$, $t = 1.62$, two-tailed p-value $= 0.118$. $\alpha = 0.10$'da bile $H_0$ reddedilemez.</p>
+    <p>95% CI: $0.31 \pm 2.064(0.19) = (-0.08,\ 0.70)$. Tahmin 1 m artınca gerçek yerin azalacağı mı arttığı mı bile belli değil. Araştırmacıların "dowsing empirically proven" iddiasını veri desteklemiyor.</p>
+  </div>
+  <!-- Kaynak: McClave §11.4 (kitap s.636–640): sampling distribution of β̂1 kutusu, "A Test of Model Utility" ve conditions kutuları, Example 11.4, Figure 11.13–11.15, "Interpreting p-Values for β Coefficients" kutusu, CI kutusu, β0 testi CAUTION; Statistics in Action Revisited (dowsing, Table SIA11.1; β̂1 = .31, p = .118, CI (−.08, .70), python ile 26 noktadan doğrulandı). Var(β̂1) türetimi: Walpole §11.4 ve W2 linear combination kuralı. -->
+
+  <h3>Kendin dene: slope testi adım adım</h3>
+  <p class="w-simple-regression-guess"><strong>Önce tahmin et:</strong> CPU verisinde ($\hat\beta_1 = 1.0$, $s = 7.071$, $SS_{xx} = 1000$, $n = 5$) upper-tailed test $\alpha = 0.01$'de reddeder mi? Önce karar ver, sonra çalıştır.</p>
+  <div class="w-simple-regression-ctl">
+    <label>Hazır <select id="sr-ti-preset">
+      <option value="drug">İlaç verisi</option>
+      <option value="cpu">CPU verisi</option>
+      <option value="dowse">Dowsing</option>
+      <option value="fire">Fire damage (Bölüm 10)</option>
+    </select></label>
+  </div>
+  <div class="w-simple-regression-ctl">
+    <label>$\hat\beta_1$ <input type="text" id="sr-ti-b1" inputmode="decimal" /></label>
+    <label>$s$ <input type="text" id="sr-ti-s" inputmode="decimal" /></label>
+    <label>$SS_{xx}$ <input type="text" id="sr-ti-sxx" inputmode="decimal" /></label>
+    <label>$n$ <input type="text" id="sr-ti-n" inputmode="numeric" /></label>
+    <label>$\alpha$ <input type="text" id="sr-ti-a" inputmode="decimal" /></label>
+    <label>$H_a$ <select id="sr-ti-tail"><option value="two">$\beta_1 \ne 0$</option><option value="up">$\beta_1 &gt; 0$</option><option value="low">$\beta_1 &lt; 0$</option></select></label>
+    <button class="btn btn--sm btn--accent" id="sr-ti-go">Çalıştır</button>
+  </div>
+  <div class="w-simple-regression-err" id="sr-ti-err" aria-live="polite"></div>
+  <div id="sr-ti-stepper"></div>
+
+  <h3>Simülasyon: $\hat\beta_1$ gerçekten $\sigma/\sqrt{SS_{xx}}$ kadar mı oynar?</h3>
+  <p class="w-simple-regression-guess"><strong>Önce tahmin et:</strong> Gerçek slope 0 iken ilaç tasarımıyla ($x$ = 1…5) 2000 sample çekip her birinde $\alpha = 0.05$ two-tailed test yaparsak, testlerin yüzde kaçı $H_0$'ı (yanlışlıkla) reddeder?</p>
+  <div class="w-simple-regression-ctl">
+    <label>Gerçek $\beta_1$ <select id="sr-sim-b1"><option value="0">0</option><option value="0.7" selected>0.7</option><option value="0.3">0.3</option></select></label>
+    <label>$\sigma$ <select id="sr-sim-sig"><option value="0.6" selected>0.6</option><option value="1.2">1.2</option></select></label>
+    <label>$x$ tasarımı <select id="sr-sim-x"><option value="narrow" selected>1, 2, 3, 4, 5</option><option value="wide">1, 1, 3, 5, 5</option><option value="ten">1, 1.5, …, 5.5 (n = 10)</option></select></label>
+    <button class="btn btn--sm btn--accent" id="sr-sim-go">2000 sample çek</button>
+  </div>
+  <div class="w-simple-regression-plot" id="sr-sim-plot"></div>
+  <div class="w-simple-regression-nums" id="sr-sim-nums"></div>
+
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$H_0$ her zaman eşitlik: $H_0: \beta_1 = 0$. $H_a: \beta_1 &gt; 0$ olsa bile $H_0$'a "$\le$" yazma; hesap $\beta_1 = 0$ altında yapılıyor.</li>
+      <li>p-value küçükse reddet: $p &lt; \alpha$ ⇒ reject. "$p = 0.035 &gt; 0.05$" gibi bir karşılaştırma yönü hatası, kararı tersine çevirir.</li>
+      <li>df $= n - 2$. İlaç verisinde $t_{.025, 4} = 2.776$ kullanırsan rejection region yanlış olur.</li>
+      <li>Fail to reject, "$\beta_1 = 0$ kanıtlandı" demek değil. Daha çok veri bir slope bulabilir ya da ilişki eğri olabilir.</li>
+      <li>"Model significant" ≠ "ilişki güçlü". Büyük $n$'de çok küçük bir slope bile significant çıkar; büyüklüğü CI söyler.</li>
+      <li>Aynı $y$'yi 20 farklı metric'e karşı tek tek regress edip her birini $\alpha = 0.05$'te test edersen, hiçbiri gerçekten ilişkili olmasa bile ortalama 1 tanesi significant çıkar. Hepsini birlikte rapor edeceksen Bonferroni: her test $\alpha/20$'de.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.58"><span class="box__label">McClave 11.58 · kitap alıştırması</span>
+    <p>"Consider the following pairs of observations:</p>
+    <div class="table-wrap w-simple-regression-tw"><table class="w-simple-regression-tbl">
+      <tr><th>$x$</th><td>1</td><td>5</td><td>3</td><td>2</td><td>6</td><td>6</td><td>0</td></tr>
+      <tr><th>$y$</th><td>1</td><td>3</td><td>3</td><td>1</td><td>4</td><td>5</td><td>1</td></tr>
+    </table></div>
+    <p>… b. Use the method of least squares to fit a straight line to the seven data points in the table. … d. Specify the null and alternative hypotheses you would use to test whether the data provide sufficient evidence to indicate that x contributes information for the (linear) prediction of y. e. What is the test statistic that should be used in conducting the hypothesis test of part d? Specify the number of degrees of freedom associated with the test statistic. f. Conduct the hypothesis test of part d, using α = .05. g. Construct a 95% confidence interval for β<sub>1</sub>." (a ve c: scatterplot çizimi, atlandı.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$\sum x = 23$, $\sum y = 18$, $\sum x^2 = 111$, $\sum xy = 81$, $\sum y^2 = 62$. Üç SS'yi kısayol formülüyle bul.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sıra: $\hat\beta_1$ → $SSE = SS_{yy} - \hat\beta_1 SS_{xy}$ → $s$ → $s_{\hat\beta_1}$ → $t$. df $= 5$, $t_{.025, 5} = 2.571$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>b.</strong> $SS_{xy} = 81 - 23 \cdot 18/7 = 21.857$, $SS_{xx} = 111 - 23^2/7 = 35.429$, $SS_{yy} = 62 - 18^2/7 = 15.714$. $\hat\beta_1 = 21.857/35.429 = 0.6169$, $\hat\beta_0 = 18/7 - 0.6169(23/7) = 2.5714 - 2.0270 = 0.5444$. $\hat y = 0.544 + 0.617x$.</p>
+      <ol>
+        <li><strong>d. Hipotezler:</strong> $H_0: \beta_1 = 0$, $H_a: \beta_1 \ne 0$.</li>
+        <li><strong>e. Test statistic:</strong> $t = \hat\beta_1/s_{\hat\beta_1}$, df $= n - 2 = 5$. $SSE = 15.714 - 0.6169(21.857) = 2.230$, $s^2 = 2.230/5 = 0.446$, $s = 0.668$. $s_{\hat\beta_1} = 0.668/\sqrt{35.429} = 0.1122$. $t = 0.6169/0.1122 = 5.50$.</li>
+        <li><strong>f. Rejection region:</strong> $|t| &gt; t_{.025, 5} = 2.571$. $5.50 &gt; 2.571$. (p-value $= 0.0027$.)</li>
+        <li><strong>Sonuç:</strong> $H_0$ reddedilir; $\alpha = 0.05$'te $x$, $y$'nin linear tahmini için bilgi veriyor.</li>
+      </ol>
+      <p><strong>g.</strong> $0.6169 \pm 2.571(0.1122) = 0.617 \pm 0.288 = (0.329,\ 0.905)$. Aralıkta 0 yok; (f)'deki kararla tutarlı.</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 11.58 (kitap s.641). python3 -I: b1 = .61694, b0 = .54435, s = .66781, t = 5.4988, p = .00272, CI (.3285, .9053). -->
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.57a"><span class="box__label">McClave 11.57a · kitap alıştırması</span>
+    <p>"Construct both a 95% and a 90% confidence interval for β<sub>1</sub> for each of the following cases. a. $\hat\beta_1$ = 32, s = 4, SS<sub>xx</sub> = 32, n = 10" (b ve c aynı tarifle çözülür.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce $s_{\hat\beta_1} = s/\sqrt{SS_{xx}}$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>df $= 8$: $t_{.025} = 2.306$, $t_{.05} = 1.860$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$s_{\hat\beta_1} = 4/\sqrt{32} = 0.7071$.</p>
+      <p>95%: $32 \pm 2.306(0.7071) = 32 \pm 1.63 = (30.37,\ 33.63)$.</p>
+      <p>90%: $32 \pm 1.860(0.7071) = 32 \pm 1.32 = (30.68,\ 33.32)$.</p>
+      <p>90%'lık aralık daha dar: daha az güven, daha küçük critical value. (b: $65 \pm 6.07$ ve $65 \pm 4.96$; c: $-8.4 \pm 0.91$ ve $-8.4 \pm 0.75$.)</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 11.57 (kitap s.641). b: s = sqrt(1860/12) = 12.45, SE = 2.784, df 12; c: s = sqrt(143/16) = 2.990, SE = .4271, df 16. -->
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.62c"><span class="box__label">McClave 11.62c · kitap alıştırması</span>
+    <p>"Generation Y's entitlement mentality. … A sample of 272 undergraduate business students was administered a questionnaire … entitlement score (y) … 'helicopter parents' score (x) … c. The p-value for testing H<sub>0</sub>: β<sub>1</sub> = 0 versus H<sub>a</sub>: β<sub>1</sub> &gt; 0 was reported as .002. Use this result to test the researchers' entitlement theory at α = .01." (Kitapta $H_a$ yanlışlıkla "$H_0$: β<sub>1</sub> &gt; 0" diye basılmış.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Teori "helicopter parents entitlement'ı artırır" diyor; bu, slope'un hangi işaretli olduğunu söyler?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Verilen p-value zaten one-tailed teste ait. Sadece $\alpha$ ile karşılaştır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0: \beta_1 = 0$, $H_a: \beta_1 &gt; 0$.</li>
+        <li><strong>Test statistic:</strong> $t = \hat\beta_1/s_{\hat\beta_1}$, df $= 270$ (değeri verilmemiş).</li>
+        <li><strong>p-value:</strong> $0.002 &lt; \alpha = 0.01$.</li>
+        <li><strong>Sonuç:</strong> $H_0$ reddedilir. Helicopter parents score'u yüksek öğrencilerin entitlement score'u da ortalamada yüksek; veri araştırmacıların teorisini destekliyor. (Bu gözlemsel bir çalışma; "helicopter parenting entitlement'a <em>sebep olur</em>" kısmını tek başına kanıtlamaz.)</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 11.62 (kitap s.641–642). -->
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.64d"><span class="box__label">McClave 11.64c–d · kitap alıştırması</span>
+    <p>"Beauty and electoral success. … a sample of 641 non-incumbent candidates for political office in Finland. … The relative success (measured as a percentage of votes obtained) of each candidate was used as the dependent variable (y) … beauty index (x). c. The article reported the estimated slope of the equation, part a, as 22.91. Give a practical interpretation of this value. d. The standard error of the slope estimate was reported as 3.73. Use this information and the estimate from part c to conduct a test for a positive slope at α = .01. Give the appropriate conclusion in the words of the problem."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Beauty index'te 1 birim = beauty rating'de 1 standard deviation.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>df $= 639$; bu kadar büyük df'de $t_{.01} \approx z_{.01} = 2.33$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>c.</strong> Beauty index 1 birim (rating'de 1 standard deviation) arttığında mean relative success'in 22.91 puan arttığı tahmin ediliyor.</p>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0: \beta_1 = 0$, $H_a: \beta_1 &gt; 0$.</li>
+        <li><strong>Test statistic:</strong> $t = 22.91/3.73 = 6.14$, df $= 641 - 2 = 639$.</li>
+        <li><strong>Rejection region:</strong> $t &gt; t_{.01, 639} \approx 2.33$. $6.14 &gt; 2.33$ (p-value $\approx 10^{-9}$).</li>
+        <li><strong>Sonuç:</strong> $H_0$ reddedilir. $\alpha = 0.01$'de, daha güzel bulunan adayların oyların daha büyük yüzdesini aldığına dair yeterli kanıt var.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 11.64 (kitap s.642). t = 6.1421, t.01,639 = 2.332. -->
+  </div>
+  <div class="quiz" id="q-st-1">
+    <p class="quiz__q">$n = 20$, $\hat\beta_1 = 2.4$, $s_{\hat\beta_1} = 1.0$. $H_0: \beta_1 = 0$, $H_a: \beta_1 \ne 0$, $\alpha = 0.05$. Karar?</p>
+    <button class="quiz__opt" data-correct>Reject $H_0$: $t = 2.4 &gt; t_{.025, 18} = 2.101$<span class="why">Doğru. df $= n - 2 = 18$, two-tailed critical value 2.101.</span></button>
+    <button class="quiz__opt">Fail to reject: $t = 2.4 &lt; t_{.005, 18} = 2.878$<span class="why">$\alpha = 0.05$ two-tailed için $\alpha/2 = 0.025$'lik critical value kullanılır; 0.005, $\alpha = 0.01$'e ait.</span></button>
+    <button class="quiz__opt">Reject, çünkü $t = 2.4 &gt; z_{.025} = 1.96$<span class="why">Karar burada aynı çıkıyor ama gerekçe yanlış: $\sigma$ bilinmiyor, $s$ ile tahmin edildi, df $= 18$ küçük. Doğru referans $t_{18}$.</span></button>
+    <button class="quiz__opt">Karar verilemez; $s$ verilmemiş<span class="why">$s_{\hat\beta_1}$ zaten verilmiş; $t = \hat\beta_1/s_{\hat\beta_1}$ için yeterli.</span></button>
+  </div>
+  <div class="quiz" id="q-st-2">
+    <p class="quiz__q">Çıktı: slope'un $t = -2.10$, two-tailed p-value $= 0.048$. $H_a: \beta_1 &gt; 0$ için p-value kaç?</p>
+    <button class="quiz__opt" data-correct>$1 - 0.048/2 = 0.976$<span class="why">Doğru. $t$ negatif ama $H_a$ pozitif slope arıyor; veri ters yönde, p-value büyük.</span></button>
+    <button class="quiz__opt">$0.024$<span class="why">$p/2$ sadece $t$'nin işareti $H_a$ yönündeyse geçerli. Burada $t &lt; 0$, $H_a: \beta_1 &gt; 0$.</span></button>
+    <button class="quiz__opt">$0.048$<span class="why">Bu two-tailed p-value. One-tailed teste çevirmen gerekiyor.</span></button>
+    <button class="quiz__opt">$0.096$<span class="why">One-tailed'e geçerken p iki katına çıkmaz; ya yarıya iner ya da $1 - p/2$ olur.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="correlation" data-min="5">
+  <h2>Coefficient of correlation r</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · $r$ (Pearson correlation coefficient)</span>
+    $$r = \frac{SS_{xy}}{\sqrt{SS_{xx}\, SS_{yy}}}$$
+    <p>W2'deki $r = \text{Cov}/(s_x s_y)$ ile aynı: üstte ve altta $n - 1$'ler sadeleşir. $x$ ve $y$ arasındaki <strong>linear</strong> ilişkinin gücünü ölçer.</p>
+    <ul>
+      <li>$-1 \le r \le 1$, birimden bağımsız (scaleless).</li>
+      <li>$r$ ile $\hat\beta_1$'in payı aynı ($SS_{xy}$): aynı işaretlidirler; $\hat\beta_1 = 0 \Leftrightarrow r = 0$. Bağlantı: $\hat\beta_1 = r\,\sqrt{SS_{yy}/SS_{xx}} = r\, s_y/s_x$.</li>
+      <li>$r$ 0'a yakın: linear ilişki az ya da yok. $\pm 1$'e yaklaştıkça linear ilişki güçlenir. $r = \pm 1$: bütün noktalar doğrunun üstünde.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · ilaç verisi</span>
+    <p>$SS_{xy} = 7$, $SS_{xx} = 10$, $SS_{yy} = 6$. $r = 7/\sqrt{60} = 0.904$. Pozitif ve 1'e yakın: bu beş kişide ilaç arttıkça tepki süresi artma eğiliminde. Slope'un pozitif çıkmasıyla aynı sonuç.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · casino ve suç (McClave Example 11.5)</span>
+    <p>Bir şehirde 10 yılın verisi: casino çalışan sayısı (bin) ve yıllık suç oranı. $r = 0.987$. Çok güçlü pozitif linear ilişki. Belediye başkanı "daha çok casino çalışanı işe alınırsa suç artar" diyebilir mi? Hayır. İki seri de büyüyen turizmle birlikte artmış olabilir. Yüksek correlation sebep-sonuç göstermez; güvenli sonuç sadece "bir linear trend olabilir".</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki uyarı ve correlation testi</span>
+    <ol>
+      <li>Yüksek correlation causal ilişki demek değil; sadece linear bir trend olabilir.</li>
+      <li>Düşük correlation "ilişki yok" demek değil; sadece güçlü bir <em>linear</em> ilişki yok. (W2 slayt 18: U şeklindeki panelde $\rho = -0.03$, ilişki çok güçlü ama eğri.)</li>
+    </ol>
+    <p>Population correlation $\rho$ (rho), $r$ ile tahmin edilir. $H_0: \rho = 0$ testi, simple linear regression'da $H_0: \beta_1 = 0$ testiyle <strong>aynıdır</strong>:</p>
+    $$t_c = \frac{r\sqrt{n-2}}{\sqrt{1-r^2}} = \frac{\hat\beta_1}{s_{\hat\beta_1}}, \qquad df = n - 2$$
+    <p>Rejection region'lar ve p-value'lar slope testindekiyle aynı. Geçerlilik koşulu: $(x, y)$ çiftleri normal bir population'dan random seçilmiş olmalı. McClave, bilgi aynı olduğu için yön sorularında slope'u kullanır.</p>
+  </div>
+  <p>Kontrol, ilaç verisi: $t = 0.904\sqrt{3}/\sqrt{1 - 0.817} = 3.66$. Slope testinde de 3.66 bulmuştuk.</p>
+  <!-- Kaynak: McClave §11.5 (kitap s.645–648): coefficient of correlation formülü, Figure 11.16, drug r = .904, Example 11.5 (casino, Table 11.3; r = .987 python ile doğrulandı), CAUTION (iki uyarı), "A Test for Linear Correlation" kutusu ve dipnot (eşdeğerlik sadece simple linear regression'da). W2 slayt 15, 17, 18 görüntü olarak okundu. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$r$ slope değil. $r = 0.9$, "$x$ bir artınca $y$ 0.9 artar" demek değil. Slope'un birimi var, $r$'nin yok.</li>
+      <li>$r^2$ verilip $r$ sorulursa işareti slope'tan al: $\hat y = 4.42 - 0.048x$, $r^2 = 0.18$ ise $r = -\sqrt{0.18} = -0.42$.</li>
+      <li>Birimi değiştirmek (ms → s, puan/100 → puan/10) $r$'yi değiştirmez (W2 slayt 17), slope'u değiştirir.</li>
+      <li>$r$ simetriktir: $x$ ile $y$'yi değiştirirsen aynı kalır. Regression doğrusu kalmaz.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.81"><span class="box__label">McClave 11.81 · kitap alıştırması</span>
+    <p>"Construct a scatterplot for each data set. Then calculate r and r² for each data set. Interpret their values.</p>
+    <div class="table-wrap w-simple-regression-tw"><table class="w-simple-regression-tbl">
+      <tr><th>a.</th><th>$x$</th><td>−2</td><td>−1</td><td>0</td><td>1</td><td>2</td><td></td><td></td></tr>
+      <tr><th></th><th>$y$</th><td>−1</td><td>2</td><td>3</td><td>6</td><td>9</td><td></td><td></td></tr>
+      <tr><th>b.</th><th>$x$</th><td>−2</td><td>−1</td><td>0</td><td>1</td><td>2</td><td></td><td></td></tr>
+      <tr><th></th><th>$y$</th><td>9</td><td>6</td><td>4</td><td>3</td><td>1</td><td></td><td></td></tr>
+      <tr><th>c.</th><th>$x$</th><td>2</td><td>3</td><td>3</td><td>4</td><td>4</td><td>4</td><td>5</td></tr>
+      <tr><th></th><th>$y$</th><td>3</td><td>2</td><td>4</td><td>2</td><td>3</td><td>4</td><td>3</td></tr>
+      <tr><th>d.</th><th>$x$</th><td>−2</td><td>−1</td><td>1</td><td>3</td><td>4</td><td></td><td></td></tr>
+      <tr><th></th><th>$y$</th><td>0</td><td>1</td><td>2</td><td>1</td><td>0</td><td></td><td></td></tr>
+    </table></div>
+    <p>"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) ve (b)'de $\bar x = 0$, bu yüzden $SS_{xy} = \sum x y - 0$ ve $SS_{xx} = \sum x^2 = 10$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c) ve (d)'de $SS_{xy}$ 0 çıkıyor. (d)'nin scatterplot'una bakınca "ilişki yok" diyebilir misin?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>a.</strong> $SS_{xy} = 24$, $SS_{xx} = 10$, $SS_{yy} = 58.8$. $r = 24/\sqrt{588} = 0.990$, $r^2 = 0.980$. Çok güçlü pozitif linear ilişki; $y$'deki değişkenliğin %98'i doğruyla açıklanıyor.</p>
+      <p><strong>b.</strong> $SS_{xy} = -19$, $SS_{xx} = 10$, $SS_{yy} = 37.2$. $r = -19/\sqrt{372} = -0.985$, $r^2 = 0.970$. Çok güçlü negatif linear ilişki.</p>
+      <p><strong>c.</strong> $\bar x = 25/7$, $\bar y = 3$; $SS_{xy} = 0$. $r = 0$, $r^2 = 0$. Linear ilişki yok; noktalar da belirgin bir desen göstermiyor.</p>
+      <p><strong>d.</strong> $\bar x = 1$, $\bar y = 0.8$; $SS_{xy} = 0$. $r = 0$, $r^2 = 0$. Linear ilişki yok, <strong>ama</strong> scatterplot ters U çiziyor: $y$, ortadaki $x$'lerde büyük, uçlarda küçük. İlişki var, eğri. $r = 0$ bunu göremez.</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 11.81 (kitap s.651). python3 -I: r = .98974, −.98510, 0, 0. -->
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.92"><span class="box__label">McClave 11.92a–e (Sales) · kitap alıştırması</span>
+    <p>"Salary linked to height. … the researchers computed the correlation between average earnings (in dollars) and height (in inches) for several occupations. … Sales: r = .41, n = 117. a. Interpret the value of r for people in sales occupations. b. Compute r² for people in sales occupations. Interpret the result. c. Give H<sub>0</sub> and H<sub>a</sub> for testing whether average earnings and height are positively correlated. d. Compute the test statistic for testing H<sub>0</sub> and H<sub>a</sub> in part c for people in sales occupations. e. Use the result you obtained in part d to conduct the test at α = .01. State the appropriate conclusion."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$t = r\sqrt{n-2}/\sqrt{1-r^2}$, df $= 115$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>df $= 115$ için $t_{.01} \approx 2.36$ (tabloda df 120 satırı 2.358).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>a.</strong> $r = 0.41$: satış mesleklerinde boy ile ortalama kazanç arasında orta düzeyde pozitif linear ilişki; uzun olanlar ortalamada biraz daha çok kazanıyor.</p>
+      <p><strong>b.</strong> $r^2 = 0.168$: kazançtaki sample değişkenliğinin yaklaşık %17'si boyla linear ilişkiyle açıklanıyor; %83'ü açıklanmıyor.</p>
+      <ol>
+        <li><strong>c. Hipotezler:</strong> $H_0: \rho = 0$, $H_a: \rho &gt; 0$.</li>
+        <li><strong>d. Test statistic:</strong> $t = \dfrac{0.41\sqrt{115}}{\sqrt{1 - 0.1681}} = \dfrac{4.397}{0.9121} = 4.82$, df $= 115$.</li>
+        <li><strong>e. Rejection region:</strong> $t &gt; t_{.01, 115} \approx 2.36$. $4.82 &gt; 2.36$ (p-value $\approx 2 \times 10^{-6}$).</li>
+        <li><strong>Sonuç:</strong> $H_0$ reddedilir; $\alpha = 0.01$'de satış mesleklerinde boy ile kazanç pozitif correlated. Bu, boyun kazanca sebep olduğunu göstermez.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 11.92 (kitap s.653), Sales satırı. t = 4.8206, t.01,115 = 2.3592. (f) şıkkı aynı tarifle başka meslek için. -->
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.87"><span class="box__label">McClave 11.87 · kitap alıştırması</span>
+    <p>"Going for it on fourth down in the NFL. … a regression model for predicting the number of points scored (y) by a team that has a first down with a given number of yards (x) from the opposing goal line … The regression yielded the following results: $\hat y$ = 4.42 − .048x, r² = .18. a. Give a practical interpretation of the coefficient of determination, r². b. Compute the value of the coefficient of correlation, r, from the value of r². Is the value of r positive or negative? Why?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$r^2$'nin yorum cümlesi Bölüm 7'de; şimdilik "değişkenliğin yüzde kaçı açıklanıyor" diye düşün.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\sqrt{0.18}$'in iki kökü var. Hangisi? Slope'un işaretine bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>a.</strong> Atılan sayılardaki sample değişkenliğinin %18'i, rakip kaleye uzaklıkla (düz doğru modeliyle) açıklanıyor.</p>
+      <p><strong>b.</strong> $r = -\sqrt{0.18} = -0.42$. Negatif, çünkü $r$ ile slope aynı işaretlidir ve $\hat\beta_1 = -0.048 &lt; 0$: kaleye uzaklık arttıkça beklenen sayı azalıyor.</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 11.87 (kitap s.652). -->
+  </div>
+  <div class="quiz" id="q-cor-1">
+    <p class="quiz__q">Bir veri setinde $r = 0$ çıktı. En doğru yorum?</p>
+    <button class="quiz__opt" data-correct>$x$ ile $y$ arasında linear ilişki yok; eğri bir ilişki yine de olabilir<span class="why">Doğru. $r$ sadece linear ilişkiyi ölçer. 11.81d'de $r = 0$ ama ters U deseni açık.</span></button>
+    <button class="quiz__opt">$x$ ile $y$ independent<span class="why">Independence $r = 0$'ı gerektirir, tersi doğru değil. $r = 0$ sadece linear ilişkinin yokluğu.</span></button>
+    <button class="quiz__opt">Least squares slope'u 1<span class="why">$r = 0$ ise $SS_{xy} = 0$, yani $\hat\beta_1 = 0$: doğru yatay.</span></button>
+    <button class="quiz__opt">Veride hata var; $r$ 0 olamaz<span class="why">$r = 0$ gayet mümkün; 11.81c ve d'de tam 0 çıkıyor.</span></button>
+  </div>
+  <div class="quiz" id="q-cor-2">
+    <p class="quiz__q">Bir şirkette çalışanların kahve tüketimi ile commit sayısı arasında $r = 0.85$ ($n = 40$, $p &lt; 0.001$). Hangisi söylenebilir?</p>
+    <button class="quiz__opt" data-correct>İkisi arasında güçlü pozitif bir linear ilişki var<span class="why">Doğru. $r$ yönü ve linear ilişkinin gücünü söyler. Küçük p-value, model assumption'ları altında $H_0: \rho = 0$'a karşı kanıt sağlar; ilişkinin şanstan kaynaklanmadığını kanıtlamaz.</span></button>
+    <button class="quiz__opt">Kahve commit sayısını artırıyor<span class="why">Correlation causation değildir. Uzun mesai ikisini birden artırıyor olabilir.</span></button>
+    <button class="quiz__opt">Bir fincan kahve 0.85 commit getiriyor<span class="why">$r$ slope değil. Commit/fincan oranını $\hat\beta_1$ verir.</span></button>
+    <button class="quiz__opt">Commit'lerin %85'i kahveyle açıklanıyor<span class="why">"Açıklanan oran" $r^2 = 0.72$'dir, $r$ değil. Üstelik "açıklanmak" sebep demek değil.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="determination" data-min="5">
+  <h2>Coefficient of determination r² ve ANOVA tablosu</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · $x$'i bilmek error'u ne kadar küçültüyor?</span>
+    <p>$x$ hakkında hiçbir şey bilmeseydin bir $y$'yi nasıl tahmin ederdin? En iyi tahmin $\bar y$ olurdu: yatay bir doğru. Bu doğrunun sapmalarının kare toplamı $SS_{yy}$'dir. Şimdi $x$'i kullanıp least squares line'ı çiz: sapmaların kare toplamı $SSE$'ye iner. Aradaki fark, $x$'in kazandırdığı kısımdır.</p>
+    <div class="w-simple-regression-pair" id="sr-r2-fig"></div>
+    <p class="src">İlaç verisi. Solda $\hat y = \bar y = 2$ doğrusundan sapmalar ($SS_{yy} = 6$), sağda least squares line'dan sapmalar ($SSE = 1.10$). McClave Figure 11.18'in aynı fikri.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · coefficient of determination</span>
+    $$r^2 = \frac{SS_{yy} - SSE}{SS_{yy}} = 1 - \frac{SSE}{SS_{yy}}$$
+    <ul>
+      <li>$SS_{yy}$ = total sample variability (y'lerin $\bar y$ etrafındaki), $SSE$ = unexplained sample variability (doğrunun etrafındaki), $SS_{yy} - SSE$ = explained sample variability.</li>
+      <li>Simple linear regression'da $r^2$, correlation coefficient $r$'nin karesine eşittir. $0 \le r^2 \le 1$.</li>
+      <li>$x$ bilgi vermiyorsa $SSE \approx SS_{yy}$, $r^2 \approx 0$. Bütün noktalar doğrunun üstündeyse $SSE = 0$, $r^2 = 1$.</li>
+    </ul>
+    <p><strong>Yorum cümlesi (McClave):</strong> $y$'deki sample variation'ın $100(r^2)$%'si, straight-line model'de $x$ kullanılarak açıklanabilir (ya da $x$'e atfedilebilir).</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · ilaç verisi (McClave Example 11.6)</span>
+    <p>$r^2 = \dfrac{6.0 - 1.1}{6.0} = \dfrac{4.9}{6.0} = 0.817$. Kontrol: $r^2 = 0.904^2 = 0.817$.</p>
+    <p>Yorum: tepki süresindeki sample variation'ın yaklaşık %82'si, kandaki ilaç yüzdesini straight-line model'de kullanarak açıklanabiliyor.</p>
+    <p>Dowsing verisinde ise $r = 0.314$, $r^2 = 0.099$: borunun yerindeki variation'ın sadece %10'u dowser'ın tahminiyle açıklanıyor. Bölüm 5'teki "slope significant değil" sonucuyla uyumlu.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · ANOVA approach (Walpole §11.8)</span>
+    <p>Aynı ayrıştırma, $SST = SS_{yy}$ yazılarak bir tablo halinde verilir. Yazılım çıktılarındaki "Analysis of Variance" bloğu budur:</p>
+    $$\underbrace{\sum (y_i - \bar y)^2}_{SST} = \underbrace{\sum (\hat y_i - \bar y)^2}_{SSR} + \underbrace{\sum (y_i - \hat y_i)^2}_{SSE}, \qquad SSR = \hat\beta_1 SS_{xy}$$
+    <div class="table-wrap w-simple-regression-tw"><table>
+      <tr><th>Source</th><th>df</th><th>Sum of Squares</th><th>Mean Square</th><th>F</th></tr>
+      <tr><td>Regression</td><td>1</td><td>SSR</td><td>SSR / 1</td><td>$F = \dfrac{SSR}{s^2}$</td></tr>
+      <tr><td>Error</td><td>$n - 2$</td><td>SSE</td><td>$s^2 = SSE/(n-2)$</td><td></td></tr>
+      <tr><td>Total</td><td>$n - 1$</td><td>SST</td><td></td><td></td></tr>
+    </table></div>
+    <p>$H_0: \beta_1 = 0$, $H_a: \beta_1 \ne 0$ için $F &gt; F_\alpha(1, n-2)$ ise reddet. Bu test two-tailed t testiyle <strong>aynıdır</strong>: $t^2 = F$. F testi sadece two-sided alternative'e bakar; one-tailed soru için t kullan. $r^2 = SSR/SST$.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · ilaç verisinin ANOVA tablosu</span>
+    <div class="table-wrap w-simple-regression-tw"><table class="w-simple-regression-tbl">
+      <tr><th>Source</th><th>df</th><th>SS</th><th>MS</th><th>F</th></tr>
+      <tr><td style="text-align:left">Regression</td><td>1</td><td>4.90</td><td>4.90</td><td>13.36</td></tr>
+      <tr><td style="text-align:left">Error</td><td>3</td><td>1.10</td><td>0.3667</td><td></td></tr>
+      <tr><td style="text-align:left">Total</td><td>4</td><td>6.00</td><td></td><td></td></tr>
+    </table></div>
+    <p>$F = 4.90/0.3667 = 13.36 = 3.656^2$, yani Bölüm 5'teki $t$'nin karesi. $F_{.05}(1, 3) = 10.13 = 3.182^2$; $13.36 &gt; 10.13$, reject $H_0$. p-value yine 0.035. $r^2 = 4.9/6 = 0.817$.</p>
+  </div>
+  <!-- Kaynak: McClave §11.5 "Coefficient of Determination" (kitap s.649–651), Figure 11.18, Example 11.6, "Practical Interpretation of the Coefficient of Determination" kutusu, Statistics in Action Revisited (dowsing r = .314, r² = .099). Walpole §11.8 Analysis-of-Variance Approach (SST = SSR + SSE, Table 11.2, t² = f). F.05(1,3) = 10.128 scipy ile. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$r^2 = 0.82$, "noktaların %82'si doğrunun üstünde" demek değil. Kare toplamının %82'si açıklanıyor.</li>
+      <li>$r^2$ ile $r$'yi karıştırma. $r = 0.5$ ise açıklanan oran %25'tir, %50 değil.</li>
+      <li>$r^2$ işaret taşımaz. $r^2$'den $r$'ye geçerken işareti slope'tan al.</li>
+      <li>Yüksek $r^2$ "model doğru" demek değil. Bölüm 9'daki spill verisinde $r^2 = 0.85$ ama ilişki açıkça eğri.</li>
+      <li>Düşük $r^2$ "slope significant değil" demek değil. Satış örneğinde (11.92) $r^2 = 0.17$ ama $n = 117$ olduğu için $t = 4.82$.</li>
+      <li>$SST$'nin df'i $n - 1$, $SSE$'ninki $n - 2$, $SSR$'ninki 1. Toplamlar tutmalı: $1 + (n-2) = n - 1$.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.82"><span class="box__label">McClave 11.82 · kitap alıştırması</span>
+    <p>"Calculate r² for the least squares line in Exercise 11.18 (p. 625)."</p>
+    <p>(11.18'in verisi Bölüm 2'de: $x$ = 1, 7, 9, 6, 9, 10, 7; $y$ = 8, 3, 10, 9, 10, 10, 8.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>11.18'den $SS_{xy} = 13$, $\hat\beta_1 = 13/54$. Eksik olan $SS_{yy}$: $\sum y^2 = 518$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$SSE = SS_{yy} - \hat\beta_1 SS_{xy}$, sonra $r^2 = 1 - SSE/SS_{yy}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$SS_{yy} = 518 - 58^2/7 = 518 - 480.571 = 37.429$. $SSE = 37.429 - 0.24074(13) = 34.299$.</p>
+      <p>$r^2 = 1 - 34.299/37.429 = 0.084$. Kontrol: $r = 13/\sqrt{54 \cdot 37.429} = 0.289$, $r^2 = 0.084$.</p>
+      <p>Yorum: $y$'deki sample variation'ın sadece %8.4'ü $x$ ile straight-line model'de açıklanıyor. Doğru, $\bar y$ yatay doğrusundan pek iyi değil. (Slope testi de bunu söylüyor: $t = 0.675$, df 5, $p = 0.53$.)</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 11.82 (kitap s.652). python3 -I + scipy: r² = .083616, linregress p = .5294. -->
+  </div>
+  <div class="quiz" id="q-r2-1">
+    <p class="quiz__q">Bir regression'da $SS_{yy} = 200$, $SSE = 50$. $r^2$ kaç ve ne demek?</p>
+    <button class="quiz__opt" data-correct>$0.75$: $y$'deki sample variation'ın %75'i $x$ ile açıklanıyor<span class="why">Doğru. $r^2 = 1 - 50/200 = 0.75$.</span></button>
+    <button class="quiz__opt">$0.25$: açıklanan oran %25<span class="why">$SSE/SS_{yy} = 0.25$ açıklanmayan oran. $r^2$ bunun 1'den farkı.</span></button>
+    <button class="quiz__opt">$0.866$: açıklanan oran %86.6<span class="why">0.866, $\sqrt{0.75}$, yani $|r|$. Açıklanan oranı $r^2$ verir.</span></button>
+    <button class="quiz__opt">$0.75$: noktaların %75'i doğrunun üstünde<span class="why">Sayı doğru, yorum yanlış. $r^2$ kare toplamlarının oranıdır, nokta sayılarının değil.</span></button>
+  </div>
+  <div class="quiz" id="q-r2-2">
+    <p class="quiz__q">Çıktı: $\hat y = 52 - 3.1x$, $r^2 = 0.64$. $r$ kaç?</p>
+    <button class="quiz__opt" data-correct>$-0.80$<span class="why">Doğru. $|r| = \sqrt{0.64} = 0.8$; işaret slope'unki, slope negatif.</span></button>
+    <button class="quiz__opt">$0.80$<span class="why">Karekökün pozitif kökünü aldın ama $r$ ile $\hat\beta_1$ aynı işaretli olmalı. Slope $-3.1$.</span></button>
+    <button class="quiz__opt">$-0.41$<span class="why">$0.64^2 = 0.41$; $r^2$'yi tekrar karelemişsin. $r$, $r^2$'nin kareköküdür.</span></button>
+    <button class="quiz__opt">Bulunamaz; $SS_{xy}$ gerekli<span class="why">Gerekmez. Simple linear regression'da $r = \pm\sqrt{r^2}$, işaret slope'tan.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="predict" data-min="6">
+  <h2>E(y) için confidence interval, yeni y için prediction interval</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · bütün kalabalık mı, sıradaki kişi mi?</span>
+    <p>Model işe yarıyor (adım 4 bitti). Şimdi adım 5: kullanmak. İlaç verisinde iki farklı soru sorulabilir:</p>
+    <ol>
+      <li>Kanında %4 ilaç olan <strong>bütün</strong> insanların mean tepki süresi kaç? Bu, $E(y)$'yi <em>estimate</em> etmek.</li>
+      <li>Kanında %4 ilaç olan <strong>sıradaki tek</strong> kişinin tepki süresi kaç olur? Bu, yeni bir $y$'yi <em>predict</em> etmek.</li>
+    </ol>
+    <p>İkisinin de nokta tahmini aynı: $\hat y = -0.1 + 0.7(4) = 2.7$ saniye. Fark belirsizlikte. Mean'i tahmin ederken tek hata kaynağı doğrunun kendisi. Tek kişiyi tahmin ederken buna o kişinin kendi random error'u $\varepsilon$ eklenir. Kalabalığın ortalaması tek bir kişiden her zaman daha kolay tahmin edilir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki standard error, iki interval</span>
+    <p>$x = x_p$ noktasında:</p>
+    $$\sigma_{\hat y} = \sigma\sqrt{\frac{1}{n} + \frac{(x_p - \bar x)^2}{SS_{xx}}} \quad \text{(standard error of } \hat y\text{)}$$
+    $$\sigma_{(y - \hat y)} = \sigma\sqrt{1 + \frac{1}{n} + \frac{(x_p - \bar x)^2}{SS_{xx}}} \quad \text{(standard error of prediction)}$$
+    <p>$\sigma$ bilinmez, $s$ ile tahmin edilir; $t_{\alpha/2}$, df $= n - 2$.</p>
+    <p><strong>$100(1-\alpha)$% confidence interval for the mean value of $y$ at $x = x_p$:</strong></p>
+    $$\hat y \pm t_{\alpha/2}\, s\sqrt{\frac{1}{n} + \frac{(x_p - \bar x)^2}{SS_{xx}}}$$
+    <p><strong>$100(1-\alpha)$% prediction interval for an individual new value of $y$ at $x = x_p$:</strong></p>
+    $$\hat y \pm t_{\alpha/2}\, s\sqrt{1 + \frac{1}{n} + \frac{(x_p - \bar x)^2}{SS_{xx}}}$$
+    <p>İsim farkı bilinçli: <em>confidence interval</em> bir parameter'ı (burada $E(y)$) kapsar; <em>prediction interval</em> bir random variable'ı (yeni $y$) kapsar.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · ilaç verisi, $x_p = 4$ (McClave Example 11.7 ve 11.8)</span>
+    <p>$\hat y = 2.7$, $s = 0.61$, $\bar x = 3$, $SS_{xx} = 10$, $n = 5$, $t_{.025, 3} = 3.182$.</p>
+    <p><strong>95% CI for $E(y)$:</strong> $2.7 \pm 3.182(0.61)\sqrt{\tfrac15 + \tfrac{(4-3)^2}{10}} = 2.7 \pm 3.182(0.61)(0.55) = 2.7 \pm 1.1$, yani $(1.6,\ 3.8)$. Kanında %4 ilaç olan bütün kişilerin mean tepki süresinin 1.6 ile 3.8 saniye arasında olduğuna %95 güveniyoruz.</p>
+    <p><strong>95% PI for $y$:</strong> $2.7 \pm 3.182(0.61)\sqrt{1 + \tfrac15 + \tfrac{1}{10}} = 2.7 \pm 3.182(0.61)(1.14) = 2.7 \pm 2.2$, yani $(0.5,\ 4.9)$. Kanında %4 ilaç olan yeni bir kişinin tepki süresinin 0.5 ile 4.9 saniye arasında olacağını %95 güvenle predict ediyoruz.</p>
+    <p>MINITAB çıktısı (yuvarlamasız): 95% CI $(1.645,\ 3.755)$, 95% PI $(0.503,\ 4.897)$. İki aralık da geniş, çünkü sadece 5 nokta var.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · PI neden hep daha geniş, ikisi nerede en dar?</span>
+    <ul>
+      <li><strong>Error of estimation</strong> $= \hat y - E(y)$: least squares line ile gerçek line of means arasındaki dikey uzaklık.</li>
+      <li><strong>Error of prediction</strong> $= y_p - \hat y$: aynı uzaklık <em>artı</em> yeni gözlemin random error'u. Bu yüzden PI her zaman CI'dan geniştir (kökün içindeki fazladan "1").</li>
+      <li>İkisi de $x_p = \bar x$'te en dardır; $|x_p - \bar x|$ büyüdükçe genişler. Gerçek doğru ile tahmini doğru, $(\bar x, \bar y)$ civarında birbirine en yakındır; uçlarda slope hatası büyür.</li>
+      <li>$n$ büyüdükçe CI'ın genişliği 0'a gider. PI'nınki gitmez: $n$ çok büyükken bile PI yaklaşık $\hat y \pm z_{\alpha/2}\, s$'den dar olamaz. PI'yı daraltmanın tek yolu $s$'yi küçültmek, yani modeli iyileştirmek (eğri terim, yeni variable; Chapter 12).</li>
+      <li><strong>Extrapolation:</strong> $x_p$ sample'daki $x$ aralığının dışındaysa ne $E(y)$ ne $y$ hakkında çıkarım yapma. Formül bir aralık verir ama model o bölgede geçerli olmayabilir.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: McClave §11.6 (kitap s.655–659): "Sampling Errors for the Estimator of the Mean of y and the Predictor of an Individual New Value of y" kutusu, CI ve PI kutuları, dipnot (prediction interval terimi), Example 11.7–11.8, Figure 11.20–11.24, CAUTION (extrapolation), z dipnotu. Statistics in Action: dowsing için x = 50'de 95% PI (−9.3, 100.23), python ile doğrulandı. -->
+
+  <h3>Kendin dene: CI ve PI bandı</h3>
+  <p class="w-simple-regression-guess"><strong>Önce tahmin et:</strong> CPU verisinde ($\bar x = 40$) $x_p$'yi 40'tan 60'a götürünce hangi interval'ın genişliği daha çok artar, yüzde olarak: CI mi, PI mı?</p>
+  <div class="w-simple-regression-ctl">
+    <label>Veri <select id="sr-band-data">
+      <option value="drug">İlaç</option>
+      <option value="cpu" selected>CPU load</option>
+      <option value="fire">Fire damage</option>
+      <option value="dowse">Dowsing</option>
+    </select></label>
+    <label>Güven <select id="sr-band-conf"><option value="0.90">90%</option><option value="0.95" selected>95%</option><option value="0.99">99%</option></select></label>
+    <label>$x_p$ <input type="text" id="sr-band-xp" inputmode="decimal" /></label>
+    <button class="btn btn--sm btn--accent" id="sr-band-go">Hesapla</button>
+  </div>
+  <div class="w-simple-regression-range"><label for="sr-band-slide">$x_p$ kaydır</label><input type="range" id="sr-band-slide" /><span id="sr-band-slidev"></span></div>
+  <div class="w-simple-regression-err" id="sr-band-err" aria-live="polite"></div>
+  <div class="w-simple-regression-plot" id="sr-band-plot"></div>
+  <div class="w-simple-regression-legend"><span><i style="background:var(--blue-600)"></i>LS doğrusu</span><span><i style="background:var(--blue-200)"></i>CI for $E(y)$ bandı</span><span><i style="background:var(--orange-100);border:1px solid var(--accent)"></i>PI for $y$ bandı</span><span><i style="background:var(--stone-300)"></i>sample'ın $x$ aralığı dışı</span></div>
+  <div class="w-simple-regression-out" id="sr-band-out"></div>
+
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Soru "ortalama", "mean", "all", "average of all" diyorsa CI for $E(y)$; "a single", "next", "a new", "bir tane" diyorsa PI. Sınavda en çok kaybettiren yer burası.</li>
+      <li>Kökün içindeki "1"i unutmak PI'yı CI'a çevirir. Tersine, CI'a "1" eklemek aralığı gereksiz genişletir.</li>
+      <li>$(x_p - \bar x)^2$: karesi alınmalı ve $SS_{xx}$'e bölünmeli; $s_x^2$'ye değil.</li>
+      <li>Bu interval'larda da df $= n - 2$.</li>
+      <li>$s_{\hat\beta_1} = s/\sqrt{SS_{xx}}$ slope'un standard error'u; $\hat y$'nin standard error'u değil. $\hat y \pm t\, s_{\hat\beta_1}$ yanlış bir aralıktır.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.102-11.104"><span class="box__label">McClave 11.101–11.104 · kitap alıştırması</span>
+    <p>"11.101 Explain the difference between y and E(y) for a given x.<br>11.102 True or False. For a given x, a confidence interval for E(y) will always be wider than a prediction interval for y.<br>11.103 True or False. The greater the deviation between x and x̄, the wider the prediction interval for y will be.<br>11.104 For each of the following, decide whether the proper inference is a prediction interval for y or a confidence interval for E(y): a. A jeweler wants to predict the selling price of a diamond stone on the basis of its size (number of carats). b. A psychologist wants to estimate the average IQ of all patients who have a certain income level."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İki standard error formülünü yan yana yaz; farkları ne?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>11.104'te anahtar kelimeleri bul: "a diamond stone" mu, "all patients" mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>11.101.</strong> $E(y)$, verilen $x$'teki bütün $y$'lerin mean'i (line of means üstündeki nokta, sabit bir parameter). $y$ tek bir gözlem: $y = E(y) + \varepsilon$, random error yüzünden $E(y)$'den sapar.</p>
+      <p><strong>11.102.</strong> False. Aynı $x$'te PI her zaman daha geniştir; standard error of prediction'ın kökünde fazladan 1 var.</p>
+      <p><strong>11.103.</strong> True. $(x_p - \bar x)^2/SS_{xx}$ terimi büyür, interval genişler.</p>
+      <p><strong>11.104a.</strong> Prediction interval for $y$: tek bir taşın fiyatı. <strong>b.</strong> Confidence interval for $E(y)$: o gelir düzeyindeki bütün hastaların average IQ'su.</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercises 11.101–11.104 (kitap s.660). -->
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.105"><span class="box__label">McClave 11.105 · kitap alıştırması</span>
+    <p>"In fitting a least squares line to n = 5 data points, the following quantities were computed: SS<sub>xx</sub> = 31, x̄ = 2, SS<sub>yy</sub> = 24, ȳ = 6, SS<sub>xy</sub> = 26. a. Find the least squares line. … c. Calculate SSE. d. Calculate s². e. Find a 90% confidence interval for the mean value of y when x<sub>p</sub> = 4.1. f. Find a 90% prediction interval for y when x<sub>p</sub> = 2.7." (b: grafik, atlandı.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Sıra: $\hat\beta_1$, $\hat\beta_0$, $SSE = SS_{yy} - \hat\beta_1 SS_{xy}$, $s^2 = SSE/3$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>90% ve df $= 3$: $t_{.05, 3} = 2.353$. (e) için kökte "1" yok, (f) için var.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>a.</strong> $\hat\beta_1 = 26/31 = 0.8387$, $\hat\beta_0 = 6 - 0.8387(2) = 4.3226$. $\hat y = 4.323 + 0.839x$.</p>
+      <p><strong>c–d.</strong> $SSE = 24 - 0.8387(26) = 2.1935$; $s^2 = 2.1935/3 = 0.7312$, $s = 0.8551$.</p>
+      <p><strong>e.</strong> $x_p = 4.1$: $\hat y = 4.3226 + 0.8387(4.1) = 7.761$. $\sqrt{\tfrac15 + \tfrac{(4.1 - 2)^2}{31}} = \sqrt{0.2 + 0.1423} = 0.5850$. $7.761 \pm 2.353(0.8551)(0.5850) = 7.761 \pm 1.177$, yani $(6.584,\ 8.939)$.</p>
+      <p><strong>f.</strong> $x_p = 2.7$: $\hat y = 6.587$. $\sqrt{1 + 0.2 + \tfrac{0.49}{31}} = 1.1026$. $6.587 \pm 2.353(0.8551)(1.1026) = 6.587 \pm 2.219$, yani $(4.368,\ 8.806)$.</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 11.105 (kitap s.660). python3 -I + scipy: CI (6.58401, 8.93857), PI (4.36821, 8.80598). -->
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.106"><span class="box__label">McClave 11.106 · kitap alıştırması</span>
+    <p>"Consider the following pairs of measurements. x: 1 2 3 4 5 6 7; y: 3 5 4 6 7 7 10. … b. Find the least squares line … c. Find s². d. Find a 90% confidence interval for the mean value of y when x = 4. … e. Find a 90% prediction interval for a new value of y when x = 4. … f. Compare the widths of the intervals you constructed in parts d and e. Which is wider and why?" (Grafik kısımları atlandı.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$\bar x = 4$, $\bar y = 6$. $x_p = 4 = \bar x$ olduğu için $(x_p - \bar x)^2$ terimi 0.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>df $= 5$, $t_{.05, 5} = 2.015$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>b.</strong> $SS_{xy} = 28$, $SS_{xx} = 28$, $SS_{yy} = 32$. $\hat\beta_1 = 1$, $\hat\beta_0 = 6 - 4 = 2$. $\hat y = 2 + x$.</p>
+      <p><strong>c.</strong> $SSE = 32 - 1(28) = 4$, $s^2 = 4/5 = 0.8$, $s = 0.894$.</p>
+      <p><strong>d.</strong> $\hat y = 6$. $6 \pm 2.015(0.894)\sqrt{1/7} = 6 \pm 0.681$, yani $(5.32,\ 6.68)$.</p>
+      <p><strong>e.</strong> $6 \pm 2.015(0.894)\sqrt{1 + 1/7} = 6 \pm 1.927$, yani $(4.07,\ 7.93)$.</p>
+      <p><strong>f.</strong> PI (genişlik 3.85) CI'dan (1.36) yaklaşık 2.8 kat geniş. Tek bir yeni $y$, mean'in tahmin hatasına ek olarak kendi random error'unu da taşır.</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 11.106 (kitap s.660). python3 -I + scipy: CI (5.31879, 6.68121), PI (4.07325, 7.92675). -->
+  </div>
+  <div class="quiz" id="q-pr-1">
+    <p class="quiz__q">Bir ekip CPU load %55 olan <strong>bütün</strong> isteklerin mean response time'ını tahmin etmek istiyor. Hangisi?</p>
+    <button class="quiz__opt" data-correct>$x_p = 55$'te confidence interval for $E(y)$<span class="why">Doğru. Hedef bir mean, yani parameter: CI.</span></button>
+    <button class="quiz__opt">$x_p = 55$'te prediction interval for $y$<span class="why">PI tek bir yeni isteğin süresi için. "Bütün isteklerin mean'i" bir parameter.</span></button>
+    <button class="quiz__opt">Slope için confidence interval<span class="why">Slope CI'ı "load 1 puan artınca mean ne kadar değişir" sorusunun cevabı; belli bir load'daki mean'i vermez.</span></button>
+    <button class="quiz__opt">$\bar y \pm t_{\alpha/2}\, s_y/\sqrt n$<span class="why">Bu, $x$'i hiç kullanmayan tek sample mean CI'ı. Load bilgisini çöpe atar.</span></button>
+  </div>
+  <div class="quiz" id="q-pr-2">
+    <p class="quiz__q">Aynı veriyle $n$'i çok büyütürsen ne olur?</p>
+    <button class="quiz__opt" data-correct>CI for $E(y)$ 0'a doğru daralır, PI yaklaşık $\pm z_{\alpha/2}\, s$'nin altına inmez<span class="why">Doğru. $1/n$ ve $(x_p - \bar x)^2/SS_{xx}$ terimleri 0'a gider; PI'daki "1" kalır.</span></button>
+    <button class="quiz__opt">İkisi de 0'a doğru daralır<span class="why">PI'da "1" terimi $n$'den bağımsız; yeni gözlemin random error'u veri toplayarak yok olmaz.</span></button>
+    <button class="quiz__opt">Hiçbiri değişmez, çünkü $s$ aynı kalır<span class="why">$s$ yaklaşık aynı kalır ama $1/n$ ve $SS_{xx}$ değişir; ayrıca $t_{\alpha/2}$ küçülür.</span></button>
+    <button class="quiz__opt">PI daralır, CI genişler<span class="why">İkisi aynı yönde hareket eder; ikisi de $n$ ile daralır.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="residuals" data-min="5">
+  <h2>Residual plot'lar: assumption'ları gözle kontrol et</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · $\varepsilon$'u göremiyoruz, residual'ı görüyoruz</span>
+    <p>Bölüm 4'teki dört assumption $\varepsilon$ hakkında. Ama $\varepsilon_i$'ler gözlenmez; gerçek doğruyu bilmiyoruz. Elimizdeki en yakın şey <strong>residual</strong>: $e_i = y_i - \hat y_i$. Residual'lar $\varepsilon$'ları taklit eder. Assumption'lar doğruysa residual'ların $x$'e (ya da $\hat y$'ye) karşı grafiği 0 çizgisi etrafında, sabit genişlikte, desensiz bir bulut olmalı.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · residual plot'ta ne aranır</span>
+    <div class="table-wrap w-simple-regression-tw"><table>
+      <tr><th>Görüntü</th><th>Bozulan şey</th><th>Ne yapılır</th></tr>
+      <tr><td>0 etrafında desensiz, sabit genişlikte bant</td><td>Hiçbiri (ideal plot)</td><td>Modeli kullan</td></tr>
+      <tr><td>U ya da ters U (eğri) deseni</td><td>Model biçimi: $E(y)$ düz doğru değil (assumption 1)</td><td>Eğri terim ekle ($x^2$, Chapter 12) ya da transform et (ör. $\log y$)</td></tr>
+      <tr><td>Huni: $x$ ya da $\hat y$ büyüdükçe açılan</td><td>Constant variance (assumption 2)</td><td>$y$'yi transform et ($\log y$, $\sqrt y$)</td></tr>
+      <tr><td>Bandın çok dışında tek nokta (yaklaşık $|e| &gt; 3s$)</td><td>Outlier; doğruyu kendine çekebilir</td><td>Veri girişini kontrol et, nedenini araştır; sebepsiz silme</td></tr>
+      <tr><td>Toplanma sırasına göre çizilince dalga ya da trend</td><td>Independence (assumption 4)</td><td>Zaman serisi yöntemleri (bu dersin dışında)</td></tr>
+    </table></div>
+    <p>Normality (assumption 3) için residual'ların normal probability plot'u (Q-Q plot) çizilir: noktalar yaklaşık düz bir çizgi üstünde olmalı. Residual'ların toplamı, least squares'in özelliği gereği, her zaman 0'dır; bu bir kontrol değildir.</p>
+    <p><strong>Transform sonrası model hâlâ linear:</strong> $\log y = \beta_0 + \beta_1 x + \varepsilon$ gibi bir model parameter'larda linear olduğu için bu dersteki bütün formüller $y$ yerine $\log y$ ile aynen çalışır.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · spill verisi: anlamlı, yüksek r², yine de yanlış biçim</span>
+    <p>Bir DuPont mühendisi 50 galonluk methanol sızıntısında kalan kütleyi (pound) 0–60. dakikalar arasında 23 kez hesaplamış (McClave 11.35). Düz doğru: $\hat y = 5.221 - 0.114x$, $t = -11.05$, $r^2 = 0.853$. Her şey "iyi model" diyor gibi.</p>
+    <p>Residual'lar sırayla: +1.42, +1.23, +1.05, +0.71, +0.40, +0.13, −0.10, …, −0.89, …, −0.32, +0.08, +0.54, +1.07, +1.62. Başta pozitif, ortada negatif, sonda yine pozitif: açık bir U. Kütle sabit hızla değil, giderek yavaşlayarak azalıyor (0'ın altına inemez). Düz doğru başta ve sonda olduğundan düşük, ortada olduğundan yüksek tahmin ediyor. Slope testi ve $r^2$ bunu yakalamaz; residual plot yakalar.</p>
+    <p>Fire damage verisinde (Bölüm 10) residual'lar $-3.5$ ile $+3.4$ arasında, işaretleri desensiz karışık: düz doğru makul.</p>
+  </div>
+  <!-- Kaynak: Walpole §11.10 "Diagnostic Plots of Residuals" (Figure 11.21 ideal plot, Figure 11.22 heterogeneous variance, normal probability plotting), §11.10 transformations (linear in the parameters, log-log). McClave §11.3 (assumption'lar), §12.10'a ileri referans (residual analysis multiple regression dersinde ayrıntılı). Spill verisi McClave Exercise 11.35 (kitap s.630); residual'lar python3 -I ile hesaplandı (kitap residual sormuyor, analiz bize ait). -->
+
+  <h3>Kendin dene: residual plot galerisi</h3>
+  <p class="w-simple-regression-guess"><strong>Önce tahmin et:</strong> Sadece soldaki scatterplot'a bakarak sorunu görebiliyor musun? Önce teşhisi seç, sonra residual plot'a bak.</p>
+  <div class="w-simple-regression-ctl">
+    <label>Veri <select id="sr-res-kind">
+      <option value="rand">Rastgele bir vaka (seed'li)</option>
+      <option value="spill">Spill verisi (gerçek)</option>
+      <option value="fire">Fire damage (gerçek)</option>
+    </select></label>
+    <button class="btn btn--sm btn--accent" id="sr-res-new">Yeni vaka</button>
+    <label><input type="checkbox" id="sr-res-show" /> Residual plot'u şimdi göster</label>
+  </div>
+  <div class="w-simple-regression-pair">
+    <div><h4>Scatterplot ve LS doğrusu</h4><div class="w-simple-regression-plot" id="sr-res-scatter"></div></div>
+    <div><h4>Residual'lar ve $\hat y$</h4><div class="w-simple-regression-plot" id="sr-res-plot"></div></div>
+  </div>
+  <div class="w-simple-regression-nums" id="sr-res-nums"></div>
+  <p>Teşhisin:</p>
+  <div class="w-simple-regression-btns" id="sr-res-btns">
+    <button class="btn btn--sm" data-d="ok">Sorun yok</button>
+    <button class="btn btn--sm" data-d="curve">Eğri (model biçimi)</button>
+    <button class="btn btn--sm" data-d="funnel">Huni (variance)</button>
+    <button class="btn btn--sm" data-d="outlier">Outlier</button>
+  </div>
+  <div class="w-simple-regression-fb" id="sr-res-fb" aria-live="polite"></div>
+
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Significant slope ve yüksek $r^2$, assumption'ların sağlandığını göstermez. Önce residual plot.</li>
+      <li>Residual $y_i - \hat y_i$'dir; $\hat y_i - y_i$ değil. İşaret ters olursa "U" "ters U" gibi görünür, teşhis aynı kalır ama sayılar yanlış olur.</li>
+      <li>Huni deseni slope'u bozmaz ama $s$ tek bir sayı olarak anlamını yitirir: dar bölgede PI gereksiz geniş, geniş bölgede fazla dar çıkar.</li>
+      <li>Outlier'ı "işime gelmiyor" diye silmek veri uydurmaktır. Silersen nedenini yaz ve iki analizi de raporla.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.76-11.119"><span class="box__label">McClave 11.76 ve 11.119 (spill) · kitap alıştırması</span>
+    <p>"11.76 Spreading rate of spilled liquid. Refer to the Chemical Engineering Progress (Jan. 2005) study of the rate at which a spilled volatile liquid will spread across a surface, Exercise 11.35 (p. 630). Is there sufficient evidence (at α = .05) to indicate that the mass of the spill tends to diminish linearly as elapsed time increases? If so, give an interval estimate (with 95% confidence) of the decrease in spill mass for each minute of elapsed time.</p>
+    <p>11.119 … a. Find a 99% confidence interval for the mean mass of all spills with an elapsed time of 15 minutes. Interpret the result. b. Find a 99% prediction interval for the mass of a single spill with an elapsed time of 15 minutes. Interpret the result. c. Compare the intervals you found in parts a and b. Which interval is wider? Will this always be the case? Explain."</p>
+    <div class="table-wrap w-simple-regression-tw"><table class="w-simple-regression-tbl">
+      <tr><th>Time (min)</th><td>0</td><td>1</td><td>2</td><td>4</td><td>6</td><td>8</td><td>10</td><td>12</td><td>14</td><td>16</td><td>18</td><td>20</td></tr>
+      <tr><th>Mass (lb)</th><td>6.64</td><td>6.34</td><td>6.04</td><td>5.47</td><td>4.94</td><td>4.44</td><td>3.98</td><td>3.55</td><td>3.15</td><td>2.79</td><td>2.45</td><td>2.14</td></tr>
+      <tr><th>Time (min)</th><td>22</td><td>24</td><td>26</td><td>28</td><td>30</td><td>35</td><td>40</td><td>45</td><td>50</td><td>55</td><td>60</td><td></td></tr>
+      <tr><th>Mass (lb)</th><td>1.86</td><td>1.60</td><td>1.37</td><td>1.17</td><td>0.98</td><td>0.60</td><td>0.34</td><td>0.17</td><td>0.06</td><td>0.02</td><td>0.00</td><td></td></tr>
+    </table></div>
+    <p>(Ek soru, kitapta yok: residual plot'a bakınca düz doğru modeli uygun mu?)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Özetler: $n = 23$, $\bar x = 22.870$, $SS_{xx} = 6906.61$, $SS_{xy} = -787.511$, $SS_{yy} = 105.227$. "Diminish" yönü $H_a$'yı belirler.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>df $= 21$: $t_{.05} = 1.721$, $t_{.025} = 2.080$, $t_{.005} = 2.831$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$\hat\beta_1 = -787.511/6906.61 = -0.11402$, $\hat\beta_0 = 2.6130 - (-0.11402)(22.870) = 5.2207$. $SSE = 105.227 - (-0.11402)(-787.511) = 15.433$, $s^2 = 15.433/21 = 0.7349$, $s = 0.8573$. $s_{\hat\beta_1} = 0.8573/\sqrt{6906.61} = 0.01032$.</p>
+      <ol>
+        <li><strong>11.76 Hipotezler:</strong> $H_0: \beta_1 = 0$, $H_a: \beta_1 &lt; 0$ (kütle zamanla azalıyor).</li>
+        <li><strong>Test statistic:</strong> $t = -0.11402/0.01032 = -11.05$, df $= 21$.</li>
+        <li><strong>Rejection region:</strong> $t &lt; -t_{.05, 21} = -1.721$. $-11.05 &lt; -1.721$ (p-value $\approx 1.6 \times 10^{-10}$).</li>
+        <li><strong>Sonuç:</strong> $H_0$ reddedilir; $\alpha = 0.05$'te sızıntının kütlesi zamanla linear olarak azalma eğiliminde.</li>
+      </ol>
+      <p>95% CI for $\beta_1$: $-0.11402 \pm 2.080(0.01032) = (-0.1355,\ -0.0926)$. Her dakika mean kütle 0.093 ile 0.135 pound arası azalıyor (%95 güven).</p>
+      <p><strong>11.119a.</strong> $x_p = 15$: $\hat y = 5.2207 - 0.11402(15) = 3.510$. $s\sqrt{\tfrac{1}{23} + \tfrac{(15 - 22.870)^2}{6906.61}} = 0.8573(0.2290) = 0.1963$. $3.510 \pm 2.831(0.1963) = (2.955,\ 4.066)$. 15 dakikalık bütün sızıntıların mean kütlesinin 2.95 ile 4.07 pound arasında olduğuna %99 güveniyoruz.</p>
+      <p><strong>b.</strong> $s\sqrt{1 + \tfrac{1}{23} + 0.00897} = 0.8794$. $3.510 \pm 2.831(0.8794) = (1.020,\ 6.000)$. 15 dakikalık tek bir sızıntının kütlesini %99 güvenle 1.02 ile 6.00 pound arasında predict ediyoruz.</p>
+      <p><strong>c.</strong> PI (genişlik 4.98) CI'dan (1.11) geniş. Her zaman öyle: PI'nın standard error'unda fazladan $s^2$ (yeni gözlemin random error'u) var.</p>
+      <p><strong>Ek soru.</strong> Residual'lar U çiziyor (bu bölümdeki örnek): düz doğru biçim olarak yanlış. Bu yüzden yukarıdaki interval'lar da tam güvenilir değil: $x = 15$'te gerçek kütle 3.15 ile 2.79 arasında (14 ve 16. dakika), doğru 3.51 diyor. $\log$ ya da eğri bir model daha uygun olur.</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercises 11.35 (veri, kitap s.630), 11.76 (s.644), 11.119 (s.663). python3 -I + scipy: t = −11.0538, CI β1 (−.135474, −.092571), 99% CI (2.95450, 4.06620), 99% PI (1.02032, 6.00039). -->
+  </div>
+  <div class="quiz" id="q-res-1">
+    <p class="quiz__q">Residual'lar $\hat y$'ye karşı çizildiğinde $\hat y$ büyüdükçe açılan bir huni görülüyor. Hangi assumption bozuk?</p>
+    <button class="quiz__opt" data-correct>$\varepsilon$'un variance'ı her $x$'te aynı (constant variance)<span class="why">Doğru. Saçılma $x$ ile büyüyor, yani $\sigma^2$ sabit değil. Çare genelde $\log y$ ya da $\sqrt y$.</span></button>
+    <button class="quiz__opt">$\varepsilon$'un mean'i 0<span class="why">Huni simetrik açılıyorsa residual'lar hâlâ 0 etrafında. Mean sorununu eğri bir desen gösterir.</span></button>
+    <button class="quiz__opt">Error'lar independent<span class="why">Independence'ı toplanma sırasına göre residual plot gösterir; huni variance'ın işareti.</span></button>
+    <button class="quiz__opt">Hiçbiri; residual'ların toplamı 0 olduğu sürece sorun yok<span class="why">Residual toplamı least squares'te <em>her zaman</em> 0'dır; hiçbir assumption'ı kontrol etmez.</span></button>
+  </div>
+  <div class="quiz" id="q-res-2">
+    <p class="quiz__q">Bir model için $r^2 = 0.91$ ve slope'un p-value'su $&lt; 0.0001$. Residual plot açık bir U çiziyor. En iyi karar?</p>
+    <button class="quiz__opt" data-correct>Düz doğru biçimi yanlış; eğri terim ya da transformation dene<span class="why">Doğru. U deseni $E(y)$'nin düz olmadığını söyler. Yüksek $r^2$ bunu örtmez.</span></button>
+    <button class="quiz__opt">$r^2$ çok yüksek, modeli olduğu gibi kullan<span class="why">$r^2$ sadece kare toplamının ne kadarının açıklandığını söyler; biçimin doğru olduğunu değil. Spill verisi buna örnek.</span></button>
+    <button class="quiz__opt">U deseni outlier demek; uçtaki noktaları sil<span class="why">Tek bir uzak nokta değil, sistematik bir desen. Silmek sorunu gizler.</span></button>
+    <button class="quiz__opt">Sample'ı büyüt, desen kaybolur<span class="why">Model biçimi yanlışsa daha çok veri deseni daha net gösterir, kaybettirmez.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="complete" data-min="6">
+  <h2>Baştan sona bir analiz ve SciPy çıktısını okumak</h2>
+  <div class="box box--example">
+    <span class="box__label">Örnek · fire damage (McClave §11.7)</span>
+    <p>Bir sigorta şirketi, büyük konut yangınlarında hasarı ($y$, bin dolar) yangının en yakın itfaiye istasyonuna uzaklığına ($x$, mil) bağlamak istiyor. Son 15 yangın:</p>
+    <div class="table-wrap w-simple-regression-tw"><table class="w-simple-regression-tbl">
+      <tr><th>$x$ (mil)</th><td>3.4</td><td>1.8</td><td>4.6</td><td>2.3</td><td>3.1</td><td>5.5</td><td>0.7</td><td>3.0</td><td>2.6</td><td>4.3</td><td>2.1</td><td>1.1</td><td>6.1</td><td>4.8</td><td>3.8</td></tr>
+      <tr><th>$y$ (bin dolar)</th><td>26.2</td><td>17.8</td><td>31.3</td><td>23.1</td><td>27.5</td><td>36.0</td><td>14.1</td><td>22.3</td><td>19.6</td><td>31.3</td><td>24.0</td><td>17.3</td><td>43.2</td><td>36.4</td><td>26.1</td></tr>
+    </table></div>
+    <ol>
+      <li><strong>Model:</strong> $y = \beta_0 + \beta_1 x + \varepsilon$.</li>
+      <li><strong>Tahmin:</strong> $\hat\beta_1 = 4.919$, $\hat\beta_0 = 10.278$; $\hat y = 10.28 + 4.92x$. Uzaklık 1 mil arttıkça mean hasarın yaklaşık 4,920 dolar arttığı tahmin ediliyor (0.7–6.1 mil aralığında). $x = 0$ aralıkta değil, intercept yorumlanmaz.</li>
+      <li><strong>Error:</strong> dört assumption'ın yaklaşık sağlandığını kabul ediyoruz (residual'lar desensiz). $s = 2.316$: hasarların çoğu tahminin $2s = 4.63$ bin dolar yakınında.</li>
+      <li><strong>Fayda:</strong> $H_0: \beta_1 = 0$, $H_a: \beta_1 &gt; 0$. $t = 4.919/0.3927 = 12.53$, df 13. Çıktıdaki two-tailed p-value $&lt; 0.0001$, one-tailed p-value onun yarısından da küçük; reject $H_0$. 95% CI for $\beta_1$: $(4.071,\ 5.768)$. $r^2 = 0.9235$: hasardaki sample variation'ın yaklaşık %92'si uzaklıkla açıklanıyor; $r = +\sqrt{0.9235} = 0.96$ (işaret slope'tan).</li>
+      <li><strong>Kullanım:</strong> 3.5 mil uzaktaki bir yangın için $\hat y = 27.496$; 95% PI $(22.324,\ 32.667)$: hasarı %95 güvenle 22,324 ile 32,667 dolar arasında predict ediyoruz. (Aynı uzaklıktaki bütün yangınların mean hasarı için 95% CI daha dar: $(26.190,\ 28.801)$.)</li>
+    </ol>
+    <p>Uyarı: model 0.7 milden yakın ya da 6.1 milden uzak evler için kullanılmaz; sample o aralığın dışını görmedi.</p>
+  </div>
+  <!-- Kaynak: McClave §11.7 A Complete Example (kitap s.664–666), Table 11.5, Figure 11.25 SAS çıktısı (β̂1 = 4.91933, β̂0 = 10.27793, s = 2.31635, CI (4.071, 5.768), r² = .9235, ŷ = 27.496, PI (22.324, 32.667)). CI for E(y) kitapta yok, python3 -I + scipy ile hesaplandı. -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · <code>scipy.stats.linregress</code> çıktısı</span>
+    <div class="w-simple-regression-out"><pre>&gt;&gt;&gt; from scipy import stats
+&gt;&gt;&gt; res = stats.linregress(distance, damage)
+&gt;&gt;&gt; res
+LinregressResult(slope=4.919330726770929, intercept=10.277928549524688,
+                 rvalue=0.960977715132109, pvalue=1.2478000079204141e-08,
+                 stderr=0.3927477494403049, intercept_stderr=1.420277810535053)</pre></div>
+    <div class="table-wrap w-simple-regression-tw"><table>
+      <tr><th>Alan</th><th>Anlamı</th><th>Dikkat</th></tr>
+      <tr><td><code>slope</code>, <code>intercept</code></td><td>$\hat\beta_1$, $\hat\beta_0$</td><td></td></tr>
+      <tr><td><code>rvalue</code></td><td>$r$</td><td>$r^2$ değil. $r^2$ için <code>res.rvalue**2</code> $= 0.9235$.</td></tr>
+      <tr><td><code>pvalue</code></td><td>$H_0: \beta_1 = 0$ için <strong>two-sided</strong> p-value</td><td>One-tailed $H_a$ için Bölüm 5'teki çevirme kuralı (ya da <code>alternative='greater'</code> / <code>'less'</code>).</td></tr>
+      <tr><td><code>stderr</code></td><td>$s_{\hat\beta_1} = s/\sqrt{SS_{xx}}$</td><td>$s$'nin kendisi değil. $t = $ <code>slope / stderr</code> $= 12.53$.</td></tr>
+      <tr><td><code>intercept_stderr</code></td><td>$s_{\hat\beta_0}$</td><td>$\beta_0$ testi nadiren anlamlı (Bölüm 5).</td></tr>
+    </table></div>
+    <p>Çıktıda $s$, CI ve PI yok. CI for $\beta_1$'i kendin kurarsın: <code>tc = stats.t.ppf(0.975, n - 2)</code>, sonra <code>slope ± tc * stderr</code> $= 4.919 \pm 2.160(0.3927)$. $s$ gerekiyorsa $s = $ <code>stderr</code> $\times \sqrt{SS_{xx}}$.</p>
+  </div>
+  <p class="src">Not: Bu haftanın notebook'u repoda yok. Notebook'taki görevler not verilen ödev olacağı için burada sadece kavram ve çıktı okuma var; görev çözümü yok.</p>
+  <!-- Kaynak: scipy 1.13.1 ile çalıştırıldı (venv), değerler birebir. alternative parametresi SciPy 1.7+; intercept_stderr SciPy 1.6+. 00-course-info.pdf: "Regression and ANOVA diagnostics" notebook'ları ve "every classical formula has a computational counterpart". -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><code>rvalue = 0.96</code>'yı "%96'sı açıklanıyor" diye okuma. Açıklanan oran $0.96^2 = 0.92$.</li>
+      <li><code>stderr</code>'i $s$ diye kullanma. CI for $E(y)$ ya da PI için $s$ lazım; <code>stderr</code> slope'un standard error'u.</li>
+      <li><code>pvalue</code> two-sided. "$H_a: \beta_1 &gt; 0$, $\alpha = 0.01$" sorusunda $t &gt; 0$ ise yarısıyla karşılaştır.</li>
+      <li>$H_0$'ı "$\beta_1 \le 0$" yazma; çıktının hesabı $\beta_1 = 0$ altında.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-11.122a"><span class="box__label">McClave 11.122a · kitap alıştırması</span>
+    <p>"Impact of dropping ping-pong balls. The impact of dropping hollow balls was investigated in the American Journal of Physics (Mar. 2014). Standard ping-pong balls were dropped vertically onto a force plate. Upon impact, two variables were measured: y = coefficient of restitution, COR (measured as a ratio of the speed at impact and rebound speed) and x = speed at impact (meters/second). … a. Conduct a complete simple linear regression analysis of the relationship between coefficient of restitution (y) and impact speed (x). Write all your conclusions in the words of the problem." (b şıkkı, topun buckle edip etmemesine göre farklı slope, multiple regression konusu; atlandı.)</p>
+    <div class="table-wrap w-simple-regression-tw"><table class="w-simple-regression-tbl">
+      <tr><th>Speed $x$</th><td>0.8</td><td>1.0</td><td>1.5</td><td>1.8</td><td>3.0</td><td>3.4</td><td>4.4</td><td>5.0</td><td>6.4</td><td>4.4</td></tr>
+      <tr><th>COR $y$</th><td>.945</td><td>.950</td><td>.930</td><td>.920</td><td>.920</td><td>.930</td><td>.905</td><td>.915</td><td>.910</td><td>.900</td></tr>
+      <tr><th>Speed $x$</th><td>5.3</td><td>5.4</td><td>7.4</td><td>7.2</td><td>7.2</td><td>8.0</td><td>8.5</td><td>9.4</td><td>9.0</td><td></td></tr>
+      <tr><th>COR $y$</th><td>.885</td><td>.870</td><td>.850</td><td>.795</td><td>.790</td><td>.800</td><td>.820</td><td>.810</td><td>.780</td><td></td></tr>
+    </table></div>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Beş adımı izle. Özetler: $n = 19$, $\sum x = 99.1$, $\sum y = 16.625$, $\sum x^2 = 653.67$, $\sum xy = 84.1145$, $\sum y^2 = 14.608125$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$SS_{xy}$ negatif çıkacak. Yön sorusu için two-tailed test yeter; df $= 17$, $t_{.025} = 2.110$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Model:</strong> $y = \beta_0 + \beta_1 x + \varepsilon$.</p>
+      <p><strong>Tahmin:</strong> $SS_{xx} = 653.67 - 99.1^2/19 = 136.785$, $SS_{xy} = 84.1145 - 99.1(16.625)/19 = -2.598$, $SS_{yy} = 14.608125 - 16.625^2/19 = 0.06125$. $\hat\beta_1 = -2.598/136.785 = -0.01899$, $\hat\beta_0 = 0.875 - (-0.01899)(5.2158) = 0.9741$. $\hat y = 0.974 - 0.0190x$: impact speed 1 m/s arttıkça mean COR'un yaklaşık 0.019 azaldığı tahmin ediliyor (0.8–9.4 m/s aralığında).</p>
+      <p><strong>Error:</strong> $SSE = 0.06125 - (-0.01899)(-2.598) = 0.011905$, $s^2 = 0.011905/17 = 0.000700$, $s = 0.02646$. COR değerlerinin çoğu tahminin $2s \approx 0.053$ yakınında.</p>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0: \beta_1 = 0$, $H_a: \beta_1 \ne 0$, $\alpha = 0.05$.</li>
+        <li><strong>Test statistic:</strong> $s_{\hat\beta_1} = 0.02646/\sqrt{136.785} = 0.002263$. $t = -0.01899/0.002263 = -8.39$, df $= 17$.</li>
+        <li><strong>Rejection region:</strong> $|t| &gt; 2.110$. $8.39 &gt; 2.110$ (p-value $\approx 1.9 \times 10^{-7}$).</li>
+        <li><strong>Sonuç:</strong> $H_0$ reddedilir. Impact speed, COR'un linear tahmini için bilgi veriyor; daha hızlı çarpan toplar daha düşük COR gösteriyor.</li>
+      </ol>
+      <p>95% CI for $\beta_1$: $-0.01899 \pm 2.110(0.002263) = (-0.0238,\ -0.0142)$. $r = -2.598/\sqrt{136.785(0.06125)} = -0.898$, $r^2 = 0.806$: COR'daki sample variation'ın yaklaşık %81'i impact speed ile açıklanıyor.</p>
+      <p><strong>Kullanım (örnek):</strong> $x = 5$ m/s'de mean COR için 95% CI $(0.866,\ 0.892)$, tek bir top için 95% PI $(0.822,\ 0.936)$.</p>
+      <p>Residual'lara buckle durumuna göre bakınca: buckle etmeyen toplarda residual'lar düşük hızda negatif, yüksek hızda pozitif (o grubun kendi slope'u daha yatık); buckle edenlerde dağınık. (b) şıkkı iki grubun slope'larının farklı olup olmadığını soruyor; bunu test etmek multiple regression dersinin konusu.</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 11.122 (kitap s.666). python3 -I + scipy linregress: slope −.0189933, intercept .974065, r −.897566, p 1.885e−7, stderr .00226271. -->
+  </div>
+  <div class="quiz" id="q-cmp-1">
+    <p class="quiz__q">SciPy: <code>slope=-2.4, rvalue=-0.60, pvalue=0.037, stderr=1.0</code>, $n = 12$. $H_0: \beta_1 = 0$, $H_a: \beta_1 &lt; 0$, $\alpha = 0.02$. Karar?</p>
+    <button class="quiz__opt" data-correct>Reject $H_0$: one-tailed p-value $= 0.037/2 = 0.0185 &lt; 0.02$<span class="why">Doğru. $t = -2.4$ $H_a$ yönünde; two-sided p'nin yarısı alınır.</span></button>
+    <button class="quiz__opt">Fail to reject: $0.037 &gt; 0.02$<span class="why">Two-sided p-value'yu one-tailed testte doğrudan kullandın. $t$ $H_a$ yönündeyse p yarıya iner.</span></button>
+    <button class="quiz__opt">Reject, çünkü $|r| = 0.60 &gt; 0.5$<span class="why">Karar $r$'nin büyüklüğüyle değil, p-value ile $\alpha$ karşılaştırılarak verilir.</span></button>
+    <button class="quiz__opt">Fail to reject: $1 - 0.037/2 = 0.9815$<span class="why">$1 - p/2$ sadece $t$'nin işareti $H_a$'nın tersiyse. Burada $t &lt; 0$ ve $H_a: \beta_1 &lt; 0$, aynı yön.</span></button>
+  </div>
+  <div class="quiz" id="q-cmp-2">
+    <p class="quiz__q">Aynı çıktıda $r^2$ ve $s_{\hat\beta_1}$ kaç?</p>
+    <button class="quiz__opt" data-correct>$r^2 = 0.36$, $s_{\hat\beta_1} = 1.0$<span class="why">Doğru. $r^2 = (-0.60)^2$; <code>stderr</code> zaten slope'un standard error'u.</span></button>
+    <button class="quiz__opt">$r^2 = 0.60$, $s_{\hat\beta_1} = 1.0$<span class="why"><code>rvalue</code> $r$'dir; karesini almak gerekir.</span></button>
+    <button class="quiz__opt">$r^2 = -0.36$, $s_{\hat\beta_1} = 1.0$<span class="why">Bir sayının karesi negatif olamaz; $r^2$ her zaman 0 ile 1 arasında.</span></button>
+    <button class="quiz__opt">$r^2 = 0.36$, $s_{\hat\beta_1} = 1.0/\sqrt{12}$<span class="why"><code>stderr</code> zaten $s/\sqrt{SS_{xx}}$; bir daha $\sqrt n$'e bölme.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="son-kontrol" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Karışık sorular; her biri dersin farklı bir yerinden.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">$n = 22$ noktalı bir regression'da slope için 95% CI $(0.4,\ 2.6)$. Aynı veriyle $\alpha = 0.05$'te $H_0: \beta_1 = 0$, $H_a: \beta_1 \ne 0$ testi ne der?</p>
+    <button class="quiz__opt" data-correct>Reject $H_0$, çünkü 0 interval'ın dışında<span class="why">Doğru. $(1-\alpha)$ CI ile two-tailed $\alpha$ testi aynı kararı verir; 0 dışarıdaysa reddedilir.</span></button>
+    <button class="quiz__opt">Fail to reject, çünkü interval geniş<span class="why">Genişlik kararı belirlemez; 0'ın içeride olup olmadığı belirler.</span></button>
+    <button class="quiz__opt">Söylenemez; t değeri gerekli<span class="why">CI–test bağlantısı tam bu durum için: aynı $\alpha$, two-tailed, cevap CI'dan okunur.</span></button>
+    <button class="quiz__opt">Reject, çünkü slope 1.5 &gt; 0<span class="why">Sadece $\hat\beta_1 &gt; 0$ olması yetmez; şans eseri de pozitif çıkabilirdi. Ölçüt 0'ın CI dışında kalması.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">$n = 15$ veride slope testinin degrees of freedom'u ve two-tailed $\alpha = 0.05$ critical value'su?</p>
+    <button class="quiz__opt" data-correct>df $= 13$, $t_{.025} = 2.160$<span class="why">Doğru. İki parameter tahmin edildi: $n - 2 = 13$.</span></button>
+    <button class="quiz__opt">df $= 14$, $t_{.025} = 2.145$<span class="why">$n - 1$ tek mean testinin df'i. Regression'da $\beta_0$ ve $\beta_1$ için iki df gider.</span></button>
+    <button class="quiz__opt">df $= 13$, $t_{.05} = 1.771$<span class="why">df doğru ama two-tailed testte $\alpha/2 = 0.025$'lik değer kullanılır.</span></button>
+    <button class="quiz__opt">$z_{.025} = 1.96$<span class="why">$\sigma$ bilinmiyor ve $n$ küçük; $t$ kullanılır.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Bir analist bir response time'ı 10 farklı sistem metric'ine karşı ayrı ayrı regress ediyor ve her slope'u $\alpha = 0.05$'te test ediyor. Gerçekte hiçbiri ilişkili değilse ve sonuçları birlikte raporlayacaksa ne yapmalı?</p>
+    <button class="quiz__opt" data-correct>Her testi $\alpha/10 = 0.005$'te yapmak (Bonferroni)<span class="why">Doğru. Bonferroni, en az bir yanlış reject olasılığını en fazla $10 \times 0.005 = \alpha$ ile sınırlar. Bu üst sınır testlerin independent olmasını gerektirmez.</span></button>
+    <button class="quiz__opt">Hiçbir şey; her test kendi başına $\alpha = 0.05$<span class="why">Tek test için doğru, ama 10 testte en az bir yanlış alarm olasılığı büyür. Testler independent ise bu olasılık $1 - 0.95^{10} \approx 0.40$ olur. Aynı response'a yapılan testler independent olmayabilir; o zaman tam değer farklıdır ama yine $0.05$'in çok üstüne çıkabilir.</span></button>
+    <button class="quiz__opt">Her testi $10 \times 0.05 = 0.5$'te yapmak<span class="why">Ters yön. Çok test yapınca her biri için $\alpha$ küçültülür, büyütülmez.</span></button>
+    <button class="quiz__opt">Sadece $r^2$'si en yüksek olanı test etmek<span class="why">En iyi görüneni seçip test etmek de gizli çoklu karşılaştırmadır; p-value yanıltıcı olur.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Fire damage verisiyle ($\bar x = 3.28$, aralık 0.7–6.1 mil) hangi cümle doğru?</p>
+    <button class="quiz__opt" data-correct>$x_p = 3.3$'teki PI, $x_p = 6.0$'daki PI'dan daha dar<span class="why">Doğru. İkisi de aralığın içinde; 3.3, $\bar x$'e daha yakın, $(x_p - \bar x)^2$ terimi daha küçük.</span></button>
+    <button class="quiz__opt">$x_p = 3.3$'teki CI for $E(y)$, aynı noktadaki PI'dan geniş<span class="why">Ters. Aynı $x_p$'de PI her zaman daha geniş; kökte fazladan 1 var.</span></button>
+    <button class="quiz__opt">10 mil için de güvenle PI kurulabilir<span class="why">Extrapolation. 10 mil sample'ın aralığının çok dışında; formül sayı verir, model orada geçerli olmayabilir.</span></button>
+    <button class="quiz__opt">Çok yangın daha toplanırsa 3.3 mildeki PI genişliği 0'a iner<span class="why">CI 0'a iner, PI inmez: tek yangının kendi random error'u kalır ($\approx \pm 1.96\, s$).</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Bölüm 5'te $\text{Var}(\hat\beta_1) = \sigma^2/SS_{xx}$ türetilirken hangi kural kullanıldı? (Probability toolkit'e geri dönüş.)</p>
+    <button class="quiz__opt" data-correct>$\text{Var}(\sum c_i y_i) = \sum c_i^2\, \sigma^2$, çünkü $y_i$'ler independent, Cov terimleri 0<span class="why">Doğru. Katsayılar karelenir, independent oldukları için $2\,\text{Cov}$ terimleri düşer.</span></button>
+    <button class="quiz__opt">$\text{Var}(\sum c_i y_i) = \sum c_i\, \sigma^2$<span class="why">Katsayılar karelenmeli. Variance bir sabitle çarpılınca sabitin karesiyle çarpılır.</span></button>
+    <button class="quiz__opt">$SD(\sum c_i y_i) = \sum |c_i|\, \sigma$<span class="why">Standard deviation'lar toplanmaz; variance'lar toplanır, sonra karekök alınır.</span></button>
+    <button class="quiz__opt">$\text{Var}(\sum c_i y_i) = \sum c_i^2 \sigma^2 + 2\sum_{i&lt;j} c_i c_j \sigma^2$<span class="why">$2\,\text{Cov}$ terimi sadece variable'lar dependent ise vardır; burada Cov $= 0$.</span></button>
+  </div>
+  <!-- Sıradaki konu: Multiple regression ve diagnostics (birden çok x, adjusted R², global F test, residual analysis). -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=8"></script>
+<script src="../assets/lab.js?v=8"></script>
+<script>
+/* t distribution (regularized incomplete beta) and a seeded RNG, own copy for this lesson.
+   Checked with python3 -I against scipy 1.13.1: t.025,3 = 3.182, t.05,3 = 2.353, t.025,13 = 2.160,
+   t.005,21 = 2.831, t.025,17 = 2.110, P(T > 3.656; 3) = 0.0177, P(T > 12.525; 13) = 6.2e-9; largest quantile error 1e-10. */
+const ST = {
+  lgamma(x) {
+    const c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+    let y = x, tmp = x + 5.5;
+    tmp -= (x + 0.5) * Math.log(tmp);
+    let ser = 1.000000000190015;
+    for (let j = 0; j < 6; j++) ser += c[j] / ++y;
+    return -tmp + Math.log(2.5066282746310005 * ser / x);
+  },
+  betacf(a, b, x) {
+    const FPMIN = 1e-300, qab = a + b, qap = a + 1, qam = a - 1;
+    let c = 1, d = 1 - qab * x / qap;
+    if (Math.abs(d) < FPMIN) d = FPMIN;
+    d = 1 / d;
+    let h = d;
+    for (let m = 1; m <= 300; m++) {
+      const m2 = 2 * m;
+      let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+      d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
+      c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+      d = 1 / d; h *= d * c;
+      aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+      d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
+      c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+      d = 1 / d;
+      const del = d * c; h *= del;
+      if (Math.abs(del - 1) < 1e-14) break;
+    }
+    return h;
+  },
+  ibeta(x, a, b) {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    const bt = Math.exp(ST.lgamma(a + b) - ST.lgamma(a) - ST.lgamma(b) + a * Math.log(x) + b * Math.log(1 - x));
+    return x < (a + 1) / (a + b + 2) ? bt * ST.betacf(a, b, x) / a : 1 - bt * ST.betacf(b, a, 1 - x) / b;
+  },
+  /* P(T > t) */
+  tSf(t, df) {
+    const tail = 0.5 * ST.ibeta(df / (df + t * t), df / 2, 0.5);
+    return t >= 0 ? tail : 1 - tail;
+  },
+  /* P(T > c) = a */
+  tUp(a, df) {
+    let lo = 0, hi = 1;
+    while (ST.tSf(hi, df) > a) hi *= 2;
+    for (let k = 0; k < 100; k++) { const m = (lo + hi) / 2; if (ST.tSf(m, df) > a) lo = m; else hi = m; }
+    return (lo + hi) / 2;
+  },
+  tPdf(t, df) {
+    return Math.exp(ST.lgamma((df + 1) / 2) - ST.lgamma(df / 2)) / Math.sqrt(df * Math.PI) * Math.pow(1 + t * t / df, -(df + 1) / 2);
+  },
+  rng(seed) {
+    let s = seed >>> 0, spare = null;
+    const uni = () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    return {
+      uni,
+      normal() {
+        if (spare !== null) { const v = spare; spare = null; return v; }
+        let u = 0; while (u === 0) u = uni();
+        const v = uni(), m = Math.sqrt(-2 * Math.log(u));
+        spare = m * Math.sin(2 * Math.PI * v);
+        return m * Math.cos(2 * Math.PI * v);
+      }
+    };
+  }
+};
+
+/* Least squares summaries, same formulas as the page */
+function fitLS(x, y) {
+  const n = x.length;
+  const xb = x.reduce((a, v) => a + v, 0) / n, yb = y.reduce((a, v) => a + v, 0) / n;
+  let sxx = 0, syy = 0, sxy = 0;
+  for (let i = 0; i < n; i++) { sxx += (x[i] - xb) ** 2; syy += (y[i] - yb) ** 2; sxy += (x[i] - xb) * (y[i] - yb); }
+  const b1 = sxx > 0 ? sxy / sxx : NaN, b0 = yb - b1 * xb;
+  let sse = 0;
+  for (let i = 0; i < n; i++) sse += (y[i] - b0 - b1 * x[i]) ** 2;
+  const df = n - 2, s2 = df > 0 ? sse / df : NaN, s = Math.sqrt(s2), se = s / Math.sqrt(sxx);
+  const r = sxx > 0 && syy > 0 ? sxy / Math.sqrt(sxx * syy) : NaN;
+  return { n, xb, yb, sxx, syy, sxy, b1, b0, sse, df, s2, s, se, t: b1 / se, r, r2: syy > 0 ? 1 - sse / syy : NaN };
+}
+
+const SR = {
+  f(v, d) { return Number.isFinite(v) ? v.toFixed(d) : "—"; },
+  g(v) {
+    if (!Number.isFinite(v)) return "—";
+    const a = Math.abs(v);
+    if (a === 0) return "0";
+    if (a >= 1000) return v.toFixed(1);
+    if (a >= 100) return v.toFixed(2);
+    if (a >= 1) return v.toFixed(4);
+    if (a >= 0.001) return v.toPrecision(4);
+    return v.toExponential(2);
+  },
+  /* same as g, without trailing zeros (0.05000 → 0.05, 2.0000 → 2) */
+  c(v) {
+    const s = SR.g(v);
+    return /e/.test(s) || !/\./.test(s) ? s : s.replace(/\.?0+$/, "");
+  },
+  p(v) { return v < 0.0001 ? "< 0.0001" : v.toFixed(4); },
+  num(raw, name, rule) {
+    const s = String(raw).trim().replace(",", ".");
+    if (s === "") return { e: `$${name}$ boş. Bir sayı yaz (ondalık için nokta: 0.05).` };
+    const v = Number(s);
+    if (!Number.isFinite(v)) return { e: `$${name}$ bir sayı olmalı.` };
+    const msg = rule ? rule(v) : null;
+    return msg ? { e: msg } : { v };
+  },
+  showErr(el, errs) { el.innerHTML = errs.join("<br>"); Lab.renderMath(el); return errs.length > 0; },
+  ticks(a, b, n) {
+    const span = b - a, raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 5, 10].map(k => k * mag).find(k => k >= raw) || 10 * mag;
+    const out = [];
+    for (let v = Math.ceil(a / step) * step; v <= b + 1e-9 * span; v += step) out.push(Math.abs(v) < 1e-12 ? 0 : v);
+    return { out, step };
+  },
+  /* Frame: mapping functions and axis markup for a W×H viewBox */
+  frame(o) {
+    const W = o.W || 360, H = o.H || 240, L = o.l || 44, R = o.r || 10, T = o.t || 12, B = o.b || 34;
+    const X = v => L + (v - o.x0) / (o.x1 - o.x0) * (W - L - R);
+    const Y = v => H - B - (v - o.y0) / (o.y1 - o.y0) * (H - T - B);
+    const Xi = px => o.x0 + (px - L) / (W - L - R) * (o.x1 - o.x0);
+    const Yi = py => o.y0 + (H - B - py) / (H - T - B) * (o.y1 - o.y0);
+    const tx = SR.ticks(o.x0, o.x1, 5), ty = SR.ticks(o.y0, o.y1, 4);
+    const lab = (v, st) => { const d = st < 1 ? Math.min(3, Math.ceil(-Math.log10(st))) : 0; return v.toFixed(d); };
+    let s = `<rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="none" stroke="var(--border)"/>`;
+    tx.out.forEach(v => { s += `<line x1="${X(v)}" x2="${X(v)}" y1="${T}" y2="${H - B}" stroke="var(--border)" stroke-width="0.5"/><text x="${X(v)}" y="${H - B + 13}" font-size="10" text-anchor="middle" fill="var(--fg-muted)">${lab(v, tx.step)}</text>`; });
+    ty.out.forEach(v => { s += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--border)" stroke-width="0.5"/><text x="${L - 4}" y="${Y(v) + 3}" font-size="10" text-anchor="end" fill="var(--fg-muted)">${lab(v, ty.step)}</text>`; });
+    if (o.xl) s += `<text x="${(L + W - R) / 2}" y="${H - 4}" font-size="11" text-anchor="middle" fill="var(--fg-muted)">${o.xl}</text>`;
+    if (o.yl) s += `<text x="10" y="${(T + H - B) / 2}" font-size="11" text-anchor="middle" fill="var(--fg-muted)" transform="rotate(-90 10 ${(T + H - B) / 2})">${o.yl}</text>`;
+    return { W, H, L, R, T, B, X, Y, Xi, Yi, axes: s };
+  },
+  bounds(vals, padFrac) {
+    let a = Math.min(...vals), b = Math.max(...vals);
+    if (b - a < 1e-9) { a -= 1; b += 1; }
+    const p = (b - a) * padFrac;
+    return [a - p, b + p];
+  }
+};
+
+const DATA = {
+  drug: { x: [1, 2, 3, 4, 5], y: [1, 1, 2, 2, 4], xl: "İlaç (%)", yl: "Tepki süresi (s)" },
+  cpu: { x: [20, 30, 40, 50, 60], y: [110, 125, 120, 145, 150], xl: "CPU load (%)", yl: "Response time (ms)" },
+  hours: { x: [2, 4, 6, 8], y: [50, 60, 65, 85], xl: "Çalışma saati", yl: "Not" },
+  fire: { x: [3.4, 1.8, 4.6, 2.3, 3.1, 5.5, 0.7, 3.0, 2.6, 4.3, 2.1, 1.1, 6.1, 4.8, 3.8], y: [26.2, 17.8, 31.3, 23.1, 27.5, 36.0, 14.1, 22.3, 19.6, 31.3, 24.0, 17.3, 43.2, 36.4, 26.1], xl: "Uzaklık (mil)", yl: "Hasar (bin USD)" },
+  dowse: { x: [4, 87, 95, 74, 78, 65, 39, 75, 32, 100, 10, 40, 30, 47, 9, 95, 52, 16, 37, 40, 66, 58, 74, 65, 60, 49], y: [4, 5, 30, 35, 36, 58, 40, 70, 74, 98, 7, 38, 40, 49, 75, 82, 5, 18, 33, 45, 38, 50, 52, 63, 72, 95], xl: "Dowser'ın tahmini (m)", yl: "Gerçek yer (m)" },
+  spill: { x: [0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 35, 40, 45, 50, 55, 60], y: [6.64, 6.34, 6.04, 5.47, 4.94, 4.44, 3.98, 3.55, 3.15, 2.79, 2.45, 2.14, 1.86, 1.60, 1.37, 1.17, 0.98, 0.60, 0.34, 0.17, 0.06, 0.02, 0], xl: "Zaman (dk)", yl: "Kütle (lb)" }
+};
+
+/* Figure in section 4: normal error curves on the line of means */
+(function () {
+  const g = document.getElementById("sr-fig-bells");
+  if (!g) return;
+  let s = "";
+  [110, 200, 290].forEach(px => {
+    const yc = 160 - (px - 40) * 125 / 300;
+    let d = "";
+    for (let k = 0; k <= 60; k++) {
+      const u = -3 + k * 0.1;
+      d += (k ? " L " : "M ") + (px + 30 * Math.exp(-u * u / 2)).toFixed(1) + " " + (yc + u * 14).toFixed(1);
+    }
+    s += `<line x1="${px}" x2="${px}" y1="${yc - 46}" y2="${yc + 46}" style="stroke:var(--stone-300);stroke-dasharray:3 3"/>`;
+    s += `<path d="${d}" style="fill:none;stroke:var(--accent);stroke-width:1.6"/>`;
+    s += `<circle cx="${px}" cy="${yc}" r="3" style="fill:var(--blue-600)"/>`;
+  });
+  g.innerHTML = s;
+})();
+
+/* A. Stepper: building the SS table row by row */
+(function () {
+  const sel = document.getElementById("sr-st-data"), box = document.getElementById("sr-st-stepper");
+  if (!sel || !box) return;
+  function build() {
+    const d = DATA[sel.value], n = d.x.length, F = fitLS(d.x, d.y);
+    const g = v => SR.c(v);
+    const gp = v => (v < 0 ? `(${g(v)})` : g(v));
+    const rows = d.x.map((x, i) => ({ x, y: d.y[i], dx: x - F.xb, dy: d.y[i] - F.yb }));
+    const frames = [];
+    frames.push({ k: 0, tot: false, caption: `Veri: $n = ${n}$. Önce iki mean: $\\bar x = ${g(F.xb)}$, $\\bar y = ${g(F.yb)}$.` });
+    rows.forEach((r, i) => frames.push({ k: i + 1, tot: false, caption: `Satır ${i + 1}: $x - \\bar x = ${g(r.dx)}$, $y - \\bar y = ${g(r.dy)}$. Çarpım $${g(r.dx)} \\times ${gp(r.dy)} = ${g(r.dx * r.dy)}$, kare $${gp(r.dx)}^2 = ${g(r.dx * r.dx)}$.` }));
+    frames.push({ k: n, tot: true, caption: `Sütunları topla: $SS_{xy} = ${g(F.sxy)}$, $SS_{xx} = ${g(F.sxx)}$.` });
+    frames.push({ k: n, tot: true, caption: `$\\hat\\beta_1 = SS_{xy}/SS_{xx} = ${g(F.sxy)}/${g(F.sxx)} = ${g(F.b1)}$.` });
+    frames.push({ k: n, tot: true, caption: `$\\hat\\beta_0 = \\bar y - \\hat\\beta_1 \\bar x = ${g(F.yb)} - (${g(F.b1)})(${g(F.xb)}) = ${g(F.b0)}$. Least squares line: $\\hat y = ${g(F.b0)} ${F.b1 < 0 ? "-" : "+"} ${g(Math.abs(F.b1))}x$.` });
+    Lab.stepper(box, {
+      title: "Least squares tablosu, satır satır", interval: 1500, frames,
+      render(f, i, stage) {
+        let h = `<div class="table-wrap w-simple-regression-tw"><table class="w-simple-regression-tbl"><tr><th>$x$</th><th>$y$</th><th>$x - \\bar x$</th><th>$y - \\bar y$</th><th>$(x - \\bar x)(y - \\bar y)$</th><th>$(x - \\bar x)^2$</th></tr>`;
+        rows.forEach((r, j) => {
+          const on = j < f.k;
+          h += `<tr class="${j === f.k - 1 && !f.tot ? "is-cur" : ""}"><td>${r.x}</td><td>${r.y}</td><td>${on ? g(r.dx) : ""}</td><td>${on ? g(r.dy) : ""}</td><td>${on ? g(r.dx * r.dy) : ""}</td><td>${on ? g(r.dx * r.dx) : ""}</td></tr>`;
+        });
+        h += `<tr><th colspan="4">Toplam</th><th>${f.tot ? g(F.sxy) : ""}</th><th>${f.tot ? g(F.sxx) : ""}</th></tr></table></div>`;
+        stage.innerHTML = h;
+      }
+    });
+  }
+  sel.addEventListener("change", build);
+  build();
+})();
+
+/* B. Least squares playground: draggable points, own line, squared errors */
+(function () {
+  const $ = id => document.getElementById(id);
+  const sel = $("sr-pg-data"), plot = $("sr-pg-plot");
+  if (!sel || !plot) return;
+  const lsBox = $("sr-pg-ls"), sqSel = $("sr-pg-sq"), ownBox = $("sr-pg-ownbox"), ownTa = $("sr-pg-own"), err = $("sr-pg-err");
+  const rb1 = $("sr-pg-b1"), rh = $("sr-pg-h"), vb1 = $("sr-pg-b1v"), vh = $("sr-pg-hv"), nums = $("sr-pg-nums");
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", "0 0 360 250");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Scatterplot, least squares doğrusu ve senin doğrun");
+  plot.appendChild(svg);
+  let pts = [], fr = null, labels = { xl: "x", yl: "y" }, drag = null;
+
+  function load(x, y, lab, mine) {
+    pts = x.map((v, i) => [v, y[i]]);
+    labels = lab;
+    const bx = SR.bounds(x, 0.15), by = SR.bounds(y, 0.4);
+    fr = SR.frame({ W: 360, H: 250, x0: bx[0], x1: bx[1], y0: by[0], y1: by[1], xl: lab.xl, yl: lab.yl });
+    const F = fitLS(x, y), yr = by[1] - by[0], xr = bx[1] - bx[0];
+    const span = Math.max(Math.abs(F.b1), yr / xr);
+    rb1.min = (F.b1 - 2 * span).toPrecision(4); rb1.max = (F.b1 + 2 * span).toPrecision(4); rb1.step = "any";
+    rh.min = (F.yb - yr / 2).toPrecision(4); rh.max = (F.yb + yr / 2).toPrecision(4); rh.step = "any";
+    rb1.value = mine ? mine[0] : F.b1 * 0.5;
+    rh.value = mine ? mine[1] : F.yb + yr * 0.12;
+    draw();
+  }
+  function draw() {
+    const x = pts.map(p => p[0]), y = pts.map(p => p[1]), F = fitLS(x, y);
+    const mb1 = Number(rb1.value), mh = Number(rh.value);
+    vb1.textContent = SR.c(mb1); vh.textContent = SR.c(mh);
+    const mine = v => mh + mb1 * (v - F.xb);
+    const okLS = F.sxx > 1e-12;
+    const { X, Y, axes } = fr;
+    let s = axes;
+    const sq = sqSel.value;
+    s += `<clipPath id="sr-pg-clip"><rect x="${fr.L}" y="${fr.T}" width="${fr.W - fr.L - fr.R}" height="${fr.H - fr.T - fr.B}"/></clipPath><g clip-path="url(#sr-pg-clip)">`;
+    if (sq !== "none") {
+      pts.forEach(p => {
+        const yh = sq === "ls" ? (okLS ? F.b0 + F.b1 * p[0] : null) : mine(p[0]);
+        if (yh === null) return;
+        const side = Math.abs(Y(p[1]) - Y(yh)), top = Math.min(Y(p[1]), Y(yh));
+        const left = X(p[0]) + side <= fr.W - fr.R ? X(p[0]) : X(p[0]) - side;
+        s += `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${side.toFixed(1)}" height="${side.toFixed(1)}" fill="${sq === "ls" ? "var(--blue-200)" : "var(--orange-100)"}" fill-opacity="0.6" stroke="${sq === "ls" ? "var(--blue-600)" : "var(--accent)"}" stroke-width="0.8"/>`;
+      });
+    }
+    const x0 = fr.Xi(fr.L), x1 = fr.Xi(fr.W - fr.R);
+    if (lsBox.checked && okLS) s += `<line x1="${X(x0)}" y1="${Y(F.b0 + F.b1 * x0)}" x2="${X(x1)}" y2="${Y(F.b0 + F.b1 * x1)}" stroke="var(--blue-600)" stroke-width="2"/>`;
+    s += `<line x1="${X(x0)}" y1="${Y(mine(x0))}" x2="${X(x1)}" y2="${Y(mine(x1))}" stroke="var(--accent)" stroke-width="2" stroke-dasharray="6 4"/>`;
+    pts.forEach(p => { s += `<line x1="${X(p[0])}" x2="${X(p[0])}" y1="${Y(p[1])}" y2="${Y(mine(p[0]))}" stroke="var(--accent)" stroke-width="1"/>`; });
+    s += `</g>`;
+    if (okLS) s += `<circle cx="${X(F.xb)}" cy="${Y(F.yb)}" r="4" fill="none" stroke="var(--blue-600)" stroke-width="1.5"/><text x="${X(F.xb) + 6}" y="${Y(F.yb) - 6}" font-size="10" fill="var(--blue-600)">(x̄, ȳ)</text>`;
+    pts.forEach((p, i) => { s += `<circle class="w-simple-regression-pt" data-i="${i}" cx="${X(p[0])}" cy="${Y(p[1])}" r="7" fill="var(--fg)" fill-opacity="0.8" stroke="#fff" stroke-width="1.5"/>`; });
+    svg.innerHTML = s;
+    let sseM = 0, sumM = 0;
+    pts.forEach(p => { const e = p[1] - mine(p[0]); sseM += e * e; sumM += e; });
+    const cell = (k, v, cls) => `<div class="${cls || ""}">${k}<b>${v}</b></div>`;
+    nums.innerHTML = okLS
+      ? cell("$\\hat\\beta_1$", SR.c(F.b1)) + cell("$\\hat\\beta_0$", SR.c(F.b0)) + cell("SSE (LS)", SR.c(F.sse)) + cell("$s$", F.n > 2 ? SR.c(F.s) : "—") + cell("$r$", SR.c(F.r)) + cell("$r^2$", SR.c(F.r2)) +
+        cell("SSE (senin)", SR.c(sseM), "is-mine") + cell("Error toplamı (senin)", SR.c(sumM), "is-mine")
+      : cell("Uyarı", "Bütün $x$'ler aynı: $SS_{xx} = 0$, slope tanımsız.");
+    Lab.renderMath(nums);
+  }
+  function toData(e) {
+    const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
+    const q = p.matrixTransform(svg.getScreenCTM().inverse());
+    const cx = Math.min(Math.max(q.x, fr.L), fr.W - fr.R), cy = Math.min(Math.max(q.y, fr.T), fr.H - fr.B);
+    return [fr.Xi(cx), fr.Yi(cy)];
+  }
+  svg.addEventListener("pointerdown", e => {
+    const c = e.target.closest("circle[data-i]");
+    if (!c) return;
+    drag = Number(c.dataset.i);
+    svg.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  svg.addEventListener("pointermove", e => {
+    if (drag === null) return;
+    const [x, y] = toData(e), sx = (fr.Xi(fr.W) - fr.Xi(0)) / 400, sy = (fr.Yi(0) - fr.Yi(fr.H)) / 400;
+    const rnd = (v, st) => { const d = Math.max(0, Math.ceil(-Math.log10(st))); return Number(v.toFixed(d)); };
+    pts[drag] = [rnd(x, sx), rnd(y, sy)];
+    draw();
+  });
+  const end = () => { drag = null; };
+  svg.addEventListener("pointerup", end);
+  svg.addEventListener("pointercancel", end);
+  function parseOwn() {
+    const toks = ownTa.value.trim().split(/[\s;]+/).filter(Boolean);
+    const x = [], y = [];
+    for (const t of toks) {
+      const m = t.split(",");
+      if (m.length !== 2) return { e: `"${t}" bir $(x, y)$ çifti değil. Örnek: <code>1,2</code> (virgülden sonra boşluk yok, ondalık için nokta).` };
+      const a = Number(m[0]), b = Number(m[1]);
+      if (!Number.isFinite(a) || !Number.isFinite(b) || m[0] === "" || m[1] === "") return { e: `"${t}" içinde sayı olmayan bir değer var.` };
+      x.push(a); y.push(b);
+    }
+    if (x.length < 3 || x.length > 30) return { e: `3 ile 30 arasında nokta gir (şu an ${x.length}).` };
+    if (Math.max(...x) - Math.min(...x) < 1e-12) return { e: "Bütün $x$'ler aynı olamaz: $SS_{xx} = 0$ olur, slope tanımsız." };
+    return { x, y };
+  }
+  function loadSel() {
+    ownBox.hidden = sel.value !== "own";
+    SR.showErr(err, []);
+    if (sel.value === "own") {
+      const r = parseOwn();
+      if (r.e) { SR.showErr(err, [r.e]); return; }
+      load(r.x, r.y, { xl: "x", yl: "y" }, null);
+    } else {
+      const d = DATA[sel.value];
+      load(d.x, d.y, d, sel.value === "drug" ? [1, 2] : null);
+    }
+  }
+  sel.addEventListener("change", loadSel);
+  $("sr-pg-own-go").addEventListener("click", loadSel);
+  [rb1, rh].forEach(r => r.addEventListener("input", draw));
+  lsBox.addEventListener("change", draw);
+  sqSel.addEventListener("change", draw);
+  loadSel();
+})();
+
+/* t density plot shared by the slope-test stepper */
+function tPlot(df, crit, tail, tObs, showRR) {
+  const lim = Math.min(Math.max(4, Number.isFinite(tObs) ? Math.abs(tObs) + 1 : 0, crit + 1), 14);
+  const fr = SR.frame({ W: 360, H: 160, x0: -lim, x1: lim, y0: 0, y1: ST.tPdf(0, df) * 1.12, l: 14, b: 26, t: 8 });
+  const { X, Y } = fr;
+  let s = `<svg viewBox="0 0 360 160" role="img" aria-label="t distribution, rejection region ve gözlenen t">`;
+  s += `<line x1="${fr.L}" x2="${fr.W - fr.R}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--border-strong)"/>`;
+  SR.ticks(-lim, lim, 6).out.forEach(v => { s += `<text x="${X(v)}" y="${fr.H - 12}" font-size="10" text-anchor="middle" fill="var(--fg-muted)">${v}</text>`; });
+  const path = (a, b) => {
+    let d = `M ${X(a).toFixed(1)} ${Y(0)}`;
+    for (let k = 0; k <= 80; k++) { const t = a + (b - a) * k / 80; d += ` L ${X(t).toFixed(1)} ${Y(ST.tPdf(t, df)).toFixed(1)}`; }
+    return d + ` L ${X(b).toFixed(1)} ${Y(0)} Z`;
+  };
+  if (showRR) {
+    if (tail !== "up") s += `<path d="${path(-lim, -crit)}" fill="var(--accent)" fill-opacity="0.45"/>`;
+    if (tail !== "low") s += `<path d="${path(crit, lim)}" fill="var(--accent)" fill-opacity="0.45"/>`;
+  }
+  let d = "";
+  for (let k = 0; k <= 160; k++) { const t = -lim + 2 * lim * k / 160; d += (k ? " L " : "M ") + X(t).toFixed(1) + " " + Y(ST.tPdf(t, df)).toFixed(1); }
+  s += `<path d="${d}" fill="none" stroke="var(--blue-600)" stroke-width="1.8"/>`;
+  if (Number.isFinite(tObs)) {
+    const to = Math.max(-lim, Math.min(lim, tObs));
+    s += `<line x1="${X(to)}" x2="${X(to)}" y1="${fr.T}" y2="${Y(0)}" stroke="var(--fg)" stroke-width="2" stroke-dasharray="4 3"/>`;
+    s += `<text x="${X(to)}" y="${fr.T + 10}" font-size="11" font-weight="700" text-anchor="${to > 0 ? "end" : "start"}" fill="var(--fg)">${Math.abs(tObs) > lim ? (tObs > 0 ? "→ " : "← ") : ""}t = ${tObs.toFixed(2)}</text>`;
+  }
+  return s + `</svg>`;
+}
+
+/* C. Slope test, four steps */
+(function () {
+  const $ = id => document.getElementById(id);
+  const pre = $("sr-ti-preset"), box = $("sr-ti-stepper"), err = $("sr-ti-err");
+  if (!pre || !box) return;
+  const fd = fitLS(DATA.dowse.x, DATA.dowse.y);
+  const P = {
+    drug: [0.7, 0.60553, 10, 5, 0.05, "two"],
+    cpu: [1.0, 7.07107, 1000, 5, 0.01, "up"],
+    dowse: [Number(fd.b1.toFixed(5)), Number(fd.s.toFixed(4)), Number(fd.sxx.toFixed(3)), 26, 0.05, "two"],
+    fire: [4.91933, 2.31635, 34.784, 15, 0.05, "up"]
+  };
+  const ids = ["sr-ti-b1", "sr-ti-s", "sr-ti-sxx", "sr-ti-n", "sr-ti-a", "sr-ti-tail"];
+  function fill() { P[pre.value].forEach((v, i) => { $(ids[i]).value = v; }); run(); }
+  function run() {
+    const errs = [];
+    const b1 = SR.num($("sr-ti-b1").value, "\\hat\\beta_1");
+    const s = SR.num($("sr-ti-s").value, "s", v => v > 0 ? null : "$s$ pozitif olmalı.");
+    const sxx = SR.num($("sr-ti-sxx").value, "SS_{xx}", v => v > 0 ? null : "$SS_{xx}$ pozitif olmalı (bir sum of squares).");
+    const n = SR.num($("sr-ti-n").value, "n", v => Number.isInteger(v) && v >= 3 && v <= 100000 ? null : "$n$ en az 3 olan bir tam sayı olmalı (df $= n - 2 \\ge 1$).");
+    const a = SR.num($("sr-ti-a").value, "\\alpha", v => v > 0 && v < 0.5 ? null : "$\\alpha$ 0 ile 0.5 arasında olmalı (ör. 0.05).");
+    [b1, s, sxx, n, a].forEach(r => { if (r.e) errs.push(r.e); });
+    if (SR.showErr(err, errs)) { box.innerHTML = ""; return; }
+    const tail = $("sr-ti-tail").value, df = n.v - 2;
+    const se = s.v / Math.sqrt(sxx.v), t = b1.v / se;
+    const crit = ST.tUp(tail === "two" ? a.v / 2 : a.v, df);
+    const p = tail === "two" ? 2 * ST.tSf(Math.abs(t), df) : tail === "up" ? ST.tSf(t, df) : ST.tSf(-t, df);
+    const rej = tail === "two" ? Math.abs(t) > crit : tail === "up" ? t > crit : t < -crit;
+    const Ha = { two: "\\beta_1 \\ne 0", up: "\\beta_1 > 0", low: "\\beta_1 < 0" }[tail];
+    const rr = { two: `|t| > t_{${SR.c(a.v / 2)}, ${df}} = ${crit.toFixed(3)}`, up: `t > t_{${SR.c(a.v)}, ${df}} = ${crit.toFixed(3)}`, low: `t < -t_{${SR.c(a.v)}, ${df}} = -${crit.toFixed(3)}` }[tail];
+    const pf = { two: `2P(t_{${df}} > |${t.toFixed(3)}|)`, up: `P(t_{${df}} > ${t.toFixed(3)})`, low: `P(t_{${df}} < ${t.toFixed(3)})` }[tail];
+    const c2 = ST.tUp(a.v / 2, df), lo = b1.v - c2 * se, hi = b1.v + c2 * se, conf = Math.round((1 - a.v) * 1000) / 10;
+    const frames = [
+      { rr: false, t: NaN, caption: `<strong>1. Hipotezler:</strong> $H_0: \\beta_1 = 0$, $H_a: ${Ha}$, $\\alpha = ${SR.c(a.v)}$. $H_0$ her zaman eşitlik.` },
+      { rr: false, t: NaN, caption: `<strong>2a. Standard error:</strong> $s_{\\hat\\beta_1} = s/\\sqrt{SS_{xx}} = ${SR.c(s.v)}/\\sqrt{${SR.c(sxx.v)}} = ${SR.c(se)}$.` },
+      { rr: false, t, caption: `<strong>2b. Test statistic:</strong> $t = \\hat\\beta_1 / s_{\\hat\\beta_1} = ${SR.c(b1.v)}/${SR.c(se)} = ${t.toFixed(3)}$, df $= n - 2 = ${df}$.` },
+      { rr: true, t, caption: `<strong>3a. Rejection region:</strong> $${rr}$ (turuncu). Gözlenen $t = ${t.toFixed(3)}$ ${rej ? "bölgenin içinde" : "bölgenin dışında"}.` },
+      { rr: true, t, caption: `<strong>3b. p-value:</strong> $${pf} = ${SR.p(p)}$. $${SR.p(p)} ${p < a.v ? "<" : "\\ge"} \\alpha = ${SR.c(a.v)}$, iki yol aynı kararı veriyor.` },
+      { rr: true, t, caption: `<strong>4. Sonuç:</strong> ${rej ? "Reject $H_0$: $x$, $y$'nin linear tahmini için bilgi veriyor" : "Fail to reject $H_0$: $x$'in $y$ hakkında linear bilgi verdiğine dair yeterli kanıt yok (bu $\\beta_1 = 0$ kanıtlandı demek değil)"} ($\\alpha = ${SR.c(a.v)}$). ${conf}% CI for $\\beta_1$: $${SR.c(b1.v)} \\pm ${c2.toFixed(3)}(${SR.c(se)}) = (${SR.c(lo)},\\ ${SR.c(hi)})$${tail === "two" ? `; 0 ${lo < 0 && hi > 0 ? "içeride, testle tutarlı olarak reddedilmedi" : "dışarıda, testle tutarlı olarak reddedildi"}.` : ". (CI–test bağlantısı two-tailed teste aittir.)"}` }
+    ];
+    Lab.stepper(box, {
+      title: "Slope testi, dört adım", interval: 1800, frames,
+      render(f, i, stage) { stage.innerHTML = `<div class="w-simple-regression-plot">${tPlot(df, crit, tail, f.t, f.rr)}</div>`; }
+    });
+  }
+  pre.addEventListener("change", fill);
+  $("sr-ti-go").addEventListener("click", run);
+  ids.slice(0, 5).forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") run(); }));
+  fill();
+})();
+
+/* D. Simulation: sampling distribution of the slope */
+(function () {
+  const $ = id => document.getElementById(id);
+  const go = $("sr-sim-go"), plot = $("sr-sim-plot"), nums = $("sr-sim-nums");
+  if (!go || !plot) return;
+  const DES = { narrow: [1, 2, 3, 4, 5], wide: [1, 1, 3, 5, 5], ten: [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5] };
+  let seed = 3211;
+  function run() {
+    const b1 = Number($("sr-sim-b1").value), sig = Number($("sr-sim-sig").value), x = DES[$("sr-sim-x").value];
+    const n = x.length, xb = x.reduce((a, v) => a + v, 0) / n, sxx = x.reduce((a, v) => a + (v - xb) ** 2, 0);
+    const R = ST.rng(seed), B = 2000, crit = ST.tUp(0.025, n - 2), est = [];
+    let rej = 0;
+    for (let k = 0; k < B; k++) {
+      const y = x.map(v => -0.1 + b1 * v + sig * R.normal());
+      const F = fitLS(x, y);
+      est.push(F.b1);
+      if (Math.abs(F.t) > crit) rej++;
+    }
+    const m = est.reduce((a, v) => a + v, 0) / B, sd = Math.sqrt(est.reduce((a, v) => a + (v - m) ** 2, 0) / (B - 1)), sth = sig / Math.sqrt(sxx);
+    const lo = b1 - 4.5 * sth, hi = b1 + 4.5 * sth, bins = 36, w = (hi - lo) / bins, cnt = new Array(bins).fill(0);
+    est.forEach(v => { const j = Math.floor((v - lo) / w); if (j >= 0 && j < bins) cnt[j]++; });
+    const dens = v => Math.exp(-0.5 * ((v - b1) / sth) ** 2) / (sth * Math.sqrt(2 * Math.PI)) * B * w;
+    const ymax = Math.max(...cnt, dens(b1)) * 1.1;
+    const fr = SR.frame({ W: 360, H: 200, x0: lo, x1: hi, y0: 0, y1: ymax, xl: "β̂₁ (2000 sample)", l: 34 });
+    let s = `<svg viewBox="0 0 360 200" role="img" aria-label="Slope tahminlerinin histogramı ve normal eğri">` + fr.axes;
+    cnt.forEach((c, j) => { s += `<rect x="${fr.X(lo + j * w).toFixed(1)}" y="${fr.Y(c).toFixed(1)}" width="${(fr.X(lo + w) - fr.X(lo) - 1).toFixed(1)}" height="${(fr.Y(0) - fr.Y(c)).toFixed(1)}" fill="var(--blue-200)"/>`; });
+    let d = "";
+    for (let k = 0; k <= 120; k++) { const v = lo + (hi - lo) * k / 120; d += (k ? " L " : "M ") + fr.X(v).toFixed(1) + " " + fr.Y(dens(v)).toFixed(1); }
+    s += `<path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
+    s += `<line x1="${fr.X(b1)}" x2="${fr.X(b1)}" y1="${fr.T}" y2="${fr.Y(0)}" stroke="var(--fg)" stroke-dasharray="4 3"/>`;
+    plot.innerHTML = s + `</svg>`;
+    const cell = (k, v) => `<div>${k}<b>${v}</b></div>`;
+    nums.innerHTML = cell("$SS_{xx}$", SR.c(sxx)) + cell("mean $\\hat\\beta_1$", SR.c(m)) + cell("SD $\\hat\\beta_1$ (sim)", SR.c(sd)) + cell("$\\sigma/\\sqrt{SS_{xx}}$", SR.c(sth)) +
+      cell(`Reject oranı ($\\alpha = 0.05$)`, (100 * rej / B).toFixed(1) + "%") + cell("seed", seed);
+    Lab.renderMath(nums);
+    seed = (seed * 1103515245 + 12345) >>> 0;
+  }
+  go.addEventListener("click", run);
+  run();
+})();
+
+/* E. Figure in section 7: deviations about ȳ versus about the line */
+(function () {
+  const box = document.getElementById("sr-r2-fig");
+  if (!box) return;
+  const d = DATA.drug, F = fitLS(d.x, d.y);
+  const panel = (useLine, title) => {
+    const fr = SR.frame({ W: 260, H: 190, x0: 0.5, x1: 5.5, y0: 0, y1: 4.6, xl: d.xl, l: 30 });
+    const fy = v => useLine ? F.b0 + F.b1 * v : F.yb;
+    let s = `<svg viewBox="0 0 260 190" role="img" aria-label="${title}">` + fr.axes;
+    s += `<line x1="${fr.X(0.5)}" x2="${fr.X(5.5)}" y1="${fr.Y(fy(0.5))}" y2="${fr.Y(fy(5.5))}" stroke="${useLine ? "var(--blue-600)" : "var(--accent)"}" stroke-width="2"/>`;
+    d.x.forEach((x, i) => {
+      s += `<line x1="${fr.X(x)}" x2="${fr.X(x)}" y1="${fr.Y(d.y[i])}" y2="${fr.Y(fy(x))}" stroke="var(--fg)" stroke-width="1.5" stroke-dasharray="3 2"/>`;
+      s += `<circle cx="${fr.X(x)}" cy="${fr.Y(d.y[i])}" r="4.5" fill="var(--fg)"/>`;
+    });
+    return `<div><h4>${title}</h4><div class="w-simple-regression-plot">${s}</svg></div></div>`;
+  };
+  box.innerHTML = panel(false, `x bilgisi yok: ŷ = ȳ, kare toplamı ${SR.c(F.syy)}`) + panel(true, `LS doğrusu: kare toplamı ${SR.c(F.sse)}`);
+})();
+
+/* F. CI for E(y) and PI for y across x */
+(function () {
+  const $ = id => document.getElementById(id);
+  const sel = $("sr-band-data"), plot = $("sr-band-plot");
+  if (!sel || !plot) return;
+  const conf = $("sr-band-conf"), xpIn = $("sr-band-xp"), slide = $("sr-band-slide"), sv = $("sr-band-slidev"), err = $("sr-band-err"), out = $("sr-band-out");
+  let st = null;
+  function setup() {
+    const d = DATA[sel.value], F = fitLS(d.x, d.y);
+    const xmin = Math.min(...d.x), xmax = Math.max(...d.x), R = xmax - xmin;
+    st = { d, F, xmin, xmax, a: xmin - 0.25 * R, b: xmax + 0.25 * R };
+    slide.min = st.a; slide.max = st.b; slide.step = (R / 200).toPrecision(3);
+    const start = sel.value === "drug" ? 4 : sel.value === "cpu" ? 40 : sel.value === "fire" ? 3.5 : 50;
+    slide.value = start; xpIn.value = start;
+    draw(start);
+  }
+  function draw(xp) {
+    const { d, F, a, b, xmin, xmax } = st, n = F.n, cf = Number(conf.value), tc = ST.tUp((1 - cf) / 2, n - 2);
+    const half = (v, pi) => tc * F.s * Math.sqrt((pi ? 1 : 0) + 1 / n + (v - F.xb) ** 2 / F.sxx);
+    const yh = v => F.b0 + F.b1 * v;
+    const ys = d.y.concat([yh(a) - half(a, 1), yh(a) + half(a, 1), yh(b) - half(b, 1), yh(b) + half(b, 1)]);
+    const by = SR.bounds(ys, 0.05);
+    const fr = SR.frame({ W: 360, H: 250, x0: a, x1: b, y0: by[0], y1: by[1], xl: d.xl, yl: d.yl });
+    const { X, Y } = fr;
+    const band = pi => {
+      let up = "", dn = "";
+      for (let k = 0; k <= 80; k++) {
+        const v = a + (b - a) * k / 80;
+        up += (k ? " L " : "M ") + X(v).toFixed(1) + " " + Y(yh(v) + half(v, pi)).toFixed(1);
+        dn = " L " + X(v).toFixed(1) + " " + Y(yh(v) - half(v, pi)).toFixed(1) + dn;
+      }
+      return up + dn + " Z";
+    };
+    let s = `<svg viewBox="0 0 360 250" role="img" aria-label="Least squares doğrusu, CI ve PI bantları">`;
+    s += `<rect x="${X(a)}" y="${fr.T}" width="${X(xmin) - X(a)}" height="${fr.H - fr.T - fr.B}" fill="var(--stone-300)" fill-opacity="0.35"/>`;
+    s += `<rect x="${X(xmax)}" y="${fr.T}" width="${X(b) - X(xmax)}" height="${fr.H - fr.T - fr.B}" fill="var(--stone-300)" fill-opacity="0.35"/>`;
+    s += fr.axes;
+    s += `<path d="${band(1)}" fill="var(--orange-100)" fill-opacity="0.7" stroke="var(--accent)" stroke-width="1"/>`;
+    s += `<path d="${band(0)}" fill="var(--blue-200)" fill-opacity="0.75" stroke="var(--blue-600)" stroke-width="0.8"/>`;
+    s += `<line x1="${X(a)}" y1="${Y(yh(a))}" x2="${X(b)}" y2="${Y(yh(b))}" stroke="var(--blue-600)" stroke-width="2"/>`;
+    d.x.forEach((x, i) => { s += `<circle cx="${X(x)}" cy="${Y(d.y[i])}" r="3.5" fill="var(--fg)" fill-opacity="0.8"/>`; });
+    const hc = half(xp, 0), hp = half(xp, 1), y0 = yh(xp);
+    s += `<line x1="${X(xp)}" x2="${X(xp)}" y1="${Y(y0 + hp)}" y2="${Y(y0 - hp)}" stroke="var(--accent)" stroke-width="3"/>`;
+    s += `<line x1="${X(xp)}" x2="${X(xp)}" y1="${Y(y0 + hc)}" y2="${Y(y0 - hc)}" stroke="var(--blue-600)" stroke-width="6"/>`;
+    s += `<circle cx="${X(xp)}" cy="${Y(y0)}" r="4" fill="#fff" stroke="var(--fg)" stroke-width="1.5"/>`;
+    s += `<line x1="${X(F.xb)}" x2="${X(F.xb)}" y1="${fr.H - fr.B}" y2="${fr.H - fr.B - 6}" stroke="var(--fg)" stroke-width="2"/><text x="${X(F.xb)}" y="${fr.H - fr.B - 8}" font-size="10" text-anchor="middle" fill="var(--fg)">x̄</text>`;
+    plot.innerHTML = s + `</svg>`;
+    const hc0 = half(F.xb, 0), hp0 = half(F.xb, 1), g = SR.c, pct = Math.round(cf * 100);
+    const extra = xp < xmin || xp > xmax ? `<p class="w-simple-regression-err">Extrapolation: $x_p = ${g(xp)}$ sample'ın aralığının (${g(xmin)}–${g(xmax)}) dışında. Formül bir aralık veriyor ama model orada geçerli olmayabilir.</p>` : "";
+    out.innerHTML = extra +
+      `<p>$\\hat y = ${g(F.b0)} ${F.b1 < 0 ? "-" : "+"} ${g(Math.abs(F.b1))}(${g(xp)}) = ${g(y0)}$, $\\; s = ${g(F.s)}$, $\\; n = ${n}$, $\\; \\bar x = ${g(F.xb)}$, $\\; SS_{xx} = ${g(F.sxx)}$, $\\; t_{${g((1 - cf) / 2)}, ${n - 2}} = ${tc.toFixed(3)}$.</p>` +
+      `<p><strong>${pct}% CI for $E(y)$:</strong> $${g(y0)} \\pm ${tc.toFixed(3)}(${g(F.s)})\\sqrt{\\tfrac{1}{${n}} + \\tfrac{(${g(xp)} - ${g(F.xb)})^2}{${g(F.sxx)}}} = ${g(y0)} \\pm ${g(hc)} = (${g(y0 - hc)},\\ ${g(y0 + hc)})$</p>` +
+      `<p><strong>${pct}% PI for $y$:</strong> $${g(y0)} \\pm ${tc.toFixed(3)}(${g(F.s)})\\sqrt{1 + \\tfrac{1}{${n}} + \\tfrac{(${g(xp)} - ${g(F.xb)})^2}{${g(F.sxx)}}} = ${g(y0)} \\pm ${g(hp)} = (${g(y0 - hp)},\\ ${g(y0 + hp)})$</p>` +
+      `<p>Genişlikler: CI $${g(2 * hc)}$, PI $${g(2 * hp)}$. $x_p = \\bar x$'teki genişliklere göre CI %${Math.round(100 * (hc / hc0 - 1))}, PI %${Math.round(100 * (hp / hp0 - 1))} daha geniş.</p>`;
+    Lab.renderMath(out);
+  }
+  function fromInput() {
+    const r = SR.num(xpIn.value, "x_p", v => v >= st.a && v <= st.b ? null : `Bu grafikte $x_p$ ${SR.c(st.a)} ile ${SR.c(st.b)} arasında olmalı.`);
+    if (SR.showErr(err, r.e ? [r.e] : [])) return;
+    slide.value = r.v;
+    sv.textContent = SR.c(r.v);
+    draw(r.v);
+  }
+  slide.addEventListener("input", () => { const v = Number(slide.value); xpIn.value = SR.c(v); sv.textContent = SR.c(v); SR.showErr(err, []); draw(v); });
+  $("sr-band-go").addEventListener("click", fromInput);
+  xpIn.addEventListener("keydown", e => { if (e.key === "Enter") fromInput(); });
+  sel.addEventListener("change", () => { SR.showErr(err, []); setup(); sv.textContent = SR.c(Number(slide.value)); });
+  conf.addEventListener("change", () => draw(Number(slide.value)));
+  setup();
+  sv.textContent = SR.c(Number(slide.value));
+})();
+
+/* G. Residual plot gallery */
+(function () {
+  const $ = id => document.getElementById(id);
+  const kindSel = $("sr-res-kind"), sc = $("sr-res-scatter"), rp = $("sr-res-plot");
+  if (!kindSel || !sc) return;
+  const nums = $("sr-res-nums"), fb = $("sr-res-fb"), show = $("sr-res-show"), btns = $("sr-res-btns");
+  const KINDS = ["ok", "curve", "funnel", "outlier"];
+  const NAME = { ok: "Sorun yok", curve: "Eğri (model biçimi)", funnel: "Huni (variance)", outlier: "Outlier" };
+  const WHY = {
+    ok: "Residual'lar 0 çizgisi etrafında desensiz ve aşağı yukarı aynı genişlikte. Assumption'lara aykırı bir işaret yok; modeli kullanabilirsin.",
+    curve: "Residual'lar U (ya da ters U) çiziyor: $E(y)$ düz bir doğru değil, assumption 1 bozuk. Çare: $x^2$ terimi (Chapter 12) ya da $\\log y$ gibi bir transformation.",
+    funnel: "Residual'ların saçılması $\\hat y$ büyüdükçe açılıyor: constant variance (assumption 2) bozuk. Çare: $\\log y$ ya da $\\sqrt y$.",
+    outlier: "Bir nokta $\\pm 2s$ bandının çok dışında. Önce veri girişini kontrol et ve nedenini araştır; sebepsiz silme. Silersen iki analizi de raporla."
+  };
+  const SIGN = { ok: "desensiz, sabit genişlikte bir bant", curve: "residual'larda U ya da ters U deseni", funnel: "$\\hat y$ büyüdükçe açılan bir huni", outlier: "$\\pm 2s$ bandının çok dışında tek bir nokta" };
+  let seed = 32113, cur = null, answered = false;
+  function gen() {
+    const k = kindSel.value;
+    if (k === "spill") return { kind: "curve", x: DATA.spill.x, y: DATA.spill.y, xl: DATA.spill.xl, yl: DATA.spill.yl };
+    if (k === "fire") return { kind: "ok", x: DATA.fire.x, y: DATA.fire.y, xl: DATA.fire.xl, yl: DATA.fire.yl };
+    const R = ST.rng(seed), kind = KINDS[Math.floor(R.uni() * 4)], n = 30, x = [], y = [];
+    for (let i = 0; i < n; i++) x.push(Number((R.uni() * 10).toFixed(2)));
+    x.sort((a, b) => a - b);
+    x.forEach(v => {
+      let yy;
+      if (kind === "curve") yy = 1 + 0.3 * v * v + 1.2 * R.normal();
+      else if (kind === "funnel") yy = 2 + 1.5 * v + (0.2 + 0.5 * v) * R.normal();
+      else yy = 2 + 1.5 * v + 1.5 * R.normal();
+      y.push(Number(yy.toFixed(2)));
+    });
+    if (kind === "outlier") { const j = 12 + Math.floor(R.uni() * 6); y[j] = Number((y[j] + (R.uni() < 0.5 ? -1 : 1) * 10).toFixed(2)); }
+    return { kind, x, y, xl: "x", yl: "y" };
+  }
+  function scatter(c, F) {
+    const bx = SR.bounds(c.x, 0.06), by = SR.bounds(c.y, 0.1);
+    const fr = SR.frame({ W: 300, H: 220, x0: bx[0], x1: bx[1], y0: by[0], y1: by[1], xl: c.xl, yl: c.yl, l: 38 });
+    let s = `<svg viewBox="0 0 300 220" role="img" aria-label="Scatterplot ve least squares doğrusu">` + fr.axes;
+    s += `<line x1="${fr.X(bx[0])}" y1="${fr.Y(F.b0 + F.b1 * bx[0])}" x2="${fr.X(bx[1])}" y2="${fr.Y(F.b0 + F.b1 * bx[1])}" stroke="var(--blue-600)" stroke-width="2"/>`;
+    c.x.forEach((x, i) => { s += `<circle cx="${fr.X(x)}" cy="${fr.Y(c.y[i])}" r="3.2" fill="var(--fg)" fill-opacity="0.8"/>`; });
+    return s + `</svg>`;
+  }
+  function resid(c, F) {
+    const yh = c.x.map(v => F.b0 + F.b1 * v), e = c.y.map((v, i) => v - yh[i]);
+    const lim = Math.max(...e.map(Math.abs), 2.2 * F.s) * 1.1, bx = SR.bounds(yh, 0.06);
+    const fr = SR.frame({ W: 300, H: 220, x0: bx[0], x1: bx[1], y0: -lim, y1: lim, xl: "ŷ", yl: "residual", l: 38 });
+    let s = `<svg viewBox="0 0 300 220" role="img" aria-label="Residual'ların ŷ'ye karşı grafiği">` + fr.axes;
+    s += `<line x1="${fr.L}" x2="${fr.W - fr.R}" y1="${fr.Y(0)}" y2="${fr.Y(0)}" stroke="var(--blue-600)" stroke-width="1.5"/>`;
+    [2, -2].forEach(k => { s += `<line x1="${fr.L}" x2="${fr.W - fr.R}" y1="${fr.Y(k * F.s)}" y2="${fr.Y(k * F.s)}" stroke="var(--accent)" stroke-dasharray="5 4"/>`; });
+    s += `<text x="${fr.W - fr.R - 2}" y="${fr.Y(2 * F.s) - 3}" font-size="10" text-anchor="end" fill="var(--accent)">+2s</text>`;
+    e.forEach((v, i) => { s += `<circle cx="${fr.X(yh[i])}" cy="${fr.Y(v)}" r="3.2" fill="var(--fg)" fill-opacity="0.8"/>`; });
+    return s + `</svg>`;
+  }
+  function render() {
+    const F = fitLS(cur.x, cur.y);
+    sc.innerHTML = scatter(cur, F);
+    rp.innerHTML = answered || show.checked ? resid(cur, F) : `<p class="src" style="padding:12px">Teşhisini seçince (ya da kutuyu işaretleyince) burada görünecek.</p>`;
+    const cell = (k, v) => `<div>${k}<b>${v}</b></div>`;
+    nums.innerHTML = cell("$\\hat y$", `${SR.c(F.b0)} ${F.b1 < 0 ? "−" : "+"} ${SR.c(Math.abs(F.b1))}x`) + cell("$r^2$", SR.f(F.r2, 3)) + cell("slope $t$", SR.f(F.t, 2)) + cell("p-value", SR.p(2 * ST.tSf(Math.abs(F.t), F.df))) + cell("$s$", SR.c(F.s)) + cell("$n$", F.n);
+    Lab.renderMath(nums);
+  }
+  function fresh() {
+    cur = gen(); answered = false; fb.textContent = ""; fb.className = "w-simple-regression-fb";
+    render();
+  }
+  btns.addEventListener("click", e => {
+    const b = e.target.closest("[data-d]");
+    if (!b || !cur) return;
+    answered = true;
+    const ok = b.dataset.d === cur.kind;
+    fb.className = "w-simple-regression-fb " + (ok ? "is-ok" : "is-no");
+    fb.innerHTML = (ok ? "Doğru: " : `Bu vaka "${NAME[cur.kind]}". `) + WHY[cur.kind] + (ok ? "" : ` ("${NAME[b.dataset.d]}" teşhisi için residual plot'ta ${SIGN[b.dataset.d]} görmen gerekirdi.)`);
+    Lab.renderMath(fb);
+    render();
+  });
+  $("sr-res-new").addEventListener("click", () => { if (kindSel.value === "rand") seed = (seed * 1103515245 + 12345) >>> 0; fresh(); });
+  kindSel.addEventListener("change", fresh);
+  show.addEventListener("change", render);
+  fresh();
+})();
+</script>
+</body>
+</html>

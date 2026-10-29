@@ -1,0 +1,1864 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 321: normallik tutmayınca nonparametric testler. Sign test (binomial), Wilcoxon rank-sum (Mann–Whitney U), Wilcoxon signed-rank, Kruskal–Wallis H, Friedman Fr, Spearman rank correlation; McClave tabloları, SciPy çıktısı ve doğru testi seçmek." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Nonparametric yöntemler: sign, Wilcoxon, Kruskal–Wallis · CSE 321 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=8" />
+  <style>
+    .w-nonparametric-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-nonparametric-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-nonparametric-ctl label { display: inline-flex; align-items: center; gap: 4px; font-size: .92rem; white-space: nowrap; }
+    .w-nonparametric-ctl label.w-nonparametric-wide { display: flex; width: 100%; white-space: normal; }
+    .w-nonparametric-ctl input[type="text"] { width: 74px; }
+    .w-nonparametric-ctl label { max-width: 100%; min-width: 0; }
+    .w-nonparametric-ctl select { max-width: 100%; min-width: 0; flex: 0 1 auto; }
+    .w-nonparametric-ctl input.w-nonparametric-field { flex: 1 1 auto; width: auto; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: .85rem; }
+    .w-nonparametric-area { width: 100%; min-width: 0; min-height: 76px; font-family: 'JetBrains Mono', monospace; font-size: .85rem; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); box-sizing: border-box; }
+    .w-nonparametric-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-nonparametric-flag { border-left: 3px solid var(--accent); padding: 6px 10px; margin: 8px 0; background: var(--orange-100); border-radius: var(--radius-sm); font-size: .92rem; }
+    .w-nonparametric-flag.is-ok { border-left-color: #2b8a3e; background: var(--blue-050); }
+    .w-nonparametric-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+    .w-nonparametric-chip { font-family: 'JetBrains Mono', monospace; font-size: .8rem; padding: 2px 6px; border-radius: var(--radius-sm); border: 2px solid var(--border-strong); background: var(--paper); min-width: 34px; text-align: center; line-height: 1.25; }
+    .w-nonparametric-chip small { display: block; font-size: .7rem; color: var(--fg-muted); }
+    .w-nonparametric-chip.g0, .w-nonparametric-chip.is-plus { border-color: var(--blue-600); background: var(--blue-050); }
+    .w-nonparametric-chip.g1, .w-nonparametric-chip.is-minus { border-color: var(--accent); background: var(--orange-100); }
+    .w-nonparametric-chip.g2 { border-color: #2b8a3e; }
+    .w-nonparametric-chip.g3 { border-color: #7048e8; }
+    .w-nonparametric-chip.g4 { border-color: #c2255c; }
+    .w-nonparametric-chip.g5 { border-color: #495057; }
+    .w-nonparametric-chip.is-zero { opacity: .45; text-decoration: line-through; }
+    .w-nonparametric-chip.is-on { box-shadow: 0 0 0 2px var(--fg); }
+    .w-nonparametric-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: .85rem; margin: 4px 0; }
+    .w-nonparametric-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; border: 2px solid var(--border-strong); }
+    .w-nonparametric-legend i.g0 { border-color: var(--blue-600); background: var(--blue-050); }
+    .w-nonparametric-legend i.g1 { border-color: var(--accent); background: var(--orange-100); }
+    .w-nonparametric-legend i.g2 { border-color: #2b8a3e; }
+    .w-nonparametric-legend i.g3 { border-color: #7048e8; }
+    .w-nonparametric-legend i.g4 { border-color: #c2255c; }
+    .w-nonparametric-legend i.g5 { border-color: #495057; }
+    .w-nonparametric-svg { width: 100%; overflow: hidden; }
+    .w-nonparametric-svg svg { display: block; width: 100%; height: auto; }
+    .w-nonparametric-nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; margin: 8px 0; }
+    .w-nonparametric-nums div { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; background: var(--paper); font-size: .86rem; }
+    .w-nonparametric-nums b { display: block; font-family: 'JetBrains Mono', monospace; font-size: 1rem; }
+    .w-nonparametric-tbl td, .w-nonparametric-tbl th { white-space: nowrap; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: .84rem; }
+    .w-nonparametric-tbl tr.is-on td { background: var(--orange-100); }
+    .w-nonparametric-tbl tr.is-dim td { opacity: .45; text-decoration: line-through; }
+    .w-nonparametric-row { display: grid; grid-template-columns: minmax(72px, auto) minmax(0, 1fr) 64px; gap: 8px; align-items: center; margin: 6px 0; font-size: .88rem; }
+    .w-nonparametric-row > span:last-child { font-family: 'JetBrains Mono', monospace; text-align: right; }
+    .w-nonparametric-bar { position: relative; height: 14px; background: var(--stone-200); border-radius: 4px; overflow: hidden; }
+    .w-nonparametric-bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--blue-600); transition: width .35s; }
+    .w-nonparametric-bar > i.is-b { background: var(--accent); }
+    .w-nonparametric-bar > em { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--fg); }
+    .w-nonparametric-race h4 { margin: 10px 0 2px; font-size: .95rem; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 321</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 321</a> / Nonparametric yöntemler</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W14 · McClave Ch.14 (online) · Walpole Ch.16</span><span class="chip chip--exam">Walpole 16.1–16.39 alıştırmaları</span><span class="src">~57 dk · 12 bölüm</span></div>
+          <h1>Nonparametric yöntemler: sign, Wilcoxon, Kruskal–Wallis</h1>
+          <p class="lead">Week 3'teki tabloda bir satır boş kalmıştı: sample küçük ve population açıkça normal değilse ne z ne t kullanılabilir. Bu derste o satırı dolduruyorsun. Sayıların kendisi yerine işaretlerini ya da sıralarını (rank) kullanan testlerle bir median'ı, iki sample'ı, $k$ sample'ı ve iki değişken arasındaki ilişkiyi test edeceksin. Sonunda dönemin bütün testlerini tek bir "hangi yöntem?" haritasında toplayacaksın.</p>
+          <p class="src">Not: Week 14'ün slaytları ve notebook'u repoda yok. Ders kitabının (McClave &amp; Sincich 13e) Chapter 14'ü sadece online yayımlanmış; repodaki PDF'te bu bölümden yalnızca içindekiler sayfası, Appendix B'deki tablolar (Table IX, X, XI) ve cevap anahtarı var. Bu yüzden konu Walpole 9e Chapter 16 ve McClave'in tabloları üzerinden anlatıldı; hocanın gösterimi ve örnekleri farklı olabilir. Walpole'un runs test ve tolerance limits kısımları McClave Chapter 14'ün içindekiler listesinde olmadığı için burada yok. Bu konuda repoda çıkmış soru yok: sınav kutularındaki sorular Walpole'un alıştırmaları. <a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/walpole-probability-and-statistics-9e.pdf" target="_blank" rel="noopener">Walpole 9e (PDF) ↗</a></p>
+          <!-- Kaynak: resources/2026-2027-fall/00-course-info.pdf (Course Schedule W14 "Nonparametric methods; review and wrap-up, Ch. 14"; learning outcome 3 "switch to a suitable alternative such as Welch, bootstrap or a nonparametric test"; "Every classical method paired with its computational counterpart") · 03-hypothesis-testing-i.pdf slayt 25–26 (görüntüden okundu) · McClave & Sincich 13e içindekiler s.11–12 (PDF s.13–14: Chapter 14 bölüm başlıkları 14.1–14.7), Appendix B Table IX (s.856), Table X (s.857), Table XI (s.858) (PDF s.858–860), Chapter 14 cevap anahtarı; McClave §8.5, §9.2, §9.3, §10.2, §10.4'teki "Answer: use the nonparametric methods of Chapter 14" kutuları · Walpole 9e Ch.16 §16.1–16.4 ve §16.7 (kitap s.655–679, PDF s.676–700), Table A.16, A.17, A.21 (kitap s.759–765) ve cevap anahtarı (kitap s.782–783). Bütün sayılar python3 -I (scipy 1.13.1) ile kontrol edildi. Question Bank 2 kullanılmadı. -->
+        </header>
+
+        <article class="lesson" data-course="cse-321" data-lesson="nonparametric">
+
+<!-- 1 -->
+<section class="lsec" id="why-np" data-min="4">
+  <h2>Ne zaman nonparametric?</h2>
+  <div class="quiz" id="q-why-1">
+    <p class="quiz__q">Bir regulator'dan $n = 12$ ölçüm aldın. Normal Q-Q plot'ta noktaların çoğu çizginin yakınında, ama sağ uçta tek bir nokta çizgiden çok uzakta. Mean hakkında test yapmak istiyorsun. Ne yaparsın?</p>
+    <button class="quiz__opt">z test, çünkü $s$ elimizde<span class="why">z için $n \ge 30$ gerekir (slayt 26). $n = 12$ küçük; CLT burada sana yardım etmez.</span></button>
+    <button class="quiz__opt">t test, $n - 1 = 11$ df<span class="why">t test küçük $n$'de population'ın yaklaşık normal olmasını ister. Slayt 25: küçük $n$'de Q-Q plot'ta bir eğri ya da tek uzak bir nokta varsa t'ye güvenme.</span></button>
+    <button class="quiz__opt" data-correct>Mean'de kalacaksan bootstrap; hedefi median'a çevirebiliyorsan nonparametric bir test<span class="why">Doğru. Slayt 25–26: küçük $n$'de tek uzak nokta varsa t'ye güvenme, "use a nonparametric test (Week 14) or the bootstrap". Dikkat: sign test ya da signed-rank'a geçince hipotez değişir, mean yerine median test edilir (dağılım simetrikse ikisi aynı). Mean'i test etmek istiyorsan bootstrap mean'i korur, ama $n = 12$'de onun da güvenilirliği sınırlı.</span></button>
+    <button class="quiz__opt">Hiçbir test yapılamaz, daha çok veri gerekir<span class="why">Daha çok veri iyi olurdu ama şart değil. Normallik varsaymayan testler tam bu durum için var.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · tablonun boş kalan satırı</span>
+    <p>Week 3'te bir mean için hangi testin kullanılacağını gösteren tabloyu gördün (slayt 26, "Which Test for a Mean?"):</p>
+    <div class="table-wrap"><table>
+      <tr><th>Situation</th><th>Statistic</th><th>Reference distribution</th></tr>
+      <tr><td>$n \ge 30$</td><td>$z = (\bar x - \mu_0)/(s/\sqrt n)$</td><td>Standard normal</td></tr>
+      <tr><td>$n &lt; 30$, population about normal</td><td>$t = (\bar x - \mu_0)/(s/\sqrt n)$</td><td>t, $n - 1$ df</td></tr>
+      <tr><td>$n &lt; 30$, clearly not normal</td><td>Neither</td><td>Nonparametric, Week 14</td></tr>
+    </table></div>
+    <p>Üçüncü satırda ne z ne t çalışır. Sample küçük olduğu için CLT'ye güvenemezsin; population normal olmadığı için t'nin dağılımı da doğru değil. Slayt 25 aynı şeyi Q-Q plot üzerinden söylüyor: <em>"Points near the line: the t test is fine. A curve or a lone outlier at small n: use a nonparametric test (Week 14) or the bootstrap."</em></p>
+    <p>Bu dersteki testlerin ortak fikri şu: sayıların kendisi yerine <strong>işaretlerini</strong> (+ / −) ya da <strong>sıralarını</strong> (rank) kullan. 60 ms'lik bir sınırın üstünde kalan 180 ms'lik uç bir değer de, 61 ms'lik sıradan bir değer de tek bir "+" olur. Uç değer sonucu tek başına sürükleyemez.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · parametric ve nonparametric (Walpole §16.1)</span>
+    <ul>
+      <li><strong>Parametric</strong> yöntemler population'ın dağılımı hakkında bir varsayım yapar (çoğunlukla normal) ve onun parametresini ($\mu$, $\sigma^2$) test eder: z, t, F, ANOVA.</li>
+      <li><strong>Nonparametric</strong> ya da <strong>distribution-free</strong> yöntemler dağılımın şekli hakkında neredeyse hiçbir şey varsaymaz; çoğu sadece population'ın continuous olmasını ister. Çoğu rank'larla çalışır.</li>
+      <li>Konum ölçüsü olarak mean yerine çoğu zaman <strong>median</strong> test edilir. Population median'ı McClave'de $\eta$, Walpole'da $\tilde\mu$ diye yazılır. Continuous bir $X$ için $P(X &gt; \eta) = P(X &lt; \eta) = 0.5$. Dağılım simetrikse median ile mean aynıdır.</li>
+    </ul>
+    <p><strong>Ne zaman?</strong> (1) $n &lt; 30$ ve population açıkça normal değil. (2) Veri zaten sıra ya da sıralama (ordinal): iki jürinin beş markayı 1'den 5'e sıralaması gibi. (3) Sayısal ölçüm yok, sadece + / − var (isabet / ıska).</p>
+    <p><strong>Bedeli:</strong> nonparametric test verideki bilginin bir kısmını kullanmaz. İki yöntem de geçerliyse parametric olan daha <strong>efficient</strong>'tır: aynı power için nonparametric test daha büyük sample ister. Walpole'un önerisi: ikisi de uygulanabiliyorsa parametric testi kullan. Normallik ciddi bozuksa durum tersine döner ve nonparametric test çok daha efficient olur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · bu dersin haritası (McClave Chapter 14 sırası)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Soru</th><th>Parametric</th><th>Nonparametric</th><th>McClave</th><th>Bölüm</th></tr>
+      <tr><td>Bir median'ı bir sayıyla karşılaştır</td><td>one-sample t</td><td>sign test</td><td>§14.2</td><td>2–3</td></tr>
+      <tr><td>İki independent sample</td><td>two-sample t (pooled / Welch)</td><td>Wilcoxon rank-sum (Mann–Whitney U)</td><td>§14.3</td><td>4–5</td></tr>
+      <tr><td>Paired farklar ya da simetrik tek sample</td><td>paired t</td><td>Wilcoxon signed-rank</td><td>§14.4</td><td>6–7</td></tr>
+      <tr><td>$k$ independent sample</td><td>one-way ANOVA (completely randomized design)</td><td>Kruskal–Wallis H</td><td>§14.5</td><td>8</td></tr>
+      <tr><td>$k$ treatment, block'lar</td><td>randomized block ANOVA</td><td>Friedman $F_r$</td><td>§14.6</td><td>9</td></tr>
+      <tr><td>İki değişken arasındaki ilişki</td><td>Pearson $r$</td><td>Spearman $r_s$</td><td>§14.7</td><td>10</td></tr>
+    </table></div>
+  </div>
+  <!-- Kaynak: 03-hypothesis-testing-i.pdf slayt 25 (Checking the Normality Assumption, McClave §8.5) ve slayt 26 (Which Test for a Mean?), ikisi de görüntüden okundu · Walpole §16.1 giriş (kitap s.655–656): parametric/nonparametric, distribution-free, ranks, judges ranking beer, efficiency · McClave içindekiler (PDF s.13): 14.1 Introduction: Distribution-Free Tests … 14.7 Rank Correlation · McClave §8.5 "What Do You Do When the Population Relative Frequency Distribution Departs Greatly from Normality? Answer: Use one of the nonparametric statistical methods of Chapter 14." -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Nonparametric = varsayımsız" değil. Random sample ve independence hâlâ gerekir; signed-rank test simetri ister; Kruskal–Wallis'in chi-square yaklaşımı her grupta en az 5 gözlem ister.</li>
+      <li>"Variance'lar farklı, o zaman nonparametric" yanlış. Population'lar normal ve sadece variance'lar farklıysa çare Welch t.</li>
+      <li>"Her zaman nonparametric kullanırım, daha güvenli" yanlış. Veri normalse power kaybedersin.</li>
+      <li>Hipotez değişir: çoğu nonparametric test mean'i değil, median'ı ya da "dağılımlar aynı mı" sorusunu test eder. $H_0$ yine eşitlik olarak yazılır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-why-2">
+    <p class="quiz__q">Hangisi nonparametric bir teste geçmek için <strong>iyi bir gerekçe değil</strong>?</p>
+    <button class="quiz__opt" data-correct>İki population da normal ama variance'ları çok farklı<span class="why">Doğru, bu iyi bir gerekçe değil. Normallik tutuyor; farklı variance'ların çaresi Welch t. Nonparametric'e geçmek gereksiz yere power kaybettirir.</span></button>
+    <button class="quiz__opt">Veriler, müşterilerin 1'den 5'e verdiği memnuniyet sıraları<span class="why">Bu iyi bir gerekçe: veri ordinal. 1 ile 2 arasındaki farkın 4 ile 5 arasındaki farka eşit olduğunu bilmiyorsun, rank'larla çalışmak doğal.</span></button>
+    <button class="quiz__opt">$n = 9$ ve histogram çok sağa çarpık<span class="why">Bu iyi bir gerekçe: slayt 26'nın son satırı. Küçük $n$, açıkça normal olmayan population.</span></button>
+    <button class="quiz__opt">Her denemede sadece "isabet" ya da "ıska" kaydediliyor<span class="why">Bu iyi bir gerekçe. Sayısal ölçüm yok; Walpole sign test'in bu tür + / − verilere uygulanabildiğini söylüyor.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="sign-test" data-min="5">
+  <h2>Sign test: median için binomial</h2>
+  <div class="quiz" id="q-sign-1">
+    <p class="quiz__q">$\eta_0$'a eşit gözlemler atıldıktan sonra $n = 10$ gözlem kaldı. $H_0: \eta = \eta_0$ doğruysa, $\eta_0$'ın üstündeki gözlem sayısı $X$'in dağılımı nedir?</p>
+    <button class="quiz__opt" data-correct>$\text{Bin}(10,\ 0.5)$<span class="why">Doğru. Median $\eta_0$ ise her gözlem 1/2 olasılıkla üstüne, 1/2 olasılıkla altına düşer. 10 bağımsız yazı-tura.</span></button>
+    <button class="quiz__opt">$\text{Bin}(10,\ \hat p)$, $\hat p$ sample'daki plus oranı<span class="why">$p$ değeri $H_0$'dan gelir, sample'dan değil. Week 4'teki proportion testinde de SE $p_0$ ile hesaplanıyordu.</span></button>
+    <button class="quiz__opt">9 df'li t dağılımı<span class="why">t, mean'in normal population'dan gelen sample'daki dağılımıdır. Burada sadece işaretleri sayıyorsun; sayının dağılımı binomial.</span></button>
+    <button class="quiz__opt">Normal, mean $\eta_0$<span class="why">Bu gözlemlerin kendi dağılımı hakkında bir varsayım olurdu. Sign test hiçbir dağılım varsaymıyor; sadece sayılan işaretlerin dağılımı belli.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · her gözlem bir yazı-tura</span>
+    <p>Population'ın median'ı gerçekten $\eta_0$ ise her gözlem yarı yarıya $\eta_0$'ın üstüne (+) ya da altına (−) düşer. O zaman plus sayısı, $n$ kere atılan hilesiz bir paradaki yazı sayısı gibi davranır: $\text{Bin}(n, 1/2)$. Soru, Week 4'teki exact binomial test'in aynısı: 10 atışta 3 yazı gelmesi şaşırtıcı mı? Bunu $p_0 = 0.5$ ile soruyorsun.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · sign test (Walpole §16.1, McClave §14.2)</span>
+    <ol>
+      <li>$H_0: \eta = \eta_0$. Varsayım: continuous bir population'dan random sample. Simetri gerekmez; dağılım çarpıksa hipotez median hakkındadır.</li>
+      <li>Her gözlemi $\eta_0$ ile karşılaştır: büyükse +, küçükse −. Tam $\eta_0$'a eşit olanları <strong>at</strong> ve $n$'yi o kadar azalt.</li>
+      <li>$X$ = plus sayısı. $H_0$ altında $X \sim \text{Bin}(n, 1/2)$.</li>
+      <li>p-value:
+        <div class="table-wrap"><table>
+          <tr><th>$H_a$</th><th>Kanıt</th><th>p-value</th></tr>
+          <tr><td>$\eta &lt; \eta_0$</td><td>az plus</td><td>$P(X \le x)$</td></tr>
+          <tr><td>$\eta &gt; \eta_0$</td><td>çok plus</td><td>$P(X \ge x)$</td></tr>
+          <tr><td>$\eta \ne \eta_0$</td><td>az ya da çok plus</td><td>$x &lt; n/2$ ise $2P(X \le x)$; $x &gt; n/2$ ise $2P(X \ge x)$</td></tr>
+        </table></div></li>
+      <li>p-value $\le \alpha$ ise reject $H_0$.</li>
+    </ol>
+    <p>McClave aynı testi $S$ ile yazar: upper-tailed testte $S$ = $\eta_0$'ın üstündeki gözlem sayısı, lower-tailed testte altındaki gözlem sayısı, two-tailed testte bu ikisinin büyüğü; p-value $= P(X \ge S)$, two-tailed'da $2P(X \ge S)$. Hep "beklenenden fazla olan tarafı" sayar. Sayılar Walpole'unkiyle aynı çıkar.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Walpole s.657</span>
+    <p>$n = 15$, $x = 3$ plus, $H_a: \eta &lt; \eta_0$:</p>
+    $$P = P(X \le 3) = \sum_{x=0}^{3} b\!\left(x;\ 15,\ \tfrac12\right) = \frac{1 + 15 + 105 + 455}{32768} = \frac{576}{32768} = 0.0176$$
+    <p>0.05 düzeyinde reject edilir, 0.01 düzeyinde edilmez.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Walpole Example 16.1 (hedge trimmer)</span>
+    <p>Şarj edilebilir bir çit makasının bir şarjla çalıştığı saatler: 1.5, 2.2, 0.9, 1.3, 2.0, 1.6, 1.8, 1.5, 2.0, 1.2, 1.7. Median'ın 1.8 saat olduğu hipotezini 0.05 düzeyinde sign test ile test et.</p>
+    <ol>
+      <li><strong>Hipotezler:</strong> $H_0: \eta = 1.8$, $H_a: \eta \ne 1.8$.</li>
+      <li><strong>Test statistic:</strong> 1.8'den büyüklere +, küçüklere − yaz; 1.8'e eşit olanı at: − + − − + − − + − −. Kalan $n = 10$, plus sayısı $x = 3$.</li>
+      <li><strong>p-value:</strong> $x = 3 &lt; n/2 = 5$, bu yüzden $p = 2P(X \le 3) = 2 \cdot \dfrac{1 + 10 + 45 + 120}{1024} = 2 \cdot 0.1719 = 0.3438$.</li>
+      <li><strong>Sonuç:</strong> $0.3438 &gt; 0.05$ ⇒ fail to reject $H_0$. Makasın median çalışma süresinin 1.8 saatten farklı olduğuna dair yeterli kanıt yok.</li>
+    </ol>
+  </div>
+  <!-- Kaynak: Walpole §16.1 "Sign Test" (kitap s.656–658), n = 15, x = 3 örneği (s.657), Example 16.1 (s.658–659). Python: binom.cdf(3,15,.5) = 0.017578; 2*binom.cdf(3,10,.5) = 0.34375; scipy binomtest(3,10) p = 0.34375. McClave'in S gösterimi Chapter 14 cevap anahtarından (ör. "14.7 c. S = 14 d. .0309"). -->
+
+  <h3>Kendin dene: işaretleri say, binomial kuyruğa bak</h3>
+  <p class="w-nonparametric-guess"><b>Önce tahmin et:</b> Örnek response time verisinde mean 66.75 ms, yani 60'ın üstünde. Median 60 ms'in altında mı? Sign test $H_a: \eta &lt; 60$ için küçük bir p-value verir mi?</p>
+  <div class="w-nonparametric-ctl">
+    <label>veri <select id="ws-set" class="btn btn--sm">
+      <option value="lat">Örnek: 12 response time (ms), η₀ = 60</option>
+      <option value="hedge">Walpole Ex 16.1: hedge trimmer</option>
+      <option value="tire">Walpole Ex 16.2: lastik farkları (radial − belted)</option>
+      <option value="own">kendi verim</option>
+    </select></label>
+  </div>
+  <div class="w-nonparametric-ctl">
+    <label class="w-nonparametric-wide">değerler <input id="ws-data" type="text" class="btn btn--sm w-nonparametric-field" value="" /></label>
+  </div>
+  <div class="w-nonparametric-ctl">
+    <label>η₀ <input id="ws-eta" type="text" class="btn btn--sm" value="" /></label>
+    <label>Hₐ <select id="ws-ha" class="btn btn--sm">
+      <option value="lt">η &lt; η₀</option>
+      <option value="gt">η &gt; η₀</option>
+      <option value="ne">η ≠ η₀</option>
+    </select></label>
+    <label>α <select id="ws-alpha" class="btn btn--sm">
+      <option value="0.01">0.01</option>
+      <option value="0.025">0.025</option>
+      <option value="0.05" selected>0.05</option>
+      <option value="0.10">0.10</option>
+    </select></label>
+    <button class="btn btn--sm btn--accent" id="ws-go">Hesapla</button>
+  </div>
+  <div class="w-nonparametric-err" id="ws-err" aria-live="polite"></div>
+  <div id="ws-out" aria-live="polite"></div>
+
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$\eta_0$'a eşit gözlemi + ya da − sayma, at. $n$ de azalır: Example 16.1'de 11 değil 10.</li>
+      <li>Two-tailed testte tek kuyruğu 2 ile çarp; one-tailed testte çarpma.</li>
+      <li>Kuyruk yönü $H_a$'dan gelir: $H_a: \eta &lt; \eta_0$ ise az plus kanıttır, $P(X \le x)$ hesaplanır.</li>
+      <li>Binomial'daki $p = 1/2$ $H_0$'dan gelir. $\hat p = x/n$ ile hesap yapma.</li>
+      <li>$p = 0.34$ "$H_0$ doğru" demek değil. "Fail to reject": kanıt yetersiz.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.1"><span class="box__label">Walpole 16.1 · kitap alıştırması</span>
+    <p>"The following data represent the time, in minutes, that a patient has to wait during 12 visits to a doctor's office before being seen by the doctor:</p>
+    <p>17 15 20 20 32 28 12 26 25 25 35 24</p>
+    <p>Use the sign test at the 0.05 level of significance to test the doctor's claim that the median waiting time for her patients is not more than 20 minutes."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Doktorun iddiası "not more than 20": bu $H_0$ tarafı. Kanıt aranan şey median'ın 20'den <em>büyük</em> olması, yani $H_a$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>20'ye eşit iki gözlemi at. Kalan 10 gözlemde kaç + var? Upper-tailed p-value $P(X \ge x)$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0: \eta = 20$, $H_a: \eta &gt; 20$.</li>
+        <li><strong>Test statistic:</strong> İki tane 20 atılır, $n = 10$. Plus (20'den büyük): 32, 28, 26, 25, 25, 35, 24 ⇒ $x = 7$. Minus: 17, 15, 12.</li>
+        <li><strong>p-value:</strong> $p = P(X \ge 7) = \dfrac{120 + 45 + 10 + 1}{1024} = \dfrac{176}{1024} = 0.1719$.</li>
+        <li><strong>Sonuç:</strong> $0.1719 &gt; 0.05$ ⇒ fail to reject $H_0$. Median bekleme süresinin 20 dakikayı geçtiğine dair yeterli kanıt yok; doktorun iddiası reddedilemiyor.</li>
+      </ol>
+      <p>Kitabın cevabı: $x = 7$, P-value $= 0.1719$; fail to reject $H_0$.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/walpole-probability-and-statistics-9e.pdf" target="_blank" rel="noopener">Orijinal soru (Walpole 9e, kitap s.663) ↗</a></p>
+    <!-- Kaynak: Walpole 16.1 (kitap s.663, PDF s.684) ve cevap anahtarı "16.1 x = 7 with P-value = 0.1719; fail to reject H0". Python: binom.sf(6,10,.5) = 0.171875. -->
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.2"><span class="box__label">Walpole 16.2 · kitap alıştırması</span>
+    <p>"The following data represent the number of hours of flight training received by 18 student pilots from a certain instructor prior to their first solo flight:</p>
+    <p>9 12 18 14 12 14 12 10 16 11 9 11 13 11 13 15 13 14</p>
+    <p>Using binomial probabilities from Table A.1, perform a sign test at the 0.02 level of significance to test the instructor's claim that the median time required before his students' solo is 12 hours of flight training."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İddia bir eşitlik ("is 12 hours") ve yön verilmemiş: two-tailed. Kaç tane 12 var?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Üç tane 12 atılınca $n = 15$. Plus sayısı $n/2 = 7.5$'ten büyükse p-value $2P(X \ge x)$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0: \eta = 12$, $H_a: \eta \ne 12$.</li>
+        <li><strong>Test statistic:</strong> Üç tane 12 atılır, $n = 15$. Plus: 18, 14, 14, 16, 13, 13, 15, 13, 14 ⇒ $x = 9$. Minus: 9, 10, 11, 9, 11, 11 (6 tane).</li>
+        <li><strong>p-value:</strong> $x = 9 &gt; 7.5$ ⇒ $p = 2P(X \ge 9) = 2 \cdot \dfrac{5005 + 3003 + 1365 + 455 + 105 + 15 + 1}{32768} = 2 \cdot 0.3036 = 0.6072$.</li>
+        <li><strong>Sonuç:</strong> $0.6072 &gt; 0.02$ ⇒ fail to reject $H_0$. Median eğitim süresinin 12 saatten farklı olduğuna dair kanıt yok; eğitmenin iddiası reddedilemiyor.</li>
+      </ol>
+      <p>Bu soru çift numaralı, kitabın cevap anahtarında yok.</p>
+    </div></details>
+    <!-- Kaynak: Walpole 16.2 (kitap s.663, PDF s.684). Python: 2*binom.sf(8,15,.5) = 0.607239. -->
+  </div>
+  <div class="quiz" id="q-sign-2">
+    <p class="quiz__q">Lower-tailed bir sign test'te $n = 15$, $x = 3$ ve $p = 0.0176$. $\alpha = 0.01$'de karar ne?</p>
+    <button class="quiz__opt" data-correct>Fail to reject, çünkü $0.0176 &gt; 0.01$<span class="why">Doğru. Reject için p-value $\alpha$'dan küçük ya da ona eşit olmalı. 0.0176, 0.01'den büyük.</span></button>
+    <button class="quiz__opt">Reject, çünkü p-value küçük<span class="why">"Küçük" neye göre? Karar her zaman $\alpha$ ile kıyaslanarak verilir. $\alpha = 0.05$ olsaydı reject ederdin, 0.01'de etmezsin.</span></button>
+    <button class="quiz__opt">Reject, çünkü $0.0176 &lt; 0.05$<span class="why">Soru $\alpha = 0.01$ diyor. Başka bir $\alpha$ ile kıyaslamak soruyu değiştirmek olur.</span></button>
+    <button class="quiz__opt">Karar verilemez, çünkü $n &lt; 30$<span class="why">Sign test exact binomial kullanır; küçük $n$'de de geçerli. Zaten bu yüzden var.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="sign-large" data-min="5">
+  <h2>Large-sample sign test ve paired veri</h2>
+  <div class="quiz" id="q-signz-1">
+    <p class="quiz__q">$n = 20$, $x = 6$ plus, $H_a: \eta &lt; \eta_0$. Normal yaklaşımla (continuity correction ile) $z$ kaçtır?</p>
+    <button class="quiz__opt" data-correct>$\dfrac{6.5 - 10}{\sqrt{5}} = -1.57$<span class="why">Doğru. $\mu = np = 10$, $\sigma = \sqrt{npq} = \sqrt{5} = 2.236$. $P(X \le 6)$, normal eğride 6.5'in solundaki alanla yaklaşık hesaplanır.</span></button>
+    <button class="quiz__opt">$\dfrac{6 - 10}{\sqrt 5} = -1.79$<span class="why">Continuity correction unutulmuş. Walpole kesikli $X \le 6$'yı continuous eğride $6.5$'e kadar alır.</span></button>
+    <button class="quiz__opt">$\dfrac{6.5 - 10}{5} = -0.70$<span class="why">Variance'la ($npq = 5$) bölmüşsün. Bölen standard deviation olmalı: $\sqrt{npq}$.</span></button>
+    <button class="quiz__opt">$\dfrac{6.5 - 10}{\sqrt{20}} = -0.78$<span class="why">$\sqrt n$ ile bölmüşsün; $pq = 1/4$ çarpanı unutulmuş. $\sigma = \sqrt{n \cdot 0.5 \cdot 0.5} = 0.5\sqrt n$.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · normal yaklaşımı (Walpole §16.1)</span>
+    <p>$n &gt; 10$ olunca ($np = nq &gt; 5$) $\text{Bin}(n, 1/2)$ normal eğriyle yaklaşık hesaplanabilir:</p>
+    $$\mu = \frac n2, \qquad \sigma = \sqrt{npq} = \sqrt{\frac n4} = 0.5\sqrt n$$
+    <div class="table-wrap"><table>
+      <tr><th>$H_a$</th><th>z</th><th>p-value</th></tr>
+      <tr><td>$\eta &lt; \eta_0$</td><td>$z = \dfrac{x + 0.5 - n/2}{0.5\sqrt n}$</td><td>$P(Z &lt; z)$</td></tr>
+      <tr><td>$\eta &gt; \eta_0$</td><td>$z = \dfrac{x - 0.5 - n/2}{0.5\sqrt n}$</td><td>$P(Z &gt; z)$</td></tr>
+      <tr><td>$\eta \ne \eta_0$</td><td>az olan tarafın kuyruğu</td><td>o kuyruğun 2 katı</td></tr>
+    </table></div>
+    <p>±0.5, <strong>continuity correction</strong>'dır: $X \le 6$ olasılığı eğride 6.5'e kadar olan alanla yaklaşık hesaplanır. Bazı kitaplar ve yazılımlar bu düzeltmeyi yapmaz; fark küçüktür ama sınırda karar değişebilir. Küçük $n$'de exact binomial'ı kullan.</p>
+    <p>Walpole'un örneği: $n = 20$, $x = 6$, $H_a: \eta &lt; \eta_0$, $\alpha = 0.05$. $z = (6.5 - 10)/2.236 = -1.57$, $p \approx P(Z &lt; -1.57) = 0.0582$ ⇒ fail to reject. Exact binomial $P(X \le 6) = 0.0577$; neredeyse aynı.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · paired veride sign test</span>
+    <p>Aynı birim iki koşulda ölçüldüyse (aynı araba iki tip lastikle, aynı panelin iki yarısı) farkları al: $d_i = x_{1i} - x_{2i}$. Sonra $d_i$'ler üzerinde tek sample sign test yap:</p>
+    <ul>
+      <li>Fark değişkeni $D = X_1 - X_2$, onun median'ı $\eta_D$. $H_0: \eta_D = D_0$. Her farkın işaretini $d_i - D_0$'a göre ver; sıfırları at.</li>
+      <li>Walpole bu hipotezi $\tilde\mu_1 - \tilde\mu_2 = d_0$ diye yazar, ama test edilen şey farkların median'ı $\eta_D$'dir. Genelde $\operatorname{median}(X_1 - X_2) \ne \operatorname{median}(X_1) - \operatorname{median}(X_2)$. Walpole 16.7'deki koşucu verisinde farkların sample median'ı 6, iki sample median'ının farkı ise $162 - 156.5 = 5.5$.</li>
+      <li>Sign test sadece işaretleri kullandığı için sayısal ölçüm bile gerekmez: "A daha iyi / B daha iyi" yeterli. Walpole'un örnekleri: isabet / ıska, tadımcının malzemeyi doğru ya da yanlış tanıması.</li>
+      <li>Rakibi t test'tir. Population normalse t'nin power'ı daha yüksektir; dağılım simetrik ama normal değilse de t çoğunlukla tercih edilir, yeter ki kuyruklar normale göre çok ağır olmasın.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Walpole Example 16.2 (radial lastik)</span>
+    <p>16 taksi önce radial, sonra aynı sürücüyle belted lastikle aynı parkurda sürülüyor (km/L). Radial lastikler yakıt ekonomisini artırıyor mu? $\alpha = 0.05$.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Car</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td><td>13</td><td>14</td><td>15</td><td>16</td></tr>
+      <tr><th>Radial</th><td>4.2</td><td>4.7</td><td>6.6</td><td>7.0</td><td>6.7</td><td>4.5</td><td>5.7</td><td>6.0</td><td>7.4</td><td>4.9</td><td>6.1</td><td>5.2</td><td>5.7</td><td>6.9</td><td>6.8</td><td>4.9</td></tr>
+      <tr><th>Belted</th><td>4.1</td><td>4.9</td><td>6.2</td><td>6.9</td><td>6.8</td><td>4.4</td><td>5.7</td><td>5.8</td><td>6.9</td><td>4.9</td><td>6.0</td><td>4.9</td><td>5.3</td><td>6.5</td><td>7.1</td><td>4.8</td></tr>
+      <tr><th>İşaret</th><td>+</td><td>−</td><td>+</td><td>+</td><td>−</td><td>+</td><td>0</td><td>+</td><td>+</td><td>0</td><td>+</td><td>+</td><td>+</td><td>+</td><td>−</td><td>+</td></tr>
+    </table></div>
+    <ol>
+      <li><strong>Hipotezler:</strong> $D$ = radial − belted (km/L), $\eta_D$ farkın median'ı. $H_0: \eta_D = 0$, $H_a: \eta_D &gt; 0$.</li>
+      <li><strong>Test statistic:</strong> İki sıfır fark atılır, $n = 14$, plus sayısı $x = 11$. $z = \dfrac{11 - 0.5 - 7}{\sqrt{14 \cdot 0.25}} = \dfrac{3.5}{1.871} = 1.87$.</li>
+      <li><strong>p-value:</strong> $p \approx P(Z &gt; 1.87) = 0.0307$. (Exact binomial: $P(X \ge 11) = 0.0287$.)</li>
+      <li><strong>Sonuç:</strong> $0.0307 &lt; 0.05$ ⇒ reject $H_0$. Radial lastiklerin yakıt ekonomisini artırdığına dair yeterli kanıt var.</li>
+    </ol>
+  </div>
+  <!-- Kaynak: Walpole §16.1 normal approximation (kitap s.658), Example 16.2 ve Table 16.1 (s.659–660), sign test'in dichotomous veriye uygulanması ve t test ile karşılaştırma (s.660). Python: (6.5−10)/sqrt(5) = −1.565, norm.cdf(−1.57) = 0.0582, binom.cdf(6,20,.5) = 0.0577; tires n = 14, x = 11, z = 1.871, norm.sf(1.87) = 0.0307, binom.sf(10,14,.5) = 0.0287. Walpole 16.7 verisi: median(after − before) = 6, median(after) − median(before) = 162 − 156.5 = 5.5. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Continuity correction'ın yönü: lower tail'de $x + 0.5$, upper tail'de $x - 0.5$. Ters yaparsan p-value büyür ya da küçülür.</li>
+      <li>$\sigma = \sqrt{npq}$, $npq$ değil. Variance ile standard deviation'ı karıştırma.</li>
+      <li>Paired veride iki sample'ın median'larını ayrı ayrı bulup karşılaştırma; her çiftin farkının işaretini say.</li>
+      <li>$D_0 \ne 0$ ise işaret $d_i - D_0$'a göre verilir. Önce çıkar, sonra işaretle.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.3"><span class="box__label">Walpole 16.3 · kitap alıştırması</span>
+    <p>"A food inspector examined 16 jars of a certain brand of jam to determine the percent of foreign impurities. The following data were recorded:</p>
+    <p>2.4 2.3 3.1 2.2 2.3 1.2 1.0 2.4 1.7 1.1 4.2 1.9 1.7 3.6 1.6 2.3</p>
+    <p>Using the normal approximation to the binomial distribution, perform a sign test at the 0.05 level of significance to test the null hypothesis that the median percent of impurities in this brand of jam is 2.5% against the alternative that the median percent of impurities is not 2.5%."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Hiçbir değer 2.5'e eşit değil, $n = 16$. 2.5'in üstünde kaç değer var?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$x &lt; n/2$ ⇒ lower tail'i hesapla ($x + 0.5$), sonra iki katını al.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0: \eta = 2.5$, $H_a: \eta \ne 2.5$.</li>
+        <li><strong>Test statistic:</strong> $n = 16$; plus: 3.1, 4.2, 3.6 ⇒ $x = 3$. $\mu = 8$, $\sigma = 0.5\sqrt{16} = 2$. $z = \dfrac{3 + 0.5 - 8}{2} = -2.25$.</li>
+        <li><strong>p-value:</strong> $p = 2P(Z &lt; -2.25) = 2(0.0122) = 0.0244$.</li>
+        <li><strong>Sonuç:</strong> $0.0244 &lt; 0.05$ ⇒ reject $H_0$. Bu markanın median yabancı madde yüzdesi %2.5'ten farklı (sample'a göre daha düşük).</li>
+      </ol>
+      <p>Kitabın cevabı: $x = 3$, P-value $= 0.0244$; reject $H_0$. Exact binomial ile $2P(X \le 3) = 0.0213$; karar aynı.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/walpole-probability-and-statistics-9e.pdf" target="_blank" rel="noopener">Orijinal soru (Walpole 9e, kitap s.663) ↗</a></p>
+    <!-- Kaynak: Walpole 16.3 (kitap s.663) ve cevap anahtarı. Python: 2*norm.cdf(−2.25) = 0.02445; 2*binom.cdf(3,16,.5) = 0.02127. -->
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.4"><span class="box__label">Walpole 16.4 · kitap alıştırması</span>
+    <p>"A paint supplier claims that a new additive will reduce the drying time of its acrylic paint. To test this claim, 12 panels of wood were painted, one-half of each panel with paint containing the regular additive and the other half with paint containing the new additive. The drying times, in hours, were recorded as follows:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Panel</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td></tr>
+      <tr><th>New Additive</th><td>6.4</td><td>5.8</td><td>7.4</td><td>5.5</td><td>6.3</td><td>7.8</td><td>8.6</td><td>8.2</td><td>7.0</td><td>4.9</td><td>5.9</td><td>6.5</td></tr>
+      <tr><th>Regular Additive</th><td>6.6</td><td>5.8</td><td>7.8</td><td>5.7</td><td>6.0</td><td>8.4</td><td>8.8</td><td>8.4</td><td>7.3</td><td>5.8</td><td>5.8</td><td>6.5</td></tr>
+    </table></div>
+    <p>Use the sign test at the 0.05 level to test the null hypothesis that the new additive is no better than the regular additive in reducing the drying time of this kind of paint."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her panel kendi içinde bir çift: $d = \text{new} - \text{regular}$. Yeni katkı kurumayı kısaltıyorsa farklar çoğunlukla negatif olur.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İki sıfır fark var. $n = 10$ küçük: exact binomial kullan ve p-value'yu 0.05 ile dikkatle karşılaştır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $D$ = new − regular (aynı panelde kuruma süresi farkı), $\eta_D$ farkın median'ı. $H_0: \eta_D = 0$ (yeni katkı daha iyi değil), $H_a: \eta_D &lt; 0$ (yeni katkı süreyi kısaltıyor).</li>
+        <li><strong>Test statistic:</strong> $d$: −0.2, 0, −0.4, −0.2, +0.3, −0.6, −0.2, −0.2, −0.3, −0.9, +0.1, 0. İki sıfır atılır, $n = 10$, plus sayısı $x = 2$.</li>
+        <li><strong>p-value:</strong> $p = P(X \le 2) = \dfrac{1 + 10 + 45}{1024} = \dfrac{56}{1024} = 0.0547$.</li>
+        <li><strong>Sonuç:</strong> $0.0547 &gt; 0.05$ ⇒ fail to reject $H_0$. 0.05 düzeyinde yeni katkının kuruma süresini kısalttığına dair yeterli kanıt yok. Sonuç sınırda: $\alpha = 0.10$ seçilmiş olsaydı reject edilirdi. Karar veriye bakmadan seçilen $\alpha$'ya göre verilir, p-value görüldükten sonra $\alpha$ değiştirilmez.</li>
+      </ol>
+      <p>Bu soru çift numaralı, kitabın cevap anahtarında yok.</p>
+    </div></details>
+    <!-- Kaynak: Walpole 16.4 (kitap s.663, tablo s.663). Python: farklar ve binom.cdf(2,10,.5) = 0.0546875. -->
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.7"><span class="box__label">Walpole 16.7 · kitap alıştırması</span>
+    <p>"The following figures give the systolic blood pressure of 16 joggers before and after an 8-kilometer run:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Jogger</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td><td>13</td><td>14</td><td>15</td><td>16</td></tr>
+      <tr><th>Before</th><td>158</td><td>149</td><td>160</td><td>155</td><td>164</td><td>138</td><td>163</td><td>159</td><td>165</td><td>145</td><td>150</td><td>161</td><td>132</td><td>155</td><td>146</td><td>159</td></tr>
+      <tr><th>After</th><td>164</td><td>158</td><td>163</td><td>160</td><td>172</td><td>147</td><td>167</td><td>169</td><td>173</td><td>147</td><td>156</td><td>164</td><td>133</td><td>161</td><td>154</td><td>170</td></tr>
+    </table></div>
+    <p>Use the sign test at the 0.05 level of significance to test the null hypothesis that jogging 8 kilometers increases the median systolic blood pressure by 8 points against the alternative that the increase in the median is less than 8 points."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$d = \text{after} - \text{before}$, $D_0 = 8$. İşareti $d - 8$'e göre ver.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$d - 8 = 0$ olan üç koşucu atılır. $H_a$ "8'den az" ⇒ az plus kanıttır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $D$ = after − before, $\eta_D$ tansiyon artışının median'ı. $H_0: \eta_D = 8$, $H_a: \eta_D &lt; 8$.</li>
+        <li><strong>Test statistic:</strong> $d$: 6, 9, 3, 5, 8, 9, 4, 10, 8, 2, 6, 3, 1, 6, 8, 11. $d - 8$: −2, +1, −5, −3, 0, +1, −4, +2, 0, −6, −2, −5, −7, −2, 0, +3. Üç sıfır atılır, $n = 13$, plus sayısı $x = 4$.</li>
+        <li><strong>p-value:</strong> $p = P(X \le 4) = \dfrac{1 + 13 + 78 + 286 + 715}{8192} = \dfrac{1093}{8192} = 0.1334$.</li>
+        <li><strong>Sonuç:</strong> $0.1334 &gt; 0.05$ ⇒ fail to reject $H_0$. Median artışın 8 puandan az olduğuna dair yeterli kanıt yok.</li>
+      </ol>
+      <p>Kitabın cevabı: $x = 4$, P-value $= 0.1335$ (tablodan yuvarlama farkı); fail to reject $H_0$. Aynı veriyi Bölüm 7'de signed-rank test ile çözeceksin (Walpole 16.13); sonuç değişecek.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/walpole-probability-and-statistics-9e.pdf" target="_blank" rel="noopener">Orijinal soru (Walpole 9e, kitap s.664) ↗</a></p>
+    <!-- Kaynak: Walpole 16.7 (kitap s.664, PDF s.685) ve cevap anahtarı "16.7 x = 4 with P-value = 0.1335". Python: binom.cdf(4,13,.5) = 0.133423. -->
+  </div>
+  <div class="quiz" id="q-signz-2">
+    <p class="quiz__q">Bir sign test'te p-value $0.0547$ çıktı ve soru $\alpha = 0.05$ diyor. Hangisi doğru?</p>
+    <button class="quiz__opt" data-correct>Fail to reject $H_0$<span class="why">Doğru. $0.0547 &gt; 0.05$. Fark küçük ama kural net: p-value $\le \alpha$ değilse reject yok.</span></button>
+    <button class="quiz__opt">Reject $H_0$, çünkü 0.0547 yaklaşık 0.05<span class="why">"Yaklaşık" bir karar kuralı değil. Sınır veriye bakmadan çizilir; p-value onu geçmiyorsa reject edilmez.</span></button>
+    <button class="quiz__opt">$\alpha$'yı 0.10 yap, o zaman reject<span class="why">$\alpha$ veriye bakmadan seçilir. Sonucu görüp $\alpha$'yı değiştirmek Type I error kontrolünü bozar.</span></button>
+    <button class="quiz__opt">$H_0$ doğru, yeni yöntem işe yaramıyor<span class="why">Fail to reject, $H_0$'ın doğru olduğunu göstermez. Sadece 0.05 düzeyinde yeterli kanıt bulunamadı.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="rank-sum" data-min="6">
+  <h2>Wilcoxon rank-sum test: iki independent sample</h2>
+  <div class="quiz" id="q-rs-1">
+    <p class="quiz__q">$n_1 = 3$ ve $n_2 = 4$ gözlem birlikte sıralanıp 1'den 7'ye rank verildi. Birinci sample'ın rank toplamı $W_1 = 10$ ise $W_2$ kaçtır?</p>
+    <button class="quiz__opt" data-correct>18<span class="why">Doğru. Bütün rank'ların toplamı her zaman $1 + 2 + \dots + 7 = 7 \cdot 8/2 = 28$. $W_2 = 28 - 10 = 18$.</span></button>
+    <button class="quiz__opt">10, çünkü $H_0$ altında iki toplam eşit<span class="why">Toplamlar ancak $n_1 = n_2$ ise ortalamada eşit olur. Burada ikinci sample'da daha çok gözlem var; toplamı daha büyük olmak zorunda.</span></button>
+    <button class="quiz__opt">Verilerin değerlerini bilmeden bulunamaz<span class="why">Bulunur. $W_1 + W_2 = N(N+1)/2$ sadece $N$'ye bağlıdır; gözlemlerin değeri bu toplamı değiştirmez.</span></button>
+    <button class="quiz__opt">25<span class="why">Toplam rank 28; $28 - 10 = 18$. 25 hiçbir formülden çıkmıyor; rank toplamını yeniden hesapla.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · rank'lar rastgele dağılmalı</span>
+    <p>İki sample aynı population'dan geliyorsa, birleştirip sıraladığında A'ların ve B'lerin rank'ları karışık durmalı. A'ların hepsi en küçük rank'ları almışsa (1, 2, 3 gibi) bu şansa zor bağlanır. 7 gözlemi 3'e 4 ayırmanın $\binom 73 = 35$ yolu var ve $H_0$ altında hepsi eşit olasılıklı. A'nın rank toplamının en küçük değeri $1 + 2 + 3 = 6$, olasılığı $1/35 = 0.029$.</p>
+    <p>Rank-sum test, iki sample t test'in nonparametric karşılığıdır. Ortalamalar yerine rank toplamlarını kıyaslar; tek bir uç değer en fazla en büyük rank'ı alır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Wilcoxon rank-sum test (McClave §14.3, Walpole §16.3)</span>
+    <p><strong>Koşullar:</strong> iki independent random sample (eşleştirme yok), continuous population'lar.</p>
+    <p><strong>Hipotezler (McClave):</strong> $H_0$: $D_1$ ve $D_2$ dağılımları aynı. $H_a$: $D_1$, $D_2$'nin sağına kaymış (shifted to the right), soluna kaymış ya da iki yönden biri (two-tailed). Walpole aynı testi median'larla yazar: $H_0: \tilde\mu_1 = \tilde\mu_2$.</p>
+    <p><strong>Median yorumu ne zaman geçerli?</strong> "Dağılımlar aynı" ile "median'lar eşit" ancak <strong>location-shift</strong> modelinde aynı şeydir: iki dağılımın shape'i ve spread'i aynı, sadece biri ötekine göre kaymış. Shape ya da spread farklıysa reject, median'ların farklı olduğunu göstermeyebilir; sadece iki dağılımın aynı olmadığını söyler. Bu sayfadaki çözümlerde median yazılan her yerde bu model varsayılıyor.</p>
+    <ol>
+      <li>İki sample'ı birleştir, küçükten büyüğe sırala, $1, 2, \dots, N = n_1 + n_2$ rank'larını ver.</li>
+      <li><strong>Ties:</strong> eşit gözlemler, ayrı olsalardı alacakları rank'ların ortalamasını alır. 10. ve 11. sıradaki iki 4.0'ın ikisi de 10.5 alır.</li>
+      <li>$T_1$ = küçük sample'ın rank toplamı (sample'lar eşitse herhangi biri). Kontrol: $T_1 + T_2 = N(N+1)/2$.</li>
+      <li>Rejection region (McClave Table IX, $3 \le n_1, n_2 \le 10$):
+        <div class="table-wrap"><table>
+          <tr><th>$H_a$</th><th>Reject $H_0$ if</th></tr>
+          <tr><td>$D_1$ soluna kaymış ($\eta_1 &lt; \eta_2$)</td><td>$T_1 \le T_L$</td></tr>
+          <tr><td>$D_1$ sağına kaymış ($\eta_1 &gt; \eta_2$)</td><td>$T_1 \ge T_U$</td></tr>
+          <tr><td>two-tailed</td><td>$T_1 \le T_L$ ya da $T_1 \ge T_U$</td></tr>
+        </table></div>
+        Table IX'un (a) kısmı $\alpha = .025$ one-tailed / $.05$ two-tailed, (b) kısmı $\alpha = .05$ one-tailed / $.10$ two-tailed içindir.</li>
+    </ol>
+    <p><strong>Walpole'un yazımı, Mann–Whitney U:</strong> $u_1 = w_1 - \dfrac{n_1(n_1+1)}{2}$, $u_2 = w_2 - \dfrac{n_2(n_2+1)}{2}$, $u_1 + u_2 = n_1 n_2$. $H_a: \tilde\mu_1 &lt; \tilde\mu_2$ için $u_1$, $\tilde\mu_1 &gt; \tilde\mu_2$ için $u_2$, two-tailed için $u = \min(u_1, u_2)$ kullanılır ve değer Table A.17'deki sınırdan küçük ya da ona eşitse reject edilir. Test aynı, sadece ölçek farklı: $u_1$, "1. sample'dan bir gözlemin 2. sample'dan bir gözlemden büyük olduğu" çiftlerin sayısıdır (eşitlik yarım sayılır). SciPy'nin <code>mannwhitneyu</code> fonksiyonu bu $U$'yu verir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Walpole s.666 ($n_1 = 3$, $n_2 = 5$)</span>
+    <p>$H_a: \tilde\mu_1 &lt; \tilde\mu_2$, $\alpha = 0.05$, küçük sample'ın rank toplamı $w_1 = 8$.</p>
+    <ul>
+      <li>Walpole: $u_1 = 8 - \dfrac{3 \cdot 4}{2} = 2$. Table A.17: $u_1 \le 1$ olursa reject. $2 &gt; 1$ ⇒ fail to reject.</li>
+      <li>McClave: Table IX(b), $n_1 = 3$, $n_2 = 5$: $T_L = 7$. $T_1 = 8 &gt; 7$ ⇒ fail to reject. Aynı karar.</li>
+      <li>Exact: $\binom 83 = 56$ eşit olasılıklı bölüşümden $T_1 \le 8$ verenler {1,2,3}, {1,2,4}, {1,2,5}, {1,3,4}: $p = 4/56 = 0.071$.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Walpole Example 16.5 (nikotin)</span>
+    <p>İki sigara markasının nikotin içeriği (mg). Median'lar eşit mi? $\alpha = 0.05$.</p>
+    <p>Brand A: 2.1, 4.0, 6.3, 5.4, 4.8, 3.7, 6.1, 3.3 ($n_1 = 8$) · Brand B: 4.1, 0.6, 3.1, 2.5, 4.0, 6.2, 1.6, 2.2, 1.9, 5.4 ($n_2 = 10$)</p>
+    <div class="table-wrap"><table>
+      <tr><th>Değer</th><td>0.6</td><td>1.6</td><td>1.9</td><td>2.1</td><td>2.2</td><td>2.5</td><td>3.1</td><td>3.3</td><td>3.7</td><td>4.0</td><td>4.0</td><td>4.1</td><td>4.8</td><td>5.4</td><td>5.4</td><td>6.1</td><td>6.2</td><td>6.3</td></tr>
+      <tr><th>Marka</th><td>B</td><td>B</td><td>B</td><td>A</td><td>B</td><td>B</td><td>B</td><td>A</td><td>A</td><td>A</td><td>B</td><td>B</td><td>A</td><td>A</td><td>B</td><td>A</td><td>B</td><td>A</td></tr>
+      <tr><th>Rank</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10.5</td><td>10.5</td><td>12</td><td>13</td><td>14.5</td><td>14.5</td><td>16</td><td>17</td><td>18</td></tr>
+    </table></div>
+    <ol>
+      <li><strong>Hipotezler:</strong> $H_0$: iki markanın nikotin dağılımları aynı ($\tilde\mu_A = \tilde\mu_B$); $H_a$: biri ötekine göre kaymış ($\tilde\mu_A \ne \tilde\mu_B$).</li>
+      <li><strong>Test statistic:</strong> A küçük sample. $T_A = 4 + 8 + 9 + 10.5 + 13 + 14.5 + 16 + 18 = 93$, $T_B = \dfrac{18 \cdot 19}{2} - 93 = 78$.</li>
+      <li><strong>Rejection region:</strong> Table IX(a), $n_1 = 8$, $n_2 = 10$, two-tailed $\alpha = .05$: $T_L = 54$, $T_U = 98$. $54 &lt; 93 &lt; 98$ ⇒ rejection region'da değil. (Walpole: $u_1 = 93 - 36 = 57$, $u_2 = 78 - 55 = 23$, $u = 23 &gt; 17$.)</li>
+      <li><strong>Sonuç:</strong> fail to reject $H_0$. İki markanın median nikotin içeriği arasında anlamlı fark yok.</li>
+    </ol>
+  </div>
+  <!-- Kaynak: Walpole §16.3 (kitap s.665–667): w1 + w2 = (n1+n2)(n1+n2+1)/2, n1 = 3 ve n2 = 4'te 28, u1/u2 tanımı, Table 16.4, n1 = 3, n2 = 5, w1 = 8 örneği, Example 16.5 ve rank tablosu · McClave Table IX (s.856, PDF s.858): "Test statistic is the rank sum associated with the smaller sample"; (a) n1=8, n2=10: 54, 98; (b) n1=3, n2=5: 7, 20 · McClave §9.2 "Answer: … use the Wilcoxon rank sum test for independent samples to test for a shift in population distributions" · Walpole Table A.17 (s.760–761): n1=3,n2=5 one-tailed .05: 1; n1=8,n2=10 two-tailed .05: 17. Python: T_A = 93, exact two-sided p = 0.1392 (43758 bölüşüm, tie'lar dahil), U pairs (A > B, eşitlik 0.5) = 57; P(T1 ≤ 8 | 3,5) = 4/56. McClave'in rejection region kutusu (T1 ≤ TL / T1 ≥ TU) Chapter 14 metni repoda olmadığı için Table IX başlığı ve cevap anahtarı (ör. "14.21 a. T1 ≤ 41, T1 ≥ 71") üzerinden yazıldı. -->
+
+  <h3>Kendin dene: birleştir, sırala, rank ver</h3>
+  <p class="w-nonparametric-guess"><b>Önce tahmin et:</b> Nikotin verisinde iki tane 4.0 ve iki tane 5.4 var. Bu tie'lar hangi rank'ları alır? A'nın rank toplamı, $H_0$ altında beklenen $n_1(N+1)/2 = 76$'nın ne kadar üstünde?</p>
+  <div class="w-nonparametric-ctl">
+    <label>veri <select id="wg1-set" class="btn btn--sm">
+      <option value="nic">Walpole Ex 16.5: nikotin (8 / 10)</option>
+      <option value="small">Küçük örnek (3 / 5)</option>
+      <option value="own">kendi verim</option>
+    </select></label>
+  </div>
+  <div class="w-nonparametric-ctl">
+    <textarea id="wg1-data" class="w-nonparametric-area" rows="3" aria-label="Gruplar: her satıra bir grup, ör. A: 1, 2, 3"></textarea>
+  </div>
+  <div class="w-nonparametric-ctl">
+    <label>Hₐ (iki grup) <select id="wg1-ha" class="btn btn--sm">
+      <option value="two">iki yönlü</option>
+      <option value="right">1. satırdaki grup sağa kaymış</option>
+      <option value="left">1. satırdaki grup sola kaymış</option>
+    </select></label>
+    <label>α <select id="wg1-alpha" class="btn btn--sm">
+      <option value="0.01">0.01</option>
+      <option value="0.025">0.025</option>
+      <option value="0.05" selected>0.05</option>
+      <option value="0.10">0.10</option>
+    </select></label>
+    <button class="btn btn--sm btn--accent" id="wg1-go">Kur</button>
+  </div>
+  <div class="w-nonparametric-err" id="wg1-err" aria-live="polite"></div>
+  <div id="wg1-stepper"></div>
+
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Her sample'ı kendi içinde sıralama. Rank'lar <strong>birleştirilmiş</strong> veride verilir; bütün fikir iki grubun birbirine göre nerede durduğu.</li>
+      <li>Table IX küçük sample'ın rank toplamı içindir. Büyük sample'ın toplamını $T_L$, $T_U$ ile kıyaslarsan yanlış karar verirsin.</li>
+      <li>$T$ ile $U$ farklı sayılardır: $T_A = 93$ iken $U_A = 57$. $T$'yi Walpole'un $U$ tablosuyla (ya da tersini) kıyaslama.</li>
+      <li>Aynı birimden iki ölçüm (önce / sonra) varsa sample'lar independent değildir: rank-sum değil, signed-rank (Bölüm 6–7).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.15"><span class="box__label">Walpole 16.15 · kitap alıştırması</span>
+    <p>"A cigarette manufacturer claims that the tar content of brand B cigarettes is lower than that of brand A cigarettes. To test this claim, the following determinations of tar content, in milligrams, were recorded:</p>
+    <p>Brand A: 1 12 9 13 11 14<br>Brand B: 8 10 7</p>
+    <p>Use the rank-sum test with α = 0.05 to test whether the claim is valid."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Küçük sample B ($n_1 = 3$), büyük sample A ($n_2 = 6$). İddia "B daha düşük": $D_B$, $D_A$'nın soluna kaymış ⇒ lower-tailed.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>9 değeri birlikte sırala; B'nin rank'larını topla ve Table IX(b)'deki $T_L$ ile kıyasla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0$: B ve A'nın tar dağılımları aynı ($\tilde\mu_B = \tilde\mu_A$); $H_a$: B'nin dağılımı sola kaymış ($\tilde\mu_B &lt; \tilde\mu_A$).</li>
+        <li><strong>Test statistic:</strong> Sıralama: 1(A)→1, 7(B)→2, 8(B)→3, 9(A)→4, 10(B)→5, 11(A)→6, 12(A)→7, 13(A)→8, 14(A)→9. $T_B = 2 + 3 + 5 = 10$.</li>
+        <li><strong>Rejection region:</strong> Table IX(b), $n_1 = 3$, $n_2 = 6$, one-tailed $\alpha = .05$: $T_L = 8$. Reject if $T_B \le 8$; $10 &gt; 8$ ⇒ fail to reject. (Walpole: $u_1 = 10 - 6 = 4$, Table A.17 sınırı 2; $4 &gt; 2$. Exact $p = P(T_B \le 10) = 11/84 = 0.131$.)</li>
+        <li><strong>Sonuç:</strong> 0.05 düzeyinde B markasının tar içeriğinin A'dan düşük olduğuna dair yeterli kanıt yok; üreticinin iddiası desteklenmiyor.</li>
+      </ol>
+      <p>Kitabın cevabı: $u_1 = 4$; claim is not valid.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/walpole-probability-and-statistics-9e.pdf" target="_blank" rel="noopener">Orijinal soru (Walpole 9e, kitap s.670) ↗</a></p>
+    <!-- Kaynak: Walpole 16.15 (kitap s.670, PDF s.691) ve cevap anahtarı "16.15 u1 = 4; claim is not valid". McClave Table IX(b) n1=3, n2=6: TL = 8, TU = 22. Walpole Table A.17 one-tailed .05, n1=3, n2=6: 2. Python: 11/84 = 0.1310. -->
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.19"><span class="box__label">Walpole 16.19 · kitap alıştırması</span>
+    <p>"From a mathematics class of 12 equally capable students using programmed materials, 5 students are selected at random and given additional instruction by the teacher. The results on the final examination are as follows:</p>
+    <p>Additional Instruction: 87 69 78 91 80<br>No Additional Instruction: 75 88 64 82 93 79 67</p>
+    <p>Use the rank-sum test with α = 0.05 to determine if the additional instruction affects the average grade."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Affects": yön yok, two-tailed. Küçük sample ek ders alan 5 öğrenci.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>12 notu sırala. Table IX(a), $n_1 = 5$, $n_2 = 7$: $T_L$ ve $T_U$'yu bul.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0$: iki grubun not dağılımları aynı; $H_a$: biri ötekine göre kaymış ($\tilde\mu_1 \ne \tilde\mu_2$).</li>
+        <li><strong>Test statistic:</strong> Sıralama: 64(1), 67(2), <u>69</u>(3), 75(4), <u>78</u>(5), 79(6), <u>80</u>(7), 82(8), <u>87</u>(9), 88(10), <u>91</u>(11), 93(12). Altı çizili olanlar ek ders alanlar: $T_1 = 3 + 5 + 7 + 9 + 11 = 35$.</li>
+        <li><strong>Rejection region:</strong> Table IX(a), $n_1 = 5$, $n_2 = 7$, two-tailed $\alpha = .05$: $T_L = 20$, $T_U = 45$. $20 &lt; 35 &lt; 45$ ⇒ fail to reject. (Walpole: $u_1 = 35 - 15 = 20$, $w_2 = 78 - 35 = 43$, $u_2 = 43 - 28 = 15$, $u = 15 &gt; 5$. Exact two-tailed $p = 0.755$.)</li>
+        <li><strong>Sonuç:</strong> Ek dersin final notlarını etkilediğine dair yeterli kanıt yok.</li>
+      </ol>
+      <p>Kitabın cevabı: $u = 15$; fail to reject $H_0$.</p>
+    </div></details>
+    <!-- Kaynak: Walpole 16.19 (kitap s.670) ve cevap anahtarı "16.19 u = 15; fail to reject H0". McClave Table IX(a) n1=5, n2=7: 20, 45. Walpole Table A.17 two-tailed .05, n1=5, n2=7: 5. Python: exact two-sided 0.7551. -->
+  </div>
+  <div class="quiz" id="q-rs-2">
+    <p class="quiz__q">Bir arkadaşın rank-sum test'te A grubunu kendi içinde 1'den 6'ya, B grubunu da kendi içinde 1'den 8'e sıralamış ve rank toplamlarını karşılaştırıyor. Sorun ne?</p>
+    <button class="quiz__opt" data-correct>Rank'lar birleştirilmiş veride verilmeli; ayrı ayrı sıralayınca toplamlar sadece $n$'lere bağlı olur<span class="why">Doğru. Ayrı sıralamada A'nın toplamı hep $21$, B'ninki hep $36$ çıkar; veriden hiçbir bilgi kalmaz.</span></button>
+    <button class="quiz__opt">Sorun yok, sadece büyük grubun toplamını kullanması gerekir<span class="why">Sorun hangi toplamın kullanıldığı değil, rank'ların nasıl verildiği. Ayrı sıralama grupları birbirine göre hiç kıyaslamaz.</span></button>
+    <button class="quiz__opt">Tie'ları ortalama rank ile vermesi gerekirdi<span class="why">Tie kuralı doğru, ama asıl hata başka: iki grup birlikte sıralanmamış.</span></button>
+    <button class="quiz__opt">Rank yerine ortalamaları kıyaslaması gerekir<span class="why">O t test olurdu. Rank-sum test rank'larla çalışır, sadece rank'lar ortak sıralamadan gelmeli.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="rank-sum-large" data-min="5">
+  <h2>Large-sample rank-sum ve SciPy çıktısı</h2>
+  <div class="quiz" id="q-rsz-1">
+    <p class="quiz__q">Nikotin verisi: $n_1 = 8$, $n_2 = 10$, $T_1 = 93$. Normal yaklaşımla $z$ kaçtır?</p>
+    <button class="quiz__opt" data-correct>$\dfrac{93 - 76}{\sqrt{8 \cdot 10 \cdot 19/12}} = 1.51$<span class="why">Doğru. $E(T_1) = n_1(n_1 + n_2 + 1)/2 = 8 \cdot 19/2 = 76$, $\sigma_T = \sqrt{126.67} = 11.25$.</span></button>
+    <button class="quiz__opt">$\dfrac{93 - 76}{126.67} = 0.13$<span class="why">Variance ile bölmüşsün. Önce karekök: $\sigma = \sqrt{126.67} = 11.25$.</span></button>
+    <button class="quiz__opt">$\dfrac{93 - 40}{11.25} = 4.71$<span class="why">$n_1 n_2/2 = 40$, $U$'nun mean'idir; $T$'nin değil. $T$ ile $U$'yu karıştırmışsın: ya $T - 76$ ya da $U - 40$ ($U_1 = 57$, $57 - 40 = 17$, aynı z).</span></button>
+    <button class="quiz__opt">$\dfrac{93 - 78}{11.25} = 1.33$<span class="why">Beklenen değer diğer grubun rank toplamı değil. $H_0$ altında $E(T_1) = n_1(N+1)/2$: her rank'ın ortalaması $(N+1)/2$.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · normal yaklaşımı</span>
+    <p>McClave: $n_1 \ge 10$ ve $n_2 \ge 10$ ise</p>
+    $$z = \frac{T_1 - \dfrac{n_1(n_1 + n_2 + 1)}{2}}{\sqrt{\dfrac{n_1 n_2 (n_1 + n_2 + 1)}{12}}}$$
+    <p>ve rejection region $H_a$'ya göre normal'in bir ya da iki kuyruğudur. Walpole aynı şeyi $U$ ile yazar: $\mu_{U_1} = \dfrac{n_1 n_2}{2}$, $\sigma^2_{U_1} = \dfrac{n_1 n_2 (n_1 + n_2 + 1)}{12}$; iki sample da 8'den büyükse yaklaşım iyidir, Table A.17 $n_2 = 20$'ye kadar gider. İki z aynıdır, çünkü $U_1 = T_1 - n_1(n_1+1)/2$ ve iki mean arasındaki fark da tam bu kadardır.</p>
+    <p><strong>Tie düzeltmesi:</strong> tie varsa $T_1$'in variance'ı küçülür. $t_j$ = $j$. tie grubundaki gözlem sayısı olmak üzere</p>
+    $$\sigma_T^2 = \frac{n_1 n_2}{12}\left[N + 1 - \frac{\sum_j (t_j^3 - t_j)}{N(N-1)}\right], \qquad N = n_1 + n_2$$
+    <p>Birkaç tie varsa fark küçüktür: nikotin verisinde $\sigma_T$ 11.255 yerine 11.243. Tie çoksa fark büyür ve karar değişebilir. Örnek: A'da 16 tane 0 ve 5 tane 1, B'de 9 tane 0 ve 12 tane 1. Düzeltmesiz formül $z = -1.85$, two-tailed $p = 0.064$ verir; tie düzeltmesi ve continuity correction ile $p = 0.031$. Walpole'un elle hesabında ikisi de yok. SciPy'nin <code>mannwhitneyu</code>'su ikisini de uygular: continuity correction, $|T_1 - E(T_1)|$'den 0.5 çıkarır (one-tailed testte payı 0'a doğru 0.5 kaydırır).</p>
+    <p>Walpole: rank-sum test normal population'larda da kullanılabilir, ama orada power'ı t test'inkinden biraz düşüktür. Belirgin şekilde normal olmayan population'larda t test'ten her zaman daha iyidir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · SciPy ile nikotin verisi</span>
+<pre><code>from scipy import stats
+A = [2.1, 4.0, 6.3, 5.4, 4.8, 3.7, 6.1, 3.3]
+B = [4.1, 0.6, 3.1, 2.5, 4.0, 6.2, 1.6, 2.2, 1.9, 5.4]
+
+stats.mannwhitneyu(A, B)
+MannwhitneyuResult(statistic=57.0, pvalue=0.1422)
+
+stats.ranksums(A, B)
+RanksumsResult(statistic=1.5105, pvalue=0.1309)</code></pre>
+    <ul>
+      <li><code>mannwhitneyu</code>'nun <code>statistic</code>'i <strong>ilk argümanın $U$'su</strong>: $U_A = T_A - 8 \cdot 9/2 = 93 - 36 = 57$. Rank toplamı değil.</li>
+      <li>Varsayılan <code>alternative='two-sided'</code>. One-tailed test istiyorsan <code>alternative='greater'</code> ya da <code>'less'</code> yaz; yön ilk argümana göredir.</li>
+      <li>Veride tie olduğu için (4.0 ve 5.4) SciPy normal yaklaşımı tie düzeltmesi ve continuity correction ile kullandı: 0.1422. <code>ranksums</code> düzeltmesiz $z = 1.51$ ve $p = 0.1309$ verir. 43758 bölüşümün hepsini sayan exact p-value 0.1392. Üçü de 0.05'ten büyük: karar aynı.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Walpole "Normal Theory Approximation for Two Samples" (kitap s.667) ve rank-sum'ın t test ile karşılaştırması (s.667) · McClave large-sample kuralı (n1 ≥ 10, n2 ≥ 10) Chapter 14 metni repoda olmadığı için cevap anahtarındaki z değerlerinden (ör. "14.31 e. z > 1.28 f. z = 1.72") ve yaygın tanımdan; formül Walpole'un U formülüyle cebirsel olarak aynı. SciPy 1.13.1 çıktıları venv'de üretildi: mannwhitneyu U = 57.0, p = 0.142219; ranksums 1.510490, 0.130919. Tie düzeltmeli variance: nikotin σT 11.2546 → 11.2430; A = 16×0 + 5×1, B = 9×0 + 12×1: T1 = 378, düzeltmesiz z = −1.8489, p = 0.06447; tie + continuity correction z = 2.1594, p = 0.030820 = mannwhitneyu p. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$T$'nin mean'i $n_1(N+1)/2$, $U$'nunki $n_1 n_2/2$. Birinin değerinden ötekinin mean'ini çıkarma.</li>
+      <li>Payda standard deviation: variance formülünün karekökü. Karekökü unutmak z'yi çok küçültür.</li>
+      <li>SciPy'nin p-value'su varsayılan olarak two-tailed. One-tailed soruda ya <code>alternative</code> parametresini ver ya da yön tutuyorsa p'yi ikiye böl.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.17"><span class="box__label">Walpole 16.17 · kitap alıştırması</span>
+    <p>"The following data represent the number of hours that two different types of scientific pocket calculators operate before a recharge is required.</p>
+    <p>Calculator A: 5.5 5.6 6.3 4.6 5.3 5.0 6.2 5.8 5.1<br>Calculator B: 3.8 4.8 4.3 4.2 4.0 4.9 4.5 5.2 4.5</p>
+    <p>Use the rank-sum test with α = 0.01 to determine if calculator A operates longer than calculator B on a full battery charge."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$n_1 = n_2 = 9$, A'nın rank toplamını kullanabilirsin. $H_a$: A sağa kaymış. B'de iki tane 4.5 var.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>McClave Table IX'ta $\alpha = .01$ yok. Ya Walpole Table A.17'yi ($u_2$) ya da normal yaklaşımı ($z_{.01} = 2.33$) kullan.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0$: A ve B'nin çalışma süresi dağılımları aynı; $H_a$: A'nın dağılımı sağa kaymış ($\tilde\mu_A &gt; \tilde\mu_B$).</li>
+        <li><strong>Test statistic:</strong> Sıralama: 3.8(1,B) 4.0(2,B) 4.2(3,B) 4.3(4,B) 4.5(5.5,B) 4.5(5.5,B) 4.6(7,A) 4.8(8,B) 4.9(9,B) 5.0(10,A) 5.1(11,A) 5.2(12,B) 5.3(13,A) 5.5(14,A) 5.6(15,A) 5.8(16,A) 6.2(17,A) 6.3(18,A). $T_A = 7 + 10 + 11 + 13 + 14 + 15 + 16 + 17 + 18 = 121$, $T_B = 171 - 121 = 50$.<br>$z = \dfrac{121 - 9 \cdot 19/2}{\sqrt{9 \cdot 9 \cdot 19/12}} = \dfrac{121 - 85.5}{11.325} = 3.13$.</li>
+        <li><strong>Rejection region:</strong> $z &gt; z_{.01} = 2.33$; $3.13 &gt; 2.33$ ⇒ reject ($p = 0.0009$). Walpole tablosuyla: $H_a: \tilde\mu_1 &gt; \tilde\mu_2$ ⇒ $u_2 = 50 - 45 = 5$; $n_1 = n_2 = 9$, one-tailed $\alpha = .01$ sınırı 14; $5 \le 14$ ⇒ reject.</li>
+        <li><strong>Sonuç:</strong> 0.01 düzeyinde A hesap makinesinin bir şarjla B'den daha uzun çalıştığına dair yeterli kanıt var.</li>
+      </ol>
+      <p>Kitabın cevabı: $u_2 = 5$; A operates longer. ($n = 9$, McClave'in $n \ge 10$ kuralının biraz altında; Walpole'un "ikisi de 8'den büyük" kuralına uyuyor. Exact p-value 0.0004, karar aynı.)</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/walpole-probability-and-statistics-9e.pdf" target="_blank" rel="noopener">Orijinal soru (Walpole 9e, kitap s.670) ↗</a></p>
+    <!-- Kaynak: Walpole 16.17 (kitap s.670) ve cevap anahtarı "16.17 u2 = 5; A operates longer". Walpole Table A.17 one-tailed .01, n1 = n2 = 9: 14. Python: T_A = 121, z = 3.1347, norm.sf = 0.00086, exact P(T_A ≥ 121) = 0.00037. -->
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.18"><span class="box__label">Walpole 16.18 · kitap alıştırması</span>
+    <p>"A fishing line is being manufactured by two processes. To determine if there is a difference in the mean breaking strength of the lines, 10 pieces manufactured by each process are selected and then tested for breaking strength. The results are as follows:</p>
+    <p>Process 1: 10.4 9.8 11.5 10.0 9.9 9.6 10.9 11.8 9.3 10.7<br>Process 2: 8.7 11.2 9.8 10.1 10.8 9.5 11.0 9.8 10.5 9.9</p>
+    <p>Use the rank-sum test with α = 0.1 to determine if there is a difference between the mean breaking strengths of the lines manufactured by the two processes."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Üç tane 9.8 ve iki tane 9.9 var: ortalama rank. $n_1 = n_2 = 10$ ⇒ normal yaklaşımı kullanılabilir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Two-tailed $\alpha = 0.10$: $|z| &gt; 1.645$ ise reject.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0$: iki sürecin kopma dayanımı dağılımları aynı; $H_a$: biri ötekine göre kaymış.</li>
+        <li><strong>Test statistic:</strong> 9.8'ler 5, 6, 7. sırada ⇒ her biri 6; 9.9'lar 8 ve 9. sırada ⇒ 8.5. Process 1'in rank'ları: 10.4→12, 9.8→6, 11.5→19, 10.0→10, 9.9→8.5, 9.6→4, 10.9→16, 11.8→20, 9.3→2, 10.7→14. $T_1 = 111.5$, $T_2 = 210 - 111.5 = 98.5$.<br>$z = \dfrac{111.5 - 10 \cdot 21/2}{\sqrt{10 \cdot 10 \cdot 21/12}} = \dfrac{6.5}{13.23} = 0.49$.</li>
+        <li><strong>Rejection region:</strong> $|z| &gt; 1.645$; $0.49$ değil ⇒ fail to reject ($p = 0.62$). Table IX(b) ile de: $n_1 = n_2 = 10$, $T_L = 83$, $T_U = 127$; $111.5$ arada. (Walpole: $u = \min(56.5,\ 43.5) = 43.5 &gt; 27$.)</li>
+        <li><strong>Sonuç:</strong> 0.10 düzeyinde iki sürecin kopma dayanımları arasında fark olduğuna dair kanıt yok.</li>
+      </ol>
+      <p>Bu soru çift numaralı, kitabın cevap anahtarında yok. SciPy: <code>mannwhitneyu(P1, P2)</code> ⇒ $U = 56.5$, $p = 0.650$.</p>
+    </div></details>
+    <!-- Kaynak: Walpole 16.18 (kitap s.670). Python: ranks, T1 = 111.5, ranksums z = 0.4914 p = 0.6232, mannwhitneyu U = 56.5 p = 0.6495; Walpole Table A.17 two-tailed .10 n1 = n2 = 10: 27; McClave Table IX(b) 10,10: 83, 127. -->
+  </div>
+  <div class="quiz" id="q-rsz-2">
+    <p class="quiz__q"><code>stats.mannwhitneyu(A, B)</code> çıktısı <code>statistic=57.0, pvalue=0.1422</code>. 57 neyi gösterir?</p>
+    <button class="quiz__opt" data-correct>A'nın $U$'sunu: A'dan bir gözlemin B'den bir gözlemden büyük olduğu çift sayısı ($T_A - n_A(n_A+1)/2$)<span class="why">Doğru. $93 - 36 = 57$; 80 çiftin 57'sinde A büyük (eşitlik yarım).</span></button>
+    <button class="quiz__opt">A'nın rank toplamını<span class="why">A'nın rank toplamı 93. SciPy rank toplamını değil, ondan $n_A(n_A+1)/2$ çıkarılmış $U$'yu verir.</span></button>
+    <button class="quiz__opt">z değerini<span class="why">z'yi <code>ranksums</code> verir (1.51). <code>mannwhitneyu</code> $U$ verir.</span></button>
+    <button class="quiz__opt">Tie sayısını<span class="why">Tie sayısı çıktıda yok; sadece p-value'nun hesabını etkiler.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="signed-rank" data-min="6">
+  <h2>Wilcoxon signed-rank test: işaret ve büyüklük</h2>
+  <div class="quiz" id="q-sr-1">
+    <p class="quiz__q">Farklar: −0.3, 0.4, −0.9, −0.5, 0.2, −0.2. Signed-rank test'te 0.2 ve −0.2 hangi rank'ları alır?</p>
+    <button class="quiz__opt" data-correct>İkisi de 1.5<span class="why">Doğru. Rank'lar $|d|$'ye göre verilir: 0.2, 0.2, 0.3, 0.4, 0.5, 0.9. İki 0.2, 1. ve 2. sıranın ortalamasını alır.</span></button>
+    <button class="quiz__opt">−0.2 → 1, 0.2 → 2<span class="why">Rank'lar işaretsiz büyüklüğe göre verilir ve eşit büyüklükler ortalama rank alır. İşaret sonra geri konur.</span></button>
+    <button class="quiz__opt">−0.9 en küçük olduğu için rank 1 alır<span class="why">İşaretli değerleri sıralamışsın. Signed-rank test'te $|{-0.9}| = 0.9$ en büyük büyüklük, rank 6.</span></button>
+    <button class="quiz__opt">İkisi de 2<span class="why">Tie, kapladığı sıraların ortalamasını alır: $(1 + 2)/2 = 1.5$.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · sign test bilgi atıyor</span>
+    <p>Sign test'e göre +0.1 ile +5.0 aynı şey: ikisi de bir "+". Wilcoxon (1945) farkların büyüklüğünü de kullanmayı önerdi: farkları işaretsiz büyüklüğe göre sırala, sonra işaretleri geri koy. $H_0$ doğruysa büyük rank'lar + ve − arasında dengeli dağılır; pozitif farkların rank toplamı yaklaşık negatiflerinkine eşit olur. Bunun bedeli bir varsayım daha: dağılım <strong>simetrik</strong> olmalı.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Wilcoxon signed-rank test (Walpole §16.2, McClave §14.4)</span>
+    <p><strong>Koşul:</strong> simetrik, continuous bir dağılımdan random sample. $H_0: \eta = \eta_0$.</p>
+    <ol>
+      <li>$d_i = x_i - \eta_0$. Sıfır olan farkları at; kalan sayı $n$.</li>
+      <li>$|d_i|$'leri sırala: en küçüğe 1, sonrakine 2… Eşit büyüklükler ortalama rank alır.</li>
+      <li>$T_+$ = pozitif farkların rank toplamı, $T_-$ = negatiflerinki (Walpole: $w_+$, $w_-$). Kontrol: $T_+ + T_- = n(n+1)/2$.</li>
+      <li>$H_a$'ya göre statistic:
+        <div class="table-wrap"><table>
+          <tr><th>$H_a$</th><th>Statistic</th><th>Neden</th></tr>
+          <tr><td>$\eta &lt; \eta_0$</td><td>$T_+$</td><td>gerçek median küçükse pozitif farklar az ve küçük olur</td></tr>
+          <tr><td>$\eta &gt; \eta_0$</td><td>$T_-$</td><td>negatif farklar az ve küçük olur</td></tr>
+          <tr><td>$\eta \ne \eta_0$</td><td>$T = \min(T_+, T_-)$</td><td>hangi taraf küçükse</td></tr>
+        </table></div></li>
+      <li>Statistic, Table X'teki (Walpole Table A.16) $T_0$'dan <strong>küçük ya da ona eşitse</strong> reject. Hangi $H_a$ olursa olsun, seçilen statistic'in küçük olması kanıttır.</li>
+    </ol>
+    <p>Table X: one-tailed $\alpha = .05, .025, .01, .005$ sütunları, two-tailed $\alpha = .10, .05, .02, .01$ ile aynıdır. Walpole: $n &lt; 5$ iken one-tailed 0.05'te hiçbir sonuç reject ettirmez. Örnek: $n = 12$, $H_a: \eta &lt; \eta_0$, $\alpha = .05$ ⇒ $T_+ \le 17$ gerekir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Walpole Example 16.3 (hedge trimmer, signed-rank ile)</span>
+    <ol>
+      <li><strong>Hipotezler:</strong> $H_0: \eta = 1.8$, $H_a: \eta \ne 1.8$, $\alpha = 0.05$.</li>
+      <li><strong>Test statistic:</strong> 1.8'e eşit gözlem atılır, $n = 10$.
+        <div class="table-wrap"><table>
+          <tr><th>$d_i$</th><td>−0.3</td><td>0.4</td><td>−0.9</td><td>−0.5</td><td>0.2</td><td>−0.2</td><td>−0.3</td><td>0.2</td><td>−0.6</td><td>−0.1</td></tr>
+          <tr><th>Rank</th><td>5.5</td><td>7</td><td>10</td><td>8</td><td>3</td><td>3</td><td>5.5</td><td>3</td><td>9</td><td>1</td></tr>
+        </table></div>
+        Üç tane $|d| = 0.2$, 2–4. sıraları paylaşır ⇒ 3. İki tane 0.3, 5–6. sıraları ⇒ 5.5. $T_+ = 7 + 3 + 3 = 13$, $T_- = 55 - 13 = 42$, $T = 13$.</li>
+      <li><strong>Rejection region:</strong> Table X, $n = 10$, two-tailed $\alpha = .05$: $T_0 = 8$. Reject if $T \le 8$. $13 &gt; 8$.</li>
+      <li><strong>Sonuç:</strong> fail to reject $H_0$; sign test'le aynı sonuç. Median çalışma süresinin 1.8 saatten farklı olduğuna dair yeterli kanıt yok.</li>
+    </ol>
+  </div>
+  <!-- Kaynak: Walpole §16.2 (kitap s.660–662): Wilcoxon 1945, symmetric continuous distribution, ranking |d|, ties averaged (5.5 örneği), w+, w−, w, Table 16.2 (görüntüden okundu), n < 5 kuralı, n = 12 → w+ ≤ 17, Example 16.3 · McClave Table X (s.857, PDF s.859) "Critical Values of T0 in the Wilcoxon Paired Difference Signed Rank Test" (n = 10: .05→11, .025→8, .01→5, .005→3) · McClave cevap anahtarı T−, T+ gösterimi ("14.43 b. T− = 3.5", "14.53 T+ = 3.5"). Python: T+ = 13, T− = 42, exact two-sided p (tie'lı rank'larla) = 0.1562. -->
+
+  <h3>Kendin dene: signed-rank adım adım</h3>
+  <p class="w-nonparametric-guess"><b>Önce tahmin et:</b> GRE verisinde (Example 16.4) $D_0 = 50$ çıkarılınca 10 farkın 3'ü pozitif. $T_+$ küçük mü çıkar? Table X'teki 11'in altına iner mi?</p>
+  <div class="w-nonparametric-ctl">
+    <label>veri <select id="wr-set" class="btn btn--sm">
+      <option value="hedge">Walpole Ex 16.3: hedge trimmer, η₀ = 1.8</option>
+      <option value="gre">Walpole Ex 16.4: GRE farkları, D₀ = 50</option>
+      <option value="own">kendi verim</option>
+    </select></label>
+  </div>
+  <div class="w-nonparametric-ctl">
+    <label class="w-nonparametric-wide">değerler (tek sample ya da paired farklar) <input id="wr-data" type="text" class="btn btn--sm w-nonparametric-field" value="" /></label>
+  </div>
+  <div class="w-nonparametric-ctl">
+    <label>η₀ / D₀ <input id="wr-eta" type="text" class="btn btn--sm" value="" /></label>
+    <label>Hₐ <select id="wr-ha" class="btn btn--sm">
+      <option value="lt">η &lt; η₀ (T₊ kullan)</option>
+      <option value="gt">η &gt; η₀ (T₋ kullan)</option>
+      <option value="ne">η ≠ η₀ (min kullan)</option>
+    </select></label>
+    <label>α <select id="wr-alpha" class="btn btn--sm">
+      <option value="0.01">0.01</option>
+      <option value="0.025">0.025</option>
+      <option value="0.05" selected>0.05</option>
+      <option value="0.10">0.10</option>
+    </select></label>
+    <button class="btn btn--sm btn--accent" id="wr-go">Kur</button>
+  </div>
+  <div class="w-nonparametric-err" id="wr-err" aria-live="polite"></div>
+  <div id="wr-stepper"></div>
+
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İşaretli farkları sıralama; $|d_i|$'yi sırala, işareti sonra koy.</li>
+      <li>Sıfır farkları atmayı unutma; $n$ atıldıktan sonraki sayıdır ve Table X'e o $n$ ile girilir.</li>
+      <li>Statistic'i $H_a$'ya göre seç: $\eta &gt; \eta_0$ için $T_-$. "$T_+$ büyük, demek ki reject" diye düşünme; tabloyla her zaman küçük olan tarafı kıyaslarsın.</li>
+      <li>Tek sample'da simetri varsayımı var. Dağılım çok çarpıksa median için sign test daha güvenlidir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.9"><span class="box__label">Walpole 16.9 · kitap alıştırması</span>
+    <p>"Analyze the data of Exercise 16.2 by using the signed-rank test."</p>
+    <p>Exercise 16.2'nin verisi ve sorusu: 18 öğrenci pilotun ilk solo uçuştan önce aldığı eğitim saatleri "9 12 18 14 12 14 12 10 16 11 9 11 13 11 13 15 13 14"; "test the instructor's claim that the median time required before his students' solo is 12 hours", 0.02 düzeyinde. (Soru Exercise 16.2'ye atıf yaptığı için veri buraya eklendi.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$d = x - 12$. Üç sıfır atılır, $n = 15$. Farkların büyüklükleri sadece 1, 2, 3, 4 ve 6: çok tie var.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Büyüklükleri say: kaç tane $|d| = 1$ var? Hepsi aynı ortalama rank'ı alır. Sonra negatif farkların rank'larını topla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0: \eta = 12$, $H_a: \eta \ne 12$, $\alpha = 0.02$.</li>
+        <li><strong>Test statistic:</strong> $d$ (sıfırlar atılmış): −3, 6, 2, 2, −2, 4, −1, −3, −1, 1, −1, 1, 3, 1, 2; $n = 15$. Büyüklükler: altı tane 1 (rank 1–6 ⇒ 3.5), dört tane 2 (7–10 ⇒ 8.5), üç tane 3 (11–13 ⇒ 12), bir tane 4 (14), bir tane 6 (15).<br>Negatifler: −3 (12), −2 (8.5), −1 (3.5), −3 (12), −1 (3.5), −1 (3.5) ⇒ $T_- = 43$. $T_+ = 120 - 43 = 77$. $T = \min = 43$.</li>
+        <li><strong>Rejection region:</strong> Table X, $n = 15$, two-tailed $\alpha = .02$: $T_0 = 20$. $43 &gt; 20$ ⇒ fail to reject.</li>
+        <li><strong>Sonuç:</strong> Median eğitim süresinin 12 saatten farklı olduğuna dair kanıt yok; sign test'le (16.2) aynı sonuç.</li>
+      </ol>
+      <p>Kitabın cevabı: $w = 43$; fail to reject $H_0$.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/walpole-probability-and-statistics-9e.pdf" target="_blank" rel="noopener">Orijinal soru (Walpole 9e, kitap s.664) ↗</a></p>
+    <!-- Kaynak: Walpole 16.9 (kitap s.664) ve 16.2 (s.663); cevap anahtarı "16.9 w = 43; fail to reject H0". McClave Table X n = 15, .01 one-tailed / .02 two-tailed: 20. Python: T+ = 77, T− = 43, exact two-sided p = 0.3642. -->
+  </div>
+  <div class="quiz" id="q-sr-2">
+    <p class="quiz__q">Tek sample signed-rank test, $H_a: \eta &gt; \eta_0$. Hangi statistic Table X ile kıyaslanır?</p>
+    <button class="quiz__opt" data-correct>$T_-$; $T_- \le T_0$ ise reject<span class="why">Doğru. Gerçek median $\eta_0$'dan büyükse negatif farklar az ve küçük olur, $T_-$ küçülür.</span></button>
+    <button class="quiz__opt">$T_+$; $T_+ \ge T_0$ ise reject<span class="why">Table X küçük değerler için kurulmuş. $T_+$'nın büyük olması $T_-$'nin küçük olmasıyla aynı bilgi; tabloyla $T_-$ kıyaslanır.</span></button>
+    <button class="quiz__opt">$T_+$; $T_+ \le T_0$ ise reject<span class="why">Bu $H_a: \eta &lt; \eta_0$ için kural. Yön ters.</span></button>
+    <button class="quiz__opt">$\min(T_+, T_-)$<span class="why">Minimum, two-tailed test içindir. One-tailed testte yön statistic'i belirler.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="signed-rank-paired" data-min="6">
+  <h2>Paired signed-rank, $D_0$ ve large-sample z</h2>
+  <div class="quiz" id="q-srp-1">
+    <p class="quiz__q">$n = 13$, $T_+ = 15$. $H_0$ altında $T_+$'nın mean'i ve standard deviation'ı ile $z$ kaçtır?</p>
+    <button class="quiz__opt" data-correct>$\mu = 45.5$, $\sigma = 14.31$, $z = -2.13$<span class="why">Doğru. $\mu = 13 \cdot 14/4 = 45.5$, $\sigma^2 = 13 \cdot 14 \cdot 27/24 = 204.75$, $\sigma = 14.31$; $z = (15 - 45.5)/14.31$.</span></button>
+    <button class="quiz__opt">$\mu = 45.5$, $\sigma = 204.75$, $z = -0.15$<span class="why">204.75 variance. Payda karekökü olmalı: $\sqrt{204.75} = 14.31$.</span></button>
+    <button class="quiz__opt">$\mu = 91$, $\sigma = 14.31$, $z = -5.31$<span class="why">91, $T_+ + T_-$ toplamıdır. $H_0$ altında her bir tarafın beklenen değeri bunun yarısı: 45.5.</span></button>
+    <button class="quiz__opt">$\mu = 6.5$, $\sigma = 1.80$, $z = 4.72$<span class="why">Bunlar sign test'in plus sayısının mean'i ve SD'si ($n/2$, $\sqrt n/2$). Signed-rank'ta rank'lar toplanır.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · paired veri ve normal yaklaşımı</span>
+    <ul>
+      <li><strong>Paired:</strong> $D = X_1 - X_2$, $d_i = x_{1i} - x_{2i}$, $\eta_D$ = farkların median'ı. $H_0: \eta_D = D_0$ (McClave: $H_0$: iki dağılım aynı, $D_0 = 0$; Walpole: $\tilde\mu_1 - \tilde\mu_2 = d_0$, ama test edilen yine $\eta_D$). $d_i - D_0$'ları al ve tek sample'daki gibi devam et. Statistic seçimi: $H_a: \eta_D &lt; D_0$ ⇒ $T_+$, $\eta_D &gt; D_0$ ⇒ $T_-$, $\ne$ ⇒ $\min$.</li>
+      <li><strong>Simetri koşulu:</strong> Walpole'un dediği gibi marginal population'lar ($X_1$ ve $X_2$) simetrik olmak zorunda değildir. Ama signed-rank için $D - D_0$'ın dağılımı $H_0$ altında sıfır çevresinde simetrik olmalıdır. Farkların histogramı belirgin çarpıksa median fark için sign test kullan.</li>
+      <li><strong>Normal yaklaşımı:</strong> $H_0$ altında
+        $$\mu_{T_+} = \frac{n(n+1)}{4}, \qquad \sigma^2_{T_+} = \frac{n(n+1)(2n+1)}{24}, \qquad z = \frac{T_+ - \mu_{T_+}}{\sigma_{T_+}}$$
+        Walpole: $n \ge 15$'te dağılım normale yaklaşır; $n$ tablonun dışına çıkınca z kullanılır. McClave'in Table X'i $n = 50$'ye kadar gider; tablo varsa tabloyu kullan.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Walpole Example 16.4 (GRE ve örnek sorular)</span>
+    <p>Benzer not ortalamasına sahip 10 öğrenci çifti; her çiftte biri sınavdan bir hafta önce örnek sorular alıyor. İddia: örnek sorular puanı en az 50 artırır. $H_a$: artış 50'den az. $\alpha = 0.05$.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Pair</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td></tr>
+      <tr><th>With</th><td>531</td><td>621</td><td>663</td><td>579</td><td>451</td><td>660</td><td>591</td><td>719</td><td>543</td><td>575</td></tr>
+      <tr><th>Without</th><td>509</td><td>540</td><td>688</td><td>502</td><td>424</td><td>683</td><td>568</td><td>748</td><td>530</td><td>524</td></tr>
+      <tr><th>$d_i$</th><td>22</td><td>81</td><td>−25</td><td>77</td><td>27</td><td>−23</td><td>23</td><td>−29</td><td>13</td><td>51</td></tr>
+      <tr><th>$d_i - 50$</th><td>−28</td><td>31</td><td>−75</td><td>27</td><td>−23</td><td>−73</td><td>−27</td><td>−79</td><td>−37</td><td>1</td></tr>
+      <tr><th>Rank</th><td>5</td><td>6</td><td>9</td><td>3.5</td><td>2</td><td>8</td><td>3.5</td><td>10</td><td>7</td><td>1</td></tr>
+    </table></div>
+    <ol>
+      <li><strong>Hipotezler:</strong> $D$ = with − without, $\eta_D$ puan farkının median'ı. $H_0: \eta_D = 50$, $H_a: \eta_D &lt; 50$.</li>
+      <li><strong>Test statistic:</strong> $H_a$ "küçüktür" ⇒ $T_+$. $T_+ = 6 + 3.5 + 1 = 10.5$.</li>
+      <li><strong>Rejection region:</strong> Table X, $n = 10$, one-tailed $\alpha = .05$: $T_0 = 11$. $10.5 \le 11$ ⇒ reject.</li>
+      <li><strong>Sonuç:</strong> 0.05 düzeyinde median puan artışının 50'den az olduğu sonucuna varılır; örnek sorular puanı en az 50 artırmıyor.</li>
+    </ol>
+    <p class="src">Not: McClave ve Walpole'un signed-rank tabloları yaklaşık değerlerdir. $n = 10$'da $T_+ \le 11$ olasılığı tam olarak 0.0527, yani 0.05'in az üstünde; sınavda tabloyu kullan. Bu örnekte tie'lı rank'larla exact p-value $P(T_+ \le 10.5) = 0.045$; karar değişmiyor.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · SciPy ile signed-rank (hedge trimmer)</span>
+<pre><code>import numpy as np
+from scipy import stats
+x = np.array([1.5, 2.2, 0.9, 1.3, 2.0, 1.6, 1.8, 1.5, 2.0, 1.2, 1.7])
+d = np.round(x - 1.8, 2)
+
+stats.wilcoxon(d)
+WilcoxonResult(statistic=13.0, pvalue=0.1381)
+
+stats.wilcoxon(d, alternative='less')
+WilcoxonResult(statistic=13.0, pvalue=0.0691)</code></pre>
+    <ul>
+      <li>Two-sided'da <code>statistic</code> $= \min(T_+, T_-) = 13$; one-sided'da $T_+$ (burada o da 13).</li>
+      <li>Sıfır farkı SciPy varsayılan olarak atar (<code>zero_method='wilcox'</code>, Walpole'un kuralı).</li>
+      <li>Veride tie ve sıfır olduğu için SciPy exact tablo yerine normal yaklaşımı kullandı: 0.1381. Tie'lı rank'larla bütün $2^{10}$ işaret dizisini sayan exact p-value 0.1562. Table X ile karar da aynı: fail to reject.</li>
+      <li>Paired veride <code>stats.wilcoxon(x1, x2)</code> farkları kendisi alır. $D_0 \ne 0$ ise farklardan $D_0$'ı sen çıkar.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Walpole Example 16.4 ve Table 16.3 (kitap s.662), "Normal Approximation for Large Samples" (s.663), paired d0 için simetri cümlesi (s.662) · McClave Table X (n = 10 one-tailed .05: 11; n = 13: 21; n = 9 two-tailed .05: 6; n = 5 one-tailed .05: 1) · SciPy 1.13.1 venv çıktıları: wilcoxon(d) 13.0, 0.138128; alternative='less' 13.0, 0.069064. Python exact: P(T ≤ 11 | n = 10) = 0.0527; Ex 16.4 tie'lı exact P(T+ ≤ 10.5) = 0.0449. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$D_0$'ı çıkarmadan rank vermek: Example 16.4'te $d_i$'lerin hepsine göre değil, $d_i - 50$'ye göre rank verilir.</li>
+      <li>Normal yaklaşımında variance ile bölmek. $\sigma = \sqrt{n(n+1)(2n+1)/24}$.</li>
+      <li>Paired veriye rank-sum test uygulamak. Çiftlerin içindeki bağımlılık (aynı araba, aynı panel, aynı öğrenci çifti) farkla ortadan kalkar; iki sütunu ayrı sample gibi sıralarsan bu bilgi kaybolur.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.10"><span class="box__label">Walpole 16.10 · kitap alıştırması</span>
+    <p>"The weights of 5 people before they stopped smoking and 5 weeks after they stopped smoking, in kilograms, are as follows:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Individual</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td></tr>
+      <tr><th>Before</th><td>66</td><td>80</td><td>69</td><td>52</td><td>75</td></tr>
+      <tr><th>After</th><td>71</td><td>82</td><td>68</td><td>56</td><td>73</td></tr>
+    </table></div>
+    <p>Use the signed-rank test for paired observations to test the hypothesis, at the 0.05 level of significance, that giving up smoking has no effect on a person's weight against the alternative that one's weight increases if he or she quits smoking."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$d = \text{after} - \text{before}$. $H_a$: after daha büyük ⇒ $\eta_D &gt; 0$ ⇒ hangi statistic?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Table X, $n = 5$, one-tailed .05: $T_0 = 1$. Bu kadar küçük $n$'de reject için neredeyse bütün farkların pozitif olması gerekir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $D$ = after − before (kilo farkı), $\eta_D$ farkın median'ı. $H_0: \eta_D = 0$, $H_a: \eta_D &gt; 0$.</li>
+        <li><strong>Test statistic:</strong> $d$: 5, 2, −1, 4, −2. $|d|$: 1 → 1, 2 ve 2 → 2.5, 4 → 4, 5 → 5. $T_+ = 5 + 2.5 + 4 = 11.5$, $T_- = 1 + 2.5 = 3.5$ (kontrol: $15$). $H_a$ "büyüktür" ⇒ $T_- = 3.5$.</li>
+        <li><strong>Rejection region:</strong> Table X, $n = 5$, one-tailed $\alpha = .05$: $T_0 = 1$. $3.5 &gt; 1$ ⇒ fail to reject. (Exact: $P(T_- \le 3.5) = 0.19$.)</li>
+        <li><strong>Sonuç:</strong> Sigarayı bırakmanın kiloyu artırdığına dair yeterli kanıt yok.</li>
+      </ol>
+      <p>$n = 5$'te en küçük olası p-value $1/32 = 0.031$ (bütün farklar pozitifse). Bu soru çift numaralı, kitabın cevap anahtarında yok.</p>
+    </div></details>
+    <!-- Kaynak: Walpole 16.10 (kitap s.664). Python: T+ = 11.5, T− = 3.5, exact P(T− ≤ 3.5) = 0.1875. -->
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.13"><span class="box__label">Walpole 16.13 · kitap alıştırması</span>
+    <p>"Rework Exercise 16.7 by using the signed-rank test."</p>
+    <p>Exercise 16.7: 16 koşucunun 8 km koşudan önce ve sonra sistolik tansiyonu (veri Bölüm 3'teki 16.7 kutusunda); "test the null hypothesis that jogging 8 kilometers increases the median systolic blood pressure by 8 points against the alternative that the increase in the median is less than 8 points", 0.05 düzeyinde.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$d - 8$: −2, +1, −5, −3, 0, +1, −4, +2, 0, −6, −2, −5, −7, −2, 0, +3. Sıfırları at.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$H_a$ "8'den az" ⇒ $T_+$. Sadece dört pozitif fark var ve hepsi küçük.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $D$ = after − before, $H_0: \eta_D = 8$, $H_a: \eta_D &lt; 8$.</li>
+        <li><strong>Test statistic:</strong> $n = 13$. Büyüklükler: 1, 1 → 1.5; 2, 2, 2, 2 → 4.5; 3, 3 → 7.5; 4 → 9; 5, 5 → 10.5; 6 → 12; 7 → 13. Pozitifler: +1, +1, +2, +3 ⇒ $T_+ = 1.5 + 1.5 + 4.5 + 7.5 = 15$.</li>
+        <li><strong>Rejection region:</strong> Table X, $n = 13$, one-tailed $\alpha = .05$: $T_0 = 21$. $15 \le 21$ ⇒ reject. (Normal yaklaşımıyla: $z = (15 - 45.5)/14.31 = -2.13$, $p = 0.017$.)</li>
+        <li><strong>Sonuç:</strong> 0.05 düzeyinde koşunun yol açtığı tansiyon artışlarının median'ı 8 puandan az.</li>
+      </ol>
+      <p>Kitabın cevabı: $w_+ = 15$ with $n = 13$; reject $H_0$ in favor of $\tilde\mu_1 - \tilde\mu_2 &lt; 8$. (Kitabın $\tilde\mu_1 - \tilde\mu_2$'si burada $\eta_D$ anlamında.)</p>
+      <p><strong>Karşılaştır:</strong> aynı veride sign test (16.7) $p = 0.133$ verdi ve reject edemedi. Signed-rank negatif farkların büyük, pozitiflerin küçük olduğunu da kullanıyor; bu yüzden power'ı daha yüksek.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/walpole-probability-and-statistics-9e.pdf" target="_blank" rel="noopener">Orijinal soru (Walpole 9e, kitap s.664) ↗</a></p>
+    <!-- Kaynak: Walpole 16.13 ve 16.7 (kitap s.664) ve cevap anahtarı "16.13 w+ = 15 with n = 13; reject H0 in favor of μ̃1 − μ̃2 < 8". Python: T+ = 15, exact P(T+ ≤ 15) = 0.0166, z = −2.1315, Φ = 0.0165. -->
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.39"><span class="box__label">Walpole 16.39 · kitap alıştırması</span>
+    <p>"A study by a chemical company compared the drainage properties of two different polymers. Ten different sludges were used, and both polymers were allowed to drain in each sludge. The free drainage was measured in mL/min.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Sludge Type</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td></tr>
+      <tr><th>Polymer A</th><td>12.7</td><td>14.6</td><td>18.6</td><td>17.5</td><td>11.8</td><td>16.9</td><td>19.9</td><td>17.6</td><td>15.6</td><td>16.0</td></tr>
+      <tr><th>Polymer B</th><td>12.0</td><td>15.0</td><td>19.2</td><td>17.3</td><td>12.2</td><td>16.6</td><td>20.1</td><td>17.6</td><td>16.0</td><td>16.1</td></tr>
+    </table></div>
+    <p>(a) Use the sign test at the 0.05 level to test the null hypothesis that polymer A has the same median drainage as polymer B. (b) Use the signed-rank test to test the hypotheses of part (a)."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her sludge bir çift: $d = A - B$. 8. sludge'da fark sıfır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b) Üç tane $|d| = 0.4$ var. Two-tailed ⇒ $T = \min(T_+, T_-)$; Table X, $n = 9$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$d = A - B$: 0.7, −0.4, −0.6, 0.2, −0.4, 0.3, −0.2, 0, −0.4, −0.1. Sıfır atılır, $n = 9$.</p>
+      <p><strong>(a) Sign test</strong></p>
+      <ol>
+        <li><strong>Hipotezler:</strong> $D$ = A − B, $\eta_D$ paired farkın median'ı. $H_0: \eta_D = 0$, $H_a: \eta_D \ne 0$.</li>
+        <li><strong>Test statistic:</strong> plus: 0.7, 0.2, 0.3 ⇒ $x = 3$.</li>
+        <li><strong>p-value:</strong> $x &lt; 4.5$ ⇒ $p = 2P(X \le 3) = 2 \cdot \dfrac{1 + 9 + 36 + 84}{512} = 0.508$.</li>
+        <li><strong>Sonuç:</strong> $0.508 &gt; 0.05$ ⇒ fail to reject. Median paired farkın 0'dan farklı olduğuna dair $\alpha = 0.05$ düzeyinde yeterli kanıt yok.</li>
+      </ol>
+      <p><strong>(b) Signed-rank test</strong></p>
+      <ol>
+        <li><strong>Hipotezler:</strong> aynı.</li>
+        <li><strong>Test statistic:</strong> büyüklükler: 0.1 → 1; 0.2, 0.2 → 2.5; 0.3 → 4; 0.4, 0.4, 0.4 → 6; 0.6 → 8; 0.7 → 9. $T_+ = 9 + 2.5 + 4 = 15.5$, $T_- = 45 - 15.5 = 29.5$, $T = 15.5$.</li>
+        <li><strong>Rejection region:</strong> Table X, $n = 9$, two-tailed $\alpha = .05$: $T_0 = 6$. $15.5 &gt; 6$ ⇒ fail to reject.</li>
+        <li><strong>Sonuç:</strong> iki test de aynı kararı veriyor: polymer'ler arasında drenaj farkı gösterilemedi. Bu "fark yok" demek değil, sadece kanıt yetersiz.</li>
+      </ol>
+      <p>Bu soru kitabın cevap anahtarında yok. Exact p-value'lar: sign 0.508, signed-rank 0.445.</p>
+    </div></details>
+    <!-- Kaynak: Walpole Review Exercise 16.39 (kitap s.679, PDF s.700). Python: sign 2*binom.cdf(3,9,.5) = 0.5078; signed-rank T+ = 15.5, T− = 29.5, exact two-sided 0.4453. -->
+  </div>
+  <div class="quiz" id="q-srp-2">
+    <p class="quiz__q">Hedge trimmer verisi için <code>stats.wilcoxon(d)</code> <code>statistic=13.0, pvalue=0.1381</code> veriyor. Hangisi doğru?</p>
+    <button class="quiz__opt" data-correct>13, $\min(T_+, T_-)$; $p = 0.138 &gt; 0.05$ ⇒ fail to reject<span class="why">Doğru. Two-sided'da SciPy küçük rank toplamını verir; p-value 0.05'ten büyük.</span></button>
+    <button class="quiz__opt">13, $T_+ + T_-$ toplamı<span class="why">Toplam her zaman $n(n+1)/2 = 55$. 13 küçük olan taraf.</span></button>
+    <button class="quiz__opt">13 küçük olduğu için reject<span class="why">Küçüklük Table X'teki $T_0$'a göre ölçülür: $n = 10$, two-tailed .05'te $T_0 = 8$. 13 > 8. p-value da aynı şeyi söylüyor.</span></button>
+    <button class="quiz__opt">$p = 0.138$ one-tailed p-value, iki katı 0.276<span class="why">SciPy'nin varsayılanı two-sided. One-tailed p için <code>alternative='less'</code> (0.069).</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="kruskal-wallis" data-min="6">
+  <h2>Kruskal–Wallis H: $k$ independent sample</h2>
+  <div class="quiz" id="q-kw-1">
+    <p class="quiz__q">Kruskal–Wallis test hangi parametric yöntemin nonparametric karşılığıdır?</p>
+    <button class="quiz__opt" data-correct>One-way ANOVA (completely randomized design)<span class="why">Doğru. $k$ independent sample'ın konumlarını karşılaştırır; ANOVA'nın F test'inin normallik varsayımı olmadan yapılan hâli.</span></button>
+    <button class="quiz__opt">Randomized block ANOVA<span class="why">Block'lu tasarımın nonparametric karşılığı Friedman $F_r$ (Bölüm 9). Kruskal–Wallis block bilgisini kullanmaz.</span></button>
+    <button class="quiz__opt">Paired t test<span class="why">Paired veri için signed-rank test var. Kruskal–Wallis independent sample'lar ister.</span></button>
+    <button class="quiz__opt">Pearson correlation<span class="why">İlişkinin nonparametric ölçüsü Spearman $r_s$ (Bölüm 10).</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · rank-sum'ın $k$ gruplu hâli</span>
+    <p>Bütün grupları birleştirip sırala. $H_0$ doğruysa her grubun ortalama rank'ı aşağı yukarı $(n+1)/2$ olur. Bir grubun rank'ları sistematik olarak büyük ya da küçükse, grupların ortalama rank'ları bu değerden uzaklaşır. $H$ bu uzaklığı tek bir sayıda toplar: ANOVA'daki treatment sum of squares'in rank'lar üzerindeki karşılığı gibi.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Kruskal–Wallis H test (Walpole §16.4, McClave §14.5)</span>
+    <p><strong>Koşullar:</strong> $k$ independent random sample, continuous population'lar, her grupta en az 5 gözlem ($n_i \ge 5$; chi-square yaklaşımı için).</p>
+    <p><strong>Hipotezler:</strong> $H_0$: $k$ population dağılımı aynı. $H_a$: en az ikisinin dağılımı farklı. (Walpole: $H_0: \mu_1 = \mu_2 = \dots = \mu_k$.) Rank-sum'daki gibi, bu hipotezi konum (median) farkı diye okumak ancak location-shift modelinde doğrudur: bütün grupların shape'i ve spread'i aynı, sadece konumları kayabilir. Bu model yoksa reject, sadece dağılımların aynı olmadığını söyler; bir median farkı göstermeyebilir.</p>
+    <ol>
+      <li>Bütün $n = n_1 + \dots + n_k$ gözlemi birlikte sırala; tie'lara ortalama rank ver.</li>
+      <li>$R_i$ = $i$. grubun rank toplamı. Kontrol: $\sum R_i = n(n+1)/2$.</li>
+      <li>$$H = \frac{12}{n(n+1)} \sum_{i=1}^{k} \frac{R_i^2}{n_i} - 3(n+1)$$</li>
+      <li>$H_0$ altında $H \approx \chi^2$, $k - 1$ df. Rejection region: $H &gt; \chi^2_\alpha$ (sadece upper tail).</li>
+    </ol>
+    <p><strong>Hangi gruplar farklı?</strong> $H_0$ reddedilirse grupları çift çift rank-sum test ile karşılaştırabilirsin. $m$ tane karşılaştırma yapıyorsan her birini $\alpha/m$ düzeyinde yap (<strong>Bonferroni</strong>): $k = 3$ grupta 3 çift, $k = 4$'te 6 çift.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Walpole Example 16.6 (füze yakıtı)</span>
+    <p>Üç füze sisteminde itici yakıtın yanma hızı (kodlanmış). Yanma hızları aynı mı? $\alpha = 0.05$.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Sistem 1</th><td>24.0 (19)</td><td>16.7 (1)</td><td>22.8 (17)</td><td>19.8 (14.5)</td><td>18.9 (9.5)</td><td></td><td></td><td></td><td><b>R₁ = 61.0</b></td></tr>
+      <tr><th>Sistem 2</th><td>23.2 (18)</td><td>19.8 (14.5)</td><td>18.1 (6)</td><td>17.6 (4)</td><td>20.2 (16)</td><td>17.8 (5)</td><td></td><td></td><td><b>R₂ = 63.5</b></td></tr>
+      <tr><th>Sistem 3</th><td>18.4 (7)</td><td>19.1 (11)</td><td>17.3 (2.5)</td><td>17.3 (2.5)</td><td>19.7 (13)</td><td>18.9 (9.5)</td><td>18.8 (8)</td><td>19.3 (12)</td><td><b>R₃ = 65.5</b></td></tr>
+    </table></div>
+    <ol>
+      <li><strong>Hipotezler:</strong> $H_0$: üç sistemin yanma hızı dağılımları aynı ($\mu_1 = \mu_2 = \mu_3$); $H_a$: en az ikisi farklı.</li>
+      <li><strong>Test statistic:</strong> $n = 19$, $n_i = 5, 6, 8$ (hepsi $\ge 5$). Kontrol: $61 + 63.5 + 65.5 = 190 = 19 \cdot 20/2$.
+      $$h = \frac{12}{19 \cdot 20}\left(\frac{61.0^2}{5} + \frac{63.5^2}{6} + \frac{65.5^2}{8}\right) - 3 \cdot 20 = 0.03158 \cdot 1952.52 - 60 = 1.66$$</li>
+      <li><strong>Rejection region:</strong> $h &gt; \chi^2_{.05,2} = 5.991$. $1.66 &lt; 5.991$ ⇒ rejection region'da değil ($p \approx 0.44$).</li>
+      <li><strong>Sonuç:</strong> fail to reject $H_0$. Üç sistemin yanma hızlarının farklı olduğuna dair yeterli kanıt yok.</li>
+    </ol>
+    <p>SciPy: <code>stats.kruskal(s1, s2, s3)</code> ⇒ <code>KruskalResult(statistic=1.6630, pvalue=0.4354)</code>. Elle bulduğun 1.66'dan küçük fark, SciPy'nin tie düzeltmesinden ($H$'yi $1 - \sum(t^3 - t)/(n^3 - n)$'e böler) geliyor.</p>
+  </div>
+  <!-- Kaynak: Walpole §16.4 (kitap s.668–669): Kruskal & Wallis 1952, H formülü, "provided each sample consists of at least 5 observations", H > χ²α, v = k − 1, Example 16.6, Table 16.5 ve 16.6 · McClave §10.2 "Answer: Use a nonparametric statistical method such as the Kruskal-Wallis H-Test of Section 14.5"; McClave cevap anahtarı "14.61 b. H0: Three probability distributions are identical c. H > 9.21034" · Bonferroni: 04-hypothesis-testing-ii.pdf slayt 28 özeti ve QB1 S24'teki α/m kuralı. Python: h = 1.6586, kruskal 1.662995 p 0.435397, chi2.isf(.05,2) = 5.9915. Widget tie düzeltmesi kontrolü: gruplar 2,0,1,1,0 / 0,0,0,0,0 / 2,2,2,0,2 ⇒ düzeltmesiz H = 5.795, p = 0.05516; kruskal H = 7.13231, p = 0.02826. -->
+
+  <h3>Kendin dene: $k$ grup için rank'lar ve $H$</h3>
+  <p class="w-nonparametric-guess"><b>Önce tahmin et:</b> Füze verisinde üç grubun rank toplamları 61, 63.5 ve 65.5. Gruplar farklı büyüklükte olduğu için bu toplamlar yanıltıcı olabilir. Ortalama rank'lar ($R_i/n_i$) birbirine yakın mı, uzak mı?</p>
+  <div class="w-nonparametric-ctl">
+    <label>veri <select id="wg2-set" class="btn btn--sm">
+      <option value="mis">Walpole Ex 16.6: füze yakıtı (5 / 6 / 8)</option>
+      <option value="own">kendi verim</option>
+    </select></label>
+  </div>
+  <div class="w-nonparametric-ctl">
+    <textarea id="wg2-data" class="w-nonparametric-area" rows="4" aria-label="Gruplar: her satıra bir grup, ör. A: 1, 2, 3"></textarea>
+  </div>
+  <div class="w-nonparametric-ctl">
+    <label>α <select id="wg2-alpha" class="btn btn--sm">
+      <option value="0.01">0.01</option>
+      <option value="0.025">0.025</option>
+      <option value="0.05" selected>0.05</option>
+      <option value="0.10">0.10</option>
+    </select></label>
+    <button class="btn btn--sm btn--accent" id="wg2-go">Kur</button>
+  </div>
+  <div class="w-nonparametric-err" id="wg2-err" aria-live="polite"></div>
+  <div id="wg2-stepper"></div>
+
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>df $= k - 1$ (grup sayısı eksi bir), $n - 1$ değil.</li>
+      <li>Rejection region sadece upper tail. $H$ küçükse gruplar birbirine benziyor; "çok küçük $H$" bir kanıt değil.</li>
+      <li>$R_i^2/n_i$: her grubun kendi $n_i$'si. Bütün grupları toplam $n$'ye bölme.</li>
+      <li>Global $H$ testi hangi grupların farklı olduğunu söylemez. Çift çift testlerde Bonferroni'yi unutma; yoksa yanlış alarm olasılığı $\alpha$'nın çok üstüne çıkar.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.21"><span class="box__label">Walpole 16.21 · kitap alıştırması</span>
+    <p>"The following data represent the operating times in hours for three types of scientific pocket calculators before a recharge is required:</p>
+    <p>A: 4.9 6.1 4.3 4.6 5.2<br>B: 5.5 5.4 6.2 5.8 5.5 5.2 4.8<br>C: 6.4 6.8 5.6 6.5 6.3 6.6</p>
+    <p>Use the Kruskal-Wallis test, at the 0.01 level of significance, to test the hypothesis that the operating times for all three calculators are equal."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$n = 18$. İki tane 5.2 (A ve B) ve iki tane 5.5 (ikisi de B) var.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\chi^2_{.01,2} = 9.210$. Rank toplamlarını kontrol et: $\sum R_i = 171$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0$: üç hesap makinesinin çalışma süresi dağılımları aynı; $H_a$: en az ikisi farklı.</li>
+        <li><strong>Test statistic:</strong> Sıralama: 4.3(1,A) 4.6(2,A) 4.8(3,B) 4.9(4,A) 5.2(5.5,A) 5.2(5.5,B) 5.4(7,B) 5.5(8.5,B) 5.5(8.5,B) 5.6(10,C) 5.8(11,B) 6.1(12,A) 6.2(13,B) 6.3(14,C) 6.4(15,C) 6.5(16,C) 6.6(17,C) 6.8(18,C).<br>$R_A = 24.5$, $R_B = 56.5$, $R_C = 90$ (toplam 171).
+        $$h = \frac{12}{18 \cdot 19}\left(\frac{24.5^2}{5} + \frac{56.5^2}{7} + \frac{90^2}{6}\right) - 3 \cdot 19 = 0.03509 \cdot 1926.09 - 57 = 10.58$$</li>
+        <li><strong>Rejection region:</strong> $h &gt; \chi^2_{.01,2} = 9.210$; $10.58 &gt; 9.210$ ⇒ reject ($p \approx 0.005$). Her grupta en az 5 gözlem var.</li>
+        <li><strong>Sonuç:</strong> 0.01 düzeyinde üç hesap makinesinin çalışma sürelerinin aynı olmadığı sonucuna varılır.</li>
+      </ol>
+      <p>Kitabın cevabı: $h = 10.58$; operating times are different.</p>
+      <p><strong>Ek (kitabın sorusunda yok): hangi çiftler farklı?</strong> 3 çift ⇒ Bonferroni ile her test $0.01/3 = 0.0033$ düzeyinde. Exact two-tailed rank-sum p-value'ları: A–B 0.162, A–C 0.0087, B–C 0.0047. Hiçbiri 0.0033'ün altında değil: global test bir fark buldu ama bu sıkı düzeyde hangi çift olduğu ayırt edilemiyor. Aile düzeyi 0.05 olsaydı (her çift 0.0167) A–C ve B–C farklı çıkardı; C'nin süreleri en uzun.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/walpole-probability-and-statistics-9e.pdf" target="_blank" rel="noopener">Orijinal soru (Walpole 9e, kitap s.670) ↗</a></p>
+    <!-- Kaynak: Walpole 16.21 (kitap s.670) ve cevap anahtarı "16.21 h = 10.58; operating times are different". Python: R = 24.5, 56.5, 90; h = 10.58195; chi2.sf(10.58, 2) = 0.00504; scipy kruskal (tie düzeltmeli) 10.6038, p 0.00498; pairwise exact two-sided: A–B 0.1616, A–C 0.0087, B–C 0.0047. -->
+  </div>
+  <div class="quiz" id="q-kw-2">
+    <p class="quiz__q">Kruskal–Wallis 4 grupta $H_0$'ı reddetti. Bütün çiftleri rank-sum test ile karşılaştıracaksın ve aile düzeyi $\alpha = 0.05$ olsun istiyorsun. Her test hangi düzeyde yapılır?</p>
+    <button class="quiz__opt" data-correct>$0.05/6 = 0.0083$<span class="why">Doğru. 4 grupta $\binom 42 = 6$ çift var; Bonferroni her teste $\alpha/m$ verir.</span></button>
+    <button class="quiz__opt">$0.05/4 = 0.0125$<span class="why">Bölünen grup sayısı değil, test (karşılaştırma) sayısı. 4 grup 6 çift verir.</span></button>
+    <button class="quiz__opt">$0.05$, çünkü global test zaten reddetti<span class="why">Global red, çift testlerin her birini 0.05'te yapmayı haklı çıkarmaz. 6 test 0.05'te yapılırsa en az bir yanlış alarm olasılığı %26'ya kadar çıkabilir.</span></button>
+    <button class="quiz__opt">$0.05 \cdot 6 = 0.30$<span class="why">Bonferroni düzeyi küçültür, büyütmez. Amaç toplam yanlış alarm olasılığını 0.05'te tutmak.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="friedman" data-min="4">
+  <h2>Friedman $F_r$: randomized block design</h2>
+  <div class="quiz" id="q-fr-1">
+    <p class="quiz__q">6 farklı benchmark girdisinin her biri 3 algoritmayla çalıştırılıp süreler ölçülüyor. Girdiler birbirinden çok farklı büyüklükte, süreler çarpık. Algoritmaları hangi testle karşılaştırırsın?</p>
+    <button class="quiz__opt" data-correct>Friedman $F_r$<span class="why">Doğru. Her girdi bir block; her block'ta üç treatment var. Rank'lar block içinde verilir, böylece girdiler arasındaki büyük fark testi bozmaz.</span></button>
+    <button class="quiz__opt">Kruskal–Wallis<span class="why">Kruskal–Wallis 18 süreyi birlikte sıralar; büyük girdinin süreleri hep en büyük rank'ları alır ve algoritma farkı girdi farkının içinde kaybolur. Block yapısı kullanılmalı.</span></button>
+    <button class="quiz__opt">Wilcoxon rank-sum<span class="why">Rank-sum iki independent sample içindir. Burada üç treatment var ve gözlemler girdi üzerinden eşleşik.</span></button>
+    <button class="quiz__opt">Spearman $r_s$<span class="why">Spearman iki değişken arasındaki ilişkiyi ölçer, treatment'ları karşılaştırmaz.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Friedman $F_r$ test (McClave §14.6)</span>
+    <p class="src">Not: McClave §14.6'nın metni repoda yok ve Walpole bu testi anlatmıyor. Aşağıdaki formül testin standart hâlidir; McClave'in ANOVA bölümü randomized block design için "use a nonparametric statistical method such as the Friedman $F_r$ test of Section 14.6" diyor.</p>
+    <p><strong>Tasarım:</strong> $b$ block, her block'ta $k$ treatment'ın her biri bir kez (randomized block design: paired design'ın $k$ treatment'lı hâli).</p>
+    <p><strong>Hipotezler:</strong> $H_0$: $k$ treatment'ın dağılımları aynı; $H_a$: en az ikisinin konumu farklı.</p>
+    <ol>
+      <li>Her block'un <strong>kendi içinde</strong> $k$ gözlemi 1'den $k$'ya sırala (tie'lara ortalama rank).</li>
+      <li>$R_j$ = $j$. treatment'ın block'lar boyunca rank toplamı. Kontrol: $\sum R_j = bk(k+1)/2$.</li>
+      <li>$$F_r = \frac{12}{bk(k+1)} \sum_{j=1}^{k} R_j^2 - 3b(k+1)$$</li>
+      <li>$H_0$ altında $F_r \approx \chi^2$, $k - 1$ df; rejection region $F_r &gt; \chi^2_\alpha$. Yaklaşım için yaygın kural: $b \ge 5$ ya da $k \ge 5$.</li>
+    </ol>
+    <p><strong>Block içinde tie varsa:</strong> ortalama rank vermek tek başına yetmez, statistic de düzeltilir. Her block'taki her tie grubunun büyüklüğü $t$ olmak üzere</p>
+    $$C = 1 - \frac{\sum_{\text{block}} \sum (t^3 - t)}{b\,k\,(k^2 - 1)}$$
+    <p>ve chi-square ile $F_r / C$ kıyaslanır. Tie yoksa $C = 1$. Örnek: $b = 4$, $k = 3$, block'lar (1, 2, 2), (3, 1, 2), (1, 1, 1), (2, 3, 1): $F_r = 0.125$; tie'lar $(2^3 - 2) + (3^3 - 3) = 30$, $C = 1 - 30/(4 \cdot 3 \cdot 8) = 0.6875$, $F_r/C = 0.182$. SciPy'nin <code>friedmanchisquare</code>'i bu düzeltilmiş değeri verir. $C = 0$ ise (her block'ta bütün gözlemler eşit) test hesaplanamaz: hiçbir block treatment'ları birbirinden ayırmıyor.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · üç algoritma, altı benchmark (sayılar bu ders için)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Benchmark</th><th>A (ms)</th><th>B (ms)</th><th>C (ms)</th><th>Rank A</th><th>Rank B</th><th>Rank C</th></tr>
+      <tr><td>1</td><td>12.1</td><td>11.4</td><td>13.0</td><td>2</td><td>1</td><td>3</td></tr>
+      <tr><td>2</td><td>8.3</td><td>8.0</td><td>8.9</td><td>2</td><td>1</td><td>3</td></tr>
+      <tr><td>3</td><td>15.2</td><td>15.6</td><td>16.1</td><td>1</td><td>2</td><td>3</td></tr>
+      <tr><td>4</td><td>10.4</td><td>9.9</td><td>10.8</td><td>2</td><td>1</td><td>3</td></tr>
+      <tr><td>5</td><td>7.7</td><td>7.5</td><td>7.6</td><td>3</td><td>1</td><td>2</td></tr>
+      <tr><td>6</td><td>20.3</td><td>19.8</td><td>21.0</td><td>2</td><td>1</td><td>3</td></tr>
+      <tr><th>$R_j$</th><td></td><td></td><td></td><th>12</th><th>7</th><th>17</th></tr>
+    </table></div>
+    <ol>
+      <li><strong>Hipotezler:</strong> $H_0$: üç algoritmanın süre dağılımları aynı; $H_a$: en az ikisi farklı. $\alpha = 0.05$.</li>
+      <li><strong>Test statistic:</strong> $b = 6$, $k = 3$. Kontrol: $12 + 7 + 17 = 36 = 6 \cdot 3 \cdot 4/2$.
+      $$F_r = \frac{12}{6 \cdot 3 \cdot 4}(12^2 + 7^2 + 17^2) - 3 \cdot 6 \cdot 4 = \frac{482}{6} - 72 = 8.33$$</li>
+      <li><strong>Rejection region:</strong> $F_r &gt; \chi^2_{.05,2} = 5.991$; $8.33 &gt; 5.991$ ⇒ reject ($p = 0.016$).</li>
+      <li><strong>Sonuç:</strong> Algoritmaların sürelerinin aynı olmadığı sonucuna varılır; rank toplamına göre B en hızlı, C en yavaş.</li>
+    </ol>
+    <p>Aynı 18 süreyi Kruskal–Wallis ile birlikte sıralasaydın 20.3 ms'lik benchmark'ın süreleri hep en üstte, 7.6 ms'likler hep en altta olurdu; algoritma farkı bu gürültüde kaybolurdu. SciPy: <code>stats.friedmanchisquare(A, B, C)</code> ⇒ statistic 8.333, pvalue 0.0155.</p>
+  </div>
+  <!-- Kaynak: McClave içindekiler §14.6 "Comparing Three or More Populations: Randomized Block Design" ve §10.4 sonundaki kutu ("Use a nonparametric statistical method such as the Friedman Fr test of Section 14.6"); cevap anahtarı Fr değerleri (14.77 c. Fr = 12.1, 14.85 a. Fr > 9.21034). Formül ve b ≥ 5 ya da k ≥ 5 kuralı McClave metni repoda olmadığı için standart tanımdan; görünür Not ile işaretlendi. Benchmark verisi bu ders için yazıldı. Python: R = 12, 7, 17; Fr = 8.3333; friedmanchisquare 8.3333, p 0.015504. Tie düzeltmesi C = 1 − Σ(t³ − t)/(bk(k² − 1)) scipy friedmanchisquare ile aynı; örnek block'lar (1,2,2), (3,1,2), (1,1,1), (2,3,1): Fr = 0.125, C = 0.6875, Fr/C = 0.181818 = friedmanchisquare. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Rank'lar <strong>block içinde</strong> verilir (1'den $k$'ya), bütün $bk$ gözlem birlikte değil. Birlikte sıralamak Kruskal–Wallis olur ve block'u yok sayar.</li>
+      <li>Formülde $b$ ve $k$'yı karıştırma: kare toplamı treatment'ların rank toplamları üzerinden, df $= k - 1$.</li>
+      <li>$\sum R_j = bk(k+1)/2$ kontrolünü yap; tutmuyorsa bir block'ta rank hatası var.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-fr-2">
+    <p class="quiz__q">$b = 8$ block, $k = 4$ treatment. Rank toplamlarının toplamı $\sum R_j$ kaç olmalı?</p>
+    <button class="quiz__opt" data-correct>80<span class="why">Doğru. Her block'ta $1 + 2 + 3 + 4 = 10$; 8 block ⇒ $80 = bk(k+1)/2$.</span></button>
+    <button class="quiz__opt">528<span class="why">Bu, 32 gözlemin hepsine birlikte rank verilseydi çıkacak toplam ($32 \cdot 33/2$). Friedman'da rank'lar block içinde.</span></button>
+    <button class="quiz__opt">36<span class="why">$8 \cdot 9/2$: block sayısını rank gibi kullanmışsın. Her block'ta 1'den $k$'ya rank var.</span></button>
+    <button class="quiz__opt">10<span class="why">Tek bir block'un rank toplamı. 8 block var.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="spearman" data-min="5">
+  <h2>Spearman rank correlation $r_s$</h2>
+  <div class="quiz" id="q-sp-1">
+    <p class="quiz__q">İki jüri 6 yarışmacıyı tam ters sırayla sıralamış: birinin 1. sıradaki, ötekinin 6. sıradaki vb. $r_s$ kaçtır?</p>
+    <button class="quiz__opt" data-correct>$-1$<span class="why">Doğru. Tam ters sıralama mükemmel negatif ilişki. Formülle: $d$: 5, 3, 1, −1, −3, −5, $\sum d^2 = 70$, $r_s = 1 - 6 \cdot 70/(6 \cdot 35) = -1$.</span></button>
+    <button class="quiz__opt">$0$<span class="why">0, sıralamalar arasında hiçbir düzen olmaması demek. Burada çok güçlü bir düzen var, sadece ters yönde.</span></button>
+    <button class="quiz__opt">$+1$<span class="why">+1 aynı sıralama. Ters sıralama işareti çevirir.</span></button>
+    <button class="quiz__opt">Hesaplanamaz, veri sayısal değil<span class="why">Spearman tam bu durum için: sıralamalar yeterli, ölçüm gerekmez.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Spearman rank correlation (Walpole §16.7, McClave §14.7)</span>
+    <ul>
+      <li>$x$'lere kendi içinde, $y$'lere kendi içinde 1'den $n$'ye rank ver (tie'lara ortalama rank). $r_s$, bu rank'lar üzerinden hesaplanan Pearson correlation'dır.</li>
+      <li>Tie yoksa kısa formül tam sonucu verir; Walpole tie olduğunda da kullanır (yaklaşık):
+      $$r_s = 1 - \frac{6\sum d_i^2}{n(n^2 - 1)}, \qquad d_i = (\text{x'in rank'ı}) - (\text{y'nin rank'ı})$$</li>
+      <li>$-1 \le r_s \le 1$: $+1$ aynı sıralama, $-1$ ters sıralama, 0 civarı ilişki yok.</li>
+      <li><strong>Test</strong> ($H_0: \rho = 0$), McClave Table XI / Walpole Table A.21: upper-tailed $r_s &gt; r_{s,\alpha}$; lower-tailed $r_s &lt; -r_{s,\alpha}$; two-tailed $|r_s| &gt; r_{s,\alpha/2}$ (tablo one-tailed $\alpha$ verir, two-tailed için iki katı). Tablonun ötesinde $z = r_s\sqrt{n-1}$.</li>
+    </ul>
+    <p><strong>Avantajları (Walpole):</strong> ilişkinin doğrusal olması gerekmez, monoton olması yeter; normallik varsayımı yok; sadece sıralama varken de kullanılır (iki jürinin tutarlılığı).</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Walpole Example 16.8 ve 16.9 (tar ve nikotin)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Marka</th><th>Tar</th><th>Nikotin</th><th>$x$ rank</th><th>$y$ rank</th><th>$d$</th></tr>
+      <tr><td>Viceroy</td><td>14</td><td>0.9</td><td>2.0</td><td>2.0</td><td>0.0</td></tr>
+      <tr><td>Marlboro</td><td>17</td><td>1.1</td><td>4.5</td><td>4.0</td><td>0.5</td></tr>
+      <tr><td>Chesterfield</td><td>28</td><td>1.6</td><td>9.0</td><td>9.0</td><td>0.0</td></tr>
+      <tr><td>Kool</td><td>17</td><td>1.3</td><td>4.5</td><td>6.0</td><td>−1.5</td></tr>
+      <tr><td>Kent</td><td>16</td><td>1.0</td><td>3.0</td><td>3.0</td><td>0.0</td></tr>
+      <tr><td>Raleigh</td><td>13</td><td>0.8</td><td>1.0</td><td>1.0</td><td>0.0</td></tr>
+      <tr><td>Old Gold</td><td>24</td><td>1.5</td><td>7.0</td><td>8.0</td><td>−1.0</td></tr>
+      <tr><td>Philip Morris</td><td>25</td><td>1.4</td><td>8.0</td><td>7.0</td><td>1.0</td></tr>
+      <tr><td>Oasis</td><td>18</td><td>1.2</td><td>6.0</td><td>5.0</td><td>1.0</td></tr>
+      <tr><td>Players</td><td>31</td><td>2.0</td><td>10.0</td><td>10.0</td><td>0.0</td></tr>
+    </table></div>
+    <p>$\sum d^2 = 0.25 + 2.25 + 1 + 1 + 1 = 5.5$, $r_s = 1 - \dfrac{6 \cdot 5.5}{10 \cdot 99} = 0.967$.</p>
+    <ol>
+      <li><strong>Hipotezler:</strong> $H_0: \rho = 0$, $H_a: \rho &gt; 0$, $\alpha = 0.01$.</li>
+      <li><strong>Test statistic:</strong> $r_s = 0.967$.</li>
+      <li><strong>Rejection region:</strong> Table XI, $n = 10$, $\alpha = .01$: $r_s &gt; 0.745$. $0.967 &gt; 0.745$ ⇒ reject.</li>
+      <li><strong>Sonuç:</strong> Sigaralardaki tar ve nikotin miktarı arasında anlamlı pozitif ilişki var.</li>
+    </ol>
+    <p>SciPy: <code>stats.spearmanr(tar, nic)</code> ⇒ statistic 0.9666 (rank'lar üzerinden Pearson; tie yüzünden kısa formülden çok az farklı), pvalue $5.2 \times 10^{-6}$.</p>
+  </div>
+  <!-- Kaynak: Walpole §16.7 (kitap s.674–677): tanım, formül, tie'lar, Example 16.8, Table 16.7–16.8, avantajlar, Table A.21, Example 16.9 (rs > 0.745), z = rs√(n−1) · McClave Table XI (s.858): "The α values correspond to a one-tailed test of H0: ρ = 0. The value should be doubled for two-tailed tests." n = 10, α = .01: .745; n = 8, α = .05: .643; n = 10, α = .025: .648. Python: Σd² = 5.5, rs = 0.96667, spearmanr 0.96657, p 5.25e-6. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$d_i$ ham değerlerin değil, <strong>rank'ların</strong> farkı.</li>
+      <li>$x$ ve $y$ ayrı ayrı sıralanır. İkisini birlikte sıralamak (rank-sum gibi) yanlış.</li>
+      <li>Table XI one-tailed. Two-tailed testte $\alpha/2$ sütununa bak.</li>
+      <li>$n$ çift sayısıdır, toplam gözlem sayısı değil.</li>
+      <li>Yüksek $r_s$ neden-sonuç göstermez; sadece monoton ilişki.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.37"><span class="box__label">Walpole 16.37 · kitap alıştırması</span>
+    <p>"Two judges at a college homecoming parade rank eight floats in the following order:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Float</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td></tr>
+      <tr><th>Judge A</th><td>5</td><td>8</td><td>4</td><td>3</td><td>6</td><td>2</td><td>7</td><td>1</td></tr>
+      <tr><th>Judge B</th><td>7</td><td>5</td><td>4</td><td>2</td><td>8</td><td>1</td><td>6</td><td>3</td></tr>
+    </table></div>
+    <p>(a) Calculate the rank correlation coefficient. (b) Test the null hypothesis that ρ = 0 against the alternative that ρ &gt; 0. Use α = 0.05."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Veri zaten rank. $d = A - B$'yi sütun sütun yaz, karelerini topla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Table XI, $n = 8$, $\alpha = .05$ one-tailed.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $d$: −2, 3, 0, 1, −2, 1, 1, −2; $d^2$: 4, 9, 0, 1, 4, 1, 1, 4; $\sum d^2 = 24$. $r_s = 1 - \dfrac{6 \cdot 24}{8 \cdot 63} = 1 - \dfrac{144}{504} = 0.714$.</p>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0: \rho = 0$, $H_a: \rho &gt; 0$.</li>
+        <li><strong>Test statistic:</strong> $r_s = 0.714$.</li>
+        <li><strong>Rejection region:</strong> Table XI, $n = 8$, $\alpha = .05$: $r_s &gt; 0.643$. $0.714 &gt; 0.643$ ⇒ reject.</li>
+        <li><strong>Sonuç:</strong> İki jürinin sıralamaları arasında anlamlı pozitif ilişki var: jüriler birbirine uyumlu.</li>
+      </ol>
+      <p>Kitabın cevabı: (a) $r_s = 0.71$; (b) reject $H_0$, so $\rho &gt; 0$.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/walpole-probability-and-statistics-9e.pdf" target="_blank" rel="noopener">Orijinal soru (Walpole 9e, kitap s.678) ↗</a></p>
+    <!-- Kaynak: Walpole 16.37 (kitap s.678, PDF s.699) ve cevap anahtarı "16.37 (a) rs = 0.71; (b) reject H0, so ρ > 0". Python: Σd² = 24, rs = 0.71429; spearmanr one-sided p = 0.0233. -->
+  </div>
+  <div class="box box--exam" data-exam="walpole-16.32"><span class="box__label">Walpole 16.32 · kitap alıştırması</span>
+    <p>"The following table gives the recorded grades for 10 students on a midterm test and the final examination in a calculus course:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Student</th><td>L.S.A.</td><td>W.P.B.</td><td>R.W.K.</td><td>J.R.L.</td><td>J.K.L.</td><td>D.L.P.</td><td>B.L.P.</td><td>D.W.M.</td><td>M.N.M.</td><td>R.H.S.</td></tr>
+      <tr><th>Midterm Test</th><td>84</td><td>98</td><td>91</td><td>72</td><td>86</td><td>93</td><td>80</td><td>0</td><td>92</td><td>87</td></tr>
+      <tr><th>Final Examination</th><td>73</td><td>63</td><td>87</td><td>66</td><td>78</td><td>78</td><td>91</td><td>0</td><td>88</td><td>77</td></tr>
+    </table></div>
+    <p>(a) Calculate the rank correlation coefficient. (b) Test the null hypothesis that ρ = 0 against the alternative that ρ &gt; 0. Use α = 0.025."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Final'de iki tane 78 var: 6. ve 7. sıra ⇒ 6.5. D.W.M.'nin iki notu da 0: ikisinde de rank 1.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Table XI, $n = 10$, $\alpha = .025$: 0.648.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> Midterm rank'ları: 4, 10, 7, 2, 5, 9, 3, 1, 8, 6. Final rank'ları: 4, 2, 8, 3, 6.5, 6.5, 10, 1, 9, 5. $d$: 0, 8, −1, −1, −1.5, 2.5, −7, 0, −1, 1; $\sum d^2 = 125.5$.
+      $$r_s = 1 - \frac{6 \cdot 125.5}{10 \cdot 99} = 1 - \frac{753}{990} = 0.24$$</p>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0: \rho = 0$, $H_a: \rho &gt; 0$.</li>
+        <li><strong>Test statistic:</strong> $r_s = 0.24$.</li>
+        <li><strong>Rejection region:</strong> Table XI, $n = 10$, $\alpha = .025$: $r_s &gt; 0.648$. $0.24 &lt; 0.648$ ⇒ fail to reject.</li>
+        <li><strong>Sonuç:</strong> Midterm ve final notlarının sıraları arasında anlamlı pozitif ilişki gösterilemedi.</li>
+      </ol>
+      <p><strong>Neden ilginç:</strong> Aynı veride ham notlarla Pearson $r = 0.91$ çıkıyor. Bu neredeyse tamamen D.W.M.'nin (0, 0) noktasından geliyor; o öğrenci çıkarılınca $r = 0.04$. Spearman bu noktaya sadece "iki sıralamada da sonuncu" bilgisini verir, değerin 0 olmasının ekstra bir ağırlığı olmaz. Uç değer tek başına sonucu sürükleyemez.</p>
+      <p>Bu soru çift numaralı, kitabın cevap anahtarında yok. SciPy <code>spearmanr</code> (rank'lar üzerinden Pearson) 0.237 verir; kısa formül tie yüzünden 0.239.</p>
+    </div></details>
+    <!-- Kaynak: Walpole 16.32 (kitap s.678). Python: ranks, Σd² = 125.5, rs = 0.2394; spearmanr 0.2371; pearsonr 0.9102; (0,0) çıkarılınca pearsonr 0.0417, spearmanr −0.0502. -->
+  </div>
+  <div class="quiz" id="q-sp-2">
+    <p class="quiz__q">$n = 10$, two-tailed test, $\alpha = 0.05$. $r_s = -0.62$. Table XI'da $n = 10$ satırı: $\alpha = .05$: 0.564, $\alpha = .025$: 0.648. Karar?</p>
+    <button class="quiz__opt" data-correct>Fail to reject: $|{-0.62}| &lt; 0.648$<span class="why">Doğru. Two-tailed $\alpha = 0.05$ ⇒ tablodaki $\alpha/2 = .025$ sütunu, 0.648.</span></button>
+    <button class="quiz__opt">Reject: $0.62 &gt; 0.564$<span class="why">0.564 one-tailed $\alpha = .05$ sınırı. Two-tailed testte her kuyruğa $\alpha/2$ düşer.</span></button>
+    <button class="quiz__opt">Fail to reject, çünkü $r_s$ negatif<span class="why">Two-tailed testte işaret önemli değil, büyüklük önemli. Sonuç doğru ama gerekçe yanlış: $|r_s| = 0.62 &lt; 0.648$.</span></button>
+    <button class="quiz__opt">Reject: $-0.62 &lt; -0.564$<span class="why">Bu lower-tailed $\alpha = .05$ testinin kuralı. Soru two-tailed.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="which-method" data-min="6">
+  <h2>Hangi yöntem? Parametric ve nonparametric haritası</h2>
+  <div class="quiz" id="q-which-1">
+    <p class="quiz__q">12 öğrenci aynı görevi iki farklı IDE ile yapıyor ve iki süre ölçülüyor. Farkların histogramı kabaca simetrik ama bir uç değer var. Hangi test?</p>
+    <button class="quiz__opt" data-correct>Wilcoxon signed-rank (farklar üzerinde)<span class="why">Doğru. Paired design, küçük $n$, uç değer: paired t'ye güvenilmez. Farklar kabaca simetrik olduğu için signed-rank, sign test'ten daha güçlü.</span></button>
+    <button class="quiz__opt">Paired t<span class="why">$n = 12$'de tek bir uç değer t'yi bozabilir (slayt 25). Normallik şüpheli.</span></button>
+    <button class="quiz__opt">Wilcoxon rank-sum<span class="why">Rank-sum independent sample'lar içindir. Aynı öğrenci iki ölçüm veriyor: paired.</span></button>
+    <button class="quiz__opt">Kruskal–Wallis<span class="why">Kruskal–Wallis $k$ independent grup içindir; burada iki eşleşik ölçüm var.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · dönemin test haritası</span>
+    <div class="table-wrap"><table>
+      <tr><th>Tasarım / soru</th><th>Normal ya da $n$ büyük</th><th>Küçük $n$, açıkça normal değil ya da ordinal</th><th>Nonparametric koşulu</th></tr>
+      <tr><td>Bir mean / median, sabit değer</td><td>z ($n \ge 30$), t ($n - 1$ df)</td><td>sign test; simetrikse signed-rank</td><td>sign: continuous; signed-rank: + simetri</td></tr>
+      <tr><td>Bir proportion</td><td>z ($np_0 \ge 15$, $n(1-p_0) \ge 15$)</td><td>exact binomial</td><td>—</td></tr>
+      <tr><td>Paired iki ölçüm</td><td>paired t (farklar üzerinde)</td><td>signed-rank ya da sign test (farklar üzerinde)</td><td>farklar üzerinde, sıfırlar atılır</td></tr>
+      <tr><td>İki independent sample</td><td>large-sample z, pooled t, Welch t</td><td>Wilcoxon rank-sum / Mann–Whitney U</td><td>independent, continuous</td></tr>
+      <tr><td>$k$ independent sample</td><td>one-way ANOVA F</td><td>Kruskal–Wallis H, $\chi^2_{k-1}$</td><td>her grupta $n_i \ge 5$</td></tr>
+      <tr><td>$k$ treatment, $b$ block</td><td>randomized block ANOVA</td><td>Friedman $F_r$, $\chi^2_{k-1}$</td><td>rank'lar block içinde</td></tr>
+      <tr><td>İki değişkenin ilişkisi</td><td>Pearson $r$</td><td>Spearman $r_s$</td><td>monoton ilişki yeter</td></tr>
+    </table></div>
+    <p><strong>Sıra:</strong> (1) Tasarım: tek sample mı, paired mı, independent iki grup mu, $k$ grup mu, block mu, ilişki mi? (2) Veri tipi: sayısal mı, sıra mı, + / − mi? (3) Koşul: $n \ge 30$ ise mean için CLT çoğu zaman yeter (30 bir rule of thumb, garanti değil: aşırı çarpıklık, aşırı outlier ya da çok ağır kuyruk varsa daha büyük $n$ gerekir); $n &lt; 30$ ve yaklaşık normalse t / F; $n &lt; 30$ ve açıkça normal değilse nonparametric. (4) $H_0$'ı eşitlikle yaz.</p>
+  </div>
+  <!-- Kaynak: 03-hypothesis-testing-i.pdf slayt 26 · 04-hypothesis-testing-ii.pdf slayt 27 ("Which One-Sample Test?", proportion np0 ≥ 15 koşulu; komşu dersten) · McClave Chapter 14 cevap anahtarı "14.111 a. rank sum test b. sign test c. Kruskal-Wallis test d. Spearman's test e. signed rank test f. Friedman's test" (test seçimi alıştırması; sorunun metni repoda yok) · Walpole §16.1 verimlilik notları. -->
+
+  <h3>Kendin dene: robustness yarışı</h3>
+  <p>İki grup, her birinde $n$ gözlem. Önce iki grup aynı population'dan geliyor (fark yok): testin yanlış alarm oranı %5 civarında kalmalı. Sonra ikinci grup $\delta$ standard deviation kadar sağa kaydırılıyor: testin farkı yakalama oranı power'dır. Her senaryo 2000 kez simüle ediliyor. Welch t two-tailed p-value'su ile, Wilcoxon rank-sum ise exact null dağılımından gelen sınırlarla karar veriyor ($\alpha = 0.05$).</p>
+  <p class="w-nonparametric-guess"><b>Önce tahmin et:</b> Çarpık (exponential) population, her grupta 10 gözlem, $\delta = 1$. Hangisinin power'ı daha yüksek: Welch t mi, rank-sum mı? Population normal olsaydı sıra değişir mi?</p>
+  <div class="w-nonparametric-ctl">
+    <label>population <select id="wx-dist" class="btn btn--sm">
+      <option value="norm">normal</option>
+      <option value="exp" selected>çarpık (exponential)</option>
+      <option value="t3">ağır kuyruklu (t, 3 df)</option>
+    </select></label>
+    <label>$n$ / grup <select id="wx-n" class="btn btn--sm">
+      <option value="6">6</option>
+      <option value="10" selected>10</option>
+      <option value="20">20</option>
+    </select></label>
+    <label>δ (SD birimi) <select id="wx-d" class="btn btn--sm">
+      <option value="0.5">0.5</option>
+      <option value="1" selected>1.0</option>
+      <option value="1.5">1.5</option>
+    </select></label>
+    <button class="btn btn--sm btn--accent" id="wx-go">Yarışı başlat</button>
+    <button class="btn btn--sm" id="wx-seed">Yeni seed</button>
+  </div>
+  <div id="wx-out" class="w-nonparametric-race" aria-live="polite"></div>
+
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki genel alternatif: permutation test ve bootstrap</span>
+    <p>Dersin course info'su her klasik yöntemin bir "computational counterpart"ı olduğunu söylüyor; learning outcome 3 de varsayım tutmayınca "Welch, bootstrap or a nonparametric test"e geçmeyi istiyor.</p>
+    <ul>
+      <li><strong>Permutation test:</strong> $H_0$ altında grup etiketleri bir şey anlatmaz. Etiketleri karıştır, statistic'i her karıştırmada hesapla; gözlenen değerden en az onun kadar uç olanların payı p-value'dur (<a href="two-sample-independent.html#permutation">iki bağımsız sample dersi, permutation bölümü</a>). Rank-sum test aslında rank'lar üzerinde yapılmış bir permutation test'tir: Table IX'taki $T_L$, $T_U$ değerleri rank'ların gruplara bütün olası bölüşümlerinden gelir ($n_1 = 3$, $n_2 = 5$'te 56 bölüşüm).</li>
+      <li><strong>Bootstrap:</strong> sample'dan <em>iadeli</em> (with replacement) aynı büyüklükte yeni sample'lar çek, statistic'i (ör. median) her birinde hesapla. Bu değerlerin dağılımı, statistic'in sampling distribution'ının bir tahminidir; 2.5. ve 97.5. percentile'ları yaklaşık bir 95% CI verir (percentile bootstrap). Normallik varsayımı yok, ama sample population'ı temsil etmeli; çok küçük $n$'de bootstrap da zayıflar.</li>
+    </ul>
+  </div>
+  <p class="src">Not: Week 14 notebook'u repoda yok. Notebook'lar notlandırılan ödevdir (dönem notunun %20'si). İçinde sign test, rank-sum ya da bootstrap kodu yazma görevi olursa kodu kendin yaz; bu sayfa yöntemleri ve fikri veriyor, notebook çözümü vermiyor.</p>
+  <!-- Kaynak: 00-course-info.pdf "Every classical method paired with its computational counterpart", "What you will build: … bootstrap … permutation tests", learning outcome 3 · 03-hypothesis-testing-i.pdf slayt 25 ("or the bootstrap") · 00-course-info.pdf Academic Integrity. Robustness yarışı: her senaryoda 2000 tekrar, mulberry32 seed'li RNG; rank-sum sınırları exact DP ile (continuous veri, tie yok). Python (numpy) ile aynı tasarımda 20000 tekrar: normal n=10 δ=0 Welch 0.047, rank-sum 0.042; δ=1 Welch 0.551, rank-sum 0.511; exponential n=10 δ=0 Welch 0.037, rank-sum 0.041; δ=1 Welch 0.609, rank-sum 0.714; t3 n=10 δ=1 Welch 0.670, rank-sum 0.746. Exact sınırlar n=10: T ≤ 78 ya da T ≥ 132. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar (test seçimi)</span>
+    <ul>
+      <li>Önce tasarım: aynı birimden iki ölçüm varsa rank-sum ya da Kruskal–Wallis değil; signed-rank, sign ya da Friedman.</li>
+      <li>$n \ge 30$ ve çarpıklık ılımlıysa (aşırı outlier yok, variance sonlu) mean için CLT genelde yeter; "veri çarpık, mutlaka nonparametric" demek gerekmez. 30 sihirli bir sınır değil: çok ağır kuyruklu veride 45 gözlem de yetmeyebilir. Ama soru median'ı ya da sıralamayı soruyorsa nonparametric test doğrudan doğru araç.</li>
+      <li>Proportion sorusunda (başarı / başarısızlık) önce $np_0 \ge 15$ ve $n(1-p_0) \ge 15$ kontrolü: tutmuyorsa exact binomial. Sign test zaten $p_0 = 0.5$ ile exact binomial test.</li>
+      <li>Kruskal–Wallis ya da Friedman reddettiyse çift karşılaştırmalarda Bonferroni ($\alpha/m$).</li>
+      <li>$H_0$ her zaman eşitlik: $\eta = \eta_0$, "dağılımlar aynı", $\rho = 0$. İddia "en az", "en fazla" olsa da.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-which-2">
+    <p class="quiz__q">4 farklı sunucu yapılandırmasından her birinde 7 bağımsız istek süresi ölçülüyor; histogramlar çok sağa çarpık. Yapılandırmalar arasında fark var mı sorusu için önce hangi test, sonra ne?</p>
+    <button class="quiz__opt" data-correct>Kruskal–Wallis; reddederse çift çift rank-sum, her biri $0.05/6$ düzeyinde<span class="why">Doğru. 4 independent grup, küçük $n$, çarpık ⇒ Kruskal–Wallis ($n_i = 7 \ge 5$). Sonra 6 çift için Bonferroni.</span></button>
+    <button class="quiz__opt">One-way ANOVA; reddederse 6 tane t test, her biri 0.05'te<span class="why">İki hata: küçük ve çarpık gruplarda F'nin normallik varsayımı şüpheli; çift testlerde Bonferroni yok.</span></button>
+    <button class="quiz__opt">Friedman<span class="why">Friedman block'lu tasarım ister. Burada her yapılandırmada farklı istekler var: independent gruplar.</span></button>
+    <button class="quiz__opt">6 tane rank-sum test, her biri 0.05'te, global teste gerek yok<span class="why">6 test 0.05'te yapılırsa en az bir yanlış alarm olasılığı %5'in çok üstüne çıkar. Ya global test ya da Bonferroni gerekir.</span></button>
+  </div>
+  <div class="quiz" id="q-which-3">
+    <p class="quiz__q">$n = 45$ istek süresi. Histogram ılımlı sağa çarpık, aşırı uç değer yok. Soru: ortalama süre 60 ms'den büyük mü? Hangisi en uygun?</p>
+    <button class="quiz__opt" data-correct>Mean için z (ya da t) test; $n = 45$ ve çarpıklık ılımlı olduğu için CLT yaklaşımı makul<span class="why">Doğru. Slayt 26'nın ilk satırı. Soru "ortalama" (mean) diyor; çarpıklık ılımlı, aşırı outlier yok ve variance sonlu olduğu için $n = 45$'te $\bar x$'in sampling distribution'ı yaklaşık normal. Aşırı çarpık ya da çok ağır kuyruklu veride 30 kuralı bu garantiyi vermezdi.</span></button>
+    <button class="quiz__opt">Sign test, çünkü veri çarpık<span class="why">Sign test median'ı test eder; çarpık dağılımda median mean'den farklıdır. Soru mean'i soruyor ve $n$ büyük.</span></button>
+    <button class="quiz__opt">Wilcoxon rank-sum<span class="why">Tek sample var; rank-sum iki independent sample içindir.</span></button>
+    <button class="quiz__opt">Hiçbiri, veri normal değil<span class="why">Normallik verinin kendisinden değil, $\bar x$'in sampling distribution'ından istenir. $n = 45$ ve ılımlı çarpıklıkta CLT bunu yaklaşık sağlar.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="final-check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Sign test, eşitler atıldıktan sonra $n = 8$, sadece 1 plus. $H_a: \eta \ne \eta_0$, $\alpha = 0.05$. p-value ve karar?</p>
+    <button class="quiz__opt" data-correct>$p = 2 \cdot 9/256 = 0.070$, fail to reject<span class="why">Doğru. $P(X \le 1) = (1 + 8)/256 = 0.0352$; two-tailed ⇒ iki katı, 0.0703 &gt; 0.05.</span></button>
+    <button class="quiz__opt">$p = 0.035$, reject<span class="why">Tek kuyruk. $H_a$ iki yönlü: kuyruğu 2 ile çarp.</span></button>
+    <button class="quiz__opt">$p = 2 \cdot 1/256 = 0.0078$, reject<span class="why">Sadece $P(X = 0)$'ı almışsın. $P(X \le 1) = P(0) + P(1) = (1 + 8)/256$.</span></button>
+    <button class="quiz__opt">$p = 0.996$, fail to reject<span class="why">Yanlış kuyruk: $P(X \ge 1)$. Az plus kanıtsa $P(X \le 1)$ hesaplanır.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Kruskal–Wallis, 4 grup, her grupta 6 gözlem, $h = 8.2$, $\alpha = 0.05$. Karar?</p>
+    <button class="quiz__opt" data-correct>Reject: df $= 3$, $\chi^2_{.05,3} = 7.815$, $8.2 &gt; 7.815$<span class="why">Doğru. df $= k - 1 = 3$, rejection region sadece upper tail.</span></button>
+    <button class="quiz__opt">Fail to reject: df $= 23$, sınır 35.17<span class="why">df grup sayısından gelir: $k - 1$, $n - 1$ değil.</span></button>
+    <button class="quiz__opt">Fail to reject: two-tailed, sınır $\chi^2_{.025,3} = 9.348$<span class="why">$H$ testi upper-tailed. Büyük $H$ kanıttır; $\alpha$ ikiye bölünmez.</span></button>
+    <button class="quiz__opt">Karar verilemez: her grupta en az 10 gözlem gerekir<span class="why">Chi-square yaklaşımı için $n_i \ge 5$ yeter; burada 6.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Birleştirilmiş iki sample: 3, 5, 5, 8. Rank'lar?</p>
+    <button class="quiz__opt" data-correct>1, 2.5, 2.5, 4<span class="why">Doğru. İki tane 5, 2. ve 3. sıranın ortalamasını alır; 8 yine 4. sırada.</span></button>
+    <button class="quiz__opt">1, 2, 2, 3<span class="why">"Dense" sıralama: tie'dan sonraki rank'ı atlamamışsın. Rank'ların toplamı her zaman $1 + 2 + 3 + 4 = 10$ olmalı.</span></button>
+    <button class="quiz__opt">1, 2, 3, 4<span class="why">Eşit değerlere farklı rank vermişsin. Hangisinin 2 alacağına karar veremezsin; ikisi de ortalamayı alır.</span></button>
+    <button class="quiz__opt">1, 3, 3, 4<span class="why">Tie'lara 2 ile 3'ün ortalamasını değil büyüğünü vermişsin; toplam 11 olur, 10 olmalı.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">$n = 5$ çift, tie yok, $\sum d^2 = 4$. $r_s$ kaçtır?</p>
+    <button class="quiz__opt" data-correct>$0.8$<span class="why">Doğru. $1 - 6 \cdot 4/(5 \cdot 24) = 1 - 24/120 = 0.8$.</span></button>
+    <button class="quiz__opt">$0.2$<span class="why">$6\sum d^2/(n(n^2-1))$'i bulup 1'den çıkarmayı unutmuşsun.</span></button>
+    <button class="quiz__opt">$0.97$<span class="why">6 çarpanını unutmuşsun: $1 - 4/120$. Formül $1 - 6\sum d^2/(n(n^2 - 1))$.</span></button>
+    <button class="quiz__opt">$-0.8$<span class="why">$\sum d^2$ küçükse sıralamalar benzer, $r_s$ pozitif.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Aynı 8 kullanıcı üç farklı arayüzü kullanıp her birine 1–10 arası puan veriyor. Arayüzleri karşılaştırmak için hangi test?</p>
+    <button class="quiz__opt" data-correct>Friedman $F_r$, kullanıcılar block<span class="why">Doğru. Her kullanıcı üç arayüzü de puanlıyor (block), puanlar ordinal. Rank'lar kullanıcı içinde verilir.</span></button>
+    <button class="quiz__opt">Kruskal–Wallis<span class="why">Gruplar independent değil: aynı kullanıcılar. Kullanıcıdan kullanıcıya puanlama alışkanlığı farkı block ile ayıklanmalı.</span></button>
+    <button class="quiz__opt">One-way ANOVA<span class="why">Hem block yapısını yok sayar hem de 1–10 puanlarının normal ve aralık ölçekli olduğunu varsayar.</span></button>
+    <button class="quiz__opt">Wilcoxon signed-rank<span class="why">Signed-rank iki koşulu karşılaştırır; burada üç arayüz var.</span></button>
+  </div>
+  <!-- Sıradaki: dönem sonu tekrarı. Bütün testleri karışık çözmek için practice.html?mode=mixed. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=8"></script>
+<script src="../assets/lab.js?v=8"></script>
+<script>
+/* Numeric helpers for this lesson: normal, binomial with p = 1/2, chi-square, t (for Welch), exact null
+   distributions of the signed-rank and rank-sum statistics (ties allowed, sums kept doubled), ranks with ties
+   averaged, and a seeded RNG. Checked with python3 -I against scipy 1.13.1: P(X <= 3 | 15) = 0.0176,
+   P(X >= 7 | 10) = 0.1719, Phi(-1.57) = 0.0582, chi2.isf(.05, 2) = 5.991, chi2.isf(.01, 2) = 9.210,
+   chi2.sf(10.58, 2) = 0.00504, t.sf(2.0, 9.5) = 0.0374, exact P(T+ <= 11 | n = 10) = 0.0527,
+   exact two-sided rank-sum p for Walpole Ex 16.5 = 0.1392. */
+const NP = {
+  erfc(x) {
+    const z = Math.abs(x), t = 1 / (1 + 0.5 * z);
+    const r = t * Math.exp(-z * z - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 + t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277)))))))));
+    return x >= 0 ? r : 2 - r;
+  },
+  Phi(x) { return 0.5 * NP.erfc(-x / Math.SQRT2); },
+  lgamma(x) {
+    const c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+    let y = x, tmp = x + 5.5;
+    tmp -= (x + 0.5) * Math.log(tmp);
+    let ser = 1.000000000190015;
+    for (let j = 0; j < 6; j++) ser += c[j] / ++y;
+    return -tmp + Math.log(2.5066282746310005 * ser / x);
+  },
+  binomPmf(k, n) {
+    if (k < 0 || k > n) return 0;
+    return Math.exp(NP.lgamma(n + 1) - NP.lgamma(k + 1) - NP.lgamma(n - k + 1) - n * Math.LN2);
+  },
+  binomLe(x, n) { let s = 0; for (let k = 0; k <= x; k++) s += NP.binomPmf(k, n); return Math.min(1, s); },
+  binomGe(x, n) { return NP.binomLe(n - x, n); },
+  /* upper regularized incomplete gamma Q(a, x) */
+  gammaQ(a, x) {
+    if (x <= 0) return 1;
+    const lead = Math.exp(-x + a * Math.log(x) - NP.lgamma(a));
+    if (x < a + 1) {
+      let ap = a, sum = 1 / a, del = sum;
+      for (let i = 0; i < 1000; i++) { ap += 1; del *= x / ap; sum += del; if (Math.abs(del) < Math.abs(sum) * 1e-15) break; }
+      return Math.max(0, 1 - sum * lead);
+    }
+    const tiny = 1e-300;
+    let b = x + 1 - a, c = 1 / tiny, d = 1 / b, h = d;
+    for (let i = 1; i < 1000; i++) {
+      const an = -i * (i - a);
+      b += 2;
+      d = an * d + b; if (Math.abs(d) < tiny) d = tiny;
+      c = b + an / c; if (Math.abs(c) < tiny) c = tiny;
+      d = 1 / d;
+      const del = d * c; h *= del;
+      if (Math.abs(del - 1) < 1e-15) break;
+    }
+    return lead * h;
+  },
+  chi2Sf(x, k) { return NP.gammaQ(k / 2, x / 2); },
+  chi2Up(a, k) {
+    let lo = 0, hi = 1;
+    while (NP.chi2Sf(hi, k) > a) hi *= 2;
+    for (let i = 0; i < 100; i++) { const m = (lo + hi) / 2; if (NP.chi2Sf(m, k) > a) lo = m; else hi = m; }
+    return (lo + hi) / 2;
+  },
+  betacf(a, b, x) {
+    const FPMIN = 1e-300, qab = a + b, qap = a + 1, qam = a - 1;
+    let c = 1, d = 1 - qab * x / qap;
+    if (Math.abs(d) < FPMIN) d = FPMIN;
+    d = 1 / d;
+    let h = d;
+    for (let m = 1; m <= 300; m++) {
+      const m2 = 2 * m;
+      let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+      d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
+      c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+      d = 1 / d; h *= d * c;
+      aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+      d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
+      c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+      d = 1 / d;
+      const del = d * c; h *= del;
+      if (Math.abs(del - 1) < 1e-14) break;
+    }
+    return h;
+  },
+  ibeta(x, a, b) {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    const bt = Math.exp(NP.lgamma(a + b) - NP.lgamma(a) - NP.lgamma(b) + a * Math.log(x) + b * Math.log(1 - x));
+    return x < (a + 1) / (a + b + 2) ? bt * NP.betacf(a, b, x) / a : 1 - bt * NP.betacf(b, a, 1 - x) / b;
+  },
+  /* P(T > t), df may be fractional */
+  tSf(t, df) { const tail = 0.5 * NP.ibeta(df / (df + t * t), df / 2, 0.5); return t >= 0 ? tail : 1 - tail; },
+  /* ranks with ties averaged; groups lists each run of equal values in sorted order */
+  ranks(vals) {
+    const idx = vals.map((_, i) => i).sort((a, b) => vals[a] - vals[b]);
+    const r = new Array(vals.length), groups = [];
+    let i = 0;
+    while (i < idx.length) {
+      let j = i;
+      while (j + 1 < idx.length && vals[idx[j + 1]] === vals[idx[i]]) j++;
+      const avg = (i + j + 2) / 2, members = [];
+      for (let k = i; k <= j; k++) { r[idx[k]] = avg; members.push(idx[k]); }
+      groups.push({ avg, members, from: i + 1, to: j + 1, value: vals[idx[i]] });
+      i = j + 1;
+    }
+    return { r, groups, order: idx };
+  },
+  /* null distribution of T+ for the given ranks: counts over doubled sums */
+  srDist(rk) {
+    const r2 = rk.map(v => Math.round(2 * v)), max = r2.reduce((s, v) => s + v, 0), c = new Float64Array(max + 1);
+    c[0] = 1;
+    for (const v of r2) for (let s = max; s >= v; s--) c[s] += c[s - v];
+    return { c, tot: Math.pow(2, rk.length) };
+  },
+  /* null distribution of the rank sum of n1 observations drawn from the pooled ranks */
+  rsDist(rk, n1) {
+    const r2 = rk.map(v => Math.round(2 * v)), max = r2.reduce((s, v) => s + v, 0), dp = [];
+    for (let k = 0; k <= n1; k++) dp.push(new Float64Array(max + 1));
+    dp[0][0] = 1;
+    for (const v of r2) {
+      for (let k = n1 - 1; k >= 0; k--) {
+        const a = dp[k], b = dp[k + 1];
+        for (let s = max - v; s >= 0; s--) if (a[s]) b[s + v] += a[s];
+      }
+    }
+    let tot = 0;
+    for (const x of dp[n1]) tot += x;
+    return { c: dp[n1], tot };
+  },
+  le(dist, t) { const lim = Math.min(Math.round(2 * t), dist.c.length - 1); let s = 0; for (let i = 0; i <= lim; i++) s += dist.c[i]; return Math.min(1, s / dist.tot); },
+  ge(dist, t) { let s = 0; for (let i = Math.max(0, Math.round(2 * t)); i < dist.c.length; i++) s += dist.c[i]; return Math.min(1, s / dist.tot); },
+  rng(seed) {
+    let s = seed >>> 0, spare = null;
+    const uni = () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    return {
+      uni,
+      normal() {
+        if (spare !== null) { const v = spare; spare = null; return v; }
+        let u = 0; while (u === 0) u = uni();
+        const v = uni(), m = Math.sqrt(-2 * Math.log(u));
+        spare = m * Math.sin(2 * Math.PI * v);
+        return m * Math.cos(2 * Math.PI * v);
+      }
+    };
+  }
+};
+
+/* McClave Table X (one-tailed .05, .025, .01, .005) and Table IX (a: .025 one-tailed, b: .05 one-tailed), as printed. */
+const TAB = {
+  X: { 5: [1, null, null, null], 6: [2, 1, null, null], 7: [4, 2, 0, null], 8: [6, 4, 2, 0], 9: [8, 6, 3, 2], 10: [11, 8, 5, 3], 11: [14, 11, 7, 5], 12: [17, 14, 10, 7], 13: [21, 17, 13, 10], 14: [26, 21, 16, 13], 15: [30, 25, 20, 16], 16: [36, 30, 24, 19], 17: [41, 35, 28, 23], 18: [47, 40, 33, 28], 19: [54, 46, 38, 32], 20: [60, 52, 43, 37], 21: [68, 59, 49, 43], 22: [75, 66, 56, 49], 23: [83, 73, 62, 55], 24: [92, 81, 69, 61], 25: [101, 90, 77, 68], 26: [110, 98, 85, 76], 27: [120, 107, 93, 84], 28: [130, 117, 102, 92], 29: [141, 127, 111, 100], 30: [152, 137, 120, 109] },
+  IXa: { 3: [[5, 16], [6, 18], [6, 21], [7, 23], [7, 26], [8, 28], [8, 31], [9, 33]], 4: [[6, 18], [11, 25], [12, 28], [12, 32], [13, 35], [14, 38], [15, 41], [16, 44]], 5: [[6, 21], [12, 28], [18, 37], [19, 41], [20, 45], [21, 49], [22, 53], [24, 56]], 6: [[7, 23], [12, 32], [19, 41], [26, 52], [28, 56], [29, 61], [31, 65], [32, 70]], 7: [[7, 26], [13, 35], [20, 45], [28, 56], [37, 68], [39, 73], [41, 78], [43, 83]], 8: [[8, 28], [14, 38], [21, 49], [29, 61], [39, 73], [49, 87], [51, 93], [54, 98]], 9: [[8, 31], [15, 41], [22, 53], [31, 65], [41, 78], [51, 93], [63, 108], [66, 114]], 10: [[9, 33], [16, 44], [24, 56], [32, 70], [43, 83], [54, 98], [66, 114], [79, 131]] },
+  IXb: { 3: [[6, 15], [7, 17], [7, 20], [8, 22], [9, 24], [9, 27], [10, 29], [11, 31]], 4: [[7, 17], [12, 24], [13, 27], [14, 30], [15, 33], [16, 36], [17, 39], [18, 42]], 5: [[7, 20], [13, 27], [19, 36], [20, 40], [22, 43], [24, 46], [25, 50], [26, 54]], 6: [[8, 22], [14, 30], [20, 40], [28, 50], [30, 54], [32, 58], [33, 63], [35, 67]], 7: [[9, 24], [15, 33], [22, 43], [30, 54], [39, 66], [41, 71], [43, 76], [46, 80]], 8: [[9, 27], [16, 36], [24, 46], [32, 58], [41, 71], [52, 84], [54, 90], [57, 95]], 9: [[10, 29], [17, 39], [25, 50], [33, 63], [43, 76], [54, 90], [66, 105], [69, 111]], 10: [[11, 31], [18, 42], [26, 54], [35, 67], [46, 80], [57, 95], [69, 111], [83, 127]] },
+  /* T0 for one-tailed alpha a (two = true: two-tailed alpha) */
+  t0(n, a, two) {
+    const row = TAB.X[n];
+    if (!row) return null;
+    const col = two ? { 0.1: 0, 0.05: 1, 0.01: 3 }[a] : { 0.05: 0, 0.025: 1, 0.01: 2 }[a];
+    return col === undefined ? null : row[col];
+  },
+  /* [TL, TU] for the smaller sample size n1 and the larger n2 */
+  ix(n1, n2, a, two) {
+    if (n1 < 3 || n2 > 10) return null;
+    const part = two ? { 0.05: "IXa", 0.1: "IXb" }[a] : { 0.025: "IXa", 0.05: "IXb" }[a];
+    return part ? TAB[part][n2][n1 - 3] : null;
+  }
+};
+
+const W = {
+  f(v, d) { return Number.isFinite(v) ? v.toFixed(d) : "—"; },
+  r(v) { return Number.isFinite(v) ? String(Math.round(v * 1e6) / 1e6) : "—"; },
+  p(v) { return v < 0.0001 ? "&lt; 0.0001" : v.toFixed(4); },
+  esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); },
+  num(raw, name) {
+    const s = String(raw).trim().replace(",", ".");
+    if (s === "") return { e: `${name} boş. Bir sayı yaz (ondalık için nokta: 1.8).` };
+    const v = Number(s);
+    return Number.isFinite(v) ? { v } : { e: `${name} bir sayı olmalı.` };
+  },
+  list(raw, name, min, max) {
+    const parts = String(raw).split(/[\s,;]+/).filter(Boolean);
+    if (parts.length < min) return { e: `${name}: en az ${min} değer gerekli.` };
+    if (parts.length > max) return { e: `${name}: en fazla ${max} değer.` };
+    const v = parts.map(Number), bad = parts.filter((s, i) => !Number.isFinite(v[i]));
+    if (bad.length) return { e: `${name}: "${W.esc(bad[0])}" bir sayı değil. Değerleri virgül ya da boşlukla ayır, ondalık için nokta kullan (ör. 3.5).` };
+    return { v };
+  },
+  showErr(el, errs) { el.innerHTML = errs.join("<br>"); Lab.renderMath(el); return errs.length > 0; },
+  round10(v) { return Math.round(v * 1e10) / 1e10; }
+};
+
+/* A. Sign test as a binomial test */
+(function () {
+  const $ = id => document.getElementById(id);
+  const SETS = {
+    lat: { data: "41, 44, 47, 49, 52, 53, 55, 58, 61, 66, 95, 180", eta: "60", ha: "lt" },
+    hedge: { data: "1.5, 2.2, 0.9, 1.3, 2.0, 1.6, 1.8, 1.5, 2.0, 1.2, 1.7", eta: "1.8", ha: "ne" },
+    tire: { data: "0.1, -0.2, 0.4, 0.1, -0.1, 0.1, 0, 0.2, 0.5, 0, 0.1, 0.3, 0.4, 0.4, -0.3, 0.1", eta: "0", ha: "gt" }
+  };
+  const sel = $("ws-set"), out = $("ws-out"), err = $("ws-err");
+  function load() { const s = SETS[sel.value]; if (!s) return; $("ws-data").value = s.data; $("ws-eta").value = s.eta; $("ws-ha").value = s.ha; }
+  function svg(n, S, tail) {
+    const Wd = 640, H = 200, pad = 16, base = 160, top = 12, bw = (Wd - 2 * pad) / (n + 1);
+    let mx = 0; for (let k = 0; k <= n; k++) mx = Math.max(mx, NP.binomPmf(k, n));
+    let s = `<svg viewBox="0 0 ${Wd} ${H}" role="img" aria-label="Bin(${n}, 0.5) dağılımı, p-value kuyruğu turuncu">`;
+    const step = Math.max(1, Math.ceil((n + 1) / 14));
+    for (let k = 0; k <= n; k++) {
+      const h = (base - top) * NP.binomPmf(k, n) / mx, x = pad + k * bw;
+      const inTail = tail(k);
+      s += `<rect x="${(x + 1).toFixed(1)}" y="${(base - h).toFixed(1)}" width="${Math.max(1, bw - 2).toFixed(1)}" height="${h.toFixed(1)}" fill="${inTail ? "var(--accent)" : "var(--blue-300)"}"${k === S ? ` stroke="var(--fg)" stroke-width="2"` : ""}/>`;
+      if (k % step === 0 || k === S) s += `<text x="${(x + bw / 2).toFixed(1)}" y="${base + 16}" font-size="12" text-anchor="middle" fill="${k === S ? "var(--fg)" : "var(--fg-muted)"}" font-weight="${k === S ? 700 : 400}">${k}</text>`;
+    }
+    s += `<line x1="${pad}" x2="${Wd - pad}" y1="${base}" y2="${base}" stroke="var(--border-strong)"/>`;
+    s += `<text x="${Wd / 2}" y="${base + 34}" font-size="12" text-anchor="middle" fill="var(--fg-muted)">plus sayısı X  ·  siyah çerçeve: gözlenen x = ${S}</text>`;
+    return s + `</svg>`;
+  }
+  function run() {
+    const a = W.list($("ws-data").value, "Değerler", 2, 200), e = W.num($("ws-eta").value, "η₀");
+    const errs = [a.e, e.e].filter(Boolean);
+    if (W.showErr(err, errs)) { out.innerHTML = ""; return; }
+    const x = a.v, eta = e.v, ha = $("ws-ha").value, alpha = Number($("ws-alpha").value);
+    const sg = x.map(v => { const d = W.round10(v - eta); return d > 0 ? 1 : d < 0 ? -1 : 0; });
+    const S = sg.filter(s => s > 0).length, M = sg.filter(s => s < 0).length, Z = sg.filter(s => s === 0).length, n = S + M;
+    if (n === 0) { W.showErr(err, ["Bütün değerler η₀'a eşit; atıldıktan sonra gözlem kalmıyor."]); out.innerHTML = ""; return; }
+    const sorted = x.slice().sort((p, q) => p - q), N = sorted.length;
+    const med = N % 2 ? sorted[(N - 1) / 2] : (sorted[N / 2 - 1] + sorted[N / 2]) / 2, mean = x.reduce((s, v) => s + v, 0) / N;
+    let p, tail, side;
+    if (ha === "lt") { p = NP.binomLe(S, n); tail = k => k <= S; side = "lower"; }
+    else if (ha === "gt") { p = NP.binomGe(S, n); tail = k => k >= S; side = "upper"; }
+    else if (2 * S < n) { p = Math.min(1, 2 * NP.binomLe(S, n)); tail = k => k <= S || k >= n - S; side = "lower"; }
+    else if (2 * S > n) { p = Math.min(1, 2 * NP.binomGe(S, n)); tail = k => k >= S || k <= n - S; side = "upper"; }
+    else { p = 1; tail = () => true; side = "mid"; }
+    const sd = 0.5 * Math.sqrt(n);
+    let z = NaN, pz = NaN;
+    if (side === "lower") { z = (S + 0.5 - n / 2) / sd; pz = NP.Phi(z) * (ha === "ne" ? 2 : 1); }
+    else if (side === "upper") { z = (S - 0.5 - n / 2) / sd; pz = (1 - NP.Phi(z)) * (ha === "ne" ? 2 : 1); }
+    else { z = 0; pz = 1; }
+    pz = Math.min(1, pz);
+    const haTex = { lt: "\\eta < " + W.r(eta), gt: "\\eta > " + W.r(eta), ne: "\\eta \\ne " + W.r(eta) }[ha];
+    const pTex = ha === "lt" ? `P(X \\le ${S})` : ha === "gt" ? `P(X \\ge ${S})` : side === "lower" ? `2P(X \\le ${S})` : side === "upper" ? `2P(X \\ge ${S})` : "1";
+    const rej = p <= alpha;
+    const chips = x.map((v, i) => `<span class="w-nonparametric-chip ${sg[i] > 0 ? "is-plus" : sg[i] < 0 ? "is-minus" : "is-zero"}">${W.r(v)}<small>${sg[i] > 0 ? "+" : sg[i] < 0 ? "−" : "atıldı"}</small></span>`).join("");
+    out.innerHTML =
+      `<div class="w-nonparametric-chips">${chips}</div>` +
+      `<div class="w-nonparametric-nums"><div>sample mean<b>${W.f(mean, 3)}</b></div><div>sample median<b>${W.f(med, 3)}</b></div><div>plus / minus / atılan<b>${S} / ${M} / ${Z}</b></div><div>$n$ (atıldıktan sonra)<b>${n}</b></div><div>exact p-value<b>${W.p(p)}</b></div><div>normal yaklaşımı<b>z = ${W.f(z, 2)}, p ≈ ${W.p(pz)}</b></div></div>` +
+      `<div class="w-nonparametric-svg">${svg(n, S, tail)}</div>` +
+      `<div class="w-nonparametric-flag${rej ? "" : " is-ok"}"><ol>` +
+      `<li><b>Hipotezler:</b> $H_0: \\eta = ${W.r(eta)}$, $H_a: ${haTex}$.</li>` +
+      `<li><b>Test statistic:</b> $\\eta_0$'a eşit ${Z} değer atıldı; $n = ${n}$, plus sayısı $x = ${S}$. $H_0$ altında $X \\sim \\text{Bin}(${n}, 0.5)$.</li>` +
+      `<li><b>p-value:</b> $p = ${pTex} = ${W.p(p)}$ (turuncu çubukların toplamı).${n > 10 ? ` Normal yaklaşımı (continuity correction ile): $z = ${W.f(z, 2)}$, $p \\approx ${W.p(pz)}$.` : " $n \\le 10$: normal yaklaşımı yerine exact binomial kullan."}</li>` +
+      `<li><b>Sonuç:</b> $p ${rej ? "\\le" : ">"} \\alpha = ${alpha}$ ⇒ ${rej ? "reject $H_0$: median'ın $H_a$ yönünde olduğuna dair yeterli kanıt var." : "fail to reject $H_0$: yeterli kanıt yok."}</li></ol>` +
+      `${Math.abs(mean - med) > 0.1 * (Math.abs(med) + 1e-9) ? `<p>Mean (${W.f(mean, 2)}) ile median (${W.f(med, 2)}) belirgin farklı: veri çarpık ya da uç değer var. Sign test median'ı test eder; uç değer sadece bir "+" sayılır.</p>` : ""}</div>`;
+    Lab.renderMath(out);
+  }
+  sel.addEventListener("change", () => { load(); run(); });
+  $("ws-go").addEventListener("click", run);
+  ["ws-data", "ws-eta"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") run(); }));
+  ["ws-ha", "ws-alpha"].forEach(id => $(id).addEventListener("change", run));
+  ["ws-data", "ws-eta"].forEach(id => $(id).addEventListener("input", () => { if (sel.value !== "own") sel.value = "own"; }));
+  load();
+  run();
+})();
+
+/* B. Signed-rank stepper: frames are computed from the data */
+(function () {
+  const $ = id => document.getElementById(id);
+  const SETS = {
+    hedge: { data: "1.5, 2.2, 0.9, 1.3, 2.0, 1.6, 1.8, 1.5, 2.0, 1.2, 1.7", eta: "1.8", ha: "ne" },
+    gre: { data: "22, 81, -25, 77, 27, -23, 23, -29, 13, 51", eta: "50", ha: "lt" }
+  };
+  const sel = $("wr-set"), box = $("wr-stepper"), err = $("wr-err");
+  function load() { const s = SETS[sel.value]; if (!s) return; $("wr-data").value = s.data; $("wr-eta").value = s.eta; $("wr-ha").value = s.ha; }
+  function build() {
+    const a = W.list($("wr-data").value, "Değerler", 2, 50), e = W.num($("wr-eta").value, "η₀ / D₀");
+    if (W.showErr(err, [a.e, e.e].filter(Boolean))) { box.innerHTML = ""; return; }
+    const x = a.v, eta = e.v, ha = $("wr-ha").value, alpha = Number($("wr-alpha").value);
+    const d = x.map(v => W.round10(v - eta)), keep = d.map((v, i) => i).filter(i => d[i] !== 0), zeros = d.map((v, i) => i).filter(i => d[i] === 0);
+    const n = keep.length;
+    if (n < 2) { W.showErr(err, ["Sıfır olmayan en az 2 fark gerekli."]); box.innerHTML = ""; return; }
+    err.innerHTML = "";
+    const abs = keep.map(i => Math.abs(d[i])), R = NP.ranks(abs);
+    const rank = {}; keep.forEach((i, k) => { rank[i] = R.r[k]; });
+    const sortedRows = R.order.map(k => keep[k]).concat(zeros);
+    const Tp = keep.reduce((s, i) => s + (d[i] > 0 ? rank[i] : 0), 0), Tm = keep.reduce((s, i) => s + (d[i] < 0 ? rank[i] : 0), 0);
+    const stat = ha === "lt" ? Tp : ha === "gt" ? Tm : Math.min(Tp, Tm);
+    const statTex = ha === "lt" ? "T_+" : ha === "gt" ? "T_-" : "T = \\min(T_+, T_-)";
+    const dist = NP.srDist(keep.map(i => rank[i]));
+    const pEx = ha === "ne" ? Math.min(1, 2 * NP.le(dist, stat)) : NP.le(dist, stat);
+    const mu = n * (n + 1) / 4, sg = Math.sqrt(n * (n + 1) * (2 * n + 1) / 24), z = (stat - mu) / sg, pz = Math.min(1, NP.Phi(z) * (ha === "ne" ? 2 : 1));
+    const T0 = TAB.t0(n, alpha, ha === "ne");
+    const head = `<tr><th>#</th><th>değer</th><th>$d_i$</th><th>$|d_i|$</th><th>rank</th><th>işaretli rank</th></tr>`;
+    function table(rows, f) {
+      return `<div class="table-wrap"><table class="w-nonparametric-tbl">${head}${rows.map(i => {
+        const z0 = d[i] === 0, cls = z0 && f.dimZero ? "is-dim" : f.on && f.on.has(i) ? "is-on" : "";
+        const rk = !z0 && f.ranked && f.ranked.has(i) ? W.r(rank[i]) : "";
+        const srk = !z0 && f.signed ? (d[i] > 0 ? "+" : "−") + W.r(rank[i]) : "";
+        return `<tr class="${cls}"><td>${i + 1}</td><td>${W.r(x[i])}</td><td>${W.r(d[i])}</td><td>${f.abs ? W.r(Math.abs(d[i])) : ""}</td><td>${rk}</td><td>${srk}</td></tr>`;
+      }).join("")}</table></div>`;
+    }
+    const orig = x.map((_, i) => i), F = [];
+    F.push({ html: table(orig, {}), caption: `Her değerden $\\eta_0 = ${W.r(eta)}$ çıkarılır: $d_i = x_i - ${W.r(eta)}$. Paired veride burada farklar ve $D_0$ var.` });
+    F.push({ html: table(orig, { dimZero: true, abs: true }), caption: zeros.length ? `Sıfır olan ${zeros.length} fark atılır (üstü çizili). Kalan $n = ${n}$.` : `Sıfır fark yok, $n = ${n}$. İşaretsiz büyüklükler $|d_i|$ yazıldı.` });
+    F.push({ html: table(sortedRows, { dimZero: true, abs: true }), caption: `Satırlar $|d_i|$'ye göre küçükten büyüğe sıralandı. İşaret şimdilik önemli değil.` });
+    const G = R.groups, per = Math.max(1, Math.ceil(G.length / 8)), ranked = new Set();
+    for (let g = 0; g < G.length; g += per) {
+      const chunk = G.slice(g, g + per), on = new Set();
+      chunk.forEach(gr => gr.members.forEach(k => { ranked.add(keep[k]); on.add(keep[k]); }));
+      const ties = chunk.filter(gr => gr.members.length > 1);
+      const cap = ties.length
+        ? ties.map(gr => `$|d| = ${W.r(gr.value)}$ ${gr.members.length} kez: ${gr.from}.–${gr.to}. sıralar ⇒ her biri $${W.r(gr.avg)}$`).join("; ") + "."
+        : `${chunk.map(gr => `$|d| = ${W.r(gr.value)}$ → ${W.r(gr.avg)}`).join(", ")}.`;
+      F.push({ html: table(sortedRows, { dimZero: true, abs: true, ranked: new Set(ranked), on }), caption: `Rank'lar: ${cap}` });
+    }
+    F.push({ html: table(sortedRows, { dimZero: true, abs: true, ranked: new Set(ranked), signed: true }), caption: `İşaretler geri kondu. $T_+ = ${W.r(Tp)}$, $T_- = ${W.r(Tm)}$. Kontrol: $T_+ + T_- = ${W.r(Tp + Tm)} = n(n+1)/2 = ${n * (n + 1) / 2}$.` });
+    const rejT = T0 !== null && T0 !== undefined ? stat <= T0 : null, rejP = pEx <= alpha;
+    const tabTxt = T0 === null || T0 === undefined
+      ? `Table X'te bu $n$ ve $\\alpha$ ${ha === "ne" ? "(two-tailed)" : "(one-tailed)"} için değer yok; exact p-value ile karar ver.`
+      : `Table X ($n = ${n}$, ${ha === "ne" ? "two" : "one"}-tailed $\\alpha = ${alpha}$): $T_0 = ${T0}$. $${statTex.split(" =")[0]} = ${W.r(stat)} ${rejT ? "\\le" : ">"} ${T0}$ ⇒ ${rejT ? "reject" : "fail to reject"}.`;
+    const nums = `<div class="w-nonparametric-nums"><div>$n$<b>${n}</b></div><div>$T_+$ / $T_-$<b>${W.r(Tp)} / ${W.r(Tm)}</b></div><div>statistic<b>${W.r(stat)}</b></div><div>Table X $T_0$<b>${T0 === null || T0 === undefined ? "tabloda yok" : T0}</b></div><div>exact p-value<b>${W.p(pEx)}</b></div><div>z yaklaşımı<b>z = ${W.f(z, 2)}, p ≈ ${W.p(pz)}</b></div></div>`;
+    F.push({ html: nums + table(sortedRows, { dimZero: true, abs: true, ranked: new Set(ranked), signed: true }),
+      caption: `$H_a$ ${ha === "lt" ? "$\\eta < \\eta_0$ ⇒ $T_+$ kullanılır" : ha === "gt" ? "$\\eta > \\eta_0$ ⇒ $T_-$ kullanılır" : "two-tailed ⇒ küçük olan kullanılır"}: $${statTex} = ${W.r(stat)}$. ${tabTxt} Exact p-value (tie'lı rank'larla bütün $2^{${n}}$ işaret dizisi) $= ${W.p(pEx)}$ ⇒ $\\alpha = ${alpha}$'da ${rejP ? "reject" : "fail to reject"}. $\\mu = ${W.f(mu, 2)}$, $\\sigma = ${W.f(sg, 2)}$, $z = ${W.f(z, 2)}$${n < 15 ? " ($n &lt; 15$: z sadece fikir için)" : ""}.` });
+    Lab.stepper(box, { title: "Wilcoxon signed-rank, adım adım", interval: 1500, frames: F, render(f, i, stage) { stage.innerHTML = f.html; } });
+  }
+  sel.addEventListener("change", () => { load(); build(); });
+  $("wr-go").addEventListener("click", build);
+  ["wr-data", "wr-eta"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") build(); }));
+  ["wr-ha", "wr-alpha"].forEach(id => $(id).addEventListener("change", build));
+  ["wr-data", "wr-eta"].forEach(id => $(id).addEventListener("input", () => { if (sel.value !== "own") sel.value = "own"; }));
+  load();
+  build();
+})();
+
+/* C. Rank-sum / Kruskal-Wallis stepper for k groups (two instances) */
+function mountRankGroups(pre, SETS) {
+  const $ = id => document.getElementById(pre + "-" + id);
+  const sel = $("set"), box = $("stepper"), err = $("err"), area = $("data"), haSel = $("ha");
+  function load() { const s = SETS[sel.value]; if (s) area.value = s; }
+  function parse() {
+    const lines = area.value.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    if (lines.length < 2) return { e: "En az 2 grup gerekli: her satıra bir grup yaz, ör. <code>A: 2.1, 4.0, 6.3</code>." };
+    if (lines.length > 6) return { e: "En fazla 6 grup." };
+    const groups = [];
+    for (let i = 0; i < lines.length; i++) {
+      let lab = String.fromCharCode(65 + i), body = lines[i];
+      const m = body.match(/^([^:]{1,20}):(.*)$/);
+      if (m) { lab = m[1].trim() || lab; body = m[2]; }
+      const l = W.list(body, `${W.esc(lab)} grubu`, 1, 40);
+      if (l.e) return { e: l.e };
+      groups.push({ lab: W.esc(lab), v: l.v });
+    }
+    const N = groups.reduce((s, g) => s + g.v.length, 0);
+    if (N > 60) return { e: "Toplam en fazla 60 gözlem." };
+    return { groups, N };
+  }
+  function chip(v, g, rk, on) { return `<span class="w-nonparametric-chip g${g}${on ? " is-on" : ""}">${W.r(v)}${rk !== undefined ? `<small>${W.r(rk)}</small>` : ""}</span>`; }
+  function build() {
+    const P = parse();
+    if (P.e) { W.showErr(err, [P.e]); box.innerHTML = ""; return; }
+    err.innerHTML = "";
+    const G = P.groups, k = G.length, N = P.N, alpha = Number($("alpha").value);
+    const vals = [], gid = [];
+    G.forEach((g, j) => g.v.forEach(v => { vals.push(v); gid.push(j); }));
+    const R = NP.ranks(vals), Rsum = G.map(() => 0);
+    vals.forEach((_, i) => { Rsum[gid[i]] += R.r[i]; });
+    const legend = `<div class="w-nonparametric-legend">${G.map((g, j) => `<span><i class="g${j}"></i>${g.lab} ($n = ${g.v.length}$)</span>`).join("")}</div>`;
+    const F = [];
+    F.push({ html: legend + G.map((g, j) => `<div class="w-nonparametric-chips">${g.v.map(v => chip(v, j)).join("")}</div>`).join(""), caption: `${k} grup, toplam $N = ${N}$ gözlem. Her grubun kendi içindeki sırası önemli değil.` });
+    F.push({ html: legend + `<div class="w-nonparametric-chips">${R.order.map(i => chip(vals[i], gid[i])).join("")}</div>`, caption: `Bütün gözlemler birleştirildi ve küçükten büyüğe sıralandı. Renk, gözlemin hangi gruptan geldiğini gösteriyor.` });
+    const per = Math.max(1, Math.ceil(R.groups.length / 8)), shown = new Set();
+    for (let t = 0; t < R.groups.length; t += per) {
+      const chunk = R.groups.slice(t, t + per), on = new Set();
+      chunk.forEach(gr => gr.members.forEach(i => { shown.add(i); on.add(i); }));
+      const ties = chunk.filter(gr => gr.members.length > 1);
+      const f0 = chunk[0].from, t0 = chunk[chunk.length - 1].to;
+      const cap = ties.length ? ties.map(gr => `${W.r(gr.value)} değeri ${gr.members.length} kez: ${gr.from}.–${gr.to}. sıralar ⇒ her biri $${W.r(gr.avg)}$`).join("; ") : f0 === t0 ? `${f0}. sıra, tie yok` : `${f0}.–${t0}. sıralar, tie yok`;
+      const snap = new Set(shown);
+      F.push({ html: legend + `<div class="w-nonparametric-chips">${R.order.map(i => chip(vals[i], gid[i], snap.has(i) ? R.r[i] : undefined, on.has(i))).join("")}</div>`, caption: `Rank: ${cap}.` });
+    }
+    const allChips = legend + `<div class="w-nonparametric-chips">${R.order.map(i => chip(vals[i], gid[i], R.r[i])).join("")}</div>`;
+    const sumTab = `<div class="table-wrap"><table class="w-nonparametric-tbl"><tr><th>grup</th><th>$n_i$</th><th>$R_i$</th><th>ortalama rank</th></tr>${G.map((g, j) => `<tr><td>${g.lab}</td><td>${g.v.length}</td><td>${W.r(Rsum[j])}</td><td>${W.f(Rsum[j] / g.v.length, 2)}</td></tr>`).join("")}</table></div>`;
+    F.push({ html: allChips + sumTab, caption: `Rank toplamları. Kontrol: $\\sum R_i = ${W.r(Rsum.reduce((s, v) => s + v, 0))} = N(N+1)/2 = ${N * (N + 1) / 2}$. $H_0$ altında her grubun ortalama rank'ı yaklaşık $(N+1)/2 = ${W.r((N + 1) / 2)}$.` });
+    if (k === 2) {
+      const n0 = G[0].v.length, n1v = G[1].v.length, s = n1v < n0 ? 1 : 0, o = 1 - s, n1 = G[s].v.length, n2 = G[o].v.length;
+      let ha = haSel ? haSel.value : "two";
+      if (s === 1 && ha !== "two") ha = ha === "right" ? "left" : "right";
+      const T1 = Rsum[s], U1 = T1 - n1 * (n1 + 1) / 2, U2 = n1 * n2 - U1;
+      const ET = n1 * (N + 1) / 2, sdT = Math.sqrt(n1 * n2 * (N + 1) / 12), z = (T1 - ET) / sdT;
+      /* p from z uses the tie-corrected variance and a 0.5 continuity correction, as scipy mannwhitneyu does */
+      const tieSum2 = R.groups.reduce((s, gr) => { const t = gr.members.length; return s + t * t * t - t; }, 0);
+      const varTc = n1 * n2 / 12 * (N + 1 - tieSum2 / (N * (N - 1))), sdTc = varTc > 1e-12 ? Math.sqrt(varTc) : NaN;
+      const dev = T1 - ET;
+      const zc = ha === "right" ? (dev - 0.5) / sdTc : ha === "left" ? (dev + 0.5) / sdTc : (Math.abs(dev) - 0.5) / sdTc;
+      const pz = !Number.isFinite(sdTc) ? 1 : ha === "right" ? 1 - NP.Phi(zc) : ha === "left" ? NP.Phi(zc) : Math.min(1, 2 * (1 - NP.Phi(zc)));
+      let dist = null, pEx = NaN;
+      const sRanks = [];
+      vals.forEach((_, i) => sRanks.push(R.r[i]));
+      if (N <= 40) {
+        dist = NP.rsDist(sRanks, n1);
+        const le = NP.le(dist, T1), ge = NP.ge(dist, T1);
+        pEx = ha === "right" ? ge : ha === "left" ? le : Math.min(1, 2 * Math.min(le, ge));
+      }
+      const tab = TAB.ix(n1, n2, alpha, ha === "two");
+      let tabTxt;
+      if (!tab) tabTxt = `Table IX'ta bu boyutlar ve $\\alpha$ için değer yok (tablo $3 \\le n \\le 10$ ve $\\alpha = .025, .05$ one-tailed / $.05, .10$ two-tailed).`;
+      else {
+        const [TL, TU] = tab, rj = ha === "left" ? T1 <= TL : ha === "right" ? T1 >= TU : (T1 <= TL || T1 >= TU);
+        tabTxt = `Table IX: $T_L = ${TL}$, $T_U = ${TU}$; ${ha === "left" ? `reject if $T_1 \\le ${TL}$` : ha === "right" ? `reject if $T_1 \\ge ${TU}$` : `reject if $T_1 \\le ${TL}$ ya da $T_1 \\ge ${TU}$`} ⇒ ${rj ? "reject" : "fail to reject"}.`;
+      }
+      const haTxt = ha === "right" ? `${G[s].lab} sağa kaymış` : ha === "left" ? `${G[s].lab} sola kaymış` : "iki yönlü";
+      const decP = Number.isFinite(pEx) ? pEx : pz;
+      const nums = `<div class="w-nonparametric-nums"><div>$T_1$ (${G[s].lab}, küçük sample)<b>${W.r(T1)}</b></div><div>$U_1$ / $U_2$<b>${W.r(U1)} / ${W.r(U2)}</b></div><div>$E(T_1)$, $\\sigma_T$<b>${W.r(ET)}, ${W.f(sdT, 3)}</b></div><div>z (düzeltmesiz formül)<b>${W.f(z, 3)}</b></div><div>exact p-value<b>${Number.isFinite(pEx) ? W.p(pEx) : "N &gt; 40"}</b></div><div>z ile p (tie + continuity düzeltmeli)<b>${W.p(pz)}</b></div></div>`;
+      const zTxt = `Tie düzeltmeli $\\sigma_T = ${Number.isFinite(sdTc) ? W.f(sdTc, 3) : "0"}$ ve ±0.5 continuity correction ile $p \\approx ${W.p(pz)}$`;
+      F.push({ html: allChips + nums, caption: `$H_a$: ${haTxt}. $T_1 = ${W.r(T1)}$; Walpole: $u_1 = ${W.r(U1)}$, $u_2 = ${W.r(U2)}$. ${tabTxt} ${Number.isFinite(pEx) ? `Exact p-value $= ${W.p(pEx)}$` : `$N &gt; 40$: exact dağılım hesaplanmadı. ${zTxt}`} ⇒ $\\alpha = ${alpha}$'da ${decP <= alpha ? "reject $H_0$" : "fail to reject $H_0$"}.${!Number.isFinite(sdTc) ? " Bütün gözlemler eşit: rank'lar grupları ayırmıyor, test bilgi vermez." : ""}` });
+      if (dist) {
+        const lo = n1 * (n1 + 1) / 2, hi = n1 * (2 * N - n1 + 1) / 2, Wd = 640, H = 190, pad = 16, base = 150, top = 10;
+        let mx = 0; for (let i = 0; i < dist.c.length; i++) mx = Math.max(mx, dist.c[i]);
+        const X = t => pad + (t - lo) / Math.max(1, hi - lo) * (Wd - 2 * pad), bwp = Math.max(1.2, (Wd - 2 * pad) / Math.max(1, 2 * (hi - lo) + 1));
+        const le = NP.le(dist, T1), ge = NP.ge(dist, T1), lowSide = le <= ge;
+        let sv = `<svg viewBox="0 0 ${Wd} ${H}" role="img" aria-label="H0 altında T1'in exact dağılımı">`;
+        for (let i = 0; i < dist.c.length; i++) {
+          if (!dist.c[i]) continue;
+          const t = i / 2, h = (base - top) * dist.c[i] / mx;
+          /* two-tailed p = 2 min(P(T <= t), P(T >= t)): only the chosen tail is shaded, because with ties the
+             distribution need not be symmetric and a mirrored area would not equal half the p-value */
+          const inTail = ha === "right" ? t >= T1 - 1e-9 : ha === "left" ? t <= T1 + 1e-9 : (lowSide ? t <= T1 + 1e-9 : t >= T1 - 1e-9);
+          sv += `<rect x="${(X(t) - bwp / 2).toFixed(1)}" y="${(base - h).toFixed(1)}" width="${bwp.toFixed(1)}" height="${h.toFixed(1)}" fill="${inTail ? "var(--accent)" : "var(--blue-300)"}"/>`;
+        }
+        sv += `<line x1="${pad}" x2="${Wd - pad}" y1="${base}" y2="${base}" stroke="var(--border-strong)"/>`;
+        sv += `<line x1="${X(T1).toFixed(1)}" x2="${X(T1).toFixed(1)}" y1="${top - 4}" y2="${base}" stroke="var(--fg)" stroke-width="2" stroke-dasharray="4 3"/>`;
+        [lo, ET, hi].forEach((t, i) => { sv += `<text x="${X(t).toFixed(1)}" y="${base + 16}" font-size="12" text-anchor="${i === 0 ? "start" : i === 2 ? "end" : "middle"}" fill="var(--fg-muted)">${W.r(t)}</text>`; });
+        sv += `<text x="${X(T1).toFixed(1)}" y="${base + 32}" font-size="13" font-weight="700" text-anchor="middle" fill="var(--fg)">T₁ = ${W.r(T1)}</text></svg>`;
+        F.push({ html: `<div class="w-nonparametric-svg">${sv}</div>`, caption: `$H_0$ altında $T_1$'in exact dağılımı: ${W.r(N)} rank'tan ${n1} tanesini seçmenin bütün yolları eşit olasılıklı (rank'lar üzerinde permutation test). ${ha === "two" ? `Turuncu çubuklar gözlenen $T_1$'in tarafındaki kuyruk: $P(T_1 ${lowSide ? "\\le" : "\\ge"} ${W.r(T1)}) = ${W.p(lowSide ? le : ge)}$. Two-tailed p-value bu alanın iki katıdır (1'i geçemez): $p = 2 \\min(P(T_1 \\le t), P(T_1 \\ge t)) = ${W.p(pEx)}$. Tie varsa dağılım simetrik olmayabilir; bu yüzden karşı taraftaki ayna alan çizilmedi.` : `Turuncu çubuklar en az gözlenen kadar uç değerler; toplamları p-value $= ${W.p(pEx)}$.`}` });
+      }
+    } else {
+      const S2 = G.reduce((s, g, j) => s + Rsum[j] * Rsum[j] / g.v.length, 0);
+      const Hs = 12 / (N * (N + 1)) * S2 - 3 * (N + 1), df = k - 1, crit = NP.chi2Up(alpha, df);
+      /* the decision uses the tie-corrected H = Hs / C, as scipy kruskal does; C = 0 means every value is equal */
+      const tieSum = R.groups.reduce((s, gr) => { const t = gr.members.length; return s + t * t * t - t; }, 0), Cc = 1 - tieSum / (N * N * N - N);
+      const ok = Cc > 1e-12, Hc = ok ? Hs / Cc : NaN, p = ok ? NP.chi2Sf(Hc, df) : NaN;
+      const small = G.filter(g => g.v.length < 5).map(g => g.lab);
+      const terms = G.map((g, j) => `\\tfrac{${W.r(Rsum[j])}^2}{${g.v.length}}`).join(" + ");
+      const nums = `<div class="w-nonparametric-nums"><div>$H$ (elle, düzeltmesiz)<b>${W.f(Hs, 3)}</b></div><div>tie düzeltmesi $C$<b>${W.f(Cc, 4)}</b></div><div>$H/C$ (karar bununla)<b>${ok ? W.f(Hc, 3) : "—"}</b></div><div>df<b>${df}</b></div><div>$\\chi^2_{${alpha}, ${df}}$<b>${W.f(crit, 3)}</b></div><div>p-value<b>${ok ? W.p(p) : "—"}</b></div></div>`;
+      const corrTex = `$$C = 1 - \\frac{\\sum (t^3 - t)}{N^3 - N} = 1 - \\frac{${W.r(tieSum)}}{${N * N * N - N}} = ${W.f(Cc, 4)}${ok ? `, \\qquad \\frac{H}{C} = ${W.f(Hc, 3)}` : ""}$$`;
+      const capOk = `Tie düzeltmeli $H/C = ${W.f(Hc, 3)}$, $\\chi^2_{${alpha}, ${df}} = ${W.f(crit, 3)}$ ⇒ ${Hc > crit ? "rejection region'da: reject $H_0$; en az iki grubun dağılımı farklı. Hangi çiftlerin farklı olduğu için rank-sum testleri Bonferroni ile yapılır." : "rejection region'da değil: fail to reject $H_0$."} p-value $= ${W.p(p)}$. ${tieSum > 0 ? `Elle hesapta (Walpole) düzeltmesiz $H = ${W.f(Hs, 3)}$ kullanılır; tie çoksa ikisi arasında karar değişebilir, doğru olan düzeltilmiş değer.` : "Tie yok: $C = 1$, iki değer aynı."}`;
+      F.push({ html: allChips + nums + `<p>$$H = \\frac{12}{${N} \\cdot ${N + 1}}\\left(${terms}\\right) - 3 \\cdot ${N + 1} = ${W.f(Hs, 3)}$$</p><p>${corrTex}</p>` + (small.length ? `<div class="w-nonparametric-flag">Dikkat: ${small.join(", ")} grubunda 5'ten az gözlem var; chi-square yaklaşımı kaba kalır.</div>` : ""),
+        caption: ok ? capOk : `Bütün gözlemler eşit: $C = 0$, $H/C$ tanımsız. Rank'lar grupları birbirinden ayırmıyor; test hesaplanamaz.` });
+    }
+    Lab.stepper(box, { title: k === 2 ? "Wilcoxon rank-sum, adım adım" : "Kruskal–Wallis H, adım adım", interval: 1500, frames: F, render(f, i, stage) { stage.innerHTML = f.html; } });
+  }
+  sel.addEventListener("change", () => { load(); build(); });
+  $("go").addEventListener("click", build);
+  area.addEventListener("input", () => { if (sel.value !== "own") sel.value = "own"; });
+  [$("alpha"), haSel].filter(Boolean).forEach(el => el.addEventListener("change", build));
+  load();
+  build();
+}
+mountRankGroups("wg1", {
+  nic: "A: 2.1, 4.0, 6.3, 5.4, 4.8, 3.7, 6.1, 3.3\nB: 4.1, 0.6, 3.1, 2.5, 4.0, 6.2, 1.6, 2.2, 1.9, 5.4",
+  small: "Yeni: 1.2, 2.0, 2.6\nEski: 2.3, 3.1, 3.4, 3.8, 4.4"
+});
+mountRankGroups("wg2", {
+  mis: "1: 24.0, 16.7, 22.8, 19.8, 18.9\n2: 23.2, 19.8, 18.1, 17.6, 20.2, 17.8\n3: 18.4, 19.1, 17.3, 17.3, 19.7, 18.9, 18.8, 19.3"
+});
+
+/* D. Robustness race: Welch t vs Wilcoxon rank-sum, 2000 seeded simulations per scenario */
+(function () {
+  const $ = id => document.getElementById(id);
+  const out = $("wx-out"), REPS = 2000;
+  let seed = 20261029;
+  const critCache = {};
+  function crit(n) {
+    if (critCache[n]) return critCache[n];
+    const ranks = Array.from({ length: 2 * n }, (_, i) => i + 1), dist = NP.rsDist(ranks, n);
+    let cum = 0, cL = n * (n + 1) / 2 - 1;
+    for (let i = 0; i < dist.c.length; i++) { cum += dist.c[i]; if (cum / dist.tot <= 0.025) cL = i / 2; else if (dist.c[i]) break; }
+    return (critCache[n] = [cL, n * (2 * n + 1) - cL]);
+  }
+  function draw(R, kind) {
+    if (kind === "norm") return R.normal();
+    if (kind === "exp") { let u = 0; while (u === 0) u = R.uni(); return -Math.log(u) - 1; }
+    const z = R.normal(), a = R.normal(), b = R.normal(), c = R.normal();
+    return z / Math.sqrt((a * a + b * b + c * c) / 3) / Math.sqrt(3);
+  }
+  function sim(kind, n, delta, R) {
+    const [cL, cU] = crit(n);
+    let tRej = 0, wRej = 0;
+    const x = new Array(n), y = new Array(n), all = new Array(2 * n);
+    for (let r = 0; r < REPS; r++) {
+      let mx = 0, my = 0;
+      for (let i = 0; i < n; i++) { x[i] = draw(R, kind); y[i] = draw(R, kind) + delta; mx += x[i]; my += y[i]; }
+      mx /= n; my /= n;
+      let vx = 0, vy = 0;
+      for (let i = 0; i < n; i++) { vx += (x[i] - mx) * (x[i] - mx); vy += (y[i] - my) * (y[i] - my); }
+      vx /= n - 1; vy /= n - 1;
+      const a = vx / n, b = vy / n, t = (my - mx) / Math.sqrt(a + b), df = (a + b) * (a + b) / (a * a / (n - 1) + b * b / (n - 1));
+      if (2 * NP.tSf(Math.abs(t), df) < 0.05) tRej++;
+      for (let i = 0; i < n; i++) { all[i] = [x[i], 0]; all[n + i] = [y[i], 1]; }
+      all.sort((p, q) => p[0] - q[0]);
+      let T = 0;
+      for (let i = 0; i < 2 * n; i++) if (all[i][1] === 0) T += i + 1;
+      if (T <= cL || T >= cU) wRej++;
+    }
+    return { t: tRej / REPS, w: wRej / REPS };
+  }
+  function row(label, rate, scale, cls, mark) {
+    return `<div class="w-nonparametric-row"><span>${label}</span><div class="w-nonparametric-bar"><i class="${cls}" style="width:${Math.min(100, 100 * rate / scale).toFixed(1)}%"></i>${mark !== undefined ? `<em style="left:${(100 * mark / scale).toFixed(1)}%"></em>` : ""}</div><span>${(100 * rate).toFixed(1)}%</span></div>`;
+  }
+  function run() {
+    const kind = $("wx-dist").value, n = Number($("wx-n").value), delta = Number($("wx-d").value);
+    const R = NP.rng(seed), h0 = sim(kind, n, 0, R), h1 = sim(kind, n, delta, R);
+    const name = { norm: "normal", exp: "çarpık (exponential)", t3: "ağır kuyruklu (t, 3 df)" }[kind];
+    const better = h1.w > h1.t + 0.02 ? "rank-sum" : h1.t > h1.w + 0.02 ? "Welch t" : null;
+    out.innerHTML =
+      `<h4>Yanlış alarm oranı (fark yok, $\\delta = 0$); siyah çizgi %5</h4>` +
+      row("Welch t", h0.t, 0.2, "", 0.05) + row("rank-sum", h0.w, 0.2, "is-b", 0.05) +
+      `<h4>Power ($\\delta = ${delta}$ SD kayma)</h4>` +
+      row("Welch t", h1.t, 1, "") + row("rank-sum", h1.w, 1, "is-b") +
+      `<p class="src">${name} population, grup başına $n = ${n}$, senaryo başına ${REPS} tekrar, seed ${seed}. ${better ? `Bu ayarda <b>${better}</b> farkı daha sık yakaladı.` : "Bu ayarda iki testin power'ı neredeyse aynı."} ${kind === "norm" ? "Normal veride t'nin power'ı genelde biraz daha yüksektir: Walpole'un dediği gibi, ikisi de geçerliyse parametric test daha efficient." : better === "rank-sum" ? "Normal olmayan veride uç değerler t'nin SD'sini şişirip power'ını düşürüyor; rank'larda bu etki yok." : "Bu ayarda fark küçük; $n$'yi büyütüp ya da $\\delta$'yı küçültüp tekrar dene."} ${Math.max(h0.t, h0.w) <= 0.065 ? "İki testin de yanlış alarm oranı %5 civarında ya da altında: eşit $n$'de t'nin Type I error'ı burada bozulmuyor, kaybettiği şey power." : "Yanlış alarm oranlarından biri %5'in belirgin üstünde: o test bu ayarda $\\alpha$'yı korumuyor."}</p>`;
+    Lab.renderMath(out);
+  }
+  $("wx-go").addEventListener("click", run);
+  $("wx-seed").addEventListener("click", () => { seed = (seed * 1103515245 + 12345) >>> 0; run(); });
+  ["wx-dist", "wx-n", "wx-d"].forEach(id => $(id).addEventListener("change", run));
+  run();
+})();
+</script>
+</body>
+</html>

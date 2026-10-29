@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 321: hypothesis test mantığı. H₀ ve Hₐ kurmak, Type I ve Type II error, rejection region, p-value, bir mean için large-sample z test ve t test, SciPy, Q-Q plot ve sonucu yazmak." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Hypothesis test mantığı: bir mean için z ve t · CSE 321 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=8" />
+  <style>
+    .w-tests-for-a-mean-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-tests-for-a-mean-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-tests-for-a-mean-ctl label { display: inline-flex; gap: 4px; align-items: center; font-size: .92rem; }
+    .w-tests-for-a-mean-ctl input[type="text"] { width: 84px; }
+    .w-tests-for-a-mean-ctl select { max-width: 100%; }
+    .w-tests-for-a-mean-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-tests-for-a-mean-plot { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); padding: 6px; margin: 8px 0; }
+    .w-tests-for-a-mean-plot svg { display: block; width: 100%; height: auto; }
+    .w-tests-for-a-mean-out { font-size: .95rem; margin: 6px 0; }
+    .w-tests-for-a-mean-out ol { margin: 4px 0 4px 1.2em; padding: 0; }
+    .w-tests-for-a-mean-out li { margin: 4px 0; }
+    .w-tests-for-a-mean-concl { font-family: 'JetBrains Mono', monospace; font-size: .86rem; background: var(--stone-050); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; overflow-wrap: anywhere; }
+    .w-tests-for-a-mean-tt td.is-hit { background: var(--orange-100); font-weight: 700; }
+    .w-tests-for-a-mean-tt td, .w-tests-for-a-mean-tt th { white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: .84rem; }
+    .w-tests-for-a-mean-ok { color: #2b8a3e; font-weight: 700; }
+    .w-tests-for-a-mean-no { color: #c92a2a; font-weight: 700; }
+    .w-tests-for-a-mean-tag { display: inline-block; font-size: .8rem; font-weight: 700; border-radius: var(--radius-full); padding: 1px 9px; color: #fff; background: var(--blue-600); }
+    .w-tests-for-a-mean-tag.is-t { background: #2b8a3e; }
+    .w-tests-for-a-mean-tag.is-none { background: var(--orange-700); }
+    .w-tests-for-a-mean-data { width: 100%; min-height: 64px; font-family: 'JetBrains Mono', monospace; font-size: .85rem; box-sizing: border-box; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 321</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 321</a> / Hypothesis test mantığı: bir mean için z ve t</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W3</span><span class="chip chip--exam">Final</span><span class="chip">QB1 S13–S18</span><span class="src">~55 dk · 11 bölüm</span></div>
+          <h1>Hypothesis test mantığı: bir mean için z ve t</h1>
+          <p class="lead">Bir iddia var: "mean response time 60 ms". Elinde bir sample var ve sample mean 62.4 çıktı. Bu fark gerçek mi, yoksa şans mı? Bu derste bu soruyu bir <em>hypothesis test</em> ile cevaplamayı öğreneceksin: H₀ ve Hₐ kurmak, iki hata türü, rejection region, p-value, büyük sample için z test, küçük sample için t test, SciPy ile kontrol ve sonucu doğru cümleyle yazmak.</p>
+          <!-- Kaynak: resources/2026-2027-fall/03-hypothesis-testing-i.pdf slayt 1–29 (formül, tablo ve grafik slaytları pdftoppm ile okundu: 6, 7, 12, 13, 14, 16, 17, 18, 21, 22, 23, 25, 26) · notebooks/week03_hypothesis_testing.ipynb Part A (A1–A5); Part B notlu ödev olduğu için çözümsüz · McClave & Sincich 13e §8.1–8.5 (s.397–432) · Walpole 9e Ch.10 · resources/supplement/7 Hypothesis Testing.pdf (STT315 el notu) · Question Bank 1 S13–S18 · weeks/08-hypothesis-testing.md (Notes — Efe bölümü boş). -->
+        </header>
+
+        <article class="lesson" data-course="cse-321" data-lesson="tests-for-a-mean">
+
+<!-- 1 -->
+<section class="lsec" id="claim" data-min="5">
+  <h2>Kontrol edilecek bir iddia</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · slayt 2</span>
+    <p>Bir cloud provider <strong>mean response time 60 ms</strong> sözü veriyor. Sen 120 request ölçüyorsun: sample mean $\bar x = 62.4$ ms, standard deviation $s = 10.9$ ms. İki açıklama var:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Açıklama 1</th><th>Açıklama 2</th></tr>
+      <tr><td>Söz tutuluyor. Bu sample şans eseri yüksek geldi.</td><td>Söz tutulmuyor. Gerçek mean 60 ms'nin üstünde.</td></tr>
+    </table></div>
+    <p>Hangisine inanacağımızı tek bir soru belirler: <strong>gerçek mean 60 olsaydı, 62.4 ne kadar şaşırtıcı olurdu?</strong></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · proof by contradiction (slayt 5)</span>
+    <ol>
+      <li><strong>H₀'ın doğru olduğunu varsay</strong> (burada: $\mu = 60$).</li>
+      <li>H₀ doğruysa data'nın <strong>nasıl görünmesi gerektiğini</strong> hesapla (sampling distribution).</li>
+      <li>Elindeki data ile <strong>karşılaştır</strong>.</li>
+      <li>Data bu varsayım altında <strong>çok şaşırtıcıysa</strong> H₀'ı reject et.</li>
+    </ol>
+    <p>Bir test H₀'ı hiçbir zaman kanıtlamaz. Sadece şunu sorar: H₀ doğru olsaydı bu data'yı açıklamak zor olur muydu?</p>
+    <p><strong>Mahkeme benzetmesi:</strong> sanık, kanıt yeterince güçlü olana kadar masum kabul edilir. H₀ "masum" varsayımıdır. Kanıt zayıfsa sanık "suçsuz" ilan edilir, ama bu "masum olduğu kanıtlandı" demek değildir.</p>
+  </div>
+  <h3>Şaşırtıcılığı simülasyonla ölç</h3>
+  <p>Notebook'un A2 hücresi soruyu doğrudan sorar: $\mu = 60$ ve $\sigma = 10.9$ olan bir population'dan çok sayıda 120'lik sample çek, kaçının mean'i 62.4'e ulaşıyor, say. Aşağıdaki düğme aynısını yapar (sabit seed, her seferinde aynı sonuç).</p>
+  <p class="w-tests-for-a-mean-guess"><b>Önce tahmin et:</b> $\mu = 60$ iken 120 request'lik sample'ların yüzde kaçında $\bar x \ge 62.4$ çıkar? Bir yüzde yaz, sonra simülasyonu çalıştır.</p>
+  <div class="w-tests-for-a-mean-ctl">
+    <label>Tahminin (%): <input id="w1-guess" type="text" inputmode="decimal" class="btn btn--sm" placeholder="ör. 10" /></label>
+    <button class="btn btn--sm btn--accent" id="w1-run">20 000 sample üret</button>
+  </div>
+  <div class="w-tests-for-a-mean-err" id="w1-err" aria-live="polite"></div>
+  <div class="w-tests-for-a-mean-plot" id="w1-plot" hidden></div>
+  <div class="w-tests-for-a-mean-out" id="w1-out" aria-live="polite"></div>
+  <!-- Kaynak: notebook A2 (50 000 sample, rng seed 321); burada 20 000 sample ve kendi seed'imiz. Formül değeri P(Z ≥ 2.41) = 0.0079. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"$62.4 &gt; 60$, demek ki söz tutulmuyor" demek yanlış. Her sample mean biraz oynar. Soru farkın var olup olmadığı değil, <strong>şansla açıklanamayacak kadar büyük</strong> olup olmadığıdır.</li>
+      <li>Test H₀'ı kanıtlamaz, Hₐ'yı da kesin olarak kanıtlamaz. Sadece "bu data H₀ altında ne kadar olağan dışı?" sorusunu cevaplar.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-claim-1">
+    <p class="quiz__q">120 request'in mean'i 62.4 ms, söz verilen değer 60 ms. Sadece "62.4 &gt; 60" bilgisi neyi gösterir?</p>
+    <button class="quiz__opt">Gerçek mean'in 60'tan büyük olduğunu<span class="why">Sample mean, sample'dan sample'a değişir. $\mu = 60$ olsa bile bazı sample'lar 62.4 verebilir. Bunun ne kadar olası olduğunu hesaplamadan karar veremezsin.</span></button>
+    <button class="quiz__opt" data-correct>Tek başına hiçbir şey; farkın şansla açıklanıp açıklanamayacağına bakmak gerekir<span class="why">Doğru. Testin işi tam olarak bu: $\mu = 60$ varsayımı altında 62.4'ün ne kadar şaşırtıcı olduğunu ölçmek.</span></button>
+    <button class="quiz__opt">Provider'ın sözünü tuttuğunu, çünkü fark küçük<span class="why">"Küçük" ya da "büyük" ancak standard error ile karşılaştırınca anlam kazanır. Burada $SE \approx 1$ ms ve 2.4 ms'lik fark yaklaşık 2.4 standard error eder.</span></button>
+  </div>
+  <div class="quiz" id="q-claim-2">
+    <p class="quiz__q">Mahkeme benzetmesinde "sanık suçsuz bulundu" kararı hangi test sonucuna karşılık gelir?</p>
+    <button class="quiz__opt">H₀'ın doğru olduğu kanıtlandı<span class="why">Mahkeme "masum olduğu kanıtlandı" demez, "suçunu gösteren kanıt yetersiz" der. Test de H₀'ı kanıtlamaz.</span></button>
+    <button class="quiz__opt" data-correct>Fail to reject H₀: kanıt H₀'ı reddetmeye yetmedi<span class="why">Doğru. Kanıt yetersizse karar "reject edemedik" olur, "H₀ doğru" olmaz.</span></button>
+    <button class="quiz__opt">Hₐ reject edildi<span class="why">Testte reject edilen ya da edilemeyen her zaman H₀'dır. Hₐ için ayrı bir karar verilmez.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="setup" data-min="6">
+  <h2>Bir testin elemanları ve hipotezleri kurmak</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · The Elements of a Test (slayt 6, McClave §8.1)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Element</th><th>Response-time örneğinde</th></tr>
+      <tr><td>Null hypothesis</td><td>$H_0: \mu = 60$</td></tr>
+      <tr><td>Alternative hypothesis</td><td>$H_a: \mu &gt; 60$</td></tr>
+      <tr><td>Test statistic</td><td>$z = (\bar x - 60)\,/\,(s/\sqrt n)$</td></tr>
+      <tr><td>Rejection region</td><td>$z &gt; 1.645 \quad (\alpha = 0.05)$</td></tr>
+      <tr><td>Assumptions</td><td>A random sample, $n \ge 30$</td></tr>
+      <tr><td>Conclusion</td><td>A sentence about $\mu$, in context</td></tr>
+    </table></div>
+    <p>McClave'in vurgusu: ilk dört element (H₀, Hₐ, test statistic, rejection region) <strong>data toplanmadan önce</strong> belirlenir. Data hipotezleri seçmek için kullanılmaz.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Setting Up the Hypotheses (slayt 7, McClave §8.2)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Research question</th><th>Hypotheses</th><th>Test</th></tr>
+      <tr><td>Mean, belirtilen değerin üstünde mi?</td><td>$H_0: \mu = \mu_0 \quad H_a: \mu &gt; \mu_0$</td><td>Upper-tailed</td></tr>
+      <tr><td>Mean, belirtilen değerin altında mı?</td><td>$H_0: \mu = \mu_0 \quad H_a: \mu &lt; \mu_0$</td><td>Lower-tailed</td></tr>
+      <tr><td>Mean ondan farklı mı?</td><td>$H_0: \mu = \mu_0 \quad H_a: \mu \ne \mu_0$</td><td>Two-tailed</td></tr>
+    </table></div>
+    <p><strong>The claim you want evidence for is the alternative. The null hypothesis always holds the equality.</strong></p>
+    <p>Hipotezler her zaman <strong>parameter</strong> ($\mu$) hakkındadır, statistic ($\bar x$) hakkında değil. $\mu_0$, H₀'daki sayıdır.</p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · "en az", "en fazla" geçince</span>
+    <p>Problem "SLA: mean latency <em>at most</em> 120 ms" ya da "vendor: <em>at least</em> 10 hours" diyebilir. Kanıt aradığın şey Hₐ'ya gider ve kesin eşitsizlikle yazılır ($&gt;$, $&lt;$). H₀ ise sınırdaki değeri eşitlikle tutar: $H_0: \mu = 120$. McClave'in gerekçesi: $\mu = 120$'yi $\mu &gt; 120$ lehine reject edebiliyorsan, $\mu &lt; 120$ olan bütün değerleri de reject edersin. Bazı kitaplar ve eski sınavlar $H_0: \mu \le 120$ ya da $H_0: \mu \ge 40$ yazar. Hesap aynıdır, test sınır değerle yapılır.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>H₀'a $&gt;$, $&lt;$ ya da $\ne$ yazmak. Bu derste H₀ <strong>her zaman "="</strong> içerir.</li>
+      <li>Hipotezi sample mean ile yazmak: $H_0: \bar x = 29$ yanlış. $\bar x$'i zaten biliyorsun, test edilecek bir şey yok.</li>
+      <li>Yönü data'ya bakarak seçmek. Sample mean yüksek çıktı diye upper-tailed test seçersen 5% false alarm sözü bozulur. Yön soru metninden gelir.</li>
+      <li>"Değişti mi?", "tutarlı mı?", "çok düşük de çok yüksek de hata" ⇒ two-tailed. "Azalttı mı?", "altına indi mi?" ⇒ lower-tailed.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="W3-s8-your-turn">
+    <span class="box__label">W3 slayt 8 · slayt sorusu</span>
+    <p>"Your Turn: State the Hypotheses. (1) A new build should cut the mean start-up time below 2.0 s. Does the data show that it does? (2) A protocol expects a mean packet size of 512 bytes. Is the traffic consistent with that? (3) A vendor claims a mean battery life of at least 10 hours. You suspect the claim is too generous."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her maddede şunu sor: <em>kim neyin kanıtını arıyor?</em> O cümle Hₐ olur.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(3)'te "at least 10" vendor'ın iddiası. Sen bu iddianın fazla iyimser olduğundan şüpheleniyorsun: gerçek mean 10'un altında mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th></th><th>H₀</th><th>Hₐ</th><th>Test</th></tr>
+        <tr><td>(1)</td><td>$\mu = 2.0$</td><td>$\mu &lt; 2.0$</td><td>Lower-tailed</td></tr>
+        <tr><td>(2)</td><td>$\mu = 512$</td><td>$\mu \ne 512$</td><td>Two-tailed</td></tr>
+        <tr><td>(3)</td><td>$\mu = 10$</td><td>$\mu &lt; 10$</td><td>Lower-tailed</td></tr>
+      </table></div>
+      <p>(1)'de build'in süreyi düşürdüğünü göstermek istiyoruz. (2)'de "consistent with" yönsüz bir soru: iki yönde sapma da ilgilendirir. (3)'te iddia "en az 10"; şüphe "aslında daha az", yani kanıt aranan $\mu &lt; 10$.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="QB1-Q13">
+    <span class="box__label">Question Bank 1 S13 · slayt sorusu</span>
+    <p>"Write H₀ and Hₐ, and say whether each test is upper-tailed, lower-tailed or two-tailed. (a) A vendor claims the mean disk write latency is 5 ms; you suspect it is higher. (b) After a redesign, has the mean session length changed from 12 minutes? (c) A new cache should bring the mean page load time below 300 ms. (d) A regulator must output 5.00 V on average; too low and too high are both faults."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce her maddedeki sayıyı bul: o $\mu_0$'dır ve H₀'a eşitlikle girer.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Yön kelimeleri: "higher" ⇒ $&gt;$, "changed" ⇒ $\ne$, "below" ⇒ $&lt;$, "too low and too high" ⇒ $\ne$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th></th><th>H₀</th><th>Hₐ</th><th>Test</th></tr>
+        <tr><td>(a)</td><td>$\mu = 5$</td><td>$\mu &gt; 5$</td><td>Upper-tailed</td></tr>
+        <tr><td>(b)</td><td>$\mu = 12$</td><td>$\mu \ne 12$</td><td>Two-tailed</td></tr>
+        <tr><td>(c)</td><td>$\mu = 300$</td><td>$\mu &lt; 300$</td><td>Lower-tailed</td></tr>
+        <tr><td>(d)</td><td>$\mu = 5.00$</td><td>$\mu \ne 5.00$</td><td>Two-tailed</td></tr>
+      </table></div>
+      <p>What you want to show goes into Hₐ; H₀ holds the equality. Yönü data'yı görmeden seç.</p>
+    </div></details>
+  </div>
+  <!-- Kaynak: resources/2026-2027-fall/examples/question-bank-1-weeks-01-04.pdf slayt 30–31. -->
+  <div class="box box--exam" data-exam="sup7-7.14">
+    <span class="box__label">STT315 el notu, McClave 7.14 · kitap alıştırması</span>
+    <p>"The interest rate at which London banks lend money to one another is called the London interbank offered rate, or Libor. … One recent report (Bankrate.com, Aug. 23, 2006) had the average Libor rate at 1.10% for 1-year loans — a value considered high by many Western banks. Set up the null and alternative hypotheses for testing the reported value."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Parameter ne? "average Libor rate" ⇒ $\mu$, bütün bankaların 1 yıllık Libor oranlarının mean'i.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Testing the reported value": bir yön belirtilmemiş. Raporlanan değer doğru mu, değil mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$H_0: \mu = 1.10$, $H_a: \mu \ne 1.10$ (two-tailed). Soru raporlanan değerin yanlış olup olmadığını soruyor, yönü söylemiyor. Bankaların bu değeri "yüksek" bulması bir şikâyet; soru "gerçek mean daha düşük mü?" diye sorsaydı $H_a: \mu &lt; 1.10$ olurdu.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/supplement/7%20Hypothesis%20Testing.pdf" target="_blank" rel="noopener">Orijinal el notu (PDF), s.2</a></p>
+  </div>
+  <h3>STT315 pratik setinden</h3>
+  <p class="src">Not: STT315 setleri (315Practice3, COMPREHENSIVE EXAM PRACTICE) başka bir üniversitenin aynı kitabı izleyen dersinden; bu dersin hocası hazırlamadı. Konu ve stil olarak yine de iyi pratik.</p>
+  <div class="box box--exam" data-exam="315P3-Q40">
+    <span class="box__label">STT315 Practice Ch 5–7 S40 · kitap alıştırması</span>
+    <p>"You are considering moving to Atlanta, and are concerned about the average one-way commute time. Does the average one-way commute time exceed 25 minutes? You take a random sample of 50 Atlanta residents and find an average commute time of 29 minutes with a standard deviation of 7 minutes." Write the null and alternative hypothesis. A) H₀: µ = 25, Hₐ: µ &gt; 25 · B) H₀: µ = 29, Hₐ: µ &lt; 29 · C) H₀: µ = 25, Hₐ: µ ≠ 25 · D) H₀: µ = 29, Hₐ: µ &gt; 29 · E) H₀: µ = 25, Hₐ: µ &lt; 25</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>29 hangi sayı: parameter mı, sample'dan gelen statistic mi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Exceed 25" ⇒ hangi işaret?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>A.</strong> $\mu_0 = 25$ sorudaki iddia değeri; 29 sample mean'dir ve hipoteze girmez (B ve D bu yüzden elenir). "Exceed" ⇒ $H_a: \mu &gt; 25$. Cevap anahtarı da A.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q41">
+    <span class="box__label">STT315 Practice Ch 5–7 S41 · kitap alıştırması</span>
+    <p>"Suzie has installed a new spam blocker program on her email. She used to receive an average of 20 spam emails a day. Is the new program working?" A) H₀: µ = 20, Hₐ: µ &lt; 20 · B) H₀: µ &gt; 20, Hₐ: µ = 20 · C) H₀: µ = 20, Hₐ: µ &gt; 20 · D) H₀: µ = 20, Hₐ: µ ≠ 20 · E) Not enough information is given.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Program "çalışıyorsa" günlük spam sayısına ne olur?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>B'de H₀'da "&gt;" var. Bu kurala uyuyor mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>A.</strong> Çalışan bir spam blocker mean'i düşürür: $H_a: \mu &lt; 20$. B, eşitliği yanlış tarafa koyuyor. D yönü kaybediyor: "çalışıyor mu?" sorusu tek yönlü. Cevap anahtarı da A.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q42">
+    <span class="box__label">STT315 Practice Ch 5–7 S42 · kitap alıştırması</span>
+    <p>"Researchers have claimed that the average number of headaches per student during a semester of Statistics is 11. Statistics students believe the average is higher. In a sample of n = 16 students the mean is 12 headaches with a deviation of 2.4. Which of the following represent the null and alternative hypotheses necessary to test the students' belief?" A) H₀: µ = 11 vs. Hₐ: µ ≠ 11 · B) H₀: µ = 11 vs. Hₐ: µ &lt; 11 · C) H₀: µ &lt; 11 vs. Hₐ: µ = 11 · D) H₀: µ = 11 vs. Hₐ: µ &gt; 11</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kanıtı aranan inanç kimin? Öğrencilerin: "daha yüksek".</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>n = 16 ve 2.4 bilgisi bu soruda gerekmiyor; sadece hipotezler soruluyor.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>D.</strong> $H_0: \mu = 11$, $H_a: \mu &gt; 11$. C, hem eşitliği Hₐ'ya koyuyor hem yönü ters çeviriyor. Cevap anahtarı da D.</p></div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/315Practice3.pdf" target="_blank" rel="noopener">Orijinal set (PDF), s.7</a></p>
+  </div>
+  <div class="quiz" id="q-setup-1">
+    <p class="quiz__q">SLA, mean latency'nin <em>at most</em> 200 ms olduğunu söylüyor. SLA'in ihlal edildiğine dair kanıt arıyorsun. Hangisi doğru?</p>
+    <button class="quiz__opt">$H_0: \mu &lt; 200$, $H_a: \mu \ge 200$<span class="why">H₀ eşitliği tutmalı ve Hₐ kesin eşitsizlik olmalı. Burada ikisi de bozuk.</span></button>
+    <button class="quiz__opt" data-correct>$H_0: \mu = 200$, $H_a: \mu &gt; 200$<span class="why">Doğru. Kanıt aranan "ihlal" ($\mu &gt; 200$) Hₐ'ya gider; H₀ sınır değeri eşitlikle tutar.</span></button>
+    <button class="quiz__opt">$H_0: \mu = 200$, $H_a: \mu \ne 200$<span class="why">Soru tek yönlü: latency'nin düşük çıkması SLA ihlali değil. Two-tailed test yönü kaybeder.</span></button>
+    <button class="quiz__opt">$H_0: \bar x = 200$, $H_a: \bar x &gt; 200$<span class="why">Hipotez parameter ($\mu$) hakkında kurulur. $\bar x$'i zaten ölçtün, onu test etmenin anlamı yok.</span></button>
+  </div>
+  <div class="quiz" id="q-setup-2">
+    <p class="quiz__q">Bir öğrenci önce data'ya bakıyor, $\bar x$'in $\mu_0$'ın altında çıktığını görüyor ve lower-tailed test seçiyor. Sorun ne?</p>
+    <button class="quiz__opt">Sorun yok, yön data'dan seçilir<span class="why">Yön data'dan seçilirse, data hangi yöne saparsa sapsın "anlamlı" sonuç bulma şansı artar. α'nın verdiği 5% false alarm sözü bozulur.</span></button>
+    <button class="quiz__opt" data-correct>Hipotezler ve yön data görülmeden, sorudan belirlenmeli<span class="why">Doğru. Rejection region ve α data'dan önce sabitlenir. QB1 S18(d) de bunu soruyor.</span></button>
+    <button class="quiz__opt">Lower-tailed yerine her zaman two-tailed seçilmeli<span class="why">Soru tek yönlüyse ("below", "exceed") one-tailed test doğrudur. Sorun yönün kaynağı: yön sorudan gelmeli.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="errors" data-min="5">
+  <h2>Reject, fail to reject ve iki hata türü</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Reject, or Fail to Reject (slayt 9)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Reject H₀</th><th>Fail to reject H₀</th></tr>
+      <tr><td>Data, H₀ altında açıklanması zor bir sonuç. Level α'da alternative lehine kanıt var.</td><td>Data H₀ ile tutarlı. H₀ yine de yanlış olabilir: n, farkı görmek için çok küçük olabilir.</td></tr>
+    </table></div>
+    <p><strong>Failing to reject H₀ is not evidence that H₀ is true.</strong> Bu yüzden "accept H₀" demiyoruz.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Two Ways to Be Wrong (slayt 11, McClave Table 8.1)</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>H₀ is true</th><th>H₀ is false</th></tr>
+      <tr><th>Reject H₀</th><td><strong>Type I error</strong> (olasılığı $\alpha$)</td><td>Correct decision</td></tr>
+      <tr><th>Fail to reject H₀</th><td>Correct decision</td><td><strong>Type II error</strong> (olasılığı $\beta$)</td></tr>
+    </table></div>
+    <ul>
+      <li>$\alpha = P(\text{reject } H_0 \mid H_0 \text{ true})$: <strong>significance level</strong>. Data görülmeden seçilir.</li>
+      <li>$\beta = P(\text{fail to reject } H_0 \mid H_0 \text{ false})$. Gerçeğin H₀'dan ne kadar uzak olduğuna bağlıdır; hesabı bir sonraki derste (Week 4).</li>
+      <li>Type I error sadece reject ettiğinde, Type II error sadece reject etmediğinde yapılabilir.</li>
+    </ul>
+  </div>
+  <h3>Trade-off (slayt 12)</h3>
+  <p>Response-time örneğinde $SE = 10.9/\sqrt{120} \approx 1.0$ ms. $\alpha = 0.05$ ile cut-off $60 + 1.645 \times 1.0 \approx 61.6$: sample mean 61.6'yı geçerse reject. Gerçek mean aslında 62.5 ise, sample mean'in 61.6'nın altında kalma olasılığı $\beta$'dır. Slayt bunu $\beta \approx 0.20$ olarak gösteriyor. Aşağıdaki çizim SE'yi 1.0'a yuvarlamadan hesaplar, bu yüzden 61.64 ve 0.193 görürsün.</p>
+  <p class="w-tests-for-a-mean-guess"><b>Önce tahmin et:</b> α'yı 0.05'ten 0.01'e indirirsen β artar mı, azalır mı? n'yi 120'den 480'e çıkarırsan ne olur?</p>
+  <div class="w-tests-for-a-mean-ctl">
+    <label>α <select id="w2-alpha" class="btn btn--sm"><option value="0.10">0.10</option><option value="0.05" selected>0.05</option><option value="0.01">0.01</option></select></label>
+    <label>n = <input id="w2-n" type="text" inputmode="numeric" value="120" class="btn btn--sm" /></label>
+    <button class="btn btn--sm" id="w2-go">Çiz</button>
+    <span class="src">hazır n:</span>
+    <button class="btn btn--sm" data-w2n="30">30</button>
+    <button class="btn btn--sm" data-w2n="120">120</button>
+    <button class="btn btn--sm" data-w2n="480">480</button>
+  </div>
+  <div class="w-tests-for-a-mean-err" id="w2-err" aria-live="polite"></div>
+  <div class="w-tests-for-a-mean-plot" id="w2-plot"></div>
+  <div class="w-tests-for-a-mean-out" id="w2-out" aria-live="polite"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · trade-off</span>
+    <p><strong>At a fixed n, lowering α raises β. Only more data lowers both.</strong> α'yı küçültmek cut-off'u sağa iter: false alarm azalır, ama gerçek bir artışı kaçırma olasılığı artar. Sabit α'da n'yi artırmak iki eğriyi de daraltır ve β'yı düşürür. İkisini birlikte düşürmek için daha büyük n ile daha küçük α birlikte seçilebilir. Slayttaki "only more data" cümlesi σ'yı sabit sayar: ölçüm gürültüsünü (σ) azaltmak da aynı etkiyi verir.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Type I ile Type II'yi tabloya bakmadan karıştırma. Önce sor: <em>gerçekte</em> H₀ doğru mu? Sonra: <em>karar</em> reject mi?</li>
+      <li>"Fail to reject" ≠ "H₀ doğru". Küçük sample'da gerçek bir fark rahatça kaçar (Type II).</li>
+      <li>$\alpha + \beta = 1$ değildir. İkisi farklı durumlarda (H₀ doğru ve H₀ yanlış) tanımlanır.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="QB1-Q14">
+    <span class="box__label">Question Bank 1 S14 · slayt sorusu</span>
+    <p>"Before each release a team tests H₀: μ = 250 ms against Hₐ: μ &gt; 250 ms, where μ is the new build's mean response time. If H₀ is rejected, the release is stopped. (a) Describe a Type I error and a Type II error in this context. (b) What does each one cost? (c) The team lowers α from 0.05 to 0.01. What happens to β? (d) How can both errors be made less likely at once?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Type I: H₀ doğru (build yavaş değil) ama reject edildi (release durduruldu). Type II'yi aynı kalıpla kur.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c) ve (d) için trade-off widget'ına dön: α'yı değiştir, sonra n'yi değiştir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) <strong>Type I:</strong> the build is not slower, but the test says it is. <strong>Type II:</strong> the build really is slower, but the test misses it.</p>
+      <p>(b) Type I: a release stopped for nothing, time lost on debugging. Type II: slower service for users, perhaps an SLA breach.</p>
+      <p>(c) β grows: a stricter test misses more real slowdowns (the trade-off).</p>
+      <p>(d) Collect more data. At a fixed α, a larger n lowers β and raises the power; with more data, α can also be lowered while β stays small.</p>
+    </div></details>
+  </div>
+  <!-- Kaynak: question-bank-1 slayt 32–33. β ve power hesabı power-and-sample-size dersinde. -->
+  <div class="box box--exam" data-exam="sup7-7.16">
+    <span class="box__label">STT315 el notu, McClave 7.16 · kitap alıştırması</span>
+    <p>"… a system developed by Palmguard, Inc. tests the hypothesis H₀: The proposed user is authorized, Hₐ: The proposed user is unauthorized by checking characteristics of the proposed user's palm against those stored in the authorized users' data bank. a. Define a Type I error and Type II error for this test. Which is the more serious error? Why? b. Palmguard reports that the Type I error rate for its system is less than 1%, whereas the Type II error rate is .00025%. Interpret these error rates." (soru metni kısaltıldı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>H₀ "kullanıcı yetkili". Type I: H₀ doğruyken reject. Yani gerçekte yetkili biri…?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Hangi hata sisteme yetkisiz birini sokar? Bir güvenlik sisteminde hangisi daha pahalı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>a. <strong>Type I:</strong> yetkili bir kullanıcıyı yetkisiz sanıp reddetmek. <strong>Type II:</strong> yetkisiz birini yetkili sanıp içeri almak. Güvenlik açısından Type II daha ciddi: hacker sisteme girer. Type I sadece rahatsızlık yaratır (kullanıcı tekrar dener).</p>
+      <p>b. Yetkili kullanıcıların %1'inden azı yanlışlıkla reddedilir. Yetkisiz denemelerin ise sadece %0.00025'i (400 000'de 1) içeri girer.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q43">
+    <span class="box__label">STT315 Practice Ch 5–7 S43 · kitap alıştırması</span>
+    <p>"An insurance company sets up a statistical test with a null hypothesis that the average time for processing a claim is 7 days, and an alternative hypothesis that the average time for processing a claim is greater than 7 days. After completing the statistical test, it is concluded that the average time exceeds 7 days. However, it is eventually learned that the mean process time is really 7 days. What type of error occurred in the statistical test?" A) Type II error · B) Type III error · C) No error occurred in the statistical sense. · D) Type I error</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Gerçek: $\mu = 7$, yani H₀ doğru. Karar: "exceeds 7", yani reject.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Tabloda "H₀ true" sütunu ile "Reject H₀" satırının kesişimine bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>D, Type I error.</strong> H₀ doğruyken reject edildi. Cevap anahtarı da D.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q44">
+    <span class="box__label">STT315 Practice Ch 5–7 S44 · kitap alıştırması</span>
+    <p>"Suppose we wish to test H₀: µ = 40 vs. Hₐ: µ &gt; 40. What will result if we conclude that the mean is greater than 40 when its true value is really 47?" A) a Type I error · B) a correct decision · C) a Type II error · D) none of the above</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Gerçek değer 47. H₀ ($\mu = 40$) doğru mu, yanlış mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Karar "greater than 40". Bu karar gerçekle uyuşuyor mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>B, correct decision.</strong> H₀ yanlış (gerçek mean 47) ve reject ettik. Cevap anahtarı da B.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q45">
+    <span class="box__label">STT315 Practice Ch 5–7 S45 · kitap alıştırması</span>
+    <p>"In the past, the mean battery life for a certain type of flashlight battery has been 9.4 hours. The manufacturer has introduced a change in the production method and wants to perform a hypothesis test to determine whether the mean battery life has increased as a result. The hypotheses are: H₀: µ = 9.4 hours, Hₐ: µ &gt; 9.4 hours. Explain the result of a Type II error." A) … decide the mean battery life is greater than 9.4 hours when in fact it is greater than 9.4 hours. B) … decide the mean battery life is 9.4 hours when in fact it is 9.4 hours. C) … decide the mean battery life is less than 9.4 hours when in fact it is greater than 9.4 hours. D) … decide the mean battery life is 9.4 hours when in fact it is greater than 9.4 hours. E) … decide the mean battery life is greater than 9.4 hours when in fact it is 9.4 hours.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Type II: H₀ yanlış (gerçekte $\mu &gt; 9.4$), karar fail to reject.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>A ve B doğru kararlar. E hangi hata?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>D.</strong> Gerçekte mean artmış, ama test bunu göremiyor ve 9.4'te kalıyor. E, Type I error'dır. C'deki "less than" kararı bu testte zaten verilemez: upper-tailed testte karar ya "greater than 9.4" ya da "yeterli kanıt yok". Cevap anahtarı da D.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q46">
+    <span class="box__label">STT315 Practice Ch 5–7 S46 · kitap alıştırması</span>
+    <p>"The association's by-laws require that more than 60 percent of the association must approve a name change. … Suppose the association decided to conduct a test of hypothesis using the following null and alternative hypotheses: H₀: p = 0.6, Hₐ: p &gt; 0.6. Define a Type II Error in the context of this problem." A) They conclude that exactly 60% of the association wants a name change when that is, in fact, true. B) They conclude that exactly 60% … when, in fact, that is not true. C) They conclude that more than 60% … when that is, in fact, true. D) They conclude that more than 60% … when, in fact, that is not true. (soru metni kısaltıldı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Parameter burada bir proportion, ama hata tanımları aynı. Type II'de karar ne?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Fail to reject ⇒ "60%" sonucunda kalmak. Gerçek ne olmalı ki hata olsun?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>B.</strong> Type II: H₀ yanlışken (gerçekte $p &gt; 0.6$) H₀'da kalmak. Seçenekteki "conclude that exactly 60%" ifadesi aslında "accept H₀" dili; doğru dil "60%'ten fazla olduğuna dair yeterli kanıt yok" olurdu. D Type I error'dır. Cevap anahtarı da B.</p></div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/315Practice3.pdf" target="_blank" rel="noopener">Orijinal set (PDF), s.8</a></p>
+  </div>
+  <div class="quiz" id="q-errors-1">
+    <p class="quiz__q">Release testinde ($H_0: \mu = 250$, $H_a: \mu &gt; 250$) yeni build gerçekten daha yavaş, ama test fail to reject veriyor. Bu ne?</p>
+    <button class="quiz__opt">Type I error<span class="why">Type I, H₀ doğruyken reject etmektir. Burada H₀ yanlış (build yavaş) ve reject edilmedi.</span></button>
+    <button class="quiz__opt" data-correct>Type II error<span class="why">Doğru: H₀ yanlış, ama reject edilmedi. Gerçek bir yavaşlama kaçtı.</span></button>
+    <button class="quiz__opt">Correct decision, çünkü fail to reject "H₀ doğru" demek değil<span class="why">Kararın dili doğru olabilir, ama gerçek $\mu &gt; 250$ iken H₀'da kalmak yine bir hatadır: Type II.</span></button>
+  </div>
+  <div class="quiz" id="q-errors-2">
+    <p class="quiz__q">n sabitken α'yı 0.05'ten 0.01'e indiriyorsun. Ne olur?</p>
+    <button class="quiz__opt">α ve β ikisi de azalır<span class="why">Sabit n ve σ'da α'yı düşürmek β'yı artırır; ikisi birden azalmaz. İkisini birlikte düşürmek için daha büyük n ile daha küçük α birlikte seçilir.</span></button>
+    <button class="quiz__opt" data-correct>Type I olasılığı azalır, β artar<span class="why">Doğru. Cut-off sağa kayar: false alarm azalır, gerçek bir farkı kaçırma olasılığı artar.</span></button>
+    <button class="quiz__opt">β değişmez, çünkü β gerçek mean'e bağlı<span class="why">β gerçek mean'e bağlı, ama cut-off'a da bağlı. Cut-off α ile hareket eder.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="region" data-min="4">
+  <h2>Rejection region ve critical value</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>H₀ doğruyken test statistic'in nasıl dağıldığını biliyoruz: büyük sample'da standard normal. <strong>Rejection region</strong>, H₀ doğruyken toplam olasılığı tam $\alpha$ olan en uç bölgedir. Statistic oraya düşerse "H₀ doğru olsaydı bu kadar uç bir değer nadiren çıkardı" deriz.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · The Rejection Region (slayt 13, McClave Table 8.2)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Hₐ</th><th>Reject H₀ if</th><th>Kuyruktaki alan</th></tr>
+      <tr><td>$\mu &gt; \mu_0$ (upper-tailed)</td><td>$z &gt; z_\alpha$</td><td>sağda $\alpha$</td></tr>
+      <tr><td>$\mu &lt; \mu_0$ (lower-tailed)</td><td>$z &lt; -z_\alpha$</td><td>solda $\alpha$</td></tr>
+      <tr><td>$\mu \ne \mu_0$ (two-tailed)</td><td>$z &lt; -z_{\alpha/2}$ or $z &gt; z_{\alpha/2}$</td><td>her kuyrukta $\alpha/2$</td></tr>
+    </table></div>
+    <div class="table-wrap"><table>
+      <tr><th>$\alpha$</th><th>One-tailed: $P(Z &gt; z) = \alpha$</th><th>Two-tailed: $P(Z &gt; z) = \alpha/2$</th></tr>
+      <tr><td>0.10</td><td>1.28</td><td>1.645</td></tr>
+      <tr><td>0.05</td><td>1.645</td><td>1.96</td></tr>
+      <tr><td>0.01</td><td>2.33</td><td>2.575</td></tr>
+    </table></div>
+    <p>$\alpha = P(\text{Type I error})$ = rejection region'ın H₀ altındaki alanı. α küçüldükçe reject etmek için daha büyük bir $|z|$ gerekir.</p>
+  </div>
+  <p>Bir α ve bir Hₐ seç. Eğri standard normal; turuncu bölge rejection region, sınırdaki sayı critical value (inverse normal ile hesaplanıyor).</p>
+  <div class="w-tests-for-a-mean-ctl">
+    <label>α <select id="w3-alpha" class="btn btn--sm"><option value="0.10">0.10</option><option value="0.05" selected>0.05</option><option value="0.01">0.01</option></select></label>
+    <label>Hₐ <select id="w3-tail" class="btn btn--sm"><option value="gt" selected>μ &gt; μ₀</option><option value="lt">μ &lt; μ₀</option><option value="ne">μ ≠ μ₀</option></select></label>
+  </div>
+  <div class="w-tests-for-a-mean-plot" id="w3-plot"></div>
+  <div class="w-tests-for-a-mean-out" id="w3-out" aria-live="polite"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>1.645 iki farklı yerde çıkar: one-tailed α = 0.05 ve two-tailed α = 0.10. Hangi satırda olduğuna bak.</li>
+      <li>Two-tailed testte α ikiye bölünür: $\alpha = 0.05$ ise her kuyrukta 0.025, critical value 1.96.</li>
+      <li>Lower-tailed testte rejection region negatif tarafta: $z &lt; -1.645$. $z = -2$ bu bölgededir, $z = 2$ değildir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="sup7-7.8">
+    <span class="box__label">STT315 el notu, McClave 7.8 · kitap alıştırması</span>
+    <p>"For each of the following rejection regions, sketch the sampling distribution for z and indicate the location of the rejection region. a. z &gt; 1.96 b. z &gt; 1.645 c. z &gt; 2.576 d. z &lt; −1.282 e. z &lt; −1.645 or z &gt; 1.645 f. z &lt; −2.576 or z &gt; 2.576 g. For each of the rejection regions specified in parts a–f, what is the probability that a Type I error will be made?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Type I error olasılığı = rejection region'ın standard normal altındaki alanı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İki kuyruklu bölgelerde iki kuyruğun alanını topla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Çizimler: (a)–(c) sağ kuyruk, (d) sol kuyruk, (e)–(f) iki kuyruk. Yukarıdaki widget'ta α ve Hₐ seçerek aynı resimleri görebilirsin.</p>
+      <p>g. (a) $P(Z &gt; 1.96) = 0.025$ · (b) $0.05$ · (c) $0.005$ · (d) $P(Z &lt; -1.282) = 0.10$ · (e) $2 \times 0.05 = 0.10$ · (f) $2 \times 0.005 = 0.01$.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="sup7-7.10">
+    <span class="box__label">STT315 el notu, McClave 7.10 · kitap alıştırması</span>
+    <p>"Play Golf America program. … According to Golf Digest (July 2008), golf facilities that participate in the program gain, on average, $\$2{,}400$ in greens, fees, lessons, or equipment expenditures. A teaching professional at a golf club believes that the average gain … for participating golf facilities exceeds $\$2{,}400$. a. In order to support the claim made by the teaching professional, what null and alternative hypotheses should you test? b. Suppose you select α = .05. Interpret this value in the words of the problem. c. For α = .05, specify the rejection region of a large-sample test." (soru metni kısaltıldı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kanıtı aranan, hocanın inancı: "exceeds 2,400".</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>α'yı yorumlarken "H₀ doğruyken reject etme olasılığı" cümlesini problemin diline çevir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>a. $H_0: \mu = 2400$, $H_a: \mu &gt; 2400$ ($\mu$: katılan tesislerin mean kazancı).</p>
+      <p>b. Gerçek mean kazanç tam 2,400 dolar iken testin "2,400'ü aşıyor" deme olasılığı 0.05'tir.</p>
+      <p>c. Upper-tailed, $\alpha = 0.05$: reject H₀ if $z &gt; 1.645$.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/supplement/7%20Hypothesis%20Testing.pdf" target="_blank" rel="noopener">Orijinal el notu (PDF), s.4–5</a></p>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q47">
+    <span class="box__label">STT315 Practice Ch 5–7 S47 · kitap alıştırması</span>
+    <p>"Consider a test of H₀: µ = 6. For the following case, give the rejection region for the test in terms of the z-statistic: Hₐ: µ ≠ 6, α = 0.10" A) |z| &gt; 1.28 · B) z &gt; 1.28 · C) z &gt; 1.645 · D) |z| &gt; 1.645</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>≠ ⇒ iki kuyruk. Her kuyrukta ne kadar alan kalır?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$P(Z &gt; z) = 0.05$ veren $z$ hangisi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>D, $|z| &gt; 1.645$.</strong> Her kuyrukta $0.10/2 = 0.05$. A, α'yı bölmeyi unutuyor; B ve C tek kuyruklu. Cevap anahtarı da D.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q58">
+    <span class="box__label">STT315 Practice Ch 5–7 S58 · kitap alıştırması</span>
+    <p>"A large university is interested in learning about the average time it takes students to drive to campus. The university sampled 238 students … The goal was to determine if the average travel time of all the university's students differed from 20 minutes. Find the large-sample rejection region for the test of interest to the college when using a level of significance of 0.05." A) Reject H₀ if z &gt; 1.645. B) Reject H₀ if z &lt; −1.645 or z &gt; 1.645. C) Reject H₀ if z &lt; −1.96. D) Reject H₀ if z &lt; −1.96 or z &gt; 1.96.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Differed from" ⇒ hangi Hₐ?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Two-tailed, $\alpha = 0.05$ ⇒ tablonun hangi hücresi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>D.</strong> $H_a: \mu \ne 20$, her kuyrukta 0.025, critical value 1.96. B, two-tailed α = 0.10'un bölgesidir. Cevap anahtarı da D.</p></div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/315Practice3.pdf" target="_blank" rel="noopener">Orijinal set (PDF), s.8 ve s.11</a></p>
+  </div>
+  <div class="quiz" id="q-region-1">
+    <p class="quiz__q">$H_a: \mu \ne \mu_0$, $\alpha = 0.01$. Rejection region hangisi?</p>
+    <button class="quiz__opt">$|z| &gt; 2.33$<span class="why">2.33 one-tailed α = 0.01'in değeri. Two-tailed testte her kuyrukta 0.005 kalır.</span></button>
+    <button class="quiz__opt" data-correct>$|z| &gt; 2.575$<span class="why">Doğru: $P(Z &gt; 2.575) = 0.005 = \alpha/2$.</span></button>
+    <button class="quiz__opt">$z &gt; 2.575$<span class="why">≠ iki yönlüdür: çok küçük $z$ değerleri de H₀ aleyhine kanıttır. Sol kuyruk eksik.</span></button>
+  </div>
+  <div class="quiz" id="q-region-2">
+    <p class="quiz__q">Lower-tailed test, $\alpha = 0.05$, hesaplanan $z = 1.90$. Karar?</p>
+    <button class="quiz__opt">Reject, çünkü $1.90 &gt; 1.645$<span class="why">Rejection region $z &lt; -1.645$, negatif taraf. $z = 1.90$ sample mean'in $\mu_0$'ın <em>üstünde</em> olduğunu söylüyor; bu, $\mu &lt; \mu_0$ için kanıt değil.</span></button>
+    <button class="quiz__opt" data-correct>Fail to reject<span class="why">Doğru. Statistic yanlış tarafta: lower-tailed testte sadece yeterince negatif $z$ reject ettirir.</span></button>
+    <button class="quiz__opt">Two-tailed teste geçip yeniden karar vermeli<span class="why">Yön data'dan sonra değiştirilmez. Bu, α'nın anlamını bozar.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="ztest" data-min="6">
+  <h2>Large-sample z test: response-time testi adım adım</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Large-Sample Test for a Mean (slayt 21, McClave §8.4)</span>
+    $$z = \frac{\bar x - \mu_0}{\sigma/\sqrt n} \;\approx\; \frac{\bar x - \mu_0}{s/\sqrt n}$$
+    <ul>
+      <li>Requires a random sample and $n \ge 30$.</li>
+      <li>The CLT makes the sample mean approximately normal. $n \ge 30$ dersin rule of thumb'ıdır, her population için garanti değildir: güçlü çarpıklık, ağır kuyruklar ve outlier'lar daha büyük n gerektirebilir.</li>
+      <li>With $n$ this large, $s$ is a good stand-in for $\sigma$.</li>
+    </ul>
+    <p><strong>Every test in this course has this shape: (estimate − hypothesised value) / standard error.</strong> Mean için estimate $\bar x$, hypothesised value $\mu_0$, standard error $s/\sqrt n$.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · The Response-Time Test, Step by Step (slayt 14, notebook A1)</span>
+    <ol>
+      <li>$H_0: \mu = 60 \quad H_a: \mu &gt; 60$. The claim to find evidence for: the mean exceeds 60 ms.</li>
+      <li>$z = \dfrac{\bar x - 60}{s/\sqrt n} = \dfrac{62.4 - 60}{10.9/\sqrt{120}} = \dfrac{2.4}{0.995} = 2.41$. Large sample, so $s$ stands in for $\sigma$.</li>
+      <li>$2.41 &gt; 1.645$: the statistic falls in the rejection region for $\alpha = 0.05$.</li>
+    </ol>
+    <p><strong>At α = 0.05 there is sufficient evidence that the mean response time exceeds 60 ms.</strong></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Sınavda yazım · dört adım (Question Bank, slayt 2)</span>
+    <p>"In the exam, write every test in four steps: <strong>hypotheses, condition, statistic and p-value, conclusion</strong> in the language of the problem."</p>
+    <ol>
+      <li><strong>Hypotheses:</strong> $H_0: \mu = \mu_0$, Hₐ yönüyle birlikte; $\mu$'nün ne olduğunu bir cümleyle söyle.</li>
+      <li><strong>Condition:</strong> random sample; $n \ge 30$ ⇒ z (s ile). Küçük n ise t ve normality (Bölüm 8).</li>
+      <li><strong>Statistic and p-value</strong> (ya da rejection region): formül, sayılar, sonuç.</li>
+      <li><strong>Conclusion:</strong> α'yı, kararı ve bağlamı içeren tek cümle.</li>
+    </ol>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · sewer pipe (McClave §8.1)</span>
+    <p>Şehir, boruların mean breaking strength'inin 2,400 pound/foot'u aştığını görmek istiyor: $H_0: \mu = 2400$, $H_a: \mu &gt; 2400$, $\alpha = 0.05$. 50 boru: $\bar x = 2460$, $s = 200$.</p>
+    <p>$z = \dfrac{2460 - 2400}{200/\sqrt{50}} = \dfrac{60}{28.28} = 2.12 &gt; 1.645$ ⇒ reject. Boruların mean strength'i 2,400'ü aşıyor.</p>
+    <p>Aynı veriyle $\bar x = 2430$ olsaydı: $z = 30/28.28 = 1.06 &lt; 1.645$ ⇒ fail to reject. Sample mean şartnameyi 30 pound aşıyor, ama bu fark ikna edici kanıt sayılacak kadar büyük değil. Karar "borular şartnameyi karşılamıyor" değil, "karşıladığına dair yeterli kanıt yok".</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Payda $s$ değil, $s/\sqrt n$. $(62.4 - 60)/10.9 = 0.22$ bir tek request'in z-score'u olur, sample mean'in değil.</li>
+      <li>Payda $\sqrt n$ ile, $n$ ya da $n^2$ ile değil.</li>
+      <li>Large-sample z test population'ın normal olmasını istemez; dersin şartı $n \ge 30$ ve random sample. Normality şartı küçük sample'daki t test içindir. Data belirgin şekilde çarpıksa ya da outlier varsa 30'a yakın bir n'de bunu ayrıca söyle.</li>
+      <li>Sonuç cümlesinde μ'den söz et: "the <em>mean</em> response time exceeds 60 ms", "sample mean exceeds" değil.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="QB1-Q16">
+    <span class="box__label">Question Bank 1 S16 · slayt sorusu</span>
+    <p>"The SLA says the mean API latency is at most 120 ms. A random sample of 64 requests gives x̄ = 124.5 ms and s = 16 ms. Test at α = 0.05. (a) State the hypotheses. (b) Compute the test statistic, and give the rejection region. (c) Find the p-value. (d) Write the conclusion in one sentence."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"At most 120" SLA'in sözü. Sen ihlalin kanıtını arıyorsun. H₀ yine "=".</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$SE = 16/\sqrt{64}$. p-value için z table'da $P(Z &lt; 2.25) = 0.9878$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) $H_0: \mu = 120$, $H_a: \mu &gt; 120$ ($\mu$: mean API latency). We look for evidence that the SLA is broken.</p>
+      <p>(b) $n = 64 \ge 30$, so $s$ can stand in for $\sigma$. $z = \dfrac{124.5 - 120}{16/\sqrt{64}} = \dfrac{4.5}{2} = 2.25$. Rejection region: $z &gt; 1.645$ (upper 5%). $2.25 &gt; 1.645$ ⇒ reject H₀.</p>
+      <p>(c) $p = P(Z \ge 2.25) = 1 - 0.9878 = 0.012$ (z table: row 2.2, column .05). $0.012 \le 0.05$.</p>
+      <p>(d) At α = 0.05 there is sufficient evidence that the mean latency exceeds 120 ms (z = 2.25, p = 0.012).</p>
+    </div></details>
+  </div>
+  <!-- Kaynak: question-bank-1 slayt 36–37. scipy: norm.sf(2.25) = 0.01222. -->
+  <div class="box box--exam" data-exam="undated-final-S19">
+    <span class="box__label">Tarihsiz final Soru 19 · çıkmış soru</span>
+    <p>"A manufacturer claims μ ≥ 40 hours for battery life. σ = 6. From a sample of n=36, X̄ = 38.5. At α = 0.05, test H₀: μ ≥ 40 vs. Hₐ: μ &lt; 40. The test statistic is: a. −1.00 b. −1.25 c. −1.50 d. −1.75 e. −2.50"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>σ verilmiş: $z = (\bar x - \mu_0)/(\sigma/\sqrt n)$, $\mu_0$ sınır değer 40.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\sigma/\sqrt n = 6/6$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>c. −1.50.</strong> $z = \dfrac{38.5 - 40}{6/\sqrt{36}} = \dfrac{-1.5}{1} = -1.50$.</p>
+      <p>Soru sadece statistic'i istiyor. Testi bitirirsek: lower-tailed, $\alpha = 0.05$ ⇒ rejection region $z &lt; -1.645$. $-1.50$ bu bölgede değil ⇒ fail to reject. $p = P(Z \le -1.50) = 0.0668 &gt; 0.05$. At α = 0.05 there is not sufficient evidence that the mean battery life is below 40 hours.</p>
+    </div></details>
+    <p class="src">Not: Kâğıt H₀'ı $\mu \ge 40$ diye yazıyor. Bu derste $H_0: \mu = 40$ yazılır; test sınır değer 40 ile yapıldığı için hesap aynı.</p>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/undated-stats-final.pdf" target="_blank" rel="noopener">Orijinal kâğıt (PDF)</a></p>
+  </div>
+  <div class="box box--exam" data-exam="sup7-bulbs">
+    <span class="box__label">STT315 el notu, One-Tailed z-Test (ampuller) · kitap alıştırması</span>
+    <p>"State University uses thousands of fluorescent light bulbs each year. The brand of bulb it currently uses has a mean life of 800 hours. A competitor claims that its bulbs … have a mean life of more than 800 hours. The university has decided to purchase the new brand if, when tested, the evidence supports the manufacturer's claim at the .05 significance level. Suppose 121 bulbs were tested with the following results: sample mean was 830 hours, and sample standard deviation = 110 hours. Conduct the test using α=5%." (el notu adımları: parameter ve assumptions, H₀/Hₐ, test statistic, rejection region, p-value, conclusion)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kanıtı aranan, rakibin iddiası: "more than 800".</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$s/\sqrt n = 110/11$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Parameter:</strong> $\mu$, yeni marka ampullerin mean ömrü. Random sample, $n = 121 \ge 30$ ⇒ large-sample z test, s ile.</p>
+      <p><strong>Hypotheses:</strong> $H_0: \mu = 800$, $H_a: \mu &gt; 800$ (upper-tailed).</p>
+      <p><strong>Statistic:</strong> $z = \dfrac{830 - 800}{110/\sqrt{121}} = \dfrac{30}{10} = 3.00$. Rejection region $z &gt; 1.645$: içinde.</p>
+      <p><strong>p-value:</strong> $P(Z \ge 3.00) = 1 - 0.9987 = 0.0013 &lt; 0.05$.</p>
+      <p><strong>Conclusion:</strong> At α = 0.05 there is sufficient evidence that the new brand's mean life exceeds 800 hours (z = 3.00, p = 0.0013). Üniversite yeni markayı alabilir.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/supplement/7%20Hypothesis%20Testing.pdf" target="_blank" rel="noopener">Orijinal el notu (PDF), s.9–10</a></p>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q48">
+    <span class="box__label">STT315 Practice Ch 5–7 S48 · kitap alıştırması</span>
+    <p>"How many tissues should a package of tissues contain? Researchers have determined that a person uses an average of 40 tissues during a cold. Suppose a random sample of 10,000 people yielded the following data on the number of tissues used during a cold: x̄ = 31, s = 18. Using the sample information provided, set up the calculation for the test statistic for the relevant hypothesis test, but do not simplify." A) z = (31 − 40)/(18²/10,000) · B) z = (31 − 40)/18 · C) z = (31 − 40)/(18/√10,000) · D) z = (31 − 40)/(18/10,000²)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Payda: standard error. Hangi formül $s/\sqrt n$?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>B bir tek kişinin z-score'u olurdu.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>C.</strong> $z = \dfrac{31 - 40}{18/\sqrt{10\,000}} = \dfrac{-9}{0.18} = -50$. Bu kadar büyük bir $|z|$, 31 ile 40 arasındaki farkın şansla açıklanamayacağını gösterir. Cevap anahtarı da C.</p></div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/315Practice3.pdf" target="_blank" rel="noopener">Orijinal set (PDF), s.9</a></p>
+  </div>
+  <div class="quiz" id="q-ztest-1">
+    <p class="quiz__q">$n = 100$, $\bar x = 51.2$, $s = 6$, $H_0: \mu = 50$, $H_a: \mu \ne 50$, $\alpha = 0.05$. $z$ ve karar?</p>
+    <button class="quiz__opt">$z = 0.20$, fail to reject<span class="why">Bu $(51.2 - 50)/6$: paydaya $s$ yazılmış. Sample mean'in standard error'ı $s/\sqrt n = 0.6$.</span></button>
+    <button class="quiz__opt" data-correct>$z = 2.00$, reject<span class="why">Doğru: $1.2/0.6 = 2.00$ ve $|2.00| &gt; 1.96$.</span></button>
+    <button class="quiz__opt">$z = 2.00$, fail to reject, çünkü $2.00 &lt; 2.33$<span class="why">2.33 one-tailed α = 0.01'in değeri. Two-tailed α = 0.05'te critical value 1.96.</span></button>
+  </div>
+  <div class="quiz" id="q-ztest-2">
+    <p class="quiz__q">$n = 40$ ve population belirgin şekilde çarpık (skewed). Large-sample z test kullanılabilir mi?</p>
+    <button class="quiz__opt" data-correct>Dersin şartı (random sample, $n \ge 30$) sağlanıyor; ama $n = 40$ tek başına yeterlilik garantisi vermez, çarpıklığın derecesi ve outlier'lar kontrol edilmelidir<span class="why">Doğru. Slayt 21'in şartı random sample ve $n \ge 30$; sınavda bu şart z'yi seçmek için yeterli. Ama 30 bir rule of thumb: CLT'nin ne kadar hızlı çalıştığı population'ın şekline bağlı. Güçlü çarpıklıkta ya da uç bir outlier'da 40 az kalabilir.</span></button>
+    <button class="quiz__opt">Hayır: z test için population normal olmalı<span class="why">Normality şartı küçük sample'daki t test içindir. Büyük n'de CLT sample mean'i normale yaklaştırır.</span></button>
+    <button class="quiz__opt">Hayır: σ bilinmediği için sadece t kullanılabilir<span class="why">$n \ge 30$ iken $s$, σ'nın iyi bir tahminidir ve z kullanılır. Software yine de t kullanır; iki cevap neredeyse aynı çıkar (slayt 26).</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="pvalue" data-min="6">
+  <h2>p-value: ne olduğu ve ne olmadığı</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · The p-Value (slayt 16, McClave §8.3)</span>
+    <p><strong>The probability, computed assuming H₀ is true, of a test statistic at least as extreme as the one observed.</strong></p>
+    <p>Response-time örneği: $p = P(Z \ge 2.41) = 1 - 0.9920 = 0.008$. (0.9920, z table'da 2.41'in değeri.)</p>
+    <div class="table-wrap"><table>
+      <tr><th>Hₐ</th><th>p-value</th></tr>
+      <tr><td>$\mu &gt; \mu_0$</td><td>$P(Z \ge z)$, sağ kuyruk</td></tr>
+      <tr><td>$\mu &lt; \mu_0$</td><td>$P(Z \le z)$, sol kuyruk</td></tr>
+      <tr><td>$\mu \ne \mu_0$</td><td>$2\,P(Z \ge |z|)$, iki kuyruk</td></tr>
+    </table></div>
+    <p>McClave p-value'ya <em>observed significance level</em> da der: H₀'ın reject edilebildiği en küçük α.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Deciding with a p-Value (slayt 17) ve Two Routes, One Decision (slayt 19)</span>
+    $$\text{reject } H_0 \text{ if } p \le \alpha$$
+    <div class="table-wrap"><table>
+      <tr><th>A p-value is</th><th>A p-value is not</th></tr>
+      <tr><td>A measure of how surprising the data are if H₀ is true. Small when chance alone is a poor explanation.</td><td>The probability that H₀ is true. The size or the importance of the effect.</td></tr>
+    </table></div>
+    <div class="table-wrap"><table>
+      <tr><th>Rejection region</th><th>p-value</th></tr>
+      <tr><td>Fix α, find the critical value. Reject if the statistic lies beyond it. Örnek: $2.41 &gt; 1.645$.</td><td>Compute $p$ from the statistic. Reject if $p \le \alpha$. Örnek: $0.008 \le 0.05$.</td></tr>
+    </table></div>
+    <p>İki yol her zaman aynı kararı verir. p-value'yu raporla: her okuyucu kendi α'sını uygulayabilir.</p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · yön hatası yapmamak için</span>
+    <p>Küçük p = "H₀ altında bu data çok nadir" = H₀ aleyhine güçlü kanıt. Karar cümlesini şöyle ezberle: <strong>"p küçükse H₀ gider"</strong>. p, α'dan <em>küçük ya da eşitse</em> reject; büyükse fail to reject. α'yı bir eşik çizgisi, p'yi o çizginin altına düşüp düşmediğine baktığın sayı gibi düşün.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · printout'taki two-tailed p'yi one-tailed'a çevirmek (McClave §8.3)</span>
+    <p>Bazı programlar (SPSS) sadece two-tailed p verir. One-tailed testte:</p>
+    <ul>
+      <li>$z$, Hₐ'nın gösterdiği yöndeyse ($&gt;$ ve $z$ pozitif, ya da $&lt;$ ve $z$ negatif): $p = \text{reported } p / 2$.</li>
+      <li>$z$ ters yöndeyse: $p = 1 - \text{reported } p/2$. Bu p büyüktür, reject çıkmaz.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Yön:</strong> "$p = 0.03 &gt; 0.01$, reject" yanlış. $p &gt; \alpha$ ⇒ fail to reject.</li>
+      <li>"There is a 3% chance that H₀ is true." Yanlış: p, H₀ doğru <em>varsayılarak</em> hesaplanır.</li>
+      <li>"p çok küçük, demek ki fark büyük." Yanlış: çok büyük n'de küçücük farklar da küçük p verir.</li>
+      <li>Two-tailed testte tek kuyruğu ikiyle çarpmayı unutmak. QB1 S18: one-tailed 0.036, two-tailed 0.072.</li>
+      <li>"At α = 0.01 we accept H₀." Yanlış dil: <em>fail to reject</em>.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="QB1-Q15">
+    <span class="box__label">Question Bank 1 S15 · slayt sorusu</span>
+    <p>"A two-tailed test of H₀: μ = 100 gives p = 0.03. True or false? (a) The probability that H₀ is true is 0.03. (b) If H₀ were true, data at least this extreme would turn up about 3% of the time. (c) At α = 0.05 we reject H₀. (d) The difference from 100 is large. (e) At α = 0.01 we accept H₀."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Slayt 17'deki "is / is not" tablosunu her maddeye uygula.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(e)'de iki şeye bak: karar doğru mu, kullanılan kelime doğru mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th></th><th></th><th>Why</th></tr>
+        <tr><td>(a)</td><td>False</td><td>p is computed assuming H₀ is true; it is not the probability of H₀</td></tr>
+        <tr><td>(b)</td><td>True</td><td>This is the definition of the p-value</td></tr>
+        <tr><td>(c)</td><td>True</td><td>$0.03 &lt; 0.05$</td></tr>
+        <tr><td>(d)</td><td>False</td><td>p says nothing about the size of the effect</td></tr>
+        <tr><td>(e)</td><td>False</td><td>We fail to reject H₀ ($0.03 &gt; 0.01$); we never accept it</td></tr>
+      </table></div>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="QB1-Q18">
+    <span class="box__label">Question Bank 1 S18 · slayt sorusu</span>
+    <p>"An upper-tailed z test gives z = 1.80. (a) Find the p-value. (b) Decide at α = 0.05 and at α = 0.01. (c) What would change if the test had been two-tailed? (d) Why must α and the direction be chosen before the data are seen?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>z table: $P(Z &lt; 1.80) = 0.9641$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Two-tailed p = 2 × one-tailed p. Critical values: 1.645 ve 2.326.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) $p = P(Z \ge 1.80) = 1 - 0.9641 = 0.036$ (z table: row 1.8, column .00).</p>
+      <p>(b) $0.036 &lt; 0.05$: reject. $0.036 &gt; 0.01$: fail to reject. With critical values: $1.80 &gt; 1.645$, but $1.80 &lt; 2.326$.</p>
+      <p>(c) Two-tailed $p = 2 \times 0.036 = 0.072 &gt; 0.05$: fail to reject at 0.05.</p>
+      <p>(d) Otherwise one could pick whatever makes the result significant; the promise of 5% false alarms holds only if the rules are fixed in advance.</p>
+      <p>The p-value and the rejection region always give the same decision.</p>
+    </div></details>
+  </div>
+  <!-- Kaynak: question-bank-1 slayt 34–35 ve 40–41. -->
+  <div class="box box--exam" data-exam="sup7-7.19">
+    <span class="box__label">STT315 el notu, McClave 7.19 · kitap alıştırması</span>
+    <p>"Consider the test of H₀: μ = 7. For each of the following, find the p-value of the test: a. Hₐ: μ &gt; 7, z = 1.20 b. Hₐ: μ &lt; 7, z = −1.20 c. Hₐ: μ ≠ 7, z = 1.20"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$P(Z &lt; 1.20) = 0.8849$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c)'de iki kuyruk.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>a. $P(Z \ge 1.20) = 1 - 0.8849 = 0.1151$. b. $P(Z \le -1.20) = 0.1151$ (simetri). c. $2 \times 0.1151 = 0.2302$.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="sup7-7.21">
+    <span class="box__label">STT315 el notu, McClave 7.21 · kitap alıştırması</span>
+    <p>"For each α and observed significance level (p-value) pair, indicate whether the null hypothesis would be rejected. a. α = .05, p-value = .10 b. α = .10, p-value = .05"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kural tek satır: reject if $p \le \alpha$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İki maddede sayılar aynı, roller ters.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>a. $0.10 &gt; 0.05$ ⇒ fail to reject. b. $0.05 \le 0.10$ ⇒ reject.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="sup7-7.24">
+    <span class="box__label">STT315 el notu, McClave 7.24 · kitap alıştırması</span>
+    <p>"In a test of the hypothesis H₀: μ = 10 versus Hₐ: μ ≠ 10, a sample of n = 50 observations possessed mean x̄ = 10.7 and standard deviation s = 3.1. Find and interpret the p-value for this test."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce $z = (10.7 - 10)/(3.1/\sqrt{50})$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>≠ ⇒ $p = 2P(Z \ge |z|)$. z table'da 1.60 kullan: $P(Z &lt; 1.60) = 0.9452$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$SE = 3.1/\sqrt{50} = 0.438$, $z = 0.7/0.438 = 1.60$. $p = 2(1 - 0.9452) = 0.110$ (software: 0.110).</p>
+      <p>Yorum: $\mu = 10$ doğru olsaydı, 10'dan en az bu kadar uzak bir sample mean yaklaşık %11 olasılıkla çıkardı. Bu, H₀ aleyhine zayıf kanıttır; α = 0.05 ya da 0.10'da bile fail to reject.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="sup7-7.26">
+    <span class="box__label">STT315 el notu, McClave 7.26 · kitap alıştırması</span>
+    <p>"In a test of H₀: μ = 75 performed using the computer, SPSS reports a two-tailed p-value of .1032. Make the appropriate conclusion for each of the following situations: c. Hₐ: μ &gt; 75, z = 1.63, α = .10 d. Hₐ: μ ≠ 75, z = −1.63, α = .01"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(c) one-tailed ve $z$ Hₐ yönünde: printout'taki p'yi ikiye böl.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(d) zaten two-tailed: p'yi olduğu gibi kullan.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>c. $p = 0.1032/2 = 0.0516 \le 0.10$ ⇒ reject H₀; $\mu &gt; 75$ için yeterli kanıt var.</p>
+      <p>d. $p = 0.1032 &gt; 0.01$ ⇒ fail to reject; $\mu \ne 75$ için yeterli kanıt yok.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="sup7-ex-mu10">
+    <span class="box__label">STT315 el notu, Exercise (H₀: µ = 10, Hₐ: µ &lt; 10) · kitap alıştırması</span>
+    <p>"In a test of the hypothesis H₀: µ = 10 versus Hₐ: µ &lt; 10 a sample of n = 50 observations possessed mean 9.2 and standard deviation s = 3.1. a. Find the observed value of the test statistics b. Find, draw, and interpret the p-value for this test. c.–f. What is your conclusion at significance level α = 0.01, 0.025, 0.05, 0.10?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$SE = 3.1/\sqrt{50} = 0.438$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Lower-tailed: $p = P(Z \le z)$. z table'da $-1.82$: 0.0344.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>a. $z = (9.2 - 10)/0.438 = -1.82$ (daha hassas: $-1.825$).</p>
+      <p>b. $p = P(Z \le -1.82) = 0.034$: sol kuyruktaki alan. $\mu = 10$ doğru olsaydı, 9.2 ya da daha küçük bir sample mean yaklaşık %3.4 olasılıkla çıkardı.</p>
+      <p>c. α = 0.01: $0.034 &gt; 0.01$ ⇒ fail to reject. d. α = 0.025: fail to reject. e. α = 0.05: $0.034 \le 0.05$ ⇒ reject. f. α = 0.10: reject.</p>
+      <p>Tek bir p-value dört farklı α için dört karar verir: p, reject edebildiğin en küçük α'dır.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="sup7-7.28">
+    <span class="box__label">STT315 el notu, McClave 7.28 · kitap alıştırması</span>
+    <p>"Consider the test H₀: μ = 70 versus Hₐ: μ &gt; 70 using a large sample of size n = 400. Assume σ = 20. a. Describe the sampling distribution of x̄. b. Find the value of the test statistic if x̄ = 72.5. c. Refer to part b. Find the P-value of the test. d. Find the rejection region of the test for α = .01. e. Use the P-value approach to make the appropriate conclusion. f. Repeat part e, but use the rejection region approach. g. Do the conclusions, parts e and f, agree?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>H₀ altında $\bar x$'in mean'i 70, standard error'ı $\sigma/\sqrt n = 20/20$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$P(Z &lt; 2.50) = 0.9938$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>a. CLT ($n = 400$): $\bar x$ yaklaşık normal, H₀ altında mean 70, standard error $20/\sqrt{400} = 1$.</p>
+      <p>b. $z = (72.5 - 70)/1 = 2.50$. c. $p = P(Z \ge 2.50) = 1 - 0.9938 = 0.0062$.</p>
+      <p>d. $z &gt; 2.33$. e. $0.0062 \le 0.01$ ⇒ reject H₀. f. $2.50 &gt; 2.33$ ⇒ reject H₀. g. Evet; iki yol aynı α ile her zaman aynı kararı verir.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="sup7-cereal-z">
+    <span class="box__label">STT315 el notu, Two-Tailed ve One-Tailed z-Test (cereal) · kitap alıştırması</span>
+    <p>"Does an average box of cereal contain 368 grams of cereal? A random sample of 40 boxes had x̄ = 372.5. The company has specified σ to be 25 grams. Test at the .05 level of significance." Aynı el notunda ikinci soru: "Does an average box of cereal contain more than 368 grams of cereal?" (aynı veri)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Birinci soru yönsüz (≠), ikincisi "more than" (&gt;).</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\sigma/\sqrt n = 25/\sqrt{40} = 3.953$. z table'da 1.14: $P(Z &lt; 1.14) = 0.8729$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$z = (372.5 - 368)/3.953 = 1.14$.</p>
+      <p><strong>Two-tailed:</strong> $H_0: \mu = 368$, $H_a: \mu \ne 368$. Rejection region $|z| &gt; 1.96$; $1.14$ içinde değil. $p = 2(1 - 0.8729) = 0.254 &gt; 0.05$ ⇒ fail to reject. At α = 0.05 there is not sufficient evidence that the mean fill differs from 368 g.</p>
+      <p><strong>One-tailed:</strong> $H_a: \mu &gt; 368$. Rejection region $z &gt; 1.645$; $1.14$ içinde değil. $p = 0.127 &gt; 0.05$ ⇒ fail to reject. Not sufficient evidence that the mean fill exceeds 368 g.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/supplement/7%20Hypothesis%20Testing.pdf" target="_blank" rel="noopener">Orijinal el notu (PDF), s.7–10</a></p>
+  </div>
+  <h3>STT315 setlerinden p-value soruları</h3>
+  <div class="box box--exam" data-exam="315P3-Q49">
+    <span class="box__label">STT315 Practice Ch 5–7 S49 · kitap alıştırması</span>
+    <p>"Consider a test of H₀: µ = 60 performed with the computer. SPSS reports a two-tailed p-value of 0.0892. Make the appropriate conclusion for the given situation: Hₐ: µ &lt; 60, z = −1.7, α = 0.05" A) Fail to reject H₀ · B) Reject H₀</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Test one-tailed. $z$ Hₐ'nın yönünde mi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Yöndeyse printout'taki p'yi ikiye böl.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>B, reject.</strong> $z = -1.7$ negatif ve Hₐ "$&lt;$": $p = 0.0892/2 = 0.0446 \le 0.05$. Two-tailed p'yi doğrudan α ile karşılaştırırsan yanlışlıkla A'yı seçersin. Cevap anahtarı da B.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q50">
+    <span class="box__label">STT315 Practice Ch 5–7 S50 · kitap alıştırması</span>
+    <p>"Given H₀: µ = 25, Hₐ: µ ≠ 25, and p = 0.029. Do you reject or fail to reject H₀ at the .01 level of significance?" A) fail to reject H₀ · B) reject H₀ · C) not sufficient information to decide</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>p'yi α ile karşılaştır. Hangisi büyük?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Reject için $p \le \alpha$ gerekir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>A.</strong> $0.029 &gt; 0.01$ ⇒ fail to reject. (α = 0.05 olsaydı reject olurdu.) Cevap anahtarı da A.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q51">
+    <span class="box__label">STT315 Practice Ch 5–7 S51 · kitap alıştırması</span>
+    <p>"A bottling company produces bottles that hold 12 ounces of liquid. Periodically, the company gets complaints that their bottles are not holding enough liquid. To test this claim, the bottling company randomly samples 64 bottles and finds the average amount of liquid held by the bottles is 11.9155 ounces with a standard deviation of 0.40 ounce. Suppose the p-value of this test is 0.0455. State the proper conclusion." A) At α = 0.025, reject the null hypothesis. B) At α = 0.05, accept the null hypothesis. C) At α = 0.05, reject the null hypothesis. D) At α = 0.10, fail to reject the null hypothesis.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her seçenekte p'yi o seçeneğin α'sı ile karşılaştır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>B'deki kelimeye dikkat: "accept".</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>C.</strong> $0.0455 \le 0.05$ ⇒ reject. A: $0.0455 &gt; 0.025$, reject edilemez. B: hem karar yanlış hem "accept" dili yanlış. D: $0.0455 \le 0.10$, reject edilir.</p>
+      <p>Kontrol: $H_a: \mu &lt; 12$, $z = (11.9155 - 12)/(0.40/8) = -1.69$, $P(Z \le -1.69) = 0.0455$. Cevap anahtarı da C.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q54">
+    <span class="box__label">STT315 Practice Ch 5–7 S54 · kitap alıştırması</span>
+    <p>"If a hypothesis test were conducted using α = 0.05, to which of the following p-values would cause the null hypothesis to be rejected." A) 0.055 · B) 0.100 · C) 0.040 · D) 0.060</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Hangisi 0.05'ten küçük ya da eşit?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>0.055 "yakın" ama sınırın üstünde.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>C, 0.040.</strong> Diğer üçü 0.05'ten büyük. Cevap anahtarı da C.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q55">
+    <span class="box__label">STT315 Practice Ch 5–7 S55 · kitap alıştırması</span>
+    <p>"A large university … sampled 238 students … The goal was to determine if the average travel time of all the university's students differed from 20 minutes. Suppose the large-sample test statistic was calculated to be z = 2.14. Find the p-value for this test of hypothesis." A) p = 0.4838 · B) p = 0.0162 · C) p = 0.0324 · D) p = 0.9838</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Differed from" ⇒ two-tailed.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$P(Z &lt; 2.14) = 0.9838$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>C.</strong> $p = 2(1 - 0.9838) = 0.0324$. B tek kuyruk; D z table değerinin kendisi; A, 0.5'ten çıkarılmış eski tip tablo değeri. Cevap anahtarı da C.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q56">
+    <span class="box__label">STT315 Practice Ch 5–7 S56 · kitap alıştırması</span>
+    <p>"We have created a 99% confidence interval for µ with the result (10, 15). What conclusion will we make if we test H₀: µ = 17 vs. Hₐ: µ ≠ 17 at α = .01?" A) Reject H₀ in favor of Hₐ. B) Fail to reject H₀. C) Accept H₀ rather than Hₐ. D) We cannot tell what our decision will be with the information given.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Two-tailed test, α = 0.01 ve 99% interval aynı "1 − α" ile kurulmuş.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>17 interval'in içinde mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>A.</strong> Two-tailed bir test α'da, ancak ve ancak $\mu_0$ $(1-\alpha)$ confidence interval'ın dışındaysa H₀'ı reject eder. 17, $(10, 15)$'in dışında ⇒ reject. Bu bağ (CI–test link) "Confidence interval'lar ve testleri doğru kullanmak" dersinde ayrıntılı. Cevap anahtarı da A.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q60">
+    <span class="box__label">STT315 Practice Ch 5–7 S60 · kitap alıştırması</span>
+    <p>"A local eat-in pizza restaurant … home delivery will be successful only if the average time spent on a delivery does not exceed 40 minutes. The owner has randomly selected 17 customers and delivered pizzas to their homes in order to test whether the mean delivery time actually exceeds 40 minutes. Suppose the p-value for the test was found to be .0293. State the correct conclusion." A) At α = .03, we fail to reject H₀. B) At α = .05, we fail to reject H₀. C) At α = .025, we fail to reject H₀. D) At α = .02, we reject H₀.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her seçenek için ayrı ayrı: $0.0293 \le \alpha$ mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>A tuzaklı: 0.0293 ile 0.03'ü dikkatli karşılaştır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>C.</strong> $0.0293 &gt; 0.025$ ⇒ fail to reject, doğru cümle. A: $0.0293 \le 0.03$ ⇒ reject edilmeli. B: $0.0293 \le 0.05$ ⇒ reject edilmeli. D: $0.0293 &gt; 0.02$ ⇒ reject edilemez. Cevap anahtarı da C.</p></div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/315Practice3.pdf" target="_blank" rel="noopener">Orijinal set (PDF), s.9–11</a></p>
+  </div>
+  <div class="box box--exam" data-exam="COMP-Q27">
+    <span class="box__label">STT315 Comprehensive Practice S27 · kitap alıştırması</span>
+    <p>"A z-test is to be carried out at level α = .05. If the p-value is 0.076, then H₀ is not rejected. (a) True (b) False"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>0.076 ile 0.05'i karşılaştır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$p &gt; \alpha$ ⇒ ?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>(a) True.</strong> $0.076 &gt; 0.05$ ⇒ fail to reject. Cevap anahtarı da (a).</p></div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/COMPREHENSIVE%20EXAM%20PRACTICE.pdf" target="_blank" rel="noopener">Orijinal set (PDF), s.3</a></p>
+  </div>
+  <div class="quiz" id="q-pvalue-1">
+    <p class="quiz__q">Bir testte $p = 0.04$. Hangisi doğru?</p>
+    <button class="quiz__opt">H₀'ın doğru olma olasılığı 0.04<span class="why">p, H₀ doğru <em>varsayılarak</em> hesaplanır. H₀'ın olasılığını vermez (slayt 17).</span></button>
+    <button class="quiz__opt">α = 0.01'de reject, α = 0.05'te fail to reject<span class="why">Yön ters. $0.04 \le 0.05$ ⇒ reject; $0.04 &gt; 0.01$ ⇒ fail to reject.</span></button>
+    <button class="quiz__opt" data-correct>α = 0.05'te reject, α = 0.01'de fail to reject<span class="why">Doğru: reject if $p \le \alpha$.</span></button>
+    <button class="quiz__opt">Etki büyük, çünkü p küçük<span class="why">p etkinin büyüklüğünü söylemez. Çok büyük n'de önemsiz bir fark da küçük p verir.</span></button>
+  </div>
+  <div class="quiz" id="q-pvalue-2">
+    <p class="quiz__q">Upper-tailed z testi, $z = 2.10$. $P(Z &lt; 2.10) = 0.9821$. Aynı veriyle two-tailed test yapılsaydı p ne olurdu?</p>
+    <button class="quiz__opt">0.0179<span class="why">Bu one-tailed p. Two-tailed testte iki kuyruk sayılır.</span></button>
+    <button class="quiz__opt" data-correct>0.0358<span class="why">Doğru: $2 \times 0.0179$. α = 0.05'te ikisi de reject eder, α = 0.025'te sadece one-tailed reject eder.</span></button>
+    <button class="quiz__opt">0.9642<span class="why">Bu $2 \times 0.9821 - 1$, yani merkezdeki alan. p-value uçtaki alandır.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="manytests" data-min="5">
+  <h2>H₀ doğruyken p-value'lar: yirmi testte bir false alarm</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · slayt 18</span>
+    <p>H₀ gerçekten doğru olsa bile her test bir p-value üretir ve bu p-value rastgeledir. H₀ doğruyken p-value'lar 0 ile 1 arasında <strong>düzgün (uniform)</strong> dağılır: her 0.05 genişliğindeki aralığa testlerin yaklaşık %5'i düşer. Bu yüzden α = 0.05 ile çalışırken, H₀ doğru olan testlerin %5'i "by design" reject eder.</p>
+  </div>
+  <p>Aşağıda slayttaki deney gerçekten çalışıyor: her test için σ = 1 olan bir normal population'dan $n = 20$ gözlem çekiliyor, $H_0: \mu = 0$ için two-sided z test yapılıyor ve p-value histogram'a ekleniyor. Turuncu çubuk(lar) $p &lt; \alpha$ olan testler.</p>
+  <p class="w-tests-for-a-mean-guess"><b>Önce tahmin et:</b> Gerçek μ = 0 iken 10 000 testin kaçında $p &lt; 0.05$ çıkar? Gerçek μ = 0.5 iken histogram nasıl görünür?</p>
+  <div class="w-tests-for-a-mean-ctl">
+    <label>gerçek μ <select id="w4-mu" class="btn btn--sm"><option value="0" selected>0 (H₀ doğru)</option><option value="0.2">0.2</option><option value="0.5">0.5 (slayttaki sağ panel)</option></select></label>
+    <label>α <select id="w4-alpha" class="btn btn--sm"><option value="0.10">0.10</option><option value="0.05" selected>0.05</option><option value="0.01">0.01</option></select></label>
+    <button class="btn btn--sm" id="w4-go">Kur</button>
+  </div>
+  <div id="w4-stepper"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural</span>
+    <ul>
+      <li><strong>When H₀ is true, 5% of tests give p &lt; 0.05 by design. Run twenty tests and expect one false alarm.</strong> Genel olarak: H₀ doğruyken $P(p \le \alpha) = \alpha$.</li>
+      <li>H₀ yanlışken p-value'lar 0'a yığılır. Slaytta μ = 0.5, n = 20 için testlerin %61.6'sı $p &lt; 0.05$ verdi. Bu oran testin <em>power</em>'ıdır; hesabı bir sonraki derste.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Yirmi metriği ayrı ayrı test edip sadece "anlamlı" çıkanı raporlamak: hiçbir şey değişmemiş olsa bile bir tanesinin $p &lt; 0.05$ vermesi beklenir. Düzeltmesi (Bonferroni) "Confidence interval'lar ve testleri doğru kullanmak" dersinde.</li>
+      <li>"p = 0.04 çıktı, demek ki %96 ihtimalle etki gerçek" demek yanlış. H₀ doğruyken de %4 olasılıkla bu kadar küçük p çıkar; p, H₀'ın olasılığı değildir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="nb03-task2">
+    <span class="box__label">Week 3 notebook Task 2 · ödev sorusu</span>
+    <p>"Ten thousand tests with H₀ true (slide 18). Complete <code>simulate_p_values(draw, n, mu0, reps)</code>. It should draw <code>reps</code> samples of size <code>n</code> with <code>draw((reps, n))</code>, run your <code>t_test_two_sided(row, mu0)</code> on every row, and return an array of the <code>reps</code> p-values." (kısaltıldı)</p>
+    <p class="src">Not: Week 3 notebook'u notlu ödevdir (effort için kontrol edilir). Bu yüzden burada çözüm ya da kod verilmiyor; sadece kavram ve ipuçları var.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Yukarıdaki widget'ın yaptığı şeyi düşün: her satır bir sample, her sample için bir test, her test için bir p-value. Çıktı tek boyutlu bir array.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Self-check iki şeye bakıyor: 10 000 p-value var mı ve her onda birlik aralıkta yaklaşık %10'u var mı. H₀'ın gerçekten doğru olması için data'nın mean'i ile test ettiğin $\mu_0$ aynı olmalı.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="nb03-task3">
+    <span class="box__label">Week 3 notebook Task 3 · ödev sorusu</span>
+    <p>"Count the false rejections. Every test in Task 2 had H₀ true, so every rejection is a false alarm (a Type I error). For each α in <code>ALPHAS</code> = [0.01, 0.05, 0.10], store the fraction of <code>p_null</code> below α in <code>rates[alpha]</code>."</p>
+    <p class="src">Not: Notlu ödev; çözüm verilmiyor.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Widget'ta α'yı 0.01, 0.05 ve 0.10 yapıp μ = 0 için çalıştır. Oranlar neye yakın çıkıyor? Bu, Task 3'te beklenen davranış.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Fraction below α" bir oran: kaç p-value α'nın altında, bölü toplam sayı.</p></div></details>
+  </div>
+  <div class="quiz" id="q-many-1">
+    <p class="quiz__q">Bir deployment'tan sonra gerçekte hiçbir şey değişmemiş. 40 bağımsız metrik ayrı ayrı α = 0.05 ile test ediliyor. Yaklaşık kaç false alarm beklenir?</p>
+    <button class="quiz__opt">0, çünkü hiçbir şey değişmedi<span class="why">H₀ doğru olsa da her testin %5 false alarm olasılığı var. Testler çoğaldıkça false alarm'lar da çoğalır.</span></button>
+    <button class="quiz__opt" data-correct>2<span class="why">Doğru: $40 \times 0.05 = 2$. "Run twenty tests and expect one false alarm."</span></button>
+    <button class="quiz__opt">38<span class="why">Bu, reject <em>etmeyen</em> testlerin beklenen sayısı ($40 \times 0.95$).</span></button>
+  </div>
+  <div class="quiz" id="q-many-2">
+    <p class="quiz__q">H₀ doğruyken 10 000 testin p-value histogram'ı nasıl görünür?</p>
+    <button class="quiz__opt">0'ın yanında yüksek bir tepe, sonra hızla azalan<span class="why">Bu, H₀ <em>yanlışken</em> görülen resim (slaytın sağ paneli).</span></button>
+    <button class="quiz__opt" data-correct>Kabaca düz: her 0.05'lik aralıkta testlerin yaklaşık %5'i<span class="why">Doğru: H₀ doğruyken p-value uniform dağılır.</span></button>
+    <button class="quiz__opt">0.5 çevresinde bir çan eğrisi<span class="why">p-value normal dağılmaz. H₀ doğruyken her değer aralığı eşit olasılıklıdır.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="ttest" data-min="6">
+  <h2>Küçük sample: t statistic ve t table</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Small Samples: the t Statistic (slayt 22, McClave §8.5)</span>
+    $$t = \frac{\bar x - \mu_0}{s/\sqrt n}, \qquad df = n - 1$$
+    <ul>
+      <li>Needs a population that is approximately normal (ve random sample).</li>
+      <li>Heavier tails than z, so larger critical values.</li>
+      <li>As n grows, t approaches z.</li>
+    </ul>
+    <p>Formül z ile aynı şekilde: (estimate − hypothesised value) / standard error. Fark referans dağılımda: $s$ küçük sample'da σ'yı iyi tahmin etmez, bu belirsizlik kuyrukları kalınlaştırır.</p>
+  </div>
+  <p>df'yi değiştir: mavi eğri standard normal, turuncu eğri t. Kesikli çizgiler two-tailed α = 0.05 critical value'ları. Tablo satırı, McClave'in t table'ındaki sütunlarla (upper-tail area) aynı; değerler t dağılımının CDF'inden hesaplanıyor.</p>
+  <p class="w-tests-for-a-mean-guess"><b>Önce tahmin et:</b> 11 df'de two-tailed α = 0.05 critical value'su 1.96'dan ne kadar büyük? Kaç df'de fark 0.1'in altına iner?</p>
+  <div class="w-tests-for-a-mean-ctl">
+    <label>df = <input id="w5-df" type="text" inputmode="numeric" value="11" class="btn btn--sm" /></label>
+    <input id="w5-dfr" type="range" min="1" max="60" value="11" aria-label="df kaydırıcı" />
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-w5df="2">2</button>
+    <button class="btn btn--sm" data-w5df="9">9</button>
+    <button class="btn btn--sm" data-w5df="11">11</button>
+    <button class="btn btn--sm" data-w5df="15">15</button>
+    <button class="btn btn--sm" data-w5df="29">29</button>
+    <button class="btn btn--sm" data-w5df="119">119</button>
+  </div>
+  <div class="w-tests-for-a-mean-err" id="w5-err" aria-live="polite"></div>
+  <div class="w-tests-for-a-mean-plot" id="w5-plot"></div>
+  <div class="table-wrap" id="w5-row"></div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · A Voltage Regulator (slayt 23, notebook A4)</span>
+    <p>A regulator should output 3.30 V. Twelve readings give a mean of 3.320 V and $s = 0.0237$ V. Okumalar: 3.31, 3.35, 3.29, 3.33, 3.30, 3.36, 3.32, 3.28, 3.34, 3.31, 3.33, 3.32.</p>
+    <p>$H_0: \mu = 3.30 \quad H_a: \mu \ne 3.30$ (too high and too low are both faults).</p>
+    $$t = \frac{3.320 - 3.30}{0.0237/\sqrt{12}} = \frac{0.020}{0.00685} = 2.92, \qquad df = 11$$
+    <div class="table-wrap"><table>
+      <tr><th>α</th><th>Critical value (t table, 11 df)</th><th>$p = 2 \times P(T &gt; 2.92) = 0.014$</th><th>Decision</th></tr>
+      <tr><td>0.05</td><td>$\pm 2.201$</td><td>$p &lt; \alpha$</td><td>Reject H₀</td></tr>
+      <tr><td>0.01</td><td>$\pm 3.106$</td><td>$p &gt; \alpha$</td><td>Fail to reject H₀</td></tr>
+    </table></div>
+    <p>Aynı veri, iki farklı α, iki farklı karar. Bu yüzden α data'dan önce seçilir ve p-value raporlanır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · t table'dan p'yi sınırlamak (McClave Ex. 8.9)</span>
+    <p>t table sadece birkaç upper-tail alanı verir (.100, .050, .025, .010, .005, .001, .0005). Kesin p yerine bir aralık bulursun:</p>
+    <ol>
+      <li>df = n − 1 satırına git. İşareti at, $|t|$'yi kullan.</li>
+      <li>$|t|$'nin arasına düştüğü iki komşu değeri bul. Onların sütun başlıkları one-tailed p'nin sınırlarıdır.</li>
+      <li>Two-tailed testte iki sınırı da 2 ile çarp.</li>
+    </ol>
+    <p>McClave'in engine örneği: $t = -2.60$, 9 df, lower-tailed. 9 df satırında $2.262 &lt; 2.60 &lt; 2.821$, sütunlar .025 ve .010 ⇒ $0.010 &lt; p &lt; 0.025$ (software: 0.014).</p>
+    <p>Regulator: 11 df'de $2.718 &lt; 2.92 &lt; 3.106$ (sütunlar .010 ve .005) ⇒ one-tailed $0.005 &lt; p &lt; 0.01$, two-tailed $0.01 &lt; p &lt; 0.02$. Software: 0.014.</p>
+  </div>
+  <h3>p aralığı alıştırması</h3>
+  <p>Bir $|t|$, df ve test türü gir ya da "Rastgele soru" iste. Rastgele soruda cevap gizli kalır: önce aralığı seç, sonra kontrol et.</p>
+  <div class="w-tests-for-a-mean-ctl">
+    <label>$|t|$ = <input id="w6-t" type="text" inputmode="decimal" value="2.92" class="btn btn--sm" /></label>
+    <label>df = <input id="w6-df" type="text" inputmode="numeric" value="11" class="btn btn--sm" /></label>
+    <label>Test türü: <select id="w6-tail" class="btn btn--sm"><option value="1">one-tailed</option><option value="2" selected>two-tailed</option></select></label>
+    <button class="btn btn--sm" id="w6-go">Göster</button>
+    <button class="btn btn--sm btn--accent" id="w6-rand">Rastgele soru</button>
+  </div>
+  <div class="w-tests-for-a-mean-ctl" id="w6-ask" hidden>
+    <label>p aralığı: <select id="w6-pick" class="btn btn--sm"></select></label>
+    <button class="btn btn--sm" id="w6-check">Kontrol et</button>
+  </div>
+  <div class="w-tests-for-a-mean-err" id="w6-err" aria-live="polite"></div>
+  <div class="w-tests-for-a-mean-out" id="w6-out" aria-live="polite"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>n &lt; 30 ⇒ t.</strong> Küçük sample'da z critical value'su kullanmak gereğinden kolay reject ettirir. McClave'in pH örneğinde $t = -2.05$, 16 df: t ile fail to reject (critical 2.120), ama yanlışlıkla z kullanılsa $|-2.05| &gt; 1.96$ ⇒ reject olurdu.</li>
+      <li>df = n − 1, n değil. 16 düğüm ⇒ 15 df.</li>
+      <li>t table'ın sütun başlıkları <em>tek kuyruk</em> alanıdır. Two-tailed p için sınırları ikiyle çarp.</li>
+      <li>Normality şartını kontrol etmeden küçük sample'da t kullanmak. Bir sonraki bölümdeki Q-Q plot bu iş için.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="QB1-Q17">
+    <span class="box__label">Question Bank 1 S17 · slayt sorusu</span>
+    <p>"Sensor nodes should give a mean battery voltage of 3.70 V. Sixteen nodes give x̄ = 3.655 V and s = 0.08 V. Test at α = 0.05, two-tailed. (a) Why a t test, and what must you assume? (b) Compute t and its degrees of freedom. (c) Decide with the critical value, and bound the p-value with the t table. (d) Write the conclusion."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>n kaç? σ biliniyor mu? Slayt 26'daki tablonun hangi satırı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>t table, 15 df: upper 0.025 → 2.131, upper 0.01 → 2.602.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Hypotheses:</strong> $H_0: \mu = 3.70$, $H_a: \mu \ne 3.70$ ($\mu$: mean battery voltage of the nodes).</p>
+      <p>(a) <strong>Condition:</strong> $n = 16 &lt; 30$, σ unknown ⇒ t. The voltages must be roughly normal (and a random sample): check a Q-Q plot.</p>
+      <p>(b) $t = \dfrac{3.655 - 3.70}{0.08/\sqrt{16}} = \dfrac{-0.045}{0.02} = -2.25$, $df = 15$.</p>
+      <p>(c) $|-2.25| &gt; 2.131$ ⇒ reject. $2.131 &lt; 2.25 &lt; 2.602$: one-tailed alan 0.01 ile 0.025 arasında, two-tailed $0.02 &lt; p &lt; 0.05$ (software: 0.040).</p>
+      <p>(d) At α = 0.05 there is sufficient evidence that the mean voltage differs from 3.70 V (t = −2.25, df = 15, p = 0.04).</p>
+    </div></details>
+  </div>
+  <!-- Kaynak: question-bank-1 slayt 38–39. scipy: 2*t.sf(2.25, 15) = 0.0399. -->
+  <div class="box box--exam" data-exam="undated-final-S14">
+    <span class="box__label">Tarihsiz final Soru 14 · çıkmış soru</span>
+    <p>"When conducting a hypothesis test for a population mean with an unknown population standard deviation (and assuming normal population), the test statistic is typically: a. z = (X̄ − μ₀)/(σ/√n) b. χ² = ((n−1)s²)/σ² c. t = (X̄ − μ₀)/(s/√n) d. F = MSR/MSE e. z = (X̄ − μ₀)/(s/√n)"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>σ bilinmiyorsa formülde σ olamaz. Bu a'yı eler.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>c ile e'nin formülü aynı. Fark referans dağılımın adında. Soru n'yi vermiyor ama normal population vurgusu ne anlatıyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>c.</strong> σ bilinmiyor ve population normal: $t = (\bar X - \mu_0)/(s/\sqrt n)$, $n - 1$ df. b variance testinin (sonraki ders), d ANOVA'nın statistic'i. e, büyük n'de kullanılan yaklaşık z'dir; soru "typically" ve "normal population" ile t'yi istiyor (slayt 26: software uses t whenever σ is unknown).</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="undated-final-S20">
+    <span class="box__label">Tarihsiz final Soru 20 · çıkmış soru</span>
+    <p>"A dietitian claims μ = 500 mg sodium. From n=9 servings, X̄ = 520, s=30. Assume normality; at α=0.05, test H₀: μ=500 vs. Hₐ: μ≠500. The test statistic is: a. 1.65 b. 2.00 c. 2.31 d. 2.36 e. 3.12"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>n = 9 ⇒ t, $s/\sqrt n = 30/3$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Seçeneklerden biri statistic değil, 8 df'nin critical value'su. Hangisi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>b. 2.00.</strong> $t = \dfrac{520 - 500}{30/\sqrt 9} = \dfrac{20}{10} = 2.00$, 8 df.</p>
+      <p>Testi bitirirsek: two-tailed critical value $t_{0.025, 8} = 2.306$ (c şıkkındaki 2.31 bu). $2.00 &lt; 2.306$ ⇒ fail to reject. t table: $1.860 &lt; 2.00 &lt; 2.306$ ⇒ $0.05 &lt; p &lt; 0.10$ (software: 0.081). At α = 0.05 there is not sufficient evidence that the mean sodium content differs from 500 mg.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/undated-stats-final.pdf" target="_blank" rel="noopener">Orijinal kâğıt (PDF)</a></p>
+  </div>
+  <h3>t table okuma</h3>
+  <p class="src">Not: exams/prep/problems-for-final.pdf bir EEM209 (Probability Theory &amp; Statistical Analysis) alıştırma seti; bu dersin hocası hazırlamadı. Repo'daki README onu "hocadan" diye anıyor, ama başlığı EEM209.</p>
+  <div class="box box--exam" data-exam="EEM209-Q20">
+    <span class="box__label">EEM209 final alıştırmaları S20 · kitap alıştırması</span>
+    <p>"Let t₀ be a specific value of t. Find t₀ such that the following statement is true: P(t ≤ t₀) = .005 where df = 20." A) 2.861 · B) −2.845 · C) −2.861 · D) 2.845</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Soldaki alan 0.005 ⇒ t₀ negatif mi, pozitif mi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Simetri: $P(t \le -c) = P(t \ge c)$. 20 df satırı, .005 sütunu.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>B, −2.845.</strong> $t_{0.005, 20} = 2.845$ ve sol kuyruk istendiği için işaret eksi. 2.861, 19 df'nin değeri.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="EEM209-Q21">
+    <span class="box__label">EEM209 final alıştırmaları S21 · kitap alıştırması</span>
+    <p>"Find the value of t₀ such that the following statement is true: P(−t₀ ≤ t ≤ t₀) = .99 where df = 9." A) 2.2821 · B) 1.833 · C) 2.262 · D) 3.250</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Ortada 0.99 ⇒ iki kuyrukta toplam 0.01 ⇒ her kuyrukta 0.005.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>9 df satırı, .005 sütunu.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>D, 3.250.</strong> 1.833 = $t_{0.05,9}$, 2.262 = $t_{0.025,9}$; ikisi de daha geniş kuyruklara ait.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="EEM209-Q27">
+    <span class="box__label">EEM209 final alıştırmaları S27 · kitap alıştırması</span>
+    <p>"Let t₀ be a specific value of t. Find t₀ such that the following statement is true: P(t ≥ t₀) = .025 where df = 20." A) −2.093 · B) (PDF'de görünmüyor) · C) −2.086 · D) (PDF'de görünmüyor)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Sağdaki alan 0.025 ⇒ t₀ ortalamanın sağında, pozitif.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>20 df satırı, .025 sütunu. (2.093 ise 19 df.)</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>$t_0 = 2.086$</strong> (pozitif). $P(t \ge -2.086) = 0.975$ olur, 0.025 değil.</p></div></details>
+    <p class="src">Not: Repo'daki kopyada B ve D şıkları basılmamış ve C (−2.086) elle işaretlenmiş. Bu işaret yanlış: doğru cevap +2.086. Silik şıklardan biri büyük ihtimalle 2.086'ydı.</p>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/prep/problems-for-final.pdf" target="_blank" rel="noopener">Orijinal set (PDF), s.3–4</a></p>
+  </div>
+  <div class="box box--exam" data-exam="COMP-Q23">
+    <span class="box__label">STT315 Comprehensive Practice S23 · kitap alıştırması</span>
+    <p>"Consider testing H₀: µ = 100 vs H₁: µ &lt; 100 in a normal population with unknown standard deviation. Suppose that a random sample of size n = 9 is drawn and the test statistic (t-statistic) is computed to be −1.598. The p-value is (a) between .10 and .20 (b) between .05 and .10 (c) between .02 and .05 (d) between .01 and .02 (e) less than .01"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>df = 8. Lower-tailed, işareti at: $|t| = 1.598$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>8 df: .10 → 1.397, .05 → 1.860.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>(b).</strong> $1.397 &lt; 1.598 &lt; 1.860$ ⇒ one-tailed $0.05 &lt; p &lt; 0.10$ (software: 0.074). Test zaten one-tailed, ikiyle çarpma yok. Cevap anahtarı da (b).</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="COMP-Q24">
+    <span class="box__label">STT315 Comprehensive Practice S24 · kitap alıştırması</span>
+    <p>"Consider testing H₀: µ = 100 vs H₁: µ ≠ 100 in a normal population with unknown standard deviation. Suppose that a random sample of size n = 15 is drawn and the test statistic is computed to be −2.507. The p-value is (a) between .10 and .20 (b) between .05 and .10 (c) between .02 and .05 (d) between .01 and .02 (e) less than .01"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>df = 14. 14 df: .025 → 2.145, .01 → 2.624.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>≠ ⇒ bulduğun tek kuyruk sınırlarını ikiyle çarp.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>(c).</strong> $2.145 &lt; 2.507 &lt; 2.624$ ⇒ tek kuyruk $0.01$ ile $0.025$ arası ⇒ two-tailed $0.02 &lt; p &lt; 0.05$ (software: 0.025). İkiyle çarpmayı unutan (d)'yi seçer. Cevap anahtarı da (c).</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="COMP-Q28-Q29">
+    <span class="box__label">STT315 Comprehensive Practice S28–S29 · kitap alıştırması</span>
+    <p>"Mellon Bank Corporation recently hired a team to analyze computer cathode ray tube (CRT) systems to see if the new choice of a CRT system would increase productivity. Suppose that the average production level at the bank, measured on a scale of 0 to 100, was known to be 80. The team tested a random sample of 25 employees using the new CRT and found that the mean productivity level in the sample was 81.0 and the sample standard deviation was 10.0. Using α = 0.05, conduct the appropriate one-sided hypothesis test. (Assume the sample is from a normal population.) 28. The value of the appropriate test statistic is (a) 1.68 (b) 1.72 (c) 0.50 (d) 2.50 (e) none of these. 29. The p-value is (a) more than .10 (b) between .05 and .10 (c) between .025 and .05 (d) between .01 and .025 (e) between .005 and .01"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Increase productivity" ⇒ $H_a: \mu &gt; 80$. n = 25 ⇒ t, 24 df.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$s/\sqrt n = 10/5$. 24 df'de .10 sütunu: 1.318.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Hypotheses:</strong> $H_0: \mu = 80$, $H_a: \mu &gt; 80$. <strong>Condition:</strong> $n = 25 &lt; 30$, normal population verilmiş ⇒ t, 24 df.</p>
+      <p><strong>28: (c).</strong> $t = \dfrac{81 - 80}{10/\sqrt{25}} = \dfrac{1}{2} = 0.50$. (a) 1.68 ve (b) 1.72 critical value tuzakları.</p>
+      <p><strong>29: (a).</strong> $0.50 &lt; 1.318$ ⇒ $p &gt; 0.10$ (software: 0.31).</p>
+      <p><strong>Conclusion:</strong> At α = 0.05 there is not sufficient evidence that the new CRT raises mean productivity above 80. Cevap anahtarı: 28(c), 29(a).</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/COMPREHENSIVE%20EXAM%20PRACTICE.pdf" target="_blank" rel="noopener">Orijinal set (PDF), s.3</a></p>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q61">
+    <span class="box__label">STT315 Practice Ch 5–7 S61 · kitap alıştırması</span>
+    <p>"An industrial supplier has shipped a truckload of teflon lubricant cartridges to an aerospace customer. The customer has been assured that the mean weight of these cartridges is in excess of the 13 ounces printed on each cartridge. To check this claim, a sample of n = 21 cartridges are randomly selected from the shipment and carefully weighed. Summary statistics for the sample are: x̄ = 13.11 ounces, s = .21 ounce. To determine whether the supplier's claim is true, consider the test, H₀: µ = 13 vs. Hₐ: µ &gt; 13, where µ is the true mean weight of the cartridges. Calculate the value of the test statistic." A) 11.000 · B) 2.400 · C) 1.100 · D) 0.524</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$s/\sqrt{21} = 0.21/4.583$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>D, paydaya $s$ yazınca çıkan değer.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>B.</strong> $t = \dfrac{13.11 - 13}{0.21/\sqrt{21}} = \dfrac{0.11}{0.0458} = 2.40$, 20 df. Cevap anahtarı da B.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q62">
+    <span class="box__label">STT315 Practice Ch 5–7 S62 · kitap alıştırması</span>
+    <p>"… the average price of all digital cameras a couple of years ago was $\$215.00$. A random sample of n = 22 cameras was recently taken … It was desired to test to determine if that average price of all digital cameras is now more than $\$215.00$. Find a rejection region appropriate for this test if we are using α = 0.05." A) Reject H₀ if t &gt; 1.725 · B) Reject H₀ if t &gt; 2.080 or t &lt; −2.080 · C) Reject H₀ if t &gt; 1.721 · D) Reject H₀ if t &gt; 1.717</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>df = 22 − 1. "More than" ⇒ tek kuyruk.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>1.725 → 20 df, 1.717 → 22 df.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>C.</strong> 21 df, upper .05: $t &gt; 1.721$. B, 21 df'de two-tailed α = 0.05. A ve D df'yi yanlış alıyor (n − 2 ve n). Cevap anahtarı da C.</p></div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/315Practice3.pdf" target="_blank" rel="noopener">Orijinal set (PDF), s.12</a></p>
+  </div>
+  <div class="box box--exam" data-exam="sup7-cereal-t">
+    <span class="box__label">STT315 el notu, Exercise (two tails case, cereal) · kitap alıştırması</span>
+    <p>"Does an average box of cereal contain 368 grams of cereal? A random sample of 25 boxes had a mean of 372.5 and a standard deviation of 12 grams. Test at the .05 level of significance. … e. Give and graph the rejection region at α = .01 f. Compute and graph the p-value for this test. g. State the conclusion for the hypothesis test" (soru metni kısaltıldı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bu kez σ yok, n = 25 ⇒ t, 24 df. Normal population varsayımı gerekir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>24 df: .025 → 2.064, .005 → 2.797, .05 → 1.711.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Hypotheses:</strong> $H_0: \mu = 368$, $H_a: \mu \ne 368$. <strong>Condition:</strong> $n = 25$, σ unknown, population yaklaşık normal varsayılıyor ⇒ t, 24 df.</p>
+      <p><strong>Statistic:</strong> $t = \dfrac{372.5 - 368}{12/\sqrt{25}} = \dfrac{4.5}{2.4} = 1.875$.</p>
+      <p>α = 0.05: rejection region $|t| &gt; 2.064$, fail to reject. e. α = 0.01: $|t| &gt; 2.797$, yine fail to reject.</p>
+      <p>f. 24 df: $1.711 &lt; 1.875 &lt; 2.064$ ⇒ one-tailed .025–.05 ⇒ two-tailed $0.05 &lt; p &lt; 0.10$ (software: 0.073).</p>
+      <p>g. At α = 0.05 there is not sufficient evidence that the mean fill differs from 368 g (t = 1.88, df = 24, p ≈ 0.07).</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="sup7-7.50">
+    <span class="box__label">STT315 el notu, McClave 7.50 (13e: 8.57) · kitap alıştırması</span>
+    <p>"A sample of five measurements was taken from a normally distributed population. Sample statistics are x̄ = 4.8 and s = 1.3. a. Test the null hypothesis that the mean of the population is 6 against the alternative hypothesis, μ &lt; 6, at a significance level α = .05. Use the rejection region method. b. Test the null hypothesis that the mean of the population is 6 against the alternative hypothesis, μ ≠ 6, at a significance level α = .05. Use the rejection region method. c. Find the observed significance level (p-value) for each test."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Beş ölçüm ⇒ $\sqrt 5$ ve df = 4.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>4 df: .05 → 2.132, .025 → 2.776.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$t = \dfrac{4.8 - 6}{1.3/\sqrt 5} = \dfrac{-1.2}{0.581} = -2.06$, df = 4.</p>
+      <p>a. Rejection region $t &lt; -2.132$. $-2.06$ bölgede değil ⇒ fail to reject. At α = 0.05 there is not sufficient evidence that the mean is less than 6.</p>
+      <p>b. Rejection region $|t| &gt; 2.776$ ⇒ fail to reject.</p>
+      <p>c. (a) $p = P(T_4 \le -2.06) = 0.054$; t table'dan $0.05 &lt; p &lt; 0.10$. (b) $p = 0.108$; t table'dan $0.10 &lt; p &lt; 0.20$. İkisi de 0.05'ten büyük ⇒ iki test de fail to reject.</p>
+    </div></details>
+    <p class="src">Not: El notundaki çözüm yanlış. $\sqrt 5$ yerine $\sqrt 6$ kullanıp $t = -2.26$ buluyor, 5 df'nin critical value'larıyla (2.02 ve 2.571) (a)'da "Reject" diyor. Soru beş ölçüm diyor (McClave 13e'de 8.57 de öyle), yani doğru değerler $t = -2.06$, 4 df ve (a)'da fail to reject. Ayrıca el notu (b)'deki kararı "less than 6" diye yazıyor; two-tailed testte sonuç "differs from 6" olmalı.</p>
+  </div>
+  <div class="box box--exam" data-exam="sup7-add2">
+    <span class="box__label">STT315 el notu, Additional Exercise 2 · kitap alıştırması</span>
+    <p>"Is the mean lifetime of particular type of car engine different than 220,000 miles? To test this claim, a sample of 23 engines is measured, yielding an average of 226,450 miles and a standard deviation of 11,500 miles. Use a significance level of 0.01." (State any assumptions that you need to make and interpret the results.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>n = 23 ⇒ t, 22 df, ≠.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>22 df: .005 → 2.819, .01 → 2.508.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Hypotheses:</strong> $H_0: \mu = 220\,000$, $H_a: \mu \ne 220\,000$. <strong>Condition:</strong> random sample; $n = 23 &lt; 30$ ⇒ motor ömürleri yaklaşık normal olmalı; t, 22 df.</p>
+      <p><strong>Statistic:</strong> $t = \dfrac{226\,450 - 220\,000}{11\,500/\sqrt{23}} = \dfrac{6450}{2398} = 2.69$. Rejection region $|t| &gt; 2.819$ ⇒ fail to reject. t table: $2.508 &lt; 2.69 &lt; 2.819$ ⇒ two-tailed $0.01 &lt; p &lt; 0.02$ (software: 0.013).</p>
+      <p><strong>Conclusion:</strong> At α = 0.01 there is not sufficient evidence that the mean engine lifetime differs from 220,000 miles. (α = 0.05 seçilmiş olsaydı reject olurdu.)</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/supplement/7%20Hypothesis%20Testing.pdf" target="_blank" rel="noopener">Orijinal el notu (PDF), s.12–13 ve s.16</a></p>
+  </div>
+  <div class="quiz" id="q-ttest-1">
+    <p class="quiz__q">$n = 10$, population yaklaşık normal, σ bilinmiyor, $H_a: \mu &gt; \mu_0$, $\alpha = 0.05$. Critical value hangisi?</p>
+    <button class="quiz__opt">1.645<span class="why">Bu z critical value'su. n = 10 küçük ve σ bilinmiyor ⇒ t, kuyruklar daha kalın.</span></button>
+    <button class="quiz__opt" data-correct>$t_{0.05, 9} = 1.833$<span class="why">Doğru: df = n − 1 = 9, upper-tail 0.05.</span></button>
+    <button class="quiz__opt">$t_{0.05, 10} = 1.812$<span class="why">df = n − 1. 10 gözlemle 9 df.</span></button>
+    <button class="quiz__opt">$t_{0.025, 9} = 2.262$<span class="why">Bu two-tailed α = 0.05'in değeri. Test tek yönlü.</span></button>
+  </div>
+  <div class="quiz" id="q-ttest-2">
+    <p class="quiz__q">Two-tailed t testi, 15 df, $t = 2.40$. 15 df satırı: .025 → 2.131, .01 → 2.602. p için hangisi doğru?</p>
+    <button class="quiz__opt">$0.01 &lt; p &lt; 0.025$<span class="why">Bu tek kuyruğun alanı. Two-tailed testte sınırları ikiyle çarp.</span></button>
+    <button class="quiz__opt" data-correct>$0.02 &lt; p &lt; 0.05$<span class="why">Doğru. α = 0.05'te reject, α = 0.01'de fail to reject.</span></button>
+    <button class="quiz__opt">$0.05 &lt; p &lt; 0.10$<span class="why">Bu, $t$'nin .05 ile .025 sütunları arasında ($1.753 &lt; t &lt; 2.131$) olduğu durum. Burada $2.131 &lt; 2.40 &lt; 2.602$: tek kuyruk .025 ile .01 arasında. Two-tailed testte tablonun iki kuyruk sınırını da ikiyle çarp: $0.02 &lt; p &lt; 0.05$.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="software" data-min="6">
+  <h2>Aynı test Python'da ve normality kontrolü</h2>
+  <div class="box box--example">
+    <span class="box__label">Örnek · The Same Test in Python (slayt 24)</span>
+<pre><code>import numpy as np
+from scipy import stats
+
+v = np.array([3.31, 3.35, 3.29, 3.33, 3.30, 3.36,
+              3.32, 3.28, 3.34, 3.31, 3.33, 3.32])
+se = v.std(ddof=1) / np.sqrt(len(v))
+t = (v.mean() - 3.30) / se                  # 2.92
+p = 2 * stats.t.sf(abs(t), df=len(v) - 1)   # 0.014
+
+stats.ttest_1samp(v, popmean=3.30)              # same t and p</code></pre>
+    <p><strong>Compute it once by hand, then check that scipy agrees. Watch <code>ddof=1</code>: numpy's default divides by n.</strong></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · SciPy çıktısını okumak</span>
+    <div class="table-wrap"><table>
+      <tr><th>Fonksiyon</th><th>Ne verir</th><th>Bu derste</th></tr>
+      <tr><td><code>stats.norm.sf(z)</code></td><td>$P(Z &gt; z)$, sağ kuyruk (sf = 1 − cdf)</td><td>upper-tailed p: <code>norm.sf(2.41)</code> = 0.0080</td></tr>
+      <tr><td><code>stats.norm.isf(a)</code></td><td>sağında alan $a$ kalan $z$</td><td>critical value: <code>norm.isf(0.05)</code> = 1.645</td></tr>
+      <tr><td><code>stats.t.sf(t, df)</code></td><td>$P(T &gt; t)$</td><td>two-tailed p: <code>2 * t.sf(abs(t), df)</code></td></tr>
+      <tr><td><code>stats.t.isf(a, df)</code></td><td>t critical value</td><td><code>t.isf(0.025, 11)</code> = 2.201</td></tr>
+      <tr><td><code>stats.ttest_1samp(x, popmean=m)</code></td><td><code>TtestResult(statistic, pvalue, df)</code></td><td>varsayılan <strong>two-sided</strong></td></tr>
+    </table></div>
+    <p>Regulator için çıktı: <code>TtestResult(statistic=2.918, pvalue=0.01398, df=11)</code>. One-sided test için <code>alternative="greater"</code> ya da <code>alternative="less"</code> yazılır: <code>ttest_1samp(v, 3.30, alternative="greater")</code> p = 0.0070 verir. $t$ Hₐ yönündeyse one-sided p, two-sided p'nin yarısıdır.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><code>v.std()</code> ddof=0 ile $n$'ye böler: $s = 0.0227$ çıkar, $t = 3.05$, $p = 0.011$. Sample standard deviation $n - 1$'e böler: <code>v.std(ddof=1)</code> = 0.0237.</li>
+      <li><code>ttest_1samp</code>'in p'si varsayılan olarak two-sided. Hₐ tek yönlüyse ya <code>alternative=</code> ver ya da p'yi uygun şekilde çevir.</li>
+      <li><code>stats.t.sf(t, df)</code>'yi negatif $t$ ile çağırıp ikiyle çarpmak 1'den büyük "p" verir. Two-tailed p için <code>abs(t)</code> kullan.</li>
+      <li>z test'in p'si için <code>stats.norm.sf</code>; t test'in p'si için <code>stats.t.sf</code> ve df. Karıştırırsan küçük n'de p fazla küçük çıkar.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="nb03-task1">
+    <span class="box__label">Week 3 notebook Task 1 · ödev sorusu</span>
+    <p>"The z and t tests by hand. Complete the two functions below without <code>stats.ttest_1samp</code>. You may use <code>stats.norm.sf</code> and <code>stats.t.sf</code> for the tail probabilities. <code>z_test_upper(x, mu0)</code>: the large-sample test of H₀: μ = μ₀ against Hₐ: μ &gt; μ₀. Return (z, p) with z = (x̄ − μ₀)/(s/√n) and p = P(Z ≥ z). <code>t_test_two_sided(x, mu0)</code>: the t test of H₀: μ = μ₀ against Hₐ: μ ≠ μ₀. Return (t, p) with the same statistic, n − 1 degrees of freedom and p = 2 · P(T &gt; |t|). Use the sample standard deviation with <code>ddof=1</code>."</p>
+    <p class="src">Not: Notlu ödev; kod ve çözüm verilmiyor. Bu bölümdeki tablo ve tuzaklar ihtiyacın olan kavramları içeriyor.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İki fonksiyonun statistic'i aynı formül. Farklar: hangi dağılımın kuyruğu, tek mi çift mi kuyruk, df.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Self-check senin sonucunu <code>ttest_1samp</code> ile karşılaştırıyor. "t matches" geçmiyorsa ilk şüphe ddof; "p matches" geçmiyorsa <code>abs</code> ve 2 çarpanı.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q52">
+    <span class="box__label">STT315 Practice Ch 5–7 S52 · kitap alıştırması</span>
+    <p>"… It was desired to test to determine if that average price of all digital cameras is now more than $\$215.00$. … the following printout was obtained: One-Sample T Test · Null Hypothesis: µ = 215 · Alternative Hyp: µ &gt; 215 · Variable Camera Price · Mean 245.23 · SE 15.620 · 95% Conf Interval Lower 212.740 Upper 277.720 · T 1.94 · DF 21 · P 0.0333 · Cases Included 22. Use the p-value given above to determine which of the following conclusions is correct." A) At α = 0.10, there is insufficient evidence to indicate that the mean price of all digital cameras exceeds $\$215.00$ B) At α = 0.01, there is sufficient evidence … C) At α = 0.05, there is insufficient evidence … D) At α = 0.03, there is insufficient evidence …</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Printout zaten one-sided Hₐ ile çalışmış: P = 0.0333 doğrudan kullanılır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her seçenekte 0.0333'ü o α ile karşılaştır ve "sufficient / insufficient" kelimesinin uyup uymadığına bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>D.</strong> $0.0333 &gt; 0.03$ ⇒ fail to reject ⇒ "insufficient evidence" doğru. A: $0.0333 \le 0.10$, kanıt yeterli. B: $0.0333 &gt; 0.01$, kanıt yetersiz. C: $0.0333 \le 0.05$, kanıt yeterli.</p>
+      <p>Printout'u kontrol: $t = (245.23 - 215)/15.62 = 1.94$, $df = 22 - 1 = 21$. Cevap anahtarı da D.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q53">
+    <span class="box__label">STT315 Practice Ch 5–7 S53 · kitap alıştırması</span>
+    <p>"A large university is interested in learning about the average time it takes students to drive to campus. The university sampled 238 students … One-Sample Z Test · Null Hypothesis: µ = 20 · Alternative Hyp: µ &gt; 20 · Mean 23.243 · SE 1.3133 · 95% Conf Interval 20.669 to 25.817 · Z 2.47 · P 0.0071 · Cases Included 238. What conclusion can be made from the test of hypothesis conducted in this printout? Begin each answer with, 'When testing at α = 0.01…'" A) …there is sufficient evidence to indicate that the average travel time of all students exceeds 20 minutes. B) …there is sufficient evidence to indicate that the average travel time of all students is equal to 20 minutes. C) …there is insufficient evidence to indicate that the average travel time of all students is equal to 20 minutes. D) …there is insufficient evidence to indicate that the average travel time of all students exceeds 20 minutes.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>0.0071 ile 0.01'i karşılaştır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Test hiçbir zaman "equal to 20" için kanıt üretmez. B ve C'yi bu yüzden ele.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>A.</strong> $0.0071 \le 0.01$ ⇒ reject ⇒ $\mu &gt; 20$ için yeterli kanıt. Kanıt her zaman Hₐ için toplanır; "equal to 20" bir sonuç olamaz. Cevap anahtarı da A.</p></div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/315Practice3.pdf" target="_blank" rel="noopener">Orijinal set (PDF), s.10</a></p>
+  </div>
+  <h3>Checking the Normality Assumption (slayt 25)</h3>
+  <p>t test'in şartı population'ın yaklaşık normal olması. Küçük sample'da bunu histogram'la görmek zor; <strong>Q-Q plot</strong> kullanılır: sıralanmış veri, standard normal'in beklenen quantile'larına karşı çizilir. Veri normalse noktalar bir doğru üzerine dizilir.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Q-Q plot okumak</span>
+    <p><strong>Points near the line: the t test is fine. A curve or a lone outlier at small n: use a nonparametric test (Week 14) or the bootstrap.</strong></p>
+  </div>
+  <p class="w-tests-for-a-mean-guess"><b>Önce tahmin et:</b> Regulator okumaları çizgiye yakın mı dizilir? 12 gözlemlik çarpık (exponential) bir sample nasıl görünür? Sonra kendi verini de yapıştırıp dene (virgül ya da boşlukla ayır).</p>
+  <textarea id="w7-data" class="w-tests-for-a-mean-data" aria-label="Q-Q plot verisi">3.31, 3.35, 3.29, 3.33, 3.30, 3.36, 3.32, 3.28, 3.34, 3.31, 3.33, 3.32</textarea>
+  <div class="w-tests-for-a-mean-ctl">
+    <button class="btn btn--sm btn--accent" id="w7-go">Çiz</button>
+    <button class="btn btn--sm" id="w7-reg">Regulator okumaları</button>
+    <button class="btn btn--sm" id="w7-skew">Çarpık sample (n = 12)</button>
+  </div>
+  <div class="w-tests-for-a-mean-err" id="w7-err" aria-live="polite"></div>
+  <div class="w-tests-for-a-mean-plot" id="w7-plot"></div>
+  <div class="w-tests-for-a-mean-out" id="w7-out" aria-live="polite"></div>
+  <!-- Kaynak: slayt 25 ve notebook A5 (stats.probplot). x eksenindeki quantile'lar probplot'un kullandığı Filliben order-statistic medyanlarıyla hesaplanıyor; doğru least-squares ile. -->
+  <div class="box box--exam" data-exam="nb03-task4">
+    <span class="box__label">Week 3 notebook Task 4 · ödev sorusu</span>
+    <p>"Skewed data at small n (slide 25). Now repeat the experiment with a skewed population: <code>rng.exponential(1, size)</code> has mean 1, so test μ₀ = 1 and H₀ is still true. For each n in SIZES = [5, 10, 30, 100], simulate 5,000 p-values with your <code>simulate_p_values</code> and store the false rejection rate at α = 0.05 in <code>skewed_rates[n]</code>."</p>
+    <p class="src">Not: Notlu ödev; çözüm verilmiyor.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kavram: t test'in "5% false alarm" sözü, population normal olduğunda geçerli. Çarpık population'da küçük n'de bu söz bozulabilir; n büyüdükçe CLT durumu düzeltir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Self-check'in beklediği yön: n = 5'te oran 0.05'ten belirgin büyük, n = 100'de 0.05'e yakın. H₀'ın doğru kalması için exponential(1)'in gerçek mean'iyle test et.</p></div></details>
+  </div>
+  <div class="box box--exam" data-exam="nb03-interpretation">
+    <span class="box__label">Week 3 notebook Interpretation question · ödev sorusu</span>
+    <p>"A colleague timed 8 requests of a new service, ran a t test against the promised 60 ms and got p = 0.03. Response times are usually skewed. Using your result from Task 4, how much would you trust this p-value, and what would you do before reporting it? (Three to five sentences.)"</p>
+    <p class="src">Not: Notlu ödev; cevap verilmiyor.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Üç şeyi birleştir: n = 8 küçük; t test küçük n'de normality ister; response time'lar genelde çarpık.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Rapor etmeden önce ne yapılabilir? Slayt 25'in son cümlesine ve Q-Q widget'ına bak.</p></div></details>
+  </div>
+  <div class="quiz" id="q-soft-1">
+    <p class="quiz__q"><code>stats.ttest_1samp(x, popmean=50)</code> çıktısı: <code>statistic=-2.30, pvalue=0.030</code>. Testin Hₐ'sı $\mu &lt; 50$. Bu test için p kaç?</p>
+    <button class="quiz__opt">0.030<span class="why">ttest_1samp'in p'si varsayılan olarak two-sided. One-sided teste çevirmen gerekir.</span></button>
+    <button class="quiz__opt" data-correct>0.015<span class="why">Doğru. $t$ negatif ve Hₐ "$&lt;$": $t$ Hₐ yönünde ⇒ two-sided p'nin yarısı. Aynı sonucu <code>alternative="less"</code> doğrudan verir.</span></button>
+    <button class="quiz__opt">0.985<span class="why">Bu $1 - 0.030/2$: $t$ Hₐ'nın <em>ters</em> yönünde olsaydı doğru olurdu. Burada $t$ ve Hₐ aynı yönde.</span></button>
+  </div>
+  <div class="quiz" id="q-soft-2">
+    <p class="quiz__q">12 gözlemlik bir sample'ın Q-Q plot'unda noktalar belirgin bir eğri çiziyor ve en sağdaki nokta çizginin çok üstünde. Ne yapmalı?</p>
+    <button class="quiz__opt">t test'e devam: t zaten küçük sample için<span class="why">t küçük sample için, ama <em>normal</em> population varsayımıyla. Eğri ve aykırı nokta bu varsayımı bozar.</span></button>
+    <button class="quiz__opt">z test'e geç: z normality istemez<span class="why">z'nin normality istememesi büyük n ve CLT sayesinde. n = 12'de bu geçerli değil.</span></button>
+    <button class="quiz__opt" data-correct>Nonparametric bir test (Week 14) ya da bootstrap kullan<span class="why">Doğru. Slayt 25: a curve or a lone outlier at small n ⇒ nonparametric test or the bootstrap.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="choose" data-min="6">
+  <h2>Hangi test? Sonucu yazmak</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Which Test for a Mean? (slayt 26)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Situation</th><th>Statistic</th><th>Reference distribution</th></tr>
+      <tr><td>$n \ge 30$</td><td>$z = (\bar x - \mu_0)\,/\,(s/\sqrt n)$</td><td>Standard normal</td></tr>
+      <tr><td>$n &lt; 30$, population about normal</td><td>$t = (\bar x - \mu_0)\,/\,(s/\sqrt n)$</td><td>t, $n - 1$ df</td></tr>
+      <tr><td>$n &lt; 30$, clearly not normal</td><td>Neither</td><td>Nonparametric, Week 14</td></tr>
+    </table></div>
+    <p><strong>Software uses t whenever σ is unknown. For n ≥ 30 the two answers are almost identical.</strong></p>
+    <p>STT315 el notunun tablosu bir durum daha ekler: population normal ve σ <em>biliniyorsa</em> küçük n'de bile z kullanılır (tarihsiz final Soru 19 gibi).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Writing the Conclusion (slayt 27)</span>
+    <p class="w-tests-for-a-mean-concl">At α = 0.05 there is sufficient evidence that the regulator's mean output differs from 3.30 V (t = 2.92, df = 11, p = 0.014).</p>
+    <p>Kalıp: <em>At α = [α] there is [sufficient / not sufficient] evidence that [the mean ... in context] [exceeds / is below / differs from] [μ₀ with unit] ([statistic], [df], p = ...).</em></p>
+    <p><strong>Avoid:</strong></p>
+    <ul>
+      <li>"H₀ is rejected." In context: rejected in favour of what?</li>
+      <li>"There is a 1.4% chance that H₀ is true."</li>
+      <li>"We proved the regulator is faulty."</li>
+    </ul>
+  </div>
+  <h3>Test konsolu</h3>
+  <p>Özet sayıları gir. Konsol slayt 26'daki kuralla testi seçer, referans eğriyi çizer (turuncu: rejection region, mavi: p-value alanı, çizgi: senin statistic'in) ve dört adımlı çözümü yazar.</p>
+  <p class="w-tests-for-a-mean-guess"><b>Önce tahmin et:</b> Regulator preset'inde α'yı 0.01 yaparsan karar değişir mi? McClave engine preset'inde (n = 10) "normal" kutusunu kaldırırsan konsol ne der?</p>
+  <div class="w-tests-for-a-mean-ctl">
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-w8p="resp">Response time</button>
+    <button class="btn btn--sm" data-w8p="reg">Regulator</button>
+    <button class="btn btn--sm" data-w8p="engine">McClave engine</button>
+    <button class="btn btn--sm" data-w8p="pipe">Sewer pipe</button>
+  </div>
+  <div class="w-tests-for-a-mean-ctl">
+    <label>$\bar x$ <input id="w8-xbar" type="text" inputmode="decimal" value="62.4" class="btn btn--sm" /></label>
+    <label>$s$ <input id="w8-s" type="text" inputmode="decimal" value="10.9" class="btn btn--sm" /></label>
+    <label>$n$ <input id="w8-n" type="text" inputmode="numeric" value="120" class="btn btn--sm" /></label>
+    <label>$\mu_0$ <input id="w8-mu0" type="text" inputmode="decimal" value="60" class="btn btn--sm" /></label>
+  </div>
+  <div class="w-tests-for-a-mean-ctl">
+    <label>Hₐ <select id="w8-ha" class="btn btn--sm"><option value="gt" selected>μ &gt; μ₀</option><option value="lt">μ &lt; μ₀</option><option value="ne">μ ≠ μ₀</option></select></label>
+    <label>α <select id="w8-alpha" class="btn btn--sm"><option value="0.10">0.10</option><option value="0.05" selected>0.05</option><option value="0.01">0.01</option></select></label>
+    <label><input id="w8-normal" type="checkbox" /> population yaklaşık normal</label>
+    <button class="btn btn--sm btn--accent" id="w8-go">Test et</button>
+  </div>
+  <div class="w-tests-for-a-mean-err" id="w8-err" aria-live="polite"></div>
+  <div class="w-tests-for-a-mean-plot" id="w8-plot"></div>
+  <div class="w-tests-for-a-mean-out" id="w8-out" aria-live="polite"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Test seçimi n'ye ve normality'ye bakar, sonuca değil. "z ile reject çıkmadı, t deneyeyim" olmaz.</li>
+      <li>$n &lt; 30$ ve çarpık population'da ne z ne t: nonparametric.</li>
+      <li>Sonuç cümlesinde α, karar, bağlam ve sayılar olmalı. "Reject H₀" tek başına eksik bir cevap.</li>
+      <li>"Accept H₀", "proved", "H₀'ın olasılığı %1.4" ifadeleri puan kaybettirir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q57">
+    <span class="box__label">STT315 Practice Ch 5–7 S57 · kitap alıştırması</span>
+    <p>"… Wind speeds must average more than 19 miles per hour (mph) for a site to be acceptable. … Based on a sample of n = 45 wind speed recordings (taken at random intervals), the wind speed at the site averaged x̄ = 19.9 mph, with a standard deviation of s = 4.5 mph. To determine whether the site meets the organization's requirements, consider the test, H₀: µ = 19 vs. Hₐ: µ &gt; 19, where µ is the true mean wind speed at the site and α = .01. Suppose the value of the test statistic were computed to be 1.34. State the conclusion." A) At α = .01, there is insufficient evidence to conclude the true mean wind speed at the site exceeds 19 mph. B) We are 99% confident that the site meets the organization's requirements. C) At α = .01, there is sufficient evidence to conclude the true mean wind speed at the site exceeds 19 mph. D) We are 99% confident that the site does not meet the organization's requirements.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Upper-tailed, α = 0.01 ⇒ critical value 2.33.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>B ve D "confident" diliyle konuşuyor: bu bir test sonucu cümlesi mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>A.</strong> $z = (19.9 - 19)/(4.5/\sqrt{45}) = 0.9/0.671 = 1.34 &lt; 2.33$ ⇒ fail to reject ($p = 0.090$). Doğru dil "insufficient evidence ... exceeds 19 mph". B ve D confidence interval dilini teste karıştırıyor; D ayrıca "accept H₀" demenin kılık değiştirmiş hâli. Cevap anahtarı da A.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="315P3-Q59">
+    <span class="box__label">STT315 Practice Ch 5–7 S59 · kitap alıştırması</span>
+    <p>"A local eat-in pizza restaurant wants to investigate the possibility of starting to deliver pizzas. The owner of the store has determined that home delivery will be successful only if the average time spent on a delivery does not exceed 36 minutes. The owner has randomly selected 21 customers and delivered pizzas to their homes in order to test whether the mean delivery time actually exceeds 36 minutes. What assumption is necessary for this test to be valid?" A) The population variance must equal the population mean. B) None. The Central Limit Theorem makes any assumptions unnecessary. C) The sample mean delivery time must equal the population mean delivery time. D) The population of delivery times must have a normal distribution.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>n = 21 &lt; 30. Hangi test, hangi şart?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>CLT bu n'de neden yetmez?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>D.</strong> Küçük sample, σ bilinmiyor ⇒ t test, şartı population'ın yaklaşık normal olması (ve random sample). B, n ≥ 30 için geçerli bir düşünce. C anlamsız: sample mean population mean'e eşit olsaydı test etmeye gerek kalmazdı. Cevap anahtarı da D.</p></div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/315Practice3.pdf" target="_blank" rel="noopener">Orijinal set (PDF), s.11</a></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Summary (slayt 29)</span>
+    <ol>
+      <li>A test asks how surprising the data are under H₀.</li>
+      <li>Failing to reject H₀ does not show that H₀ is true.</li>
+      <li>A p-value is not the probability that H₀ is true.</li>
+      <li>Use z for large samples, t for small normal ones.</li>
+    </ol>
+  </div>
+  <div class="quiz" id="q-choose-1">
+    <p class="quiz__q">18 job run time'ı, Q-Q plot'ta noktalar çizgiye yakın, σ bilinmiyor. Mean'in 40 s'den farklı olup olmadığını test edeceksin. Hangi statistic ve referans dağılım?</p>
+    <button class="quiz__opt">z, standard normal<span class="why">$n = 18 &lt; 30$: s, σ'yı iyi tahmin etmez ve z critical value'ları çok küçük kalır.</span></button>
+    <button class="quiz__opt" data-correct>t, 17 df<span class="why">Doğru: küçük n, yaklaşık normal population ⇒ t, $n - 1 = 17$ df.</span></button>
+    <button class="quiz__opt">t, 18 df<span class="why">df = n − 1.</span></button>
+    <button class="quiz__opt">Nonparametric<span class="why">Q-Q plot normale yakın; nonparametric test, belirgin şekilde normal olmayan küçük sample'lar için.</span></button>
+  </div>
+  <div class="quiz" id="q-choose-2">
+    <p class="quiz__q">Bir öğrencinin sonuç cümlesi: "p = 0.014, so there is a 1.4% chance that the regulator works correctly." Sorun ne?</p>
+    <button class="quiz__opt">Sorun yok, p tam olarak bunu ölçer<span class="why">p, H₀ doğru <em>varsayılarak</em> hesaplanır; H₀'ın doğru olma olasılığı değildir (slayt 27'nin "avoid" listesi).</span></button>
+    <button class="quiz__opt" data-correct>p'yi H₀'ın olasılığı gibi yorumluyor; α ve "sufficient evidence ... differs from 3.30 V" dili eksik<span class="why">Doğru. Doğru cümle: At α = 0.05 there is sufficient evidence that the regulator's mean output differs from 3.30 V (t = 2.92, df = 11, p = 0.014).</span></button>
+    <button class="quiz__opt">Sadece α yazılmamış, gerisi doğru<span class="why">α eksik, ama asıl hata p'nin yorumu.</span></button>
+  </div>
+  <div class="quiz" id="q-choose-3">
+    <p class="quiz__q">Bir test fail to reject verdi. Hangi cümle doğru?</p>
+    <button class="quiz__opt">"We accept H₀: the mean is 60 ms."<span class="why">H₀ kabul edilmez. Fail to reject, H₀'ın doğru olduğunun kanıtı değildir (slayt 9).</span></button>
+    <button class="quiz__opt">"We proved that the mean does not exceed 60 ms."<span class="why">Test hiçbir şeyi kanıtlamaz; ayrıca küçük n'de gerçek bir fark kolayca kaçabilir (Type II).</span></button>
+    <button class="quiz__opt" data-correct>"At α = 0.05 there is not sufficient evidence that the mean response time exceeds 60 ms."<span class="why">Doğru: α, karar ve bağlam var; H₀ hakkında bir iddia yok.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak. Her biri bu dersteki bir tuzağı yokluyor.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Bir vendor mean disk ömrünün en az 5 yıl olduğunu iddia ediyor. Sen iddianın abartılı olduğunu düşünüyorsun. Bu dersin sınır değeri eşitlikle yazan gösterimiyle hipotezler?</p>
+    <button class="quiz__opt">$H_0: \mu \ge 5$, $H_a: \mu &lt; 5$<span class="why">Matematik olarak geçerli bir composite null; test yine sınır değer $\mu = 5$'te hesaplanır ve aynı kararı verir. Ama soru bu dersin gösterimini istiyor: H₀ eşitlikle, $H_0: \mu = 5$.</span></button>
+    <button class="quiz__opt" data-correct>$H_0: \mu = 5$, $H_a: \mu &lt; 5$<span class="why">Doğru. Kanıt aranan şüphe Hₐ'ya, sınır değer eşitlikle H₀'a.</span></button>
+    <button class="quiz__opt">$H_0: \mu = 5$, $H_a: \mu &gt; 5$<span class="why">Yön ters: "en az 5" iddiasının abartılı olduğunu göstermek için ömrün 5'ten <em>az</em> olduğuna kanıt gerekir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">$n = 49$, $\bar x = 102.1$, $s = 7$, $H_0: \mu = 100$, $H_a: \mu &gt; 100$, $\alpha = 0.01$. Karar?</p>
+    <button class="quiz__opt">$z = 2.10 &gt; 1.645$ ⇒ reject<span class="why">1.645, α = 0.05'in critical value'su. α = 0.01'de upper-tailed critical value 2.33.</span></button>
+    <button class="quiz__opt" data-correct>$z = 2.10 &lt; 2.33$ ⇒ fail to reject<span class="why">Doğru: $SE = 7/7 = 1$, $z = 2.10$; $p = 0.018 &gt; 0.01$.</span></button>
+    <button class="quiz__opt">$z = 0.30$ ⇒ fail to reject<span class="why">Paydaya $s$ yazılmış. Standard error $s/\sqrt n = 1$.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">$p = 0.07$, $\alpha = 0.05$. Hangisi doğru cevap?</p>
+    <button class="quiz__opt">Reject H₀, çünkü $0.07 &gt; 0.05$<span class="why">Yön ters. Reject için $p \le \alpha$ gerekir.</span></button>
+    <button class="quiz__opt">Accept H₀<span class="why">Karar doğru yönde ama dil yanlış: H₀ kabul edilmez.</span></button>
+    <button class="quiz__opt" data-correct>Fail to reject H₀: Hₐ için yeterli kanıt yok<span class="why">Doğru.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">$n = 9$, normal population, σ bilinmiyor, $t = 2.50$, two-tailed. 8 df: .025 → 2.306, .01 → 2.896. p aralığı ve α = 0.05 kararı?</p>
+    <button class="quiz__opt">$0.01 &lt; p &lt; 0.025$, reject<span class="why">Karar doğru, ama aralık tek kuyruğun. Two-tailed testte sınırlar ikiyle çarpılır.</span></button>
+    <button class="quiz__opt" data-correct>$0.02 &lt; p &lt; 0.05$, reject<span class="why">Doğru: $2.306 &lt; 2.50 &lt; 2.896$, sınırlar ×2; $|t| &gt; 2.306$ olduğu için α = 0.05'te reject.</span></button>
+    <button class="quiz__opt">z table ile $p = 0.012$, reject<span class="why">n = 9 küçük: z kullanmak p'yi olduğundan küçük gösterir. Software t ile 0.037 verir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">SciPy: <code>stats.ttest_1samp(x, popmean=12, alternative="greater")</code> → <code>statistic=1.20, pvalue=0.13</code>. Doğru sonuç?</p>
+    <button class="quiz__opt">Two-tailed p = 0.13 olduğu için one-sided p = 0.065<span class="why"><code>alternative="greater"</code> verildiğinde SciPy zaten one-sided p'yi döndürür. Tekrar bölme.</span></button>
+    <button class="quiz__opt" data-correct>α = 0.05'te mean'in 12'yi aştığına dair yeterli kanıt yok<span class="why">Doğru: one-sided $p = 0.13 &gt; 0.05$ ⇒ fail to reject.</span></button>
+    <button class="quiz__opt">Mean'in 12 olduğu kanıtlandı<span class="why">Fail to reject hiçbir şeyi kanıtlamaz.</span></button>
+  </div>
+  <!-- Sıradaki konu: proportion ve variance testleri. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=8"></script>
+<script src="../assets/lab.js?v=8"></script>
+<script>
+/*STATS-BEGIN*/
+const ST = (function () {
+  function erfc(x) {
+    const z = Math.abs(x), t = 1 / (1 + 0.5 * z);
+    const r = t * Math.exp(-z * z - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 +
+      t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277)))))))));
+    return x >= 0 ? r : 2 - r;
+  }
+  /* standard normal CDF: Taylor series for |z| < 3, erfc tail beyond */
+  function pnorm(z) {
+    if (Math.abs(z) < 3) {
+      let sum = z, term = z;
+      for (let k = 1; k < 200; k++) {
+        term *= -z * z / 2 / k;
+        const add = term / (2 * k + 1);
+        sum += add;
+        if (Math.abs(add) < 1e-17) break;
+      }
+      return 0.5 + sum / Math.sqrt(2 * Math.PI);
+    }
+    return 0.5 * erfc(-z / Math.SQRT2);
+  }
+  /* inverse normal: Acklam's rational approximation plus one Halley step */
+  function qnorm(p) {
+    if (p <= 0) return -Infinity; if (p >= 1) return Infinity;
+    const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+    const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+    const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+    const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+    const pl = 0.02425; let q, r, x;
+    if (p < pl) { q = Math.sqrt(-2 * Math.log(p)); x = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+    else if (p <= 1 - pl) { q = p - 0.5; r = q * q; x = (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1); }
+    else { q = Math.sqrt(-2 * Math.log(1 - p)); x = -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+    const e = pnorm(x) - p, u = e * Math.sqrt(2 * Math.PI) * Math.exp(x * x / 2);
+    return x - u / (1 + x * u / 2);
+  }
+  function lgamma(x) {
+    const g = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+    let y = x, tmp = x + 5.5; tmp -= (x + 0.5) * Math.log(tmp);
+    let ser = 1.000000000190015;
+    for (let j = 0; j < 6; j++) ser += g[j] / ++y;
+    return -tmp + Math.log(2.5066282746310005 * ser / x);
+  }
+  /* regularized incomplete beta, continued fraction */
+  function betacf(a, b, x) {
+    const FPMIN = 1e-300; let qab = a + b, qap = a + 1, qam = a - 1, c = 1, d = 1 - qab * x / qap;
+    if (Math.abs(d) < FPMIN) d = FPMIN; d = 1 / d; let h = d;
+    for (let m = 1; m <= 300; m++) {
+      const m2 = 2 * m; let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+      d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN; c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN; d = 1 / d; h *= d * c;
+      aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+      d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN; c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN; d = 1 / d;
+      const del = d * c; h *= del; if (Math.abs(del - 1) < 1e-15) break;
+    }
+    return h;
+  }
+  function ibeta(x, a, b) {
+    if (x <= 0) return 0; if (x >= 1) return 1;
+    const bt = Math.exp(lgamma(a + b) - lgamma(a) - lgamma(b) + a * Math.log(x) + b * Math.log(1 - x));
+    return x < (a + 1) / (a + b + 2) ? bt * betacf(a, b, x) / a : 1 - bt * betacf(b, a, 1 - x) / b;
+  }
+  /* Student t CDF */
+  function pt(t, df) {
+    const x = df / (df + t * t), tail = 0.5 * ibeta(x, df / 2, 0.5);
+    return t >= 0 ? 1 - tail : tail;
+  }
+  /* upper-tail t quantile: P(T > q) = p */
+  function qtUpper(p, df) {
+    let lo = 0, hi = 1;
+    while (1 - pt(hi, df) > p) hi *= 2;
+    for (let i = 0; i < 200; i++) { const mid = (lo + hi) / 2; if (1 - pt(mid, df) > p) lo = mid; else hi = mid; }
+    return (lo + hi) / 2;
+  }
+  function dnorm(z) { return Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI); }
+  function dt(t, df) { return Math.exp(lgamma((df + 1) / 2) - lgamma(df / 2) - 0.5 * Math.log(df * Math.PI) - (df + 1) / 2 * Math.log(1 + t * t / df)); }
+  /* seeded RNG (mulberry32) with Box-Muller normals */
+  function rng(seed) {
+    let a = seed >>> 0, spare = null;
+    const u = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const n = () => { if (spare !== null) { const s = spare; spare = null; return s; } let x; do { x = u(); } while (x === 0); const y = u(); const r = Math.sqrt(-2 * Math.log(x)); spare = r * Math.sin(2 * Math.PI * y); return r * Math.cos(2 * Math.PI * y); };
+    return { u, n };
+  }
+  return { pnorm, qnorm, pt, qtUpper, dnorm, dt, rng };
+})();
+/*STATS-END*/
+
+/* Shared helpers: number formatting, input parsing and a small SVG plotter */
+const TM = {
+  $(id) { return document.getElementById(id); },
+  num(v, d) {
+    if (!Number.isFinite(v)) return String(v);
+    const r = Number(v.toFixed(d === undefined ? 3 : d));
+    return String(r);
+  },
+  p(v) {
+    if (v >= 0.01) return v.toFixed(3);
+    if (v >= 0.0001) return v.toFixed(4);
+    return "&lt; 0.0001";
+  },
+  read(el, opts) {
+    const raw = el.value.trim().replace(",", ".");
+    if (raw === "") return { e: `${opts.name} boş. Bir sayı yaz (ondalık için nokta: 3.30).` };
+    const v = Number(raw);
+    if (!Number.isFinite(v)) return { e: `${opts.name} bir sayı olmalı.` };
+    if (opts.int && !Number.isInteger(v)) return { e: `${opts.name} tam sayı olmalı.` };
+    if (opts.min !== undefined && (opts.strict ? v <= opts.min : v < opts.min)) return { e: opts.low };
+    if (opts.max !== undefined && v > opts.max) return { e: opts.high };
+    return { v };
+  },
+  /* plot({xmin, xmax, ymax, curves, fills, vlines, ticks, xlabel, bars}) → SVG string */
+  plot(o) {
+    const W = 480, H = o.h || 200, L = 12, R = 12, T = 22, B = 34;
+    const X = x => L + (x - o.xmin) / (o.xmax - o.xmin) * (W - L - R);
+    const Y = y => H - B - y / o.ymax * (H - B - T);
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria || "grafik"}" style="font-family:'Inter Tight',sans-serif">`;
+    (o.bars || []).forEach(b => {
+      const x0 = X(b.a), x1 = X(b.b), y = Y(b.y);
+      s += `<rect x="${x0 + 0.5}" y="${y}" width="${Math.max(0.5, x1 - x0 - 1)}" height="${Math.max(0, H - B - y)}" style="fill:${b.color}"/>`;
+    });
+    (o.fills || []).forEach(f => {
+      const a = Math.max(f.a, o.xmin), b = Math.min(f.b, o.xmax);
+      if (b <= a) return;
+      let d = `M${X(a)},${Y(0)}`;
+      for (let i = 0; i <= 80; i++) { const x = a + (b - a) * i / 80; d += ` L${X(x)},${Y(Math.min(f.f(x), o.ymax))}`; }
+      d += ` L${X(b)},${Y(0)} Z`;
+      s += `<path d="${d}" style="fill:${f.color};opacity:${f.opacity || 0.55}"/>`;
+    });
+    (o.curves || []).forEach(c => {
+      let d = "";
+      for (let i = 0; i <= 240; i++) { const x = o.xmin + (o.xmax - o.xmin) * i / 240; d += (i ? " L" : "M") + X(x).toFixed(1) + "," + Y(Math.min(c.f(x), o.ymax)).toFixed(1); }
+      s += `<path d="${d}" style="fill:none;stroke:${c.color};stroke-width:${c.width || 2.2}${c.dash ? ";stroke-dasharray:6 4" : ""}"/>`;
+    });
+    (o.hlines || []).forEach(h => {
+      s += `<line x1="${L}" x2="${W - R}" y1="${Y(h.y)}" y2="${Y(h.y)}" style="stroke:${h.color};stroke-width:1.4;stroke-dasharray:5 4"/>`;
+      if (h.label) s += `<text x="${W - R}" y="${Y(h.y) - 4}" text-anchor="end" font-size="12" style="fill:${h.color}">${h.label}</text>`;
+    });
+    s += `<line x1="${L}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}" style="stroke:var(--fg-muted);stroke-width:1"/>`;
+    (o.ticks || []).forEach(t => {
+      s += `<line x1="${X(t)}" x2="${X(t)}" y1="${Y(0)}" y2="${Y(0) + 4}" style="stroke:var(--fg-muted)"/>`;
+      s += `<text x="${X(t)}" y="${Y(0) + 17}" text-anchor="middle" font-size="12" style="fill:var(--fg-muted)">${o.tickFmt ? o.tickFmt(t) : t}</text>`;
+    });
+    (o.vlines || []).forEach((v, i) => {
+      if (v.x < o.xmin || v.x > o.xmax) return;
+      s += `<line x1="${X(v.x)}" x2="${X(v.x)}" y1="${T - 6}" y2="${Y(0)}" style="stroke:${v.color};stroke-width:${v.width || 1.6}${v.dash ? ";stroke-dasharray:4 3" : ""}"/>`;
+      if (v.label) {
+        const anchor = X(v.x) > W - 70 ? "end" : X(v.x) < 70 ? "start" : "middle";
+        s += `<text x="${X(v.x)}" y="${T - 9 + (v.row || 0) * 13}" text-anchor="${anchor}" font-size="12" font-weight="700" style="fill:${v.color}">${v.label}</text>`;
+      }
+    });
+    if (o.xlabel) s += `<text x="${W / 2}" y="${H - 3}" text-anchor="middle" font-size="12" style="fill:var(--fg-muted)">${o.xlabel}</text>`;
+    return s + `</svg>`;
+  },
+  ORANGE: "var(--accent)",
+  BLUE: "var(--blue-600)",
+  LIGHT: "var(--blue-300)",
+  INK: "var(--fg)"
+};
+
+/* 1. How surprising is 62.4? Simulate sample means of 120 requests under mu = 60 */
+(function () {
+  const run = TM.$("w1-run"), out = TM.$("w1-out"), plotEl = TM.$("w1-plot"), err = TM.$("w1-err"), g = TM.$("w1-guess");
+  run.addEventListener("click", () => {
+    let guess = null;
+    if (g.value.trim() !== "") {
+      const r = TM.read(g, { name: "Tahmin", min: 0, max: 100, low: "Tahmin 0 ile 100 arasında bir yüzde olmalı.", high: "Tahmin 0 ile 100 arasında bir yüzde olmalı." });
+      if (r.e) { err.textContent = r.e; return; }
+      guess = r.v;
+    }
+    err.textContent = "";
+    const R = ST.rng(321), N = 20000, n = 120, lo = 56.5, hi = 63.5, K = 56;
+    const counts = new Array(K).fill(0);
+    let hit = 0;
+    for (let i = 0; i < N; i++) {
+      let s = 0;
+      for (let j = 0; j < n; j++) s += 60 + 10.9 * R.n();
+      const m = s / n;
+      if (m >= 62.4) hit++;
+      const k = Math.floor((m - lo) / (hi - lo) * K);
+      if (k >= 0 && k < K) counts[k]++;
+    }
+    const w = (hi - lo) / K, top = Math.max(...counts);
+    const bars = counts.map((c, k) => ({ a: lo + k * w, b: lo + (k + 1) * w, y: c, color: lo + k * w >= 62.4 - 1e-9 ? TM.ORANGE : TM.LIGHT }));
+    plotEl.hidden = false;
+    plotEl.innerHTML = TM.plot({ xmin: lo, xmax: hi, ymax: top * 1.12, bars, ticks: [57, 58, 59, 60, 61, 62, 63],
+      vlines: [{ x: 62.4, color: TM.ORANGE, label: "gözlenen 62.4" }], xlabel: "μ = 60 iken 120 request'in sample mean'i (ms)", aria: "sample mean histogram'ı" });
+    const pct = 100 * hit / N;
+    let msg = `<p>20 000 sample'ın <b>${hit}</b> tanesinde (%${TM.num(pct, 2)}) $\\bar x \\ge 62.4$ çıktı. Formül de aynı şeyi söylüyor: $P(Z \\ge 2.41) = 0.0080$, yani %0.80. Gerçek mean 60 olsaydı, 62.4 kadar yüksek bir sample mean yaklaşık 125 sample'da 1 görülürdü.</p>`;
+    if (guess !== null) msg += `<p>Senin tahminin: %${TM.num(guess, 2)}. ${Math.abs(guess - pct) < 0.5 ? "Çok yakın." : guess > pct ? "Simülasyon daha küçük çıktı: 120 gözlemin mean'i 60'ın çevresinde dar bir aralıkta oynar ($SE \\approx 1$ ms)." : "Simülasyon daha büyük çıktı."}</p>`;
+    out.innerHTML = msg;
+    Lab.renderMath(out);
+  });
+})();
+
+/* 2. Trade-off: alpha, beta and n for the response-time cut-off (true mean 62.5) */
+(function () {
+  const sel = TM.$("w2-alpha"), nIn = TM.$("w2-n"), plotEl = TM.$("w2-plot"), out = TM.$("w2-out"), err = TM.$("w2-err");
+  function draw() {
+    const r = TM.read(nIn, { name: "n", int: true, min: 10, max: 5000, low: "n en az 10 olsun: daha küçük n'de bu örnek için z test zaten uygun değil.", high: "n en fazla 5000 olsun: eğriler çizgiye dönüşüyor." });
+    if (r.e) { err.textContent = r.e; plotEl.innerHTML = ""; out.innerHTML = ""; return; }
+    err.textContent = "";
+    const n = r.v, a = Number(sel.value), se = 10.9 / Math.sqrt(n), zc = ST.qnorm(1 - a), cut = 60 + zc * se;
+    const beta = ST.pnorm((cut - 62.5) / se);
+    const f0 = x => ST.dnorm((x - 60) / se) / se, f1 = x => ST.dnorm((x - 62.5) / se) / se;
+    const xmin = 60 - 3.8 * se, xmax = 62.5 + 3.8 * se, ymax = f0(60) * 1.15;
+    const ticks = []; const step = (xmax - xmin) > 12 ? 4 : (xmax - xmin) > 6 ? 2 : 1;
+    for (let t = Math.ceil(xmin / step) * step; t <= xmax; t += step) ticks.push(t);
+    plotEl.innerHTML = TM.plot({ xmin, xmax, ymax, ticks,
+      fills: [{ f: f1, a: xmin, b: cut, color: TM.LIGHT, opacity: 0.6 }, { f: f0, a: cut, b: xmax, color: TM.ORANGE, opacity: 0.85 }],
+      curves: [{ f: f0, color: TM.BLUE }, { f: f1, color: TM.BLUE, dash: true }],
+      vlines: [{ x: cut, color: TM.INK, dash: true, label: "cut-off " + TM.num(cut, 2) }],
+      xlabel: "sample mean (ms) · düz: μ = 60, kesikli: μ = 62.5", aria: "alpha beta trade-off" });
+    out.innerHTML = `<p>$SE = 10.9/\\sqrt{${n}} = ${TM.num(se, 3)}$ ms. Cut-off $= 60 + ${TM.num(zc, 3)} \\times ${TM.num(se, 3)} = ${TM.num(cut, 2)}$. Turuncu alan $\\alpha = ${a}$ (H₀ doğruyken reject). Mavi alan $\\beta \\approx ${TM.num(beta, 3)}$ (gerçek mean 62.5 iken fail to reject).</p>`;
+    Lab.renderMath(out);
+  }
+  sel.addEventListener("change", draw);
+  TM.$("w2-go").addEventListener("click", draw);
+  nIn.addEventListener("keydown", e => { if (e.key === "Enter") draw(); });
+  document.querySelectorAll("[data-w2n]").forEach(b => b.addEventListener("click", () => { nIn.value = b.dataset.w2n; draw(); }));
+  draw();
+})();
+
+/* 3. Rejection region on the standard normal for a chosen alpha and tail */
+(function () {
+  const aSel = TM.$("w3-alpha"), tSel = TM.$("w3-tail"), plotEl = TM.$("w3-plot"), out = TM.$("w3-out");
+  function draw() {
+    const a = Number(aSel.value), tail = tSel.value;
+    const c = tail === "ne" ? ST.qnorm(1 - a / 2) : ST.qnorm(1 - a);
+    const fills = [], vlines = [];
+    if (tail !== "lt") { fills.push({ f: ST.dnorm, a: c, b: 4, color: TM.ORANGE, opacity: 0.85 }); vlines.push({ x: c, color: TM.ORANGE, label: TM.num(c, 3) }); }
+    if (tail !== "gt") { fills.push({ f: ST.dnorm, a: -4, b: -c, color: TM.ORANGE, opacity: 0.85 }); vlines.push({ x: -c, color: TM.ORANGE, label: "−" + TM.num(c, 3) }); }
+    plotEl.innerHTML = TM.plot({ xmin: -4, xmax: 4, ymax: 0.45, fills, curves: [{ f: ST.dnorm, color: TM.BLUE }], vlines, ticks: [-3, -2, -1, 0, 1, 2, 3], tickFmt: t => String(t).replace("-", "−"), xlabel: 'z (H<tspan dy=3 font-size=9>0</tspan><tspan dy=-3> </tspan>doğruyken standard normal)', aria: "rejection region" });
+    const rr = tail === "gt" ? `$z &gt; ${TM.num(c, 3)}$` : tail === "lt" ? `$z &lt; -${TM.num(c, 3)}$` : `$z &lt; -${TM.num(c, 3)}$ or $z &gt; ${TM.num(c, 3)}$`;
+    const area = tail === "ne" ? `her kuyrukta $\\alpha/2 = ${TM.num(a / 2, 3)}$, toplam ${a}` : `tek kuyrukta ${a}`;
+    out.innerHTML = `<p>Rejection region: ${rr}. Turuncu alan: ${area}. Bu alan, H₀ doğruyken reject etme olasılığı, yani $P(\\text{Type I error}) = ${a}$.</p>`;
+    Lab.renderMath(out);
+  }
+  aSel.addEventListener("change", draw); tSel.addEventListener("change", draw);
+  draw();
+})();
+
+/* 4. Many tests: p-value histograms when H0 is true or false (slide 18), as a stepper */
+(function () {
+  const muSel = TM.$("w4-mu"), aSel = TM.$("w4-alpha");
+  let box = TM.$("w4-stepper");
+  function build() {
+    const mu = Number(muSel.value), a = Number(aSel.value), n = 20, TOT = 10000;
+    const R = ST.rng(1800 + Math.round(mu * 10));
+    const ps = new Float64Array(TOT);
+    for (let i = 0; i < TOT; i++) {
+      let s = 0;
+      for (let j = 0; j < n; j++) s += mu + R.n();
+      const z = (s / n) / (1 / Math.sqrt(n));
+      ps[i] = 2 * (1 - ST.pnorm(Math.abs(z)));
+    }
+    const sizes = [20, 100, 1000, 10000];
+    const frames = sizes.map(N => {
+      let k = 0;
+      for (let i = 0; i < N; i++) if (ps[i] < a) k++;
+      const pct = 100 * k / N;
+      let cap = `İlk <b>${N}</b> test: $p &lt; ${a}$ olan <b>${k}</b> test (%${TM.num(pct, 1)}).`;
+      cap += mu === 0 ? ` H₀ doğru, beklenen oran %${TM.num(100 * a, 0)}: bunların hepsi false alarm (Type I error).` : ` H₀ yanlış (gerçek μ = ${mu}). Bu oran testin power'ı: gerçek etkiyi yakalayan testlerin payı.`;
+      if (N === 20 && mu === 0) cap += " Yirmi testte bir false alarm beklenir; az test varken sayı çok oynar.";
+      return { N, caption: cap };
+    });
+    const fresh = box.cloneNode(false);
+    box.replaceWith(fresh); box = fresh;
+    Lab.stepper(box, {
+      title: `n = 20, σ = 1, gerçek μ = ${mu}, two-sided z test, α = ${a}`,
+      interval: 1500,
+      frames,
+      render(f, idx, el) {
+        const counts = new Array(20).fill(0);
+        for (let i = 0; i < f.N; i++) counts[Math.min(19, Math.floor(ps[i] * 20))]++;
+        const exp = f.N / 20, top = Math.max(exp, ...counts) * 1.15;
+        const bars = counts.map((c, k) => ({ a: k / 20, b: (k + 1) / 20, y: c, color: (k + 1) / 20 <= a + 1e-9 ? TM.ORANGE : TM.LIGHT }));
+        el.innerHTML = `<div class="w-tests-for-a-mean-plot">` + TM.plot({ xmin: 0, xmax: 1, ymax: top, bars, ticks: [0, 0.2, 0.4, 0.6, 0.8, 1], hlines: [{ y: exp, color: TM.INK, label: 'H<tspan dy=3 font-size=9>0</tspan><tspan dy=-3> </tspan>doğruyken beklenen yükseklik' }], xlabel: "p-value (çubuk genişliği 0.05)", aria: "p-value histogram" }) + `</div>`;
+      }
+    });
+  }
+  TM.$("w4-go").addEventListener("click", build);
+  muSel.addEventListener("change", build); aSel.addEventListener("change", build);
+  build();
+})();
+
+/* 5. t versus z: densities, critical values and one t-table row for a chosen df */
+const TT = {
+  COLS: [0.10, 0.05, 0.025, 0.01, 0.005, 0.001, 0.0005],
+  LAB: [".10", ".05", ".025", ".01", ".005", ".001", ".0005"],
+  row(df) { return TT.COLS.map(a => ST.qtUpper(a, df)); },
+  head() { return `<tr><th>df</th>${TT.LAB.map(l => `<th>${l}</th>`).join("")}</tr>`; }
+};
+(function () {
+  const dIn = TM.$("w5-df"), dR = TM.$("w5-dfr"), plotEl = TM.$("w5-plot"), rowEl = TM.$("w5-row"), err = TM.$("w5-err");
+  function draw() {
+    const r = TM.read(dIn, { name: "df", int: true, min: 1, max: 1000, low: "df en az 1 olmalı (df = n − 1 ve n ≥ 2).", high: "df en fazla 1000 olsun: o noktada t ile z ayırt edilemez." });
+    if (r.e) { err.textContent = r.e; plotEl.innerHTML = ""; rowEl.innerHTML = ""; return; }
+    err.textContent = "";
+    const df = r.v; if (df <= 60) dR.value = df;
+    const tc = ST.qtUpper(0.025, df), zc = ST.qnorm(0.975);
+    plotEl.innerHTML = TM.plot({ xmin: -5, xmax: 5, ymax: 0.44, ticks: [-4, -2, 0, 2, 4], tickFmt: t => String(t).replace("-", "−"),
+      curves: [{ f: ST.dnorm, color: TM.BLUE }, { f: x => ST.dt(x, df), color: TM.ORANGE }],
+      vlines: [{ x: zc, color: TM.BLUE, dash: true, label: "1.960" }, { x: -zc, color: TM.BLUE, dash: true }, { x: tc, color: TM.ORANGE, dash: true, label: TM.num(tc, 3), row: 1.2 }, { x: -tc, color: TM.ORANGE, dash: true }],
+      xlabel: `mavi: standard normal · turuncu: t, ${df} df`, aria: "t ve z yoğunlukları" });
+    const vals = TT.row(df);
+    rowEl.innerHTML = `<table class="w-tests-for-a-mean-tt">${TT.head()}<tr><td>${df}</td>${vals.map(v => `<td>${v.toFixed(3)}</td>`).join("")}</tr><tr><td>z (∞)</td>${TT.COLS.map(a => `<td>${ST.qnorm(1 - a).toFixed(3)}</td>`).join("")}</tr></table><p class="src" style="margin:4px 0">Sütun başlığı: upper-tail alan. Two-tailed α = 0.05 için .025 sütunu: t = ${tc.toFixed(3)}, z = 1.960, fark ${(tc - zc).toFixed(3)}.</p>`;
+  }
+  dR.addEventListener("input", () => { dIn.value = dR.value; draw(); });
+  dIn.addEventListener("change", draw);
+  dIn.addEventListener("keydown", e => { if (e.key === "Enter") draw(); });
+  document.querySelectorAll("[data-w5df]").forEach(b => b.addEventListener("click", () => { dIn.value = b.dataset.w5df; draw(); }));
+  draw();
+})();
+
+/* 6. Bounding p from the t table, with a random-question mode */
+(function () {
+  const tIn = TM.$("w6-t"), dIn = TM.$("w6-df"), tailSel = TM.$("w6-tail"), out = TM.$("w6-out"), err = TM.$("w6-err");
+  const ask = TM.$("w6-ask"), pick = TM.$("w6-pick");
+  const L1 = ["p &gt; .10", ".05 &lt; p &lt; .10", ".025 &lt; p &lt; .05", ".01 &lt; p &lt; .025", ".005 &lt; p &lt; .01", ".001 &lt; p &lt; .005", ".0005 &lt; p &lt; .001", "p &lt; .0005"];
+  const L2 = ["p &gt; .20", ".10 &lt; p &lt; .20", ".05 &lt; p &lt; .10", ".02 &lt; p &lt; .05", ".01 &lt; p &lt; .02", ".002 &lt; p &lt; .01", ".001 &lt; p &lt; .002", "p &lt; .001"];
+  const R = ST.rng(2026);
+  let quiz = null;
+  function solve() {
+    const a = TM.read(tIn, { name: "|t|", min: 0, max: 50, low: "|t| negatif olamaz: işareti at, mutlak değeri yaz.", high: "|t| en fazla 50 olsun." });
+    const b = TM.read(dIn, { name: "df", int: true, min: 1, max: 1000, low: "df en az 1 olmalı.", high: "df en fazla 1000 olsun." });
+    const e = [a, b].filter(x => x.e).map(x => x.e);
+    if (e.length) { err.innerHTML = e.join("<br>"); return null; }
+    err.textContent = "";
+    const t = a.v, df = b.v, two = tailSel.value === "2", vals = TT.row(df);
+    let k = 0; while (k < vals.length && t >= vals[k]) k++;
+    const p1 = 1 - ST.pt(t, df);
+    return { t, df, two, vals, k, p: two ? 2 * p1 : p1 };
+  }
+  function show(s) {
+    const lab = s.two ? L2 : L1;
+    const cells = s.vals.map((v, i) => `<td class="${i === s.k - 1 || i === s.k ? "is-hit" : ""}">${v.toFixed(3)}</td>`).join("");
+    let why;
+    if (s.k === 0) why = `$${TM.num(s.t)} &lt; ${s.vals[0].toFixed(3)}$: en soldaki sütunun da solunda, tek kuyruk alanı .10'dan büyük.`;
+    else if (s.k === s.vals.length) why = `$${TM.num(s.t)} \\ge ${s.vals[6].toFixed(3)}$: en sağdaki sütunu da geçiyor, tek kuyruk alanı .0005'ten küçük.`;
+    else why = `$${s.vals[s.k - 1].toFixed(3)} \\le ${TM.num(s.t)} &lt; ${s.vals[s.k].toFixed(3)}$: sütunlar ${TT.LAB[s.k - 1]} ve ${TT.LAB[s.k]}, tek kuyruk alanı bu ikisinin arasında.`;
+    out.innerHTML = `<div class="table-wrap"><table class="w-tests-for-a-mean-tt">${TT.head()}<tr><td>${s.df}</td>${cells}</tr></table></div>
+      <p>${why}${s.two ? " Two-tailed: iki sınırı da 2 ile çarp." : ""}</p>
+      <p><b>${lab[s.k]}</b> · kesin değer (t CDF): p = ${TM.p(s.p)}</p>`;
+    Lab.renderMath(out);
+  }
+  TM.$("w6-go").addEventListener("click", () => { quiz = null; ask.hidden = true; const s = solve(); if (s) show(s); });
+  TM.$("w6-rand").addEventListener("click", () => {
+    const dfs = [4, 5, 8, 9, 11, 14, 15, 20, 24, 29];
+    const df = dfs[Math.floor(R.u() * dfs.length)], two = R.u() < 0.5;
+    const t = Math.round((0.9 + R.u() * 3.6) * 100) / 100;
+    tIn.value = String(t); dIn.value = String(df); tailSel.value = two ? "2" : "1";
+    quiz = solve();
+    if (!quiz) return;
+    pick.innerHTML = `<option value="">seç…</option>` + (two ? L2 : L1).map((l, i) => `<option value="${i}">${l}</option>`).join("");
+    ask.hidden = false;
+    out.innerHTML = `<p>Soru: $|t| = ${TM.num(t)}$, ${df} df, ${two ? "two-tailed" : "one-tailed"}. p hangi aralıkta? (Bölüm 8'deki ilk widget'ta df = ${df} satırını açabilirsin.)</p>`;
+    Lab.renderMath(out);
+  });
+  TM.$("w6-check").addEventListener("click", () => {
+    if (!quiz) return;
+    if (pick.value === "") { err.textContent = "Önce bir aralık seç."; return; }
+    err.textContent = "";
+    const ok = Number(pick.value) === quiz.k;
+    show(quiz);
+    out.insertAdjacentHTML("afterbegin", `<p class="${ok ? "w-tests-for-a-mean-ok" : "w-tests-for-a-mean-no"}">${ok ? "Doğru." : "Değil. Doğru aralık aşağıda; işaretli iki hücreye bak."}</p>`);
+    quiz = null; ask.hidden = true;
+  });
+  const s0 = solve(); if (s0) show(s0);
+})();
+
+/* 7. Normal Q-Q plot with Filliben plotting positions (as scipy.stats.probplot) */
+(function () {
+  const ta = TM.$("w7-data"), plotEl = TM.$("w7-plot"), out = TM.$("w7-out"), err = TM.$("w7-err");
+  const REG = "3.31, 3.35, 3.29, 3.33, 3.30, 3.36, 3.32, 3.28, 3.34, 3.31, 3.33, 3.32";
+  function draw() {
+    const parts = ta.value.split(/[\s,;]+/).filter(x => x !== "");
+    const xs = parts.map(Number);
+    if (parts.length < 3) { err.textContent = "En az 3 sayı gir (virgül ya da boşlukla ayır)."; plotEl.innerHTML = ""; out.innerHTML = ""; return; }
+    if (parts.length > 500) { err.textContent = "En fazla 500 sayı."; return; }
+    const bad = parts.filter((p, i) => !Number.isFinite(xs[i]));
+    if (bad.length) { err.textContent = `Sayı olmayan değer(ler): ${bad.slice(0, 3).join(", ")}. Ondalık için nokta kullan.`; plotEl.innerHTML = ""; out.innerHTML = ""; return; }
+    err.textContent = "";
+    const n = xs.length, y = xs.slice().sort((a, b) => a - b);
+    const m = new Array(n);
+    m[n - 1] = Math.pow(0.5, 1 / n); m[0] = 1 - m[n - 1];
+    for (let i = 2; i < n; i++) m[i - 1] = (i - 0.3175) / (n + 0.365);
+    const q = m.map(ST.qnorm);
+    const mq = q.reduce((s, v) => s + v, 0) / n, my = y.reduce((s, v) => s + v, 0) / n;
+    let sxy = 0, sxx = 0; for (let i = 0; i < n; i++) { sxy += (q[i] - mq) * (y[i] - my); sxx += (q[i] - mq) ** 2; }
+    const slope = sxy / sxx, icpt = my - slope * mq;
+    const D = Math.max(2.2, -q[0], q[n - 1]) + 0.3;
+    const ymin = Math.min(y[0], icpt - slope * D), ymax = Math.max(y[n - 1], icpt + slope * D);
+    const pad = (ymax - ymin) * 0.08 || 1;
+    const W = 480, H = 230, L = 52, Rr = 12, T = 12, B = 36;
+    const X = v => L + (v + D) / (2 * D) * (W - L - Rr), Y = v => H - B - (v - (ymin - pad)) / ((ymax + pad) - (ymin - pad)) * (H - B - T);
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Q-Q plot" style="font-family:'Inter Tight',sans-serif">`;
+    s += `<line x1="${L}" x2="${W - Rr}" y1="${H - B}" y2="${H - B}" style="stroke:var(--fg-muted)"/><line x1="${L}" x2="${L}" y1="${T}" y2="${H - B}" style="stroke:var(--fg-muted)"/>`;
+    for (let t = -Math.floor(D); t <= Math.floor(D); t++) { s += `<text x="${X(t)}" y="${H - B + 16}" text-anchor="middle" font-size="12" style="fill:var(--fg-muted)">${String(t).replace("-", "−")}</text>`; }
+    for (let k = 0; k <= 3; k++) { const v = ymin - pad + k * ((ymax + pad) - (ymin - pad)) / 3; s += `<text x="${L - 5}" y="${Y(v) + 4}" text-anchor="end" font-size="11" style="fill:var(--fg-muted)">${TM.num(v, 3)}</text>`; }
+    s += `<line x1="${X(-D)}" x2="${X(D)}" y1="${Y(icpt - D * slope)}" y2="${Y(icpt + D * slope)}" style="stroke:var(--accent);stroke-width:2"/>`;
+    q.forEach((qq, i) => { s += `<circle cx="${X(qq)}" cy="${Y(y[i])}" r="4.5" style="fill:var(--blue-800)"/>`; });
+    s += `<text x="${(L + W - Rr) / 2}" y="${H - 4}" text-anchor="middle" font-size="12" style="fill:var(--fg-muted)">normal quantile</text></svg>`;
+    plotEl.innerHTML = s;
+    out.innerHTML = `<p>n = ${n}. Turuncu doğru (least squares): kesişim ${TM.num(icpt, 4)}, eğim ${TM.num(slope, 4)}. Veri normalse kesişim yaklaşık mean'i, eğim yaklaşık standard deviation'ı verir (bu veride $\\bar x$ = ${TM.num(my, 4)}). Karar senin: noktalar çizgi boyunca mı diziliyor, yoksa bir eğri ya da tek başına uzak bir nokta mı var?</p>`;
+    Lab.renderMath(out);
+  }
+  TM.$("w7-go").addEventListener("click", draw);
+  TM.$("w7-reg").addEventListener("click", () => { ta.value = REG; draw(); });
+  TM.$("w7-skew").addEventListener("click", () => {
+    const R = ST.rng(25);
+    ta.value = Array.from({ length: 12 }, () => (-Math.log(1 - R.u())).toFixed(2)).join(", ");
+    draw();
+  });
+  draw();
+})();
+
+/* 8. Test console: picks z / t / neither by slide 26, draws the reference curve, writes the four steps */
+(function () {
+  const F = { xbar: TM.$("w8-xbar"), s: TM.$("w8-s"), n: TM.$("w8-n"), mu0: TM.$("w8-mu0") };
+  const ha = TM.$("w8-ha"), aSel = TM.$("w8-alpha"), norm = TM.$("w8-normal"), plotEl = TM.$("w8-plot"), out = TM.$("w8-out"), err = TM.$("w8-err");
+  const PRESETS = {
+    resp: { xbar: 62.4, s: 10.9, n: 120, mu0: 60, ha: "gt", a: "0.05", normal: false, what: "the mean response time", unit: " ms" },
+    reg: { xbar: "3.320", s: "0.0237", n: 12, mu0: "3.30", ha: "ne", a: "0.05", normal: true, what: "the regulator's mean output", unit: " V" },
+    engine: { xbar: 17.57, s: 2.95, n: 10, mu0: 20, ha: "lt", a: "0.01", normal: true, what: "the mean emission level", unit: " ppm" },
+    pipe: { xbar: 2460, s: 200, n: 50, mu0: 2400, ha: "gt", a: "0.05", normal: false, what: "the mean breaking strength", unit: " pounds per linear foot" }
+  };
+  let ctx = { what: "the population mean", unit: "" };
+  const VERB = { gt: "exceeds", lt: "is below", ne: "differs from" };
+  const SIGN = { gt: "&gt;", lt: "&lt;", ne: "\\ne" };
+  function run() {
+    const r = {
+      xbar: TM.read(F.xbar, { name: "x̄" }),
+      s: TM.read(F.s, { name: "s", min: 0, strict: true, low: "s sıfırdan büyük olmalı: standard deviation negatif ya da sıfır olamaz." }),
+      n: TM.read(F.n, { name: "n", int: true, min: 2, max: 1000000, low: "n en az 2 olmalı: tek gözlemle s hesaplanamaz.", high: "n en fazla 1 000 000 olsun." }),
+      mu0: TM.read(F.mu0, { name: "μ₀" })
+    };
+    const e = Object.values(r).filter(x => x.e).map(x => x.e);
+    if (e.length) { err.innerHTML = e.join("<br>"); plotEl.innerHTML = ""; out.innerHTML = "Değerleri düzeltince sonuç burada görünecek."; return; }
+    err.textContent = "";
+    const xbar = r.xbar.v, s = r.s.v, n = r.n.v, mu0 = r.mu0.v, H = ha.value, a = Number(aSel.value);
+    /* show the numbers as typed (3.30 stays 3.30) */
+    const raw = k => F[k].value.trim().replace(",", ".");
+    const st2 = v => v.toFixed(2).replace("-", "−");
+    const se = s / Math.sqrt(n), stat = (xbar - mu0) / se, df = n - 1;
+    const kind = n >= 30 ? "z" : norm.checked ? "t" : "none";
+    const tag = kind === "z" ? `<span class="w-tests-for-a-mean-tag">z test</span>` : kind === "t" ? `<span class="w-tests-for-a-mean-tag is-t">t test, ${df} df</span>` : `<span class="w-tests-for-a-mean-tag is-none">neither</span>`;
+    const hyp = `$H_0: \\mu = ${raw("mu0")}$, $H_a: \\mu ${SIGN[H]} ${raw("mu0")}$ (${H === "gt" ? "upper-tailed" : H === "lt" ? "lower-tailed" : "two-tailed"}).`;
+    const calc = `$${kind === "t" ? "t" : "z"} = \\dfrac{${raw("xbar")} - ${raw("mu0")}}{${raw("s")}/\\sqrt{${n}}} = \\dfrac{${TM.num(xbar - mu0, 4)}}{${TM.num(se, 4)}} = ${st2(stat)}$`;
+    if (kind === "none") {
+      plotEl.innerHTML = "";
+      out.innerHTML = `<p>${tag} $n = ${n} &lt; 30$ ve population normal değil (kutu işaretsiz). Slayt 26: <b>neither</b>. Ne z ne t'nin p-value'suna güvenilir; nonparametric bir test (Week 14) ya da bootstrap gerekir.</p><ol><li><b>Hypotheses:</b> ${hyp}</li><li><b>Condition:</b> sağlanmıyor. Statistic hesaplanabilir (${calc}), ama referans dağılımı belli değil.</li></ol>`;
+      Lab.renderMath(out);
+      return;
+    }
+    const tailP = x => kind === "z" ? 1 - ST.pnorm(x) : 1 - ST.pt(x, df);
+    const dens = kind === "z" ? ST.dnorm : x => ST.dt(x, df);
+    const crit = kind === "z" ? ST.qnorm(1 - (H === "ne" ? a / 2 : a)) : ST.qtUpper(H === "ne" ? a / 2 : a, df);
+    const p = H === "gt" ? tailP(stat) : H === "lt" ? tailP(-stat) : 2 * tailP(Math.abs(stat));
+    const inRR = H === "gt" ? stat > crit : H === "lt" ? stat < -crit : Math.abs(stat) > crit;
+    const reject = p <= a;
+    const lim = Math.min(8, Math.max(4, Math.abs(stat) + 1, crit + 1));
+    const fills = [], vlines = [];
+    if (H !== "lt") fills.push({ f: dens, a: crit, b: lim, color: TM.ORANGE, opacity: 0.8 });
+    if (H !== "gt") fills.push({ f: dens, a: -lim, b: -crit, color: TM.ORANGE, opacity: 0.8 });
+    if (H === "gt") fills.push({ f: dens, a: stat, b: lim, color: TM.BLUE, opacity: 0.45 });
+    if (H === "lt") fills.push({ f: dens, a: -lim, b: stat, color: TM.BLUE, opacity: 0.45 });
+    if (H === "ne") { fills.push({ f: dens, a: Math.abs(stat), b: lim, color: TM.BLUE, opacity: 0.45 }); fills.push({ f: dens, a: -lim, b: -Math.abs(stat), color: TM.BLUE, opacity: 0.45 }); }
+    const sx = Math.max(-lim + 0.05, Math.min(lim - 0.05, stat));
+    vlines.push({ x: sx, color: TM.INK, width: 2.2, label: `${kind} = ${st2(stat)}${Math.abs(stat) > lim ? " (eksenin dışında)" : ""}` });
+    const ticks = []; for (let t = -Math.floor(lim); t <= Math.floor(lim); t += lim > 5 ? 2 : 1) ticks.push(t);
+    plotEl.innerHTML = TM.plot({ xmin: -lim, xmax: lim, ymax: dens(0) * 1.15, fills, curves: [{ f: dens, color: TM.BLUE }], vlines, ticks, tickFmt: t => String(t).replace("-", "−"),
+      xlabel: kind === "z" ? 'z, H<tspan dy=3 font-size=9>0</tspan><tspan dy=-3> </tspan>doğruyken standard normal' : `t, H<tspan dy=3 font-size=9>0</tspan><tspan dy=-3> </tspan>doğruyken ${df} df`, aria: "test statistic'in referans dağılımı" });
+    const rr = H === "gt" ? `${kind} &gt; ${TM.num(crit, 3)}` : H === "lt" ? `${kind} &lt; -${TM.num(crit, 3)}` : `|${kind}| &gt; ${TM.num(crit, 3)}`;
+    const cond = kind === "z" ? `Random sample, $n = ${n} \\ge 30$: CLT, $s$ stands in for $\\sigma$. Software t ile p = ${TM.p(H === "ne" ? 2 * (1 - ST.pt(Math.abs(stat), df)) : 1 - ST.pt(H === "gt" ? stat : -stat, df))} verirdi (neredeyse aynı).` : `Random sample, $n = ${n} &lt; 30$, population yaklaşık normal (Q-Q plot ile kontrol et) ⇒ t, $df = ${df}$.`;
+    const dir = (H === "gt" && stat < 0) || (H === "lt" && stat > 0) ? ` <i>Statistic Hₐ'nın ters yönünde: sample mean'in kendisi bile Hₐ'yı desteklemiyor.</i>` : "";
+    const ev = reject ? "there is sufficient evidence" : "there is not sufficient evidence";
+    const sentence = `At α = ${a} ${ev} that ${ctx.what} ${VERB[H]} ${raw("mu0")}${ctx.unit} (${kind} = ${stat.toFixed(2)}${kind === "t" ? ", df = " + df : ""}, p = ${TM.p(p).replace("&lt; ", "< ")}).`;
+    out.innerHTML = `<p>${tag}</p><ol>
+      <li><b>Hypotheses:</b> ${hyp}</li>
+      <li><b>Condition:</b> ${cond}</li>
+      <li><b>Statistic and p-value:</b> ${calc}. Rejection region (α = ${a}): $${rr}$ ⇒ ${inRR ? "içinde" : "dışında"}. $p = ${TM.p(p)}$ ${reject ? "≤" : "&gt;"} ${a} ⇒ <b>${reject ? "reject H₀" : "fail to reject H₀"}</b>. İki yol aynı kararı veriyor.${dir}</li>
+      <li><b>Conclusion:</b><div class="w-tests-for-a-mean-concl">${sentence}</div></li></ol>`;
+    Lab.renderMath(out);
+  }
+  function load(key) {
+    const P = PRESETS[key];
+    F.xbar.value = P.xbar; F.s.value = P.s; F.n.value = P.n; F.mu0.value = P.mu0;
+    ha.value = P.ha; aSel.value = P.a; norm.checked = P.normal;
+    ctx = { what: P.what, unit: P.unit };
+    run();
+  }
+  Object.values(F).forEach(el => el.addEventListener("input", () => { ctx = { what: "the population mean", unit: "" }; }));
+  Object.values(F).forEach(el => el.addEventListener("keydown", e => { if (e.key === "Enter") run(); }));
+  [ha, aSel, norm].forEach(el => el.addEventListener("change", run));
+  TM.$("w8-go").addEventListener("click", run);
+  document.querySelectorAll("[data-w8p]").forEach(b => b.addEventListener("click", () => load(b.dataset.w8p)));
+  load("resp");
+})();
+</script>
+</body>
+</html>

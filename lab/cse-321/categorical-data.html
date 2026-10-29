@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 321: multinomial experiment, one-way table ile goodness of fit, contingency table ile test of independence; expected count, χ² statistic, df, condition'lar, software çıktısı, Fisher's exact test ve permutation ile simulated p-value." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Categorical data: goodness of fit ve contingency table · CSE 321 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=8" />
+  <style>
+    .w-categorical-data-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-categorical-data-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-categorical-data-ctl label { display: inline-flex; align-items: center; gap: 4px; font-size: .92rem; white-space: nowrap; }
+    .w-categorical-data-ctl input[type="text"] { width: 80px; }
+    .w-categorical-data-ctl select { max-width: 100%; }
+    .w-categorical-data-area { width: 100%; min-width: 0; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: .88rem; min-height: 84px; padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); }
+    .w-categorical-data-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-categorical-data-flag { border-left: 3px solid var(--accent); padding: 6px 10px; margin: 8px 0; background: var(--orange-100); border-radius: var(--radius-sm); font-size: .92rem; }
+    .w-categorical-data-flag.is-ok { border-left-color: #2b8a3e; background: var(--blue-050); }
+    .w-categorical-data-plot { width: 100%; overflow: hidden; }
+    .w-categorical-data-plot svg { display: block; width: 100%; height: auto; }
+    .w-categorical-data-nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; margin: 8px 0; }
+    .w-categorical-data-nums div { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; background: var(--paper); font-size: .86rem; }
+    .w-categorical-data-nums b { display: block; font-family: 'JetBrains Mono', monospace; font-size: 1rem; }
+    .w-categorical-data-tab { border-collapse: collapse; font-size: .84rem; margin: 4px 0; }
+    .w-categorical-data-tab th, .w-categorical-data-tab td { border: 1px solid var(--border); padding: 4px 6px; text-align: center; white-space: nowrap; }
+    .w-categorical-data-tab td small { display: block; font-family: 'JetBrains Mono', monospace; font-size: .74rem; color: var(--fg-muted); }
+    .w-categorical-data-tab td b { font-family: 'JetBrains Mono', monospace; }
+    .w-categorical-data-tab .is-cur { outline: 3px solid var(--accent); outline-offset: -3px; }
+    .w-categorical-data-tab .is-tot { background: var(--blue-100); font-weight: 700; }
+    .w-categorical-data-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: .84rem; margin: 4px 0; }
+    .w-categorical-data-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+    .w-categorical-data-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 96px; gap: 8px; align-items: center; margin: 4px 0; font-size: .86rem; }
+    .w-categorical-data-row > span:last-child { font-family: 'JetBrains Mono', monospace; text-align: right; }
+    .w-categorical-data-bar { position: relative; height: 14px; background: var(--stone-200); border-radius: 4px; overflow: hidden; }
+    .w-categorical-data-bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--blue-600); }
+    .w-categorical-data-bar > em { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--accent); }
+    .w-categorical-data-rel { position: relative; }
+    .w-categorical-data-code { font-family: 'JetBrains Mono', monospace; font-size: .82rem; background: var(--stone-100); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; overflow-x: auto; white-space: pre; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 321</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 321</a> / Categorical data: goodness of fit ve contingency table</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W7 · McClave Ch.13</span><span class="chip">Walpole §10.11–10.13</span><span class="chip chip--exam">Eski vize tabloları + McClave 13.1–13.46</span><span class="src">~61 dk · 12 bölüm</span></div>
+          <h1>Categorical data: goodness of fit ve contingency table</h1>
+          <p class="lead">Şimdiye kadar ölçülen bir sayının (mean, variance) ya da iki kategorili bir değişkenin (proportion) peşindeydin. Bu derste veri <em>sayım</em>: her gözlem birkaç kategoriden birine düşüyor ve kategorilerdeki sayıları sayıyorsun. Tek değişken için "kategori olasılıkları iddia edilen değerlere uyuyor mu?" sorusunu (goodness of fit), iki değişken için "bu iki değişken bağımsız mı?" sorusunu (test of independence) aynı istatistikle cevaplayacaksın: $\chi^2 = \sum (O - E)^2 / E$.</p>
+          <p class="src">Not: Bu haftanın (Week 7) slaytları ve notebook'u repoda yok; konu McClave &amp; Sincich Ch.13 ve Walpole §10.11–10.13 üzerinden anlatıldı. Hocanın örnekleri ve gösterimi biraz farklı olabilir. Repoda bu konuda doğrudan bir χ² sorusu da yok: sınav kutularında McClave'in bölüm içi alıştırmaları ve eski vize kâğıdındaki (ME_A 2023) iki yönlü tabloların χ² için uyarlanmış hâlleri var. Bölüm sonundaki Supplementary Exercises (13.47–13.73) deneme sınavına ayrıldı, onlara bakma. <a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/mcclave-sincich-statistics-13e.pdf" target="_blank" rel="noopener">McClave 13e (PDF) ↗</a></p>
+          <!-- Kaynak: resources/2026-2027-fall/00-course-info.pdf (Week 7 satırı "Categorical data: goodness of fit, contingency tables · Ch. 13"; learning outcome 2 "chi-square ... inference under the appropriate conditions"; "Every classical method paired with its computational counterpart ... permutation tests") · README.md hafta tablosu · 04-hypothesis-testing-ii.pdf slayt 10–14 (chi-square statistic, variance testi, scipy çağrıları) ve slayt 26–27 (Bonferroni, Which One-Sample Test?) · Question Bank 1 slayt 2 (dört adım, kendi tablon) ve son slayt (tablo okuma) · McClave & Sincich 13e Ch.13 (kitap s.799–838, PDF s.801–840), Figure 13.2/13.3/13.5/SIA13.1 görüntüden okundu, cevap anahtarı kitap s.875–876 · Walpole 9e §10.11 Goodness-of-Fit, §10.12 Test for Independence, §10.13 Test for Homogeneity (kitap s.370–379) · exams/practice/ME_A_2023.pdf S1, S7, S10, S19, S23 (aynı kâğıt exams/2024-2025-probability/ fotoğraflarında da var; S19'un tablosu 13.48.29.jpeg'den okundu). Bütün sayılar python3 -I (scipy 1.13) ile kontrol edildi. Question Bank 2 kullanılmadı. -->
+        </header>
+
+        <article class="lesson" data-course="cse-321" data-lesson="categorical-data">
+
+<!-- 1 -->
+<section class="lsec" id="multinomial" data-min="4">
+  <h2>Categorical data ve multinomial experiment</h2>
+  <div class="quiz" id="q-multi-1">
+    <p class="quiz__q">Hangisi bir <strong>multinomial experiment</strong> değildir?</p>
+    <button class="quiz__opt">Rastgele seçilen 200 öğrencinin kan grubunun (A, B, AB, 0) sayılması<span class="why">Bu multinomial: 200 bağımsız deneme, her biri 4 kategoriden birine düşüyor, ilgilendiğin şey 4 kategorideki sayılar.</span></button>
+    <button class="quiz__opt">Üretim hattından rastgele alınan 50 parçanın defective / defective değil diye sayılması<span class="why">Bu da multinomial, sadece $k = 2$. McClave binomial experiment'i "$k = 2$ olan multinomial experiment" diye tanımlıyor.</span></button>
+    <button class="quiz__opt" data-correct>Aynı hastanın kan basıncının bir gün içinde 10 kez ölçülmesi<span class="why">Doğru. Ölçüm quantitative (bir sayı), kategori değil. Üstelik aynı kişinin ölçümleri birbirinden bağımsız değil.</span></button>
+    <button class="quiz__opt">40 NHL oyuncusunun eğitim düzeyinin 5 kategoriye ayrılması<span class="why">McClave Example 13.1: tam olarak bir multinomial experiment. Beş özelliğin hepsi (yaklaşık olarak) sağlanıyor.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · binomial'dan multinomial'a</span>
+    <p>Ch.8'de bir proportion'ı test ettin: her gözlem "evet" ya da "hayır" idi. Gerçek hayatta qualitative (categorical) bir değişkenin çoğu zaman ikiden fazla seviyesi olur: eğitim düzeyi, tercih edilen aday, işletim sistemi, kan grubu. Her gözlem tam bir kategoriye düşer ve elinde kalan veri kategorilerdeki <strong>sayılardır</strong> (counts).</p>
+    <p>McClave'in ilk örneği: rastgele 40 NHL oyuncusunun en yüksek eğitim düzeyi beş kategoriye ayrılıyor (some high school, high school diploma, some college, college degree, graduate degree). Elinde beş sayı var: $n_1, \dots, n_5$, toplamı 40.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Properties of the Multinomial Experiment (McClave §13.1)</span>
+    <ol>
+      <li>Deney $n$ tane özdeş denemeden oluşur (<em>n identical trials</em>).</li>
+      <li>Her denemenin $k$ olası sonucu vardır. Bunlara <em>classes</em>, <em>categories</em> ya da <em>cells</em> denir.</li>
+      <li>$k$ sonucun olasılıkları $p_1, p_2, \dots, p_k$, toplamları $p_1 + p_2 + \dots + p_k = 1$, ve denemeden denemeye değişmez.</li>
+      <li>Denemeler bağımsızdır (<em>independent</em>).</li>
+      <li>İlgilendiğin random variable'lar <em>cell counts</em>'tur: her kategoriye düşen gözlem sayısı $n_1, n_2, \dots, n_k$.</li>
+    </ol>
+    <p>Tek bir qualitative değişkenin sayımlarını gösteren tabloya <strong>one-way table</strong>, iki qualitative değişkene göre sınıflanmış sayımların tablosuna <strong>two-way table</strong> ya da <strong>contingency table</strong> denir. İkisinde de kullanılan istatistik yaklaşık olarak, W4'ten tanıdığın <strong>chi-square</strong> ($\chi^2$) distribution'a uyar.</p>
+  </div>
+  <!-- Kaynak: McClave §13.1 (kitap s.801–802), "Properties of the Multinomial Experiment" kutusu ve Example 13.1. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Cell count'lar birbirinden bağımsız değildir: toplamları $n$'ye sabitlenmiştir. Biri artarsa en az bir diğeri azalır. Bu yüzden McClave, aynı one-way table'daki iki kategoriyi iki bağımsız sample formülüyle (§9.4) karşılaştırmanı yasaklıyor.</li>
+      <li>Veri yüzde olarak verildiyse önce sayıya çevir. Bu dersteki her formül <strong>sayım</strong> ister, proportion değil (Bölüm 10'da nedenini göreceksin).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-multi-2">
+    <p class="quiz__q">150 seçmenden 61'i aday 1'i, 53'ü aday 2'yi tercih etti, herkes üç adaydan birini seçti. Aday 3'ü kaç kişi tercih etti?</p>
+    <button class="quiz__opt" data-correct>36<span class="why">Doğru: $150 - 61 - 53 = 36$. İki sayı belli olunca üçüncüsü zorunlu. Bu "serbest olmayan" hücre birazdan degrees of freedom'u açıklayacak.</span></button>
+    <button class="quiz__opt">Bilinemez; her sayı ayrı bir random variable<span class="why">Her biri random variable ama aralarında bir bağ var: toplamları $n = 150$. Cell count'lar bağımsız değil.</span></button>
+    <button class="quiz__opt">50<span class="why">50, "üç aday eşit tercih ediliyor" hipotezi altında <em>beklenen</em> sayı. Gözlenen sayı toplamdan bulunur.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="chi2-stat" data-min="5">
+  <h2>Expected count ve χ² statistic</h2>
+  <div class="quiz" id="q-stat-1">
+    <p class="quiz__q">150 seçmen, üç aday. $H_0$: adaylar eşit tercih ediliyor ($p_1 = p_2 = p_3 = 1/3$). $H_0$ doğruysa aday 1'i tercih eden sayının beklenen değeri (expected count) kaç?</p>
+    <button class="quiz__opt" data-correct>50<span class="why">Doğru: $E_1 = n p_{1,0} = 150 \cdot \tfrac13 = 50$.</span></button>
+    <button class="quiz__opt">61<span class="why">61 gözlenen sayı ($n_1$). Expected count veriden değil, $H_0$'dan gelir.</span></button>
+    <button class="quiz__opt">1/3<span class="why">Bu olasılık. Expected count bir sayımdır: olasılığı $n$ ile çarp.</span></button>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · McClave Table 13.1, voter preference survey</span>
+    <p>Rastgele 150 seçmen: aday 1 için 61, aday 2 için 53, aday 3 için 36 oy. Soru: seçmenlerin bir adayı tercih ettiğine dair kanıt var mı?</p>
+    <div class="table-wrap"><table>
+      <tr><th>Aday</th><th>1</th><th>2</th><th>3</th><th>Toplam</th></tr>
+      <tr><td>Gözlenen $n_i$</td><td>61</td><td>53</td><td>36</td><td>150</td></tr>
+      <tr><td>Beklenen $E_i$</td><td>50</td><td>50</td><td>50</td><td>150</td></tr>
+      <tr><td>$n_i - E_i$</td><td>11</td><td>3</td><td>−14</td><td>0</td></tr>
+      <tr><td>$(n_i - E_i)^2 / E_i$</td><td>2.42</td><td>0.18</td><td>3.92</td><td><strong>6.52</strong></td></tr>
+    </table></div>
+    <p>Farkları doğrudan toplayamazsın: $\sum (n_i - E_i)$ her zaman 0'dır (iki taraf da 150'ye toplanıyor). Bu yüzden farkların karesi alınır. Sonra her kare kendi $E_i$'sine bölünür: 10 kişilik bir sapma, beklenen 20 iken büyük, beklenen 1000 iken küçüktür.</p>
+    $$\chi^2 = \frac{(61 - 50)^2}{50} + \frac{(53 - 50)^2}{50} + \frac{(36 - 50)^2}{50} = 2.42 + 0.18 + 3.92 = 6.52$$
+    <p>Gözlenen sayılar beklenenden ne kadar uzaksa $\chi^2$ o kadar büyür. Büyük $\chi^2$, $H_0$'ın yanlış olduğuna işaret eder.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · one-way table için hipotezler ve test statistic (McClave §13.2)</span>
+    <p>$H_0$: $p_1 = p_{1,0},\ p_2 = p_{2,0},\ \dots,\ p_k = p_{k,0}$ ($p_{i,0}$: hipotezdeki değerler)<br />
+    $H_a$: en az bir olasılık hipotezdeki değerine eşit değil (<em>at least one of the probabilities does not equal its hypothesized value</em>)</p>
+    $$\chi^2_c = \sum_{i=1}^{k} \frac{(n_i - E_i)^2}{E_i}, \qquad E_i = n\,p_{i,0}$$
+    <p>$E_i$, $H_0$ doğruysa $i$. hücrede beklenen sayıdır (expected cell count). Walpole aynı şeyi $o_i$ (observed) ve $e_i$ (expected) ile yazar ve <strong>goodness-of-fit test</strong> der: gözlenen frekansların hipotezdeki dağılıma ne kadar iyi uyduğunu ölçer. İlk goodness-of-fit testini Karl Pearson kurdu.</p>
+  </div>
+  <!-- Kaynak: McClave §13.2 (kitap s.802–804), Table 13.1, kutu "A Test of a Hypothesis about Multinomial Probabilities: One-Way Table"; Walpole §10.11 (s.370–371). Python: 2.42 + 0.18 + 3.92 = 6.52. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Formüle proportion koymak ($0.41 - 0.33$ gibi). $n_i$ ve $E_i$ ikisi de <strong>sayım</strong> olmalı.</li>
+      <li>$E_i$ yerine $n_i$'ye bölmek. Payda her zaman beklenen sayı.</li>
+      <li>$E_i$'yi tam sayıya yuvarlamak. Beklenen sayı 16.67 olabilir; yuvarlarsan $\chi^2$ kayar.</li>
+      <li>$H_a$'yı "bütün $p_i$'ler farklı" ya da "$p_1 &gt; p_2$" diye yazmak. $H_a$ sadece "en az biri farklı" der. $H_0$ ise her zaman eşitliklerden oluşur.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-stat-2">
+    <p class="quiz__q">Seçmen örneğinde $\chi^2$'ye en çok katkıyı hangi aday yapıyor?</p>
+    <button class="quiz__opt" data-correct>Aday 3 (3.92)<span class="why">Doğru. $n_3 - E_3 = -14$; karesi 196, bölü 50 = 3.92. Sapmanın yönü (eksi) katkıda kaybolur, kare alındığı için.</span></button>
+    <button class="quiz__opt">Aday 1, çünkü en çok oyu o aldı<span class="why">Katkı sayının büyüklüğüne değil, beklenenden sapmaya bağlı: aday 1 için sapma 11, aday 3 için 14.</span></button>
+    <button class="quiz__opt">Hepsi eşit katkı yapar, çünkü $E_i$'ler eşit<span class="why">Paydalar eşit ama paylar farklı: $11^2$, $3^2$, $14^2$.</span></button>
+  </div>
+  <div class="quiz" id="q-stat-3">
+    <p class="quiz__q">Bir web sitesi trafiğin %50'sinin mobil, %40'ının masaüstü, %10'unun tablet olduğunu iddia ediyor. Doğru hipotez çifti hangisi?</p>
+    <button class="quiz__opt" data-correct>$H_0$: $p_1 = .50,\ p_2 = .40,\ p_3 = .10$; $H_a$: en az bir $p_i$ iddia edilen değerden farklı<span class="why">Doğru. İddia eşitlikler hâlinde $H_0$'a gider, $H_a$ "en az biri farklı" der.</span></button>
+    <button class="quiz__opt">$H_0$: en az bir $p_i$ farklı; $H_a$: $p_1 = .50,\ p_2 = .40,\ p_3 = .10$<span class="why">Ters. $H_0$ eşitliği taşır; test $H_0$'ı varsayıp beklenen sayıları ondan hesaplar.</span></button>
+    <button class="quiz__opt">$H_0$: $p_1 = p_2 = p_3$; $H_a$: değiller<span class="why">Bu "üç kategori eşit" hipotezi. İddiadaki değerler eşit değil (%50, %40, %10).</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="chi2-table" data-min="5">
+  <h2>χ² distribution, degrees of freedom ve tablo okuma</h2>
+  <div class="quiz" id="q-table-1">
+    <p class="quiz__q">Seçmen örneğinde ($k = 3$ aday, $n = 150$) $\chi^2$'nin degrees of freedom'u kaç?</p>
+    <button class="quiz__opt" data-correct>2<span class="why">Doğru: $k - 1 = 3 - 1 = 2$. Tek kısıt $\sum n_i = n$; iki sayı serbest, üçüncüsü zorunlu.</span></button>
+    <button class="quiz__opt">149<span class="why">$n - 1$, W4'teki <em>variance</em> testinin df'i. Burada df kategori sayısından gelir, sample size'dan değil.</span></button>
+    <button class="quiz__opt">3<span class="why">Üç hücre var ama biri serbest değil: toplam 150'ye sabit. Bir kısıt bir df götürür.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · neden sağ kuyruk, neden $k - 1$</span>
+    <p>$H_0$ doğruyken $\chi^2$ statistic'in sampling distribution'ı yaklaşık olarak $k - 1$ df'li chi-square distribution'dır. W4'ten hatırla: chi-square hiç negatif olmaz, sağa çarpıktır, mean'i df'e eşittir. Bu yüzden 2 df'li bir $\chi^2$'nin tipik değerleri 2 civarındadır; 6.52 ise sağ kuyrukta.</p>
+    <p>Gözlenen sayılar beklenenden hangi yöne saparsa sapsın $\chi^2$ <strong>büyür</strong>. Yani $H_0$'a karşı kanıt hep sağ kuyrukta durur: rejection region her zaman sağdadır, p-value her zaman sağ kuyruk alanıdır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · rejection region ve p-value (one-way table)</span>
+    <p>Rejection region: $\chi^2_c &gt; \chi^2_\alpha$, $\chi^2_\alpha$'nın df'i $k - 1$.<br />p-value: $P(\chi^2 &gt; \chi^2_c)$.</p>
+    <p>Tabloda (McClave Table IV) sütun başlığı <strong>sağ kuyruk alanı</strong>dır, satır df'tir. Aşağıdaki kesit bu derste kullandığın değerleri içeriyor:</p>
+    <div class="table-wrap"><table>
+      <tr><th>df</th><th>$\chi^2_{.100}$</th><th>$\chi^2_{.050}$</th><th>$\chi^2_{.025}$</th><th>$\chi^2_{.010}$</th><th>$\chi^2_{.005}$</th></tr>
+      <tr><td>1</td><td>2.706</td><td>3.841</td><td>5.024</td><td>6.635</td><td>7.879</td></tr>
+      <tr><td>2</td><td>4.605</td><td>5.991</td><td>7.378</td><td>9.210</td><td>10.597</td></tr>
+      <tr><td>3</td><td>6.251</td><td>7.815</td><td>9.348</td><td>11.345</td><td>12.838</td></tr>
+      <tr><td>4</td><td>7.779</td><td>9.488</td><td>11.143</td><td>13.277</td><td>14.860</td></tr>
+      <tr><td>5</td><td>9.236</td><td>11.070</td><td>12.833</td><td>15.086</td><td>16.750</td></tr>
+      <tr><td>6</td><td>10.645</td><td>12.592</td><td>14.449</td><td>16.812</td><td>18.548</td></tr>
+      <tr><td>8</td><td>13.362</td><td>15.507</td><td>17.535</td><td>20.090</td><td>21.955</td></tr>
+      <tr><td>10</td><td>15.987</td><td>18.307</td><td>20.483</td><td>23.209</td><td>25.188</td></tr>
+    </table></div>
+    <p>Seçmen örneği: df = 2, $\alpha = .05$ ⇒ $\chi^2_{.05} = 5.991$. $6.52 &gt; 5.991$ ⇒ $H_0$ reddedilir: en az bir aday için tercih var. p-value'yu tabloyla sınırla: $5.991 &lt; 6.52 &lt; 7.378$ ⇒ $0.025 &lt; p &lt; 0.05$. Software $p = 0.038$ verir. Aynı veri $\alpha = .01$'de ($9.210$) reddetmez.</p>
+  </div>
+  <!-- Kaynak: McClave §13.2 (kitap s.803, Figure 13.1; df dipnotu "the only constraint is that Σni = n"); 04-hypothesis-testing-ii.pdf slayt 10 (chi-square: never negative, right-skewed, mean = df); QB1 son slayt "t and chi-square: the column head is the upper-tail area". Tablo değerleri scipy.stats.chi2.isf ile üretildi ve McClave Table IV ile karşılaştırıldı (5.99147, 11.3449, 3.84146). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>df'i $n - 1$ almak. O W4'teki variance testi. Kategorik veride df hücre sayısından gelir.</li>
+      <li>$\alpha$'yı ikiye bölmek. Goodness of fit ve independence testlerinde iki kuyruk yok; tüm $\alpha$ sağ kuyrukta.</li>
+      <li>McClave'in $\chi^2_{.950}$ yazımı: sağında 0.95 alan kalan nokta, yani <em>küçük</em> bir değer (2 df için 0.103). Alt indis her zaman sağ kuyruk alanı.</li>
+    </ul>
+  </div>
+  <p class="w-categorical-data-guess"><b>Önce tahmin et:</b> 3 df için $\chi^2 = 13.25$ ne kadar uç bir değer? p-value 0.01'den büyük mü, küçük mü? Tahminini yaz, sonra aşağıya gir.</p>
+  <div id="w-curve">
+    <div class="w-categorical-data-ctl">
+      <label>$\chi^2_c$ <input id="wc-x" type="text" inputmode="decimal" value="6.52" class="btn btn--sm" /></label>
+      <label>df <input id="wc-df" type="text" inputmode="numeric" value="2" class="btn btn--sm" /></label>
+      <button class="btn btn--sm btn--accent" id="wc-go">Göster</button>
+      <span class="src">hazır:</span>
+      <button class="btn btn--sm" data-wc="6.52,2">seçmen</button>
+      <button class="btn btn--sm" data-wc="13.249,3">McClave 13.2</button>
+      <button class="btn btn--sm" data-wc="1.7,5">Walpole zar</button>
+      <button class="btn btn--sm" data-wc="7.135,4">McClave 13.3</button>
+    </div>
+    <div class="w-categorical-data-err" id="wc-err" aria-live="polite"></div>
+    <div class="w-categorical-data-plot" id="wc-plot"></div>
+    <div id="wc-out" aria-live="polite"></div>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-13.5"><span class="box__label">McClave 13.5 · kitap alıştırması</span>
+    <p>"Find the rejection region for a one-dimensional $\chi^2$-test of a null hypothesis concerning $p_1, p_2, \dots, p_k$ if a. $k = 11$; $\alpha = .01$ b. $k = 9$; $\alpha = .01$ c. $k = 6$; $\alpha = .05$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce df: $k - 1$. Sonra tabloda df satırı ile $\alpha$ sütununun kesişimi.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Test hep sağ kuyrukta; $\alpha$'yı bölme. Rejection region "$\chi^2 &gt;$ kritik değer" biçiminde yazılır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>(a)</strong> df $= 11 - 1 = 10$, $\chi^2_{.01} = 23.2093$. Rejection region: $\chi^2 &gt; 23.2093$.</li>
+        <li><strong>(b)</strong> df $= 8$, $\chi^2_{.01} = 20.0902$. Rejection region: $\chi^2 &gt; 20.0902$.</li>
+        <li><strong>(c)</strong> df $= 5$, $\chi^2_{.05} = 11.0705$. Rejection region: $\chi^2 &gt; 11.0705$.</li>
+      </ol>
+      <p>Kitabın cevabı aynı: a. 23.2093, b. 20.0902, c. 11.0705.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/mcclave-sincich-statistics-13e.pdf" target="_blank" rel="noopener">Orijinal soru (McClave 13e, kitap s.806) ↗</a></p>
+    <!-- Kaynak: McClave 13.5 (kitap s.806, PDF s.808); cevap anahtarı "13.5 a. χ2 > 23.2093 b. χ2 > 20.0902 c. χ2 > 11.0705". -->
+  </div>
+  <div class="quiz" id="q-table-2">
+    <p class="quiz__q">df = 3 ve $\chi^2_c = 13.249$. Tablo p-value hakkında ne söyler?</p>
+    <button class="quiz__opt" data-correct>$p &lt; 0.005$<span class="why">Doğru. 3 df satırında en sağdaki değer 12.838 ($\chi^2_{.005}$); 13.249 ondan da büyük. SPSS $p = .004$ veriyor.</span></button>
+    <button class="quiz__opt">$0.005 &lt; p &lt; 0.01$<span class="why">Bunun için $\chi^2_c$'nin 11.345 ile 12.838 arasında olması gerekirdi. 13.249 ikisini de geçiyor.</span></button>
+    <button class="quiz__opt">$p &gt; 0.10$<span class="why">Bu, 6.251'den küçük bir $\chi^2$ için geçerli. Büyük $\chi^2$ küçük p demek.</span></button>
+    <button class="quiz__opt">$0.01 &lt; p &lt; 0.025$, çünkü iki kuyruk için alan ikiye katlanır<span class="why">Bu testte iki kuyruk yok. p-value sadece sağ kuyruk alanı.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="gof-test" data-min="6">
+  <h2>One-way test'i dört adımda yazmak</h2>
+  <div class="quiz" id="q-gof-1">
+    <p class="quiz__q">Bir TV dizisinden önce vatandaşların %7'si legalization, %18'i decriminalization, %65'i existing laws, %10'u no opinion diyordu. Diziden sonra 500 kişi soruluyor. "Legalization" hücresi için $E_1$ kaç?</p>
+    <button class="quiz__opt" data-correct>35<span class="why">Doğru: $500 \times .07 = 35$.</span></button>
+    <button class="quiz__opt">125<span class="why">$500 / 4$: dört kategoriyi eşit saymışsın. $H_0$ eşitlik değil, eski yüzdeleri söylüyor.</span></button>
+    <button class="quiz__opt">39<span class="why">39 gözlenen sayı. Beklenen sayı $H_0$'daki olasılıktan gelir.</span></button>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · McClave Example 13.2, marijuana görüşleri ($\alpha = .01$)</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Legalization</th><th>Decriminalization</th><th>Existing laws</th><th>No opinion</th><th>Toplam</th></tr>
+      <tr><td>$n_i$</td><td>39</td><td>99</td><td>336</td><td>26</td><td>500</td></tr>
+      <tr><td>$p_{i,0}$</td><td>.07</td><td>.18</td><td>.65</td><td>.10</td><td>1</td></tr>
+      <tr><td>$E_i = 500\,p_{i,0}$</td><td>35</td><td>90</td><td>325</td><td>50</td><td>500</td></tr>
+      <tr><td>$(n_i - E_i)^2/E_i$</td><td>0.457</td><td>0.900</td><td>0.372</td><td>11.520</td><td>13.249</td></tr>
+    </table></div>
+    <ol>
+      <li><strong>Hipotezler.</strong> $p_1, \dots, p_4$: diziden sonra her görüşü taşıyanların oranı. $H_0$: $p_1 = .07,\ p_2 = .18,\ p_3 = .65,\ p_4 = .10$ (değişim yok). $H_a$: en az bir oran hipotezdeki değerden farklı.</li>
+      <li><strong>Koşul ve test statistic.</strong> Rastgele seçilmiş 500 kişi ⇒ multinomial experiment. Bütün $E_i$'ler (35, 90, 325, 50) 5'ten büyük ⇒ $\chi^2$ yaklaşımı uygun.
+      $$\chi^2 = \frac{(39-35)^2}{35} + \frac{(99-90)^2}{90} + \frac{(336-325)^2}{325} + \frac{(26-50)^2}{50} = 13.249$$</li>
+      <li><strong>Rejection region / p-value.</strong> df $= k - 1 = 3$, $\chi^2_{.01} = 11.345$. $13.249 &gt; 11.345$ ⇒ reject $H_0$. Tablo: $13.249 &gt; 12.838$ ⇒ $p &lt; .005$ (SPSS: $p = .004$).</li>
+      <li><strong>Sonuç.</strong> $\alpha = .01$'de, dizi yayınlandıktan sonra görüşlerin dağılımının değiştiğine dair yeterli kanıt var. Katkıların neredeyse tamamı (11.52) "no opinion" hücresinden geliyor: fikri olmayanlar beklenenden (50) çok daha az (26).</li>
+    </ol>
+    <p><strong>SPSS çıktısı (Figure 13.2) nasıl okunur:</strong> tabloda <em>Observed N</em> (39, 99, 336, 26), <em>Expected N</em> (35, 90, 325, 50) ve <em>Residual</em> ($n_i - E_i$: 4, 9, 11, −24) sütunları var. Altta <em>Chi-Square</em> 13.249, <em>df</em> 3, <em>Asymp. Sig.</em> .004. "Asymp. Sig." p-value'dur. Dipnot: "0 cells (.0%) have expected frequencies less than 5. The minimum expected cell frequency is 35.0": condition'ı da çıktı kontrol ediyor.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · reddedemezsen "accept" deme; reddedersen tek bir kategoriye CI ile bak</span>
+    <p>Test reddetmezse sonuç "dağılımın $H_0$'dakinden farklı olduğuna dair yeterli kanıt yok" olur. "$p_1 = .07$, …" diye <strong>kabul etme</strong>: Type II error olasılığı $\beta$ bilinmiyor.</p>
+    <p>Test reddederse tek bir kategoriye odaklanabilirsin. O kategori dışındaki her şeyi tek grupta toplarsan elinde iki sonuçlu bir deney (binomial) kalır ve §7.4'teki proportion CI'ı kullanılır. "No opinion" için 95% CI:</p>
+    $$\hat p_4 = \frac{26}{500} = .052, \qquad .052 \pm 1.96\sqrt{\frac{(.052)(.948)}{500}} = .052 \pm .019 \ \Rightarrow\ (.033,\ .071)$$
+    <p>Interval'ın tamamı .10'un altında: fikri olmayanların oranı muhtemelen azaldı. İki kategoriyi birbiriyle karşılaştırmak için ise §9.4'teki iki-proportion formülünü kullanamazsın; cell count'lar bağımlı.</p>
+  </div>
+  <!-- Kaynak: McClave Example 13.2 (kitap s.804–806), Table 13.2, Figure 13.2 (SPSS, görüntüden okundu), "Look Back" ve CI paragrafı (s.806). Python: χ² 13.2495, p 0.00413; CI .052 ± .0195 → (.0325, .0715). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>p ile $\alpha$'yı ters karşılaştırmak. Kural tek: $p &lt; \alpha$ ⇒ reject. McClave: "Since $\alpha = .01$ exceeds $p = .004$, … reject $H_0$."</li>
+      <li>Sonucu "reject $H_0$" diye bırakmak. Dördüncü adım problemin dilinde yazılır: <em>neyin</em> değiştiğine dair kanıt var?</li>
+      <li>Koşulu hesaptan sonra düşünmek. $E_i \ge 5$ kontrolü 2. adımın parçası; $E_i$'leri hesaplayınca hemen bak.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-gof-2">
+    <p class="quiz__q">"No opinion" oranı için 95% CI $(.033,\ .071)$. Aynı veriyle $H_0: p_4 = .10$'a karşı two-tailed, $\alpha = .05$ bir proportion testi ne der?</p>
+    <button class="quiz__opt" data-correct>Reject, çünkü .10 interval'ın dışında<span class="why">Doğru. Two-tailed test ile $(1 - \alpha)$ CI aynı kararı verir: hipotezdeki değer interval'ın dışındaysa reddedilir.</span></button>
+    <button class="quiz__opt">Fail to reject, çünkü interval 0'ı içermiyor<span class="why">Karşılaştırma 0 ile değil, $H_0$'daki değerle (.10) yapılır.</span></button>
+    <button class="quiz__opt">Bir şey söylenemez; CI ile test bağımsız<span class="why">W4'ten hatırla: $(1 - \alpha)$ CI'ın dışında kalan her değer, $\alpha$ düzeyinde two-tailed testte reddedilir.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-13.9"><span class="box__label">McClave 13.9 · kitap alıştırması</span>
+    <p>"Jaw dysfunction study. A report on dental patients with temporomandibular (jaw) joint dysfunction (TMD) was published in General Dentistry (Jan/Feb. 2004). A random sample of 60 patients was selected for an experimental treatment of TMD. Prior to treatment, the patients filled out a survey on two nonfunctional jaw habits—bruxism (teeth grinding) and teeth clenching—that have been linked to TMD. Of the 60 patients, 3 admitted to bruxism, 11 admitted to teeth clenching, 30 admitted to both habits, and 16 claimed they had neither habit.</p>
+    <p>a. Describe the qualitative variable of interest in the study. Give the levels (categories) associated with the variable. b. Construct a one-way table for the sample data. c. Give the null and alternative hypotheses for testing whether the percentages associated with the admitted habits are the same. d. Calculate the expected numbers for each cell of the one-way table. e. Calculate the appropriate test statistic. f. Give the rejection region for the test at $\alpha = .05$. g. Give the appropriate conclusion in the words of the problem. h. Find and interpret a 95% confidence interval for the true proportion of dental patients who admit to both habits."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kaç kategori var? "Neither" de bir kategori. "Percentages are the same" ⇒ her $p_i = 1/k$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(h) bir kategoriye odaklan: "both" ve "diğerleri" ⇒ binomial, $\hat p \pm 1.96\sqrt{\hat p(1-\hat p)/n}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>(a)</strong> Değişken: hastanın kabul ettiği çene alışkanlığı (jaw habit). Seviyeler: bruxism only, clenching only, both, neither ($k = 4$).</li>
+        <li><strong>(b)</strong> One-way table: bruxism 3, clenching 11, both 30, neither 16 (toplam 60).</li>
+        <li><strong>(c)</strong> $H_0$: $p_1 = p_2 = p_3 = p_4 = .25$; $H_a$: en az bir $p_i \ne .25$.</li>
+        <li><strong>(d)</strong> $E_i = 60(.25) = 15$, dört hücre için de. Hepsi ≥ 5 ⇒ koşul tamam (sample rastgele).</li>
+        <li><strong>(e)</strong> $\chi^2 = \frac{(3-15)^2}{15} + \frac{(11-15)^2}{15} + \frac{(30-15)^2}{15} + \frac{(16-15)^2}{15} = 9.6 + 1.067 + 15 + 0.067 = 25.73$.</li>
+        <li><strong>(f)</strong> df $= 3$, $\chi^2_{.05} = 7.81473$. Rejection region: $\chi^2 &gt; 7.81473$.</li>
+        <li><strong>(g)</strong> $25.73 &gt; 7.815$ ⇒ reject $H_0$ ($p &lt; .005$; software $p \approx .00001$). TMD hastalarında dört alışkanlık kategorisinin yüzdeleri eşit değil; en büyük katkı "both" (30, beklenen 15) ve "bruxism only" (3, beklenen 15) hücrelerinden.</li>
+        <li><strong>(h)</strong> $\hat p = 30/60 = .5$; $.5 \pm 1.96\sqrt{(.5)(.5)/60} = .5 \pm .127$ ⇒ $(.37,\ .63)$. TMD hastalarının %37 ile %63 arasında bir kısmının iki alışkanlığı birden kabul ettiğini 95% güvenle söyleriz.</li>
+      </ol>
+      <p>Kitabın cevabı: c. $H_0: p_1 = p_2 = p_3 = p_4 = .25$, d. 15, e. 25.73, f. $\chi^2 &gt; 7.81473$, g. reject $H_0$, h. (.37, .63).</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/mcclave-sincich-statistics-13e.pdf" target="_blank" rel="noopener">Orijinal soru (McClave 13e, kitap s.807) ↗</a></p>
+    <!-- Kaynak: McClave 13.9 (kitap s.807, PDF s.809); anahtar s.875. Python: χ² 25.7333, p 1.08e-5; CI (.3735, .6265). -->
+  </div>
+  <div class="box box--exam" data-exam="2023-ME_A-Q10-chi2"><span class="box__label">ME_A 2023 (CSE321 vize, Grup A) S10 · çıkmış soru, χ² için uyarlandı</span>
+    <p>Orijinal soru: "A bag of candy was opened and the number of pieces was counted. The results are shown in the table below: Red 25, Brown 20, Green 20, Blue 15, Yellow 10, Orange 10. Find the probability that a randomly chosen piece of candy is not blue or red."</p>
+    <p><strong>Uyarlanmış soru:</strong> "Treat the bag as a random sample of 100 pieces from the factory's production. Test at $\alpha = .05$ whether the six colors are produced in equal proportions. Bound the p-value with the chi-square table."</p>
+    <p class="src">Not: Orijinal soru eski olasılık müfredatından (cevap B, 0.60: $1 - 40/100$). Burada aynı tablo goodness of fit testi için kullanıldı.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Equal proportions" ⇒ $p_{i,0} = 1/6$, $E_i = 100/6$. Yuvarlama.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>df $= 5$. Sonucu kritik değerle dikkatle karşılaştır; çok yakın.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler.</strong> $H_0$: $p_1 = \dots = p_6 = 1/6$; $H_a$: en az bir renk oranı $1/6$'dan farklı.</li>
+        <li><strong>Koşul ve test statistic.</strong> Torba üretimden rastgele bir sample kabul edildi. $E_i = 100/6 = 16.67 \ge 5$, her hücre için.
+        $$\chi^2 = \frac{(25-16.67)^2 + 2(20-16.67)^2 + (15-16.67)^2 + 2(10-16.67)^2}{16.67} = 4.167 + 2(0.667) + 0.167 + 2(2.667) = 11.00$$</li>
+        <li><strong>Rejection region / p-value.</strong> df $= 5$, $\chi^2_{.05} = 11.070$. $11.00 &lt; 11.070$ ⇒ fail to reject. Tablo: $9.236 &lt; 11.00 &lt; 11.070$ ⇒ $.05 &lt; p &lt; .10$ (software $p = .051$).</li>
+        <li><strong>Sonuç.</strong> $\alpha = .05$'te renklerin eşit oranda üretilmediğine dair yeterli kanıt yok. Karar sınırda: $\alpha = .10$ seçilmiş olsaydı reddedilirdi. "Renkler eşit" sonucu da çıkarılamaz.</li>
+      </ol>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/ME_A_2023.pdf" target="_blank" rel="noopener">Orijinal kâğıt (ME_A_2023.pdf, sayfa 2) ↗</a></p>
+    <!-- Kaynak: exams/practice/ME_A_2023.pdf S10. Python: χ² 11.0000, p 0.05138; χ².05,5 = 11.0705, χ².10,5 = 9.2364. -->
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="die-sim" data-min="5">
+  <h2>Zar simulation'ı: n büyüdükçe test neyi yakalar?</h2>
+  <div class="quiz" id="q-die-1">
+    <p class="quiz__q">Hilesiz bir zarla $\alpha = .05$'te goodness of fit testi yapıyorsun. 1000 ayrı denemenin yaklaşık kaçında test "zar hileli" der?</p>
+    <button class="quiz__opt" data-correct>Yaklaşık 50<span class="why">Doğru. $H_0$ doğruyken reddetme olasılığı $\alpha$'dır: Type I error. 1000 denemenin %5'i ≈ 50.</span></button>
+    <button class="quiz__opt">Hiçbirinde<span class="why">Hilesiz zar da rastgele sayılar üretir; bazen şans eseri çok dengesiz bir sonuç çıkar. Bu oran tam $\alpha$ kadardır.</span></button>
+    <button class="quiz__opt">Atış sayısı arttıkça 50'den çok daha fazla<span class="why">$H_0$ doğruysa $n$ ne olursa olsun yanlış alarm oranı $\alpha$ civarında kalır (yaklaşım geçerli olduğu sürece). Büyüyen, hileli zarı yakalama oranı.</span></button>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Walpole §10.11, 120 atış</span>
+    <p>Hipotez: zar dengeli, yani her yüz için olasılık $1/6$. 120 atışta her yüz için beklenen sayı 20.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Yüz</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr>
+      <tr><td>Observed</td><td>20</td><td>22</td><td>17</td><td>18</td><td>19</td><td>24</td></tr>
+      <tr><td>Expected</td><td>20</td><td>20</td><td>20</td><td>20</td><td>20</td><td>20</td></tr>
+    </table></div>
+    <p>$\chi^2 = \frac{0 + 4 + 9 + 4 + 1 + 16}{20} = 1.7$. df $= 5$, $\chi^2_{.05} = 11.070$. $1.7 &lt; 11.070$ ⇒ fail to reject: zarın dengesiz olduğuna dair yeterli kanıt yok ($p = 0.89$). Walpole'ün sözüyle: iyi bir uyum (<em>good fit</em>) küçük $\chi^2$ verir, kötü uyum büyük.</p>
+  </div>
+  <p class="w-categorical-data-guess"><b>Önce tahmin et:</b> 6 gelme olasılığı 0.20 olan (öbür yüzler 0.16) hafif hileli bir zarla 60 atış yapıyorsun. Test ($\alpha = .05$) hileyi 1000 denemenin kabaca kaçında yakalar? 600 atışta?</p>
+  <div id="w-die">
+    <div class="w-categorical-data-ctl">
+      <label>zar <select id="wd-type" class="btn btn--sm">
+        <option value="fair">hilesiz (hepsi 1/6)</option>
+        <option value="slight" selected>hafif hileli (6: 0.20)</option>
+        <option value="heavy">çok hileli (6: 0.25)</option>
+      </select></label>
+      <label>$n$ <input id="wd-n" type="text" inputmode="numeric" value="60" class="btn btn--sm" /></label>
+      <label>$\alpha$ <select id="wd-al" class="btn btn--sm"><option value="0.10">0.10</option><option value="0.05" selected>0.05</option><option value="0.01">0.01</option></select></label>
+    </div>
+    <div class="w-categorical-data-ctl">
+      <button class="btn btn--sm btn--accent" id="wd-one">Bir kez at</button>
+      <button class="btn btn--sm" id="wd-rep">1000 kez tekrarla</button>
+      <button class="btn btn--sm" id="wd-seed">Yeni seed</button>
+    </div>
+    <div class="w-categorical-data-err" id="wd-err" aria-live="polite"></div>
+    <div id="wd-out" aria-live="polite"></div>
+    <div id="wd-rep-out" aria-live="polite"></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · $\chi^2$, aynı yüzdelerle $n$ ile orantılı büyür</span>
+    <p>$n_i = n\hat p_i$ ve $E_i = n p_{i,0}$ yazarsan:</p>
+    $$\chi^2 = \sum \frac{(n\hat p_i - n p_{i,0})^2}{n p_{i,0}} = n \sum \frac{(\hat p_i - p_{i,0})^2}{p_{i,0}}$$
+    <p>Gözlenen yüzdeler aynı kalırken $n$ dört katına çıkarsa $\chi^2$ da dört katına çıkar. Sonuç: hilesiz zarda yanlış alarm oranı $\alpha$'da kalır, ama hileli zarı yakalama olasılığı (power) $n$ ile artar. Simulation'da hafif hileli zar için bu oran 60 atışta yaklaşık %7, 600 atışta yaklaşık %35, 1200 atışta yaklaşık %65.</p>
+  </div>
+  <!-- Kaynak: Walpole §10.11 (s.370–371), Table 10.4. Güç değerleri scipy.stats.ncx2 ile (λ = nΣ(p−p0)²/p0): p6 = .20 için n 60 → 0.072, 600 → 0.348, 1200 → 0.657; numpy seed 1 ile 4000 tekrarlı Monte Carlo: 0.072 ve 0.352. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Küçük $\chi^2$ "zar dengeli" kanıtı değildir. 60 atışlık test hafif hileyi neredeyse hiç görmez.</li>
+      <li>Çok büyük $n$'de en küçük sapma bile significant çıkar. "Significant" demek "önemli büyüklükte" demek değil; W4'ün son slaytı: "A small p-value is not a large effect."</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-die-2">
+    <p class="quiz__q">Bir one-way table'da $\chi^2 = 2.1$. Aynı yüzdelerle sample size 5 katına çıkarılsa $\chi^2$ ne olur?</p>
+    <button class="quiz__opt" data-correct>10.5<span class="why">Doğru. $\chi^2 = n\sum(\hat p_i - p_{i,0})^2/p_{i,0}$; yüzdeler aynıysa $\chi^2$, $n$ ile doğru orantılı.</span></button>
+    <button class="quiz__opt">2.1, çünkü yüzdeler değişmedi<span class="why">Formül sayımlarla çalışır; sayımlar 5 katına çıkınca fark kareleri 25, paydalar 5 katına çıkar: net etki ×5.</span></button>
+    <button class="quiz__opt">$2.1 \times \sqrt 5 = 4.7$<span class="why">Karekök SE'de çıkar ($\sigma/\sqrt n$). $\chi^2$ zaten kareler toplamı; doğrudan $n$ ile ölçeklenir.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-13.13"><span class="box__label">McClave 13.13 · kitap alıştırması</span>
+    <p>"Gender in two-child families. Refer to the Human Biology (Feb. 2009) study on the gender of children in two-child families, Exercise 4.29 (p. 222). The article reported on the results of the National Health Interview Survey (NHIS) of 42,888 two-child families. The table below gives the number of families with each gender configuration." Girl-girl (GG) 9,523; Boy-girl (BG) 11,118; Girl-boy (GB) 10,913; Boy-boy (BB) 11,334.</p>
+    <p>"a. If it is just as likely to have a boy as a girl, find the probability of each of the gender configurations for a two-child family. b. Use the probabilities, part a, to determine the expected number of families for each gender configuration. c. Compute the chi-square test statistic for testing the hypothesis that it is just as likely to have a boy as a girl. d. Interpret the result, part c, if you conduct the test using $\alpha = .10$. e. Recent research indicates that the ratio of boys to girls in the world population is not 1 to 1, but instead higher (e.g., 1.06 to 1). Using a ratio of 1.06 to 1, the researchers showed that the probabilities of the different gender configurations are: GG—.23795, BG—.24985, GB—.24985, and BB—.26235. Repeat parts b–d using these probabilities."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) İki bağımsız doğum, her biri 1/2: $P(GG) = (1/2)(1/2)$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$n$ çok büyük (42,888). Bu bölümün kuralına göre küçük sapmalar bile büyük $\chi^2$ verir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>(a)</strong> $P(GG) = P(BG) = P(GB) = P(BB) = 1/4$.</li>
+        <li><strong>(b)</strong> $E_i = 42{,}888/4 = 10{,}722$, her hücre için.</li>
+        <li><strong>(c)</strong> Her hücrenin katkısı $(n_i - 10{,}722)^2/10{,}722$:
+        $$\chi^2 = \frac{(9523 - 10722)^2}{10722} + \dots + \frac{(11334 - 10722)^2}{10722}$$
+        $$= 134.08 + 14.63 + 3.40 + 34.93 = 187.04$$</li>
+        <li><strong>(d)</strong> $H_0$: $p_{GG} = p_{BG} = p_{GB} = p_{BB} = .25$. df $= 3$, $\chi^2_{.10} = 6.251$. $187.04 &gt; 6.251$ ⇒ reject $H_0$ ($p \approx 0$). Erkek ve kız çocuğun eşit olasılıkla doğduğu model bu veriye uymuyor.</li>
+        <li><strong>(e)</strong> $E_{GG} = 42{,}888(.23795) = 10{,}205.2$, $E_{BG} = E_{GB} = 10{,}715.6$, $E_{BB} = 11{,}251.7$. $\chi^2 = 45.60 + 15.11 + 3.64 + 0.60 = 64.96$ &gt; 6.251 ⇒ yine reject. 1.06'lık model de veriye tam uymuyor; en büyük sapma GG hücresinde (gözlenen 9,523, beklenen 10,205).</li>
+      </ol>
+      <p>Kitabın cevabı: b. 10,722, c. 187.04, d. reject $H_0$, e. 10,205.2; 10,715.6; 10,715.6; 11,251.7; $\chi^2 = 64.95$; reject $H_0$. (Son basamaktaki fark yuvarlamadan.)</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/mcclave-sincich-statistics-13e.pdf" target="_blank" rel="noopener">Orijinal soru (McClave 13e, kitap s.807–808) ↗</a></p>
+    <!-- Kaynak: McClave 13.13 (kitap s.807–808, PDF s.809–810); anahtar s.876. Python: 187.0399; e: 64.9578. -->
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="conditions" data-min="5">
+  <h2>Condition'lar: random sample ve her Eᵢ ≥ 5</h2>
+  <div class="quiz" id="q-cond-1">
+    <p class="quiz__q">19 böcek, 6 slime mold türü; $H_0$: türler eşit sıklıkta. Bu test için hangi condition sorunlu?</p>
+    <button class="quiz__opt" data-correct>Her $E_i = 19/6 = 3.17$, yani 5'ten küçük<span class="why">Doğru. $\chi^2$ yaklaşımı her hücrede beklenen sayının en az 5 olmasını ister. Burada hiçbir hücre bunu sağlamıyor.</span></button>
+    <button class="quiz__opt">$n = 19 &lt; 30$<span class="why">"$n \ge 30$" bir mean testinin kuralı. Burada kontrol edilen tek tek hücrelerin <em>beklenen</em> sayıları.</span></button>
+    <button class="quiz__opt">Gözlenen sayılardan biri 1<span class="why">Koşul gözlenen sayılara değil, beklenen sayılara bakar. Gözlenen 0 bile olabilir.</span></button>
+    <button class="quiz__opt">Veri normal dağılmıyor<span class="why">Bu test normallik istemez; sayımlar zaten normal değil. Normallik W4'teki variance testinin şartıydı.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Conditions Required for a Valid $\chi^2$ Test: One-Way Table (McClave)</span>
+    <ol>
+      <li>Bir multinomial experiment yapılmış olmalı. Genelde ilgilenilen population'dan random sample almak bunu sağlar.</li>
+      <li>$n$ yeterince büyük olmalı: <strong>her</strong> hücrede beklenen sayı $E_i \ge 5$.</li>
+    </ol>
+    <p>Neden: $\chi^2$ statistic'in dağılımı sadece <em>yaklaşık</em> olarak chi-square. Beklenen sayılar küçükse yaklaşım bozulur ve gerçek $\alpha$ tablodaki değerden çok farklı olabilir. McClave'e göre küçük beklenen sayılar için exact yöntemler var ama kitabın kapsamı dışında.</p>
+    <p>Walpole'ün çaresi: <strong>komşu hücreleri birleştir</strong> (combining adjacent cells). Hücre sayısı azalır, df $=$ (yeni hücre sayısı) $- 1$ olur.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Walpole §10.11, battery life normal mi?</span>
+    <p>40 pilin ömrü 7 sınıfa ayrılmış. $H_0$: ömür $\mu = 3.5$, $\sigma = 0.7$ olan normal distribution'a uyuyor. Her sınıfın beklenen sayısı normal eğri altındaki alan × 40. Örneğin 2.95–3.45 sınıfı: $z_1 = (2.95 - 3.5)/0.7 = -0.79$, $z_2 = (3.45 - 3.5)/0.7 = -0.07$, alan $= 0.4721 - 0.2148 = 0.2573$, $e_4 = 0.2573 \times 40 = 10.3$.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Sınıf</th><th>1.45–1.95</th><th>1.95–2.45</th><th>2.45–2.95</th><th>2.95–3.45</th><th>3.45–3.95</th><th>3.95–4.45</th><th>4.45–4.95</th></tr>
+      <tr><td>$o_i$</td><td>2</td><td>1</td><td>4</td><td>15</td><td>10</td><td>5</td><td>3</td></tr>
+      <tr><td>$e_i$</td><td>0.5</td><td>2.1</td><td>5.9</td><td>10.3</td><td>10.7</td><td>7.0</td><td>3.5</td></tr>
+    </table></div>
+    <p>İlk iki ve son sınıfta $e_i &lt; 5$. İlk üç sınıf birleşince $o = 7$, $e = 8.5$; son iki sınıf birleşince $o = 8$, $e = 10.5$. Dört hücre kalır, df $= 3$:</p>
+    $$\chi^2 = \frac{(7 - 8.5)^2}{8.5} + \frac{(15 - 10.3)^2}{10.3} + \frac{(10 - 10.7)^2}{10.7} + \frac{(8 - 10.5)^2}{10.5} = 3.05 &lt; \chi^2_{.05} = 7.815$$
+    <p>$H_0$ reddedilmez: bu normal model veriye iyi uyuyor. Goodness of fit bu şekilde bir sayısal değişkenin belli bir dağılıma uyup uymadığını da test eder. Sınıflar burada kategoriler gibi davranır. Walpole, normallik için chi-square'den daha güçlü testler de olduğunu not ediyor (Geary's test); bu derste normalliği W3'teki gibi Q-Q plot ile kontrol etmen yeterli.</p>
+  </div>
+  <!-- Kaynak: McClave §13.2 kutu "Conditions Required for a Valid χ2 Test: One-Way Table" ve dipnot (s.804); Walpole §10.11 (s.371–372), Table 10.5, "This restriction may require the combining of adjacent cells, resulting in a reduction in the number of degrees of freedom." Python: 0.265 + 2.145 + 0.046 + 0.595 = 3.0504; alan 0.2573 → 10.29. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Koşulu gözlenen sayılara bakarak kontrol etmek. Kural <em>beklenen</em> sayılar için.</li>
+      <li>Hücre birleştirince df'i güncellememek. 7 sınıftan 4'e inildiyse df 6 değil 3.</li>
+      <li>Kuralları karıştırmak: proportion z testi (W4) $np_0 \ge 15$ ve $n(1-p_0) \ge 15$ ister; $\chi^2$ testleri her hücrede $E \ge 5$ ister; variance testi normal veri ister. Her testin kendi condition sütunu var.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-cond-2">
+    <p class="quiz__q">8 kategorili bir one-way table'da iki komşu çift birleştiriliyor (her çift tek hücre oluyor). Yeni df kaç?</p>
+    <button class="quiz__opt" data-correct>5<span class="why">Doğru. 8 hücre, iki birleştirme ile 6 hücreye iner; df $= 6 - 1 = 5$.</span></button>
+    <button class="quiz__opt">7<span class="why">Bu birleştirmeden önceki df ($8 - 1$). Birleştirme hücre sayısını, dolayısıyla df'i azaltır.</span></button>
+    <button class="quiz__opt">6<span class="why">6 yeni hücre sayısı; df hücre sayısının bir eksiği.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-13.10"><span class="box__label">McClave 13.10 · kitap alıştırması</span>
+    <p>"Beetles and slime molds. Myxomycetes are mushroom-like slime molds that are a food source for insects. The Journal of Natural History (May 2010) published the results of a study that investigated which of six species of slime molds are most attractive to beetles inhabiting an Atlantic rain forest. A sample of 19 beetles feeding on slime mold was obtained and the species of slime mold was determined for each beetle. The numbers of beetles captured on each of the six species are given in the accompanying table. The researchers want to know if the relative frequency of occurrence of beetles differs for the six slime mold species." LE 3, TM 2, AC 7, AD 3, HC 1, HS 3.</p>
+    <p>"a. Identify the categorical variable (and its levels) of interest in this study. b. Set up the null and alternative hypotheses of interest to the researchers. c. Find the test statistic and corresponding p-value. d. The researchers found "no significant differences in the relative frequencies of occurrence" using $\alpha = .05$. Do you agree? e. Comment on the validity of the inference, part d. (Determine the expected cell counts.)"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Differs for the six species" ⇒ $H_0$'da altı olasılık eşit.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(e) $E_i = 19/6$. Bu sayı koşulu sağlıyor mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>(a)</strong> Değişken: böceğin üzerinde yakalandığı slime mold türü; 6 seviye (LE, TM, AC, AD, HC, HS).</li>
+        <li><strong>(b)</strong> $H_0$: $p_1 = p_2 = \dots = p_6 = 1/6$; $H_a$: en az bir $p_i \ne 1/6$.</li>
+        <li><strong>(c)</strong> $E_i = 19/6 = 3.167$.
+        $$\chi^2 = \frac{(3-3.167)^2 + (2-3.167)^2 + \dots + (3-3.167)^2}{3.167}$$
+        $$= 0.009 + 0.430 + 4.640 + 0.009 + 1.482 + 0.009 = 6.58$$
+        df $= 5$; $6.58 &lt; 9.236$ ⇒ $p &gt; .10$ (software $p = .254$).</li>
+        <li><strong>(d)</strong> $6.58 &lt; \chi^2_{.05} = 11.070$ ⇒ fail to reject. Hesap araştırmacıların sonucuyla uyumlu: türler arasında fark olduğuna dair yeterli kanıt yok.</li>
+        <li><strong>(e)</strong> Ama her hücrede $E_i = 3.17 &lt; 5$: $\chi^2$ yaklaşımının koşulu hiçbir hücrede sağlanmıyor. p-value güvenilir değil, çıkarım geçersiz sayılmalı. Daha büyük bir sample gerekir (her hücrede 5 için en az $6 \times 5 = 30$ böcek).</li>
+      </ol>
+      <p>Bu çift numaralı alıştırmanın kitapta cevabı yok; yukarıdaki değerler Python ile kontrol edildi.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/mcclave-sincich-statistics-13e.pdf" target="_blank" rel="noopener">Orijinal soru (McClave 13e, kitap s.807) ↗</a></p>
+    <!-- Kaynak: McClave 13.10 (kitap s.807, PDF s.809). Python: χ² 6.5789, p 0.2539. -->
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="contingency" data-min="5">
+  <h2>Two-way (contingency) table ve expected count</h2>
+  <div class="quiz" id="q-cont-1">
+    <p class="quiz__q">300 TV izleyicisi: 136'sı ürünü tanıyabildi, 145'i erkek. Cinsiyet ile ürünü tanıma bağımsızsa "erkek ve tanıyabildi" hücresinde beklenen sayı ne?</p>
+    <button class="quiz__opt" data-correct>$136 \times 145 / 300 = 65.73$<span class="why">Doğru. Bağımsızlık altında $P(\text{tanıdı ve erkek}) = P(\text{tanıdı})P(\text{erkek})$, bunu $n$ ile çarp: $n \cdot \tfrac{136}{300} \cdot \tfrac{145}{300} = \tfrac{136 \cdot 145}{300}$.</span></button>
+    <button class="quiz__opt">$300 / 4 = 75$<span class="why">Dört hücreyi eşit saymak bağımsızlık değil. Bağımsızlık, satır ve sütun toplamlarının oranlarının çarpılması demek.</span></button>
+    <button class="quiz__opt">95 (o hücrede gözlenen sayı)<span class="why">Gözlenen sayıdan beklenen sayı hesaplanmaz. Beklenen sayı sadece marjinal toplamlardan gelir.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · bağımsızlık = koşullu oran marjinal orana eşit</span>
+    <p>Olasılıktan hatırla: A ve B olayları bağımsızsa $P(A \cap B) = P(A)P(B)$, yani $P(A \mid B) = P(A)$. Contingency table'da bu, "bir satırdaki oran her sütunda aynı" demek.</p>
+    <p>ME_A 2023 vizesinin 1. sorusundaki kargo tablosunda $P(\text{Low} \mid 2\text{–}5 \text{ per month}) = 5/200 = .025$, $P(\text{Low}) = 20/700 = .029$. İki oran birbirine yakın: tablo bu açıdan bağımsızlığa benziyor. $\chi^2$ testi bu tür karşılaştırmaları bütün tablo için tek bir sayıda topluyor.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · McClave Table 13.3, ünlü reklamı ve marka farkındalığı</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Male</th><th>Female</th><th>Totals</th></tr>
+      <tr><td>Could identify product</td><td>95</td><td>41</td><td>$R_1 = 136$</td></tr>
+      <tr><td>Could not identify product</td><td>50</td><td>114</td><td>$R_2 = 164$</td></tr>
+      <tr><td>Totals</td><td>$C_1 = 145$</td><td>$C_2 = 155$</td><td>$n = 300$</td></tr>
+    </table></div>
+    <p>Gösterim: $n_{ij}$, $i$. satır ve $j$. sütundaki gözlenen sayı; $p_{ij}$ o hücrenin olasılığı. Satır ve sütun toplam olasılıkları <strong>marginal probabilities</strong>: $p_{r1} = p_{11} + p_{12}$ (ürünü tanıma olasılığı), $p_{c1} = p_{11} + p_{21}$ (erkek olma olasılığı). Bu, $2 \times 2 = 4$ hücreli bir multinomial experiment.</p>
+    <p>İki sınıflama bağımsızsa her hücre olasılığı marjinallerin çarpımıdır: $p_{11} = p_{r1}p_{c1}$, $p_{12} = p_{r1}p_{c2}$, … Marjinaller bilinmediği için $\hat p_{r1} = R_1/n$, $\hat p_{c1} = C_1/n$ ile tahmin edilir:</p>
+    $$\hat E_{11} = n\left(\frac{R_1}{n}\right)\left(\frac{C_1}{n}\right) = \frac{R_1 C_1}{n} = \frac{136 \cdot 145}{300} = 65.73$$
+    <p>Aynı şekilde $\hat E_{12} = 70.27$, $\hat E_{21} = 79.27$, $\hat E_{22} = 84.73$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Finding Expected Cell Counts for a Two-Way Contingency Table</span>
+    $$\hat E_{ij} = \frac{R_i\, C_j}{n} = \frac{(\text{row total})(\text{column total})}{\text{total sample size}}$$
+    <p>Beklenen sayıların her satırı o satırın toplamına, her sütunu o sütunun toplamına eşit çıkar (Walpole). Marjinaller sabitken $(r - 1)(c - 1)$ hücreyi serbestçe doldurabilirsin, gerisi çıkarmayla bulunur. df bu yüzden $(r - 1)(c - 1)$. $2 \times 3$ tabloda sadece iki beklenen sayıyı hesaplaman yeter.</p>
+  </div>
+  <!-- Kaynak: McClave §13.3 (kitap s.810–812), Table 13.3, 13.4a, 13.4b, kutu "Finding Expected Cell Counts"; Walpole §10.12 (s.374–375) "the expected frequencies in any row or column add up to the appropriate marginal total". ME_A_2023 S1 tablosu. Python: 65.733, 70.267, 79.267, 84.733. -->
+  <p class="w-categorical-data-guess"><b>Önce tahmin et:</b> Reklam tablosunda en büyük $(O - \hat E)^2/\hat E$ katkısı hangi hücreden gelir? Kargo tablosunda (ME_A S1) kaç hücrenin beklenen sayısı 5'in altında kalır? Tahmin et, sonra stepper'ı oynat.</p>
+  <div id="w-table">
+    <div class="w-categorical-data-ctl">
+      <span class="src">hazır:</span>
+      <button class="btn btn--sm" data-wt="celeb">McClave 13.3 reklam</button>
+      <button class="btn btn--sm" data-wt="tax">Walpole vergi</button>
+      <button class="btn btn--sm" data-wt="marrel">McClave Ex 13.3 din</button>
+      <button class="btn btn--sm" data-wt="car">ME_A S19 araba</button>
+      <button class="btn btn--sm" data-wt="ship">ME_A S1 kargo</button>
+      <button class="btn btn--sm" data-wt="manager">ME_A S7 yönetici</button>
+      <button class="btn btn--sm" data-wt="hiv">McClave 13.45 aşı</button>
+    </div>
+    <label for="wt-in" class="src">Her satır bir satır; sayıları boşlukla ayır (2–6 satır, 2–6 sütun):</label>
+    <textarea id="wt-in" class="w-categorical-data-area" spellcheck="false">95 41
+50 114</textarea>
+    <div class="w-categorical-data-ctl">
+      <label>$\alpha$ <select id="wt-al" class="btn btn--sm"><option value="0.10">0.10</option><option value="0.05" selected>0.05</option><option value="0.01">0.01</option></select></label>
+      <button class="btn btn--sm btn--accent" id="wt-go">Hesapla</button>
+    </div>
+    <div class="w-categorical-data-err" id="wt-err" aria-live="polite"></div>
+    <div id="wt-sum" aria-live="polite"></div>
+    <div class="w-categorical-data-legend"><span><i style="background: rgba(0, 99, 170, .55)"></i>gözlenen &gt; beklenen</span><span><i style="background: rgba(244, 117, 36, .55)"></i>gözlenen &lt; beklenen</span><span>renk koyulaştıkça katkı büyür</span></div>
+    <div id="wt-step"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Beklenen sayıyı $n / (rc)$ almak. Bu, "her hücre eşit olasılıklı" demek; bağımsızlık değil.</li>
+      <li>df'i $rc - 1$ almak. O, bütün hücre olasılıkları $H_0$'da sayıyla verilmiş olsaydı geçerliydi. Burada marjinaller veriden tahmin ediliyor ve bu ek kısıtlar df'i $(r-1)(c-1)$'e indiriyor.</li>
+      <li>$\hat E_{ij}$'yi tam sayıya yuvarlamak. 65.73 olduğu gibi kalır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-cont-2">
+    <p class="quiz__q">3 satır, 4 sütunlu bir contingency table'da independence testinin df'i kaç?</p>
+    <button class="quiz__opt" data-correct>6<span class="why">Doğru: $(3 - 1)(4 - 1) = 2 \cdot 3 = 6$.</span></button>
+    <button class="quiz__opt">11<span class="why">$rc - 1 = 12 - 1$. Marjinaller veriden tahmin edildiği için df daha küçük: $(r-1)(c-1)$.</span></button>
+    <button class="quiz__opt">5<span class="why">$(r - 1) + (c - 1)$: toplamamışsın, çarpman gerekiyordu.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-13.27"><span class="box__label">McClave 13.27 · kitap alıştırması</span>
+    <p>"Consider the following $2 \times 3$ (i.e., $r = 2$ and $c = 3$) contingency table." Row 1: 9, 34, 53; Row 2: 16, 30, 25.</p>
+    <p>"a. Specify the null and alternative hypotheses that should be used in testing the independence of the row and column classifications. b. Specify the test statistic and the rejection region that should be used in conducting the hypothesis test of part a. Use $\alpha = .01$. c. Assuming the row classification and the column classification are independent, find estimates for the expected cell counts. d. Conduct the hypothesis test of part a. Interpret your result."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce satır ve sütun toplamlarını yaz: $R_1, R_2, C_1, C_2, C_3, n$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>df $= (2-1)(3-1) = 2$, $\chi^2_{.01}$ tablodan. Sonucu çok dikkatli karşılaştır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>(a)</strong> $H_0$: satır ve sütun sınıflamaları bağımsız; $H_a$: bağımlı.</li>
+        <li><strong>(b)</strong> $\chi^2 = \sum\sum (n_{ij} - \hat E_{ij})^2/\hat E_{ij}$. df $= 2$, rejection region: $\chi^2 &gt; \chi^2_{.01} = 9.21034$.</li>
+        <li><strong>(c)</strong> $R_1 = 96$, $R_2 = 71$; $C_1 = 25$, $C_2 = 64$, $C_3 = 78$; $n = 167$.
+          <div class="table-wrap"><table>
+            <tr><th></th><th>Column 1</th><th>Column 2</th><th>Column 3</th></tr>
+            <tr><td>Row 1</td><td>$96 \cdot 25/167 = 14.37$</td><td>36.79</td><td>44.84</td></tr>
+            <tr><td>Row 2</td><td>10.63</td><td>27.21</td><td>33.16</td></tr>
+          </table></div>
+          Hepsi ≥ 5 ⇒ koşul tamam.</li>
+        <li><strong>(d)</strong> Katkılar: 2.008, 0.212, 1.486 / 2.714, 0.286, 2.009; $\chi^2 = 8.71$. $8.71 &lt; 9.21$ ⇒ $\alpha = .01$'de fail to reject. Tablo: $7.378 &lt; 8.71 &lt; 9.210$ ⇒ $.01 &lt; p &lt; .025$ (software $p = .013$). $\alpha = .01$'de satır ve sütun sınıflamalarının bağımlı olduğuna dair yeterli kanıt yok. $\alpha = .05$ seçilmiş olsaydı reddedilirdi.</li>
+      </ol>
+      <p class="src">Not: Kitabın cevap anahtarı bu alıştırma için beklenen sayıları 15.43, 44, 40.57 / 11.57, 33, 30.43 ve $\chi^2 = 12.04$ (reject) veriyor. Bu sayılar tablodaki değerlerle tutmuyor (satır toplamları 96 ve 71, anahtarınkiler 100 ve 75); anahtar başka bir tabloya ait görünüyor. (b) şıkkındaki "9.201034" de 9.21034'ün yazım hatası. Doğru sonuç yukarıdaki: $\chi^2 = 8.71$, fail to reject.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/mcclave-sincich-statistics-13e.pdf" target="_blank" rel="noopener">Orijinal soru (McClave 13e, kitap s.820) ↗</a></p>
+    <!-- Kaynak: McClave 13.27 (kitap s.820, PDF s.822; tablo görüntüden okundu: 9 34 53 / 16 30 25); anahtar s.875: "b. x2 = 9.201034 c. 15.43 44 40.57 / 11.57 33 30.43 d. x2 = 12.04, reject H0". Python: χ² 8.7141, p 0.01282. -->
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="independence" data-min="6">
+  <h2>Test of independence ve software çıktısı</h2>
+  <div class="quiz" id="q-ind-1">
+    <p class="quiz__q">Reklam tablosunda $\chi^2 = 46.14$, df $= 1$, $\alpha = .05$. Karar?</p>
+    <button class="quiz__opt" data-correct>Reject $H_0$: cinsiyet ile marka farkındalığı bağımlı<span class="why">Doğru. $\chi^2_{.05}$ (1 df) $= 3.841$; 46.14 bunun çok üstünde, $p \approx 0$.</span></button>
+    <button class="quiz__opt">Fail to reject, çünkü df sadece 1<span class="why">Küçük df kritik değeri küçültür (3.841), testi zorlaştırmaz.</span></button>
+    <button class="quiz__opt">Reject $H_0$: erkekler ürünü daha iyi tanıyor, kanıtlandı<span class="why">Test sadece "bağımlı" der, yönü söylemez. Yönü yüzdelere bakarak anlatırsın (sonraki bölüm). Ayrıca "kanıtlandı" değil, "kanıt var".</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · General Form of a Two-Way (Contingency) Table Analysis: A Test for Independence</span>
+    <p>$H_0$: iki sınıflama bağımsız (<em>independent</em>)<br />$H_a$: iki sınıflama bağımlı (<em>dependent</em>)</p>
+    $$\chi^2_c = \sum_{i}\sum_{j} \frac{(n_{ij} - \hat E_{ij})^2}{\hat E_{ij}}, \qquad \hat E_{ij} = \frac{R_i C_j}{n}$$
+    <p>Rejection region: $\chi^2_c &gt; \chi^2_\alpha$, df $= (r - 1)(c - 1)$. p-value: $P(\chi^2 &gt; \chi^2_c)$.</p>
+    <p><strong>Conditions:</strong> (1) $n$ gözlem ilgilenilen population'dan random sample ⇒ $r \times c$ sonuçlu multinomial experiment. (2) Her hücrede $\hat E_{ij} \ge 5$.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · McClave §13.3, reklam tablosu dört adımda ($\alpha = .05$)</span>
+    <ol>
+      <li><strong>Hipotezler.</strong> $H_0$: izleyicinin cinsiyeti ile marka farkındalığı bağımsız. $H_a$: bağımlı.</li>
+      <li><strong>Koşul ve test statistic.</strong> 300 izleyici rastgele seçildi; en küçük $\hat E$ 65.73 ≥ 5.
+      $$\chi^2 = \frac{(95 - 65.73)^2}{65.73} + \frac{(41 - 70.27)^2}{70.27} + \frac{(50 - 79.27)^2}{79.27} + \frac{(114 - 84.73)^2}{84.73} = 13.03 + 12.19 + 10.81 + 10.11 = 46.14$$</li>
+      <li><strong>Rejection region / p-value.</strong> df $= (2-1)(2-1) = 1$, $\chi^2_{.05} = 3.84146$. $46.14 &gt; 3.841$ ⇒ reject; $p \approx 0$.</li>
+      <li><strong>Sonuç.</strong> Cinsiyet ile erkek ünlülerin reklam ettiği ürünü tanıma bağımlı: birini bilmek diğeri hakkında ipucu veriyor.</li>
+    </ol>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · McClave Example 13.3, medeni durum ve din ($\alpha = .01$), SAS çıktısı</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th><th>None</th><th>Totals</th></tr>
+      <tr><td>Divorced</td><td>39</td><td>19</td><td>12</td><td>28</td><td>18</td><td>116</td></tr>
+      <tr><td>Married, never divorced</td><td>172</td><td>61</td><td>44</td><td>70</td><td>37</td><td>384</td></tr>
+      <tr><td>Totals</td><td>211</td><td>80</td><td>56</td><td>98</td><td>55</td><td>500</td></tr>
+    </table></div>
+    <p>SAS her hücrede iki sayı basıyor: üstte gözlenen, altta beklenen ($\hat E_{11} = 48.952$, $\hat E_{12} = 18.56$, …). En küçük beklenen 12.76 ⇒ koşul tamam. "Statistics for Table" kısmında birçok satır var; senin aradığın <strong>Chi-Square</strong> satırı: DF 4, Value 7.1355, Prob 0.1289. Altındaki Likelihood Ratio, Mantel-Haenszel, Phi, Cramer's V bu dersin konusu değil.</p>
+    <p>Karar: $p = .129 &gt; \alpha = .01$ ⇒ fail to reject. Erkeklerin medeni durumunun dine bağlı olduğu sonucuna varamayız; $\alpha = .10$'da bile reddedilmez ($7.135 &lt; 7.779$).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · SciPy çıktısını okumak</span>
+    <p>W4 slayt 14'te testler SciPy ile yapılıyordu. Bu dersin iki testi için SciPy'ın çıktısı şöyle (sayılar yukarıdaki örneklerin):</p>
+    <div class="w-categorical-data-code">from scipy import stats
+
+stats.chisquare([39, 99, 336, 26], f_exp=[35, 90, 325, 50])
+# Power_divergenceResult(statistic=13.2495, pvalue=0.0041)
+
+stats.chi2_contingency([[95, 41], [50, 114]])
+# Chi2ContingencyResult(statistic=44.57, pvalue=2.45e-11, dof=1,
+#   expected_freq=array([[65.73, 70.27], [79.27, 84.73]]))
+
+stats.chi2_contingency([[95, 41], [50, 114]], correction=False).statistic
+# 46.13</div>
+    <p><code>chisquare</code> one-way test'i yapar: <code>f_exp</code> beklenen sayılar, verilmezse eşit olasılık varsayılır. <code>chi2_contingency</code> independence testini yapar ve beklenen sayıları da döndürür. Dikkat: df $= 1$ olduğunda (2×2 tablo) SciPy kendiliğinden <strong>Yates' correction for continuity</strong> uygular, $\sum(|o - e| - 0.5)^2/e$ (Walpole §10.12). McClave'in formülünde bu düzeltme yok; kitapla aynı sayıyı (46.13) görmek için <code>correction=False</code> gerekir. Büyük tablolarda (df &gt; 1) iki yol aynı sonucu verir.</p>
+  </div>
+  <!-- Kaynak: McClave §13.3 (kitap s.812–816), Figure 13.3 (MINITAB: "Pearson Chi-Square = 46.135, DF = 1, P-Value = 0.000"), Example 13.3 ve Figure 13.5 (SAS, görüntüden okundu); Walpole §10.12 (s.376) Yates' correction. SciPy 1.13 çıktıları python ile alındı: chisquare 13.24945, 0.0041271; chi2_contingency 44.5718, 2.452e-11, dof 1; correction=False 46.1347. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İlişki iddiasını $H_0$'a koymak. $H_0$ her zaman "bağımsız" (eşitlik: $p_{ij} = p_{ri}p_{cj}$); araştırmacının aradığı ilişki $H_a$'ya gider.</li>
+      <li>MINITAB ve SAS çıktısında "Likelihood Ratio Chi-Square" satırını okumak. Bu derste kullanılan Pearson Chi-Square.</li>
+      <li>SciPy'ın 2×2 için verdiği 44.57'yi elle bulduğun 46.14 ile karşılaştırıp hata aramak. Fark Yates düzeltmesinden.</li>
+      <li>p ile $\alpha$'yı ters okumak: $p = .129$, $\alpha = .01$ ⇒ $p &gt; \alpha$ ⇒ fail to reject.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ind-2">
+    <p class="quiz__q">Bir 2×2 tablo için elle $\chi^2 = 5.10$ buldun. <code>stats.chi2_contingency(tablo)</code> ise 4.32 basıyor. En olası açıklama?</p>
+    <button class="quiz__opt" data-correct>SciPy df $= 1$ olduğu için Yates continuity correction uyguladı<span class="why">Doğru. <code>correction=False</code> ile McClave'in formülündeki değeri görürsün.</span></button>
+    <button class="quiz__opt">SciPy df'i $(r)(c) - 1 = 3$ aldı<span class="why">SciPy de $(r-1)(c-1) = 1$ kullanır; df statistic'i değiştirmez, sadece p-value'yu.</span></button>
+    <button class="quiz__opt">Elle hesapta beklenen sayıları $n/4$ almışsın<span class="why">Olabilir ama o zaman fark genelde çok daha büyük olur. Düzeltme her zaman statistic'i biraz <em>küçültür</em>, burada görülen de bu.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="2023-ME_A-Q19-chi2"><span class="box__label">ME_A 2023 (CSE321 vize, Grup A) S19 · çıkmış soru, χ² için uyarlandı</span>
+    <p>Orijinal soru: "A sample of 350 students was selected and each was asked the make of their automobile (foreign or domestic) and their year in college (freshman, sophomore, junior, or senior). The results are shown in the table below." Foreign: 15, 65, 100, 25 (total 205); Domestic: 10, 45, 80, 10 (total 145); column totals 25, 110, 180, 35; n = 350. "Which of the following events listed would be considered mutually exclusive events?"</p>
+    <p><strong>Uyarlanmış soru:</strong> "Assume the 350 students are a random sample. Test at $\alpha = .05$ whether the make of a student's automobile is independent of the student's year in college. Write the test in four steps."</p>
+    <p class="src">Not: Orijinal soru eski olasılık müfredatından; cevabı D ("The student is a junior and the student is a freshman": bir öğrenci aynı anda iki sınıfta olamaz). Burada aynı tablo independence testi için kullanıldı.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$\hat E_{ij} = R_iC_j/350$. Freshman sütunu en küçük (25); oradaki beklenen sayıları özellikle kontrol et.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>df $= (2-1)(4-1) = 3$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler.</strong> $H_0$: araba markası (foreign/domestic) ile sınıf bağımsız. $H_a$: bağımlı.</li>
+        <li><strong>Koşul ve test statistic.</strong> Beklenen sayılar:
+          <div class="table-wrap"><table>
+            <tr><th></th><th>Freshman</th><th>Sophomore</th><th>Junior</th><th>Senior</th></tr>
+            <tr><td>Foreign</td><td>14.64</td><td>64.43</td><td>105.43</td><td>20.50</td></tr>
+            <tr><td>Domestic</td><td>10.36</td><td>45.57</td><td>74.57</td><td>14.50</td></tr>
+          </table></div>
+          En küçüğü 10.36 ≥ 5 ⇒ koşul tamam. Katkılar: 0.009, 0.005, 0.280, 0.988 / 0.012, 0.007, 0.395, 1.397. $\chi^2 = 3.09$.</li>
+        <li><strong>Rejection region / p-value.</strong> df $= 3$, $\chi^2_{.05} = 7.815$. $3.09 &lt; 7.815$ ⇒ fail to reject. Tablo: $3.09 &lt; 6.251$ ⇒ $p &gt; .10$ (software $p = .378$).</li>
+        <li><strong>Sonuç.</strong> $\alpha = .05$'te öğrencinin araba markasının sınıfına bağlı olduğuna dair yeterli kanıt yok. Senior'larda foreign oranı biraz yüksek (%71, genel %59) ama bu fark şansla açıklanabilir.</li>
+      </ol>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/ME_A_2023.pdf" target="_blank" rel="noopener">Orijinal kâğıt (ME_A_2023.pdf, sayfa 5) ↗</a> · <a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/2024-2025-probability/WhatsApp%20Image%202024-11-08%20at%2013.48.29.jpeg" target="_blank" rel="noopener">tablonun fotoğrafı ↗</a></p>
+    <!-- Kaynak: ME_A_2023.pdf S19 (PDF metninde tablo yok; değerler exams/2024-2025-probability/WhatsApp Image 2024-11-08 at 13.48.29.jpeg'den okundu, satır ve sütun toplamları tutuyor). Python: χ² 3.0923, p 0.3776. -->
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="pattern" data-min="6">
+  <h2>Bağımlılığın deseni: yüzdeler, katkılar ve sabit marjinaller</h2>
+  <div class="quiz" id="q-pat-1">
+    <p class="quiz__q">Reklam tablosunda erkeklerin %65.5'i, kadınların %26.5'i ürünü tanıdı; bütün izleyicilerde oran %45.3. Değişkenler bağımsız olsaydı ne beklerdin?</p>
+    <button class="quiz__opt" data-correct>İki cinsiyette de oranın %45 civarında olmasını<span class="why">Doğru. Bağımsızlıkta her sütundaki oran satır toplamının oranına (%45.3) yakın olur. Bu oranlardan uzaklaştıkça bağımlılık artar.</span></button>
+    <button class="quiz__opt">İki oranın toplamının %100 olmasını<span class="why">Her sütun kendi içinde %100'e toplanır (tanıdı + tanımadı). İki sütunun "tanıdı" oranlarının toplamının bir anlamı yok.</span></button>
+    <button class="quiz__opt">Erkek ve kadın sayısının eşit olmasını<span class="why">Bağımsızlık grup büyüklükleriyle ilgili değil; grupların içindeki oranların aynı olmasıyla ilgili.</span></button>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · McClave Table 13.5, yüzdelerle desen</span>
+    <p>Bir değişkeni taban (<em>base</em>) seç, burada cinsiyet. Her hücreyi kendi sütun toplamının yüzdesine çevir: $95/145 = 65.5\%$.</p>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Male</th><th>Female</th><th>Totals</th></tr>
+      <tr><td>Could identify product</td><td>65.5</td><td>26.5</td><td>45.3</td></tr>
+      <tr><td>Could not identify product</td><td>34.5</td><td>73.5</td><td>54.7</td></tr>
+      <tr><td>Totals</td><td>100</td><td>100</td><td>100</td></tr>
+    </table></div>
+    <p>McClave'in Figure 13.4'ü bunu bar graph ile gösteriyor: yatay eksende cinsiyet, dikeyde tanıma yüzdesi, bağımsızlık altında beklenen %45.3 yatay bir çizgi. Erkeklerin çubuğu çizginin çok üstünde, kadınlarınki çok altında. Medeni durum örneğinde ise boşanmış oranı dinlere göre %18.5, %23.8, %21.4, %28.6, %32.7; genel oran %23. Sapmalar küçük ve test de reddetmemişti: grafik ile test aynı şeyi söylüyor.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · McClave Statistics in Action, tissue davası: hangi hücre $\chi^2$'yi sürüklüyor?</span>
+    <p>7,914 hastadan 708'i dava açmış. MINITAB her hücrede gözlenen sayıyı, satır yüzdesini, beklenen sayıyı ve <em>Contribution to Chi-square</em>'i basıyor:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Sender</th><th>No lawsuit</th><th>Lawsuit</th><th>Total</th></tr>
+      <tr><td>Distributor</td><td>5506 (beklenen 5611.6; katkı 1.989)</td><td>657 (551.4; 20.244)</td><td>6163</td></tr>
+      <tr><td>Processor</td><td>1700 (1594.4; 7.001)</td><td>51 (156.6; 71.252)</td><td>1751</td></tr>
+    </table></div>
+    <p>$\chi^2 = 100.485$, df 1, $p = 0.000$. Toplamın %71'i tek hücreden: processor'ın hastaları beklenenden (156.6) çok daha az dava açmış (51). Dava oranı distributor için %10.66, processor için %2.91.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · sabit marjinaller, homogeneity ve $k$ proportion</span>
+    <ul>
+      <li><strong>Contingency table with fixed marginals.</strong> Bazen bir değişkenin her seviyesinden, veri toplanmadan belirlenmiş sayıda gözlem alınır: 150 erkek ve 150 kadın gibi. McClave bu veriye <em>product binomial data</em> da diyor. Test aynen aynı, $\chi^2$ yine yaklaşık $(r-1)(c-1)$ df'li. Bunu yapmanın bir nedeni her hücrede yeterli gözlem (beklenen ≥ 5) sağlamak.</li>
+      <li><strong>Test for homogeneity</strong> (Walpole §10.13). Sütun toplamları sabitse soru "her grubun içindeki oranlar aynı mı?" olur. Hesap aynı: $\hat E = R_iC_j/n$, aynı $\chi^2$, aynı df. Walpole Example 10.14: 200 Democrat, 150 Republican, 150 Independent; $\chi^2 = 1.53$, df 4, $\chi^2_{.05} = 9.488$ ⇒ fail to reject.</li>
+      <li><strong>$k$ proportion.</strong> $H_0$: $p_1 = p_2 = \dots = p_k$ testi bir $2 \times k$ tablodur, df $= k - 1$. Walpole Example 10.15 (üç vardiyada defective oranı): $\chi^2 = 6.23$, df 2, $p \approx .04$. $\alpha = .025$'te kritik değer 7.378 ⇒ fail to reject. Walpole'ün uyarısı: bu p-value ile "üç vardiya aynı" demek tehlikeli. (Walpole beklenen sayıları bir ondalığa yuvarlayıp 6.29 buluyor; karar değişmiyor.)</li>
+      <li><strong>$2 \times 2$ tablo = iki proportion karşılaştırması.</strong> McClave: "a $2 \times 2$ contingency table analysis is equivalent to a comparison of two population proportions." Reklam tablosunda pooled iki-proportion z testi $z = 6.79$ verir ve $z^2 = 46.13 = \chi^2$. Two-tailed z testi ile $\chi^2$ testi aynı kararı verir; yönlü bir $H_a$ (örneğin $p_1 &lt; p_2$) için z testini kullan.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: McClave §13.3 Table 13.5, Figure 13.4 ve 13.6 açıklaması, "Contingency Tables with Fixed Marginals" (s.816–817, dipnot "product binomial data"), Statistics in Action Revisited ve Figure SIA13.1 (MINITAB, görüntüden okundu: 100.485; 1.989, 20.244, 7.001, 71.252), "Alternative analysis" paragrafı (s.818); Walpole §10.13 Example 10.14 ve 10.15 (s.376–379). Python: homogeneity 1.5274; vardiya 6.2339, p 0.0443; reklam z 6.7923, z² 46.1347. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Grup büyüklükleri farklıyken deseni ham sayılardan okumak. 657 dava 51'den büyük ama asıl anlamlı karşılaştırma oranlar: %10.66 ile %2.91.</li>
+      <li>Katkı tek başına yön söylemez: kare alındığı için hep pozitif. Yön için $O$ ile $\hat E$'yi karşılaştır.</li>
+      <li>Reddettikten sonra "hangi grup farklı?" diye bütün ikilileri ayrı ayrı test etmek. W4'teki çoklu test sorunu geri gelir: $m$ test yapıyorsan Bonferroni ile her birini $\alpha/m$'de yap. McClave ikili karşılaştırma yöntemlerini kitabın kapsamı dışında bırakıyor ve yüzde grafikleriyle betimlemeyi öneriyor.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-pat-2">
+    <p class="quiz__q">5 grubun oranları için $\chi^2$ testi reddetti. Her grup çiftini (10 çift) ayrı ayrı test etmek istiyorsun, toplam hata $\alpha = .05$'i aşmasın. Her test hangi düzeyde yapılmalı?</p>
+    <button class="quiz__opt" data-correct>$.05/10 = .005$<span class="why">Doğru. Bonferroni: $m$ test için her birine $\alpha/m$. Böylece en az bir yanlış alarm olasılığı en fazla $\alpha$ olur.</span></button>
+    <button class="quiz__opt">$.05$, çünkü $\chi^2$ zaten reddetti<span class="why">Her test kendi yanlış alarm şansını taşır; 10 test .05'te yapılırsa en az birinin şans eseri significant çıkma olasılığı .05'in çok üstüne çıkar.</span></button>
+    <button class="quiz__opt">$.05 \times 10 = .5$<span class="why">Ters yön: Bonferroni her testi daha <em>sıkı</em> yapar, gevşetmez.</span></button>
+  </div>
+  <div class="quiz" id="q-pat-3">
+    <p class="quiz__q">Araştırmacılar veri toplamadan 150 erkek ve 150 kadın seçiyor (sütun toplamları sabit). Analiz nasıl değişir?</p>
+    <button class="quiz__opt" data-correct>Değişmez: aynı $\hat E_{ij} = R_iC_j/n$, aynı $\chi^2$, df $(r-1)(c-1)$<span class="why">Doğru. McClave: fixed marginals için $\chi^2$ yine yaklaşık $(r-1)(c-1)$ df'li; prosedür aynı.</span></button>
+    <button class="quiz__opt">df $r - 1$'e düşer, çünkü sütunlar artık rastgele değil<span class="why">df değişmez. Walpole bu duruma homogeneity diyor ama hesap ve df aynı.</span></button>
+    <button class="quiz__opt">Beklenen sayılar her hücrede $n/(rc)$ olur<span class="why">Sütun toplamları eşit olsa bile satır toplamları eşit değil; beklenen sayı hâlâ $R_iC_j/n$.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-13.32"><span class="box__label">McClave 13.32 · kitap alıştırması</span>
+    <p>"Eyewitnesses and mug shots. Refer to the Applied Psychology in Criminal Justice (Apr. 2010) study of mug shot choices by eyewitnesses to a crime, Exercise 10.107 (p. 598). Recall that a sample of 96 college students was shown a video of a simulated theft, then asked to select the mug shot that most closely resembled the thief. The students were randomly assigned to view either 3, 6, or 12 mug shots at a time, with 32 students in each group. The number of students in the 3-, 6-, or 12-photos-per-page groups who selected the target mugshot were 19, 19, and 15, respectively.</p>
+    <p>a. For each photo group, compute the proportion of students who selected the target mug shot. Which group yielded the lowest proportion? b. Create a contingency table for these data, with photo group in the rows and whether or not the target mug shot was selected in the columns. c. Refer to part b. Are there differences in the proportions who selected the target mug shot among the three photo groups? Test, using $\alpha = .10$."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her grupta 32 öğrenci; "selected" ve "not selected" sütunları.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Satır toplamları tasarımla sabitlenmiş (32): bu bir homogeneity / $k$ proportion testi, hesap aynı. df $= (3-1)(2-1)$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>(a)</strong> $19/32 = .594$, $19/32 = .594$, $15/32 = .469$. En düşük oran 12 fotoğraflı grupta.</li>
+        <li><strong>(b)</strong>
+          <div class="table-wrap"><table>
+            <tr><th></th><th>Selected</th><th>Not selected</th><th>Total</th></tr>
+            <tr><td>3 photos</td><td>19</td><td>13</td><td>32</td></tr>
+            <tr><td>6 photos</td><td>19</td><td>13</td><td>32</td></tr>
+            <tr><td>12 photos</td><td>15</td><td>17</td><td>32</td></tr>
+            <tr><td>Total</td><td>53</td><td>43</td><td>96</td></tr>
+          </table></div></li>
+        <li><strong>(c)</strong> $H_0$: $p_1 = p_2 = p_3$ (fotoğraf grubu ile doğru seçim bağımsız); $H_a$: en az bir oran farklı. $\hat E = 32 \cdot 53/96 = 17.67$ ve $32 \cdot 43/96 = 14.33$, hepsi ≥ 5. $\chi^2 = 0.101 + 0.124 + 0.101 + 0.124 + 0.403 + 0.496 = 1.35$. df $= 2$, $\chi^2_{.10} = 4.605$; $1.35 &lt; 4.605$ ⇒ fail to reject ($p = .51$). $\alpha = .10$'da üç grupta doğru fotoğrafı seçme oranının farklı olduğuna dair yeterli kanıt yok.</li>
+      </ol>
+      <p>Bu çift numaralı alıştırmanın kitapta cevabı yok; değerler Python ile kontrol edildi.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/mcclave-sincich-statistics-13e.pdf" target="_blank" rel="noopener">Orijinal soru (McClave 13e, kitap s.821) ↗</a></p>
+    <!-- Kaynak: McClave 13.32 (kitap s.821, PDF s.823). Python: χ² 1.3480, p 0.5097. -->
+  </div>
+  <div class="box box--exam" data-exam="2023-ME_A-Q7-chi2"><span class="box__label">ME_A 2023 (CSE321 vize, Grup A) S7 · çıkmış soru, χ² için uyarlandı</span>
+    <p>Orijinal soru: "Each manager of a corporation was rated as being either a good, fair, or poor manager by his/her boss. The manager's educational background was also noted. The data appear below:" (Educational Background: H. S. Degree, Some College, College Degree, Master's or Ph.D.) Good: 2, 3, 21, 13 (39); Fair: 8, 11, 44, 24 (87); Poor: 9, 5, 7, 13 (34); Totals: 19, 19, 72, 50 (160). "What is the probability that a randomly chosen manager is either a good manager or has an advanced degree?"</p>
+    <p><strong>Uyarlanmış soru:</strong> "Treat the 160 managers as a random sample. Test at $\alpha = .05$ whether manager rating is independent of educational background. Check the conditions first; if a condition fails, fix it by combining adjacent categories."</p>
+    <p class="src">Not: Orijinal soru eski olasılık müfredatından; cevabı A, $19/40$: $(39 + 50 - 13)/160 = 76/160$. Burada aynı tablo independence testi için kullanıldı.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>H.S. ve Some College sütunlarının toplamı sadece 19. Bu sütunlarda $\hat E$'ler kaç çıkıyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Komşu iki sütunu "No degree" (19 + 19 = 38) diye birleştir. Tablo $3 \times 3$ olur; df'i yeniden hesapla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler.</strong> $H_0$: yönetici notu ile eğitim düzeyi bağımsız. $H_a$: bağımlı.</li>
+        <li><strong>Koşul.</strong> Orijinal tabloda H.S. ve Some College sütunlarının beklenen sayıları $19 \cdot 39/160 = 4.63$, $19 \cdot 87/160 = 10.33$, $19 \cdot 34/160 = 4.04$: dört hücre 5'in altında. Bu iki komşu sütun "No degree" olarak birleştirilir:
+          <div class="table-wrap"><table>
+            <tr><th></th><th>No degree</th><th>College degree</th><th>Master's or Ph.D.</th><th>Total</th></tr>
+            <tr><td>Good</td><td>5 (9.26)</td><td>21 (17.55)</td><td>13 (12.19)</td><td>39</td></tr>
+            <tr><td>Fair</td><td>19 (20.66)</td><td>44 (39.15)</td><td>24 (27.19)</td><td>87</td></tr>
+            <tr><td>Poor</td><td>14 (8.08)</td><td>7 (15.30)</td><td>13 (10.63)</td><td>34</td></tr>
+            <tr><td>Total</td><td>38</td><td>72</td><td>50</td><td>160</td></tr>
+          </table></div>
+          Parantez içinde $\hat E$; en küçüğü 8.08 ⇒ koşul tamam.</li>
+        <li><strong>Test statistic, p-value.</strong> Katkılar: 1.962, 0.678, 0.054 / 0.134, 0.601, 0.374 / 4.347, 4.503, 0.531; $\chi^2 = 13.18$. df $= (3-1)(3-1) = 4$, $\chi^2_{.05} = 9.488$ ⇒ reject. Tablo: $11.143 &lt; 13.18 &lt; 13.277$ ⇒ $.01 &lt; p &lt; .025$ (software $p = .010$).</li>
+        <li><strong>Sonuç.</strong> $\alpha = .05$'te yönetici notunun eğitim düzeyine bağlı olduğuna dair kanıt var. Desen "Poor" satırında: "Poor" oranı No degree grubunda %36.8, College degree'de %9.7, Master's+'ta %26.0 (genel %21.2). En büyük iki katkı da bu satırdan.</li>
+      </ol>
+      <p>Birleştirmeden hesaplasaydın $\chi^2 = 15.71$, df 6 bulurdun; ama dört hücrede $\hat E &lt; 5$ olduğu için bu sayının p-value'suna güvenemezsin.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/ME_A_2023.pdf" target="_blank" rel="noopener">Orijinal kâğıt (ME_A_2023.pdf, sayfa 2) ↗</a></p>
+    <!-- Kaynak: ME_A_2023.pdf S7 (aynı soru 2024-25 fotoğraflarında 13.48.22 (1).jpeg). Python: birleşik 13.1832, p 0.01041; birleşmemiş 15.7081, df 6, minE 4.037. -->
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="cautions" data-min="6">
+  <h2>Dikkat: küçük beklenen sayı, "accept" yok, causation yok</h2>
+  <div class="quiz" id="q-caut-1">
+    <p class="quiz__q">Tissue davasında $\chi^2$ testi dava açma ile bildirimi gönderen arasındaki bağımsızlığı reddetti. Hangi sonuç doğru?</p>
+    <button class="quiz__opt" data-correct>İki değişken istatistiksel olarak ilişkili; makalelerin davaya <em>neden</em> olduğu kanıtlanmadı<span class="why">Doğru. McClave: "statistical dependence does not imply causality." Hastaların sosyoekonomik durumu, daha önce dava açmış olmaları gibi kontrol edilmeyen değişkenler var.</span></button>
+    <button class="quiz__opt">Makaleler dava olasılığını beş kat artırdı<span class="why">Gözlemsel veride ilişki nedensellik değildir. Oran beş kat farklı, ama nedenini bu test söyleyemez.</span></button>
+    <button class="quiz__opt">Reddetmek için $p$'nin 0 olması gerekirdi; .000 yuvarlanmış, karar belirsiz<span class="why">"P-Value = 0.000" sadece çok küçük demek. $p &lt; \alpha$ olduğu sürece reject.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · A Word of Caution about Chi-Square Tests (McClave §13.4)</span>
+    <ol>
+      <li><strong>Doğru population ve varsayımlar.</strong> $\chi^2$ en çok kullanılan, bu yüzden en çok kötüye kullanılan araçlardan biri. Sample, hakkında çıkarım yaptığın population'dan gelmeli.</li>
+      <li><strong>Küçük beklenen sayılar.</strong> Beklenen sayılar çok küçükse $\chi^2$ yaklaşımı kötüleşir ve gerçek $\alpha$ tablodaki değerden çok farklı olabilir. Kural: her beklenen sayı en az 5.</li>
+      <li><strong>Reddedemezsen bağımsızlığı kabul etme.</strong> Type II error riski var ve $\beta$ bilinmiyor. İki sınıflamanın bağımlı olmasının neredeyse sonsuz yolu olduğu için $\beta$'yı hesaplamak bile zor.</li>
+      <li><strong>Dependence ≠ causation.</strong> $H_a$ istatistiksel bağımlılık der. Nedensel bir ilişki contingency table analysis ile kurulamaz.</li>
+    </ol>
+    <p>Küçük tablolar için seçenekler: daha büyük sample (Walpole), Walpole'e göre beklenen sayılar 5–10 arasındaysa Yates düzeltmesi, 5'in altındaysa exact test. $2 \times 2$ tabloda exact test <strong>Fisher's exact test</strong>'tir (McClave 13.45): marjinaller sabitken tablonun olasılığı hypergeometric distribution'dan hesaplanır. Bilgisayarla aynı fikrin genel hâli <strong>permutation test</strong>: etiketleri karıştırarak $H_0$ altındaki dağılımı üretmek.</p>
+  </div>
+  <!-- Kaynak: McClave §13.4 (kitap s.825–826) ve SIA Revisited son paragraf (s.818); McClave 13.45 (Fisher's exact test, s.824–825); Walpole §10.12 (s.376) Yates ve Fisher-Irwin; 00-course-info.pdf "Monte Carlo simulation, bootstrap intervals, permutation tests". -->
+  <p class="w-categorical-data-guess"><b>Önce tahmin et:</b> Aşı tablosunda (McClave 13.45) iki hücrenin beklenen sayısı 5'in altında ve $\chi^2$ tablosu $p = 0.036$ veriyor. Etiketleri binlerce kez karıştırarak bulunan p bundan büyük mü çıkar, küçük mü?</p>
+  <div id="w-perm">
+    <div class="w-categorical-data-ctl">
+      <span class="src">tablo:</span>
+      <button class="btn btn--sm" data-wp="hiv">McClave 13.45 aşı</button>
+      <button class="btn btn--sm" data-wp="ship">ME_A S1 kargo</button>
+      <button class="btn btn--sm" data-wp="mug">McClave 13.32</button>
+      <button class="btn btn--sm" data-wp="celeb">McClave 13.3 reklam</button>
+      <button class="btn btn--sm" data-wp="custom">Bölüm 7'deki tablo</button>
+    </div>
+    <div class="w-categorical-data-ctl">
+      <label>tekrar <select id="wp-reps" class="btn btn--sm"><option value="1000">1000</option><option value="5000" selected>5000</option><option value="20000">20000</option></select></label>
+      <button class="btn btn--sm btn--accent" id="wp-go">Karıştır</button>
+      <button class="btn btn--sm" id="wp-seed">Yeni seed</button>
+    </div>
+    <div class="w-categorical-data-err" id="wp-err" aria-live="polite"></div>
+    <div id="wp-tab"></div>
+    <div class="w-categorical-data-plot" id="wp-plot"></div>
+    <div id="wp-out" aria-live="polite"></div>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Neden çalışıyor? · simulated p-value</span>
+    <p>$H_0$ "satır ve sütun değişkenleri bağımsız" diyor. Öyleyse bir gözlemin sütun etiketi satırından bağımsız: etiketleri satırlar arasında rastgele karıştırmak $H_0$ altında olabilecek başka bir veri seti üretir. Karıştırma iki marjinali de değiştirmez, sadece hücrelere dağılımı değiştirir. Binlerce karıştırmanın $\chi^2$'leri $H_0$ altındaki dağılımı verir; gözlenen $\chi^2$'ye eşit ya da büyük olanların oranı simulated p-value'dur.</p>
+    <p>Büyük tablolarda (reklam) histogram $\chi^2$ eğrisine oturur ve iki p aynıdır. Aşı tablosunda $\chi^2$ birkaç değer alabiliyor, histogram çubuk çubuk ve eğriye uymuyor: simulated p (≈ 0.077) tablo p'sinin (0.036) iki katı. Küçük beklenen sayıda $\chi^2$ tablosu fazla iyimser.</p>
+  </div>
+  <!-- Kaynak: aşı tablosu için tam permutation dağılımı (hypergeometric, marjinaller 7/31 ve 24/14) python ile: P(χ² ≥ 4.4112) = 0.07719 = Fisher two-sided p; asimptotik 0.03570. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Fail to reject ⇒ bağımsız" demek. Doğru cümle: "bağımlı olduklarına dair yeterli kanıt yok."</li>
+      <li>Gözlemsel bir tablodan nedensellik çıkarmak. Nedensellik için randomized bir experiment gerekir (W1).</li>
+      <li>Koşul bozukken $\chi^2$ p-value'sunu raporlamak. Önce birleştir, sonra test et; olmuyorsa exact ya da permutation yöntemine geç.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-caut-2">
+    <p class="quiz__q">Bir $2 \times 2$ tabloda $\chi^2$ testi fail to reject verdi ($p = .30$). Hangi cümle doğru?</p>
+    <button class="quiz__opt" data-correct>İki değişkenin bağımlı olduğuna dair yeterli kanıt yok<span class="why">Doğru. Test $H_0$'ı kanıtlamaz; sadece $H_0$'a karşı kanıt bulamadığını söyler.</span></button>
+    <button class="quiz__opt">İki değişken bağımsız, %70 güvenle<span class="why">$1 - p$ bir güven düzeyi değil. Ve $H_0$ kabul edilmez: $\beta$ bilinmiyor.</span></button>
+    <button class="quiz__opt">Test yanlış yapılmış; $p$ küçük çıkmalıydı<span class="why">Büyük p normal bir sonuç: verinin $H_0$ ile uyumlu olduğunu gösterir.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-13.45"><span class="box__label">McClave 13.45 · kitap alıştırması</span>
+    <p>"Efficacy of an HIV vaccine. … To test the efficacy of the vaccine, a clinical trial was conducted. The trial consisted of 7 AIDS patients vaccinated with the new drug and 31 AIDS patients who were treated with a placebo (no vaccination). Of the 7 vaccinated patients, 2 tested positive and 5 tested negative at the end of a follow-up period. Of the 31 unvaccinated patients, 22 tested positive and 9 tested negative." (Soru kısaltıldı.)</p>
+    <p>"a. Construct a contingency table for the data. Then, conduct a test to determine whether the vaccine is effective in treating this strain of HIV. Use $\alpha = .05$. b. Are the assumptions for the test you carried out in part a satisfied? What are the consequences if the assumptions are violated? c. In the case of a $2 \times 2$ contingency table, R. A. Fisher (1935) developed a procedure for computing the exact p-value for the test (called Fisher's exact test). The method utilizes the hypergeometric probability distribution of Chapter 4 (p. 248). Consider the hypergeometric probability $\binom{7}{2}\binom{31}{22} / \binom{38}{24}$, which represents the probability that 2 out of 7 vaccinated AIDS patients test positive and 22 out of 31 unvaccinated patients test positive—that is, the probability of the result of the clinical trial, given that the null hypothesis of independence is true. Compute this probability (called the probability of the contingency table). d. Refer to part c. Now consider two other possible results from the clinical trial that are different from the original results. Result 2: Only 1 of the 7 vaccinated patients tests positive; 23 of the 31 unvaccinated patients test positive. Result 3: None of the 7 vaccinated patients tests positive; 24 of the 31 unvaccinated patients test positive. Create two contingency tables, one for each of these results. Note that these two contingency tables have the same marginal totals as the original table in part a. Explain why each of these tables provides more evidence to reject the null hypothesis of independence than does the original table. Then, compute the probability of each table, using the hypergeometric formula. e. The p-value of Fisher's exact test is the probability of observing a result at least as unsupportive of the null hypothesis as is the observed contingency table, given the same marginal totals. Sum the probabilities of parts c and d to obtain the p-value of Fisher's exact test. … Interpret this value in the context of the vaccine trial."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(b) Aşılı satırın toplamı sadece 7. $\hat E = 7 \cdot 24/38$ ve $7 \cdot 14/38$ kaç?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(d) Aşı etkiliyse aşılılarda pozitif sayısı <em>azalır</em>. 1 ve 0 pozitif, 2'den daha uç sonuçlar.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>(a)</strong> Tablo: Vaccinated: positive 2, negative 5 (7); Placebo: positive 22, negative 9 (31); sütun toplamları 24 ve 14, $n = 38$. $H_0$: aşı durumu ile test sonucu bağımsız; $H_a$: bağımlı. $\hat E$: 4.42, 2.58 / 19.58, 11.42. $\chi^2 = 1.326 + 2.273 + 0.299 + 0.513 = 4.41$, df 1, $\chi^2_{.05} = 3.841$ ⇒ reject ($p = .036$): aşının etkili olduğuna dair kanıt var gibi görünüyor.</li>
+        <li><strong>(b)</strong> Hayır. Aşılı satırdaki iki beklenen sayı (4.42 ve 2.58) 5'in altında. $\chi^2$ yaklaşımı güvenilir değil; gerçek $\alpha$ .05'ten farklı olabilir ve (a)'daki sonuç yanıltıcı olabilir.</li>
+        <li><strong>(c)</strong> $\binom{7}{2}\binom{31}{22}/\binom{38}{24} = .0438$.</li>
+        <li><strong>(d)</strong> Result 2: Vaccinated 1 / 6, Placebo 23 / 8. Result 3: Vaccinated 0 / 7, Placebo 24 / 7. Aşılılarda pozitif sayısı daha az, plasebo grubunda daha çok: aşının etkili olduğu yönünde daha güçlü kanıt. Olasılıklar: $\binom{7}{1}\binom{31}{23}/\binom{38}{24} = .0057$, $\binom{7}{0}\binom{31}{24}/\binom{38}{24} = .0003$.</li>
+        <li><strong>(e)</strong> $p = .0438 + .0057 + .0003 = .0498 &lt; .05$ ⇒ reject $H_0$. Exact test de, kıl payı, aşının bu HIV türüne karşı etkili olduğunu destekliyor. Bu tek yönlü (left-sided) bir p-value; iki yönlü exact p .077 olurdu ve $\alpha = .05$'te reddetmezdi. Permutation widget'ının bulduğu da bu iki yönlü değer.</li>
+      </ol>
+      <p>Kitabın cevabı: a. $\chi^2 = 4.407$, reject $H_0$; b. no; c. .0438; d. .0057, .0003; e. p-value = .0498, reject $H_0$. (Kitabın 4.407'si ile buradaki 4.41 arasındaki fark yuvarlamadan.)</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/mcclave-sincich-statistics-13e.pdf" target="_blank" rel="noopener">Orijinal soru (McClave 13e, kitap s.824–825) ↗</a></p>
+    <!-- Kaynak: McClave 13.45 (kitap s.824–825, PDF s.826–827); anahtar s.876. Python: χ² 4.4112, p 0.0357; hypergeom .043783, .005711, .000272; fisher_exact less 0.049766, two-sided 0.07719. -->
+  </div>
+  <div class="box box--exam" data-exam="2023-ME_A-Q1-chi2"><span class="box__label">ME_A 2023 (CSE321 vize, Grup A) S1 · çıkmış soru, χ² için uyarlandı</span>
+    <p>Orijinal soru: "The overnight shipping business has skyrocketed in the last ten years. The single greatest predictor of a company's success is customer service. A study was conducted to determine the customer satisfaction levels for one overnight shipping business. In addition to the customer's satisfaction level, the customers were asked how often they used overnight shipping. The results are shown below in the following table:" (Satisfaction level: High, Medium, Low) &lt; 2 per month: 250, 140, 10 (400); 2 - 5 per month: 140, 55, 5 (200); &gt; 5 per month: 70, 25, 5 (100); TOTAL: 460, 220, 20 (700). "A customer is chosen at random. Given that the customer uses the company two to five times per month, what is the probability that the customer expressed low satisfaction with the company?"</p>
+    <p><strong>Uyarlanmış soru:</strong> "Treat the 700 customers as a random sample. At $\alpha = .05$, is satisfaction level independent of frequency of use? Check the expected cell counts before you compute the statistic."</p>
+    <p class="src">Not: Orijinal soru eski olasılık müfredatından; cevabı A, $5/200 = 1/40$. Burada aynı tablo independence testi için kullanıldı.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Low" sütununun toplamı sadece 20. $\hat E_{3,\text{Low}} = 100 \cdot 20/700$ kaç?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Low'u komşusu Medium ile birleştir ("Medium or low"). Tablo $3 \times 2$ olur, df $= 2$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler.</strong> $H_0$: memnuniyet düzeyi ile kullanım sıklığı bağımsız. $H_a$: bağımlı.</li>
+        <li><strong>Koşul.</strong> Low sütununun beklenen sayıları $400 \cdot 20/700 = 11.43$, $200 \cdot 20/700 = 5.71$, $100 \cdot 20/700 = 2.86$. Son hücre 5'in altında ⇒ Low ile Medium birleştirilir:
+          <div class="table-wrap"><table>
+            <tr><th></th><th>High</th><th>Medium or low</th><th>Total</th></tr>
+            <tr><td>&lt; 2 per month</td><td>250 (262.86)</td><td>150 (137.14)</td><td>400</td></tr>
+            <tr><td>2 - 5 per month</td><td>140 (131.43)</td><td>60 (68.57)</td><td>200</td></tr>
+            <tr><td>&gt; 5 per month</td><td>70 (65.71)</td><td>30 (34.29)</td><td>100</td></tr>
+          </table></div>
+          En küçük $\hat E$ 34.29 ⇒ koşul tamam.</li>
+        <li><strong>Test statistic, p-value.</strong> $\chi^2 = 0.629 + 1.205 + 0.559 + 1.071 + 0.280 + 0.536 = 4.28$. df $= (3-1)(2-1) = 2$, $\chi^2_{.05} = 5.991$ ⇒ fail to reject. Tablo: $4.28 &lt; 4.605$ ⇒ $p &gt; .10$ (software $p = .118$).</li>
+        <li><strong>Sonuç.</strong> $\alpha = .05$'te müşteri memnuniyetinin kullanım sıklığına bağlı olduğuna dair yeterli kanıt yok. Orijinal sorunun cevabıyla tutarlı: $P(\text{Low} \mid 2\text{–}5) = .025$, $P(\text{Low}) = .029$.</li>
+      </ol>
+      <p>Birleştirmeden $\chi^2 = 7.26$, df 4 çıkardı ($p = .12$); bir hücrede $\hat E = 2.86$ olduğu için o p-value'ya güvenilmez. Permutation widget'ında bu tabloyu seçip iki p'yi karşılaştırabilirsin.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/ME_A_2023.pdf" target="_blank" rel="noopener">Orijinal kâğıt (ME_A_2023.pdf, sayfa 1) ↗</a> · <a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/2024-2025-probability/WhatsApp%20Image%202024-11-08%20at%2013.48.17.jpeg" target="_blank" rel="noopener">2024-25 fotoğrafı ↗</a></p>
+    <!-- Kaynak: ME_A_2023.pdf S1 = exams/2024-2025-probability/WhatsApp Image 2024-11-08 at 13.48.17.jpeg. Python: birleşik 4.2799, p 0.1177; birleşmemiş 7.2628, df 4, p 0.1226, minE 2.857. -->
+  </div>
+  <div class="box box--exam" data-exam="2023-ME_A-Q23-chi2"><span class="box__label">ME_A 2023 (CSE321 vize, Grup A) S23 · çıkmış soru, χ² için uyarlandı</span>
+    <p>Orijinal soru: "The table shows the political affiliations and types of jobs for workers in a particular state. Suppose a worker is selected at random within the state and the worker's political affiliation and type of job are noted." White collar: Republican 20%, Democrat 13%, Independent 8%; Blue Collar: 17%, 18%, 24%. "Find the probability the worker is not an Independent."</p>
+    <p><strong>Uyarlanmış soru:</strong> "Can you test from this table whether type of job and political affiliation are independent? Compute the chi-square statistic as if the percentages came from (i) a sample of 100 workers and (ii) a sample of 1,000 workers, and compare the conclusions at $\alpha = .05$."</p>
+    <p class="src">Not: Orijinal soru eski olasılık müfredatından; cevabı C, $1 - (.08 + .24) = .68$. Burada aynı tablo χ² testinin neden sayım istediğini göstermek için kullanıldı.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Yüzdeleri $n/100$ ile çarparak sayıya çevir. İki durumda tablonun "şekli" aynı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bölüm 5'teki kural: aynı yüzdelerle $\chi^2$, $n$ ile orantılı.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Cevap: hayır.</strong> Tablo yüzde (olasılık) veriyor, sayım değil. $\chi^2$ sayımlar ve $n$ olmadan hesaplanamaz; kaç işçiye bakıldığını bilmeden karar verilemez.</li>
+        <li><strong>(i) $n = 100$.</strong> Sayımlar 20, 13, 8 / 17, 18, 24. Satır toplamları 41, 59; sütun toplamları 37, 31, 32. $\hat E$: 15.17, 12.71, 13.12 / 21.83, 18.29, 18.88 (hepsi ≥ 5). $\chi^2 = 6.00$, df 2, $\chi^2_{.05} = 5.991$ ⇒ kıl payı reject ($p = .0497$).</li>
+        <li><strong>(ii) $n = 1000$.</strong> Her sayı 10 katı, $\chi^2 = 60.04$ ⇒ çok net reject ($p \approx 0$).</li>
+        <li><strong>Ders.</strong> Aynı yüzdeler, $n$'ye göre çok farklı kanıt. Bu yüzden $\chi^2$ formülüne her zaman sayımlar girer. Desen her iki durumda aynı: white collar işçilerde Independent oranı düşük (Independent'ların %25'i white collar, genelde %41).</li>
+      </ol>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/ME_A_2023.pdf" target="_blank" rel="noopener">Orijinal kâğıt (ME_A_2023.pdf, sayfa 6) ↗</a> · <a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/2024-2025-probability/WhatsApp%20Image%202024-11-08%20at%2013.48.33.jpeg" target="_blank" rel="noopener">2024-25 fotoğrafı ↗</a></p>
+    <!-- Kaynak: ME_A_2023.pdf S23 = 13.48.33.jpeg. Python: n=100 χ² 6.0042, p 0.04968; n=1000 χ² 60.0423. -->
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="which-test" data-min="4">
+  <h2>Hangi test? Categorical data analysis guide</h2>
+  <div class="quiz" id="q-which-1">
+    <p class="quiz__q">Bir tarayıcı şirketi geçen yılın pazar paylarını (5 tarayıcı) biliyor ve bu yıl 800 kullanıcıyla payların değişip değişmediğini test etmek istiyor. Hangi test?</p>
+    <button class="quiz__opt" data-correct>One-way $\chi^2$ (goodness of fit), df 4<span class="why">Doğru. Tek qualitative değişken (tarayıcı), 5 seviye, $H_0$'da verilmiş olasılıklar: $E_i = 800\,p_{i,0}$, df $= 5 - 1$.</span></button>
+    <button class="quiz__opt">Contingency table $\chi^2$, df $(5-1)(2-1) = 4$<span class="why">İkinci bir değişken yok; geçen yılın payları veri değil, $H_0$'daki sabit değerler.</span></button>
+    <button class="quiz__opt">Proportion için z testi<span class="why">z testi tek bir proportion içindir (iki kategori). Beş kategoriyi birlikte test etmek için $\chi^2$ gerekir.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Categorical Data Analysis Guide (McClave) ve öncekilerle karşılaştırma</span>
+    <div class="table-wrap w-categorical-data-rel"><table>
+      <tr><th>Durum</th><th>Hedef</th><th>Statistic</th><th>Referans</th><th>Condition</th></tr>
+      <tr><td>1 QL, 2 seviye (S/F)</td><td>$p$</td><td>$z = \dfrac{\hat p - p_0}{\sqrt{p_0(1-p_0)/n}}$</td><td>Normal</td><td>$np_0 \ge 15$, $n(1-p_0) \ge 15$; değilse exact binomial</td></tr>
+      <tr><td>1 QL, $k \ge 3$ seviye</td><td>$p_1, \dots, p_k$</td><td>$\sum (n_i - E_i)^2/E_i$, $E_i = np_{i,0}$</td><td>$\chi^2$, $k - 1$ df</td><td>Random sample, her $E_i \ge 5$</td></tr>
+      <tr><td>2 QL</td><td>Bağımsızlık</td><td>$\sum (n_{ij} - \hat E_{ij})^2/\hat E_{ij}$, $\hat E_{ij} = R_iC_j/n$</td><td>$\chi^2$, $(r-1)(c-1)$ df</td><td>Random sample, her $\hat E_{ij} \ge 5$</td></tr>
+      <tr><td>Quantitative, spread</td><td>$\sigma^2$</td><td>$(n-1)s^2/\sigma_0^2$</td><td>$\chi^2$, $n - 1$ df</td><td>Normal veri, sıkı şart</td></tr>
+    </table></div>
+    <p>İlk soru: veri qualitative mi (kategoriler, sayımlar), quantitative mi (ölçümler)? Qualitative ise kaç değişken ve kaç seviye var? Son satır W4'ün variance testi: adı aynı (chi-square) ama bambaşka bir test.</p>
+  </div>
+  <!-- Kaynak: McClave Ch.13 Chapter Notes, "Categorical Data Analysis Guide" (kitap s.827); 04-hypothesis-testing-ii.pdf slayt 27 "Which One-Sample Test?" (Proportion: np₀, n(1 − p₀) ≥ 15; Variance: χ², n − 1 df, normal data strictly) ve slayt 8 (exact test when np₀ < 15). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İki "chi-square" testini karıştırmak: variance testi $n - 1$ df ve normal veri ister; kategorik testler $k - 1$ ya da $(r-1)(c-1)$ df ve $E \ge 5$ ister, normallik istemez.</li>
+      <li>Condition sütununu atlamak. Slayt 27'nin cümlesi burada da geçerli: "The condition column is part of the test: check it before you compute anything."</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-which-2">
+    <p class="quiz__q">400 parçada defective oranının %2'yi aştığı iddiası test edilecek. Hangi test ve neden?</p>
+    <button class="quiz__opt" data-correct>Exact binomial test, çünkü $np_0 = 8 &lt; 15$<span class="why">Doğru. Tek proportion, iki kategori. Ama W4'ün condition'ı ($np_0 \ge 15$) tutmuyor, bu yüzden z yerine exact test.</span></button>
+    <button class="quiz__opt">One-way $\chi^2$, df 1<span class="why">İki kategoride $\chi^2$ two-tailed z testine denk düşer; iddia ise yönlü ("aşıyor"). Üstelik küçük $np_0$ sorunu orada da var.</span></button>
+    <button class="quiz__opt">Large-sample z, çünkü $n = 400 \ge 30$<span class="why">$n \ge 30$ mean testinin kuralı. Proportion için bakılan $np_0$ ve $n(1-p_0)$.</span></button>
+  </div>
+  <div class="quiz" id="q-which-3">
+    <p class="quiz__q">Bir ankette 600 öğrencinin işletim sistemi (Windows, macOS, Linux) ve bölümü (CSE, EEE, ME, IE) soruluyor. "İşletim sistemi tercihi bölüme göre değişiyor mu?" Hangi test, kaç df?</p>
+    <button class="quiz__opt" data-correct>Contingency table $\chi^2$, df 6<span class="why">Doğru. İki qualitative değişken: $(3-1)(4-1) = 6$.</span></button>
+    <button class="quiz__opt">One-way $\chi^2$, df 11<span class="why">İki değişken var; 12 hücreyi tek değişkenmiş gibi saymak bağımsızlığı test etmez.</span></button>
+    <button class="quiz__opt">Variance için $\chi^2$, df 599<span class="why">Ortada ölçülen bir sayı yok; veri kategorik. Variance testi burada anlamsız.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="final-check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">$n = 200$, $H_0$: $p = (.4,\ .3,\ .2,\ .1)$, gözlenen $(90,\ 50,\ 40,\ 20)$. $\chi^2$ kaç?</p>
+    <button class="quiz__opt" data-correct>2.92<span class="why">Doğru. $E = (80, 60, 40, 20)$; $100/80 + 100/60 + 0 + 0 = 1.25 + 1.67 = 2.92$. df 3, $2.92 &lt; 7.815$ ⇒ fail to reject.</span></button>
+    <button class="quiz__opt">0<span class="why">$\sum(n_i - E_i) = 0$ her zaman doğru; bu yüzden farkların karesi alınır.</span></button>
+    <button class="quiz__opt">3.33<span class="why">Payda olarak gözlenen sayıları kullanmışsın ($100/90 + 100/50$). Payda beklenen sayı.</span></button>
+    <button class="quiz__opt">0.0146<span class="why">Proportion'larla hesaplamışsın ($(.45 - .4)^2/.4 + \dots$). Formül sayımla çalışır; sonucu $n$ ile çarpman gerekirdi.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Bir contingency table'da $R_i = 40$, $C_j = 25$, $n = 200$. Bu hücrenin $\hat E_{ij}$'si ve condition?</p>
+    <button class="quiz__opt" data-correct>5; sınırda ama koşulu sağlıyor<span class="why">Doğru: $40 \cdot 25/200 = 5$. Kural "en az 5", yani 5 yeterli.</span></button>
+    <button class="quiz__opt">5; koşulu sağlamıyor, 5'ten büyük olmalı<span class="why">McClave'in kuralı "equal to 5 or more": 5 kabul.</span></button>
+    <button class="quiz__opt">0.025<span class="why">Bu marjinal olasılıkların çarpımı ($.2 \times .125$). Sayım için $n$ ile çarp.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Independence testinde $p = .03$, $\alpha = .01$. Sonuç?</p>
+    <button class="quiz__opt" data-correct>Fail to reject: $\alpha = .01$'de bağımlılığa dair yeterli kanıt yok<span class="why">Doğru. $p = .03 &gt; .01$. (Aynı veri $\alpha = .05$'te reddederdi.)</span></button>
+    <button class="quiz__opt">Reject, çünkü .03 küçük bir sayı<span class="why">"Küçük" $\alpha$'ya göre ölçülür. Reject için $p &lt; \alpha$ gerekir.</span></button>
+    <button class="quiz__opt">Değişkenler bağımsız<span class="why">Fail to reject bağımsızlığı kanıtlamaz; sadece kanıt yetersiz.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">$4 \times 3$ bir contingency table, $\alpha = .05$. Rejection region?</p>
+    <button class="quiz__opt" data-correct>$\chi^2 &gt; 12.592$<span class="why">Doğru. df $= (4-1)(3-1) = 6$; $\chi^2_{.05} = 12.592$.</span></button>
+    <button class="quiz__opt">$\chi^2 &gt; 19.675$<span class="why">Bu 11 df ($rc - 1$) için. Bağımsızlık testinde df $(r-1)(c-1)$.</span></button>
+    <button class="quiz__opt">$\chi^2 &gt; 14.449$<span class="why">Bu 6 df'in $\chi^2_{.025}$'i: $\alpha$'yı ikiye bölmüşsün. Test tek kuyruklu.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Bir one-way table'ın iki hücresinde $E_i = 3$ çıktı, diğerleri büyük. Ne yaparsın?</p>
+    <button class="quiz__opt" data-correct>Bu hücreleri komşularıyla birleştirir, df'i yeni hücre sayısına göre yeniden hesaplarım<span class="why">Doğru. Walpole'ün yolu: komşu hücreleri birleştir, df $=$ yeni $k - 1$. Mümkün değilse exact ya da simulation yöntemine geç.</span></button>
+    <button class="quiz__opt">O hücreleri tablodan atarım<span class="why">Gözlemleri atmak $n$'yi ve hipotezi değiştirir; olasılıklar artık 1'e toplanmaz. Birleştirmek doğru yol.</span></button>
+    <button class="quiz__opt">Bir şey yapmam; $n$ zaten 30'dan büyük<span class="why">$n \ge 30$ bu testin kuralı değil. Koşul her hücrenin beklenen sayısıyla ilgili.</span></button>
+  </div>
+  <!-- Sıradaki konu: Experimental design ve ANOVA (k mean'i karşılaştırmak; F distribution). -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=8"></script>
+<script src="../assets/lab.js?v=8"></script>
+<script>
+/* Chi-square distribution (regularized incomplete gamma) and a seeded RNG.
+   Checked with python3 -I against scipy: χ²(.05; 1, 2, 3, 5) = 3.8415, 5.9915, 7.8147, 11.0705; χ²(.01; 3) = 11.3449;
+   P(χ²₂ > 6.52) = 0.03839, P(χ²₃ > 13.2495) = 0.004127, P(χ²₄ > 7.1355) = 0.12890; largest relative error of the tail 4e-12. */
+const ST = {
+  lgamma(x) {
+    const c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+    let y = x, tmp = x + 5.5;
+    tmp -= (x + 0.5) * Math.log(tmp);
+    let ser = 1.000000000190015;
+    for (let j = 0; j < 6; j++) ser += c[j] / ++y;
+    return -tmp + Math.log(2.5066282746310005 * ser / x);
+  },
+  /* regularized upper incomplete gamma Q(a, x) */
+  gammaQ(a, x) {
+    if (x <= 0) return 1;
+    const gln = ST.lgamma(a);
+    if (x < a + 1) {
+      let ap = a, sum = 1 / a, del = sum;
+      for (let n = 0; n < 500; n++) { ap++; del *= x / ap; sum += del; if (Math.abs(del) < Math.abs(sum) * 1e-15) break; }
+      return 1 - sum * Math.exp(-x + a * Math.log(x) - gln);
+    }
+    const FPMIN = 1e-300;
+    let b = x + 1 - a, c = 1 / FPMIN, d = 1 / b, h = d;
+    for (let i = 1; i < 500; i++) {
+      const an = -i * (i - a); b += 2;
+      d = an * d + b; if (Math.abs(d) < FPMIN) d = FPMIN;
+      c = b + an / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+      d = 1 / d; const del = d * c; h *= del;
+      if (Math.abs(del - 1) < 1e-15) break;
+    }
+    return Math.exp(-x + a * Math.log(x) - gln) * h;
+  },
+  /* P(chi2_df > x) */
+  chi2Sf(x, df) { return ST.gammaQ(df / 2, x / 2); },
+  /* upper-tail critical value: P(chi2_df > c) = a */
+  chi2Up(a, df) {
+    let lo = 0, hi = Math.max(1, df);
+    while (ST.chi2Sf(hi, df) > a) hi *= 2;
+    for (let k = 0; k < 100; k++) { const m = (lo + hi) / 2; if (ST.chi2Sf(m, df) > a) lo = m; else hi = m; }
+    return (lo + hi) / 2;
+  },
+  chi2Pdf(x, df) { if (x <= 0) return 0; const k = df / 2; return Math.exp((k - 1) * Math.log(x) - x / 2 - k * Math.LN2 - ST.lgamma(k)); },
+  rng(seed) {
+    let s = seed >>> 0;
+    return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  },
+  /* chi-square for a one-way table */
+  gof(obs, probs) {
+    const n = obs.reduce((s, v) => s + v, 0);
+    const E = probs.map(p => n * p);
+    const contrib = obs.map((o, i) => (o - E[i]) * (o - E[i]) / E[i]);
+    const chi2 = contrib.reduce((s, v) => s + v, 0), df = obs.length - 1;
+    return { n, E, contrib, chi2, df, p: ST.chi2Sf(chi2, df) };
+  },
+  /* chi-square test of independence for an r x c table */
+  indep(t) {
+    const r = t.length, c = t[0].length;
+    const R = t.map(row => row.reduce((s, v) => s + v, 0));
+    const C = t[0].map((_, j) => t.reduce((s, row) => s + row[j], 0));
+    const n = R.reduce((s, v) => s + v, 0);
+    const E = t.map((row, i) => row.map((_, j) => R[i] * C[j] / n));
+    const contrib = t.map((row, i) => row.map((o, j) => (o - E[i][j]) * (o - E[i][j]) / E[i][j]));
+    const chi2 = contrib.flat().reduce((s, v) => s + v, 0), df = (r - 1) * (c - 1);
+    return { R, C, n, E, contrib, chi2, df, p: ST.chi2Sf(chi2, df), minE: Math.min(...E.flat()) };
+  }
+};
+
+const W = {
+  f(v, d) { return Number.isFinite(v) ? v.toFixed(d) : "—"; },
+  p(v) { return v < 0.0001 ? "&lt; 0.0001" : v.toFixed(4); },
+  heads: [0.10, 0.05, 0.025, 0.01, 0.005],
+  labels: ["0.10", "0.05", "0.025", "0.01", "0.005"],
+  /* p-value bound from the printed table columns */
+  bound(x, df) {
+    const c = W.heads.map(a => ST.chi2Up(a, df));
+    if (x < c[0]) return "$p &gt; 0.10$";
+    for (let k = 1; k < c.length; k++) if (x < c[k]) return `$${W.labels[k]} &lt; p &lt; ${W.labels[k - 1]}$`;
+    return "$p &lt; 0.005$";
+  },
+  num(raw, name, rule) {
+    const s = String(raw).trim().replace(",", ".");
+    if (s === "") return { e: `${name} boş. Bir sayı yaz (ondalık için nokta: 6.52).` };
+    const v = Number(s);
+    if (!Number.isFinite(v)) return { e: `${name} bir sayı olmalı.` };
+    const msg = rule ? rule(v) : null;
+    return msg ? { e: msg } : { v };
+  },
+  math(el) { if (window.Lab && Lab.renderMath) Lab.renderMath(el); },
+  /* x/y line plot with an optional shaded tail and vertical markers, returned as SVG */
+  svg(o) {
+    const Wd = 600, Ht = 230, L = 40, Rr = 12, T = 12, B = 30;
+    const sx = x => L + (x - o.x0) / (o.x1 - o.x0) * (Wd - L - Rr);
+    const sy = y => T + (1 - Math.min(y, o.y1) / o.y1) * (Ht - T - B);
+    let s = `<svg viewBox="0 0 ${Wd} ${Ht}" role="img" aria-label="${o.label}">`;
+    s += `<line x1="${L}" y1="${sy(0)}" x2="${Wd - Rr}" y2="${sy(0)}" stroke="var(--stone-500)" />`;
+    const step = o.tick;
+    for (let t = 0; t <= o.x1 + 1e-9; t += step) {
+      if (t < o.x0) continue;
+      s += `<line x1="${sx(t)}" y1="${sy(0)}" x2="${sx(t)}" y2="${sy(0) + 4}" stroke="var(--stone-500)" /><text x="${sx(t)}" y="${sy(0) + 17}" font-size="12" text-anchor="middle" fill="var(--fg-muted)">${+t.toFixed(2)}</text>`;
+    }
+    if (o.bars) o.bars.forEach(b => {
+      s += `<rect x="${sx(b.a)}" y="${sy(b.h)}" width="${Math.max(0.5, sx(b.b) - sx(b.a) - 1)}" height="${sy(0) - sy(b.h)}" fill="${b.hot ? "var(--orange-500)" : "var(--blue-300)"}" />`;
+    });
+    if (o.shade) {
+      const pts = o.curve.filter(([x]) => x >= o.shade);
+      if (pts.length) {
+        let d = `M${sx(o.shade)},${sy(0)} `;
+        d += `L${sx(o.shade)},${sy(o.f(o.shade))} `;
+        pts.forEach(([x, y]) => { d += `L${sx(x)},${sy(y)} `; });
+        d += `L${sx(pts[pts.length - 1][0])},${sy(0)} Z`;
+        s += `<path d="${d}" fill="var(--accent)" fill-opacity="0.45" />`;
+      }
+    }
+    if (o.curve) s += `<polyline fill="none" stroke="var(--blue-800)" stroke-width="2" points="${o.curve.map(([x, y]) => `${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join(" ")}" />`;
+    (o.marks || []).forEach(m => {
+      if (m.x < o.x0 || m.x > o.x1) return;
+      s += `<line x1="${sx(m.x)}" y1="${T}" x2="${sx(m.x)}" y2="${sy(0)}" stroke="${m.color}" stroke-width="2" ${m.dash ? 'stroke-dasharray="5 4"' : ""} /><text x="${Math.min(sx(m.x) + 4, Wd - 120)}" y="${T + 12 + (m.row || 0) * 15}" font-size="12" fill="${m.color}">${m.text}</text>`;
+    });
+    return s + "</svg>";
+  }
+};
+
+/* ── Widget 1: χ² curve and p-value from the table ── */
+(function () {
+  const xEl = document.getElementById("wc-x"), dfEl = document.getElementById("wc-df");
+  const err = document.getElementById("wc-err"), plot = document.getElementById("wc-plot"), out = document.getElementById("wc-out");
+  function draw() {
+    const a = W.num(xEl.value, "χ²", v => v < 0 ? "χ² negatif olamaz: kareler toplamı." : v > 500 ? "500'den küçük bir değer gir." : null);
+    const b = W.num(dfEl.value, "df", v => !Number.isInteger(v) || v < 1 || v > 30 ? "df 1 ile 30 arasında bir tam sayı olmalı." : null);
+    const e = [a.e, b.e].filter(Boolean);
+    err.textContent = e.join(" ");
+    if (e.length) { plot.innerHTML = ""; out.innerHTML = ""; return; }
+    const x = a.v, df = b.v, p = ST.chi2Sf(x, df), c05 = ST.chi2Up(0.05, df);
+    const x1 = Math.max(ST.chi2Up(0.001, df), x * 1.15);
+    const f = t => ST.chi2Pdf(t, df);
+    const curve = [];
+    for (let k = 0; k <= 240; k++) { const t = x1 * k / 240; curve.push([t, f(t)]); }
+    const ymax = Math.max(...curve.filter(([t]) => t >= x1 * 0.03).map(([, y]) => y)) * 1.1;
+    const tick = x1 > 60 ? 20 : x1 > 30 ? 10 : x1 > 12 ? 5 : x1 > 6 ? 2 : 1;
+    plot.innerHTML = W.svg({ x0: 0, x1, y1: ymax, tick, curve, f, shade: x, label: "chi-square density with the p-value area shaded",
+      marks: [{ x: c05, color: "var(--blue-600)", dash: true, text: "χ².05 = " + W.f(c05, 3) }, { x, color: "var(--orange-700)", text: "χ²c = " + W.f(x, 3), row: 1 }] });
+    const crit = W.heads.map(al => ST.chi2Up(al, df));
+    out.innerHTML = `<div class="table-wrap"><table><tr><th>df = ${df}</th>${W.labels.map(l => `<th>$\\chi^2_{${l.replace("0.", ".")}}$</th>`).join("")}</tr>
+      <tr><td>kritik değer</td>${crit.map(c => `<td${x > c ? ' style="font-weight:700;color:var(--orange-700)"' : ""}>${W.f(c, 3)}</td>`).join("")}</tr></table></div>
+      <p>Turuncu alan p-value: $P(\\chi^2_{${df}} &gt; ${W.f(x, 3)}) = ${p.toFixed(4)}$. Tablodan: ${W.bound(x, df)}. Kalın sayılar $\\chi^2_c$'nin geçtiği kritik değerler: o sütunların $\\alpha$'sında $H_0$ reddedilir. Eğrinin mean'i df $= ${df}$.</p>`;
+    W.math(out);
+  }
+  document.getElementById("wc-go").addEventListener("click", draw);
+  [xEl, dfEl].forEach(el => el.addEventListener("keydown", ev => { if (ev.key === "Enter") draw(); }));
+  document.querySelectorAll("[data-wc]").forEach(btn => btn.addEventListener("click", () => {
+    const [x, df] = btn.dataset.wc.split(","); xEl.value = x; dfEl.value = df; draw();
+  }));
+  draw();
+})();
+
+/* ── Widget 2: die simulator ── */
+(function () {
+  const DIES = {
+    fair: [1, 1, 1, 1, 1, 1].map(v => v / 6),
+    slight: [0.16, 0.16, 0.16, 0.16, 0.16, 0.20],
+    heavy: [0.15, 0.15, 0.15, 0.15, 0.15, 0.25]
+  };
+  const typeEl = document.getElementById("wd-type"), nEl = document.getElementById("wd-n"), alEl = document.getElementById("wd-al");
+  const err = document.getElementById("wd-err"), out = document.getElementById("wd-out"), repOut = document.getElementById("wd-rep-out");
+  let seed = 321, rnd = ST.rng(seed);
+  const fair = DIES.fair;
+  function roll(n, probs) {
+    const cum = []; probs.reduce((s, p, i) => (cum[i] = s + p), 0); cum[5] = 1;
+    const o = [0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < n; i++) { const u = rnd(); let k = 0; while (u > cum[k]) k++; o[k]++; }
+    return o;
+  }
+  function readN(max) {
+    const r = W.num(nEl.value, "n", v => !Number.isInteger(v) ? "n tam sayı olmalı." : v < 30 ? "n en az 30 olsun: her yüz için E = n/6 ≥ 5." : v > max ? `Bu düğme için n en fazla ${max}.` : null);
+    err.textContent = r.e || "";
+    if (r.e) { out.innerHTML = ""; repOut.innerHTML = ""; }
+    return r.e ? null : r.v;
+  }
+  function one() {
+    const n = readN(100000); if (n === null) return;
+    const al = +alEl.value, o = roll(n, DIES[typeEl.value]), g = ST.gof(o, fair), crit = ST.chi2Up(al, 5);
+    const maxO = Math.max(...o, g.E[0]) * 1.1;
+    const bars = o.map((v, i) => `<div class="w-categorical-data-row"><span>${i + 1}</span><span class="w-categorical-data-bar"><i style="width:${(v / maxO * 100).toFixed(1)}%"></i><em style="left:${(g.E[0] / maxO * 100).toFixed(1)}%"></em></span><span>${v} · ${W.f(g.contrib[i], 2)}</span></div>`).join("");
+    const rej = g.chi2 > crit;
+    out.innerHTML = `<p class="src">Çubuk: gözlenen sayı; turuncu çizgi: beklenen $E = n/6 = ${W.f(g.E[0], 2)}$. Sağda: gözlenen · $(O - E)^2/E$.</p>${bars}
+      <div class="w-categorical-data-nums"><div>$\\chi^2$<b>${W.f(g.chi2, 3)}</b></div><div>df<b>5</b></div><div>$\\chi^2_{${alEl.value}}$<b>${W.f(crit, 3)}</b></div><div>p-value<b>${W.p(g.p)}</b></div></div>
+      <div class="w-categorical-data-flag${rej ? "" : " is-ok"}">${rej ? "Reject $H_0$: bu atışlar zarın dengeli olmadığına dair kanıt veriyor." : "Fail to reject $H_0$: zarın dengesiz olduğuna dair yeterli kanıt yok."} ${typeEl.value === "fair" ? (rej ? "Zar aslında hilesiz: bu bir Type I error." : "Zar gerçekten hilesiz.") : (rej ? "Zar gerçekten hileli: doğru karar." : "Zar aslında hileli: bu bir Type II error.")}</div>`;
+    W.math(out);
+  }
+  function rep() {
+    const n = readN(5000); if (n === null) return;
+    const al = +alEl.value, crit = ST.chi2Up(al, 5), probs = DIES[typeEl.value], reps = 1000;
+    let hit = 0;
+    for (let r = 0; r < reps; r++) if (ST.gof(roll(n, probs), fair).chi2 > crit) hit++;
+    const what = typeEl.value === "fair"
+      ? `Zar hilesiz, yani bu oran Type I error oranının tahmini; $\\alpha = ${alEl.value}$ civarında olmalı.`
+      : `Zar hileli, yani bu oran power'ın tahmini: testin hileyi yakalama olasılığı. $n$'yi büyütüp tekrar dene.`;
+    repOut.innerHTML = `<div class="w-categorical-data-flag">$n = ${n}$ atışlık 1000 denemenin <b>${hit}</b> tanesinde $H_0$ reddedildi (%${(hit / 10).toFixed(1)}). ${what}</div>`;
+    W.math(repOut);
+  }
+  document.getElementById("wd-one").addEventListener("click", one);
+  document.getElementById("wd-rep").addEventListener("click", rep);
+  document.getElementById("wd-seed").addEventListener("click", () => { seed = (seed * 1103515245 + 12345) >>> 0; rnd = ST.rng(seed); one(); repOut.innerHTML = ""; });
+  nEl.addEventListener("keydown", ev => { if (ev.key === "Enter") one(); });
+  typeEl.addEventListener("change", () => { repOut.innerHTML = ""; });
+  one();
+})();
+
+/* ── Shared preset tables ── */
+const TABLES = {
+  celeb: { t: [[95, 41], [50, 114]], rows: ["Could identify", "Could not"], cols: ["Male", "Female"] },
+  tax: { t: [[182, 213, 203], [154, 138, 110]], rows: ["For", "Against"], cols: ["Low", "Medium", "High"] },
+  marrel: { t: [[39, 19, 12, 28, 18], [172, 61, 44, 70, 37]], rows: ["Divorced", "Never div."], cols: ["A", "B", "C", "D", "None"] },
+  car: { t: [[15, 65, 100, 25], [10, 45, 80, 10]], rows: ["Foreign", "Domestic"], cols: ["Fr", "So", "Jr", "Sr"] },
+  ship: { t: [[250, 140, 10], [140, 55, 5], [70, 25, 5]], rows: ["< 2/ay", "2–5/ay", "> 5/ay"], cols: ["High", "Medium", "Low"] },
+  manager: { t: [[2, 3, 21, 13], [8, 11, 44, 24], [9, 5, 7, 13]], rows: ["Good", "Fair", "Poor"], cols: ["H.S.", "Some col.", "College", "Master's+"] },
+  hiv: { t: [[2, 5], [22, 9]], rows: ["Vaccinated", "Placebo"], cols: ["Positive", "Negative"] },
+  mug: { t: [[19, 13], [19, 13], [15, 17]], rows: ["3 photos", "6 photos", "12 photos"], cols: ["Selected", "Not sel."] }
+};
+function parseTable(text) {
+  const lines = text.split(/\n/).map(l => l.trim()).filter(l => l !== "");
+  if (lines.length < 2 || lines.length > 6) return { e: "2 ile 6 arasında satır gir (her satır ayrı bir satırda)." };
+  const t = [];
+  for (let i = 0; i < lines.length; i++) {
+    const parts = lines[i].split(/[\s,;]+/).filter(Boolean);
+    if (parts.length < 2 || parts.length > 6) return { e: `Satır ${i + 1}: 2 ile 6 arasında sayı olmalı.` };
+    const row = [];
+    for (const s of parts) {
+      const v = Number(s);
+      if (!Number.isInteger(v) || v < 0) return { e: `Satır ${i + 1}: "${s}" bir sayım değil. Sayımlar 0 ya da pozitif tam sayıdır (yüzde girme).` };
+      row.push(v);
+    }
+    if (t.length && row.length !== t[0].length) return { e: `Satır ${i + 1}'de ${row.length} sayı var, ilk satırda ${t[0].length}. Her satırda aynı sayıda hücre olmalı.` };
+    t.push(row);
+  }
+  const R = t.map(r => r.reduce((s, v) => s + v, 0)), C = t[0].map((_, j) => t.reduce((s, r) => s + r[j], 0));
+  if (R.some(v => v === 0)) return { e: "Bir satırın toplamı 0: o satırın beklenen sayıları 0 olur, satırı çıkar." };
+  if (C.some(v => v === 0)) return { e: "Bir sütunun toplamı 0: o sütunu çıkar." };
+  if (R.reduce((s, v) => s + v, 0) > 200000) return { e: "Toplam en fazla 200000 olsun." };
+  return { t };
+}
+
+/* ── Widget 3: contingency table stepper ── */
+let currentTable = { t: TABLES.celeb.t, rows: TABLES.celeb.rows, cols: TABLES.celeb.cols };
+(function () {
+  const inEl = document.getElementById("wt-in"), alEl = document.getElementById("wt-al");
+  const err = document.getElementById("wt-err"), sum = document.getElementById("wt-sum"), stepEl = document.getElementById("wt-step");
+  let labels = { rows: TABLES.celeb.rows, cols: TABLES.celeb.cols };
+  function heat(o, e, c, maxC) {
+    const a = maxC > 0 ? (0.12 + 0.6 * c / maxC).toFixed(2) : 0;
+    return o >= e ? `background: rgba(0, 99, 170, ${a})` : `background: rgba(244, 117, 36, ${a})`;
+  }
+  function run() {
+    const r = parseTable(inEl.value);
+    err.textContent = r.e || "";
+    if (r.e) { sum.innerHTML = ""; stepEl.innerHTML = ""; return; }
+    const t = r.t, res = ST.indep(t), al = +alEl.value, crit = ST.chi2Up(al, res.df);
+    const nr = t.length, nc = t[0].length;
+    const rowL = labels.rows && labels.rows.length === nr ? labels.rows : t.map((_, i) => "Satır " + (i + 1));
+    const colL = labels.cols && labels.cols.length === nc ? labels.cols : t[0].map((_, j) => "Sütun " + (j + 1));
+    currentTable = { t, rows: rowL, cols: colL };
+    const maxC = Math.max(...res.contrib.flat());
+    const small = [];
+    res.E.forEach((row, i) => row.forEach((e, j) => { if (e < 5) small.push(`${rowL[i]} × ${colL[j]} (${W.f(e, 2)})`); }));
+    const rej = res.chi2 > crit;
+    sum.innerHTML = `<div class="w-categorical-data-nums"><div>$\\chi^2$<b>${W.f(res.chi2, 3)}</b></div><div>df $=(${nr}-1)(${nc}-1)$<b>${res.df}</b></div><div>$\\chi^2_{${alEl.value}}$<b>${W.f(crit, 3)}</b></div><div>p-value<b>${W.p(res.p)}</b></div></div>
+      <p>Tablodan: ${W.bound(res.chi2, res.df)}. ${rej ? "$\\chi^2 &gt; \\chi^2_\\alpha$ ⇒ reject $H_0$ (bağımlılığa dair kanıt var)." : "$\\chi^2 \\le \\chi^2_\\alpha$ ⇒ fail to reject $H_0$ (bağımlılığa dair yeterli kanıt yok)."}</p>
+      <div class="w-categorical-data-flag${small.length ? "" : " is-ok"}">${small.length ? `Condition bozuk: ${small.length} hücrede $\\hat E &lt; 5$: ${small.join(", ")}. Bu p-value'ya güvenme; komşu satır ya da sütunları birleştir.` : `Condition tamam: en küçük $\\hat E = ${W.f(res.minE, 2)} \\ge 5$.`}</div>`;
+    W.math(sum);
+    /* frames: totals, then one Ê per cell, then one contribution per cell, then the result */
+    const frames = [{ kind: "tot", caption: `Önce satır ve sütun toplamları: $R = (${res.R.join(", ")})$, $C = (${res.C.join(", ")})$, $n = ${res.n}$.` }];
+    for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++)
+      frames.push({ kind: "E", i, j, caption: `$\\hat E_{${i + 1}${j + 1}} = \\dfrac{R_${i + 1} C_${j + 1}}{n} = \\dfrac{${res.R[i]} \\cdot ${res.C[j]}}{${res.n}} = ${W.f(res.E[i][j], 2)}$${res.E[i][j] < 5 ? " &nbsp;⚠ 5'in altında" : ""}` });
+    for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++)
+      frames.push({ kind: "C", i, j, caption: `$\\dfrac{(${t[i][j]} - ${W.f(res.E[i][j], 2)})^2}{${W.f(res.E[i][j], 2)}} = ${W.f(res.contrib[i][j], 3)}$ ${t[i][j] >= res.E[i][j] ? "(gözlenen beklenenden fazla)" : "(gözlenen beklenenden az)"}` });
+    frames.push({ kind: "end", caption: `$\\chi^2 = \\sum (O - \\hat E)^2/\\hat E = ${W.f(res.chi2, 3)}$, df $= ${res.df}$, p $= ${W.p(res.p)}$. En büyük katkı: ${(() => { let bi = 0, bj = 0; res.contrib.forEach((row, i) => row.forEach((c, j) => { if (c > res.contrib[bi][bj]) { bi = i; bj = j; } })); return `${rowL[bi]} × ${colL[bj]} (${W.f(res.contrib[bi][bj], 3)})`; })()}.` });
+    const order = (i, j) => i * nc + j;
+    Lab.stepper(stepEl, {
+      title: "Beklenen sayılar ve χ² katkıları",
+      interval: 1000,
+      frames,
+      render(fr, idx, stage) {
+        const cur = fr.kind === "E" || fr.kind === "C" ? order(fr.i, fr.j) : -1;
+        const eDone = (i, j) => fr.kind === "C" || fr.kind === "end" || (fr.kind === "E" && order(i, j) <= cur);
+        const cDone = (i, j) => fr.kind === "end" || (fr.kind === "C" && order(i, j) <= cur);
+        let h = `<div class="table-wrap"><table class="w-categorical-data-tab"><tr><th></th>${colL.map(c => `<th>${c}</th>`).join("")}<th>$R_i$</th></tr>`;
+        for (let i = 0; i < nr; i++) {
+          h += `<tr><th>${rowL[i]}</th>`;
+          for (let j = 0; j < nc; j++) {
+            const isCur = (fr.kind === "E" || fr.kind === "C") && fr.i === i && fr.j === j;
+            const st = cDone(i, j) ? ` style="${heat(t[i][j], res.E[i][j], res.contrib[i][j], maxC)}"` : "";
+            h += `<td class="${isCur ? "is-cur" : ""}"${st}><b>${t[i][j]}</b>${eDone(i, j) ? `<small>Ê ${W.f(res.E[i][j], 2)}${res.E[i][j] < 5 ? " ⚠" : ""}</small>` : ""}${cDone(i, j) ? `<small>${t[i][j] >= res.E[i][j] ? "+" : "−"} ${W.f(res.contrib[i][j], 2)}</small>` : ""}</td>`;
+          }
+          h += `<td class="${fr.kind === "E" && fr.i === i || fr.kind === "tot" ? "is-tot" : ""}">${res.R[i]}</td></tr>`;
+        }
+        h += `<tr><th>$C_j$</th>${res.C.map((c, j) => `<td class="${fr.kind === "E" && fr.j === j || fr.kind === "tot" ? "is-tot" : ""}">${c}</td>`).join("")}<td class="${fr.kind === "tot" ? "is-tot" : ""}">${res.n}</td></tr></table></div>`;
+        stage.innerHTML = h;
+      }
+    });
+  }
+  document.getElementById("wt-go").addEventListener("click", () => { labels = {}; run(); });
+  alEl.addEventListener("change", run);
+  document.querySelectorAll("[data-wt]").forEach(btn => btn.addEventListener("click", () => {
+    const p = TABLES[btn.dataset.wt];
+    inEl.value = p.t.map(r => r.join(" ")).join("\n");
+    labels = { rows: p.rows, cols: p.cols };
+    run();
+  }));
+  run();
+})();
+
+/* ── Widget 4: permutation (label shuffle) p-value ── */
+(function () {
+  const repsEl = document.getElementById("wp-reps"), err = document.getElementById("wp-err");
+  const tab = document.getElementById("wp-tab"), plot = document.getElementById("wp-plot"), out = document.getElementById("wp-out");
+  let seed = 2026, rnd = ST.rng(seed), chosen = { t: TABLES.hiv.t, rows: TABLES.hiv.rows, cols: TABLES.hiv.cols, name: "McClave 13.45 aşı" };
+  function showTable() {
+    const t = chosen.t;
+    tab.innerHTML = `<p class="src">Seçili tablo: ${chosen.name}</p><div class="table-wrap"><table class="w-categorical-data-tab"><tr><th></th>${chosen.cols.map(c => `<th>${c}</th>`).join("")}</tr>${t.map((r, i) => `<tr><th>${chosen.rows[i]}</th>${r.map(v => `<td><b>${v}</b></td>`).join("")}</tr>`).join("")}</table></div>`;
+  }
+  function run() {
+    const t = chosen.t, res = ST.indep(t), nr = t.length, nc = t[0].length, reps = +repsEl.value;
+    if (res.n * reps > 4e7) { err.textContent = "Bu tablo bu kadar tekrar için çok büyük; tekrar sayısını azalt."; return; }
+    err.textContent = "";
+    const rowsIdx = [], colsIdx = [];
+    t.forEach((r, i) => r.forEach((v, j) => { for (let k = 0; k < v; k++) { rowsIdx.push(i); colsIdx.push(j); } }));
+    const n = res.n, lab = colsIdx.slice(), sims = new Float64Array(reps), cnt = new Array(nr * nc);
+    let ge = 0;
+    for (let r = 0; r < reps; r++) {
+      for (let k = n - 1; k > 0; k--) { const m = Math.floor(rnd() * (k + 1)); const tmp = lab[k]; lab[k] = lab[m]; lab[m] = tmp; }
+      cnt.fill(0);
+      for (let k = 0; k < n; k++) cnt[rowsIdx[k] * nc + lab[k]]++;
+      let x = 0;
+      for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) { const e = res.E[i][j], d = cnt[i * nc + j] - e; x += d * d / e; }
+      sims[r] = x;
+      if (x >= res.chi2 - 1e-9) ge++;
+    }
+    const pSim = ge / reps;
+    const x1 = Math.max(ST.chi2Up(0.001, res.df), res.chi2 * 1.25);
+    const nb = 40, bw = x1 / nb, hist = new Array(nb).fill(0);
+    sims.forEach(v => { const b = Math.min(nb - 1, Math.floor(v / bw)); hist[b]++; });
+    const bars = hist.map((h, b) => ({ a: b * bw, b: (b + 1) * bw, h: h / (reps * bw), hot: (b + 1) * bw > res.chi2 }));
+    const f = x => ST.chi2Pdf(x, res.df);
+    const curve = [];
+    for (let k = 1; k <= 240; k++) { const x = x1 * k / 240; curve.push([x, f(x)]); }
+    const ymax = Math.max(Math.max(...bars.map(b => b.h)), f(x1 * 0.08)) * 1.1;
+    const tick = x1 > 60 ? 20 : x1 > 30 ? 10 : x1 > 12 ? 5 : x1 > 6 ? 2 : 1;
+    plot.innerHTML = W.svg({ x0: 0, x1, y1: ymax, tick, bars, curve, label: "histogram of shuffled chi-square values with the chi-square curve",
+      marks: [{ x: res.chi2, color: "var(--orange-700)", text: "gözlenen χ² = " + W.f(res.chi2, 2) }] });
+    const small = res.E.flat().filter(e => e < 5).length;
+    out.innerHTML = `<div class="w-categorical-data-nums"><div>gözlenen $\\chi^2$<b>${W.f(res.chi2, 3)}</b></div><div>df<b>${res.df}</b></div><div>$\\chi^2$ tablosu p<b>${W.p(res.p)}</b></div><div>simulated p<b>${pSim < 1 / reps ? "&lt; " + (1 / reps).toFixed(4) : pSim.toFixed(4)}</b></div></div>
+      <p>Çubuklar: ${reps} karıştırmanın $\\chi^2$ değerleri (yoğunluk ölçeğinde); turuncu çubuklar gözlenen değerin sağında kalanlar. Lacivert eğri: $\\chi^2_{${res.df}}$ yoğunluğu. ${small ? `Bu tabloda ${small} hücrede $\\hat E &lt; 5$: eğri ile histogramın ne kadar uyuştuğuna bak.` : "Bütün $\\hat E \\ge 5$: histogram eğriye oturmalı ve iki p birbirine yakın çıkmalı."}</p>`;
+    W.math(out);
+  }
+  document.querySelectorAll("[data-wp]").forEach(btn => btn.addEventListener("click", () => {
+    const k = btn.dataset.wp;
+    if (k === "custom") chosen = { t: currentTable.t, rows: currentTable.rows, cols: currentTable.cols, name: "Bölüm 7'deki tablo" };
+    else chosen = { t: TABLES[k].t, rows: TABLES[k].rows, cols: TABLES[k].cols, name: btn.textContent };
+    showTable(); run();
+  }));
+  document.getElementById("wp-go").addEventListener("click", run);
+  document.getElementById("wp-seed").addEventListener("click", () => { seed = (seed * 1103515245 + 12345) >>> 0; rnd = ST.rng(seed); run(); });
+  showTable(); run();
+})();
+</script>
+</body>
+</html>

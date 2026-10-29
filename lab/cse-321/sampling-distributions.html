@@ -1,0 +1,1752 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 321: sampling distribution, iyi bir estimator, standard error σ/√n, standard deviation ile standard error farkı, Central Limit Theorem, x̄ ve p̂ için olasılık hesabı, Monte Carlo ve bootstrap." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Sampling distribution, standard error ve CLT · CSE 321 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=8" />
+  <style>
+    .w-sampling-distributions-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-sampling-distributions-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-sampling-distributions-ctl label { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; font-size: .92rem; }
+    .w-sampling-distributions-ctl input[type="text"] { width: 150px; max-width: 100%; }
+    .w-sampling-distributions-ctl input.w-sampling-distributions-short { width: 76px; }
+    .w-sampling-distributions-ctl input[type="range"] { width: 180px; max-width: 60vw; accent-color: var(--blue-600); }
+    .w-sampling-distributions-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-sampling-distributions-plot { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); padding: 6px; }
+    .w-sampling-distributions-plot svg { display: block; width: 100%; height: auto; }
+    .w-sampling-distributions-out { font-size: .95rem; margin: 6px 0; }
+    .w-sampling-distributions-flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; margin: 10px 0; }
+    .w-sampling-distributions-flow > div { flex: 1 1 120px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--blue-050); font-weight: 600; font-size: .9rem; text-align: center; }
+    .w-sampling-distributions-flow > div:last-child { background: var(--orange-100); }
+    .w-sampling-distributions-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+    .w-sampling-distributions-chip { font-family: 'JetBrains Mono', monospace; font-size: .82rem; padding: 2px 8px; border-radius: var(--radius-full); background: var(--stone-100); border: 1px solid var(--border); }
+    .w-sampling-distributions-chip.is-cur { background: var(--orange-100); border-color: var(--accent); font-weight: 700; }
+    .w-sampling-distributions-bar { flex: 1; min-width: 50px; background: var(--stone-200); border-radius: 4px; height: 12px; overflow: hidden; }
+    .w-sampling-distributions-bar > i { display: block; height: 100%; background: var(--blue-600); transition: width .3s; }
+    .w-sampling-distributions-row { display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: .85rem; margin: 3px 0; }
+    .w-sampling-distributions-row > span:first-child { min-width: 64px; }
+    .w-sampling-distributions-row > b { min-width: 70px; text-align: right; }
+    .w-sampling-distributions-row.is-cur { background: var(--blue-050); border-radius: var(--radius-sm); }
+    .w-sampling-distributions-boxes { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+    .w-sampling-distributions-box { position: relative; min-width: 38px; padding: 6px 4px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: .85rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); }
+    .w-sampling-distributions-box.is-off { opacity: .35; }
+    .w-sampling-distributions-box em { position: absolute; top: -8px; right: -6px; font-style: normal; font-size: .7rem; font-weight: 700; color: #fff; background: var(--accent); border-radius: var(--radius-full); padding: 0 5px; }
+    .w-sampling-distributions-orig { font-size: .88rem; margin: 6px 0 0; }
+    .w-sampling-distributions-usd { font-family: inherit; font-size: inherit; background: none; padding: 0; color: inherit; }
+    .w-sampling-distributions-ok { color: #2b8a3e; font-weight: 700; }
+    .w-sampling-distributions-bad { color: var(--orange-700); font-weight: 700; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 321</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 321</a> / Sampling distribution, standard error ve CLT</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W2 · slayt 23–37</span><span class="chip chip--exam">Final</span><span class="chip">Notebook week 2</span><span class="src">~59 dk · 11 bölüm</span></div>
+          <h1>Sampling distribution, standard error ve Central Limit Theorem</h1>
+          <p class="lead">Bir sample'dan hesapladığın her sayı ($\bar x$, $\hat p$, median) bir sonraki sample'da başka çıkar. Bu derste o sayının kendi dağılımını, yani <em>sampling distribution</em>'ı göreceksin: merkezi nerede, ne kadar yayılıyor (standard error), hangi şekli alıyor (Central Limit Theorem). Sonra aynı dağılımı formül yerine bilgisayarla kuracaksın: Monte Carlo ve bootstrap. Confidence interval'lar ve test'lerin hepsi bu fikrin üstüne kurulu.</p>
+          <!-- Kaynak: resources/2026-2027-fall/02-probability-toolkit-and-sampling-distributions.pdf slayt 21–22 (tekrar), 23–37 · resources/lecture-notes/07-chapter-06.pdf · resources/supplement/5 Sampling Distributions.pdf ve 5 X Chapter 5 Practice.pdf · McClave & Sincich 13e Ch.6 (PDF s.312–343) · Walpole 9e §8.4 (PDF s.246 civarı) · notebooks/week02_sampling_distributions.ipynb Part A A5–A6 · Question Bank 1 Q9–Q12 · 2025-26 final Group B · undated final · EEM209 final alıştırmaları · 315Practice3 · COMPREHENSIVE EXAM PRACTICE. -->
+        </header>
+
+        <article class="lesson" data-course="cse-321" data-lesson="sampling-distributions">
+
+<!-- 1 -->
+<section class="lsec" id="what" data-min="5">
+  <h2>Sampling distribution nedir?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Bir population'dan $n$ elemanlı bir sample çek ve sample mean $\bar x$'ı hesapla. Aynı population'dan yeni bir sample çekersen başka bir $\bar x$ bulursun. Demek ki $\bar x$ sabit bir sayı değil, bir <strong>random variable</strong>. Bu işi çok kez tekrarlayıp bütün $\bar x$'ları bir histogram'a koyarsan $\bar x$'ın dağılımını görürsün.</p>
+    <div class="w-sampling-distributions-flow" aria-label="Sampling distribution'ın dört adımı">
+      <div>Population<br>(mean $\mu$)</div><div>$n$'lik bir sample çek</div><div>Sample mean'i hesapla</div><div>Mean'lerin dağılımı</div>
+    </div>
+    <p>2. ve 3. adımı tekrarlamak dağılımı kurar. Pratikte bu dağılımdan <strong>tek bir çekiliş</strong> görürsün: elindeki tek sample'ın $\bar x$'ı.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · ders notu</span>
+    <p>Geçmiş bütün Ocak aylarının günlük en yüksek sıcaklıklarının mean'i $\mu = 10$ °C, standard deviation'ı $\sigma = 5$ °C olsun. 25 ölçümlük ilk sample'ın mean'i $\bar x = 9.8$, ikincisinin $11.4$, üçüncüsünün $10.5$ çıkıyor. Bu deney çok kez tekrarlanırsa $\bar x$ değerlerinin histogram'ı $\bar x$'ın probability distribution'ına yaklaşır. $\bar x$ iyi bir estimator ise değerler $\mu = 10$ etrafında toplanır.</p>
+  </div>
+  <!-- Kaynak: 02 slaytları s.24 (What Is a Sampling Distribution?) · 07-chapter-06.pdf s.11–13 (sıcaklık örneği, Figure 6.2). -->
+  <div class="table-wrap"><table>
+    <tr><th></th><th>Population parameter</th><th>Sample statistic</th></tr>
+    <tr><td>Mean</td><td>$\mu$</td><td>$\bar x$</td></tr>
+    <tr><td>Variance</td><td>$\sigma^2$</td><td>$s^2$</td></tr>
+    <tr><td>Standard deviation</td><td>$\sigma$</td><td>$s$</td></tr>
+    <tr><td>Proportion</td><td>$p$</td><td>$\hat p$</td></tr>
+  </table></div>
+  <!-- Kaynak: McClave Table 6.1 · 07-chapter-06.pdf s.3–6. -->
+  <div class="box box--rule">
+    <span class="box__label">Tanımlar</span>
+    <ul>
+      <li><strong>Parameter:</strong> population'ı anlatan bir sayı ($\mu$, $\sigma$, $p$). Bütün population'a bağlı olduğu için değeri neredeyse hep bilinmez.</li>
+      <li><strong>Statistic:</strong> sample'dan hesaplanan bir sayı ($\bar x$, $s$, $\hat p$, median $M$). Sample değişince değişir.</li>
+      <li><strong>Sampling distribution:</strong> bir statistic'in, aynı size'daki bütün olası sample'lar üzerinden probability distribution'ı.</li>
+    </ul>
+    <p>Tek bir sample'a bakarak iki statistic'i karşılaştıramazsın: bazen $\bar x$, bazen median $\mu$'ye daha yakın düşer. Statistic'ler sampling distribution'larına bakılarak karşılaştırılır.</p>
+  </div>
+  <!-- Kaynak: slayt 24 · McClave §6.1 ve Figure 6.1 · 07-chapter-06.pdf s.8–10. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzak: üç ayrı dağılım</span>
+    <ul>
+      <li><strong>Population distribution:</strong> tek tek değerlerin dağılımı (bir request'in response time'ı).</li>
+      <li><strong>Data distribution:</strong> elindeki $n$ değerin histogram'ı. Population'ın kaba bir kopyası.</li>
+      <li><strong>Sampling distribution:</strong> bir statistic'in sample'dan sample'a dağılımı. Tek bir sample'dan doğrudan görünmez.</li>
+    </ul>
+    <p>Bir parameter bir dağılıma sahip değildir: $\mu$ sabittir, değişen $\bar x$'tır.</p>
+  </div>
+  <div class="quiz" id="q-sd-what">
+    <p class="quiz__q">Bir öğrenci "$\bar x$'ın sampling distribution'ı, sample'ımdaki 40 ölçümün histogram'ıdır" diyor. Ne söylersin?</p>
+    <button class="quiz__opt">Doğru, sample'daki değerlerin dağılımı sampling distribution'dır.<span class="why">Bu data distribution. 40 ölçüm tek bir sample, bu sample'dan tek bir $\bar x$ çıkar. Sampling distribution için çok sayıda sample'ın $\bar x$'ı gerekir.</span></button>
+    <button class="quiz__opt" data-correct>Yanlış: sampling distribution, aynı size'daki bütün olası sample'ların $\bar x$ değerlerinin dağılımıdır.<span class="why">Doğru. Elindeki sample bu dağılımdan yalnızca tek bir çekiliş verir.</span></button>
+    <button class="quiz__opt">Yanlış: sampling distribution, population'daki bütün değerlerin dağılımıdır.<span class="why">Bu population distribution. Sampling distribution tek tek değerlerin değil, bir statistic'in dağılımıdır.</span></button>
+    <button class="quiz__opt">Yanlış: sampling distribution, $\mu$'nün olası değerlerinin dağılımıdır.<span class="why">$\mu$ bir parameter, sabit bir sayı. Rastgele olan $\mu$ değil, sample'dan hesaplanan $\bar x$.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="undated-final-S10"><span class="box__label">Tarihsiz final Soru 10 · çıkmış soru</span>
+    <p>"A sampling distribution describes the distribution of which of the following?<br>a. Individual data points from the population<br>b. Observed data from non-random samples<br>c. A statistic (e.g., sample mean) across many samples<br>d. Parameter values for a single sample<br>e. Experimental errors in measurement"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Tanımdaki iki anahtar kelime: <em>statistic</em> ve <em>bütün olası sample'lar</em>.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(a) population distribution'ı anlatıyor. (d)'de bir parameter tek bir sample'a göre değişmez.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap: c.</strong> Sampling distribution, bir statistic'in (örneğin $\bar x$) aynı size'daki çok sayıda sample üzerindeki dağılımıdır.</p>
+      <p>(a) tek tek değerlerin dağılımı, yani population distribution. (b) non-random sample'lardan sampling distribution kurulamaz, çünkü probability'ler random sampling'den gelir. (d) parameter sabittir, sample'a göre değişmez. (e) measurement error başka bir konu.</p>
+    </div></details>
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/undated-stats-final.pdf" target="_blank" rel="noopener">Orijinal soru (PDF) ↗</a></p>
+    <!-- Kaynak: exams/undated-stats-final.pdf Soru 10 (OCR'da i harfleri düşmüş, metin düzeltildi). Cevap anahtarı yok. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q1"><span class="box__label">STT315 Practice 3 S1 · kitap alıştırması</span>
+    <p>"The length of time a traffic signal stays green (nicknamed the "green time") at a particular intersection follows a normal probability distribution with a mean of 200 seconds and the standard deviation of 10 seconds. […] Which of the following describes the derivation of the sampling distribution of the sample mean?<br>A) The means of a large number of samples of size n randomly selected from the population of "green times" are calculated and their probabilities are plotted.<br>B) The standard deviations of a large number of samples of size n randomly selected from the population of "green times" are calculated and their probabilities are plotted.<br>C) The mean and median of a large randomly selected sample of "green times" are calculated. […]<br>D) A single sample of sufficiently large size is randomly selected from the population of "green times" and its probability is determined."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Hangi statistic'in dağılımı soruluyor? Mean'in.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Tek bir sample yetmez: dağılım için çok sayıda sample gerekir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap: A.</strong> Aynı size'da çok sayıda random sample çekilir, her birinin mean'i hesaplanır ve bu mean'lerin dağılımı çizilir. Bu, slayt 24'teki dört adımın aynısı.</p>
+      <p>B standard deviation'ların dağılımını kurar, yani $s$'nin sampling distribution'ını. C tek bir sample'da iki ölçü arasında seçim yapıyor. D tek bir sample'dan dağılım çıkmaz.</p>
+    </div></details>
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/315Practice3.pdf" target="_blank" rel="noopener">Orijinal soru (PDF) ↗</a></p>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S1 (C şıkkının devamı kısaltıldı). Anahtar: A. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q15"><span class="box__label">STT315 Practice 3 S15 · kitap alıştırması</span>
+    <p>"Which statement best describes a parameter?<br>A) A parameter is a level of confidence associated with an interval about a sample mean or proportion.<br>B) A parameter is a numerical measure of a population that is almost always unknown and must be estimated.<br>C) A parameter is a sample size that guarantees the error in estimation is within acceptable limits.<br>D) A parameter is an unbiased estimate of a statistic found by experimentation or polling."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Parameter population'a mı, sample'a mı ait?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>D'de yön ters: statistic parameter'ı tahmin eder, tersi değil.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap: B.</strong> Parameter population'ın sayısal bir ölçüsüdür, neredeyse hep bilinmez ve sample'dan tahmin edilir.</p>
+      <p>A confidence level, C sample size tanımı. D ilişkiyi ters kuruyor: sample'dan hesaplanan statistic, parameter'ın estimate'idir.</p>
+    </div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S15. Anahtar: B. Aynı soru 2025-26 final Group B S11 olarak da var (o soru inference-and-data dersinin konusu). -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q16"><span class="box__label">STT315 Practice 3 S16 · kitap alıştırması</span>
+    <p>"A study was conducted to determine what proportion of all college students considered themselves as full-time students. A random sample of 300 college students was selected and 210 of the students responded that they considered themselves full-time students. Which of the following would represent the target parameter of interest?<br>A) µ &nbsp;&nbsp; B) p"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Soru neyi soruyor: bir ortalamayı mı, bir oranı mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her öğrenci için cevap evet/hayır. Bu 0/1 veri.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap: B ($p$).</strong> Target parameter, bütün üniversite öğrencileri içinde kendini full-time sayanların oranı $p$. Sample'dan hesaplanan statistic $\hat p = 210/300 = 0.70$, bu parameter'ın estimate'i.</p>
+    </div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S16. Anahtar: B. -->
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="exact" data-min="6">
+  <h2>Küçük bir population'da sampling distribution'ı elle kurmak</h2>
+  <p>Population küçük ve sample size $n$ küçükse bütün olası sample'ları tek tek yazabilirsin. Bu, sampling distribution'ın ne olduğunu en açık gösteren yol.</p>
+  <div class="box box--exam" data-exam="ln07-coin-n2"><span class="box__label">Ders notu Chapter 6, s.15 · slayt sorusu</span>
+    <p>"In a single toss of a fair coin, let x equal the number of heads observed. Now consider a sample of n = 2 tosses. Find the sampling distribution of x̄, the sample mean."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Tek atışta $x = 1$ (H) ya da $x = 0$ (T). İki atışın dört sonucunu yaz: HH, HT, TH, TT.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her sonuç $\tfrac14$ olasılıklı. Her biri için $\bar x = (x_1 + x_2)/2$'yi hesapla, aynı değerleri topla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Sonuç</th><th>HH</th><th>HT</th><th>TH</th><th>TT</th></tr>
+        <tr><td>$(x_1, x_2)$</td><td>(1, 1)</td><td>(1, 0)</td><td>(0, 1)</td><td>(0, 0)</td></tr>
+        <tr><td>$\bar x$</td><td>1</td><td>0.5</td><td>0.5</td><td>0</td></tr>
+      </table></div>
+      <p>Sampling distribution: $P(\bar x = 0) = \tfrac14$, $P(\bar x = 0.5) = \tfrac24 = \tfrac12$, $P(\bar x = 1) = \tfrac14$.</p>
+      <p>Kontrol: $E(\bar x) = 0\cdot\tfrac14 + 0.5\cdot\tfrac12 + 1\cdot\tfrac14 = 0.5 = \mu$.</p>
+    </div></details>
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/lecture-notes/07-chapter-06.pdf" target="_blank" rel="noopener">Orijinal slayt (PDF) ↗</a></p>
+    <!-- Kaynak: resources/lecture-notes/07-chapter-06.pdf s.15–18, Table 6.2. -->
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tarif: tam sampling distribution</span>
+    <ol>
+      <li>Bütün <strong>ordered</strong> sample'ları listele. Population'da $k$ değer varsa ve çekilişler bağımsızsa $k^n$ tane sample vardır.</li>
+      <li>Her sample'ın probability'si, değerlerin probability'lerinin çarpımıdır (bağımsız çekilişler).</li>
+      <li>Her sample için statistic'i hesapla ($\bar x$, $s^2$, median…).</li>
+      <li>Aynı statistic değerini veren sample'ların probability'lerini topla.</li>
+    </ol>
+    <p>Sonra $E(\bar x) = \sum \bar x \cdot p(\bar x)$ ile merkezi, $\sum (\bar x - E\bar x)^2 p(\bar x)$ ile variance'ı bulursun.</p>
+  </div>
+  <h3>Kendin kur: tam enumerator</h3>
+  <p>Değerleri ve probability'leri yaz (kesir ya da ondalık), $n$'yi ve statistic'i seç. Her adımda bir sample eklenir ve tablo büyür. Son adımda $E(\text{statistic})$'i parameter ile karşılaştırır. $n$ büyükse adımlar ilk değere göre gruplanır.</p>
+  <p class="w-sampling-distributions-guess"><b>Önce tahmin et:</b> $\{0, 2, 4\}$ eşit olasılıklıyken $n = 2$ ile kaç ordered sample var ve $P(\bar x = 2)$ kaç?</p>
+  <div class="w-sampling-distributions-ctl">
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wsd-ex="0, 2, 4|1/3, 1/3, 1/3">EEM209 S12</button>
+    <button class="btn btn--sm" data-wsd-ex="3, 5, 7|0.1, 0.7, 0.2">STT315 Ch.5 S1</button>
+    <button class="btn btn--sm" data-wsd-ex="0, 1|1/2, 1/2">yazı tura</button>
+    <button class="btn btn--sm" data-wsd-ex="1, 2, 3, 4, 5, 6|1/6, 1/6, 1/6, 1/6, 1/6, 1/6">zar</button>
+  </div>
+  <div class="w-sampling-distributions-ctl">
+    <label>Değerler <input id="wsd-ex-vals" type="text" value="0, 2, 4" class="btn btn--sm" aria-label="Population değerleri" /></label>
+    <label>Probability'ler <input id="wsd-ex-probs" type="text" value="1/3, 1/3, 1/3" class="btn btn--sm" aria-label="Probability'ler" /></label>
+  </div>
+  <div class="w-sampling-distributions-ctl">
+    <label>n <select id="wsd-ex-n" class="btn btn--sm"><option value="2" selected>2</option><option value="3">3</option></select></label>
+    <label>Statistic <select id="wsd-ex-stat" class="btn btn--sm"><option value="mean" selected>x̄ (sample mean)</option><option value="var">s² (sample variance)</option><option value="med">M (sample median)</option></select></label>
+    <button class="btn btn--sm btn--accent" id="wsd-ex-go">Kur</button>
+  </div>
+  <div class="w-sampling-distributions-err" id="wsd-ex-err" aria-live="polite"></div>
+  <div id="wsd-ex-stepper"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$(0, 2)$ ve $(2, 0)$ iki ayrı sample. Birini atarsan ortadaki değerlerin probability'si yanlış çıkar.</li>
+      <li>Farklı $\bar x$ değerleri eşit olasılıklı değildir: ortadaki değerlere giden yol sayısı daha fazladır. Bu yüzden dağılım population'dan daha "sivri" olur.</li>
+      <li>Probability'ler eşit değilse sample'ları saymak yetmez, çarpıp toplaman gerekir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sd-exact">
+    <p class="quiz__q">Adil bir zar iki kez atılıyor ($n = 2$). $P(\bar x = 3.5)$ kaçtır?</p>
+    <button class="quiz__opt" data-correct>$\tfrac{6}{36} = \tfrac16$<span class="why">Doğru: toplam 7 veren ordered çiftler (1,6), (2,5), (3,4), (4,3), (5,2), (6,1). 36 çiftten 6'sı.</span></button>
+    <button class="quiz__opt">$\tfrac{1}{11}$<span class="why">$\bar x$'ın 11 farklı değeri var (1, 1.5, …, 6) ama bunlar eşit olasılıklı değil. Değer saymak yerine sample saymalısın.</span></button>
+    <button class="quiz__opt">$\tfrac{3}{36}$<span class="why">Sadece sırasız çiftleri saymışsın: {1,6}, {2,5}, {3,4}. (1,6) ile (6,1) iki ayrı sample.</span></button>
+    <button class="quiz__opt">$\tfrac16$, çünkü tek atışta da her değer $\tfrac16$<span class="why">Sayı doğru ama gerekçe yanlış. Tek atışta 3.5 hiç gelmez. $\tfrac16$ burada 36 çiftten 6'sının sayılmasından çıkıyor.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="eem209-final-Q12"><span class="box__label">EEM209 final alıştırmaları S12 · kitap alıştırması</span>
+    <p>"The probability distribution shown below describes a population of measurements.</p>
+    <div class="table-wrap"><table><tr><td>x</td><td>0</td><td>2</td><td>4</td></tr><tr><td>p(x)</td><td>1/3</td><td>1/3</td><td>1/3</td></tr></table></div>
+    <p>Suppose that we took repeated random samples of n = 2 observations from the population described above. Which of the following would represent the sampling distribution of the sample mean?<br>
+    A) x̄: 0, 1, 2, 3, 4 with p: 2/9, 2/9, 1/9, 2/9, 2/9<br>B) x̄: 0, 1, 2, 3, 4 with p: 1/9, 2/9, 3/9, 2/9, 1/9<br>C) x̄: 0, 1, 2, 3, 4 with p: 1/5, 1/5, 1/5, 1/5, 1/5<br>D) x̄: 0, 2, 4 with p: 1/3, 1/3, 1/3"</p>
+    <p class="src">Not: Bu set EEM209 dersinin final alıştırmaları. Repoda "problems-for-final" adıyla duruyor ama bu dersin hocasından değil. Konusu örtüştüğü için burada.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$3^2 = 9$ ordered sample var, her biri $\tfrac19$ olasılıklı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\bar x = 2$ veren sample'lar: (0, 4), (2, 2), (4, 0). Yukarıdaki enumerator'da "EEM209 S12"ye bas.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>$\bar x$</th><th>Sample'lar</th><th>$p(\bar x)$</th></tr>
+        <tr><td>0</td><td>(0,0)</td><td>1/9</td></tr>
+        <tr><td>1</td><td>(0,2), (2,0)</td><td>2/9</td></tr>
+        <tr><td>2</td><td>(0,4), (2,2), (4,0)</td><td>3/9</td></tr>
+        <tr><td>3</td><td>(2,4), (4,2)</td><td>2/9</td></tr>
+        <tr><td>4</td><td>(4,4)</td><td>1/9</td></tr>
+      </table></div>
+      <p><strong>Cevap: B.</strong> C, $\bar x$ değerlerini eşit olasılıklı sanıyor. D, population'ın kendisi. A'nın probability'leri toplamı $9/9$ ama dağılım ters: ortada az, uçlarda çok.</p>
+    </div></details>
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/prep/problems-for-final.pdf" target="_blank" rel="noopener">Orijinal soru (PDF) ↗</a></p>
+    <!-- Kaynak: exams/prep/problems-for-final.pdf S12 (başlık: EEM209 Probability Theory & Statistical Analysis — Exercises for the Final Exam). Anahtar yok; python Fraction ile sayıldı. -->
+  </div>
+  <div class="box box--exam" data-exam="eem209-final-Q13"><span class="box__label">EEM209 final alıştırmaları S13 · kitap alıştırması</span>
+    <p>"[Same population: x = 0, 2, 4 with p(x) = 1/3 each, n = 2.] Find the expected value of the sampling distribution of the sample mean.<br>A) 2 &nbsp; B) 4 &nbsp; C) 1 &nbsp; D) 3 &nbsp; E) 0"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>S12'deki tabloyla $\sum \bar x\, p(\bar x)$'i hesaplayabilirsin.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Daha kısası: $E(\bar x) = \mu$. Population'ın mean'i kaç?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$E(\bar x) = 0\cdot\tfrac19 + 1\cdot\tfrac29 + 2\cdot\tfrac39 + 3\cdot\tfrac29 + 4\cdot\tfrac19 = \tfrac{18}{9} = 2.$</p>
+      <p>Aynı sonuç: $\mu = (0 + 2 + 4)/3 = 2$ ve $E(\bar x) = \mu$. <strong>Cevap: A.</strong></p>
+      <p>Ek kontrol: $\sigma^2 = \tfrac{(0-2)^2 + 0 + (4-2)^2}{3} = \tfrac83$, tablodan $\text{Var}(\bar x) = \tfrac43 = \tfrac{\sigma^2}{2}$.</p>
+    </div></details>
+    <!-- Kaynak: exams/prep/problems-for-final.pdf S13. Python Fraction ile doğrulandı: E = 2, Var = 4/3. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-ch5-practice-Q1"><span class="box__label">STT315 Chapter 5 Practice S1 · kitap alıştırması</span>
+    <p>"Consider the population described by the probability distribution below.</p>
+    <div class="table-wrap"><table><tr><td>x</td><td>3</td><td>5</td><td>7</td></tr><tr><td>p(x)</td><td>.1</td><td>.7</td><td>.2</td></tr></table></div>
+    <p>a. Find µ. b. Find the sampling distribution of the sample mean x̄ for a random sample of n = 2 measurements from the distribution. c. Show that x̄ is an unbiased estimator of µ."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Probability'ler eşit değil. (3, 5) sample'ının probability'si $0.1 \cdot 0.7 = 0.07$; (5, 3) de aynı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\bar x = 5$ üç yoldan gelir: (5, 5), (3, 7), (7, 3).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>a.</strong> $\mu = 0.1(3) + 0.7(5) + 0.2(7) = 5.2$.</p>
+      <p><strong>b.</strong></p>
+      <div class="table-wrap"><table>
+        <tr><th>$\bar x$</th><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td></tr>
+        <tr><th>Hesap</th><td>$0.1^2$</td><td>$2(0.1)(0.7)$</td><td>$0.7^2 + 2(0.1)(0.2)$</td><td>$2(0.7)(0.2)$</td><td>$0.2^2$</td></tr>
+        <tr><th>$p(\bar x)$</th><td>.01</td><td>.14</td><td>.53</td><td>.28</td><td>.04</td></tr>
+      </table></div>
+      <p><strong>c.</strong> $E(\bar x) = .01(3) + .14(4) + .53(5) + .28(6) + .04(7) = 5.2 = \mu$, yani $\bar x$ unbiased.</p>
+    </div></details>
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/supplement/5%20X%20Chapter%205%20Practice.pdf" target="_blank" rel="noopener">Orijinal soru (PDF) ↗</a></p>
+    <!-- Kaynak: resources/supplement/5 X Chapter 5 Practice.pdf S1 ve anahtarı (anahtar doğru; python ile kontrol edildi). -->
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="estimator" data-min="5">
+  <h2>İyi bir estimator: unbiased ve minimum variance</h2>
+  <p>Bir <strong>point estimator</strong>, sample verisinden bir parameter için tek bir sayı üreten kural ya da formüldür: $\bar x$, $\mu$'nün; $s^2$, $\sigma^2$'nin point estimator'ıdır. Estimator'ın kendisi bir statistic, yani bir random variable. Onu sampling distribution'ına bakarak değerlendirirsin.</p>
+  <div class="w-sampling-distributions-plot" id="wsd-est-fig" aria-label="Üç estimator'ın sampling distribution'ı"></div>
+  <!-- Kaynak: slayt 25 (Properties of a Good Estimator) figürü: unbiased large variance, unbiased minimum variance, biased. Eğriler JS ile normal pdf'ten çiziliyor. -->
+  <div class="box box--rule">
+    <span class="box__label">İki özellik</span>
+    <ul>
+      <li><strong>Unbiased:</strong> sampling distribution gerçek değerin üstünde ortalanır. $\hat\theta$, $\theta$'yı tahmin ediyorsa: unbiased $\Leftrightarrow E(\hat\theta) = \theta$; biased $\Leftrightarrow E(\hat\theta) \ne \theta$.</li>
+      <li><strong>Minimum variance:</strong> unbiased estimator'lar içinde sampling distribution'ı en dar olan.</li>
+    </ul>
+    <p>Bir statistic'in sampling distribution'ının standard deviation'ına o statistic'in <strong>standard error</strong>'ı denir. İki unbiased estimator'dan standard error'ı küçük olanı seçersin. McClave bunun adını koyar: minimum-variance unbiased estimator (MVUE). $\bar x$, $\mu$ için unbiased'dır. MVUE olup olmadığı population modeline bağlıdır; normal population modelinde MVUE'dur. Aşağıdaki mean–median karşılaştırması $\bar x$'ın diğer bütün estimator'lara üstünlüğünü kanıtlamaz. İspat bu dersin kapsamı dışında.</p>
+  </div>
+  <!-- Kaynak: slayt 25 · McClave §6.2 (Definition 6.3, Figure 6.6–6.7, MVUE) · 07-chapter-06.pdf s.24–27 · course-info: Cramér–Rao, MVUE teorisi kapsam dışı. -->
+  <div class="box box--example">
+    <span class="box__label">Örnek · ders notu ve McClave Example 6.7</span>
+    <p>Çelik levha kalınlığı 150 ile 200 mm arasında uniform. Her seferinde 11 levha seçilip iki statistic hesaplanıyor: $\bar x$ ve median $M$ (sıralı 11 değerin 6.'sı). Population simetrik olduğu için ikisinin de dağılımı $\mu = 175$ etrafında. Ama $\bar x$'ın değerleri 175'e daha sıkı toplanıyor: $\sigma = 50/\sqrt{12} = 14.43$ ve $\sigma_{\bar x} = 14.43/\sqrt{11} = 4.35$ (McClave'in 1000 sample'lık simülasyonu 4.38 buluyor). Sonuç: bu population ve $n = 11$ için $\bar x$, $\mu$ hakkında $M$'den daha çok bilgi taşıyor.</p>
+    <p>Bu, $\bar x$'ın en iyi estimator olduğu anlamına gelmez. Aynı uniform population'da sample midrange $(\min + \max)/2$ de unbiased ve variance'ı $50^2/(2 \cdot 12 \cdot 13) \approx 8.01$; $\bar x$'ınki $50^2/(12 \cdot 11) \approx 18.94$. Yani uniform population'da $\bar x$ MVUE değil.</p>
+    <p>Population çarpıksa median $\mu$ için biased bile olur: slayt 8'deki simülasyonda ($n = 10$, $\mu = 60$ ms, sağa çarpık) sample mean'lerin uzun dönem ortalaması 60.1, median'larınki 52.1 ms. Bunu Probability toolkit dersinde gördün.</p>
+  </div>
+  <!-- Kaynak: 07-chapter-06.pdf s.19–22 · McClave Example 6.7 ve s.324 (σ_x̄ = 4.35) · slayt 8. Python: 50/√12 = 14.434, /√11 = 4.352. Midrange: Var = 2500/(2·12·13) = 8.013, x̄: 2500/132 = 18.939; 100.000 sample'lık simülasyon 8.00 ve 19.03. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Unbiased, "tek bir sample'da doğru çıkar" demek değil. Tek bir sample $\theta$'yı ıskalayabilir; unbiased olan, <em>sistematik</em> olarak ıskalamamasıdır.</li>
+      <li>"Estimator bir random variable'dır" doğru ama biased estimator'lar için de doğru. Unbiasedness'ı anlatmaz.</li>
+      <li>"Sample size artınca standard error küçülür" de unbiasedness değil. Consistency de değil: consistency, $n \to \infty$ iken estimator'ın target parameter'a probability bakımından yakınsamasıdır. Standard error'ın küçülmesi tek başına yeterli değildir; biased bir estimator da yanlış bir değerin etrafında daralabilir.</li>
+      <li>İdeal estimator unbiased estimator'lar içinde <strong>en küçük</strong> variance'a sahip olandır, en büyüğe değil.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sd-estimator">
+    <p class="quiz__q">$\theta$ için üç estimator: A'nın sampling distribution'ı $\theta$'da ortalanmış, standard error 5. B $\theta$'da ortalanmış, standard error 2. C $\theta + 3$'te ortalanmış, standard error 0.5. Bu dersin iki ölçütüne göre hangisini seçersin?</p>
+    <button class="quiz__opt">C, çünkü en dar dağılım onun.<span class="why">Minimum variance ölçütü <em>unbiased</em> estimator'lar arasında uygulanır. C biased: $E(\hat\theta) = \theta + 3 \ne \theta$.</span></button>
+    <button class="quiz__opt" data-correct>B<span class="why">Doğru: A ve B unbiased, aralarında standard error'ı küçük olan B.</span></button>
+    <button class="quiz__opt">A, çünkü geniş dağılım $\theta$'yı daha sık kapsar.<span class="why">Geniş dağılım tek bir tahminin $\theta$'dan çok uzağa düşebileceği anlamına gelir. İstenen dar dağılım.</span></button>
+    <button class="quiz__opt">Fark etmez, üçü de random variable.<span class="why">Hepsi random variable, doğru. Ama karşılaştırma sampling distribution'ın merkezine ve genişliğine göre yapılır.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="2025-26-final-B-Q1"><span class="box__label">2025-26 final Group B S1 · çıkmış soru</span>
+    <p>"Which of the following is a property of an unbiased estimator?<br>A) The estimator is a random variable.<br>B) The standard deviation of the sampling distribution of the estimator decreases as sample size increases.<br>C) The expected value of the estimator is equal to 0.<br>D) The estimator is a parameter.<br>E) The center of the sampling distribution is found at the population parameter that is being estimated."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Unbiased'ın tanımı tek bir eşitlik: $E(\hat\theta) = \theta$. Hangi şık bunu söylüyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>A ve B doğru cümleler olabilir ama unbiasedness'a özgü değiller.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap: E.</strong> Unbiased: sampling distribution'ın merkezi ($E(\hat\theta)$) tahmin edilen parameter'a eşit.</p>
+      <p>A her estimator için doğru, biased olanlar dahil. B standard error'ın $n$ ile küçülmesini anlatıyor; bu unbiasedness değil, tek başına consistency de değil (estimator yanlış bir değerin etrafında daralabilir). C: beklenen değer 0 değil, $\theta$ olmalı. D: estimator sample'dan hesaplanır, parameter değildir.</p>
+    </div></details>
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/2025-2026-final-group-b/page-3.jpeg" target="_blank" rel="noopener">Orijinal (el yazısı kopya) ↗</a></p>
+    <!-- Kaynak: exams/2025-2026-final-group-b/page-3.jpeg: soru bir öğrencinin defterine elle kopyalanmış; işaretli cevap E, doğru. -->
+  </div>
+  <div class="box box--exam" data-exam="2025-26-final-B-TF1"><span class="box__label">2025-26 final Group B True/False 1 · çıkmış soru</span>
+    <p>"[The] ideal estimator has the greatest variance among all unbiased estimators. A) True B) False" (fotoğrafta cümlenin başı kesik)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Slayt 25'teki iki özellikten ikincisini hatırla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Variance büyükse tek bir tahmin $\theta$'dan ne kadar uzağa düşebilir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap: False.</strong> İdeal estimator unbiased estimator'lar içinde <em>en küçük</em> variance'a sahip olandır (minimum variance). Büyük variance, tahminlerin geniş bir aralığa dağılması demek.</p>
+    </div></details>
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/2025-2026-final-group-b/page-5.png" target="_blank" rel="noopener">Orijinal soru (fotoğraf) ↗</a></p>
+    <!-- Kaynak: exams/2025-2026-final-group-b/page-5.png, True/False bölümü. -->
+  </div>
+  <div class="box box--exam" data-exam="eem209-final-Q6"><span class="box__label">EEM209 final alıştırmaları S6 · kitap alıştırması</span>
+    <p>"Which of the following describes what the property of minimum variance means?<br>A) The center of the sampling distribution is found at the population standard deviation.<br>B) The sampling distribution in question has the smallest variation of all possible unbiased sampling distributions.<br>C) The center of the sampling distribution is found at the population parameter that is being estimated.<br>D) The shape of the sampling distribution is approximately normally distributed."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Center" kelimesi geçen şıklar unbiasedness ile ilgili.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Minimum variance yayılmayla ilgili, ve karşılaştırma unbiased olanlar arasında.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap: B.</strong> C unbiasedness'ın tanımı. A anlamsız (merkez $\sigma$'da değil). D şekil hakkında, bu CLT'nin konusu.</p>
+    </div></details>
+    <!-- Kaynak: exams/prep/problems-for-final.pdf S6 (EEM209). -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q2"><span class="box__label">STT315 Practice 3 S2 · kitap alıştırması</span>
+    <p>"Which of the following describes what the property of unbiasedness means?<br>A) The shape of the sampling distribution is approximately normally distributed.<br>B) The center of the sampling distribution is found at the population standard deviation.<br>C) The center of the sampling distribution is found at the population parameter that is being estimated.<br>D) The sampling distribution in question has the smallest variation of all possible sampling distributions."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Unbiased: $E(\hat\theta) = \theta$. $E$ dağılımın merkezi.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>D bir başka özelliğin, hem de eksik yazılmış hâli.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap: C.</strong> D minimum variance'ı anlatıyor ama "unbiased olanlar arasında" kaydı da eksik. A normallik, B anlamsız.</p>
+    </div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S2. Anahtar: C. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-ch5-practice-Q2"><span class="box__label">STT315 Chapter 5 Practice S2 · kitap alıştırması</span>
+    <p>"Consider the population described by the probability distribution below. [x: 3, 5, 7 with p(x): .1, .7, .2] a. Find σ². b. Find the sampling distribution of the sample variance s² for a random sample of n = 2 measurements from the distribution. c. Show that s² is an unbiased estimator of σ²."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$n = 2$ için $s^2 = \dfrac{(x_1 - \bar x)^2 + (x_2 - \bar x)^2}{1} = \dfrac{(x_1 - x_2)^2}{2}$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Aynı iki değer: $s^2 = 0$. Fark 2 (3 ile 5 ya da 5 ile 7): $s^2 = 2$. Fark 4 (3 ile 7): $s^2 = 8$. Enumerator'da "STT315 Ch.5 S1"i seç, statistic olarak $s^2$'yi seç.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>a.</strong> $\mu = 5.2$; $\sigma^2 = .1(3 - 5.2)^2 + .7(5 - 5.2)^2 + .2(7 - 5.2)^2 = .484 + .028 + .648 = 1.16$.</p>
+      <p><strong>b.</strong> $P(s^2 = 0) = .1^2 + .7^2 + .2^2 = .54$; $P(s^2 = 2) = 2(.1)(.7) + 2(.7)(.2) = .42$; $P(s^2 = 8) = 2(.1)(.2) = .04$.</p>
+      <p><strong>c.</strong> $E(s^2) = 0(.54) + 2(.42) + 8(.04) = 1.16 = \sigma^2$, yani $s^2$ unbiased. $n - 1$'e bölmenin sebebi tam olarak bu.</p>
+    </div></details>
+    <!-- Kaynak: resources/supplement/5 X Chapter 5 Practice.pdf S2 ve anahtarı (doğru; python Fraction ile kontrol edildi). -->
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="se" data-min="5">
+  <h2>$\bar x$'ın mean'i ve standard error'ı</h2>
+  <div class="box box--rule">
+    <span class="box__label">Properties of the sampling distribution of $\bar x$</span>
+    <ol>
+      <li>Mean'i population'ın mean'ine eşit: $\mu_{\bar x} = E(\bar x) = \mu$.</li>
+      <li>Standard deviation'ı: $\sigma_{\bar x} = \dfrac{\sigma}{\sqrt n}$. Buna <strong>standard error of the mean</strong> denir: $\text{SE}(\bar x) = \sigma/\sqrt n$.</li>
+    </ol>
+    <p>İki özellik de population'ın şekli ne olursa olsun ve her $n$ için geçerli. Şekil başka bir soru, onu Bölüm 6'da CLT cevaplayacak.</p>
+  </div>
+  <!-- Kaynak: McClave §6.3 kutusu (Properties of the Sampling Distribution of x̄) · 07-chapter-06.pdf s.31 · slayt 21. -->
+  <h3>Neden $\sigma/\sqrt n$? (slayt 21'in tekrarı)</h3>
+  <p>$\bar x = \tfrac1n(X_1 + X_2 + \dots + X_n)$ bir linear combination. iid sampling'de (infinite population ya da with replacement çekiliş) gözlemler independent, yani bütün covariance term'leri sıfır ve <strong>variance'lar toplanır</strong>:</p>
+  $$\text{Var}(\bar x) = \frac{1}{n^2}\big[\text{Var}(X_1) + \dots + \text{Var}(X_n)\big] = \frac{1}{n^2}\cdot n\sigma^2 = \frac{\sigma^2}{n}, \qquad \text{SE}(\bar x) = \frac{\sigma}{\sqrt n}.$$
+  <p>Slayt 22 bunu simülasyonla kontrol ediyor. Population exponential, $\mu = \sigma = 10$, her $n$ için 20.000 sample:</p>
+  <div class="table-wrap"><table>
+    <tr><th>$n$</th><th>$\sigma/\sqrt n$</th><th>Simülasyonda mean'lerin SD'si</th></tr>
+    <tr><td>4</td><td>5.00</td><td>5.03</td></tr>
+    <tr><td>16</td><td>2.50</td><td>2.50</td></tr>
+    <tr><td>64</td><td>1.25</td><td>1.26</td></tr>
+  </table></div>
+  <p>Notebook'un Part A A5 hücresi aynı simülasyonu çalıştırıyor. Çalıştırıp bu tabloyla karşılaştır.</p>
+  <!-- Kaynak: slayt 21–22 · notebook week02 Part A A5 (rng.exponential(10, size=(20_000, n))). -->
+  <div class="box box--rule">
+    <span class="box__label">İki ek not (McClave dipnotları)</span>
+    <ul>
+      <li><strong>Toplam:</strong> $\sum x$'in mean'i $n\mu$, variance'ı $n\sigma^2$ (SD'si $\sigma\sqrt n$). CLT toplam için de geçerli.</li>
+      <li><strong>Finite population correction:</strong> $\sigma/\sqrt n$ iid sampling için exact. $N$ birimlik bir population'dan without replacement simple random sample (SRS) çekilince gözlemler independent olmaz ve $\text{SE}(\bar x) = \sigma\sqrt{\dfrac{N - n}{n(N - 1)}}$, yani $\sigma/\sqrt n$ çarpı $\sqrt{(N - n)/(N - 1)}$. %5 kuralı bu düzeltmenin ne zaman atlanabileceğini söyler: $n \le 0.05N$ ise çarpan en az $\approx 0.975$, 1'e çok yakındır.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>SD'leri toplamak:</strong> $\text{SD}(\bar x) = \tfrac1n(\sigma + \dots + \sigma) = \sigma$ yazarsan $n$ ne olursa olsun yayılma hiç azalmaz. Toplanan şey variance'tır, SD'ler değil.</li>
+      <li>$\text{SE} = \sigma/n$ değil, $\sigma/\sqrt n$. $\sigma^2/n$ ise variance'tır, SE değil.</li>
+      <li>Soru variance verirse ($\sigma^2 = 100$) önce karekök al: $\sigma = 10$.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sd-se">
+    <p class="quiz__q">Population'ın mean'i 100, variance'ı $\sigma^2 = 100$. $n = 25$ için $\bar x$'ın standard error'ı kaç?</p>
+    <button class="quiz__opt" data-correct>2<span class="why">Doğru: $\sigma = 10$, $\text{SE} = 10/\sqrt{25} = 2$.</span></button>
+    <button class="quiz__opt">4<span class="why">$\sigma^2/n = 100/25 = 4$ variance'tır. SE onun karekökü.</span></button>
+    <button class="quiz__opt">0.4<span class="why">$\sigma/n = 10/25$. Bölmen gereken $n$ değil, $\sqrt n$.</span></button>
+    <button class="quiz__opt">20<span class="why">$\sigma^2/\sqrt n = 100/5$. Variance ile SD'yi karıştırmışsın: önce $\sigma = 10$.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="stt315-sup5-5.17"><span class="box__label">STT315 Supplement 5, Exercise 5.17 · kitap alıştırması</span>
+    <p>"Suppose a random sample of n measurements is selected from a population with mean μ = 100 and variance σ² = 100. For each of the following values of n, give the mean and standard deviation of the sampling distribution of the sample mean x̄. a. n = 4 b. n = 25 c. n = 100"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Mean her $n$ için aynı. Neden?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Verilen variance. $\sigma = \sqrt{100}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$\mu_{\bar x} = \mu = 100$ her üç durumda. $\sigma = 10$.</p>
+      <p>a. $\sigma_{\bar x} = 10/\sqrt4 = 5$ &nbsp; b. $10/\sqrt{25} = 2$ &nbsp; c. $10/\sqrt{100} = 1$.</p>
+      <p>$n$ 4'ten 100'e 25 kat büyüdü, SE $\sqrt{25} = 5$ kat küçüldü.</p>
+    </div></details>
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/supplement/5%20Sampling%20Distributions.pdf" target="_blank" rel="noopener">Orijinal (PDF) ↗</a></p>
+    <!-- Kaynak: resources/supplement/5 Sampling Distributions.pdf s.4, Exercise 5.17. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q5"><span class="box__label">STT315 Practice 3 S5 · kitap alıştırması</span>
+    <p>"Which of the following statements about the sampling distribution of the sample mean is incorrect?<br>A) The sampling distribution is generated by repeatedly taking samples of size n and computing the sample means.<br>B) The standard deviation of the sampling distribution is σ.<br>C) The sampling distribution is approximately normal whenever the sample size is sufficiently large (n ≥ 30).<br>D) The mean of the sampling distribution is µ."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Yanlış olanı arıyorsun. Üç şık bu bölümün kutusunda ve slayt 24'te var.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sampling distribution'ın SD'si $n$'ye bağlı mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap: B.</strong> Sampling distribution'ın SD'si $\sigma$ değil, $\sigma/\sqrt n$. A tanım, C CLT, D unbiasedness: üçü de doğru.</p>
+    </div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S5 (PDF'te σ ve ≥ işaretleri metinden düşmüş). Anahtar: B. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q6"><span class="box__label">STT315 Practice 3 S6 · kitap alıştırması</span>
+    <p>"As the sample size gets larger, the standard error of the sampling distribution of the sample mean gets larger as well. A) True B) False"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$\sqrt n$ paydada.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Daha çok veri, ortalamayı daha kararlı mı yapar, daha oynak mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>False.</strong> $\text{SE} = \sigma/\sqrt n$: $n$ büyüdükçe SE küçülür.</p></div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S6. Anahtar: B (False). -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q8"><span class="box__label">STT315 Practice 3 S8 · kitap alıştırması</span>
+    <p>"The standard error of the sampling distribution of the sample mean is equal to σ, the standard deviation of the population. A) True B) False"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$n = 1$ dışında $\sigma/\sqrt n$, $\sigma$'ya eşit olur mu?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>SE bir estimate'in yayılması, $\sigma$ tek tek değerlerinki.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>False.</strong> SE $= \sigma/\sqrt n$. Sadece $n = 1$'de $\sigma$'ya eşit.</p></div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S8 (σ metinden düşmüş). Anahtar: B (False). -->
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="sd-vs-se" data-min="5">
+  <h2>Standard deviation mı, standard error mı? √n kuralı</h2>
+  <div class="table-wrap"><table>
+    <tr><th></th><th>Standard deviation $s$</th><th>Standard error $s/\sqrt n$</th></tr>
+    <tr><td>Neyi anlatır</td><td>Tek tek gözlemlerin yayılması</td><td>Sample mean'lerin yayılması</td></tr>
+    <tr><td>$n$'ye bağlı mı?</td><td>Hayır</td><td>Evet, $n$ büyüdükçe küçülür</td></tr>
+    <tr><td>Cevapladığı soru</td><td>Bireyler ne kadar farklı?</td><td>$\mu$ ne kadar kesin tahmin edildi?</td></tr>
+  </table></div>
+  <p>Veriyi anlatırken $s$'yi, bir estimate'i anlatırken standard error'ı raporla.</p>
+  <!-- Kaynak: slayt 26 (Standard Deviation vs. Standard Error). -->
+  <div class="box box--rule">
+    <span class="box__label">√n kuralı</span>
+    <p>$\text{SE} \propto 1/\sqrt n$. <strong>Dört kat veri, standard error'ı yarıya indirir.</strong> Slayt 27: $n = 4$'te $\text{SE} = 0.50\sigma$, $n = 16$'da $0.25\sigma$, $n = 64$'te $0.125\sigma$.</p>
+    <p>SE'yi $1/k$'ya indirmek için $n$'yi $k^2$ katına çıkarmalısın. Belirli bir SE için: $n = (\sigma/\text{SE})^2$, yukarı yuvarla.</p>
+  </div>
+  <!-- Kaynak: slayt 27 (n=4 SE=0.50σ, n=16 SE=0.25σ, n=64 SE=0.12σ). -->
+  <h3>Kendin dene: SE ve SD, $n$ büyürken</h3>
+  <p>$\sigma$'yı yaz, sonra hazır $n$'lere bas ya da kendi $n$'ini yaz. Mavi eğri SE, turuncu kesikli çizgi SD. İstersen hedef bir SE yaz, gereken $n$'yi hesaplasın.</p>
+  <p class="w-sampling-distributions-guess"><b>Önce tahmin et:</b> $\sigma = 60$ ms iken $n = 36$'dan $n = 144$'e çıkınca SE kaç ms olur? SD ne olur?</p>
+  <div class="w-sampling-distributions-ctl">
+    <label>σ = <input id="wsd-se-sigma" type="text" inputmode="decimal" value="60" class="btn btn--sm w-sampling-distributions-short" /></label>
+    <label>n = <input id="wsd-se-n" type="text" inputmode="numeric" value="36" class="btn btn--sm w-sampling-distributions-short" /></label>
+    <button class="btn btn--sm btn--accent" id="wsd-se-add">Ekle</button>
+    <button class="btn btn--sm" id="wsd-se-clear">Temizle</button>
+  </div>
+  <div class="w-sampling-distributions-ctl">
+    <span class="src">hazır n:</span>
+    <button class="btn btn--sm" data-wsd-sen="4">4</button>
+    <button class="btn btn--sm" data-wsd-sen="16">16</button>
+    <button class="btn btn--sm" data-wsd-sen="36">36</button>
+    <button class="btn btn--sm" data-wsd-sen="64">64</button>
+    <button class="btn btn--sm" data-wsd-sen="144">144</button>
+    <button class="btn btn--sm" data-wsd-sen="400">400</button>
+  </div>
+  <div class="w-sampling-distributions-ctl">
+    <label>Hedef SE = <input id="wsd-se-target" type="text" inputmode="decimal" value="" placeholder="ör. 4" class="btn btn--sm w-sampling-distributions-short" /></label>
+    <button class="btn btn--sm" id="wsd-se-solve">Gereken n</button>
+  </div>
+  <div class="w-sampling-distributions-err" id="wsd-se-err" aria-live="polite"></div>
+  <div class="w-sampling-distributions-plot" id="wsd-se-plot"></div>
+  <div class="w-sampling-distributions-out" id="wsd-se-out" aria-live="polite"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$n$ büyüyünce verinin standard deviation'ı küçülmez. Tek tek request'ler hâlâ aynı kadar dağınık. Küçülen, mean'in standard error'ı.</li>
+      <li>SE'yi yarıya indirmek için $n$'yi iki katına değil, <strong>dört</strong> katına çıkarırsın.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sd-sqrtn">
+    <p class="quiz__q">Bir araştırmacı standard error'ı ilk değerinin üçte birine indirmek istiyor. Sample size nasıl değişmeli?</p>
+    <button class="quiz__opt">3 katına çıkmalı<span class="why">SE $1/\sqrt n$ ile değişir. $n$ 3 kat olursa SE $1/\sqrt3 \approx 0.58$ katına iner, üçte bire değil.</span></button>
+    <button class="quiz__opt" data-correct>9 katına çıkmalı<span class="why">Doğru: $\sqrt9 = 3$, SE üçte birine iner.</span></button>
+    <button class="quiz__opt">9'da birine inmeli<span class="why">$n$ küçülürse SE büyür. Yön ters.</span></button>
+    <button class="quiz__opt">$\sigma$ bilinmeden söylenemez<span class="why">Oran $\sigma$'dan bağımsız: $\text{SE}_2/\text{SE}_1 = \sqrt{n_1/n_2}$.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="qb1-Q10"><span class="box__label">Soru Bankası 1 Q10 · ödev sorusu</span>
+    <p>"In Q9 the standard error with n = 36 was 10 ms (σ = 60 ms).<br>(a) What n halves the standard error to 5 ms?<br>(b) What n gives a standard error of 4 ms?<br>(c) A colleague says: "With n = 400 the standard deviation of the response times drops to 3 ms." What is wrong?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) Yarıya indirmek için dört kat veri. (b) $\text{SE} = \sigma/\sqrt n$'yi $n$ için çöz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c) 3 ms, $60/\sqrt{400}$. Bu hangi büyüklük: verinin yayılması mı, mean'in yayılması mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $\text{SE} \propto 1/\sqrt n$: $4 \times 36 = 144$. Kontrol: $60/\sqrt{144} = 60/12 = 5$ ms.</p>
+      <p><strong>(b)</strong> $n = (\sigma/\text{SE})^2 = (60/4)^2 = 15^2 = 225$.</p>
+      <p><strong>(c)</strong> Tek tek request'lerin yayılması olan standard deviation, $n$ ne olursa olsun 60 ms civarında kalır. Küçülen yalnızca mean'in standard error'ı: $60/\sqrt{400} = 3$ ms. Standard deviation veriyi, standard error estimate'i anlatır.</p>
+    </div></details>
+    <!-- Kaynak: resources/2026-2027-fall/examples/question-bank-1-weeks-01-04.pdf s.23–24 (Q10 ve çözümü). Değerler python ile kontrol edildi. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q10"><span class="box__label">STT315 Practice 3 S10 · kitap alıştırması</span>
+    <p>"Suppose students' ages follow a skewed right distribution with a mean of 23 years old and a standard deviation of 4 years. If we randomly sample 200 students, which of the following statements about the sampling distribution of the sample mean age is incorrect?<br>A) The mean of the sampling distribution is approximately 23 years old.<br>B) The standard deviation of the sampling distribution is equal to 4 years.<br>C) The shape of the sampling distribution is approximately normal."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Yanlış olanı arıyorsun. 4 yıl hangi büyüklük?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$4/\sqrt{200}$'ü hesapla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap: B.</strong> Sampling distribution'ın SD'si $4/\sqrt{200} \approx 0.283$ yıl, 4 değil. A ($E(\bar x) = \mu = 23$) doğru. C de doğru: population sağa çarpık ama $n = 200$ büyük, CLT ile yaklaşık normal.</p>
+    </div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S10. Anahtar: B. -->
+  </div>
+  <div class="box box--exam" data-exam="nb02-B-task3"><span class="box__label">Notebook week 2 · Part B Task 3 · ödev sorusu</span>
+    <p>Task 3, sample size dört katına çıkınca standard error'ın gerçekten yarıya inip inmediğini simülasyonla kontrol etmeni istiyor (exponential population, $n = 25$ ve $n = 100$).</p>
+    <p class="src">Not: Haftalık notebook'lar notlandırılan ödev. Bu görevin çözümü ve kodu burada verilmiyor.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Simülasyonda standard error, çok sayıda sample mean'in standard deviation'ıdır. Formüldeki $\sigma/\sqrt n$'yi değil, simülasyonun ürettiği mean'lerin yayılmasını ölçmen gerekiyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Ne bekleyeceğini önce kâğıda yaz: exponential(1) için $\sigma = 1$, yani $n = 25$'te $\sigma/\sqrt n = 0.2$ ve oran $\sqrt{25/100} = 0.5$. Notebook'taki self-check de bunu kontrol ediyor. Slayt 22'deki tablo aynı fikrin başka bir örneği.</p></div></details>
+    <!-- Kaynak: notebooks/week02_sampling_distributions.ipynb Part B Task 3. Notlandırılan görev: çözüm yok. -->
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="clt" data-min="6">
+  <h2>Central Limit Theorem</h2>
+  <p>Bölüm 4, $\bar x$'ın merkezini ve yayılmasını verdi. Şimdi soru şu: dağılımın <strong>şekli</strong> ne?</p>
+  <div class="box box--rule">
+    <span class="box__label">Theorem 6.1: normal population</span>
+    <p>Population normal ise $\bar x$'ın sampling distribution'ı <strong>her</strong> $n$ için tam olarak normaldir ($n = 2$ bile).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Central Limit Theorem (slayt 28, McClave Theorem 6.2)</span>
+    <p>Mean'i $\mu$, standard deviation'ı $\sigma$ olan herhangi bir population'dan $n$'lik bir random sample çekilsin. $n$ yeterince büyükse $\bar x$'ın sampling distribution'ı, population'ın şekli ne olursa olsun yaklaşık normaldir:</p>
+    $$\bar x \;\approx\; N\!\left(\mu,\ \frac{\sigma^2}{n}\right).$$
+    <p>$n$ büyüdükçe yaklaşım iyileşir. Walpole aynı şeyi limit olarak yazar: $Z = \dfrac{\bar X - \mu}{\sigma/\sqrt n}$'nin dağılımı $n \to \infty$ iken standard normal'e gider.</p>
+    <p>Şart: population'ın <strong>finite variance</strong>'ı olmalı. Heavy-tailed veri bunu bozabilir.</p>
+  </div>
+  <!-- Kaynak: slayt 28 · McClave Theorem 6.1–6.2 ve dipnot (Σx için de geçerli) · 07-chapter-06.pdf s.32–33 · Walpole Theorem 8.2. -->
+  <div class="box box--intuition">
+    <span class="box__label">Slayt 29–30: teorem iş başında</span>
+    <ul>
+      <li>Population uniform ise $n = 2$'de bile mean'ler normal'e yakın, $n = 5$'te eğriyle neredeyse çakışıyor.</li>
+      <li>Population çok çarpık (exponential) ise $n = 2$'de dağılım hâlâ çarpık, $n = 5$'te de sağ kuyruk belli. $n = 30$'da turuncu normal eğriye yakın.</li>
+    </ul>
+    <p><strong>$n \ge 30$ bir rule of thumb, teorem değil.</strong> Bir plot ya da simülasyonla kontrol et. Population ne kadar çarpıksa o kadar büyük $n$ gerekir (McClave). Walpole: $n &lt; 30$ ise yaklaşım ancak population normal'den çok farklı değilse iyidir.</p>
+    <p>Supplement'teki zar örneği: tek zar ($n = 1$) uniform, $\mu = 3.5$, $\sigma = 1.71$. İki zarın ortalaması üçgen şeklinde, SD'si $1.71/\sqrt2 = 1.21$. Zar sayısı arttıkça ortalamanın dağılımı normal'e yaklaşır.</p>
+  </div>
+  <!-- Kaynak: slayt 29–30 · McClave s.325 · Walpole §8.4 (n ≥ 30 rehberi) · supplement 5 s.2 (zar örneği). -->
+  <h3>Kendin dene: CLT simülatörü</h3>
+  <p>Bir population ve $n$ seç, sonra 10.000 sample çek. Her sample'ın mean'i histogram'a girer. Turuncu eğri CLT'nin öngördüğü $N(\mu, \sigma^2/n)$. $n = 1$ seçersen population'ın kendisini görürsün. Altta simülasyonun mean'i, SD'si ve skewness'ı teorik değerlerle karşılaştırılıyor (skewness 0 ise simetrik).</p>
+  <p class="w-sampling-distributions-guess"><b>Önce tahmin et:</b> Exponential population'da $n = 30$ ile mean'lerin histogram'ı tam simetrik olur mu? Uniform'da kaçıncı $n$'de normal'e benzemeye başlar?</p>
+  <div class="w-sampling-distributions-ctl">
+    <label>Population <select id="wsd-clt-pop" class="btn btn--sm">
+      <option value="unif">uniform(0, 1)</option>
+      <option value="expo" selected>exponential, mean 1 (çok çarpık)</option>
+      <option value="die">zar: 1–6</option>
+      <option value="bern">0/1, P(1) = 0.1 (nadir olay)</option>
+    </select></label>
+  </div>
+  <div class="w-sampling-distributions-ctl">
+    <label for="wsd-clt-n">n</label>
+    <input type="range" id="wsd-clt-n" min="1" max="100" step="1" value="2" aria-label="sample size" />
+    <b id="wsd-clt-nv">2</b>
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wsd-cltn="1">1</button>
+    <button class="btn btn--sm" data-wsd-cltn="2">2</button>
+    <button class="btn btn--sm" data-wsd-cltn="5">5</button>
+    <button class="btn btn--sm" data-wsd-cltn="30">30</button>
+    <button class="btn btn--sm" data-wsd-cltn="100">100</button>
+  </div>
+  <div class="w-sampling-distributions-ctl">
+    <button class="btn btn--sm btn--accent" id="wsd-clt-go">10.000 sample çek</button>
+    <button class="btn btn--sm" id="wsd-clt-seed">Başka seed</button>
+    <span class="src" id="wsd-clt-seedv"></span>
+  </div>
+  <div class="w-sampling-distributions-plot" id="wsd-clt-plot"></div>
+  <div class="w-sampling-distributions-out" id="wsd-clt-out" aria-live="polite"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>CLT population'ı normal yapmaz. Normal'e yaklaşan, <em>sample mean'in</em> dağılımı. Tek tek gözlemler population kadar çarpık kalır.</li>
+      <li>"Large" sample size'ı anlatır, population size'ı değil.</li>
+      <li>Merkez ($\mu$) ve SE ($\sigma/\sqrt n$) her $n$ için geçerli. Büyük $n$'ye sadece <strong>şekil</strong> için ihtiyaç var.</li>
+      <li>Population normal ise küçük $n$ da yeter (Theorem 6.1). Population normal değil ve $n$ küçükse CLT'ye güvenemezsin.</li>
+      <li>Burada $\sigma$ biliniyor. $\sigma$ bilinmiyorsa mean inference'ında $s/\sqrt n$ ile $t$ yöntemi kullanılır; $n &lt; 30$'da $z$ ile $t$ arasındaki fark büyüktür. Küçük $n$'de exact $t$ sonucu iid normal population varsayımına dayanır; güçlü skewness veya outlier varsa yalnızca $t$'ye geçmek yeterli değildir. Bunu bir sonraki derste göreceksin.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sd-clt">
+    <p class="quiz__q">Bir population çok sağa çarpık. $n = 50$'lik sample'lar çekiliyor. Hangisi doğru?</p>
+    <button class="quiz__opt">$n = 50 \ge 30$, dolayısıyla population yaklaşık normal.<span class="why">CLT population hakkında bir şey söylemez. Population çarpık kalır.</span></button>
+    <button class="quiz__opt" data-correct>$\bar x$ yaklaşık normal, ama çok çarpık population'da $n = 50$ yetiyor mu diye bir plot ya da simülasyonla bakmak gerekir.<span class="why">Doğru. $n \ge 30$ rule of thumb; çarpıklık arttıkça gereken $n$ da artar.</span></button>
+    <button class="quiz__opt">$\bar x$ tam olarak normal.<span class="why">Tam normallik sadece population normal ise (Theorem 6.1). Burada yalnızca yaklaşık.</span></button>
+    <button class="quiz__opt">Population çarpık olduğu için $\bar x$ hakkında bir şey söylenemez.<span class="why">CLT tam bu durum için var: population'ın şekli ne olursa olsun büyük $n$'de $\bar x$ yaklaşık normal.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="eem209-final-Q8"><span class="box__label">EEM209 final alıştırmaları S8 · kitap alıştırması</span>
+    <p>"The Central Limit Theorem is important in statistics because _____.<br>A) for a large n, it says the population is approximately normal<br>B) for a large n, it says the sampling distribution of the sample mean is approximately normal, regardless of the population<br>C) for any population, it says the sampling distribution of the sample mean is approximately normal, regardless of the sample size<br>D) for any size sample, it says the sampling distribution of the sample mean is approximately normal"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>CLT'nin iki parçası: <em>büyük n</em> ve <em>sample mean'in dağılımı</em>. İkisini de içeren şık hangisi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>C ve D'de "sample size'dan bağımsız" deniyor. Bu yalnızca population normal ise doğru.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>Cevap: B.</strong> A population'ı normal sanıyor. C ve D $n$ şartını atıyor.</p></div></details>
+    <!-- Kaynak: exams/prep/problems-for-final.pdf S8 (EEM209). -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q4"><span class="box__label">STT315 Practice 3 S4 · kitap alıştırması</span>
+    <p>"The Central Limit Theorem is important in statistics because _____.<br>A) for any size sample, it says the sampling distribution of the sample mean is approximately normal<br>B) for any population, it says the sampling distribution of the sample mean is approximately normal, regardless of the sample size<br>C) for a large n, it says the sampling distribution of the sample mean is approximately normal, regardless of the population<br>D) for a large n, it says the population is approximately normal"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>EEM209 S8'in şıkları karıştırılmış hâli.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Large n" ve "sampling distribution of the sample mean" birlikte geçmeli.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>Cevap: C.</strong> D population'ı normal sanıyor; A ve B $n$ şartını atıyor.</p></div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S4. Anahtar: C. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q3"><span class="box__label">STT315 Practice 3 S3 · kitap alıştırması</span>
+    <p>"The Central Limit Theorem states that the sampling distribution of the sample mean is approximately normal under certain conditions. Which of the following is a necessary condition for the Central Limit Theorem to be used?<br>A) The sample size must be large (e.g., at least 30).<br>B) The population size must be large (e.g., at least 30).<br>C) The population from which we are sampling must be normally distributed.<br>D) The population from which we are sampling must not be normally distributed."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Sample size mı, population size mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Population normal olsaydı CLT'ye gerek kalır mıydı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>Cevap: A.</strong> B population size ile karıştırıyor. C: population normal ise CLT'ye gerek yok, $\bar x$ zaten normal. D: CLT normal population'ı dışlamaz.</p></div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S3. Anahtar: A. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q7"><span class="box__label">STT315 Practice 3 S7 · kitap alıştırması</span>
+    <p>"The Central Limit Theorem guarantees that the population is normal whenever n is sufficiently large. A) True B) False"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>CLT neyin dağılımı hakkında?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sample çekmek population'ı değiştirir mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p><strong>False.</strong> CLT, sample mean'in sampling distribution'ı hakkında. Population'ın şekli sample size'dan etkilenmez.</p></div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S7. Anahtar: B (False). -->
+  </div>
+  <div class="box box--exam" data-exam="eem209-final-Q9"><span class="box__label">EEM209 final alıştırmaları S9 · kitap alıştırması</span>
+    <p>"The daily revenue at a university snack bar has been recorded for the past five years. Records indicate that the mean daily revenue is <code class="w-sampling-distributions-usd">&#36;</code>3450 and the standard deviation is <code class="w-sampling-distributions-usd">&#36;</code>300. The distribution is skewed to the right due to several high volume days (football game days). Suppose that 100 days are randomly selected and the average daily revenue computed. Which of the following describes the sampling distribution of the sample mean?<br>A) skewed to the right with a mean of <code class="w-sampling-distributions-usd">&#36;</code>3450 and a standard deviation of <code class="w-sampling-distributions-usd">&#36;</code>300<br>B) normally distributed with a mean of <code class="w-sampling-distributions-usd">&#36;</code>3450 and a standard deviation of <code class="w-sampling-distributions-usd">&#36;</code>30<br>C) normally distributed with a mean of <code class="w-sampling-distributions-usd">&#36;</code>3450 and a standard deviation of <code class="w-sampling-distributions-usd">&#36;</code>300<br>D) normally distributed with a mean of <code class="w-sampling-distributions-usd">&#36;</code>345 and a standard deviation of <code class="w-sampling-distributions-usd">&#36;</code>30"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Üç şey söyle: şekil (CLT, $n = 100$), merkez, SE.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$300/\sqrt{100}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Şekil: $n = 100$ büyük, CLT ile yaklaşık normal (günlük gelirler çarpık olsa da). Merkez: $\mu_{\bar x} = 3450$. SE: $300/\sqrt{100} = 30$. <strong>Cevap: B.</strong></p>
+      <p>A population'ı anlatıyor. C SD ile SE'yi karıştırıyor. D merkezi de 10'a bölmüş.</p>
+    </div></details>
+    <!-- Kaynak: exams/prep/problems-for-final.pdf S9 (EEM209). -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q9"><span class="box__label">STT315 Practice 3 S9 · kitap alıştırması</span>
+    <p>"The daily revenue at a university snack bar has been recorded for the past five years. Records indicate that the mean daily revenue is <code class="w-sampling-distributions-usd">&#36;</code>1500 and the standard deviation is <code class="w-sampling-distributions-usd">&#36;</code>500. The distribution is skewed to the right […]. Suppose that 100 days are randomly selected and the average daily revenue computed. Which of the following describes the sampling distribution of the sample mean?<br>A) normally distributed with a mean of <code class="w-sampling-distributions-usd">&#36;</code>1500 and a standard deviation of <code class="w-sampling-distributions-usd">&#36;</code>500<br>B) normally distributed with a mean of <code class="w-sampling-distributions-usd">&#36;</code>1500 and a standard deviation of <code class="w-sampling-distributions-usd">&#36;</code>50<br>C) normally distributed with a mean of <code class="w-sampling-distributions-usd">&#36;</code>150 and a standard deviation of <code class="w-sampling-distributions-usd">&#36;</code>50<br>D) skewed to the right with a mean of <code class="w-sampling-distributions-usd">&#36;</code>1500 and a standard deviation of <code class="w-sampling-distributions-usd">&#36;</code>500"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bir üstteki sorunun aynısı, sayılar farklı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$500/\sqrt{100}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>Yaklaşık normal (CLT, $n = 100$), mean 1500, SE $= 500/10 = 50$. <strong>Cevap: B.</strong></p></div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S9. Anahtar: B. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-ch5-practice-Q3"><span class="box__label">STT315 Chapter 5 Practice S3 · kitap alıştırması</span>
+    <p>"The amount of time it takes a student to walk from her home to class has a skewed right distribution with a mean of 10 minutes and a standard deviation of 1.6 minutes. If times were collected from 40 randomly selected walks, describe the sampling distribution of x̄, the sample mean time."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Describe" = şekil + mean + standard error.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$1.6/\sqrt{40}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>CLT ile ($n = 40$) yaklaşık normal; $\mu_{\bar x} = 10$ dakika; $\sigma_{\bar x} = 1.6/\sqrt{40} = 0.2530$ dakika. Population sağa çarpık, bu yüzden $n = 40$'ın yeterli olduğu bir rule of thumb varsayımı.</p></div></details>
+    <!-- Kaynak: resources/supplement/5 X Chapter 5 Practice.pdf S3 ve anahtarı (0.2530, doğru). -->
+  </div>
+  <div class="box box--exam" data-exam="nb02-B-task1-2"><span class="box__label">Notebook week 2 · Part B Task 1, Task 2 ve yorum sorusu · ödev sorusu</span>
+    <p>Task 1 üç population'dan (uniform, exponential, bimodal; hepsinin mean'i 1) sample mean'leri simüle eden bir fonksiyon istiyor. Task 2, her population için normal yaklaşımın kabul edilebilir olduğu en küçük $n$'yi buldurur. Yorum sorusu hangi population'ın en büyük $n$'ye ihtiyaç duyduğunu ve nedenini soruyor.</p>
+    <p class="src">Not: Haftalık notebook'lar notlandırılan ödev. Bu görevlerin çözümü, kodu ve sonuçları burada verilmiyor.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Task 1: bir sample'ın mean'i bir sayı. <code>reps</code> tane sample için <code>reps</code> tane mean dönmeli. Notebook'taki ipucu, satırları sample olan bir dizi öneriyor: her satırın ortalamasını al, sütunlarınkini değil.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Task 2 ve yorum: bu bölümdeki kural "population ne kadar çarpıksa o kadar büyük $n$". Üç population'ın şekline bak (notebook ilk hücrede çiziyor): hangisi simetrik, hangisi çarpık? Simülatördeki exponential, $n = 30$'da bile hafif çarpık kalıyor; bunun sebebini yorumunda kendi sonuçlarınla açıkla.</p></div></details>
+    <!-- Kaynak: notebooks/week02_sampling_distributions.ipynb Part B Task 1, Task 2, Interpretation question. Notlandırılan görev: çözüm yok. Simülatör notebook'un uniform(0,2) ve bimodal population'larını kullanmıyor, looks_normal eşiklerini göstermiyor. -->
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="prob-mean" data-min="6">
+  <h2>$\bar x$ ile olasılık: $z = (c - \mu)/(\sigma/\sqrt n)$</h2>
+  <div class="box box--rule">
+    <span class="box__label">Tarif: $P(\bar x &gt; c)$</span>
+    <ol>
+      <li><strong>Şekil:</strong> population normal mi, ya da $n$ yeterince büyük mü (CLT)? Biri doğruysa $\bar x$ (yaklaşık) normal.</li>
+      <li><strong>Merkez ve SE:</strong> $\mu_{\bar x} = \mu$, $\sigma_{\bar x} = \sigma/\sqrt n$.</li>
+      <li><strong>Standardize et:</strong> $z = \dfrac{c - \mu}{\sigma/\sqrt n}$. Paydada $\sigma$ değil, SE var.</li>
+      <li><strong>Tablo:</strong> soldaki alan $P(Z &lt; z)$ ise $P(\bar x &gt; c) = 1 - P(Z &lt; z)$.</li>
+    </ol>
+    <p>Soru bankası "area to the left of z" tablosunu kullanıyor. Eski ders notları ve McClave ise 0 ile $z$ arasındaki alanı (A) veriyor; o zaman $P(Z &gt; z) = 0.5 - A$. İkisi aynı sonucu verir.</p>
+  </div>
+  <!-- Kaynak: McClave Example 6.8 (z = (x̄ − μx̄)/σx̄) · Question Bank 1 son slayt (z: area to the left) · 07-chapter-06.pdf s.37 (.5 − .4772). -->
+  <div class="box box--exam" data-exam="ln07-ex6.8"><span class="box__label">Ders notu Chapter 6, s.36 (McClave Example 6.8) · slayt sorusu</span>
+    <p>"Suppose we have selected a random sample of n = 36 observations from a population with mean equal to 80 and standard deviation equal to 6. It is known that the population is not extremely skewed. Sketch the relative frequency distributions for the population and for the sampling distribution of the sample mean x̄. Find the probability that x̄ will be larger than 82."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Population'ın eğrisi 80 etrafında, SD 6. $\bar x$'ınki de 80 etrafında ama SD'si $6/\sqrt{36}$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$z = (82 - 80)/1$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Çizim:</strong> population eğrisi 80'de ortalanmış, yaklaşık 62–98 arasına yayılıyor ($\pm 3\sigma$). $\bar x$'ın eğrisi yine 80'de ama 6 kat daha dar: $\sigma_{\bar x} = 6/\sqrt{36} = 1$, yaklaşık 77–83. Population çok çarpık değil ve $n = 36$, CLT ile yaklaşık normal.</p>
+      <p>$z = \dfrac{82 - 80}{1} = 2$, $P(\bar x &gt; 82) = P(Z &gt; 2) = 1 - 0.9772 = 0.0228$ (ders notunda $.5 - .4772$).</p>
+    </div></details>
+    <!-- Kaynak: resources/lecture-notes/07-chapter-06.pdf s.36–37 · McClave Example 6.8. -->
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Walpole Example 8.4 (küçük n, normal population)</span>
+    <p>Ampullerin ömrü yaklaşık normal, $\mu = 800$ saat, $\sigma = 40$ saat. 16 ampulün ortalama ömrünün 775 saatten az olma olasılığı? Population normal olduğu için $n = 16$ küçük olsa da $\bar x$ normal (Theorem 6.1). $\sigma_{\bar x} = 40/\sqrt{16} = 10$, $z = (775 - 800)/10 = -2.5$, $P(\bar x &lt; 775) = 0.0062$.</p>
+  </div>
+  <!-- Kaynak: Walpole 9e Example 8.4. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Tek gözlem mi, ortalama mı?</strong> "Bir request'in 215 ms'den uzun sürmesi" $\sigma$ ile standardize edilir ve population çarpıksa normal tablo hiç kullanılamaz. "36 request'in ortalamasının" sorusu SE ile standardize edilir. CLT ortalamalar hakkındadır, tek değerler hakkında değil.</li>
+      <li>$z = (c - \mu)/\sigma$ yazıp SE'yi unutmak en sık hata. Cevap çok büyük bir olasılık çıkar.</li>
+      <li>"&gt;" sorusunda tablodan okuduğun soldaki alanı 1'den çıkarmayı unutma.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sd-probmean">
+    <p class="quiz__q">$\mu = 70$, $\sigma = 12$, $n = 36$. $P(\bar x &gt; 72)$'yi hesaplarken hangi $z$ kullanılır?</p>
+    <button class="quiz__opt">$z = (72 - 70)/12 \approx 0.17$<span class="why">Bu tek bir gözlemin $z$'si. Ortalama için paydada SE $= 12/\sqrt{36} = 2$ olmalı.</span></button>
+    <button class="quiz__opt" data-correct>$z = (72 - 70)/2 = 1$<span class="why">Doğru: SE $= 12/6 = 2$; $P(\bar x &gt; 72) = 1 - 0.8413 = 0.1587$.</span></button>
+    <button class="quiz__opt">$z = (72 - 70)/(12/36) = 6$<span class="why">$\sigma/n$ ile bölmüşsün. SE'nin paydası $\sqrt n$.</span></button>
+    <button class="quiz__opt">$z = (72 - 70)/\sqrt{12/36} \approx 3.46$<span class="why">$\sqrt{\sigma/n}$ diye bir büyüklük yok. Variance $\sigma^2/n = 4$, SE $= 2$.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="qb1-Q9"><span class="box__label">Soru Bankası 1 Q9 · ödev sorusu</span>
+    <p>"Response times are right-skewed with mean μ = 200 ms and standard deviation σ = 60 ms. We average a random sample of n = 36 requests.<br>(a) Find the mean and the standard error of x̄.<br>(b) What is the shape of the sampling distribution of x̄, and why?<br>(c) Find P(x̄ &gt; 215 ms).<br>(d) Can you use the normal curve for the probability that one request takes more than 215 ms?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) $E(\bar x) = \mu$, $\text{SE} = \sigma/\sqrt n$. (b) Hangi teorem, hangi koşul?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c) $z = (215 - 200)/10$, tablo satırı 1.5, sütun .00. (d) Tek bir request'in dağılımı neye benziyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $E(\bar x) = \mu = 200$ ms (unbiased). $\text{SE} = \sigma/\sqrt n = 60/\sqrt{36} = 10$ ms.</p>
+      <p><strong>(b)</strong> Central Limit Theorem ile yaklaşık normal: $n = 36 \ge 30$, tek tek request'ler çarpık olsa da. $n \ge 30$ bir rule of thumb, garanti değil: çok güçlü çarpıklık daha büyük $n$ ister.</p>
+      <p><strong>(c)</strong> $P(\bar x &gt; 215) = P\!\left(Z &gt; \dfrac{215 - 200}{10}\right) = P(Z &gt; 1.5) = 1 - 0.9332 = 0.0668 \approx 0.067$.</p>
+      <p><strong>(d)</strong> Hayır. Tek tek response time'lar sağa çarpık. CLT ortalamalar hakkında, tek değerler hakkında değil.</p>
+    </div></details>
+    <!-- Kaynak: resources/2026-2027-fall/examples/question-bank-1-weeks-01-04.pdf s.21–22 (Q9 ve çözümü). Python: 1 − Φ(1.5) = 0.0668. -->
+  </div>
+  <div class="box box--exam" data-exam="2025-26-final-B-Q15"><span class="box__label">2025-26 final Group B S15 · çıkmış soru</span>
+    <p>"The average score of all golfers for a particular course has a mean of 61 and a standard deviation of 3.5. Suppose 49 golfers played the course today. Find the probability that the average score of the 49 golfers exceeded 62.<br>A) .1293 &nbsp; B) .4772 &nbsp; C) .9772 &nbsp; D) .0228 &nbsp; E) .3707"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Average score of the 49 golfers": $\bar x$ sorusu. SE $= 3.5/\sqrt{49}$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$z = (62 - 61)/0.5$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$n = 49$, CLT ile $\bar x$ yaklaşık normal. $\sigma_{\bar x} = 3.5/7 = 0.5$. $z = (62 - 61)/0.5 = 2$. $P(\bar x &gt; 62) = 1 - 0.9772 = 0.0228$. <strong>Cevap: D.</strong></p>
+      <p>Şıkların nereden geldiği: B ($.4772$) 0 ile 2 arasındaki alan, yani "0.5'ten çıkarmayı unutmak". C ($.9772$) soldaki alanı 1'den çıkarmamak. A ve E, $z$'yi yanlış hesaplamaktan gelen çeldiriciler; doğru $z = 2$ ile ikisi de çıkmaz.</p>
+    </div></details>
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/2025-2026-final-group-b/page-1.jpeg" target="_blank" rel="noopener">Orijinal soru (fotoğraf) ↗</a></p>
+    <!-- Kaynak: exams/2025-2026-final-group-b/page-1.jpeg S15. Python: 1 − Φ(2) = 0.02275. -->
+  </div>
+  <div class="box box--exam" data-exam="eem209-final-Q18"><span class="box__label">EEM209 final alıştırmaları S18 · kitap alıştırması</span>
+    <p>"The average score of all golfers for a particular course has a mean of 61 and a standard deviation of 3.5. Suppose 49 golfers played the course today. Find the probability that the average score of the 49 golfers exceeded 62.<br>A) .4772 &nbsp; B) .0228 &nbsp; C) .3707 &nbsp; D) .1293"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>2025-26 final S15 ile aynı soru, şıkların sırası farklı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bu sefer çözümü açmadan $z$'yi kendin bul.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>$\sigma_{\bar x} = 0.5$, $z = 2$, $P = 0.0228$. <strong>Cevap: B.</strong></p></div></details>
+    <!-- Kaynak: exams/prep/problems-for-final.pdf S18 (EEM209). Sayılar 2025-26 Group B S15 ile birebir aynı. -->
+  </div>
+  <div class="box box--exam" data-exam="undated-final-S22"><span class="box__label">Tarihsiz final Soru 22 · çıkmış soru</span>
+    <p>"A population has μ = 70, σ = 12. A sample of size n = 36 is drawn. What is P(X̄ &gt; 75)?<br>a. 0.9938 &nbsp; b. 0.0062 &nbsp; c. 0.0228 &nbsp; d. 0.0787 &nbsp; e. 0.1100"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>SE $= 12/\sqrt{36}$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$z = 2.5$. Tablodan $P(Z &lt; 2.5)$'i oku, 1'den çıkar.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$n = 36$, CLT ile yaklaşık normal. $\sigma_{\bar x} = 12/6 = 2$, $z = (75 - 70)/2 = 2.5$, $P(\bar x &gt; 75) = 1 - 0.9938 = 0.0062$. <strong>Cevap: b.</strong></p>
+      <p>a soldaki alan (1'den çıkarmayı unutmak). Aynı sınavın Soru 15'i tek bir değeri soruyor ($P(X &gt; 92)$, $\mu = 80$, $\sigma = 10$): orada paydada $\sigma$ var, $z = 1.2$, cevap 0.1151. İki soruyu yan yana koyunca fark netleşiyor.</p>
+    </div></details>
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/undated-stats-final.pdf" target="_blank" rel="noopener">Orijinal soru (PDF) ↗</a></p>
+    <!-- Kaynak: exams/undated-stats-final.pdf Soru 22 (ve karşılaştırma için Soru 15). Anahtar yok; python: 1 − Φ(2.5) = 0.00621. -->
+  </div>
+  <div class="box box--exam" data-exam="ln07-battery"><span class="box__label">Ders notu Chapter 6, s.38 (McClave Example 6.9) · slayt sorusu</span>
+    <p>"A manufacturer of automobile batteries claims that the distribution of the lengths of life of its best battery has a mean of 54 months and a standard deviation of 6 months. Suppose a consumer group decides to check the claim by purchasing a sample of 50 of the batteries and subjecting them to tests that estimate the battery's life. Assuming that the manufacturer's claim is true, describe the sampling distribution of the mean lifetime of a sample of 50 batteries. Assuming that the manufacturer's claim is true, what is the probability that the consumer group's sample has a mean life of 52 or fewer months?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Describe": şekil, merkez, SE. $6/\sqrt{50} \approx 0.85$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$z = (52 - 54)/0.85$. Sol kuyruk sorusu, tablodan doğrudan okunur.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>İddia doğruysa: CLT ile ($n = 50$) $\bar x$ yaklaşık normal, $\mu_{\bar x} = 54$ ay, $\sigma_{\bar x} = 6/\sqrt{50} = 0.85$ ay.</p>
+      <p>$z = \dfrac{52 - 54}{0.85} = -2.35$, $P(\bar x \le 52) = P(Z \le -2.35) = 0.0094$ (ders notunda $.5 - .4906$).</p>
+      <p>Yorum: iddia doğruysa 52 ay ya da daha düşük bir ortalama 1000 sample'da yaklaşık 9 kez görülür. Grup böyle bir ortalama bulursa iddiadan şüphelenir. Bu, bir sonraki dersteki hypothesis test'in fikri.</p>
+      <p class="src">Not: SE'yi 0.85'e yuvarlamadan hesaplarsan $z = -2.357$ ve olasılık 0.0092 çıkar. Tablo kullanan sınav cevabı 0.0094'tür.</p>
+    </div></details>
+    <!-- Kaynak: resources/lecture-notes/07-chapter-06.pdf s.38–39 (Figure 6.13) · McClave Example 6.9. Python: Φ(−2.35) = 0.00939, Φ(−2.357) = 0.00921. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-ch5-practice-Q7"><span class="box__label">STT315 Chapter 5 Practice S7 · kitap alıştırması</span>
+    <p>"The average score of all golfers for a particular course has a mean of 66 and a standard deviation of 3.5. Suppose 49 golfers played the course today. Find the probability that the average score of the 49 golfers exceeded 67."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Golfer sorusunun bir başka versiyonu: fark $c - \mu$ yine 1.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>SE yine 0.5.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>$\sigma_{\bar x} = 0.5$, $z = (67 - 66)/0.5 = 2$, $P(\bar x &gt; 67) = 0.0228$. Anahtar da .0228.</p></div></details>
+    <!-- Kaynak: resources/supplement/5 X Chapter 5 Practice.pdf S7 ve anahtarı. -->
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="prob-range" data-min="5">
+  <h2>Aralık olasılıkları ve uç sonuçlar</h2>
+  <div class="box box--rule">
+    <span class="box__label">İki uç arası ve "ne kadar uzağa düşer?"</span>
+    <ul>
+      <li>$P(a &lt; \bar x &lt; b) = P(Z &lt; z_b) - P(Z &lt; z_a)$, burada $z_a = \dfrac{a - \mu}{\sigma/\sqrt n}$, $z_b = \dfrac{b - \mu}{\sigma/\sqrt n}$.</li>
+      <li>$\bar x$ normal olduğu için 68-95-99.7 kuralı $\bar x$ için de geçerli, ama SE ile: $\bar x$'ların yaklaşık %68'i $\mu \pm \text{SE}$, %95'i $\mu \pm 2\,\text{SE}$, neredeyse hepsi $\mu \pm 3\,\text{SE}$ içinde.</li>
+      <li>$|z| &gt; 3.5$ civarındaysa tablo bitti demektir: olasılık "approximately 0" ya da "approximately 1".</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · supplement 5 (AT&amp;T)</span>
+    <p>Uzak mesafe telefon görüşmeleri normal, $\mu = 8$ dk, $\sigma = 2$ dk. 25'lik random sample'ların mean'lerinin yüzde kaçı 7.2 ile 8.8 dakika arasında? $\sigma_{\bar x} = 2/5 = 0.4$; $z = \pm 0.8/0.4 = \pm 2$; $P(-2 &lt; Z &lt; 2) = 0.9772 - 0.0228 = 0.9544$, yani yaklaşık %95.</p>
+  </div>
+  <!-- Kaynak: resources/supplement/5 Sampling Distributions.pdf s.4 (AT&T örneği). -->
+  <div class="box box--example">
+    <span class="box__label">Köprü · Walpole Case Study 8.1</span>
+    <p>Bir süreç çapı 5.0 mm olan parçalar üretmeli; $\sigma = 0.1$ mm biliniyor. 100 parçalık sample'da $\bar x = 5.027$ mm. Gerçekten $\mu = 5$ ise $\bar x$'ın 5'ten en az 0.027 sapma olasılığı: $\sigma_{\bar x} = 0.1/10 = 0.01$, $z = 2.7$, $P(|\bar x - 5| \ge 0.027) = 2(0.0035) = 0.007$. Bu kadar küçük bir olasılık "$\mu = 5$" iddiasından şüphelenmek için sebep. Bir sonraki ders bu fikri hypothesis test olarak resmîleştiriyor.</p>
+  </div>
+  <!-- Kaynak: Walpole 9e Case Study 8.1. Python: 2(1 − Φ(2.7)) = 0.00693. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İki $z$ değerini de aynı SE ile bul. Biri için $\sigma$, öbürü için SE kullanmak sık görülen bir karışıklık.</li>
+      <li>"Approximately 1" ve "approximately 0" şıkları ciddidir: $z = -7$ gibi değerler SE küçükken normaldir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sd-range">
+    <p class="quiz__q">$\mu = 50$, $\sigma = 10$, $n = 400$. $\bar x$'ların yaklaşık %95'i hangi aralıkta?</p>
+    <button class="quiz__opt">30 ile 70<span class="why">$\mu \pm 2\sigma$: tek tek gözlemlerin aralığı. $\bar x$ için SE kullanılır.</span></button>
+    <button class="quiz__opt" data-correct>49 ile 51<span class="why">Doğru: SE $= 10/20 = 0.5$, $\mu \pm 2(0.5)$.</span></button>
+    <button class="quiz__opt">49.95 ile 50.05<span class="why">$\sigma/n = 0.025$ ile hesaplamışsın. SE $= \sigma/\sqrt n$.</span></button>
+    <button class="quiz__opt">48 ile 52<span class="why">$\pm 2$ birim almışsın, $\pm 2\,\text{SE}$ değil.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="stt315-comp-Q13"><span class="box__label">STT315 Comprehensive Exam Practice S13 · kitap alıştırması</span>
+    <p>"Suppose a random sample of size n = 400 is to be selected from a large population that has mean 50 and standard deviation 10. What is the approximate probability that the sample mean will be between 49 and 50.5?<br>(a) .95 (b) .68 (c) .99 (d) .92 (e) .82"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>SE $= 10/\sqrt{400} = 0.5$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$z_a = (49 - 50)/0.5$, $z_b = (50.5 - 50)/0.5$. Aralık simetrik değil.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$z_a = -2$, $z_b = 1$. $P(-2 &lt; Z &lt; 1) = 0.8413 - 0.0228 = 0.8185 \approx .82$. <strong>Cevap: (e).</strong> Anahtar da (e).</p>
+    </div></details>
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/COMPREHENSIVE%20EXAM%20PRACTICE.pdf" target="_blank" rel="noopener">Orijinal soru (PDF) ↗</a></p>
+    <!-- Kaynak: exams/practice/COMPREHENSIVE EXAM PRACTICE.pdf S13. Anahtar: 13(e). -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-ch5-practice-Q6"><span class="box__label">STT315 Chapter 5 Practice S6 · kitap alıştırması</span>
+    <p>"Suppose a random sample of n = 64 measurements is selected from a population with mean µ = 65 and standard deviation σ = 12. Find the probability that x̄ falls between 65.75 and 68.75."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>SE $= 12/8 = 1.5$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İki $z$: $0.75/1.5$ ve $3.75/1.5$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>$z_a = 0.5$, $z_b = 2.5$. $P(0.5 &lt; Z &lt; 2.5) = 0.9938 - 0.6915 = 0.3023$. Anahtar da .3023.</p></div></details>
+    <!-- Kaynak: resources/supplement/5 X Chapter 5 Practice.pdf S6 ve anahtarı. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q12"><span class="box__label">STT315 Practice 3 S12 · kitap alıştırması</span>
+    <p>"The weight of corn chips dispensed into a 10-ounce bag by the dispensing machine has been identified as possessing a normal distribution with a mean of 10.5 ounces and a standard deviation of .2 ounce. Suppose 100 bags of chips are randomly selected. Find the probability that the mean weight of these 100 bags exceeds 10.45 ounces."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>SE $= 0.2/10 = 0.02$. 10.45, mean'in altında: $z$ negatif çıkacak.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$P(Z &gt; -2.5) = 1 - P(Z &lt; -2.5)$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>Population normal, $\bar x$ normal. $z = (10.45 - 10.5)/0.02 = -2.5$. $P(\bar x &gt; 10.45) = 1 - 0.0062 = 0.9938$. Anahtar: $.5 + .4938 = .9938$, aynı sonuç.</p></div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S12 ve anahtarı. -->
+  </div>
+  <div class="box box--exam" data-exam="eem209-final-Q10"><span class="box__label">EEM209 final alıştırmaları S10 · kitap alıştırması</span>
+    <p>"The weight of corn chips dispensed into a 16-ounce bag by the dispensing machine has been identified as possessing a normal distribution with a mean of 16.5 ounces and a standard deviation of 0.2 ounce. Suppose 100 bags of chips are randomly selected. Find the probability that the mean weight of these 100 bags exceeds 16.6 ounces.<br>A) .1915 &nbsp; B) .3085 &nbsp; C) .6915 &nbsp; D) approximately 0"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>SE $= 0.02$. 16.6 mean'den kaç SE uzakta?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$z = 5$. Tablon nereye kadar gidiyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$z = (16.6 - 16.5)/0.02 = 5$, $P(Z &gt; 5) \approx 0.0000003$. <strong>Cevap: D.</strong></p>
+      <p>B ($.3085$) $z = 0.1/0.2 = 0.5$'ten geliyor: SE yerine $\sigma$ kullanmak.</p>
+    </div></details>
+    <!-- Kaynak: exams/prep/problems-for-final.pdf S10 (EEM209). Python: 1 − Φ(5) = 2.9e−7. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q11"><span class="box__label">STT315 Practice 3 S11 · kitap alıştırması</span>
+    <p>"One year, the distribution of salaries for professional sports players had mean <code class="w-sampling-distributions-usd">&#36;</code>1.6 million and standard deviation <code class="w-sampling-distributions-usd">&#36;</code>0.7 million. Suppose a sample of 100 major league players was taken. Find the approximate probability that the average salary of the 100 players that year exceeded <code class="w-sampling-distributions-usd">&#36;</code>1.1 million.<br>A) .7357 &nbsp; B) approximately 1 &nbsp; C) .2357 &nbsp; D) approximately 0"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>SE $= 0.7/10 = 0.07$ milyon.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>1.1, mean'in altında ve çok uzakta.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Maaşlar büyük ihtimalle çarpık ama $n = 100$, CLT ile $\bar x$ yaklaşık normal. $z = (1.1 - 1.6)/0.07 = -7.14$. $P(\bar x &gt; 1.1) = P(Z &gt; -7.14) \approx 1$. <strong>Cevap: B.</strong></p>
+      <p>A, $z = -0.5/0.7 = -0.71$'den geliyor: SE yerine $\sigma$.</p>
+    </div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S11. Anahtar: B. Aynı soru supplement 5 X Chapter 5 Practice S4 (anahtar: approximately 1). -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-ch5-practice-Q4"><span class="box__label">STT315 Chapter 5 Practice S4 · kitap alıştırması</span>
+    <p>"One year, the distribution of salaries for professional sports players had mean <code class="w-sampling-distributions-usd">&#36;</code>1.6 million and standard deviation <code class="w-sampling-distributions-usd">&#36;</code>0.7 million. Suppose a sample of 100 major league players was taken. Find the approximate probability that the average salary of the 100 players that year exceeded <code class="w-sampling-distributions-usd">&#36;</code>1.1 million."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bir üstteki sorunun şıksız hâli.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bu kez $z$'yi kendin bul ve tabloya bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>$z = -7.14$, olasılık yaklaşık 1. Anahtar: "approximately 1".</p></div></details>
+    <!-- Kaynak: resources/supplement/5 X Chapter 5 Practice.pdf S4 ve anahtarı. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-ch5-practice-Q10"><span class="box__label">STT315 Chapter 5 Practice S10 · kitap alıştırması</span>
+    <p>"At a large university, students have an average credit card debt of <code class="w-sampling-distributions-usd">&#36;</code>2500, with a standard deviation of <code class="w-sampling-distributions-usd">&#36;</code>1200. A random sample of students is selected and interviewed about their credit card debt. Use the 68-95-99.7 Rule to answer the question about the mean credit card debt for the students in this sample. If we imagine all the possible random samples of 100 students at this university, 68% of the samples should have means between what two numbers?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>%68 → $\mu \pm 1$ standard error.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>SE $= 1200/\sqrt{100}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>SE $= 1200/10 = 120$. $2500 \pm 120$: 2380 ile 2620. Anahtar da aynı.</p></div></details>
+    <!-- Kaynak: resources/supplement/5 X Chapter 5 Practice.pdf S10 ve anahtarı. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-sup5-5.18-5.19"><span class="box__label">STT315 Supplement 5, Exercise 5.18 ve 5.19 · kitap alıştırması</span>
+    <p>"5.18 A random sample of n = 64 observations is drawn from a population with a mean equal to 20 and a standard deviation equal to 16. a. Give the mean and standard deviation of the (repeated) sampling distribution of x̄. b. Describe the shape of the sampling distribution of x̄. Does your answer depend on the sample size? c. Calculate the standard normal z-score corresponding to a value of x̄ = 15.5. d. Calculate the standard normal z-score corresponding to x̄ = 23.<br>5.19 Refer to Exercise 5.18. Find the probability that d. x̄ falls between 16 and 22. e. x̄ is less than 14."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>SE $= 16/8 = 2$. Population'ın şekli verilmemiş: şekil için neye güveniyorsun?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>5.19d: $z = -2$ ve $z = 1$. 5.19e: $z = -3$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>5.18a</strong> $\mu_{\bar x} = 20$, $\sigma_{\bar x} = 16/\sqrt{64} = 2$.</p>
+      <p><strong>b</strong> Yaklaşık normal, CLT ile. Evet, $n$'ye bağlı: population'ın şekli bilinmediği için normal yaklaşımı büyük $n$'den ($64 \ge 30$) alıyoruz.</p>
+      <p><strong>c</strong> $z = (15.5 - 20)/2 = -2.25$. <strong>d</strong> $z = (23 - 20)/2 = 1.5$.</p>
+      <p><strong>5.19d</strong> $P(16 &lt; \bar x &lt; 22) = P(-2 &lt; Z &lt; 1) = 0.8413 - 0.0228 = 0.8185$. <strong>e</strong> $P(\bar x &lt; 14) = P(Z &lt; -3) = 0.0013$.</p>
+    </div></details>
+    <!-- Kaynak: resources/supplement/5 Sampling Distributions.pdf s.4–5. Python ile kontrol edildi. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-sup5-5.20"><span class="box__label">STT315 Supplement 5, Exercise 5.20 · kitap alıştırması</span>
+    <p>"A random sample of n = 900 observations is selected from a population with μ = 100 and σ = 10. a. What are the largest and smallest values of x̄ that you would expect to see? b. How far, at the most, would you expect x̄ to deviate from μ? c. Did you have to know μ to answer part b? Explain."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Expect to see": neredeyse bütün $\bar x$'lar $\mu \pm 3\,\text{SE}$ içinde.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>SE $= 10/30$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>SE $= 10/\sqrt{900} = 1/3$. <strong>a.</strong> $100 \pm 3(1/3)$: en küçük yaklaşık 99, en büyük yaklaşık 101. <strong>b.</strong> En fazla $3\,\text{SE} = 1$ birim. <strong>c.</strong> Hayır: sapmanın büyüklüğü sadece $\sigma$ ve $n$'ye bağlı ($3\sigma/\sqrt n$), $\mu$'ye değil.</p>
+    </div></details>
+    <!-- Kaynak: resources/supplement/5 Sampling Distributions.pdf s.5 (McClave 6.32'nin eşi). -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-sup5-5.28"><span class="box__label">STT315 Supplement 5, Exercise 5.28 · kitap alıştırması</span>
+    <p>"Requests to a Web server. […] the number of seconds x from the start of the hour that the request is made is uniformly distributed between 0 and 3,600 seconds. In a random sample of n = 60 Web server requests, let x̄ represent the sample mean number of seconds from the start of the hour that the request is made. a. Find E(x̄) and interpret its value. b. Find Var(x̄). c. Describe the shape of the sampling distribution of x̄. d. Find the probability that x̄ is between 1,700 and 1,900 seconds. e. Find the probability that x̄ exceeds 2,000 seconds."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Uniform$(c, d)$: $\mu = (c + d)/2$, $\sigma^2 = (d - c)^2/12$ (CSE 122'den).</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\text{Var}(\bar x) = \sigma^2/n$, SE onun karekökü. d için $z = \pm 100/\text{SE}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>a.</strong> $E(\bar x) = \mu = 1800$ s: çok sayıda 60'lık sample'da ortalama request zamanı, ortalamada saatin yarısında.</p>
+      <p><strong>b.</strong> $\sigma^2 = 3600^2/12 = 1{,}080{,}000$; $\text{Var}(\bar x) = 1{,}080{,}000/60 = 18{,}000$, SE $= \sqrt{18000} = 134.2$ s.</p>
+      <p><strong>c.</strong> $n = 60$, CLT ile yaklaşık normal (uniform simetrik, yaklaşım çok iyi).</p>
+      <p><strong>d.</strong> $z = \pm 100/134.2 = \pm 0.75$; $P = 0.7734 - 0.2266 = 0.5468$.</p>
+      <p><strong>e.</strong> $z = 200/134.2 = 1.49$; $P = 1 - 0.9319 = 0.0681$.</p>
+      <p class="src">Not: $z$'yi yuvarlamadan ($0.745$) hesaplarsan d şıkkı 0.5439 çıkar; tablo cevabı 0.5468.</p>
+    </div></details>
+    <!-- Kaynak: resources/supplement/5 Sampling Distributions.pdf s.5. Python: SE = 134.164, d exact 0.5439, tablo z = 0.75 → 0.5468, e → 0.0681. -->
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="prop" data-min="6">
+  <h2>Sample proportion'ın sampling distribution'ı</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Her gözlem 1 (olay oldu: hata, dönüşüm, "evet") ya da 0. Sample proportion $\hat p = x/n$, bu 0/1 verinin mean'i. Yani proportion da bir mean ve bugün $\bar x$ için gördüğün her şey geçerli. Tek bir 0/1 gözlemin mean'i $p$, standard deviation'ı $\sqrt{p(1 - p)}$; $\sqrt n$'ye bölünce SE çıkıyor.</p>
+    <p>Supplement'teki örnek: 1250 tüketiciden 313'ü X markasını tercih ediyor: $\hat p = 313/1250 = 0.2504$. Bu, bütün tüketicilerdeki oran $p$'nin point estimate'i.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Sampling distribution of $\hat p$ (slayt 31)</span>
+    $$E(\hat p) = p, \qquad \text{SE}(\hat p) = \sqrt{\frac{p\,(1 - p)}{n}}$$
+    <ul>
+      <li>$\hat p$, $p$ için unbiased.</li>
+      <li>Normal approximation için şart: $np \ge 15$ <strong>ve</strong> $n(1 - p) \ge 15$. (Bu dönemin slaytındaki eşik; McClave aynı eşiği $\hat p$ ile yazar.)</li>
+      <li><strong>Nadir olaylar 30'dan çok daha büyük sample ister.</strong> $p = 0.01$ ise $np \ge 15$ için $n \ge 1500$.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: slayt 31 · McClave §6.4 kutusu (np̂ ≥ 15, n(1 − p̂) ≥ 15) · supplement 5 s.6–7 (313/1250, "np > 15 and nq > 15"). -->
+  <div class="box box--example">
+    <span class="box__label">Slayt 32 · $n$ bir proportion için yeterince büyük mü?</span>
+    <ul>
+      <li>$p = 0.10$, $n = 400$: $np = 40$. Normal eğri iyi oturuyor. $\text{SE} = \sqrt{0.10 \times 0.90/400} = 0.015$.</li>
+      <li>$p = 0.02$, $n = 100$: $np = 2$. Dağılım çarpık. $P(\text{100'de hiç olay yok}) = 0.98^{100} \approx 0.13$: sample'ların %13'ünde hiç olay yok. Normal eğri sıfırın altına olasılık koyuyor (yaklaşık %7.7).</li>
+    </ul>
+    <p>Notebook'un Part A A6 hücresi aynı iki durumu simüle ediyor. Aşağıdaki araçta "slayt 32" düğmeleriyle aynı sayıları tam (exact) olarak görürsün.</p>
+  </div>
+  <!-- Kaynak: slayt 32 · notebook week02 Part A A6. Python: 0.98^100 = 0.1326; SE(0.02,100) = 0.014, Φ(−0.02/0.014) = 0.0766. -->
+  <div class="box box--example">
+    <span class="box__label">Örnek · McClave Example 6.11</span>
+    <p>Seçmenlerin %60'ı adayı destekliyor. 100 kişilik random sample'da yarıdan azının desteklemesi olasılığı? $np = 60$, $n(1 - p) = 40$, ikisi de $\ge 15$. $\text{SE} = \sqrt{0.6 \times 0.4/100} = 0.049$. $z = (0.5 - 0.6)/0.049 = -2.04$, $P(\hat p &lt; 0.5) = 0.0207$.</p>
+  </div>
+  <!-- Kaynak: McClave Example 6.10–6.11. Python: Φ(−2.04) = 0.0207. -->
+  <h3>Kendin dene: $\hat p$ için normal yaklaşım tutuyor mu?</h3>
+  <p>$n$ ve $p$'yi yaz. Mavi çubuklar $\hat p$'nin tam (binomial) dağılımı, turuncu eğri normal yaklaşım. İstersen bir $c$ yaz: araç $P(\hat p &gt; c)$'yi hem tam hem normal yaklaşımla hesaplar.</p>
+  <p class="w-sampling-distributions-guess"><b>Önce tahmin et:</b> $p = 0.02$, $n = 100$ iken $\hat p = 0$ çıkma olasılığı kabaca kaç? Normal eğrinin sıfırın altındaki alanı bundan büyük mü küçük mü?</p>
+  <div class="w-sampling-distributions-ctl">
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wsd-p="400|0.10|">slayt 32 sol</button>
+    <button class="btn btn--sm" data-wsd-p="100|0.02|">slayt 32 sağ</button>
+    <button class="btn btn--sm" data-wsd-p="475|0.05|0.07">QB1 Q11</button>
+    <button class="btn btn--sm" data-wsd-p="200|0.35|">2025-26 S7</button>
+    <button class="btn btn--sm" data-wsd-p="50|0.2|">5.36a</button>
+  </div>
+  <div class="w-sampling-distributions-ctl">
+    <label>n = <input id="wsd-p-n" type="text" inputmode="numeric" value="100" class="btn btn--sm w-sampling-distributions-short" /></label>
+    <label>p = <input id="wsd-p-p" type="text" inputmode="decimal" value="0.02" class="btn btn--sm w-sampling-distributions-short" /></label>
+    <label>c = <input id="wsd-p-c" type="text" inputmode="decimal" value="" placeholder="isteğe bağlı" class="btn btn--sm w-sampling-distributions-short" /></label>
+    <button class="btn btn--sm btn--accent" id="wsd-p-go">Çiz</button>
+  </div>
+  <div class="w-sampling-distributions-err" id="wsd-p-err" aria-live="polite"></div>
+  <div class="w-sampling-distributions-plot" id="wsd-p-plot"></div>
+  <div class="w-sampling-distributions-out" id="wsd-p-out" aria-live="polite"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Şartı atlamak:</strong> önce $np$ ve $n(1 - p)$'yi hesapla ve yaz. İkisi de $\ge 15$ değilse normal tabloya gitme.</li>
+      <li>Proportion için şart "$n \ge 30$" değildir. $n = 100$ ve $p = 0.02$ ile $np = 2$.</li>
+      <li>$p(1 - p)/n$ variance'tır; SE onun karekökü. 2025-26 finalindeki 0.0011 şıkkı tam bu hatayı yakalıyor.</li>
+      <li>Burada SE, $p$ ile hesaplanıyor çünkü $p$ veriliyor. Proportion test'inde SE'yi $H_0$'daki $p_0$ ile hesaplayacaksın; confidence interval'da ise $\hat p$ ile.</li>
+      <li>"More than 150 out of 500" → $\hat p &gt; 150/500 = 0.30$. Count'u proportion'a çevirmeyi unutma.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sd-prop">
+    <p class="quiz__q">Bir servisin request'lerinin %1'i hata veriyor ($p = 0.01$). 500 request'lik sample'da $\hat p$ için normal yaklaşım kullanılabilir mi?</p>
+    <button class="quiz__opt">Evet, çünkü $n = 500 \ge 30$.<span class="why">$n \ge 30$ mean için bir rule of thumb. Proportion'ın şartı $np \ge 15$ ve $n(1 - p) \ge 15$.</span></button>
+    <button class="quiz__opt" data-correct>Hayır: $np = 5 &lt; 15$.<span class="why">Doğru. $n(1 - p) = 495$ yeterli ama iki şartın ikisi de gerekli. Bu nadir olay için yaklaşık 1500 request gerekirdi.</span></button>
+    <button class="quiz__opt">Evet, çünkü $n(1 - p) = 495 \ge 15$.<span class="why">Şartın sadece yarısı. $np = 5$ olduğu için dağılım sağa çarpık ve sıfıra yığılıyor.</span></button>
+    <button class="quiz__opt">Hayır, proportion'lar asla normal yaklaşılamaz.<span class="why">Yaklaşılabilir: proportion bir 0/1 mean'i ve CLT geçerli. Sadece $n$ yeterince büyük olmalı.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="qb1-Q11"><span class="box__label">Soru Bankası 1 Q11 · ödev sorusu</span>
+    <p>"5% of requests to a service fail. We take a random sample of n = 475 requests and compute the proportion of failures, p̂.<br>(a) Find the mean and the standard error of p̂.<br>(b) Check the condition for the normal approximation.<br>(c) Find P(p̂ &gt; 0.07)."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) $E(\hat p) = p$; SE formülüne $p = 0.05$, $n = 475$ koy. Sayılar güzel çıkacak.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b) $np$ ve $n(1 - p)$. (c) $z = (0.07 - 0.05)/\text{SE}$, tablo satırı 2.0.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $E(\hat p) = p = 0.05$. $\text{SE} = \sqrt{\dfrac{0.05 \times 0.95}{475}} = \sqrt{0.0001} = 0.01$.</p>
+      <p><strong>(b)</strong> $np = 475 \times 0.05 = 23.75$, $n(1 - p) = 451.25$. İkisi de en az 15: normal yaklaşım uygun.</p>
+      <p><strong>(c)</strong> $P(\hat p &gt; 0.07) = P\!\left(Z &gt; \dfrac{0.07 - 0.05}{0.01}\right) = P(Z &gt; 2) = 1 - 0.9772 = 0.0228 \approx 0.023$.</p>
+      <p>Yukarıdaki araçta "QB1 Q11"e basarsan tam binomial olasılığı da görürsün; normal yaklaşıma yakın ama birebir aynı değil.</p>
+    </div></details>
+    <!-- Kaynak: resources/2026-2027-fall/examples/question-bank-1-weeks-01-04.pdf s.25–26 (Q11 ve çözümü). Python: SE = 0.01, 1 − Φ(2) = 0.02275. -->
+  </div>
+  <div class="box box--exam" data-exam="2025-26-final-B-Q7"><span class="box__label">2025-26 final Group B S7 · çıkmış soru</span>
+    <p>"Suppose a random sample of n measurements is selected from a binomial population with probability of success p = .35. Given n = 200, describe the shape, and find the mean and the standard deviation of the sampling distribution of the sample proportion, p̂.<br>A) skewed right; 70, 6.75<br>B) approximately normal; 0.35, 0.0011<br>C) approximately normal; 0.35, 0.005<br>D) approximately normal; 0.35, 0.034<br>E) skewed right; 0.35, 0.034"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Şekil için $np$ ve $n(1 - p)$'yi kontrol et.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$0.35 \times 0.65/200 = 0.0011375$. Bu SE mi, variance mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$np = 70$, $n(1 - p) = 130$, ikisi de $\ge 15$: yaklaşık normal. $E(\hat p) = 0.35$. $\text{SE} = \sqrt{0.35 \times 0.65/200} = \sqrt{0.0011375} = 0.0337 \approx 0.034$. <strong>Cevap: D.</strong></p>
+      <p>B karekökü almayı unutmak (variance). A count $x$'in mean'i ($np = 70$) ve SD'si ($\sqrt{np(1-p)} = 6.75$): $\hat p$ değil, $x$. E şekli yanlış.</p>
+    </div></details>
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/2025-2026-final-group-b/page-4.jpeg" target="_blank" rel="noopener">Orijinal soru (fotoğraf) ↗</a></p>
+    <!-- Kaynak: exams/2025-2026-final-group-b/page-4.jpeg S7. Python: SE = 0.03373, var = 0.0011375. -->
+  </div>
+  <div class="box box--exam" data-exam="eem209-final-Q11"><span class="box__label">EEM209 final alıştırmaları S11 · kitap alıştırması</span>
+    <p>"A random sample of n = 600 measurements is drawn from a binomial population with probability of success .08. Give the mean and the standard deviation of the sampling distribution of the sample proportion, p̂.<br>A) .92; .003 &nbsp; B) .08; .011 &nbsp; C) .08; .003 &nbsp; D) .92; .011"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Mean $p$'dir, $1 - p$ değil.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\sqrt{0.08 \times 0.92/600}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$E(\hat p) = 0.08$, $\text{SE} = \sqrt{0.08 \times 0.92/600} = 0.0111$. <strong>Cevap: B.</strong> (Şart: $np = 48$, $n(1-p) = 552$.)</p>
+      <p>A ve D mean olarak $1 - p$'yi almış. C ($.003$) $p(1-p)/\sqrt n = 0.0736/24.49$: karekök yanlış yerde. $n$ karekökün içinde olmalı.</p>
+    </div></details>
+    <!-- Kaynak: exams/prep/problems-for-final.pdf S11 (EEM209). Python: 0.011075. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q13"><span class="box__label">STT315 Practice 3 S13 · kitap alıştırması</span>
+    <p>"A random sample of n = 600 measurements is drawn from a binomial population with probability of success .08. Give the mean and the standard deviation of the sampling distribution of the sample proportion, p̂.<br>A) .08; .011 &nbsp; B) .92; .003 &nbsp; C) .08; .003 &nbsp; D) .92; .011"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>EEM209 S11 ile aynı; şıklar karışık.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Önce kendi cevabını yaz, sonra şıklara bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>$0.08$ ve $0.011$. <strong>Cevap: A.</strong></p></div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S13. Anahtar: A. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-p3-Q14"><span class="box__label">STT315 Practice 3 S14 · kitap alıştırması</span>
+    <p>"A random sample of n = 300 measurements is drawn from a binomial population with probability of success .43. Give the mean and the standard deviation of the sampling distribution of the sample proportion, p̂.<br>A) .57; .029 &nbsp; B) .43; .014 &nbsp; C) 57; .014 &nbsp; D) .43; .029"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$0.43 \times 0.57 = 0.2451$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\sqrt{0.2451/300}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>$E(\hat p) = 0.43$, $\text{SE} = \sqrt{0.2451/300} = 0.0286 \approx 0.029$. <strong>Cevap: D.</strong> Aynı sayılar supplement'teki Chapter 5 Practice S8'de de var (anahtar: .43; .029).</p></div></details>
+    <!-- Kaynak: exams/practice/315Practice3.pdf S14. Anahtar: D. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-ch5-practice-Q8"><span class="box__label">STT315 Chapter 5 Practice S8 · kitap alıştırması</span>
+    <p>"A random sample of n = 300 measurements is drawn from a binomial population with probability of success .43. Give the mean and the standard deviation of the sampling distribution of the sample proportion, p̂."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bir üstteki sorunun şıksız hâli.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Şartı da yaz: $np$, $n(1-p)$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>$0.43$; $0.029$. $np = 129$, $n(1-p) = 171$: yaklaşık normal.</p></div></details>
+    <!-- Kaynak: resources/supplement/5 X Chapter 5 Practice.pdf S8 ve anahtarı. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-ch5-practice-Q5-Q9"><span class="box__label">STT315 Chapter 5 Practice S5 ve S9 · kitap alıştırması</span>
+    <p>"Suppose a random sample of n measurements is selected from a binomial population with probability of success p = .32. Given n = 400, describe the shape, and find the mean and the standard deviation of the sampling distribution of the sample proportion, p̂." (S5 ve S9 aynı soru.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Şekil, merkez, SE: üç parça.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\sqrt{0.32 \times 0.68/400}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>$np = 128$, $n(1-p) = 272$: yaklaşık normal. $E(\hat p) = 0.32$, $\text{SE} = \sqrt{0.2176/400} = 0.0233$. Anahtar: approximately normal; 0.32, 0.023.</p></div></details>
+    <!-- Kaynak: resources/supplement/5 X Chapter 5 Practice.pdf S5 ve S9 ve anahtarı. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-comp-Q14"><span class="box__label">STT315 Comprehensive Exam Practice S14 · kitap alıştırması</span>
+    <p>"Suppose a random sample of size n = 100 is to be selected from a dichotomous population with population proportion p = 0.20. What is the approximate probability that the sample proportion will be at least 0.18?<br>(a) .48 (b) .95 (c) .88 (d) .80 (e) .69"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$np = 20$, $n(1-p) = 80$: şart tamam. SE $= \sqrt{0.16/100}$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$z = (0.18 - 0.20)/0.04$. "At least" → sağ taraf.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>SE $= 0.04$, $z = -0.5$, $P(\hat p \ge 0.18) = 1 - 0.3085 = 0.6915 \approx .69$. <strong>Cevap: (e).</strong> Anahtar da (e).</p></div></details>
+    <!-- Kaynak: exams/practice/COMPREHENSIVE EXAM PRACTICE.pdf S14. Anahtar: 14(e). -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-sup5-5.36a-5.37a"><span class="box__label">STT315 Supplement 5, Exercise 5.36a ve 5.37a · kitap alıştırması</span>
+    <p>"5.36 Suppose a random sample of n measurements is selected from a binomial population with probability of success p = .2. For each of the following values of n, give the mean and standard deviation of the sampling distribution of the sample proportion, p̂. a. n = 50<br>5.37 Suppose a random sample of n = 500 measurements is selected from a binomial population with probability of success p. For each of the following values of p, give the mean and standard deviation of the sampling distribution of the sample proportion, p̂. a. p = .1"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Formül her durumda aynı. Mean ve SE şart gerektirmez; şekil gerektirir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>5.36a'da $np$'yi hesapla. Araçta "5.36a"ya bas.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>5.36a</strong> $E(\hat p) = 0.2$, $\text{SE} = \sqrt{0.2 \times 0.8/50} = 0.0566$. Dikkat: $np = 10 &lt; 15$. Mean ve SE yine doğru ama dağılımın normal olduğunu söyleyemezsin.</p>
+      <p><strong>5.37a</strong> $E(\hat p) = 0.1$, $\text{SE} = \sqrt{0.1 \times 0.9/500} = 0.0134$. $np = 50$, $n(1-p) = 450$.</p>
+    </div></details>
+    <!-- Kaynak: resources/supplement/5 Sampling Distributions.pdf s.8. Python: 0.05657, 0.01342. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-sup5-5.40"><span class="box__label">STT315 Supplement 5, Exercise 5.40 · kitap alıştırması</span>
+    <p>"A random sample of n = 1,500 measurements is drawn from a binomial population with probability of success .4. What are the smallest and largest values of p̂ you would expect to see?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Supplement 5.20'deki $\mu \pm 3\,\text{SE}$ fikri, proportion için.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>SE $= \sqrt{0.24/1500}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div><p>$np = 600$, $n(1-p) = 900$: yaklaşık normal. SE $= 0.0126$. $0.4 \pm 3(0.0126)$: en küçük yaklaşık 0.362, en büyük yaklaşık 0.438.</p></div></details>
+    <!-- Kaynak: resources/supplement/5 Sampling Distributions.pdf s.8. Python: SE = 0.012649. -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-sup5-5.46"><span class="box__label">STT315 Supplement 5, Exercise 5.46 · kitap alıştırması</span>
+    <p>"Stock market participation and IQ. […] For those with a high IQ score, the probability is .44; for those with an average IQ score, the probability is .26; and for those with a low IQ score, the probability is .14. a. In a random sample of 500 Finnish citizens with high IQ scores, what is the probability that more than 150 invest in the stock market? b. […] with average IQ scores […]? c. […] with low IQ scores […]?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"More than 150 out of 500" → $\hat p &gt; 0.30$. Her şık için SE'yi ayrı hesapla: $p$ değişiyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Önce şartları kontrol et: $500p$ ve $500(1-p)$. Sonra $z = (0.30 - p)/\text{SE}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Üçünde de şart sağlanıyor ($500p$ = 220, 130, 70; $500(1-p)$ = 280, 370, 430).</p>
+      <p><strong>a.</strong> $p = .44$: SE $= 0.0222$, $z = (0.30 - 0.44)/0.0222 = -6.31$, $P \approx 1$.</p>
+      <p><strong>b.</strong> $p = .26$: SE $= 0.0196$, $z = 0.04/0.0196 = 2.04$, $P = 1 - 0.9793 = 0.0207$.</p>
+      <p><strong>c.</strong> $p = .14$: SE $= 0.0155$, $z = 10.3$, $P \approx 0$.</p>
+    </div></details>
+    <!-- Kaynak: resources/supplement/5 Sampling Distributions.pdf s.8 (McClave 13e'de farklı numarayla). Python ile kontrol edildi; continuity correction kullanılmadı (McClave tarzı). -->
+  </div>
+  <div class="box box--exam" data-exam="stt315-sup5-5.48"><span class="box__label">STT315 Supplement 5, Exercise 5.48 · kitap alıştırması</span>
+    <p>"Hotel guest satisfaction. […] Recall that 66% of hotel guests were aware of the hotel's "green" conservation program; of these guests, 72% actually participated in the program by reusing towels and bed linens. In a random sample of 100 hotel guests, find the probability that fewer than 42 were aware of and participated in the hotel's conservation efforts."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce $p$'yi bul: hem farkında hem katılmış = $0.66 \times 0.72$ (multiplication rule).</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Fewer than 42 out of 100" → $\hat p &lt; 0.42$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$p = 0.66 \times 0.72 = 0.4752$. Şart: $np = 47.5$, $n(1-p) = 52.5$. SE $= \sqrt{0.4752 \times 0.5248/100} = 0.0499$.</p>
+      <p>$z = (0.42 - 0.4752)/0.0499 = -1.11$, $P(\hat p &lt; 0.42) = 0.1335$.</p>
+    </div></details>
+    <!-- Kaynak: resources/supplement/5 Sampling Distributions.pdf s.9. Python: z = −1.105, Φ(−1.11) = 0.1335 (exact 0.1345). -->
+  </div>
+  <div class="box box--exam" data-exam="2025-26-final-B-Q4"><span class="box__label">2025-26 final Group B S4 · çıkmış soru</span>
+    <p>"Calculate the mean and std. dev. of binomial dist. with n = 100, p = 0.20?" A) Mean = 20, SD = 16 &nbsp; B) Mean = 20, SD = 4.47 &nbsp; C) Mean = 20, SD = 3.87 &nbsp; D) Mean = 20, SD = 4 &nbsp; E) Mean = 80, SD = 4</p>
+    <p class="src">Not: Bu soru repoda sadece bir öğrencinin defterine el yazısıyla geçirdiği kopya olarak var (page-2). Metin o kopyadan.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Başarı sayısı $X = n\hat p$. Bölümdeki $E(\hat p)$ ve $\text{SE}(\hat p)$'yi $n$ ile çarp.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$E(X) = np$, $\text{SD}(X) = \sqrt{np(1-p)}$. Variance'ı değil, karekökünü iste.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$E(X) = 100 \times 0.2 = 20$. $\text{SD}(X) = \sqrt{100 \times 0.2 \times 0.8} = \sqrt{16} = 4$. Cevap <strong>D</strong>.</p>
+      <p>A, variance'ı (16) SD diye yazıyor. B $\sqrt{20}$, yani $\sqrt{np}$: $(1-p)$ unutulmuş. E, mean için $n(1-p)$ kullanıyor. Aynı sayılar proportion ölçeğinde: $E(\hat p) = 0.2$, $\text{SE}(\hat p) = 4/100 = 0.04$.</p>
+    </div></details>
+    <!-- Kaynak: exams/2025-2026-final-group-b/page-2.jpeg (defter kopyası, öğrencinin işareti D). Python: 20, 4.0. -->
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/2025-2026-final-group-b/page-2.jpeg" target="_blank" rel="noopener">Orijinal fotoğraf (page-2.jpeg)</a></p>
+  </div>
+  <div class="box box--exam" data-exam="undated-final-S8"><span class="box__label">Tarihsiz final Soru 8 · çıkmış soru</span>
+    <p>"The mean of a binomial random variable X with parameters n and p is: a. n × p b. n × (1 − p) c. sqrt(n p (1−p)) d. (np) / (n + p) e. n²"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$X$, $n$ tane 0/1 gözlemin toplamı. Her gözlemin mean'i $p$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Toplamın mean'i mean'lerin toplamıdır (probability toolkit, mean of a linear combination).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$E(X) = p + p + \cdots + p = np$. Cevap <strong>a</strong>. c bir tuzak: o, $X$'in standard deviation'ı. b başarısızlık sayısının mean'i.</p>
+    </div></details>
+    <!-- Kaynak: exams/undated-stats-final.pdf Soru 8 (anahtar yok). -->
+    <p class="w-sampling-distributions-orig"><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/undated-stats-final.pdf" target="_blank" rel="noopener">Orijinal sınav (undated-stats-final.pdf)</a></p>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="compute" data-min="6">
+  <h2>Hesaplayarak kurmak: Monte Carlo ve bootstrap</h2>
+  <p>Şimdiye kadar sampling distribution'ı formülle anlattık. Formül her zaman yok (median'ın SE'si gibi), olsa da varsayımlarına güvenmek isteyebilirsin. Bu iki yöntem dağılımı varsaymak yerine kurar.</p>
+  <div class="box box--rule">
+    <span class="box__label">Monte Carlo simulation (slayt 34)</span>
+    <ol>
+      <li>Bir population (model) seç.</li>
+      <li>Ondan bir sample çek, mean'ini hesapla.</li>
+      <li>10.000 kez tekrarla.</li>
+      <li>10.000 mean'i çiz.</li>
+    </ol>
+    <p>Kullanımı: bir yaklaşıma güvenmeden önce onun tutup tutmadığını kontrol etmek. Bölüm 6'daki CLT simülatörü tam olarak bunu yapıyor.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Bootstrap (slayt 35)</span>
+    <ul>
+      <li>Pratikte elinde tek bir sample var, çekebileceğin bir population yok.</li>
+      <li>Sample'ı population gibi kullan: <strong>with replacement</strong>, aynı size'da yeniden örnekle (resample).</li>
+      <li>Her resample için statistic'i hesapla. Resample'lanmış statistic'lerin standard deviation'ı standard error'ı tahmin eder.</li>
+    </ul>
+    <p>Bootstrap ile $s/\sqrt n$ birbirini tutmuyorsa formülün varsayımlarını sorgula.</p>
+  </div>
+  <!-- Kaynak: slayt 33–35 · Question Bank 1 Q12 çözümü ("Both replace a formula by repetition; the bootstrap needs nothing but the data"). -->
+  <h3>Adım adım bootstrap</h3>
+  <p>12 latency ölçümü (ms) tek sample'ın. Her adımda bu 12 değerden with replacement 12 tane çekiliyor. Rozetler bir değerin kaç kez seçildiğini, soluk kutular hiç seçilmeyenleri gösteriyor. Resample'ın median'ı histogram'a ekleniyor. Son adımda 10.000 resample'ın sonucu var.</p>
+  <p class="w-sampling-distributions-guess"><b>Önce tahmin et:</b> Bir resample'da orijinal 12 değerden kabaca kaçı hiç seçilmez? Median'ın bootstrap SE'si, mean'inkinden büyük mü küçük mü çıkar?</p>
+  <div class="w-sampling-distributions-ctl">
+    <button class="btn btn--sm" id="wsd-bs-seed">Başka resample'lar</button>
+    <span class="src" id="wsd-bs-seedv"></span>
+  </div>
+  <div id="wsd-bs-stepper"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Without replacement</strong> resample yaparsan her seferinde aynı 12 değeri farklı sırada alırsın: statistic hiç değişmez ve SE 0 çıkar.</li>
+      <li>Resample size'ı orijinal $n$ olmalı. Daha büyük alırsan SE'yi olduğundan küçük bulursun.</li>
+      <li>Bootstrap yeni veri üretmez. Sample kötü (biased, non-random) ise bootstrap bunu düzeltmez.</li>
+      <li>Monte Carlo bir <em>modelden</em> çeker ve bu modeli senin varsayman gerekir. Bootstrap <em>veriden</em> çeker, sadece veriye ihtiyaç duyar.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sd-boot">
+    <p class="quiz__q">50 ölçümün var ve median'ın standard error'ını istiyorsun. Hangisi bootstrap'tir?</p>
+    <button class="quiz__opt">Varsayılan bir dağılımdan 50'lik yeni sample'lar çek, her birinin median'ını hesapla.<span class="why">Bu Monte Carlo: bir model varsayıyor. Bootstrap modeli değil, elindeki veriyi kullanır.</span></button>
+    <button class="quiz__opt" data-correct>50 ölçümden with replacement 50 değer çek, median'ı hesapla, bunu binlerce kez tekrarla; median'ların SD'si SE'yi tahmin eder.<span class="why">Doğru: slayt 35'in tarifi.</span></button>
+    <button class="quiz__opt">50 ölçümü without replacement karıştır, median'ı hesapla, binlerce kez tekrarla.<span class="why">Without replacement aynı 50 değeri verir; median hep aynı kalır ve SE 0 çıkar.</span></button>
+    <button class="quiz__opt">$s/\sqrt{50}$'yi hesapla.<span class="why">Bu mean'in SE formülü. Median için basit bir formül yok, bootstrap'in sebebi de bu.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="qb1-Q12"><span class="box__label">Soru Bankası 1 Q12 · ödev sorusu</span>
+    <p>"You have 50 measured latencies and want the standard error of their median. There is no simple formula.<br>(a) Describe the bootstrap, step by step.<br>(b) What does the standard deviation of the bootstrap medians estimate?<br>(c) How does a Monte Carlo simulation differ from the bootstrap?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) Üç fiil: draw (with replacement, kaç tane?), compute, repeat.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c) İkisi de çok kez sample çeker. Fark: <em>nereden</em> çektikleri.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> 50 ölçümden, with replacement, 50 değer çek; bu resample'ın median'ını hesapla; bunu çok kez, örneğin 10.000 kez tekrarla.</p>
+      <p><strong>(b)</strong> Sample median'ın standard error'ını: median'ın sample'dan sample'a ne kadar değişeceğini.</p>
+      <p><strong>(c)</strong> Monte Carlo yeni sample'ları varsaydığımız bir modelden (örneğin bilinen bir dağılımdan) çeker. Bootstrap elimizdeki veriyi yeniden örnekler; veri population'ın yerine geçer. İkisi de formül yerine tekrar kullanır; bootstrap veriden başka bir şeye ihtiyaç duymaz.</p>
+    </div></details>
+    <!-- Kaynak: resources/2026-2027-fall/examples/question-bank-1-weeks-01-04.pdf s.27–28 (Q12 ve çözümü). -->
+  </div>
+  <div class="box box--exam" data-exam="nb02-B-task4"><span class="box__label">Notebook week 2 · Part B Task 4 · ödev sorusu</span>
+    <p>Task 4, tek bir 40'lık sample'dan 10.000 bootstrap resample çekip mean'lerinin standard deviation'ını (bootstrap SE) $s/\sqrt n$ ile karşılaştırmanı istiyor. İsteğe bağlı kısım bir bootstrap confidence interval soruyor.</p>
+    <p class="src">Not: Haftalık notebook'lar notlandırılan ödev. Bu görevin çözümü ve kodu burada verilmiyor.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Üç karar ver: resample size (orijinal $n$), replacement (evet), hangi statistic (mean). Yukarıdaki stepper aynı fikri median için gösteriyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>SE'yi hesaplarken slayt 35'teki gibi <code>ddof=1</code> kullan. Sonucun $s/\sqrt n$'den biraz küçük çıkması normal: bootstrap sample'ı population sayar, onun yayılması $n$'ye bölünerek ölçülür. Self-check %10 tolerans tanıyor.</p></div></details>
+    <!-- Kaynak: notebooks/week02_sampling_distributions.ipynb Part B Task 4. Notlandırılan görev: çözüm yok. -->
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-sd-final-1">
+    <p class="quiz__q">Bir ekip response time ölçümünü $n = 100$'den $n = 400$'e çıkarıyor. Hangisi olur?</p>
+    <button class="quiz__opt">Response time'ların standard deviation'ı yarıya iner.<span class="why">Standard deviation verinin yayılması, $n$ ile küçülmez. Yarıya inen mean'in SE'si.</span></button>
+    <button class="quiz__opt" data-correct>Mean'in standard error'ı yarıya iner, standard deviation yaklaşık aynı kalır.<span class="why">Doğru: $\sqrt{400/100} = 2$.</span></button>
+    <button class="quiz__opt">Mean'in standard error'ı dörtte birine iner.<span class="why">SE $1/\sqrt n$ ile değişir: dört kat veri, yarı SE.</span></button>
+    <button class="quiz__opt">İkisi de değişmez, $\sigma$ sabit.<span class="why">$\sigma$ sabit ama SE $= \sigma/\sqrt n$, $n$ ile değişir.</span></button>
+  </div>
+  <div class="quiz" id="q-sd-final-2">
+    <p class="quiz__q">$X_1$ ve $X_2$ independent, her birinin $\sigma = 6$. $(X_1 + X_2)/2$'nin standard deviation'ı kaç?</p>
+    <button class="quiz__opt">6<span class="why">SD'leri toplamışsın: $(6 + 6)/2$. Independent random variable'larda variance'lar toplanır.</span></button>
+    <button class="quiz__opt" data-correct>$6/\sqrt2 \approx 4.24$<span class="why">Doğru: $\text{Var} = \tfrac14(36 + 36) = 18$, SD $= \sqrt{18} = 4.24 = \sigma/\sqrt2$.</span></button>
+    <button class="quiz__opt">3<span class="why">$\sigma/n$ ile bölmüşsün. Payda $\sqrt n$.</span></button>
+    <button class="quiz__opt">18<span class="why">18 variance. SD onun karekökü.</span></button>
+  </div>
+  <div class="quiz" id="q-sd-final-3">
+    <p class="quiz__q">$p = 0.04$, $n = 300$. $\hat p$ için normal yaklaşımın şartı ne durumda?</p>
+    <button class="quiz__opt">Sağlanıyor, $n \ge 30$.<span class="why">Proportion'ın şartı $n \ge 30$ değil; $np$ ve $n(1-p)$ en az 15 olmalı.</span></button>
+    <button class="quiz__opt" data-correct>Sağlanmıyor: $np = 12 &lt; 15$.<span class="why">Doğru. $n(1-p) = 288$ yeterli ama iki şart birden gerekli.</span></button>
+    <button class="quiz__opt">Sağlanıyor: $np(1-p) = 11.5$ ve bu 10'dan büyük.<span class="why">Bu dersteki şart $np \ge 15$ ve $n(1 - p) \ge 15$. Başka bir eşik kullanma.</span></button>
+    <button class="quiz__opt">Sağlanıyor, $\text{SE} = 0.011$ küçük.<span class="why">SE'nin küçüklüğü şekil hakkında bir şey söylemez. Şart sayılara ($np$) bakar.</span></button>
+  </div>
+  <div class="quiz" id="q-sd-final-4">
+    <p class="quiz__q">Dosya boyutları çok sağa çarpık, $\mu = 2$ MB, $\sigma = 3$ MB. Hangisini normal tabloyla hesaplayabilirsin?</p>
+    <button class="quiz__opt">Tek bir dosyanın 5 MB'tan büyük olma olasılığı.<span class="why">Tek değerler population kadar çarpık. CLT tek değerleri normal yapmaz.</span></button>
+    <button class="quiz__opt" data-correct>Normal yaklaşımın yeterli olduğu ayrıca doğrulanırsa, rastgele 100 dosyanın ortalamasının 2.5 MB'tan büyük olma olasılığı (yaklaşık).<span class="why">Doğru: $n = 100$, CLT ile $\bar x$ yaklaşık normal, SE $= 0.3$, $z = 1.67$, normal yaklaşım 0.048. Population çok çarpık olduğu için şartı kontrol etmek gerekir: $\mu = 2$, $\sigma = 3$ olan lognormal bir population'da simülasyon yaklaşık 0.057 veriyor. Yaklaşım kaba ama kullanılabilir.</span></button>
+    <button class="quiz__opt">Rastgele 3 dosyanın ortalamasının 2.5 MB'tan büyük olma olasılığı.<span class="why">$n = 3$ çok çarpık bir population için yetmez. Population normal olsaydı yeterdi.</span></button>
+    <button class="quiz__opt">Hiçbirini; population normal değil.<span class="why">CLT tam bu durumda işe yarıyor: yeterince büyük $n$ için ortalama yaklaşık normal.</span></button>
+  </div>
+  <div class="quiz" id="q-sd-final-5">
+    <p class="quiz__q">Sample mean'in standard error'ını bootstrap ile tahmin ederken resample size'ı yanlışlıkla $n$ yerine $4n$ alırsan bootstrap SE ne olur?</p>
+    <button class="quiz__opt">Değişmez, bootstrap size'a duyarlı değil.<span class="why">Bootstrap mean'i de bir mean: SD'si $1/\sqrt{\text{size}}$ ile değişir.</span></button>
+    <button class="quiz__opt" data-correct>Yaklaşık yarıya iner, yani gerçek SE'yi olduğundan küçük gösterir.<span class="why">Doğru: bootstrap mean'lerinin SD'si yaklaşık $\hat\sigma/\sqrt{\text{size}}$ ve $\sqrt{4n} = 2\sqrt n$. Elindeki sample $n$'lik olduğu için doğru boyut $n$. Bu karekök kuralı bootstrap mean'i için geçerli.</span></button>
+    <button class="quiz__opt">İki katına çıkar.<span class="why">Yön ters: daha büyük resample daha kararlı bir mean verir.</span></button>
+    <button class="quiz__opt">0 olur.<span class="why">SE'yi 0 yapan without replacement resample'dır, büyük size değil.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Özet (slayt 37)</span>
+    <ol>
+      <li>Independent random variable'ların variance'ları toplanır, çıkarmada bile.</li>
+      <li>Sample mean'in kendi dağılımı var ve standard error'ı $\sigma/\sqrt n$.</li>
+      <li>Büyük $n$ için bu dağılım yaklaşık normal: Central Limit Theorem.</li>
+      <li>Simülasyon bunların hepsini doğrudan kontrol etmeni sağlar.</li>
+    </ol>
+  </div>
+  <!-- Sıradaki ders: tests-for-a-mean (W3). -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=8"></script>
+<script src="../assets/lab.js?v=8"></script>
+<script>
+/* Shared numeric helpers for this lesson: seeded RNG, normal CDF, binomial pmf.
+   Values were checked against the z table (QB1 last slide: 0.9332, 0.9772, 0.0094) and python's math.erf / math.comb. */
+const SDL = {
+  rng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  },
+  /* erfc, Numerical Recipes erfcc: relative error below 1.2e-7 */
+  erfc(x) {
+    const z = Math.abs(x), t = 1 / (1 + 0.5 * z);
+    const r = t * Math.exp(-z * z - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 + t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277)))))))));
+    return x >= 0 ? r : 2 - r;
+  },
+  Phi(z) { return 0.5 * SDL.erfc(-z / Math.SQRT2); },
+  pdf(z) { return Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI); },
+  lgamma(x) {
+    const c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+    if (x < 0.5) return Math.log(Math.PI / Math.abs(Math.sin(Math.PI * x))) - SDL.lgamma(1 - x);
+    x -= 1;
+    let a = c[0];
+    const t = x + 7.5;
+    for (let i = 1; i < 9; i++) a += c[i] / (x + i);
+    return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+  },
+  binom(n, k, p) {
+    if (p <= 0) return k === 0 ? 1 : 0;
+    if (p >= 1) return k === n ? 1 : 0;
+    return Math.exp(SDL.lgamma(n + 1) - SDL.lgamma(k + 1) - SDL.lgamma(n - k + 1) + k * Math.log(p) + (n - k) * Math.log1p(-p));
+  },
+  num(x, d) {
+    if (d === undefined) d = 4;
+    if (!isFinite(x)) return String(x);
+    const r = Number(Number(x).toFixed(d));
+    return String(Object.is(r, -0) ? 0 : r);
+  },
+  prob(x) {
+    if (x < 0.0001 && x > 0) return x < 1e-6 ? "\\approx 0" : x.toExponential(1).replace("e", "\\times10^{") + "}";
+    if (x > 0.9999 && x < 1) return "\\approx 1";
+    return SDL.num(x, 4);
+  },
+  esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+};
+window.SDL = SDL;
+
+/* 0. Slide 25 figure: three sampling distributions drawn from the normal pdf */
+(function () {
+  const el = document.getElementById("wsd-est-fig");
+  const W = 340, H = 170, L = 10, R = 10, T = 14, B = 26;
+  const curves = [
+    { m: 0, s: 1.6, col: "var(--blue-600)", dash: "", fill: true, label: "Unbiased, large variance" },
+    { m: 0, s: 0.55, col: "var(--accent)", dash: "", fill: false, label: "Unbiased, minimum variance" },
+    { m: 2.3, s: 0.6, col: "var(--stone-600)", dash: "5 4", fill: false, label: "Biased" }
+  ];
+  const x0 = -4.5, x1 = 4.5;
+  const X = x => L + (x - x0) / (x1 - x0) * (W - L - R);
+  const ymax = SDL.pdf(0) / 0.55;
+  const Y = y => H - B - y / ymax * (H - B - T);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Üç estimator'ın sampling distribution'ı: iki unbiased, biri biased">`;
+  curves.forEach(c => {
+    let d = "";
+    for (let i = 0; i <= 160; i++) {
+      const x = x0 + (x1 - x0) * i / 160;
+      d += (i ? "L" : "M") + X(x).toFixed(1) + " " + Y(SDL.pdf((x - c.m) / c.s) / c.s).toFixed(1);
+    }
+    if (c.fill) s += `<path d="${d}L${X(x1)} ${Y(0)}L${X(x0)} ${Y(0)}Z" style="fill:var(--blue-100);opacity:.6" />`;
+    s += `<path d="${d}" style="fill:none;stroke:${c.col};stroke-width:2" ${c.dash ? `stroke-dasharray="${c.dash}"` : ""} />`;
+  });
+  s += `<line x1="${L}" y1="${Y(0)}" x2="${W - R}" y2="${Y(0)}" style="stroke:var(--stone-300)" />`;
+  s += `<line x1="${X(0)}" y1="${T - 4}" x2="${X(0)}" y2="${Y(0)}" style="stroke:var(--ink-700);stroke-width:1.2" />`;
+  s += `<text x="${X(0)}" y="${H - 8}" text-anchor="middle" style="font-size:11px;fill:var(--ink-700);font-weight:700">gerçek değer θ</text>`;
+  curves.forEach((c, i) => {
+    const y = T + 4 + i * 14;
+    s += `<line x1="${W - 150}" y1="${y}" x2="${W - 130}" y2="${y}" style="stroke:${c.col};stroke-width:2" ${c.dash ? `stroke-dasharray="${c.dash}"` : ""} />`;
+    s += `<text x="${W - 126}" y="${y + 3.5}" style="font-size:9.5px;fill:var(--ink-700)">${c.label}</text>`;
+  });
+  el.innerHTML = s + `</svg>`;
+})();
+
+/* 1. Exact enumerator: every ordered sample of size n, its probability and statistic, grouped */
+(function () {
+  const g = id => document.getElementById(id);
+  const vIn = g("wsd-ex-vals"), pIn = g("wsd-ex-probs"), nSel = g("wsd-ex-n"), sSel = g("wsd-ex-stat"), err = g("wsd-ex-err"), box = g("wsd-ex-stepper");
+  const SYM = { mean: "\\bar x", var: "s^2", med: "M" };
+  const PAR = { mean: "\\mu", var: "\\sigma^2", med: "\\mu" };
+  function parse() {
+    const vt = vIn.value.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    const pt = pIn.value.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    if (vt.length < 2 || vt.length > 6) return { e: "2 ile 6 arasında değer yaz, virgülle ayır (örneğin 0, 2, 4)." };
+    const vals = vt.map(t => /^-?\d*\.?\d+$/.test(t) ? Number(t) : NaN);
+    if (vals.some(v => !isFinite(v))) return { e: "Değerler sayı olmalı (örneğin 0, 2, 4 ya da 1.5)." };
+    if (new Set(vals).size !== vals.length) return { e: "Aynı değeri iki kez yazma; olasılığını tek bir yerde ver." };
+    if (pt.length !== vals.length) return { e: `${vals.length} değer var ama ${pt.length} probability yazdın. Sayılar eşit olmalı.` };
+    const probs = pt.map(t => {
+      const m = t.match(/^(\d+)\s*\/\s*(\d+)$/);
+      if (m) return +m[2] > 0 ? +m[1] / +m[2] : NaN;
+      return /^\d*\.?\d+$/.test(t) ? Number(t) : NaN;
+    });
+    if (probs.some(p => !(p > 0 && p <= 1))) return { e: "Her probability 0 ile 1 arasında olmalı (0 hariç). Kesir (1/3) ya da ondalık (0.7) yazabilirsin." };
+    const sum = probs.reduce((a, b) => a + b, 0);
+    if (Math.abs(sum - 1) > 1e-6) return { e: `Probability'lerin toplamı 1 olmalı; şu an ${SDL.num(sum, 4)}.` };
+    return { vals, probs, ptok: pt, equal: probs.every(p => Math.abs(p - probs[0]) < 1e-12) };
+  }
+  function stat(kind, xs) {
+    const n = xs.length, m = xs.reduce((a, b) => a + b, 0) / n;
+    if (kind === "mean") return m;
+    if (kind === "var") return xs.reduce((a, x) => a + (x - m) ** 2, 0) / (n - 1);
+    const s = xs.slice().sort((a, b) => a - b);
+    return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+  }
+  function build() {
+    const P = parse();
+    if (P.e) { err.innerHTML = P.e; box.innerHTML = ""; return; }
+    err.innerHTML = "";
+    const n = Number(nSel.value), kind = sSel.value, k = P.vals.length, total = k ** n;
+    const samples = [];
+    for (let code = 0; code < total; code++) {
+      const idx = [];
+      let c = code;
+      for (let j = 0; j < n; j++) { idx.unshift(c % k); c = Math.floor(c / k); }
+      const xs = idx.map(i => P.vals[i]);
+      const pr = idx.reduce((a, i) => a * P.probs[i], 1);
+      samples.push({ idx, xs, pr, v: stat(kind, xs) });
+    }
+    const keys = Array.from(new Set(samples.map(s => s.v.toFixed(9)))).sort((a, b) => a - b);
+    const mu = P.vals.reduce((a, v, i) => a + v * P.probs[i], 0);
+    const s2 = P.vals.reduce((a, v, i) => a + (v - mu) ** 2 * P.probs[i], 0);
+    const perSample = total <= 36;
+    const groups = [];
+    if (perSample) samples.forEach(s => groups.push([s]));
+    else for (let i = 0; i < k; i++) groups.push(samples.filter(s => s.idx[0] === i));
+    const fmtP = (pr, cnt) => P.equal ? `${cnt}/${total}` : SDL.num(pr, 4);
+    const frames = [];
+    const acc = {}, cnt = {};
+    keys.forEach(key => { acc[key] = 0; cnt[key] = 0; });
+    groups.forEach((grp, gi) => {
+      grp.forEach(s => { const key = s.v.toFixed(9); acc[key] += s.pr; cnt[key] += 1; });
+      let cap;
+      if (perSample) {
+        const s = grp[0];
+        const prTex = P.equal ? `\\tfrac{1}{${total}}` : s.idx.map(i => SDL.num(P.probs[i], 4)).join(" \\cdot ") + " = " + SDL.num(s.pr, 4);
+        cap = `Sample $(${s.xs.join(",\\,")})$: $${SYM[kind]} = ${SDL.num(s.v, 4)}$, probability $${prTex}$.`;
+      } else {
+        cap = `İlk değeri $${P.vals[gi]}$ olan ${grp.length} sample eklendi (toplam ${(gi + 1) * grp.length} / ${total}).`;
+      }
+      frames.push({ acc: Object.assign({}, acc), cnt: Object.assign({}, cnt), cur: grp.map(s => s.xs), curKey: perSample ? grp[0].v.toFixed(9) : null, caption: cap });
+    });
+    const E = samples.reduce((a, s) => a + s.v * s.pr, 0);
+    const V = samples.reduce((a, s) => a + (s.v - E) ** 2 * s.pr, 0);
+    const par = kind === "var" ? s2 : mu;
+    let fin = `$E(${SYM[kind]}) = \\sum ${SYM[kind]}\\,p(${SYM[kind]}) = ${SDL.num(E, 4)}$, $${PAR[kind]} = ${SDL.num(par, 4)}$: `;
+    fin += Math.abs(E - par) < 1e-9 ? `<b>unbiased</b>.` : `<b>biased</b> (fark ${SDL.num(E - par, 4)}).`;
+    if (kind === "mean") fin += ` $\\text{SD}(\\bar x) = ${SDL.num(Math.sqrt(V), 4)}$ ve $\\sigma/\\sqrt n = ${SDL.num(Math.sqrt(s2), 4)}/\\sqrt{${n}} = ${SDL.num(Math.sqrt(s2 / n), 4)}$: aynı.`;
+    if (kind === "med" && Math.abs(E - par) >= 1e-9) fin += ` Population simetrik değilse median $\\mu$ için biased olabilir.`;
+    if (kind === "med" && n === 2) fin += ` ($n = 2$'de median ile mean aynı şey.)`;
+    frames.push({ acc, cnt, cur: [], curKey: null, final: true, caption: fin });
+    const maxP = Math.max(...keys.map(key => acc[key]));
+    Lab.stepper(box, {
+      title: `${total} ordered sample, n = ${n}`,
+      interval: perSample ? 900 : 1300,
+      frames,
+      render(f, i, el) {
+        let h = "";
+        if (f.cur.length) h += `<div class="w-sampling-distributions-chips">` + f.cur.slice(0, 36).map(xs => `<span class="w-sampling-distributions-chip is-cur">(${xs.join(", ")})</span>`).join("") + `</div>`;
+        h += `<div>`;
+        keys.forEach(key => {
+          const p = f.acc[key];
+          h += `<div class="w-sampling-distributions-row${key === f.curKey ? " is-cur" : ""}"><span>$${SYM[kind]} = ${SDL.num(Number(key), 4)}$</span><div class="w-sampling-distributions-bar"><i style="width:${(100 * p / maxP).toFixed(1)}%"></i></div><b>${p > 0 ? fmtP(p, f.cnt[key]) : "0"}</b></div>`;
+        });
+        h += `</div>`;
+        if (f.final) h += `<div class="src">Toplam probability: ${SDL.num(keys.reduce((a, key) => a + f.acc[key], 0), 6)}</div>`;
+        el.innerHTML = h;
+      }
+    });
+  }
+  g("wsd-ex-go").addEventListener("click", build);
+  [vIn, pIn].forEach(inp => inp.addEventListener("keydown", e => { if (e.key === "Enter") build(); }));
+  [nSel, sSel].forEach(s => s.addEventListener("change", build));
+  document.querySelectorAll("[data-wsd-ex]").forEach(b => b.addEventListener("click", () => {
+    const parts = b.dataset.wsdEx.split("|");
+    vIn.value = parts[0]; pIn.value = parts[1];
+    build();
+  }));
+  build();
+})();
+
+/* 2. SE vs n: the curve sigma/sqrt(n) and the flat SD line */
+(function () {
+  const g = id => document.getElementById(id);
+  const sIn = g("wsd-se-sigma"), nIn = g("wsd-se-n"), tIn = g("wsd-se-target"), err = g("wsd-se-err"), plot = g("wsd-se-plot"), out = g("wsd-se-out");
+  const NMAX = 400;
+  let pts = [36];
+  function sigma() {
+    const t = sIn.value.trim();
+    if (!/^\d*\.?\d+$/.test(t) || Number(t) <= 0) return { e: "$\\sigma$ pozitif bir sayı olmalı (örneğin 60)." };
+    if (Number(t) > 1e6) return { e: "$\\sigma$ için daha küçük bir sayı yaz (en fazla 1.000.000)." };
+    return { s: Number(t) };
+  }
+  function draw() {
+    const S = sigma();
+    if (S.e) { err.innerHTML = S.e; Lab.renderMath(err); return; }
+    err.innerHTML = "";
+    const s = S.s, W = 340, H = 200, L = 40, R = 12, T = 12, B = 30;
+    const X = n => L + n / NMAX * (W - L - R);
+    const Y = y => H - B - y / (1.08 * s) * (H - B - T);
+    let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Standard error ve standard deviation, n'ye göre">`;
+    [0, 100, 200, 300, 400].forEach(n => { svg += `<line x1="${X(n)}" y1="${T}" x2="${X(n)}" y2="${H - B}" style="stroke:var(--stone-200)" /><text x="${X(n)}" y="${H - B + 13}" text-anchor="middle" style="font-size:10px;fill:var(--ink-500)">${n}</text>`; });
+    [0, 0.25, 0.5, 0.75, 1].forEach(f => { svg += `<text x="${L - 4}" y="${Y(f * s) + 3}" text-anchor="end" style="font-size:9.5px;fill:var(--ink-500)">${SDL.num(f * s, 2)}</text>`; });
+    svg += `<text x="${(L + W - R) / 2}" y="${H - 3}" text-anchor="middle" style="font-size:10px;fill:var(--ink-700)">sample size n</text>`;
+    svg += `<line x1="${X(1)}" y1="${Y(s)}" x2="${X(NMAX)}" y2="${Y(s)}" style="stroke:var(--accent);stroke-width:2" stroke-dasharray="6 4" />`;
+    svg += `<text x="${X(NMAX) - 2}" y="${Y(s) - 5}" text-anchor="end" style="font-size:10px;fill:var(--orange-700);font-weight:700">SD = σ (n'den bağımsız)</text>`;
+    let d = "";
+    for (let n = 1; n <= NMAX; n++) d += (n === 1 ? "M" : "L") + X(n).toFixed(1) + " " + Y(s / Math.sqrt(n)).toFixed(1);
+    svg += `<path d="${d}" style="fill:none;stroke:var(--blue-600);stroke-width:2" />`;
+    pts.forEach((n, i) => {
+      const se = s / Math.sqrt(n), last = i === pts.length - 1;
+      svg += `<circle cx="${X(n)}" cy="${Y(se)}" r="${last ? 5 : 4}" style="fill:${last ? "var(--accent)" : "var(--blue-800)"}" />`;
+      const right = X(n) < W - 110;
+      svg += `<text x="${X(n) + (right ? 7 : -7)}" y="${Y(se) - 6}" text-anchor="${right ? "start" : "end"}" style="font-size:9.5px;fill:var(--ink-800);font-weight:700">n=${n}, SE=${SDL.num(se, 3)}</text>`;
+    });
+    plot.innerHTML = svg + `</svg>`;
+    const n = pts[pts.length - 1];
+    let h = pts.length ? `$n = ${n}$: $\\text{SE} = \\sigma/\\sqrt n = ${SDL.num(s, 4)}/\\sqrt{${n}} = ${SDL.num(s / Math.sqrt(n), 4)}$. Standard deviation hâlâ $${SDL.num(s, 4)}$.` : "Bir $n$ ekle.";
+    if (pts.length >= 2) {
+      const a = pts[pts.length - 2], r = n / a;
+      h += ` Bir önceki noktaya göre $n$ ${SDL.num(r, 3)} katına çıktı, SE $1/\\sqrt{${SDL.num(r, 3)}} = ${SDL.num(1 / Math.sqrt(r), 3)}$ katına ${r >= 1 ? "indi" : "çıktı"}.`;
+    }
+    out.innerHTML = h;
+    Lab.renderMath(out);
+  }
+  function addN(raw) {
+    const t = String(raw).trim();
+    if (!/^\d+$/.test(t)) { err.innerHTML = "$n$ pozitif bir tam sayı olmalı (sadece rakam)."; Lab.renderMath(err); return; }
+    const n = Number(t);
+    if (n < 1 || n > NMAX) { err.innerHTML = `$n$ 1 ile ${NMAX} arasında olmalı (grafik ${NMAX}'e kadar çiziliyor).`; Lab.renderMath(err); return; }
+    pts = pts.filter(x => x !== n);
+    pts.push(n);
+    if (pts.length > 6) pts.shift();
+    draw();
+  }
+  g("wsd-se-add").addEventListener("click", () => addN(nIn.value));
+  nIn.addEventListener("keydown", e => { if (e.key === "Enter") addN(nIn.value); });
+  sIn.addEventListener("change", draw);
+  sIn.addEventListener("keydown", e => { if (e.key === "Enter") draw(); });
+  g("wsd-se-clear").addEventListener("click", () => { pts = []; draw(); });
+  document.querySelectorAll("[data-wsd-sen]").forEach(b => b.addEventListener("click", () => { nIn.value = b.dataset.wsdSen; addN(b.dataset.wsdSen); }));
+  function solve() {
+    const S = sigma();
+    if (S.e) { err.innerHTML = S.e; Lab.renderMath(err); return; }
+    const t = tIn.value.trim();
+    if (!/^\d*\.?\d+$/.test(t) || Number(t) <= 0) { err.innerHTML = "Hedef SE pozitif bir sayı olmalı (örneğin 4)."; return; }
+    const se = Number(t);
+    if (se > S.s) { err.innerHTML = "Hedef SE, $\\sigma$'dan büyük olamaz: $n = 1$'de bile SE $= \\sigma$."; Lab.renderMath(err); return; }
+    const exact = (S.s / se) ** 2, n = Math.ceil(exact - 1e-9);
+    err.innerHTML = "";
+    if (n > NMAX) {
+      out.innerHTML = `$n = (\\sigma/\\text{SE})^2 = (${SDL.num(S.s, 4)}/${SDL.num(se, 4)})^2 = ${SDL.num(exact, 2)}$ ⇒ $n = ${n}$. Bu grafiğin dışında (en fazla ${NMAX}).`;
+      Lab.renderMath(out);
+      return;
+    }
+    nIn.value = n;
+    addN(String(n));
+    out.innerHTML = `$n = (\\sigma/\\text{SE})^2 = (${SDL.num(S.s, 4)}/${SDL.num(se, 4)})^2 = ${SDL.num(exact, 2)}$ ⇒ yukarı yuvarla: $n = ${n}$. ` + out.innerHTML;
+    Lab.renderMath(out);
+  }
+  g("wsd-se-solve").addEventListener("click", solve);
+  tIn.addEventListener("keydown", e => { if (e.key === "Enter") solve(); });
+  draw();
+})();
+
+/* 3. CLT simulator: 10,000 seeded sample means, histogram against N(mu, sigma^2/n) */
+(function () {
+  const g = id => document.getElementById(id);
+  const POPS = {
+    unif: { mu: 0.5, sd: Math.sqrt(1 / 12), skew: 0, lattice: 0, draw: r => r() },
+    expo: { mu: 1, sd: 1, skew: 2, lattice: 0, draw: r => -Math.log(1 - r()) },
+    die: { mu: 3.5, sd: Math.sqrt(35 / 12), skew: 0, lattice: 1, draw: r => 1 + Math.floor(6 * r()) },
+    bern: { mu: 0.1, sd: 0.3, skew: 0.8 / 0.3, lattice: 1, draw: r => (r() < 0.1 ? 1 : 0) }
+  };
+  const N = 10000;
+  const popSel = g("wsd-clt-pop"), nIn = g("wsd-clt-n"), nv = g("wsd-clt-nv"), plot = g("wsd-clt-plot"), out = g("wsd-clt-out"), seedv = g("wsd-clt-seedv");
+  let seed = 1;
+  function run() {
+    const P = POPS[popSel.value], n = Number(nIn.value);
+    nv.textContent = n;
+    seedv.textContent = `seed ${seed}`;
+    const rng = SDL.rng(seed * 100003 + n * 7 + popSel.selectedIndex);
+    const means = new Float64Array(N);
+    for (let i = 0; i < N; i++) { let s = 0; for (let j = 0; j < n; j++) s += P.draw(rng); means[i] = s / n; }
+    let m = 0; for (const x of means) m += x; m /= N;
+    let m2 = 0, m3 = 0, lo = Infinity, hi = -Infinity;
+    for (const x of means) { const d = x - m; m2 += d * d; m3 += d * d * d; if (x < lo) lo = x; if (x > hi) hi = x; }
+    const sdS = Math.sqrt(m2 / (N - 1)), skS = (m3 / N) / Math.pow(m2 / N, 1.5);
+    const se = P.sd / Math.sqrt(n);
+    /* bins: on lattice populations align bins with the attainable values k/n */
+    let bw, start;
+    if (P.lattice) {
+      const step = P.lattice / n;
+      bw = step * Math.max(1, Math.ceil((hi - lo) / 50 / step));
+      start = lo - step / 2;
+    } else {
+      bw = (hi - lo) / 50 || 1;
+      start = lo;
+    }
+    const nb = Math.max(1, Math.ceil((hi - start) / bw + 1e-9));
+    const cnt = new Array(nb).fill(0);
+    for (const x of means) cnt[Math.min(nb - 1, Math.floor((x - start) / bw + 1e-9))]++;
+    const dens = cnt.map(c => c / (N * bw));
+    const xa = Math.min(start, P.mu - 4 * se), xb = Math.max(start + nb * bw, P.mu + 4 * se);
+    const peak = SDL.pdf(0) / se;
+    const ymax = Math.max(...dens, Math.min(peak, 3 * Math.max(...dens))) * 1.08;
+    const W = 340, H = 190, L = 10, R = 10, T = 10, B = 28;
+    const X = x => L + (x - xa) / (xb - xa) * (W - L - R);
+    const Y = y => H - B - Math.min(y, ymax) / ymax * (H - B - T);
+    let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${N} sample mean'in histogram'ı ve normal eğri">`;
+    dens.forEach((d, i) => {
+      if (!d) return;
+      const x0 = X(start + i * bw), x1 = X(start + (i + 1) * bw);
+      svg += `<rect x="${x0.toFixed(1)}" y="${Y(d).toFixed(1)}" width="${Math.max(0.8, x1 - x0 - 0.4).toFixed(1)}" height="${(H - B - Y(d)).toFixed(1)}" style="fill:var(--blue-400)" />`;
+    });
+    let path = "";
+    for (let i = 0; i <= 200; i++) {
+      const x = xa + (xb - xa) * i / 200;
+      path += (i ? "L" : "M") + X(x).toFixed(1) + " " + Y(SDL.pdf((x - P.mu) / se) / se).toFixed(1);
+    }
+    svg += `<path d="${path}" style="fill:none;stroke:var(--accent);stroke-width:2" />`;
+    svg += `<line x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}" style="stroke:var(--stone-300)" />`;
+    [xa, P.mu, xb].forEach((v, i) => { svg += `<text x="${X(v)}" y="${H - B + 13}" text-anchor="${i === 0 ? "start" : i === 2 ? "end" : "middle"}" style="font-size:10px;fill:var(--ink-600)">${SDL.num(v, 3)}</text>`; });
+    svg += `<line x1="${X(P.mu)}" y1="${T}" x2="${X(P.mu)}" y2="${H - B}" style="stroke:var(--ink-500)" stroke-dasharray="3 3" />`;
+    svg += `<text x="${W - R}" y="${T + 10}" text-anchor="end" style="font-size:10px;fill:var(--ink-700);font-weight:700">n = ${n}</text>`;
+    plot.innerHTML = svg + `</svg>`;
+    const skT = P.skew / Math.sqrt(n);
+    out.innerHTML = `<div class="table-wrap"><table>
+      <tr><th></th><th>Simülasyon (${N} mean)</th><th>Teori</th></tr>
+      <tr><td>Mean'lerin ortalaması</td><td>${SDL.num(m, 4)}</td><td>$\\mu = ${SDL.num(P.mu, 4)}$</td></tr>
+      <tr><td>Mean'lerin SD'si</td><td>${SDL.num(sdS, 4)}</td><td>$\\sigma/\\sqrt n = ${SDL.num(se, 4)}$</td></tr>
+      <tr><td>Skewness</td><td>${SDL.num(skS, 3)}</td><td>$\\gamma/\\sqrt n = ${SDL.num(skT, 3)}$</td></tr>
+    </table></div>` + (n === 1 ? `<p class="src">$n = 1$: her "mean" tek bir gözlem, yani bu histogram population'ın kendisi.</p>` : "");
+    Lab.renderMath(out);
+  }
+  nIn.addEventListener("input", () => { nv.textContent = nIn.value; });
+  nIn.addEventListener("change", run);
+  popSel.addEventListener("change", run);
+  g("wsd-clt-go").addEventListener("click", run);
+  g("wsd-clt-seed").addEventListener("click", () => { seed++; run(); });
+  document.querySelectorAll("[data-wsd-cltn]").forEach(b => b.addEventListener("click", () => { nIn.value = b.dataset.wsdCltn; run(); }));
+  run();
+})();
+
+/* 4. p-hat checker: exact binomial(n, p)/n bars against the normal approximation */
+(function () {
+  const g = id => document.getElementById(id);
+  const nIn = g("wsd-p-n"), pIn = g("wsd-p-p"), cIn = g("wsd-p-c"), err = g("wsd-p-err"), plot = g("wsd-p-plot"), out = g("wsd-p-out");
+  function read() {
+    const nt = nIn.value.trim(), pt = pIn.value.trim(), ct = cIn.value.trim();
+    if (!/^\d+$/.test(nt)) return { e: "$n$ pozitif bir tam sayı olmalı (sadece rakam)." };
+    const n = Number(nt);
+    if (n < 1 || n > 5000) return { e: "$n$ 1 ile 5000 arasında olmalı." };
+    if (!/^0?\.\d+$/.test(pt)) return { e: "$p$ 0 ile 1 arasında bir ondalık olmalı (örneğin 0.05)." };
+    const p = Number(pt);
+    if (!(p > 0 && p < 1)) return { e: "$p$ 0 ile 1 arasında olmalı (uçlar hariç)." };
+    let c = null;
+    if (ct !== "") {
+      if (!/^0?\.\d+$|^0$|^1$/.test(ct)) return { e: "$c$ 0 ile 1 arasında bir proportion olmalı (örneğin 0.07) ya da boş bırak." };
+      c = Number(ct);
+    }
+    return { n, p, c };
+  }
+  function draw() {
+    const I = read();
+    if (I.e) { err.innerHTML = I.e; Lab.renderMath(err); return; }
+    err.innerHTML = "";
+    const { n, p, c } = I, se = Math.sqrt(p * (1 - p) / n);
+    const pm = [];
+    for (let k = 0; k <= n; k++) pm.push(SDL.binom(n, k, p));
+    let kLo = 0, kHi = n;
+    while (kLo < n && pm[kLo] < 1e-5) kLo++;
+    while (kHi > 0 && pm[kHi] < 1e-5) kHi--;
+    const xa = Math.min(kLo / n, p - 4 * se) - 0.5 / n, xb = Math.max(kHi / n, p + 4 * se) + 0.5 / n;
+    const W = 340, H = 190, L = 10, R = 10, T = 10, B = 28;
+    const X = x => L + (x - xa) / (xb - xa) * (W - L - R);
+    const curveAt = x => SDL.pdf((x - p) / se) / se / n;
+    const ymax = Math.max(Math.max(...pm.slice(kLo, kHi + 1)), curveAt(p)) * 1.08;
+    const Y = y => H - B - y / ymax * (H - B - T);
+    let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="p hat'ın tam dağılımı ve normal yaklaşım">`;
+    if (xa < 0) svg += `<rect x="${X(xa)}" y="${T}" width="${X(0) - X(xa)}" height="${H - B - T}" style="fill:var(--orange-100)" />`;
+    const bw = Math.max(0.8, (X(1 / n) - X(0)) * 0.8);
+    for (let k = kLo; k <= kHi; k++) {
+      const x = X(k / n);
+      svg += `<rect x="${(x - bw / 2).toFixed(1)}" y="${Y(pm[k]).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - B - Y(pm[k])).toFixed(1)}" style="fill:${k === 0 ? "var(--accent)" : "var(--blue-400)"}" />`;
+    }
+    let path = "";
+    for (let i = 0; i <= 200; i++) { const x = xa + (xb - xa) * i / 200; path += (i ? "L" : "M") + X(x).toFixed(1) + " " + Y(curveAt(x)).toFixed(1); }
+    svg += `<path d="${path}" style="fill:none;stroke:var(--accent);stroke-width:2" />`;
+    svg += `<line x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}" style="stroke:var(--stone-300)" />`;
+    if (xa < 0) svg += `<line x1="${X(0)}" y1="${T}" x2="${X(0)}" y2="${H - B}" style="stroke:var(--ink-500)" /><text x="${X(0) - 3}" y="${T + 10}" text-anchor="end" style="font-size:9.5px;fill:var(--orange-700)">p̂ &lt; 0</text>`;
+    [xa + 0.5 / n, p, xb - 0.5 / n].forEach((v, i) => { svg += `<text x="${X(v)}" y="${H - B + 13}" text-anchor="${i === 0 ? "start" : i === 2 ? "end" : "middle"}" style="font-size:10px;fill:var(--ink-600)">${SDL.num(v, 3)}</text>`; });
+    if (c !== null && c > xa && c < xb) svg += `<line x1="${X(c)}" y1="${T}" x2="${X(c)}" y2="${H - B}" style="stroke:var(--ink-800);stroke-width:1.5" stroke-dasharray="4 3" /><text x="${X(c) + 3}" y="${T + 10}" style="font-size:9.5px;fill:var(--ink-800)">c</text>`;
+    plot.innerHTML = svg + `</svg>`;
+    const np = n * p, nq = n * (1 - p), ok = np >= 15 && nq >= 15;
+    let h = `<p>$E(\\hat p) = ${SDL.num(p, 4)}$, $\\text{SE} = \\sqrt{${SDL.num(p, 4)}(1 - ${SDL.num(p, 4)})/${n}} = ${SDL.num(se, 4)}$.</p>`;
+    h += `<p>Şart: $np = ${SDL.num(np, 2)}$, $n(1 - p) = ${SDL.num(nq, 2)}$ ⇒ ` + (ok ? `<span class="w-sampling-distributions-ok">ikisi de ≥ 15, normal yaklaşım uygun.</span>` : `<span class="w-sampling-distributions-bad">en az biri 15'in altında, normal yaklaşıma güvenme.</span>`) + `</p>`;
+    h += `<p>$P(\\hat p = 0) = (1 - p)^n = ${SDL.prob(Math.pow(1 - p, n))}$ (turuncu çubuk) · Normal eğrinin 0'ın altındaki alanı: $\\Phi(-p/\\text{SE}) = ${SDL.prob(SDL.Phi(-p / se))}$.</p>`;
+    if (c !== null) {
+      let ex = 0;
+      for (let k = 0; k <= n; k++) if (k / n > c + 1e-12) ex += pm[k];
+      const z = (c - p) / se;
+      h += `<p>$P(\\hat p &gt; ${SDL.num(c, 4)})$: tam (binomial) $${SDL.prob(ex)}$ · normal yaklaşım $z = ${SDL.num(z, 2)}$, $1 - \\Phi(z) = ${SDL.prob(1 - SDL.Phi(z))}$.</p>`;
+    }
+    out.innerHTML = h;
+    Lab.renderMath(out);
+  }
+  g("wsd-p-go").addEventListener("click", draw);
+  [nIn, pIn, cIn].forEach(inp => inp.addEventListener("keydown", e => { if (e.key === "Enter") draw(); }));
+  document.querySelectorAll("[data-wsd-p]").forEach(b => b.addEventListener("click", () => {
+    const [n, p, c] = b.dataset.wsdP.split("|");
+    nIn.value = n; pIn.value = p; cIn.value = c;
+    draw();
+  }));
+  draw();
+})();
+
+/* 5. Bootstrap stepper: one resample per frame, its median into a growing histogram */
+(function () {
+  const DATA = [31, 34, 36, 38, 41, 43, 45, 48, 52, 57, 66, 94];
+  const n = DATA.length, FR = 20, BIG = 10000;
+  const box = document.getElementById("wsd-bs-stepper"), seedv = document.getElementById("wsd-bs-seedv");
+  const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const median = a => { const s = a.slice().sort((x, y) => x - y), m = s.length / 2; return s.length % 2 ? s[(s.length - 1) / 2] : (s[m - 1] + s[m]) / 2; };
+  const sd1 = a => { const m = mean(a); return Math.sqrt(a.reduce((t, x) => t + (x - m) ** 2, 0) / (a.length - 1)); };
+  const sFormula = sd1(DATA) / Math.sqrt(n);
+  let seed = 35;
+  function build() {
+    seedv.textContent = `seed ${seed}`;
+    const rng = SDL.rng(seed);
+    const draws = [];
+    for (let b = 0; b < BIG; b++) {
+      const idx = [];
+      for (let j = 0; j < n; j++) idx.push(Math.floor(rng() * n));
+      const xs = idx.map(i => DATA[i]);
+      draws.push({ idx, med: median(xs), mean: mean(xs) });
+    }
+    const allMed = draws.map(d => d.med), allMean = draws.map(d => d.mean);
+    const seMed = sd1(allMed), seMean = sd1(allMean);
+    const lo = DATA[0], hi = DATA[n - 1], NB = 24, bw = (hi - lo) / NB;
+    const hist = arr => { const h = new Array(NB).fill(0); arr.forEach(v => h[Math.min(NB - 1, Math.floor((v - lo) / bw))]++); return h; };
+    const frames = [];
+    for (let f = 0; f < FR; f++) {
+      const d = draws[f], mult = new Array(n).fill(0);
+      d.idx.forEach(i => mult[i]++);
+      const off = mult.filter(m => m === 0).length;
+      frames.push({ f, mult, d, hist: hist(allMed.slice(0, f + 1)), count: f + 1,
+        caption: `Resample ${f + 1}: ${off} değer hiç seçilmedi, ${mult.filter(m => m > 1).length} değer birden çok seçildi. Median $= ${SDL.num(d.med, 2)}$, mean $= ${SDL.num(d.mean, 2)}$.` });
+    }
+    frames.push({ f: -1, final: true, hist: hist(allMed), count: BIG,
+      caption: `${BIG} resample: $\\text{SE}_{\\text{boot}}(\\text{median}) = ${SDL.num(seMed, 2)}$ ms, $\\text{SE}_{\\text{boot}}(\\text{mean}) = ${SDL.num(seMean, 2)}$ ms. Formül: $s/\\sqrt n = ${SDL.num(sd1(DATA), 2)}/\\sqrt{12} = ${SDL.num(sFormula, 2)}$ ms. Mean için bootstrap formüle yakın (biraz küçük, çünkü sample'ı population sayıp $n$'ye bölüyor). Median için formül yok; bootstrap yine de bir SE veriyor.` });
+    Lab.stepper(box, {
+      title: "12 latency, with replacement resample",
+      interval: 1100,
+      frames,
+      render(fr, i, el) {
+        let h = `<div class="w-sampling-distributions-boxes" aria-label="orijinal sample">`;
+        DATA.forEach((v, j) => {
+          const m = fr.final ? 1 : fr.mult[j];
+          h += `<div class="w-sampling-distributions-box${m === 0 ? " is-off" : ""}">${v}${!fr.final && m > 1 ? `<em>×${m}</em>` : ""}</div>`;
+        });
+        h += `</div>`;
+        if (!fr.final) h += `<div class="src">Resample (sıralı): ${fr.d.idx.map(k => DATA[k]).sort((a, b) => a - b).join(", ")}</div>`;
+        const W = 340, H = 130, L = 10, R = 10, T = 8, B = 24, mx = Math.max(...fr.hist);
+        const X = v => L + (v - lo) / (hi - lo) * (W - L - R);
+        let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="bootstrap median'larının histogram'ı">`;
+        fr.hist.forEach((c, b) => {
+          if (!c) return;
+          const hh = c / mx * (H - B - T);
+          svg += `<rect x="${X(lo + b * bw).toFixed(1)}" y="${(H - B - hh).toFixed(1)}" width="${(X(lo + bw) - X(lo) - 1).toFixed(1)}" height="${hh.toFixed(1)}" style="fill:var(--blue-400)" />`;
+        });
+        if (!fr.final) svg += `<line x1="${X(fr.d.med)}" y1="${T}" x2="${X(fr.d.med)}" y2="${H - B}" style="stroke:var(--accent);stroke-width:2" />`;
+        svg += `<line x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}" style="stroke:var(--stone-300)" />`;
+        [lo, median(DATA), hi].forEach((v, k) => { svg += `<text x="${X(v)}" y="${H - B + 13}" text-anchor="${k === 0 ? "start" : k === 2 ? "end" : "middle"}" style="font-size:10px;fill:var(--ink-600)">${v}</text>`; });
+        svg += `<text x="${W - R}" y="${T + 10}" text-anchor="end" style="font-size:10px;fill:var(--ink-700);font-weight:700">${fr.count} median</text>`;
+        el.innerHTML = h + `<div class="w-sampling-distributions-plot">${svg}</svg></div>`;
+      }
+    });
+  }
+  document.getElementById("wsd-bs-seed").addEventListener("click", () => { seed++; build(); });
+  build();
+})();
+</script>
+</body>
+</html>

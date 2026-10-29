@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 321: Type II error olasılığı β'yı üç adımda hesaplamak, power = 1 − β, power curve, power'ı değiştiren dört şey, lower ve two-tailed test için β, sample size formülü ve simulation ile planlama." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Type II error, power ve sample size · CSE 321 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=8" />
+  <style>
+    .w-power-and-sample-size-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-power-and-sample-size-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-power-and-sample-size-ctl label { display: inline-flex; align-items: center; gap: 4px; font-size: .92rem; white-space: nowrap; }
+    .w-power-and-sample-size-ctl input[type="text"] { width: 74px; }
+    .w-power-and-sample-size-ctl select { max-width: 100%; }
+    .w-power-and-sample-size-range { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    .w-power-and-sample-size-range input[type="range"] { flex: 1; min-width: 0; accent-color: var(--blue-600); }
+    .w-power-and-sample-size-range span { font-family: 'JetBrains Mono', monospace; font-size: .85rem; white-space: nowrap; }
+    .w-power-and-sample-size-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-power-and-sample-size-plot { width: 100%; overflow: hidden; }
+    .w-power-and-sample-size-plot svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
+    .w-power-and-sample-size-handle { cursor: ew-resize; touch-action: none; }
+    .w-power-and-sample-size-nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; margin: 8px 0; }
+    .w-power-and-sample-size-nums div { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; background: var(--paper); font-size: .88rem; }
+    .w-power-and-sample-size-nums b { display: block; font-family: 'JetBrains Mono', monospace; font-size: 1rem; }
+    .w-power-and-sample-size-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: .85rem; margin: 4px 0; }
+    .w-power-and-sample-size-legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 4px; border-radius: 2px; }
+    .w-power-and-sample-size-out { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 12px; background: var(--paper); margin: 8px 0; overflow-x: auto; }
+    .w-power-and-sample-size-hide { color: var(--fg-faint); }
+    .w-power-and-sample-size-bar { height: 10px; background: var(--stone-200); border-radius: 4px; overflow: hidden; min-width: 60px; }
+    .w-power-and-sample-size-bar > div { height: 100%; background: var(--blue-600); transition: width .3s; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 321</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 321</a> / Type II error, power ve sample size</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W4 · slayt 15–21</span><span class="chip chip--exam">Soru bankası 1 · S22–S23</span><span class="src">~55 dk · 11 bölüm</span></div>
+          <h1>Type II error, power ve sample size planlama</h1>
+          <p class="lead">Bir test $H_0$ doğruyken yanlış alarm verme olasılığını ($\alpha$) bizim seçtiğimiz değerde tutar. Ama gerçek bir fark varken onu kaçırma olasılığı ($\beta$) kendiliğinden küçük olmaz. Bu derste $\beta$'yı üç adımda hesaplamayı, <strong>power</strong>'ın neye bağlı olduğunu ve veriyi toplamadan önce kaç gözlem gerektiğini bulmayı göreceksin.</p>
+          <!-- Kaynak: resources/2026-2027-fall/04-hypothesis-testing-ii.pdf slayt 15–21 ve 28 (slayt 16–20 görüntü olarak okundu) · 03-hypothesis-testing-i.pdf slayt 11–12 · McClave & Sincich 13e §8.7 (PDF s.438–447) · Walpole 9e §10.6 (PDF s.370–374) · question-bank-1-weeks-01-04.pdf S14, S22, S23 (çözüm sayfaları görüntü olarak okundu) · exams/practice/COMPREHENSIVE EXAM PRACTICE.pdf S22. Bütün sayılar python3 -I (statistics.NormalDist) ile kontrol edildi. -->
+        </header>
+
+        <article class="lesson" data-course="cse-321" data-lesson="power-and-sample-size">
+
+<!-- 1 -->
+<section class="lsec" id="before-data" data-min="4">
+  <h2>Veriden önce sorulan soru</h2>
+  <div class="quiz" id="q-before-1">
+    <p class="quiz__q">$H_0: \mu = 60$, $H_a: \mu &gt; 60$. Gerçekte $\mu = 62.5$ ms ve test "fail to reject $H_0$" diyor. Bu hangisi?</p>
+    <button class="quiz__opt" data-correct>Type II error<span class="why">Doğru. $H_0$ yanlış (gerçek mean 62.5) ama test onu reddetmedi. Bunun olasılığına $\beta$ denir.</span></button>
+    <button class="quiz__opt">Type I error<span class="why">Type I error, $H_0$ doğruyken onu reddetmektir. Burada $H_0$ yanlış ve reddedilmedi. İki hatanın tanımını karıştırma: Type I "yanlış alarm", Type II "kaçırılan fark".</span></button>
+    <button class="quiz__opt">Correct decision, çünkü test $H_0$'ı kabul etti<span class="why">Test $H_0$'ı kabul etmez, sadece reddedemez. Üstelik gerçek mean 60 değil; reddedememek burada bir hata.</span></button>
+    <button class="quiz__opt">Olasılığı $1 - \alpha = 0.95$ olan bir olay<span class="why">$1 - \alpha$, $H_0$ doğruyken doğru karar verme olasılığıdır. $H_0$ yanlışken fail to reject olasılığı $\beta$'dır ve gerçek $\mu$'ye bağlıdır.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · 60 ms sözü</span>
+    <p>Week 3'teki örnek: bir provider ortalama response time'ın 60 ms olduğunu söylüyor. Biz daha yavaş olduğundan şüpheleniyoruz: $H_0: \mu = 60$, $H_a: \mu &gt; 60$. 120 request ölçülecek, $\sigma \approx 10.9$ ms, yani $SE = 10.9/\sqrt{120} \approx 1.0$ ms. $\alpha = 0.05$.</p>
+    <p>$\alpha$'yı biz seçeriz: $H_0$ doğruysa yanlış alarm olasılığı 0.05 olur. Ama veriyi toplamadan önce bir soru daha sorulmalı: <strong>gerçek mean 62.5 ms ise bu çalışma bunu fark eder mi?</strong> 2.5 ms'lik gerçek bir fark varken test onu çoğu zaman kaçırıyorsa, 120 request'i boşuna ölçmüş oluruz.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki hata, bir doğru karar</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>$H_0$ doğru</th><th>$H_0$ yanlış ($\mu = \mu_a$)</th></tr>
+      <tr><td>Reject $H_0$</td><td>Type I error, olasılığı $\alpha$</td><td>Correct decision, olasılığı <strong>power</strong> $= 1 - \beta$</td></tr>
+      <tr><td>Fail to reject $H_0$</td><td>Correct decision, olasılığı $1 - \alpha$</td><td>Type II error, olasılığı $\beta$</td></tr>
+    </table></div>
+    <ul>
+      <li>$\alpha = P(\text{reject } H_0 \mid H_0 \text{ doğru})$. Veriden önce biz seçeriz.</li>
+      <li>$\beta = P(\text{fail to reject } H_0 \mid \mu = \mu_a)$. $H_a$'daki <strong>belirli bir</strong> $\mu_a$ için hesaplanır. $H_a: \mu &gt; 60$ sonsuz sayıda değer içerir, bu yüzden her $\mu_a$'nın kendi $\beta$'sı vardır.</li>
+      <li>$\beta$, gerçek mean'in $H_0$'dan ne kadar uzakta olduğuna bağlıdır. Week 3 bunu söylemişti; bu hafta hesaplıyoruz.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: 03-hypothesis-testing-i.pdf slayt 11 (Two Ways to Be Wrong: "α is chosen before the data are seen. β depends on how far the truth lies from H₀; Week 4 computes it.") · McClave §8.7 giriş ("one value of β exists for each possible value of μ"). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$\beta \ne 1 - \alpha$. İkisi farklı dünyalarda tanımlı: $\alpha$, $H_0$ doğruyken; $\beta$, $H_0$ yanlışken.</li>
+      <li>$H_0$ her zaman eşitlik içerir ($\mu = 60$). $\beta$'yı hesaplarken $H_0$'ı değiştirmiyoruz. $H_a$'dan bir $\mu_a$ seçip "gerçek bu olsaydı test ne yapardı?" diye soruyoruz.</li>
+      <li>McClave reddedilmeyen bölgeye "acceptance region" der. Sınavda yine "fail to reject $H_0$" yaz; test $H_0$'ı kanıtlamaz.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="stt315-comp-Q22"><span class="box__label">STT315 kapsamlı pratik seti S22 · pratik set sorusu</span>
+    <p>"Consider testing $H_0: p = 0.20$ vs $H_1: p \ne 0.20$. Suppose that the population proportion $p$ is 0.25 and the random sample leads to the decision to Reject $H_0$. Then a</p>
+    <p>(a) type I error has been made (b) type II error has been made (c) correct decision has been made"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce gerçeği yaz: $p = 0.25$. Bu durumda $H_0: p = 0.20$ doğru mu, yanlış mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Tablodaki hangi hücredesin? Satır: test ne dedi. Sütun: $H_0$ doğru mu.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Gerçek:</strong> $p = 0.25 \ne 0.20$, yani $H_0$ yanlış.</li>
+        <li><strong>Karar:</strong> reject $H_0$.</li>
+        <li>$H_0$ yanlışken onu reddetmek doğru karardır ⇒ <strong>(c)</strong>. Type I error için $H_0$'ın doğru olması, Type II error için de testin reddetmemesi gerekirdi.</li>
+      </ol>
+      <p>Bu doğru kararın olasılığı, $p_a = 0.25$'teki <strong>power</strong>'dır. Cevap anahtarı da (c) diyor.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/exams/practice/COMPREHENSIVE%20EXAM%20PRACTICE.pdf" target="_blank" rel="noopener">Orijinal soru (PDF)</a></p>
+    <!-- Kaynak: exams/practice/COMPREHENSIVE EXAM PRACTICE.pdf (MSU STT315 Fall 2002 kapsamlı pratik), S22. Anahtar: 22(c). Bu hocanın sınavı değil. -->
+  </div>
+  <div class="quiz" id="q-before-2">
+    <p class="quiz__q">60 ms çalışmasında $\beta$ hangisine <strong>bağlı değildir</strong>?</p>
+    <button class="quiz__opt">Gerçek mean $\mu_a$<span class="why">$\beta$ tam olarak gerçek mean'e bağlıdır: $\mu_a$, $H_0$'dan uzaklaştıkça $\beta$ küçülür.</span></button>
+    <button class="quiz__opt">Sample size $n$<span class="why">$n$, $SE = \sigma/\sqrt n$ üzerinden $\beta$'yı değiştirir. Daha çok veri, daha küçük $\beta$.</span></button>
+    <button class="quiz__opt" data-correct>Gözlenen sample mean $\bar x$<span class="why">Doğru. $\beta$ veriden önce, tasarım üzerinden hesaplanır: $\mu_0$, $\mu_a$, $\sigma$, $n$, $\alpha$ ve tail. Gözlenen $\bar x$ sadece o tek testin kararını verir.</span></button>
+    <button class="quiz__opt">Significance level $\alpha$<span class="why">$\alpha$ cut-off'u belirler; cut-off kayınca $\beta$ da değişir. $\alpha$ küçülürse $\beta$ büyür.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="beta-steps" data-min="6">
+  <h2>β'yı adım adım hesaplamak</h2>
+  <div class="quiz" id="q-steps-1">
+    <p class="quiz__q">Upper-tailed bir test için cut-off $\bar x^*$ bulundu. $\beta$, hangi eğrinin hangi tarafındaki alandır?</p>
+    <button class="quiz__opt" data-correct>Gerçek mean $\mu_a$ etrafındaki eğrinin, cut-off'un solundaki alanı<span class="why">Doğru. Gerçek dünya $\mu = \mu_a$; test $\bar x &lt; \bar x^*$ olunca reddetmez. Bu olayın olasılığı $\beta$.</span></button>
+    <button class="quiz__opt">$H_0$ eğrisinin, cut-off'un sağındaki alanı<span class="why">Bu $\alpha$: $H_0$ doğruyken reddetme olasılığı. $\beta$ başka bir dünyada, $\mu_a$'da hesaplanır.</span></button>
+    <button class="quiz__opt">$\mu_a$ eğrisinin, cut-off'un sağındaki alanı<span class="why">Bu power $= 1 - \beta$: gerçek fark varken reddetme olasılığı.</span></button>
+    <button class="quiz__opt">$H_0$ eğrisinin, cut-off'un solundaki alanı<span class="why">Bu $1 - \alpha$. $\beta$'nın $H_0$ eğrisiyle ilgisi yok; $H_0$ eğrisi sadece cut-off'u bulmak için kullanılır.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · iki dünya, tek cut-off</span>
+    <p>$\bar x$'in sampling distribution'ını iki kez çiz. Birincisi $H_0$'ın dünyası: merkez 60. İkincisi gerçek dünya: merkez 62.5. İki eğrinin genişliği aynıdır, çünkü ikisinde de $SE = \sigma/\sqrt n$.</p>
+    <p>Test sadece $H_0$'ın dünyasına bakarak bir cut-off koyar: $\bar x$ bu değeri geçerse reddeder. Cut-off'un sağında $H_0$ eğrisinin altında kalan alan $\alpha$'dır. Aynı cut-off'un solunda <strong>gerçek</strong> eğrinin altında kalan alan $\beta$'dır: gerçek mean 62.5 iken $\bar x$'in yine de cut-off'un altında kalma olasılığı.</p>
+  </div>
+  <h3>Kendin dene: iki eğri ve $\beta$</h3>
+  <p>Eğriler ve alanlar seçtiğin değerlerden hesaplanıyor. Gerçek mean'i slider'la ya da eksendeki turuncu tutamağı sürükleyerek değiştir. ▶ ile slayt 16'daki üç adımı aynı sayılarla oynat.</p>
+  <p class="w-power-and-sample-size-guess"><b>Önce tahmin et:</b> $\mu_a = 62.5$ iken $\beta$ yaklaşık kaçtır: 0.05 mi, 0.20 mi, 0.50 mi? Sonra gerçek mean'i 61'e çek: $\beta$ büyür mü, küçülür mü?</p>
+  <div class="w-power-and-sample-size-ctl">
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wa="s16">Slayt 16</button>
+    <button class="btn btn--sm" data-wa="q22">QB1 S22</button>
+    <button class="btn btn--sm" data-wa="pipe">McClave pipe</button>
+    <button class="btn btn--sm" data-wa="low">8.99 (lower)</button>
+    <button class="btn btn--sm" data-wa="two">Örnek 8.12 (two-tailed)</button>
+  </div>
+  <div class="w-power-and-sample-size-ctl">
+    <label>$\mu_0$ <input id="wa-mu0" type="text" inputmode="decimal" value="60" class="btn btn--sm" /></label>
+    <label>$\mu_a$ <input id="wa-mua" type="text" inputmode="decimal" value="62.5" class="btn btn--sm" /></label>
+    <label>$\sigma$ <input id="wa-sig" type="text" inputmode="decimal" value="10.9" class="btn btn--sm" /></label>
+    <label>$n$ <input id="wa-n" type="text" inputmode="numeric" value="120" class="btn btn--sm" /></label>
+    <label>$\alpha$ <input id="wa-al" type="text" inputmode="decimal" value="0.05" class="btn btn--sm" /></label>
+    <label>$H_a$ <select id="wa-tail" class="btn btn--sm"><option value="upper">upper (&gt;)</option><option value="lower">lower (&lt;)</option><option value="two">two (≠)</option></select></label>
+  </div>
+  <div class="w-power-and-sample-size-range"><span>$\mu_a$</span><input id="wa-range" type="range" min="54" max="66" step="0.05" value="62.5" aria-label="Gerçek mean" /><span id="wa-range-v">62.5</span></div>
+  <div class="w-power-and-sample-size-err" id="wa-err" aria-live="polite"></div>
+  <div id="wa-stepper"></div>
+  <div class="w-power-and-sample-size-nums" id="wa-nums"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · upper-tailed z test için $\beta$ (slayt 16)</span>
+    <ol>
+      <li><strong>$H_0$'ın dünyasında cut-off:</strong> $\bar x^* = \mu_0 + z_\alpha \cdot SE$. Slayt: $\bar x^* = 60 + 1.645 \times 1.0 = 61.645$. $\bar x$ bunu geçerse $H_0$ reddedilir.</li>
+      <li><strong>Cut-off'u gerçek mean'den ölç:</strong> $z = \dfrac{\bar x^* - \mu_a}{SE}$. Slayt: $z = \dfrac{61.645 - 62.5}{1.0} = -0.855$.</li>
+      <li><strong>$\beta$ = soldaki alan:</strong> $\beta = P(Z &lt; z)$. Slayt: $\beta = P(Z &lt; -0.855) = 0.196 \approx 0.20$, power $= 1 - \beta \approx 0.80$.</li>
+    </ol>
+    <p>Slaytın yorumu: gerçek bir 2.5 ms fazlalık yaklaşık beşte bir kaçırılır. "Power = 1 − β: the probability that the test detects an effect of a given size."</p>
+  </div>
+  <!-- Kaynak: 04-hypothesis-testing-ii.pdf slayt 16 (Computing β, Step by Step; görüntüden okundu) · 03-hypothesis-testing-i.pdf slayt 12 (The Trade-Off: iki eğri, cut-off 61.6, β ≈ 0.20, α = 0.05) · McClave §8.7 "Steps for Calculating β". -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>2. adımda $\mu_0$ ile standardize edersen $z_\alpha$'yı geri bulursun ($z = 1.645$). Bu adımın amacı cut-off'u <strong>gerçek</strong> mean'den ölçmek: pay $\bar x^* - \mu_a$, payda $SE$.</li>
+      <li>Upper-tailed test'te $\beta$ soldaki alandır, çünkü reddetmeme bölgesi cut-off'un solu. $P(Z &gt; z)$ alırsan power'ı bulursun.</li>
+      <li>Upper-tailed test'te $z_\alpha = 1.645$, $z_{\alpha/2} = 1.96$ değil. Tail sayısını $H_a$ belirler.</li>
+      <li>Slayt $SE = 10.9/\sqrt{120} = 0.995$'i 1.0'a yuvarlayıp $\beta = 0.196$ buluyor. Yuvarlamadan $\beta = 0.193$ çıkar. İkisi de doğru; hangisini kullandığını yaz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-steps-2">
+    <p class="quiz__q">Bir öğrenci 2. adımda $z = (61.645 - 60)/1.0 = 1.645$ buldu ve $\beta = P(Z &lt; 1.645) = 0.95$ yazdı. Hata nerede?</p>
+    <button class="quiz__opt" data-correct>Cut-off'u $\mu_0$'dan ölçmüş; $\mu_a = 62.5$'ten ölçmeliydi<span class="why">Doğru. $H_0$ eğrisi sadece cut-off'u verir. $\beta$ gerçek dünyada hesaplanır: $z = (61.645 - 62.5)/1.0 = -0.855$.</span></button>
+    <button class="quiz__opt">Hata yok; $\beta = 1 - \alpha = 0.95$ zaten doğru<span class="why">$\beta$ ile $1 - \alpha$ farklı olasılıklardır. 0.95, $H_0$ doğruyken reddetmeme olasılığı. Soru $\mu = 62.5$ iken reddetmeme olasılığını soruyor.</span></button>
+    <button class="quiz__opt">$z_\alpha$ yerine $z_{\alpha/2} = 1.96$ kullanmalıydı<span class="why">Test upper-tailed, yani $z_\alpha = 1.645$ doğru. Asıl hata, standardize ederken yanlış mean'i kullanmak.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="more-beta" data-min="5">
+  <h2>Aynı tarif, başka sayılar</h2>
+  <div class="quiz" id="q-more-1">
+    <p class="quiz__q">QB1 S22: $\sigma = 12$, $n = 36$. $SE$ kaçtır?</p>
+    <button class="quiz__opt" data-correct>2<span class="why">Doğru: $SE = \sigma/\sqrt n = 12/6 = 2$.</span></button>
+    <button class="quiz__opt">0.33<span class="why">Bu $\sigma/n = 12/36$. Standard error $\sqrt n$'ye bölünür, $n$'ye değil.</span></button>
+    <button class="quiz__opt">12<span class="why">Bu tek bir gözlemin standard deviation'ı. $\bar x$, 36 gözlemin ortalaması olduğu için çok daha az dağılır.</span></button>
+    <button class="quiz__opt">4<span class="why">$\sigma^2/n = 144/36 = 4$, $\bar x$'in variance'ıdır. $SE$ onun karekökü: 2. Variance ile standard deviation'ı karıştırma.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="2026-27-QB1-Q22"><span class="box__label">Soru bankası 1 · S22 · soru bankası sorusu</span>
+    <p>"A z test of $H_0: \mu = 50$ against $H_a: \mu &gt; 50$ uses $\sigma = 12$, $n = 36$ and $\alpha = 0.05$. Suppose the true mean is 54.</p>
+    <p>(a) Find the cut-off for $\bar x$ above which $H_0$ is rejected. (b) Find $\beta$. (c) Find the power and interpret it."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce $SE$. Sonra $H_0$'ın dünyasında $50 + z_\alpha \cdot SE$. Upper-tailed, $\alpha = 0.05$ ⇒ $z_\alpha = 1.645$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Cut-off'u 54'ten ölç. Tabloda $-0.355$ yok: $-0.35$ ve $-0.36$'nın alanlarının ortasını al (0.3632 ve 0.3594).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0: \mu = 50$, $H_a: \mu &gt; 50$ (upper-tailed).</li>
+        <li><strong>Test statistic:</strong> $z = \dfrac{\bar x - 50}{\sigma/\sqrt n}$, $SE = 12/\sqrt{36} = 2$.</li>
+        <li><strong>Rejection region:</strong> $z &gt; 1.645$ ⇔ $\bar x &gt; \bar x^* = 50 + 1.645 \times 2 = \boxed{53.29}$. (a)</li>
+        <li><strong>$\beta$:</strong> gerçek mean 54. $z = \dfrac{53.29 - 54}{2} = -0.355$. $\beta = P(Z &lt; -0.355) \approx \dfrac{0.3632 + 0.3594}{2} = \boxed{0.361}$. (b)</li>
+        <li><strong>Power:</strong> $1 - 0.361 = \boxed{0.639}$. (c) <strong>Yorum:</strong> gerçek mean 54 ise bu test (36 gözlem, $\alpha = 0.05$) farkı yaklaşık %64 oranında yakalar, %36 oranında kaçırır.</li>
+      </ol>
+      <p>Hocanın çözümü de 53.29, 0.361 ve 0.639 veriyor.</p>
+    </div></details>
+    <!-- Kaynak: resources/2026-2027-fall/examples/question-bank-1-weeks-01-04.pdf s.49 (soru) ve s.50 (çözüm, görüntüden okundu). Tablo değerleri s.57. python: β = 0.3613. Dosya origin/main'de yok, link verilmedi. -->
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · McClave sewer pipe ($\beta$ her $\mu_a$ için ayrı)</span>
+    <p>Şehir, boruların ortalama dayanımının 2,400'ü aştığını görmek istiyor: $H_0: \mu = 2400$, $H_a: \mu &gt; 2400$, $\sigma = 200$, $n = 50$, $\alpha = 0.05$. $SE = 200/\sqrt{50} = 28.28$, cut-off $x_0 = 2400 + 1.645 \times 28.28 = 2446.5$.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Gerçek $\mu_a$</th><th>$z = (2446.5 - \mu_a)/28.28$</th><th>$\beta = P(Z &lt; z)$</th><th>Power</th></tr>
+      <tr><td>2,425</td><td>0.76</td><td>0.7764</td><td>0.2236</td></tr>
+      <tr><td>2,450</td><td>−0.12</td><td>0.4522</td><td>0.5478</td></tr>
+      <tr><td>2,475</td><td>−1.01</td><td>0.1562</td><td>0.8438</td></tr>
+    </table></div>
+    <p>Gerçek mean 2,400'den uzaklaştıkça $\beta$ küçülür. Kitabın yorumu: ortalama dayanım şartı 75 birim aşsa bile test yaklaşık %16 oranında $H_0$'ı reddedemez ve şehir iyi boruyu geri çevirir. Üretici, kabul edilmek istiyorsa ortalamayı şartın epey üstünde tutmalı.</p>
+  </div>
+  <!-- Kaynak: McClave §8.7, sewer pipe örneği ve Figure 8.24 (PDF s.438–440). Kitap z'yi iki basamağa yuvarlayıp tablodan okuyor; python ile 0.7764, 0.4522, 0.1562 doğrulandı. -->
+  <div class="box box--exam" data-exam="mcclave-8.97-8.98"><span class="box__label">McClave 8.97–8.98 · kitap alıştırması</span>
+    <p>"8.97 Suppose you want to test $H_0: \mu = 2{,}000$ against $H_a: \mu &gt; 2{,}000$, using $\alpha = .05$. The population in question is normally distributed with standard deviation 140. A random sample of size $n = 49$ will be used. […] b. Find the value of $\bar x_0$, that value of $\bar x$ above which the null hypothesis will be rejected. c. What will be the value of $z$ when $\mu = 2{,}020$? d. Find $\beta$. e. Compute the power of this test for detecting the alternative $H_a: \mu = 2{,}020$.</p>
+    <p>8.98 Refer to Exercise 8.97. a. If $\mu = 2{,}040$ instead of 2,020, what is […] $\beta$? b. […] what is the power of the test?" (sorunun bu bölümle ilgili kısmı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$SE = 140/\sqrt{49} = 20$. Gerisi slayt 16'nın üç adımı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>8.97(c)'deki $z$ 0.645 çıkar. Tabloda 0.64 ve 0.65'in ortasını al. 8.98'de $z$, QB1 S22'dekiyle aynı çıkacak; neden olduğunu düşün.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0: \mu = 2000$, $H_a: \mu &gt; 2000$. <strong>Statistic:</strong> $z = (\bar x - 2000)/20$. <strong>Rejection region:</strong> $z &gt; 1.645$.</li>
+        <li>(b) $\bar x_0 = 2000 + 1.645 \times 20 = 2032.9$.</li>
+        <li>(c) $\mu = 2020$: $z = (2032.9 - 2020)/20 = 0.645$.</li>
+        <li>(d) $\beta = P(Z &lt; 0.645) \approx \frac{0.7389 + 0.7422}{2} \approx 0.7405$. (e) Power $\approx 0.26$: 20 birimlik bir farkı test dörtte birden biraz fazla yakalar.</li>
+        <li>8.98: $\mu = 2040$: $z = (2032.9 - 2040)/20 = -0.355$, $\beta \approx 0.361$, power $\approx 0.639$. Fark iki katına çıkınca power 0.26'dan 0.64'e çıkıyor.</li>
+      </ol>
+      <p>8.98, QB1 S22 ile aynı sayıları veriyor çünkü iki soruda da $\delta/SE$ aynı: $40/20 = 4/2 = 2$. $\beta$ sadece $z_\alpha$ ve $\delta/SE$'ye bağlı. Bölüm 6 bunu kullanacak.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-321-Statistical-Inference-and-Computation/blob/main/resources/books/mcclave-sincich-statistics-13e.pdf#page=445" target="_blank" rel="noopener">McClave, alıştırmalar 8.94–8.107 (PDF)</a></p>
+    <!-- Kaynak: McClave §8.7 Exercises 8.97–8.98 (PDF s.445–446). Hoca atamadı. python: β(2020) = 0.7405, β(2040) = 0.3613. -->
+  </div>
+  <div class="quiz" id="q-more-2">
+    <p class="quiz__q">QB1 S22'de gerçek mean 54 yerine 52 olsaydı $\beta$ ne olurdu?</p>
+    <button class="quiz__opt" data-correct>Büyürdü (yaklaşık 0.74)<span class="why">Doğru. Cut-off 53.29 aynı kalır; 52'den ölçünce $z = (53.29 - 52)/2 = 0.645$, $\beta = P(Z &lt; 0.645) \approx 0.74$. Gerçek mean $H_0$'a yaklaştıkça fark daha kolay kaçırılır.</span></button>
+    <button class="quiz__opt">Küçülürdü<span class="why">Ters yön. Gerçek mean 50'ye yaklaştıkça iki eğri üst üste biner ve test farkı daha sık kaçırır.</span></button>
+    <button class="quiz__opt">Değişmezdi, çünkü cut-off aynı<span class="why">Cut-off aynı ama $\beta$ cut-off'un <strong>gerçek</strong> eğriye göre yerine bağlı. Gerçek eğri sola kayınca soldaki alanı büyür.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="power" data-min="4">
+  <h2>Power = 1 − β</h2>
+  <div class="quiz" id="q-power-1">
+    <p class="quiz__q">Bir test için belirli bir $\mu_a$'da power 0.85. Aynı $\mu_a$'da Type II error olasılığı nedir?</p>
+    <button class="quiz__opt" data-correct>0.15<span class="why">Doğru: $\beta = 1 - \text{power} = 0.15$.</span></button>
+    <button class="quiz__opt">0.05<span class="why">0.05 tipik bir $\alpha$ değeri, $\beta$ değil. $\alpha$ ve $\beta$ birbirinin tümleyeni değildir.</span></button>
+    <button class="quiz__opt">0.85<span class="why">0.85 testin farkı yakalama olasılığı. Kaçırma olasılığı bunun tümleyeni.</span></button>
+    <button class="quiz__opt">Bilinemez, $\alpha$ da gerekir<span class="why">$\alpha$ power'ı hesaplarken kullanılır, ama power verildiyse $\beta = 1 - \text{power}$ hemen çıkar.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanım · power</span>
+    <p>$$\text{power}(\mu_a) = P(\text{reject } H_0 \mid \mu = \mu_a) = 1 - \beta(\mu_a)$$</p>
+    <p>Slayt: "the probability that the test detects an effect of a given size". McClave: testin, $H_a$'daki <strong>belirli bir</strong> $\mu$ (ya da $p$) değeri için doğru karara (reject $H_0$) varma olasılığı.</p>
+    <p>Week 3'ün diliyle: power, gerçek mean $\mu_a$ iken $\text{p-value} \le \alpha$ çıkma olasılığıdır. Aynı tasarımı çok kez tekrarlasan, çalışmaların yüzde kaçında "reject" derdin?</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · yorum cümlesi</span>
+    <p>Slayt 16: "power ≈ 0.80" ⇒ "Gerçek mean 62.5 ms ise, 120 request ve $\alpha = 0.05$ ile test bu 2.5 ms'lik fazlalığı yaklaşık %80 oranında yakalar, %20 oranında kaçırır."</p>
+    <p>Cümlede üç şey bulunmalı: <strong>hangi gerçek değer</strong> ($\mu_a$), <strong>hangi tasarım</strong> ($n$, $\alpha$) ve olasılığın ne olduğu (yakalama ya da kaçırma).</p>
+  </div>
+  <!-- Kaynak: 04-hypothesis-testing-ii.pdf slayt 16 kutusu · McClave §8.7 power tanımı (PDF s.442) · Exercise 8.95 ("If the power of the test is .85, what can be said about the probability of committing a Type II error?") ilk quiz'de. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Power, "$H_0$'ın yanlış olma olasılığı" değildir. $\mu_a$'yı biz varsayıyoruz; power o varsayım altında testin ne yapacağını söyler.</li>
+      <li>Power $1 - \alpha$ değildir. $1 - \alpha = 0.95$, $H_0$ doğruyken doğru karar olasılığı.</li>
+      <li>"Power 0.80" tek başına eksik bir cümledir. Hangi $\mu_a$ için? 62.5'te 0.80 olan power, 61'de 0.26'dır (Bölüm 10).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-power-2">
+    <p class="quiz__q">"$\mu_a = 62.5$'te power 0.80" cümlesinin anlamı hangisi?</p>
+    <button class="quiz__opt" data-correct>Gerçek mean 62.5 ise, aynı tasarımla yapılan çalışmaların yaklaşık %80'inde p-value $\le \alpha$ çıkar<span class="why">Doğru. Power, gerçek bir fark varken reddetme olasılığıdır; reddetmek de p $\le \alpha$ demektir.</span></button>
+    <button class="quiz__opt">p-value 0.80 çıkacak<span class="why">Power bir p-value değil. p-value veriden hesaplanır; power veriden önce, tasarımdan hesaplanır.</span></button>
+    <button class="quiz__opt">$H_0$'ın yanlış olma olasılığı 0.80<span class="why">Klasik testte $H_0$'ın doğru ya da yanlış olmasına olasılık verilmez. Power "$H_0$ yanlışsa ve $\mu = 62.5$ ise" koşulu altında bir olasılık.</span></button>
+    <button class="quiz__opt">Test %80 olasılıkla fail to reject der<span class="why">Bu $\beta$'nın tanımı olurdu, ve burada $\beta = 0.20$. Yön ters: power reddetme olasılığı.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="curve" data-min="5">
+  <h2>Power curve</h2>
+  <div class="quiz" id="q-curve-1">
+    <p class="quiz__q">Upper-tailed, $\alpha = 0.05$ bir test için power curve'ü $\mu = \mu_0$ noktasında hangi yüksekliktedir?</p>
+    <button class="quiz__opt" data-correct>0.05<span class="why">Doğru. $\mu = \mu_0$ iken $H_0$ doğrudur; reddetme olasılığı tam olarak $\alpha$. Slayt: "At μ = 60 the power equals α."</span></button>
+    <button class="quiz__opt">0<span class="why">Test $H_0$ doğruyken de %5 oranında reddeder (Type I error). Eğri sıfırdan değil $\alpha$'dan geçer.</span></button>
+    <button class="quiz__opt">0.95<span class="why">0.95, $H_0$ doğruyken reddetmeme olasılığı. Power curve reddetme olasılığını çizer.</span></button>
+    <button class="quiz__opt">0.50<span class="why">0.50, gerçek mean tam cut-off'ta olsaydı çıkardı ($\mu = \bar x^* = 61.645$). $\mu_0 = 60$ cut-off'un epey solunda.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · power curve (slayt 17)</span>
+    <p>Gerçek mean'in her değeri için power'ı hesaplayıp $\mu$'ye karşı çizersen power curve'ü elde edersin. Upper-tailed z test için:</p>
+    $$\text{power}(\mu) = P\!\left(Z &gt; z_\alpha - \frac{\mu - \mu_0}{SE}\right), \qquad SE = \frac{\sigma}{\sqrt n}$$
+    <p>Slayt: $P(Z &gt; 1.645 - (\mu - 60)/SE)$, $SE = 10.9/\sqrt n$, $n = 30, 120, 480$. Noktalar: her $\mu$ için 4,000 simulated sample ($n = 120$).</p>
+    <ul>
+      <li>$\mu = 60$'ta power $= \alpha$.</li>
+      <li>$H_0$'dan uzaklaştıkça yükselir ve 1'e yaklaşır.</li>
+      <li>$n$ büyüdükçe daha dik yükselir: aynı $\mu$'de daha yüksek power.</li>
+      <li>$\mu &lt; 60$ tarafında power $\alpha$'dan da küçüktür. Upper-tailed test bir düşüşü yakalamak için kurulmadı.</li>
+    </ul>
+    <p>McClave aynı bilgiyi $\beta$ ile de çizdirir ($\beta$'ya karşı $\mu$). Bu eğri power curve'ün $1 -$ hâlidir.</p>
+  </div>
+  <h3>Kendin dene: power curve ve simulation</h3>
+  <p>Çizgiler yukarıdaki formülden, noktalar seeded bir simulation'dan geliyor: her $\mu$ için $n$ tane normal gözlem 4,000 kez çekiliyor, her sample'da z test yapılıyor ve reject oranı sayılıyor.</p>
+  <p class="w-power-and-sample-size-guess"><b>Önce tahmin et:</b> $\mu = 62.5$'te $n = 30$ curve'ünün yüksekliği kaçtır? Simulated noktalar çizginin tam üstüne mi düşer?</p>
+  <div class="w-power-and-sample-size-ctl">
+    <label>$\alpha$ <select id="wb-al" class="btn btn--sm"><option value="0.1">0.10</option><option value="0.05" selected>0.05</option><option value="0.01">0.01</option></select></label>
+    <label>ek $n$ <input id="wb-n" type="text" inputmode="numeric" value="" placeholder="ör. 60" class="btn btn--sm" /></label>
+    <label>simüle et: <select id="wb-simn" class="btn btn--sm"><option value="30">n = 30</option><option value="120" selected>n = 120</option><option value="480">n = 480</option></select></label>
+    <button class="btn btn--sm btn--accent" id="wb-sim">Simülasyonu çalıştır</button>
+  </div>
+  <div class="w-power-and-sample-size-range"><span>$\mu$</span><input id="wb-mu" type="range" min="57" max="66" step="0.1" value="62.5" aria-label="Gerçek mean" /><span id="wb-mu-v">62.5</span></div>
+  <div class="w-power-and-sample-size-err" id="wb-err" aria-live="polite"></div>
+  <div class="w-power-and-sample-size-plot" id="wb-plot"></div>
+  <div class="w-power-and-sample-size-legend" id="wb-legend"></div>
+  <div class="table-wrap" id="wb-read"></div>
+  <!-- Kaynak: 04-hypothesis-testing-ii.pdf slayt 17 (The Power Curve; görüntüden okundu: n = 30/120/480, 4,000 simulated sample, "about 0.8 at 62.5") · McClave §8.7 Exercise 8.100 (β'yı μ'ye karşı çizmek). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Simulated noktalar çizgiden biraz sapar. 4,000 tekrarla, gerçek power 0.8 iken tahminin %95 ihtimalle yaklaşık $\pm 0.012$ içinde kalır. Bu sapma hata değil, Monte Carlo gürültüsü.</li>
+      <li>Power curve'ün sol ucu sıfıra iner ama $\mu_0$'da $\alpha$'dır. Grafikte $\mu_0$'daki yüksekliği okurken 0 yazma.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-curve-2">
+    <p class="quiz__q">Slayt 17'de $\mu = 61$'de hangi curve en yüksektir?</p>
+    <button class="quiz__opt" data-correct>$n = 480$<span class="why">Doğru. Daha çok veri $SE$'yi küçültür ve aynı 1 ms'lik fark daha çok standard error'a karşılık gelir: $n = 480$'de power $\approx 0.64$, $n = 120$'de $\approx 0.26$.</span></button>
+    <button class="quiz__opt">$n = 30$<span class="why">Küçük $n$ geniş bir sampling distribution demek; fark gürültünün içinde kaybolur. $n = 30$'da power $\approx 0.13$.</span></button>
+    <button class="quiz__opt">Hepsi aynı, çünkü $\alpha$ aynı<span class="why">Aynı $\alpha$, sadece $\mu = 60$'ta aynı yüksekliği verir. Diğer noktalarda eğriler $n$'ye göre ayrılır.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="levers" data-min="6">
+  <h2>Power'ı değiştiren dört şey</h2>
+  <div class="quiz" id="q-levers-1">
+    <p class="quiz__q">Baseline power 0.80. $\sigma$'yı iki katına çıkarmak ile $\delta$'yı yarıya indirmek power'ı nasıl etkiler?</p>
+    <button class="quiz__opt" data-correct>İkisi de aynı sonucu verir (0.35)<span class="why">Doğru. Power sadece $z_\alpha$ ve $\delta/SE$'ye bağlı. $\sigma$ iki katı ⇒ $SE$ iki katı; $\delta$ yarı ⇒ pay yarı. İkisinde de $\delta/SE = 1.25$.</span></button>
+    <button class="quiz__opt">$\sigma$'yı iki katına çıkarmak daha kötü, çünkü variance dört katına çıkar<span class="why">Variance dört katı olur ama formüle $SE = \sigma/\sqrt n$ girer, yani standard deviation. $\sigma \times 2$ ⇒ $SE \times 2$.</span></button>
+    <button class="quiz__opt">$\delta$'yı yarıya indirmek power'ı da yarıya indirir (0.40)<span class="why">Power, $\delta$ ile doğrusal değişmez; normal eğrinin altındaki alandır. $\delta/SE = 1.25$ ⇒ $P(Z &gt; 0.395) = 0.35$.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · dört kol (slayt 18)</span>
+    $$\text{power} = P\!\left(Z &gt; z_\alpha - \frac{\delta}{\sigma/\sqrt n}\right), \qquad \delta = \mu - \mu_0$$
+    <p>Baseline: $\alpha = 0.05$, $n = 120$, $\sigma = 10.9$ ms, $\delta = 2.5$ ms, yani $SE = 10.9/\sqrt{120} \approx 1.0$.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Değişiklik</th><th>$z$ for $\alpha$</th><th>$\delta / SE$</th><th>Power</th></tr>
+      <tr><td>Yok (baseline)</td><td>1.645</td><td>2.5 / 1.0 = 2.5</td><td>0.80</td></tr>
+      <tr><td>$\alpha = 0.01$</td><td>2.326</td><td>2.5 / 1.0 = 2.5</td><td>0.57</td></tr>
+      <tr><td>$n = 480$, dört katı</td><td>1.645</td><td>2.5 / 0.5 = 5.0</td><td>≈ 1.00</td></tr>
+      <tr><td>$\sigma$ iki katı, 21.8 ms</td><td>1.645</td><td>2.5 / 2.0 = 1.25</td><td>0.35</td></tr>
+      <tr><td>$\delta$ yarı, 1.25 ms</td><td>1.645</td><td>1.25 / 1.0 = 1.25</td><td>0.35</td></tr>
+    </table></div>
+    <p>Okuma: power'ı iki sayı belirler. $z_\alpha$ büyürse (daha küçük $\alpha$) power düşer. $\delta/SE$ büyürse power artar; $\delta/SE$'yi $n$, $\sigma$ ve $\delta$ değiştirir.</p>
+  </div>
+  <h3>Kendin dene: bir kolu değiştir</h3>
+  <p class="w-power-and-sample-size-guess"><b>Önce tahmin et:</b> Her satırda "Göster"e basmadan önce power'ın baseline 0.80'den yukarı mı aşağı mı gideceğini ve yaklaşık değerini söyle. Sonra son satıra kendi değişikliğini yaz.</p>
+  <div class="table-wrap"><table id="wd-table"></table></div>
+  <p>Tablo satırları slayt gibi $SE$'yi bir ondalığa yuvarlıyor (1.0, 0.5, 2.0). Aşağıdaki kendi satırın yuvarlamasız $SE$ kullanıyor.</p>
+  <div class="w-power-and-sample-size-ctl">
+    <label>$\alpha$ <input id="wd-al" type="text" inputmode="decimal" value="0.05" class="btn btn--sm" /></label>
+    <label>$n$ <input id="wd-n" type="text" inputmode="numeric" value="240" class="btn btn--sm" /></label>
+    <label>$\sigma$ <input id="wd-sig" type="text" inputmode="decimal" value="10.9" class="btn btn--sm" /></label>
+    <label>$\delta$ <input id="wd-d" type="text" inputmode="decimal" value="2.5" class="btn btn--sm" /></label>
+  </div>
+  <div class="w-power-and-sample-size-err" id="wd-err" aria-live="polite"></div>
+  <div class="w-power-and-sample-size-out" id="wd-out"></div>
+  <!-- Kaynak: 04-hypothesis-testing-ii.pdf slayt 18 (Four Things That Change Power; görüntüden okundu) · slayt 26 (Bonferroni: "Each test loses power") · question-bank-1 S23(c) çözümü ("δ is set by what matters, not chosen to raise power"). python: 0.8037, 0.5691, 0.9996, 0.3464, 0.3464. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$n$'yi iki katına çıkarmak $SE$'yi yarıya indirmez: $SE$, $\sqrt n$ ile küçülür. $SE$'yi yarıya indirmek için $n \times 4$ gerekir.</li>
+      <li>$\alpha$'yı küçültmek testi "daha iyi" yapmaz; yanlış alarmı azaltırken kaçırılan farkı artırır. Sabit $n$ ve $\sigma$'da $\alpha$'yı düşürmek $\beta$'yı artırır. Daha büyük $n$ ya da daha küçük $\sigma$ (daha az gürültülü ölçüm), küçük $\alpha$ ile düşük $\beta$'yı birlikte mümkün kılar.</li>
+      <li>$\delta$ power'ı yükseltmek için seçilmez. $\delta$, önemli olan en küçük farktır ve uygulamadan gelir (örneğin SLA'yı bozan gecikme). Power'ı "artırmak" için $\delta$'yı büyütmek, küçük ama önemli farkları göz ardı etmektir.</li>
+      <li>Bonferroni her teste $\alpha/m$ verir. Bu, her test için daha büyük $z_\alpha$ demek: her test power kaybeder (slayt 26). Bir sonraki ders bunu ayrıntılı işliyor.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="2026-27-QB1-Q14cd"><span class="box__label">Soru bankası 1 · S14(c)(d) · soru bankası sorusu</span>
+    <p>"Before each release a team tests $H_0: \mu = 250$ ms against $H_a: \mu &gt; 250$ ms, where $\mu$ is the new build's mean response time. If $H_0$ is rejected, the release is stopped. […] (c) The team lowers $\alpha$ from 0.05 to 0.01. What happens to $\beta$? (d) How can both errors be made less likely at once?" (sorunun bu bölümle ilgili kısmı; (a)(b) Type I/II tanımları "Bir mean için z ve t" dersinde)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$\alpha$ küçülünce $z_\alpha$ ve cut-off ne yöne kayar? Gerçek eğrinin solunda kalan alan büyür mü?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Tablodaki dört koldan hangisi $\alpha$'ya dokunmadan $\beta$'yı küçültür ve takımın elindedir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(c)</strong> $\alpha$: 0.05 → 0.01 ⇒ $z_\alpha$: 1.645 → 2.326 ⇒ cut-off yukarı kayar ⇒ gerçek eğrinin cut-off'un solundaki alanı büyür ⇒ <strong>$\beta$ büyür</strong>. Daha katı test, gerçek yavaşlamaları daha sık kaçırır (trade-off). Slayt 18'in sayılarıyla: power 0.80 → 0.57.</p>
+      <p><strong>(d)</strong> <strong>Daha çok veri topla.</strong> Sabit $\alpha$'da büyük $n$, $SE$'yi küçültür, $\beta$ düşer ve power artar. Yeterince veriyle $\alpha$ da düşürülebilir ve $\beta$ yine küçük kalır.</p>
+      <p>Hocanın çözümü aynı: "(c) β grows … (d) Collect more data."</p>
+    </div></details>
+    <!-- Kaynak: question-bank-1-weeks-01-04.pdf s.32–33 (S14 ve çözümü). (a)(b) tests-for-a-mean dersinin konusu. -->
+  </div>
+  <div class="quiz" id="q-levers-2">
+    <p class="quiz__q">Baseline'da $n$'yi 120'den 240'a çıkarırsan $\delta/SE$ ne olur?</p>
+    <button class="quiz__opt" data-correct>$2.5 \times \sqrt 2 \approx 3.5$<span class="why">Doğru. $SE = 10.9/\sqrt{240} \approx 0.70$, $\delta/SE \approx 3.55$. Power $\approx 0.97$.</span></button>
+    <button class="quiz__opt">5.0<span class="why">5.0 için $SE$'nin yarıya inmesi gerekir, yani $n \times 4 = 480$. $SE$, $n$ ile değil $\sqrt n$ ile küçülür.</span></button>
+    <button class="quiz__opt">2.5, değişmez<span class="why">$n$ değişince $SE$ değişir. $\delta$ aynı kalır ama payda küçülür.</span></button>
+  </div>
+  <div class="quiz" id="q-levers-3">
+    <p class="quiz__q">Bir dashboard 10 metriği Bonferroni ile test ediyor (her biri $\alpha = 0.005$). Tek bir metriğin power'ı, $\alpha = 0.05$'lik tek bir teste göre nasıldır?</p>
+    <button class="quiz__opt" data-correct>Daha düşük, çünkü her testin $z_\alpha$'sı büyür<span class="why">Doğru. $z_{0.005} = 2.576 &gt; 1.645$: cut-off yukarı kayar, $\beta$ büyür. Slayt 26: "Each test loses power."</span></button>
+    <button class="quiz__opt">Aynı, çünkü toplam $\alpha$ yine 0.05<span class="why">Toplam yanlış alarm olasılığı korunur ama bunun bedelini her test kendi power'ıyla öder.</span></button>
+    <button class="quiz__opt">Daha yüksek, çünkü daha az yanlış alarm var<span class="why">Az yanlış alarm, düşük $\alpha$ demektir. Sabit $n$'de düşük $\alpha$ her zaman yüksek $\beta$, yani düşük power getirir.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="other-tails" data-min="5">
+  <h2>Lower-tailed, two-tailed ve proportion için β</h2>
+  <div class="quiz" id="q-tails-1">
+    <p class="quiz__q">Lower-tailed test ($H_a: \mu &lt; \mu_0$). Cut-off $\bar x^* = \mu_0 - z_\alpha SE$. $\beta$ hangisidir?</p>
+    <button class="quiz__opt" data-correct>$P\!\left(Z &gt; \dfrac{\bar x^* - \mu_a}{SE}\right)$<span class="why">Doğru. Lower-tailed test $\bar x$ cut-off'un altına düşünce reddeder; reddetmeme bölgesi cut-off'un sağı.</span></button>
+    <button class="quiz__opt">$P\!\left(Z &lt; \dfrac{\bar x^* - \mu_a}{SE}\right)$<span class="why">Bu lower-tailed test'te power. Upper-tailed formülünü ezberleyip yönü çevirmeyi unutma: $\beta$ her zaman <strong>reddetmeme</strong> bölgesinin alanı.</span></button>
+    <button class="quiz__opt">$P\!\left(Z &gt; \dfrac{\bar x^* - \mu_0}{SE}\right)$<span class="why">$\mu_0$ ile standardize etmek $-z_\alpha$'yı geri verir ve $1 - \alpha$ bulursun. Gerçek mean $\mu_a$ kullanılmalı.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · McClave'in üç adımı, üç tail</span>
+    <div class="table-wrap"><table>
+      <tr><th>$H_a$</th><th>1. Cut-off(lar)</th><th>3. $\beta$ (2. adım: $z = (\text{cut-off} - \mu_a)/SE$)</th></tr>
+      <tr><td>$\mu &gt; \mu_0$</td><td>$\bar x_0 = \mu_0 + z_\alpha SE$</td><td>$P(Z &lt; z)$</td></tr>
+      <tr><td>$\mu &lt; \mu_0$</td><td>$\bar x_0 = \mu_0 - z_\alpha SE$</td><td>$P(Z &gt; z)$</td></tr>
+      <tr><td>$\mu \ne \mu_0$</td><td>$\bar x_{0,L} = \mu_0 - z_{\alpha/2} SE$, $\bar x_{0,U} = \mu_0 + z_{\alpha/2} SE$</td><td>$P(z_L &lt; Z &lt; z_U)$</td></tr>
+    </table></div>
+    <p><strong>Proportion için</strong> aynı tarif, bir farkla: cut-off $p_0$ ile kurulur, $\hat p_0 = p_0 \pm z \sqrt{p_0 q_0/n}$. Sonra gerçek $p_a$'dan ölçülürken $SE$ değişir: $z = (\hat p_0 - p_a)\big/\sqrt{p_a q_a / n}$. Mean'de iki dünyada $SE$ aynıydı, burada değil.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · McClave Örnek 8.12 (two-tailed, iki $\alpha$)</span>
+    <p>İlaç verilen sıçanların ortalama tepki süresi kontrolden farklı mı? $H_0: \mu = 1.2$, $H_a: \mu \ne 1.2$, $n = 100$, $\sigma = 0.5$, $SE = 0.05$. Gerçek mean $\mu_a = 1.1$.</p>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Cut-off'lar</th><th>$z_L$, $z_U$ ($\mu_a = 1.1$'den)</th><th>$\beta$</th><th>Power</th></tr>
+      <tr><td>$\alpha = 0.05$ ($z = 1.96$)</td><td>1.102, 1.298</td><td>0.04, 3.96</td><td>0.4840</td><td>0.5160</td></tr>
+      <tr><td>$\alpha = 0.01$ ($z = 2.575$)</td><td>1.071, 1.329</td><td>−0.58, 4.58</td><td>0.7190</td><td>0.2810</td></tr>
+    </table></div>
+    <p>$\beta = P(0.04 &lt; Z &lt; 3.96) \approx 0.5 - 0.0160 = 0.4840$. Üst sınırın katkısı neredeyse sıfır: gerçek mean 1.1, üst cut-off 1.298'in çok uzağında. $\alpha$ 0.05'ten 0.01'e inince $\beta$ 0.48'den 0.72'ye çıkıyor.</p>
+  </div>
+  <!-- Kaynak: McClave §8.7 "Steps for Calculating β for a Large-Sample Test about μ" ve "about p" kutuları, Example 8.12 ve Figure 8.25 (PDF s.440–444). Kitap z'yi iki basamağa yuvarlıyor; α = 0.01 için tam değer 0.7174, tablo yoluyla 0.7190. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Two-tailed test'te cut-off'lar $z_{\alpha/2}$ ile kurulur (0.05 için 1.96). Bu yüzden aynı $\alpha$ ve $\delta$'da two-tailed test'in power'ı upper-tailed test'inkinden düşüktür.</li>
+      <li>Two-tailed $\beta$ iki sınır arasındaki alandır. Uzak sınırı unutma; çoğu zaman katkısı küçüktür ama yazılmalıdır.</li>
+      <li>Proportion'da cut-off'u $p_0 q_0$ ile, gerçek dünyadaki $z$'yi $p_a q_a$ ile kur. Mean'deki gibi tek bir $SE$ kullanmak burada hatadır.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="mcclave-8.99"><span class="box__label">McClave 8.99 · kitap alıştırması</span>
+    <p>"It is desired to test $H_0: \mu = 60$ against $H_a: \mu &lt; 60$, using $\alpha = .10$. The population in question is uniformly distributed with standard deviation 22.5. A random sample of size 81 will be drawn from the population. a. Describe the (approximate) sampling distribution of $\bar x$ under the assumption that $H_0$ is true. b. Describe the (approximate) sampling distribution of $\bar x$ under the assumption that the population mean is 55. c. If $\mu$ were really equal to 55, what is the probability that the hypothesis test would lead the investigator to commit a Type II error? d. What is the power of this test for detecting the alternative $H_a: \mu = 55$?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Population uniform, ama $n = 81$ büyük: CLT ile $\bar x$ yaklaşık normal. $SE = 22.5/9$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Lower-tailed, $\alpha = 0.10$ ⇒ $z_\alpha = 1.282$. Cut-off $60 - 1.282 \cdot SE$. $\beta$ cut-off'un <strong>sağındaki</strong> alan.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0: \mu = 60$, $H_a: \mu &lt; 60$. <strong>Statistic:</strong> $z = (\bar x - 60)/SE$, $SE = 22.5/\sqrt{81} = 2.5$. <strong>Rejection region:</strong> $z &lt; -1.282$ ⇔ $\bar x &lt; 60 - 1.282 \times 2.5 = 56.795$.</li>
+        <li>(a) $H_0$ doğruysa $\bar x \approx N(60,\ 2.5^2)$. (b) $\mu = 55$ ise $\bar x \approx N(55,\ 2.5^2)$. İkisi de CLT'den: population uniform ama $n = 81$.</li>
+        <li>(c) $z = (56.795 - 55)/2.5 = 0.718 \approx 0.72$. $\beta = P(Z &gt; 0.72) = 1 - 0.7642 = \boxed{0.236}$.</li>
+        <li>(d) Power $= 1 - 0.236 = \boxed{0.764}$: gerçek mean 55 ise test düşüşü yaklaşık %76 oranında yakalar.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 8.99 (PDF s.446). Hoca atamadı. python (z_α = 1.2816): β = 0.2364. -->
+  </div>
+  <div class="box box--exam" data-exam="mcclave-8.101cd"><span class="box__label">McClave 8.101(c)(d) · kitap alıştırması</span>
+    <p>"Suppose you want to conduct the two-tailed test of $H_0: p = .8$ against $H_a: p \ne .8$ using $\alpha = .05$. A random sample of size 100 will be drawn from the population in question. […] c. If $p$ were really equal to .75, find the value of $\beta$ associated with the test. d. Find the value of $\beta$ for the alternative $H_a: p = .69$." (sorunun bu bölümle ilgili kısmı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce condition: $np_0 = 80 \ge 15$, $n(1 - p_0) = 20 \ge 15$. Cut-off'lar $0.8 \pm 1.96\sqrt{0.8 \cdot 0.2/100}$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Gerçek dünyada $SE = \sqrt{p_a q_a/n}$: $p_a = 0.75$ için 0.0433. $\beta$ iki cut-off arasındaki alan.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Hipotezler:</strong> $H_0: p = 0.8$, $H_a: p \ne 0.8$. <strong>Statistic:</strong> $z = (\hat p - 0.8)/0.04$, $\sqrt{0.8 \cdot 0.2/100} = 0.04$. <strong>Rejection region:</strong> $|z| &gt; 1.96$ ⇔ $\hat p &lt; 0.7216$ ya da $\hat p &gt; 0.8784$.</li>
+        <li>(c) $p_a = 0.75$, $SE_a = \sqrt{0.75 \cdot 0.25/100} = 0.0433$. $z_L = (0.7216 - 0.75)/0.0433 = -0.66$, $z_U = (0.8784 - 0.75)/0.0433 = 2.97$. $\beta = P(-0.66 &lt; Z &lt; 2.97) = 0.9985 - 0.2546 \approx \boxed{0.74}$.</li>
+        <li>(d) $p_a = 0.69$, $SE_a = \sqrt{0.69 \cdot 0.31/100} = 0.0462$. $z_L = (0.7216 - 0.69)/0.0462 = 0.68$, $z_U = 4.07$. $\beta = P(0.68 &lt; Z &lt; 4.07) \approx 1 - 0.7517 \approx \boxed{0.25}$.</li>
+      </ol>
+      <p>0.75, 0.8'e yakın: test bu farkı dörtte üç oranında kaçırır. 0.69 daha uzak, $\beta$ dörtte bire iner.</p>
+    </div></details>
+    <!-- Kaynak: McClave Exercise 8.101 (PDF s.446). Hoca atamadı. python (tam z): 0.7425 ve 0.2472; tablo yoluyla 0.7439 ve 0.2483. -->
+  </div>
+  <div class="quiz" id="q-tails-2">
+    <p class="quiz__q">Aynı $\alpha = 0.05$, $n$, $\sigma$ ve $\delta$ ile two-tailed test'in power'ı upper-tailed test'inkine göre nasıldır (gerçek mean $\mu_0$'ın üstünde)?</p>
+    <button class="quiz__opt" data-correct>Biraz daha düşük<span class="why">Doğru. Two-tailed cut-off $z_{0.025} = 1.96$ ile kurulur, 1.645'ten büyük. Üst cut-off yukarı kayar, $\beta$ büyür. Alt cut-off'tan gelen katkı çok küçük.</span></button>
+    <button class="quiz__opt">Daha yüksek, çünkü iki yönü birden yakalar<span class="why">İki yönü yakalamanın bedeli, her yöne $\alpha/2$ düşmesidir. Gerçek fark tek yöndeyse bu, power kaybı demek.</span></button>
+    <button class="quiz__opt">Tamamen aynı<span class="why">Cut-off'lar farklı olduğu için aynı olamaz: upper-tailed'de 1.645, two-tailed'de 1.96.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="sample-size" data-min="6">
+  <h2>Kaç gözlem gerekir?</h2>
+  <div class="quiz" id="q-n-1">
+    <p class="quiz__q">Formül $n = 117.6$ verdi. Kaç gözlem toplarsın?</p>
+    <button class="quiz__opt" data-correct>118<span class="why">Doğru. Her zaman yukarı yuvarla: 117 gözlemle power hedefin (0.80) biraz altında kalır.</span></button>
+    <button class="quiz__opt">117<span class="why">En yakın tam sayıya yuvarlamak power'ı hedefin altına düşürebilir. Slayt: "Always round n up."</span></button>
+    <button class="quiz__opt">117.6, ondalık bırakılır<span class="why">Gözlem sayısı tam sayıdır. Kesirli request ölçülmez; yukarı yuvarlanır.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · soruyu ters çevir</span>
+    <p>Şimdiye kadar $n$ verilmişti ve power'ı bulduk. Planlamada tersini yaparız: $\alpha$'yı, istediğimiz power'ı ve yakalamak istediğimiz en küçük farkı $\delta$'yı sabitleriz, $n$'yi buluruz. Slayt 29: "Plan n before you collect the data."</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · sample size (slayt 19, Walpole §10.6)</span>
+    $$n = \left(\frac{(z_\alpha + z_\beta)\,\sigma}{\delta}\right)^2 \qquad \text{(one-tailed)}, \qquad n \approx \left(\frac{(z_{\alpha/2} + z_\beta)\,\sigma}{\delta}\right)^2 \qquad \text{(two-tailed)}$$
+    <p>$z_\beta$: üst kuyruğunda $\beta$ kalan z değeri. Power 0.80 ⇒ $\beta = 0.20$ ⇒ $z_\beta = 0.842$. Power 0.90 ⇒ $z_\beta = 1.282$. Power 0.95 ⇒ $z_\beta = 1.645$.</p>
+    <p><strong>Nereden geliyor (Walpole):</strong> upper-tailed test'te $\beta = P\!\left(Z &lt; z_\alpha - \frac{\delta}{\sigma/\sqrt n}\right)$. $\beta$'nın istediğimiz değerde olması için $z_\alpha - \frac{\delta\sqrt n}{\sigma} = -z_\beta$ olmalı. $\sqrt n$'yi yalnız bırakıp karesini alınca formül çıkar. Lower-tailed test için de aynı sonuç geçerli.</p>
+    <p><strong>Slayt 19:</strong> $\alpha = 0.05$ one-tailed ($z_\alpha = 1.645$), power 0.80 ($z_\beta = 0.842$), $\sigma = 10.9$, $\delta = 2.5$:</p>
+    $$n = \left(\frac{(1.645 + 0.842) \times 10.9}{2.5}\right)^2 = 117.6 \;\to\; 118$$
+    <div class="table-wrap"><table>
+      <tr><th>Yakalanacak fark $\delta$</th><th>Gereken $n$</th><th>Yuvarlamadan önce</th></tr>
+      <tr><td>5 ms</td><td>30</td><td>29.4</td></tr>
+      <tr><td>2.5 ms</td><td>118</td><td>117.6</td></tr>
+      <tr><td>1 ms</td><td>735</td><td>734.9</td></tr>
+    </table></div>
+    <p>"Halve the effect, and you need four times the data. Always round n up." $n$, $1/\delta^2$ ile büyür.</p>
+  </div>
+  <h3>Kendin dene: sample size hesaplayıcı</h3>
+  <p class="w-power-and-sample-size-guess"><b>Önce tahmin et:</b> Slayt 19'un ayarlarında power hedefini 0.80'den 0.90'a çıkarırsan $n$ 118'den kaça çıkar: 130 mu, 160 mı, 240 mı?</p>
+  <div class="w-power-and-sample-size-ctl">
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wc="s19">Slayt 19</button>
+    <button class="btn btn--sm" data-wc="s19a">δ = 5</button>
+    <button class="btn btn--sm" data-wc="s19b">δ = 1</button>
+    <button class="btn btn--sm" data-wc="q23a">QB1 S23(a)</button>
+    <button class="btn btn--sm" data-wc="w107">Walpole 10.7</button>
+  </div>
+  <div class="w-power-and-sample-size-ctl">
+    <label>$\alpha$ <input id="wc-al" type="text" inputmode="decimal" value="0.05" class="btn btn--sm" /></label>
+    <label>power <input id="wc-pw" type="text" inputmode="decimal" value="0.80" class="btn btn--sm" /></label>
+    <label>$\sigma$ <input id="wc-sig" type="text" inputmode="decimal" value="10.9" class="btn btn--sm" /></label>
+    <label>$\delta$ <input id="wc-d" type="text" inputmode="decimal" value="2.5" class="btn btn--sm" /></label>
+    <label>test <select id="wc-tail" class="btn btn--sm"><option value="one">one-tailed</option><option value="two">two-tailed</option></select></label>
+  </div>
+  <div class="w-power-and-sample-size-err" id="wc-err" aria-live="polite"></div>
+  <div class="w-power-and-sample-size-out" id="wc-out"></div>
+  <!-- Kaynak: 04-hypothesis-testing-ii.pdf slayt 19 (How Many Observations?; görüntüden okundu) · Walpole §10.6 türetme ve Example 10.7 (PDF s.372–373). python: 29.39, 117.58, 734.86. -->
+  <div class="box box--example">
+    <span class="box__label">Örnek · Walpole Örnek 10.7</span>
+    <p>$H_0: \mu = 68$ kg, $H_1: \mu &gt; 68$ kg, $\alpha = 0.05$, $\sigma = 5$. Gerçek mean 69 kg iken power 0.95 olsun. $\alpha = \beta = 0.05$ ⇒ $z_\alpha = z_\beta = 1.645$, $\delta = 1$:</p>
+    $$n = \frac{(1.645 + 1.645)^2 \cdot 25}{1^2} = 270.6 \;\to\; 271$$
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$z_\beta$ power'dan değil $\beta$'dan okunur: power 0.80 için $z_{0.20} = 0.842$. 1.645 ya da 1.96 yazmak çok sık yapılan hata.</li>
+      <li>Two-tailed test'te $z_{\alpha/2}$: slayt 19'un ayarlarında two-tailed test için $n = ((1.96 + 0.842) \times 10.9/2.5)^2 = 149.2 \to 150$.</li>
+      <li>"Etkiyi yarıya indir, dört katı veri": QB1 S23'te $4 \times 78 = 312$ değil, $4 \times 77.1 = 308.4 \to 309$. Önce çarp, sonra yuvarla.</li>
+      <li>$\sigma$ ve $\delta$ aynı birimde olmalı (ikisi de ms). $\sigma$ yerine variance koyma.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="2026-27-QB1-Q23"><span class="box__label">Soru bankası 1 · S23 · soru bankası sorusu</span>
+    <p>"The same test as in Q22: $\sigma = 12$, $\alpha = 0.05$, one-tailed. (a) What $n$ gives power 0.90 when the true mean is 54? (b) What $n$ is needed if the true mean is only 52? (c) Name two other ways to raise the power, and what each one costs."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Q22'de $\mu_0 = 50$. $\delta = 54 - 50$. Power 0.90 ⇒ $\beta = 0.10$ ⇒ $z_\beta = 1.282$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b)'de $\delta$ yarıya iniyor. (c) için dört kolu hatırla; $n$ zaten kullanıldı, $\delta$ ise seçilmez.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>(a) $\delta = 4$: $n = \left(\dfrac{(1.645 + 1.282) \times 12}{4}\right)^2 = 8.781^2 = 77.1 \to \boxed{78}$. Kontrol: $n = 78$'de power $\approx 0.903$.</li>
+        <li>(b) $\delta = 2$: $n = \left(\dfrac{2.927 \times 12}{2}\right)^2 = 17.562^2 = 308.4 \to \boxed{309}$. Etki yarıya inince veri dört katına çıkıyor.</li>
+        <li>(c) <strong>Daha büyük $\alpha$</strong>: power artar, bedeli daha çok yanlış alarm. <strong>Daha küçük $\sigma$</strong>: daha iyi ölçüm ya da daha kontrollü deney; bedeli emek ve maliyet. $\delta$ önemli olan farka göre belirlenir, power'ı yükseltmek için seçilmez.</li>
+      </ol>
+      <p>Hocanın çözümü: 77.1 → 78, 308.4 → 309 ve aynı (c) cevabı.</p>
+    </div></details>
+    <!-- Kaynak: question-bank-1-weeks-01-04.pdf s.51 (soru) ve s.52 (çözüm, görüntüden okundu). python: 77.106 → 78 (power 0.9030), 308.42 → 309. -->
+  </div>
+  <div class="quiz" id="q-n-2">
+    <p class="quiz__q">Slayt 19'da $\delta = 2.5$ için $n = 118$. Aynı power ile $\delta = 1.25$ için yaklaşık kaç gözlem gerekir?</p>
+    <button class="quiz__opt" data-correct>Yaklaşık 471<span class="why">Doğru. $n \propto 1/\delta^2$: $4 \times 117.6 = 470.3 \to 471$.</span></button>
+    <button class="quiz__opt">236<span class="why">Bu iki katı. $\delta$ formülde karenin içinde: yarıya inince $n$ dört katına çıkar.</span></button>
+    <button class="quiz__opt">472<span class="why">$4 \times 118 = 472$, yuvarlanmış sayıyı çarpmaktan gelir. Önce çarp ($4 \times 117.6 = 470.3$), sonra yuvarla: 471.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="simulation" data-min="5">
+  <h2>Formül yoksa: simulation ile planlamak</h2>
+  <div class="quiz" id="q-sim-1">
+    <p class="quiz__q">Simulation ile power tahmin ederken sample'ları hangi dağılımdan çekersin?</p>
+    <button class="quiz__opt" data-correct>$H_a$'daki gerçek mean'den ($\mu_a = 62.5$)<span class="why">Doğru. Power "gerçek fark varken reddetme oranı"dır; veriyi o gerçek dünyadan üretip testi $H_0$'a karşı yaparsın. Slayt: "Simulate under the alternative, count the rejections."</span></button>
+    <button class="quiz__opt">$H_0$'daki mean'den ($\mu_0 = 60$)<span class="why">$H_0$ altında simüle edersen reject oranı $\alpha$'ya yaklaşır: Type I error oranını ölçmüş olursun, power'ı değil.</span></button>
+    <button class="quiz__opt">Gözlenen sample mean'den<span class="why">Planlama veriden önce yapılır; henüz gözlenen bir mean yok. Gerçek dünyayı $\mu_a$ temsil eder.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · simulation ile power ve $n$ (slayt 20)</span>
+    <ol>
+      <li>Gerçek dünyayı seç: normal data, $\mu = 62.5$, $\sigma = 10.9$.</li>
+      <li>Bir $n$ için 4,000 sample üret; her birinde testi yap (one-tailed z test, $\alpha = 0.05$).</li>
+      <li>Reject oranı, o $n$'deki power tahminidir.</li>
+      <li>$n$'yi artır ve power 0.80'e ulaşana kadar tekrarla.</li>
+    </ol>
+    <p>Slayt 20'de noktalar formül eğrisinin üstüne düşüyor ve 0.80 çizgisini $n = 118$ civarında kesiyor. Slayt: "No formula for your data or your test? Simulate under the alternative, count the rejections, and raise n until the power reaches 0.80."</p>
+    <p><strong>Neden gerekli:</strong> formül normal bir $\bar x$ ve bilinen $\sigma$ varsayar. Walpole'un notu: $\sigma$ bilinmiyorsa ve $s$ kullanılıyorsa statistic, $H_a$ altında t distribution'a değil <em>noncentral t</em> distribution'a uyar; bunun için özel tablolar gerekir. Simulation her veri şekli ve her test için aynı tarifle çalışır.</p>
+  </div>
+  <h3>Kendin dene: $n$'yi simulation ile bul</h3>
+  <p>Ayarlar Bölüm 8'deki hesaplayıcıdan alınıyor. Her adımda bir $n$ deneniyor: 4,000 sample üretiliyor, test yapılıyor, reject oranı sayılıyor. Hedefe ulaşınca duruyor.</p>
+  <p class="w-power-and-sample-size-guess"><b>Önce tahmin et:</b> Slayt 20 ayarlarında simulation'ın bulduğu ilk $n$, formülün verdiği 118'in tam üstüne mi düşer, yoksa biraz sağa sola mı kayar? Neden?</p>
+  <div class="w-power-and-sample-size-ctl">
+    <button class="btn btn--sm" id="ws-preset">Slayt 20 ayarları</button>
+    <button class="btn btn--sm btn--accent" id="ws-go">Simülasyonu başlat</button>
+    <span class="src" id="ws-cfg"></span>
+  </div>
+  <div class="w-power-and-sample-size-err" id="ws-err" aria-live="polite"></div>
+  <div id="ws-stepper"></div>
+  <!-- Kaynak: 04-hypothesis-testing-ii.pdf slayt 20 (Planning by Simulation; görüntüden okundu: 4,000 sample per n, normal μ = 62.5, σ = 10.9, one-tailed z, α = 0.05, n = 118) · Walpole §10.6 (σ bilinmiyorsa noncentral t, Table A.8). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Simulation'ı $H_0$ altında yaparsan power değil $\alpha$ ölçersin.</li>
+      <li>4,000 tekrarla tahminin yaklaşık $\pm 0.012$ oynar. 0.80'in hemen yanındaki iki $n$'den hangisinin seçildiği bu gürültüye bağlıdır; tekrar sayısını artırmak gürültüyü küçültür.</li>
+      <li>Simulation'da kullanılan test, gerçekte yapacağın testle aynı olmalı (tail, $\alpha$, statistic).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="2026-27-W4-notebook"><span class="box__label">Week 4 notebook · ödev sorusu</span>
+    <p>Slayt 28'deki görevler: "Draw a power curve by simulation: shift the true mean, count the rejections. Show how the curve steepens as n grows. Find by simulation the n that detects a 2.5 ms excess with 80% power. Run twenty tests at once: how often is one 'significant'? Then apply Bonferroni." Dosya: <code>week04_power_and_sample_size.ipynb</code>.</p>
+    <p class="src">Not: Notebook'lar notlandırılan ödevdir (dönem notunun %20'si). Bu yüzden burada çözüm ve kod verilmiyor, sadece kavram ve ipuçları var. Week 4 notebook'u repoda yok; görevler slayt 28'den alındı.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Power curve için bu bölümdeki dört adımı her $\mu$ değerinde tekrarla: veriyi $\mu$'den üret, testi $H_0: \mu = 60$'a karşı yap, reject oranını kaydet. Bölüm 5'teki widget aynı fikri gösteriyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$n$'yi aramak için dışta $n$ üzerinde dönen, içte 4,000 sample üreten iki katlı bir yapı düşün. Sonucu Bölüm 8'deki formülle karşılaştır: iki yol yakın sonuç vermeli.</p></div></details>
+    <details class="hint"><summary>İpucu 3</summary><div><p>Yirmi test kısmı için $H_0$ doğruyken (hiçbir şey değişmemişken) simüle et; en az bir "significant" çıkma oranını $1 - (1 - \alpha)^{20}$ ile karşılaştır. Bonferroni "Confidence interval'lar ve testleri doğru kullanmak" dersinde.</p></div></details>
+    <!-- Kaynak: 04-hypothesis-testing-ii.pdf slayt 28 ("Submit as .ipynb. Checked for effort, not marked for correctness."); 00-course-info.pdf Academic Integrity. Notebook repoda yok (plan gaps). -->
+  </div>
+  <div class="quiz" id="q-sim-2">
+    <p class="quiz__q">$n = 120$'de 4,000 simulated sample'ın 3,190'ında $H_0$ reddedildi. Power tahmini nedir?</p>
+    <button class="quiz__opt" data-correct>0.80<span class="why">Doğru: $3190/4000 = 0.7975 \approx 0.80$. Formülün verdiği 0.81'e Monte Carlo gürültüsü içinde yakın.</span></button>
+    <button class="quiz__opt">0.20<span class="why">0.20, reddedilmeyen sample'ların oranı, yani $\beta$ tahmini.</span></button>
+    <button class="quiz__opt">0.05<span class="why">0.05, $H_0$ altında simüle etseydin beklenen reject oranı olurdu. Burada veri $\mu_a$'dan üretildi.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="your-turn" data-min="5">
+  <h2>Your turn: Plan the Study</h2>
+  <div class="quiz" id="q-yt-1">
+    <p class="quiz__q">120 request, $SE \approx 1.0$. Gerçek mean 61 ms ise power için doğru ifade hangisi?</p>
+    <button class="quiz__opt" data-correct>$P(Z &gt; 1.645 - 1/1.0) = P(Z &gt; 0.645)$<span class="why">Doğru: $\delta = 61 - 60 = 1$, $\delta/SE = 1$. Sonuç yaklaşık 0.26.</span></button>
+    <button class="quiz__opt">$P(Z &lt; 1.645 - 1/1.0)$<span class="why">Bu $\beta$ (yaklaşık 0.74). Power, cut-off'un reddetme tarafındaki alan.</span></button>
+    <button class="quiz__opt">$P(Z &gt; 1.645 - 2.5/1.0)$<span class="why">Bu, gerçek mean 62.5 iken power (0.80). Soru 61'i soruyor: $\delta = 1$.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="2026-27-W4-s21"><span class="box__label">W4 slayt 21 · slayt sorusu</span>
+    <p>"Your Turn: Plan the Study</p>
+    <ol>
+      <li>With 120 requests, what is the power if $\mu = 61$ ms? Use power $= P(Z &gt; 1.645 - \delta/SE)$, with $SE \approx 1.0$</li>
+      <li>How many requests give 90% power against 62.5 ms? $z$ for power 0.90 is 1.282</li>
+      <li>A colleague proposes 30 requests. What do you tell them? Work out the power at 62.5 first"</li>
+    </ol>
+    <details class="hint"><summary>İpucu 1</summary><div><p>1: $\delta = 61 - 60$. 2: Bölüm 8'in formülü, $\delta = 2.5$, $z_\beta = 1.282$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>3: $n = 30$ için $SE = 10.9/\sqrt{30}$. Power'ı bulunca cevabı bir cümleyle ver: bu tasarım neyi yakalar, neyi kaçırır? Slayt 19'un tablosunda 30 hangi $\delta$'ya karşılık geliyordu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Ortak kurulum.</strong> Hipotezler: $H_0: \mu = 60$, $H_a: \mu &gt; 60$. Statistic: $z = (\bar x - 60)/SE$. Rejection region: $z &gt; 1.645$, $\alpha = 0.05$.</p>
+      <ol>
+        <li>$\delta = 1$: power $= P(Z &gt; 1.645 - 1/1.0) = P(Z &gt; 0.645) \approx 1 - 0.7405 = \boxed{0.26}$. Gerçek mean 61 ise 120 request'le bu 1 ms'lik fark dörtte üç oranında kaçırılır. (Yuvarlamadan, $SE = 0.995$ ile 0.261.)</li>
+        <li>$n = \left(\dfrac{(1.645 + 1.282) \times 10.9}{2.5}\right)^2 = 12.762^2 = 162.9 \to \boxed{163}$ request.</li>
+        <li>$SE = 10.9/\sqrt{30} = 1.99$. Power $= P(Z &gt; 1.645 - 2.5/1.99) = P(Z &gt; 0.389) \approx \boxed{0.35}$. Meslektaşa: "30 request'le gerçek bir 2.5 ms fazlalığı yaklaşık üçte iki oranında kaçırırız. Test reddetmezse, provider'ın 60 ms sözünü tuttuğunu da söyleyemeyiz. 30 request ancak 5 ms'lik bir farkı 0.80 power'la yakalar. 2.5 ms için 0.80 power'da 118, 0.90'da 163 request gerekir."</li>
+      </ol>
+      <p>Slayt 17'deki $n = 30$ eğrisi de 62.5'te yaklaşık 0.35'te.</p>
+    </div></details>
+    <!-- Kaynak: 04-hypothesis-testing-ii.pdf slayt 21 (Your Turn: Plan the Study). Çözüm slaytlarda yok; python: 0.2595 (SE = 1.0), 0.2611 (SE = 0.995), 162.86 → 163 (power 0.9003), n = 30: z = 0.3888, power 0.3488. -->
+  </div>
+  <div class="quiz" id="q-yt-2">
+    <p class="quiz__q">30 request'lik test "fail to reject $H_0$" dedi. Doğru yorum hangisi?</p>
+    <button class="quiz__opt" data-correct>Yeterli kanıt yok; power düşük olduğu için gerçek bir 2.5 ms fark da kolayca kaçırılmış olabilir<span class="why">Doğru. 62.5'te power yaklaşık 0.35. Reddedememek "fark yok" demek değil, özellikle power düşükken.</span></button>
+    <button class="quiz__opt">Provider'ın 60 ms sözü doğrulandı<span class="why">Test $H_0$'ı kanıtlamaz. Düşük power'lı bir testin reddetmemesi neredeyse hiçbir şey söylemez.</span></button>
+    <button class="quiz__opt">p-value 0.35'tir<span class="why">0.35 power, p-value değil. p-value gözlenen veriden hesaplanır.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">$H_0: \mu = 100$, $H_a: \mu &gt; 100$, $\sigma = 15$, $n = 25$, $\alpha = 0.05$. Cut-off $\bar x^*$ nedir?</p>
+    <button class="quiz__opt" data-correct>104.94<span class="why">Doğru: $SE = 15/5 = 3$, $\bar x^* = 100 + 1.645 \times 3 = 104.935$.</span></button>
+    <button class="quiz__opt">105.88<span class="why">Bu $1.96 \times 3$ ile kurulmuş, yani two-tailed cut-off. $H_a$ tek yönlü: $z_\alpha = 1.645$.</span></button>
+    <button class="quiz__opt">100.99<span class="why">Bu $SE$'yi $\sigma/n = 0.6$ almaktan geliyor. $SE = \sigma/\sqrt n = 3$.</span></button>
+    <button class="quiz__opt">124.68<span class="why">Bu $\sigma$'yı $SE$ yerine kullanmak: $100 + 1.645 \times 15$. Cut-off $\bar x$ için, $\bar x$'in standard deviation'ı $SE$.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Aynı test, gerçek mean 106. $\beta$ yaklaşık kaçtır?</p>
+    <button class="quiz__opt" data-correct>0.36<span class="why">Doğru: $z = (104.94 - 106)/3 = -0.355$, $\beta = P(Z &lt; -0.355) \approx 0.36$. $\delta/SE = 2$, QB1 S22 ile aynı.</span></button>
+    <button class="quiz__opt">0.64<span class="why">Bu power. $\beta$ cut-off'un solundaki alan.</span></button>
+    <button class="quiz__opt">0.05<span class="why">0.05 $\alpha$; $H_0$ doğruyken tanımlı. $\beta$ gerçek mean 106'da hesaplanır.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Two-tailed test, $\alpha = 0.05$, power 0.80, $\sigma = 10$, $\delta = 5$. Gereken $n$?</p>
+    <button class="quiz__opt" data-correct>32<span class="why">Doğru: $((1.96 + 0.842) \times 10/5)^2 = 5.604^2 = 31.4 \to 32$.</span></button>
+    <button class="quiz__opt">25<span class="why">Bu $z_\alpha = 1.645$ ile ($24.7 \to 25$). Two-tailed test'te $z_{\alpha/2} = 1.96$.</span></button>
+    <button class="quiz__opt">31<span class="why">31.4'ü aşağı yuvarlamak. $n$ her zaman yukarı yuvarlanır.</span></button>
+    <button class="quiz__opt">52<span class="why">Bu $z_\beta$ için 1.645 kullanmaktan gelir: $((1.96 + 1.645) \times 2)^2 = 51.98 \to 52$. Power 0.80 ⇒ $\beta = 0.20$ ⇒ $z_\beta = 0.842$.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Hangisi power'ı <strong>düşürür</strong> (diğer her şey sabit)?</p>
+    <button class="quiz__opt" data-correct>$\alpha$'yı 0.05'ten 0.01'e indirmek<span class="why">Doğru. $z_\alpha$ 1.645'ten 2.326'ya çıkar, cut-off yukarı kayar. Slayt 18: 0.80 → 0.57.</span></button>
+    <button class="quiz__opt">$n$'yi artırmak<span class="why">$n$ artınca $SE$ küçülür, $\delta/SE$ büyür, power artar.</span></button>
+    <button class="quiz__opt">Ölçümü iyileştirip $\sigma$'yı küçültmek<span class="why">Küçük $\sigma$, küçük $SE$ demek; power artar.</span></button>
+    <button class="quiz__opt">Gerçek mean'in $\mu_0$'dan daha uzak olması<span class="why">Fark büyüdükçe power artar; power curve $\mu_0$'dan uzaklaştıkça yükselir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Bir öğrenci power'ı hesaplamak için hipotezleri "$H_0: \mu = 62.5$, $H_a: \mu &gt; 60$" diye yazdı. Ne söylersin?</p>
+    <button class="quiz__opt" data-correct>$H_0$ yine $\mu = 60$; 62.5, $\beta$ ve power'ın hesaplandığı $\mu_a$ değeri<span class="why">Doğru. Hipotezler testten gelir ve değişmez. Power hesabı, $H_a$'dan bir değer seçip "gerçek bu olsaydı" diye sorar.</span></button>
+    <button class="quiz__opt">Doğru, power hesabında $H_0$ gerçek mean'e eşitlenir<span class="why">$H_0$ test edilen iddiadır (60 ms). Gerçek mean'i $H_0$'a koyarsan cut-off yanlış yerde kurulur.</span></button>
+    <button class="quiz__opt">$H_a: \mu = 62.5$ yazılmalı, $H_0$ önemli değil<span class="why">$H_a$, test kurulurken $\mu &gt; 60$ olarak kalır. $\mu_a = 62.5$ sadece hesap için seçilen bir nokta; cut-off yine $H_0$'dan kurulur.</span></button>
+  </div>
+  <!-- Sıradaki konu: Confidence interval'lar ve testleri doğru kullanmak (CI–test bağı, significant ≠ important, Bonferroni). -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=8"></script>
+<script src="../assets/lab.js?v=8"></script>
+<script>
+/* Normal CDF and quantile, seeded RNG. Values checked against the z table
+   (P(Z < -0.35) = 0.3632, z_.05 = 1.645, z_.20 = 0.842 …) with python3 -I. */
+const ST = {
+  erfc(x) {
+    const z = Math.abs(x), t = 1 / (1 + 0.5 * z);
+    const r = t * Math.exp(-z * z - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 + t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277)))))))));
+    return x >= 0 ? r : 2 - r;
+  },
+  Phi(x) { return 0.5 * ST.erfc(-x / Math.SQRT2); },
+  inv(p) {
+    const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+    const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+    const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+    const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+    const lo = 0.02425;
+    let x, q, r;
+    if (p < lo) { q = Math.sqrt(-2 * Math.log(p)); x = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+    else if (p <= 1 - lo) { q = p - 0.5; r = q * q; x = (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1); }
+    else { q = Math.sqrt(-2 * Math.log(1 - p)); x = -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+    const e = ST.Phi(x) - p, u = e * Math.sqrt(2 * Math.PI) * Math.exp(x * x / 2);
+    return x - u / (1 + x * u / 2);
+  },
+  zUp(a) { return ST.inv(1 - a); },
+  rng(seed) {
+    let s = seed >>> 0, spare = null;
+    const uni = () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    return {
+      uni,
+      normal() {
+        if (spare !== null) { const v = spare; spare = null; return v; }
+        let u = 0; while (u === 0) u = uni();
+        const v = uni(), m = Math.sqrt(-2 * Math.log(u));
+        spare = m * Math.sin(2 * Math.PI * v);
+        return m * Math.cos(2 * Math.PI * v);
+      }
+    };
+  },
+  /* β and power of a one-sample z test for a mean */
+  power(p) {
+    const se = p.sig / Math.sqrt(p.n);
+    if (p.tail === "two") {
+      const z = ST.zUp(p.al / 2), L = p.mu0 - z * se, U = p.mu0 + z * se;
+      const zL = (L - p.mua) / se, zU = (U - p.mua) / se, beta = ST.Phi(zU) - ST.Phi(zL);
+      return { se, za: z, cuts: [L, U], zs: [zL, zU], beta, power: 1 - beta };
+    }
+    const za = ST.zUp(p.al), up = p.tail === "upper";
+    const cut = up ? p.mu0 + za * se : p.mu0 - za * se, z = (cut - p.mua) / se;
+    const beta = up ? ST.Phi(z) : 1 - ST.Phi(z);
+    return { se, za, cuts: [cut], zs: [z], beta, power: 1 - beta };
+  },
+  /* rejection rate of the same z test on reps samples of size n drawn from N(mua, sig) */
+  simPower(p, reps, seed) {
+    const R = ST.rng(seed), se = p.sig / Math.sqrt(p.n);
+    const zc = p.tail === "two" ? ST.zUp(p.al / 2) : ST.zUp(p.al);
+    let rej = 0;
+    for (let k = 0; k < reps; k++) {
+      let s = 0;
+      for (let i = 0; i < p.n; i++) s += p.mua + p.sig * R.normal();
+      const z = (s / p.n - p.mu0) / se;
+      if (p.tail === "upper" ? z > zc : p.tail === "lower" ? z < -zc : Math.abs(z) > zc) rej++;
+    }
+    return rej / reps;
+  }
+};
+
+const W = {
+  f(v, d) { return Number.isFinite(v) ? v.toFixed(d) : "—"; },
+  num(raw, name, rule) {
+    const s = String(raw).trim().replace(",", ".");
+    if (s === "") return { e: `$${name}$ boş. Bir sayı yaz (ondalık için nokta: 0.05).` };
+    const v = Number(s);
+    if (!Number.isFinite(v)) return { e: `$${name}$ bir sayı olmalı.` };
+    const msg = rule ? rule(v) : null;
+    return msg ? { e: msg } : { v };
+  },
+  showErr(el, errs) {
+    el.innerHTML = errs.join("<br>");
+    Lab.renderMath(el);
+    return errs.length > 0;
+  },
+  niceTicks(lo, hi, count) {
+    const raw = (hi - lo) / count, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) || 10 * mag;
+    const out = [];
+    for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10));
+    return out;
+  },
+  dec(step) { return Math.max(0, -Math.floor(Math.log10(step) + 1e-9)); }
+};
+
+/* A. Two curves: H0's sampling distribution and the true one, cut-off, α and β areas, 3-step stepper */
+(function () {
+  const $ = id => document.getElementById(id);
+  const inp = { mu0: $("wa-mu0"), mua: $("wa-mua"), sig: $("wa-sig"), n: $("wa-n"), al: $("wa-al"), tail: $("wa-tail") };
+  const range = $("wa-range"), rangeV = $("wa-range-v"), err = $("wa-err"), box = $("wa-stepper"), nums = $("wa-nums");
+  const PRE = {
+    s16: { mu0: 60, mua: 62.5, sig: 10.9, n: 120, al: 0.05, tail: "upper" },
+    q22: { mu0: 50, mua: 54, sig: 12, n: 36, al: 0.05, tail: "upper" },
+    pipe: { mu0: 2400, mua: 2425, sig: 200, n: 50, al: 0.05, tail: "upper" },
+    low: { mu0: 60, mua: 55, sig: 22.5, n: 81, al: 0.10, tail: "lower" },
+    two: { mu0: 1.2, mua: 1.1, sig: 0.5, n: 100, al: 0.05, tail: "two" }
+  };
+  const TAIL = { upper: "upper-tailed", lower: "lower-tailed", two: "two-tailed" };
+  function read() {
+    const errs = [], p = { tail: inp.tail.value };
+    const mu0 = W.num(inp.mu0.value, "\\mu_0"), mua = W.num(inp.mua.value, "\\mu_a");
+    const sig = W.num(inp.sig.value, "\\sigma", v => v > 0 ? null : "$\\sigma &gt; 0$ olmalı: standard deviation negatif ya da sıfır olamaz.");
+    const n = W.num(inp.n.value, "n", v => !Number.isInteger(v) ? "$n$ bir tam sayı olmalı: gözlem sayısı." : v < 2 ? "$n \\ge 2$ olmalı." : v > 100000 ? "$n$ en fazla 100000 olsun." : null);
+    const al = W.num(inp.al.value, "\\alpha", v => v > 0 && v < 0.5 ? null : "$\\alpha$, 0 ile 0.5 arasında olmalı (ör. 0.05).");
+    [["mu0", mu0], ["mua", mua], ["sig", sig], ["n", n], ["al", al]].forEach(([k, r]) => { if (r.e) errs.push(r.e); else p[k] = r.v; });
+    return { p, errs };
+  }
+  function svg(p, r, k) {
+    const Wd = 640, H = 250, pad = 12, top = 30, base = 208;
+    const se = r.se, lo = Math.min(p.mu0, p.mua) - 4 * se, hi = Math.max(p.mu0, p.mua) + 4 * se;
+    const X = v => pad + (v - lo) / (hi - lo) * (Wd - 2 * pad);
+    const peak = 1 / (se * Math.sqrt(2 * Math.PI)), Y = d => base - d / peak * (base - top);
+    const dens = (x, m) => Math.exp(-0.5 * ((x - m) / se) ** 2) / (se * Math.sqrt(2 * Math.PI));
+    const N = 220, xs = Array.from({ length: N + 1 }, (_, i) => lo + (hi - lo) * i / N);
+    const line = m => xs.map((x, i) => `${i ? "L" : "M"}${X(x).toFixed(1)},${Y(dens(x, m)).toFixed(1)}`).join("");
+    const area = (m, a, b) => {
+      a = Math.max(a, lo); b = Math.min(b, hi); if (b <= a) return "";
+      const pts = [];
+      for (let i = 0; i <= 80; i++) { const x = a + (b - a) * i / 80; pts.push(`${X(x).toFixed(1)},${Y(dens(x, m)).toFixed(1)}`); }
+      return `M${X(a).toFixed(1)},${base}L${pts.join("L")}L${X(b).toFixed(1)},${base}Z`;
+    };
+    const c = r.cuts, rej = p.tail === "upper" ? [[c[0], hi]] : p.tail === "lower" ? [[lo, c[0]]] : [[lo, c[0]], [c[1], hi]];
+    const acc = p.tail === "upper" ? [[lo, c[0]]] : p.tail === "lower" ? [[c[0], hi]] : [[c[0], c[1]]];
+    let s = `<svg viewBox="0 0 ${Wd} ${H}" role="img" aria-label="H0 ve gerçek mean altında x-bar dağılımı">`;
+    if (k >= 4) rej.forEach(([a, b]) => { s += `<path d="${area(p.mua, a, b)}" fill="#2b8a3e" fill-opacity=".22"/>`; });
+    if (k >= 3) acc.forEach(([a, b]) => { s += `<path d="${area(p.mua, a, b)}" fill="var(--blue-300)" fill-opacity=".75"/>`; });
+    if (k >= 1) rej.forEach(([a, b]) => { s += `<path d="${area(p.mu0, a, b)}" fill="var(--accent)" fill-opacity=".85"/>`; });
+    s += `<path d="${line(p.mu0)}" fill="none" stroke="var(--fg-brand)" stroke-width="2.4"/>`;
+    s += `<path d="${line(p.mua)}" fill="none" stroke="var(--blue-600)" stroke-width="2.4" stroke-dasharray="7 5"/>`;
+    s += `<line x1="${pad}" x2="${Wd - pad}" y1="${base}" y2="${base}" stroke="var(--border-strong)"/>`;
+    const ticks = W.niceTicks(lo, hi, 6), dd = W.dec(ticks.length > 1 ? ticks[1] - ticks[0] : 1);
+    ticks.forEach(t => { s += `<line x1="${X(t)}" x2="${X(t)}" y1="${base}" y2="${base + 5}" stroke="var(--fg-muted)"/><text x="${X(t)}" y="${base + 19}" font-size="13" text-anchor="middle" fill="var(--fg-muted)">${t.toFixed(dd)}</text>`; });
+    if (k >= 1) c.forEach(v => { s += `<line x1="${X(v)}" x2="${X(v)}" y1="${top - 12}" y2="${base}" stroke="var(--fg)" stroke-dasharray="3 3"/><text x="${X(v)}" y="${top - 16}" font-size="13" font-weight="700" text-anchor="middle" fill="var(--fg)">${W.f(v, 3)}</text>`; });
+    const lab = (m, txt, col) => `<text x="${Math.min(Wd - 60, Math.max(60, X(m)))}" y="${top + 8}" font-size="13" text-anchor="middle" fill="${col}">${txt}</text>`;
+    if (Math.abs(X(p.mu0) - X(p.mua)) > 90) { s += lab(p.mu0, "H₀: μ = " + p.mu0, "var(--fg-brand)"); s += lab(p.mua, "gerçek μ = " + p.mua, "var(--blue-600)"); }
+    else s += `<text x="${Wd / 2}" y="${top + 8}" font-size="13" text-anchor="middle" fill="var(--fg-muted)">eğriler üst üste: μ₀ = ${p.mu0}, μ = ${p.mua}</text>`;
+    s += `<g class="w-power-and-sample-size-handle" data-handle="1"><circle cx="${X(p.mua)}" cy="${base}" r="9" fill="var(--accent)" stroke="#fff" stroke-width="2"/></g>`;
+    s += `</svg>`;
+    return { s, X, lo, hi, pad, Wd };
+  }
+  let cur = null, geom = null;
+  function frames(p, r) {
+    const se = W.f(r.se, 3), za = W.f(r.za, 3), d = Math.abs(p.mu0) >= 100 ? 1 : 3;
+    const F = [{ k: 0, caption: `İki dünya. Düz eğri: $H_0$ doğruysa $\\bar x$'in dağılımı (merkez $${p.mu0}$). Kesikli eğri: gerçek mean $${p.mua}$ ise. İkisinin genişliği aynı: $SE = \\sigma/\\sqrt n = ${p.sig}/\\sqrt{${p.n}} = ${se}$.` }];
+    if (p.tail === "two") {
+      F.push({ k: 1, caption: `1. adım: cut-off'lar $H_0$'ın dünyasında, $z_{\\alpha/2} = ${za}$: $\\bar x_{0,L} = ${p.mu0} - ${za}\\times${se} = ${W.f(r.cuts[0], d + 1)}$, $\\bar x_{0,U} = ${p.mu0} + ${za}\\times${se} = ${W.f(r.cuts[1], d + 1)}$. Turuncu alanların toplamı $\\alpha = ${p.al}$.` });
+      F.push({ k: 2, caption: `2. adım: iki cut-off'u gerçek mean'den ölç: $z_L = (${W.f(r.cuts[0], d + 1)} - ${p.mua})/${se} = ${W.f(r.zs[0], 3)}$, $z_U = (${W.f(r.cuts[1], d + 1)} - ${p.mua})/${se} = ${W.f(r.zs[1], 3)}$.` });
+      F.push({ k: 3, caption: `3. adım: $\\beta = P(${W.f(r.zs[0], 3)} &lt; Z &lt; ${W.f(r.zs[1], 3)}) = ${W.f(r.beta, 4)}$: gerçek eğrinin iki cut-off arasında kalan (mavi) alanı.` });
+    } else {
+      const up = p.tail === "upper", sign = up ? "+" : "-";
+      F.push({ k: 1, caption: `1. adım: $H_0$'ın dünyasında cut-off, $z_\\alpha = ${za}$: $\\bar x^* = ${p.mu0} ${sign} ${za}\\times${se} = ${W.f(r.cuts[0], d + 1)}$. $\\bar x$ ${up ? "bunu geçerse" : "bunun altına düşerse"} reddedilir. Turuncu alan $\\alpha = ${p.al}$.` });
+      F.push({ k: 2, caption: `2. adım: cut-off'u gerçek mean'den ölç: $z = (${W.f(r.cuts[0], d + 1)} - ${p.mua})/${se} = ${W.f(r.zs[0], 3)}$.` });
+      F.push({ k: 3, caption: `3. adım: $\\beta = P(Z ${up ? "&lt;" : "&gt;"} ${W.f(r.zs[0], 3)}) = ${W.f(r.beta, 4)}$: gerçek eğrinin reddetmeme tarafındaki (mavi) alanı.` });
+    }
+    let tail = "";
+    if (Math.abs(p.mua - p.mu0) < 1e-12) tail = " Gerçek mean $\\mu_0$'a eşit: $H_0$ doğru, yani bu 'power' aslında $\\alpha$.";
+    else if ((p.tail === "upper" && p.mua < p.mu0) || (p.tail === "lower" && p.mua > p.mu0)) tail = ` Gerçek mean $H_a$'nın ters yönünde: $H_0$ ile $H_a$ ikisi de yanlış bir durum; test bunu yakalamak için kurulmadı, reddetme olasılığı $\\alpha$'dan da küçük.`;
+    F.push({ k: 4, caption: `Power $= 1 - \\beta = ${W.f(r.power, 4)}$ (yeşil alan): gerçek mean $${p.mua}$ iken ${TAIL[p.tail]} test bu farkı yaklaşık %${Math.round(100 * r.power)} oranında yakalar.` + tail });
+    return F;
+  }
+  function build() {
+    const { p, errs } = read();
+    if (W.showErr(err, errs)) { nums.innerHTML = ""; return; }
+    const r = ST.power(p), F = frames(p, r);
+    cur = { p, r };
+    syncRange(p, r.se);
+    const st = Lab.stepper(box, {
+      title: `${TAIL[p.tail]} z test · μ₀ = ${p.mu0}, gerçek μ = ${p.mua}, σ = ${p.sig}, n = ${p.n}, α = ${p.al}`,
+      interval: 1700,
+      frames: F,
+      render(f, i, el) { const g = svg(p, r, f.k); geom = g; el.innerHTML = `<div class="w-power-and-sample-size-plot">${g.s}</div>`; }
+    });
+    st.go(F.length - 1);
+    nums.innerHTML = [["SE", W.f(r.se, 4)], [p.tail === "two" ? "cut-off'lar" : "cut-off", r.cuts.map(v => W.f(v, 3)).join(" · ")], ["α", String(p.al)], ["β", W.f(r.beta, 4)], ["power", W.f(r.power, 4)]]
+      .map(([a, b]) => `<div>${a}<b>${b}</b></div>`).join("");
+  }
+  function syncRange(p, se) {
+    const lo = Math.min(p.mu0, p.mua) - 6 * se, hi = Math.max(p.mu0, p.mua) + 6 * se;
+    const span = Math.max(Math.abs(p.mu0 - lo), Math.abs(hi - p.mu0));
+    range.min = String(p.mu0 - span); range.max = String(p.mu0 + span);
+    range.step = String(se / 50);
+    range.value = String(p.mua);
+    rangeV.textContent = String(p.mua);
+  }
+  const roundTo = (v, se) => { const dd = Math.max(0, W.dec(se / 20)); return +v.toFixed(dd); };
+  range.addEventListener("input", () => {
+    if (!cur) return;
+    const v = roundTo(+range.value, cur.r.se);
+    inp.mua.value = String(v); rangeV.textContent = String(v);
+    build();
+  });
+  Object.values(inp).forEach(el => el.addEventListener("change", build));
+  Object.values(inp).forEach(el => { if (el.tagName === "INPUT") el.addEventListener("keydown", e => { if (e.key === "Enter") build(); }); });
+  document.querySelectorAll("[data-wa]").forEach(b => b.addEventListener("click", () => {
+    const P = PRE[b.dataset.wa];
+    Object.keys(P).forEach(k => { inp[k].value = String(P[k]); });
+    build();
+  }));
+  /* drag the true mean along the axis */
+  let drag = false;
+  box.addEventListener("pointerdown", e => {
+    if (!e.target.closest("[data-handle]")) return;
+    drag = true; e.preventDefault();
+    try { e.target.setPointerCapture(e.pointerId); } catch (x) { /* older browsers */ }
+  });
+  window.addEventListener("pointermove", e => {
+    if (!drag || !geom || !cur) return;
+    const svgEl = box.querySelector("svg"); if (!svgEl) return;
+    const rect = svgEl.getBoundingClientRect(), vx = (e.clientX - rect.left) / rect.width * geom.Wd;
+    let v = geom.lo + (vx - geom.pad) / (geom.Wd - 2 * geom.pad) * (geom.hi - geom.lo);
+    v = Math.max(+range.min, Math.min(+range.max, v));
+    inp.mua.value = String(roundTo(v, cur.r.se));
+    build();
+  });
+  window.addEventListener("pointerup", () => { drag = false; });
+  build();
+})();
+
+/* B. Power curves for n = 30, 120, 480 (+ one more n), seeded simulation dots as on slide 17 */
+(function () {
+  const $ = id => document.getElementById(id);
+  const MU0 = 60, SIG = 10.9, REPS = 4000;
+  const al = $("wb-al"), extra = $("wb-n"), simN = $("wb-simn"), simBtn = $("wb-sim"), mu = $("wb-mu"), muV = $("wb-mu-v");
+  const err = $("wb-err"), plot = $("wb-plot"), legend = $("wb-legend"), read = $("wb-read");
+  const COL = { 30: "var(--blue-300)", 120: "var(--blue-600)", 480: "var(--blue-900)" };
+  let dots = null;
+  function ns() {
+    const out = [30, 120, 480];
+    const raw = extra.value.trim();
+    if (raw === "") { err.innerHTML = ""; return out; }
+    const r = W.num(raw, "n", v => !Number.isInteger(v) ? "Ek $n$ bir tam sayı olmalı." : v < 2 ? "Ek $n \\ge 2$ olmalı." : v > 20000 ? "Ek $n$ en fazla 20000 olsun." : null);
+    if (W.showErr(err, r.e ? [r.e] : [])) return out;
+    if (!out.includes(r.v)) out.push(r.v);
+    return out;
+  }
+  const pw = (m, n, a) => ST.power({ mu0: MU0, mua: m, sig: SIG, n, al: a, tail: "upper" }).power;
+  function draw() {
+    const a = +al.value, list = ns(), m = +mu.value;
+    muV.textContent = m.toFixed(1);
+    const Wd = 640, H = 300, L = 44, R = 12, T = 12, B = 256, lo = 57, hi = 66;
+    const X = v => L + (v - lo) / (hi - lo) * (Wd - L - R), Y = v => B - v * (B - T);
+    let s = `<svg viewBox="0 0 ${Wd} ${H}" role="img" aria-label="Power curve">`;
+    [0, 0.25, 0.5, 0.75, 1].forEach(v => { s += `<line x1="${L}" x2="${Wd - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--border)"/><text x="${L - 6}" y="${Y(v) + 4}" font-size="12" text-anchor="end" fill="var(--fg-muted)">${v.toFixed(2)}</text>`; });
+    for (let t = 58; t <= 66; t += 2) s += `<text x="${X(t)}" y="${B + 18}" font-size="12" text-anchor="middle" fill="var(--fg-muted)">${t}</text>`;
+    s += `<text x="${(L + Wd - R) / 2}" y="${B + 38}" font-size="13" text-anchor="middle" fill="var(--fg-muted)">gerçek mean μ (ms)</text>`;
+    s += `<line x1="${X(60)}" x2="${X(60)}" y1="${T}" y2="${B}" stroke="var(--border-strong)" stroke-dasharray="2 4"/>`;
+    s += `<line x1="${L}" x2="${Wd - R}" y1="${Y(a)}" y2="${Y(a)}" stroke="var(--accent)" stroke-dasharray="4 4"/><text x="${Wd - R - 4}" y="${Y(a) - 4}" font-size="12" text-anchor="end" fill="var(--accent)">α = ${a}</text>`;
+    list.forEach(n => {
+      const pts = [];
+      for (let i = 0; i <= 180; i++) { const x = lo + (hi - lo) * i / 180; pts.push(`${i ? "L" : "M"}${X(x).toFixed(1)},${Y(pw(x, n, a)).toFixed(1)}`); }
+      s += `<path d="${pts.join("")}" fill="none" stroke="${COL[n] || "var(--accent)"}" stroke-width="2.4"${COL[n] ? "" : ' stroke-dasharray="6 4"'}/>`;
+    });
+    if (dots && dots.al === a) dots.pts.forEach(d => { s += `<circle cx="${X(d.mu)}" cy="${Y(d.p)}" r="5" fill="var(--accent)" stroke="#fff" stroke-width="1.5"/>`; });
+    s += `<line x1="${X(m)}" x2="${X(m)}" y1="${T}" y2="${B}" stroke="var(--fg)" stroke-dasharray="3 3"/>`;
+    s += `</svg>`;
+    plot.innerHTML = s;
+    legend.innerHTML = list.map(n => `<span><i style="background:${COL[n] || "var(--accent)"}"></i>n = ${n}</span>`).join("") +
+      (dots && dots.al === a ? `<span><i style="background:var(--accent);height:9px;width:9px;border-radius:50%"></i>simulated, n = ${dots.n} (seed ${dots.seed})</span>` : "");
+    let h = `<table><tr><th>$n$</th><th>$SE$</th><th>power at $\\mu = ${m.toFixed(1)}$</th>`;
+    if (dots && dots.al === a) h += `<th>simulated (en yakın nokta)</th>`;
+    h += `</tr>`;
+    list.forEach(n => {
+      h += `<tr><td>${n}</td><td>${W.f(SIG / Math.sqrt(n), 3)}</td><td><b>${W.f(pw(m, n, a), 3)}</b></td>`;
+      if (dots && dots.al === a) {
+        const near = dots.pts.reduce((b, d) => Math.abs(d.mu - m) < Math.abs(b.mu - m) ? d : b);
+        h += `<td>${n === dots.n ? `μ = ${near.mu}: ${W.f(near.p, 3)} (formül ${W.f(pw(near.mu, n, a), 3)})` : ""}</td>`;
+      }
+      h += `</tr>`;
+    });
+    read.innerHTML = h + `</table>`;
+    Lab.renderMath(read);
+  }
+  function simulate() {
+    const a = +al.value, n = +simN.value, seed = 17 + n;
+    const pts = [];
+    for (let m = 58; m <= 66; m++) pts.push({ mu: m, p: ST.simPower({ mu0: MU0, mua: m, sig: SIG, n, al: a, tail: "upper" }, REPS, seed + 1000 * m) });
+    dots = { al: a, n, seed, pts };
+    draw();
+  }
+  function syncSimOptions() {
+    const list = ns(), keep = simN.value;
+    simN.innerHTML = list.map(n => `<option value="${n}"${String(n) === keep ? " selected" : ""}>n = ${n}${n > 2000 ? " (yavaş)" : ""}</option>`).join("");
+  }
+  al.addEventListener("change", draw);
+  mu.addEventListener("input", draw);
+  extra.addEventListener("change", () => { syncSimOptions(); draw(); });
+  extra.addEventListener("keydown", e => { if (e.key === "Enter") { syncSimOptions(); draw(); } });
+  simBtn.addEventListener("click", () => {
+    if (+simN.value > 2000) { W.showErr(err, ["Simulation en fazla $n = 2000$ için çalışır; daha büyük $n$'de formül eğrisine bak."]); return; }
+    simBtn.disabled = true; simBtn.textContent = "Çalışıyor…";
+    setTimeout(() => { simulate(); simBtn.disabled = false; simBtn.textContent = "Simülasyonu çalıştır"; }, 20);
+  });
+  simulate();
+})();
+
+/* D. Lever table: change one lever, recompute power from slide 18's formula */
+(function () {
+  const $ = id => document.getElementById(id);
+  const BASE = { al: 0.05, n: 120, sig: 10.9, d: 2.5 };
+  const ROWS = [
+    { name: "Yok (baseline)", ch: {} },
+    { name: "$\\alpha = 0.01$", ch: { al: 0.01 } },
+    { name: "$n = 480$ (dört katı)", ch: { n: 480 } },
+    { name: "$\\sigma = 21.8$ (iki katı)", ch: { sig: 21.8 } },
+    { name: "$\\delta = 1.25$ (yarı)", ch: { d: 1.25 } }
+  ];
+  /* slide 18 rounds SE to 1.0 (0.5 and 2.0 in the changed rows); the widget does the same so the table matches */
+  const seRound = q => Math.round(q.sig / Math.sqrt(q.n) * 10) / 10;
+  const calc = q => { const z = ST.zUp(q.al), se = seRound(q), r = q.d / se; return { z, se, r, p: 1 - ST.Phi(z - r) }; };
+  const shown = new Set([0]);
+  const bar = v => `<div class="w-power-and-sample-size-bar"><div style="width:${(100 * v).toFixed(1)}%"></div></div>`;
+  function table() {
+    let h = `<tr><th>Değişiklik</th><th>$z$ for $\\alpha$</th><th>$\\delta/SE$</th><th>Power</th><th style="width:28%"></th></tr>`;
+    ROWS.forEach((row, i) => {
+      const q = Object.assign({}, BASE, row.ch), c = calc(q);
+      if (shown.has(i)) h += `<tr><td>${row.name}</td><td>${W.f(c.z, 3)}</td><td>${q.d} / ${c.se.toFixed(1)} = ${W.f(c.r, 2)}</td><td><b>${c.p > 0.995 ? "≈ 1.00" : W.f(c.p, 2)}</b></td><td>${bar(c.p)}</td></tr>`;
+      else h += `<tr><td>${row.name}</td><td colspan="3" class="w-power-and-sample-size-hide">tahmin et, sonra</td><td><button class="btn btn--sm" data-wd="${i}">Göster</button></td></tr>`;
+    });
+    $("wd-table").innerHTML = h;
+    Lab.renderMath($("wd-table"));
+  }
+  $("wd-table").addEventListener("click", e => { const b = e.target.closest("[data-wd]"); if (b) { shown.add(+b.dataset.wd); table(); } });
+  function custom() {
+    const A = W.num($("wd-al").value, "\\alpha", v => v > 0 && v < 0.5 ? null : "$\\alpha$, 0 ile 0.5 arasında olmalı.");
+    const N = W.num($("wd-n").value, "n", v => !Number.isInteger(v) ? "$n$ bir tam sayı olmalı." : v < 2 ? "$n \\ge 2$ olmalı." : v > 1e6 ? "$n$ en fazla 1000000 olsun." : null);
+    const S = W.num($("wd-sig").value, "\\sigma", v => v > 0 ? null : "$\\sigma &gt; 0$ olmalı.");
+    const D = W.num($("wd-d").value, "\\delta", v => v > 0 ? null : "$\\delta &gt; 0$ olmalı: upper-tailed test'te $\\mu_a$, $\\mu_0$'ın üstünde.");
+    const errs = [A, N, S, D].filter(x => x.e).map(x => x.e);
+    if (W.showErr($("wd-err"), errs)) { $("wd-out").innerHTML = ""; return; }
+    const q = { al: A.v, n: N.v, sig: S.v, d: D.v }, z = ST.zUp(q.al), se = q.sig / Math.sqrt(q.n), r = q.d / se, p = 1 - ST.Phi(z - r);
+    const changed = Object.keys(BASE).filter(k => Math.abs(q[k] - BASE[k]) > 1e-12);
+    const NAMES = { al: "\\alpha", n: "n", sig: "\\sigma", d: "\\delta" };
+    const note = changed.length === 0 ? "Hiçbir kol değişmedi: baseline." : changed.length === 1 ? `Tek kol değişti: $${NAMES[changed[0]]}$.` : `Birden çok kol değişti (${changed.map(k => "$" + NAMES[k] + "$").join(", ")}); etkileri ayırmak için birini değiştir.`;
+    $("wd-out").innerHTML = `<p><b>Senin satırın.</b> ${note}</p>
+      <p>$z_\\alpha = ${W.f(z, 3)}$, $SE = ${q.sig}/\\sqrt{${q.n}} = ${W.f(se, 3)}$, $\\delta/SE = ${W.f(r, 3)}$</p>
+      <p>power $= P(Z &gt; ${W.f(z, 3)} - ${W.f(r, 3)}) = P(Z &gt; ${W.f(z - r, 3)}) =$ <b>${W.f(p, 4)}</b> (baseline 0.80)</p>${bar(p)}`;
+    Lab.renderMath($("wd-out"));
+  }
+  ["wd-al", "wd-n", "wd-sig", "wd-d"].forEach(id => { $(id).addEventListener("change", custom); $(id).addEventListener("keydown", e => { if (e.key === "Enter") custom(); }); });
+  table(); custom();
+})();
+
+/* C. Sample-size calculator, and the simulation search of section 9 that reads the same inputs */
+const CALC = (function () {
+  const $ = id => document.getElementById(id);
+  const inp = { al: $("wc-al"), pw: $("wc-pw"), sig: $("wc-sig"), d: $("wc-d"), tail: $("wc-tail") };
+  const err = $("wc-err"), out = $("wc-out");
+  const PRE = {
+    s19: { al: 0.05, pw: 0.80, sig: 10.9, d: 2.5, tail: "one" },
+    s19a: { al: 0.05, pw: 0.80, sig: 10.9, d: 5, tail: "one" },
+    s19b: { al: 0.05, pw: 0.80, sig: 10.9, d: 1, tail: "one" },
+    q23a: { al: 0.05, pw: 0.90, sig: 12, d: 4, tail: "one" },
+    w107: { al: 0.05, pw: 0.95, sig: 5, d: 1, tail: "one" }
+  };
+  function read() {
+    const A = W.num(inp.al.value, "\\alpha", v => v > 0 && v < 0.5 ? null : "$\\alpha$, 0 ile 0.5 arasında olmalı (ör. 0.05).");
+    const P = W.num(inp.pw.value, "\\text{power}", v => v >= 0.5 && v < 1 ? null : "Power 0.5 ile 1 arasında olmalı (ör. 0.80). 0.5'in altı bir planlama hedefi olmaz, 1'e de hiçbir sonlu $n$ ulaşmaz.");
+    const S = W.num(inp.sig.value, "\\sigma", v => v > 0 ? null : "$\\sigma &gt; 0$ olmalı.");
+    const D = W.num(inp.d.value, "\\delta", v => v > 0 ? null : "$\\delta &gt; 0$ olmalı: yakalamak istediğin farkın büyüklüğü.");
+    const errs = [A, P, S, D].filter(x => x.e).map(x => x.e);
+    if (errs.length) return { errs };
+    return { errs, q: { al: A.v, pw: P.v, sig: S.v, d: D.v, tail: inp.tail.value } };
+  }
+  function solve(q) {
+    /* z values rounded to three decimals, as read from a z table, so the shown arithmetic adds up */
+    const r3 = v => Math.round(v * 1000) / 1000;
+    const two = q.tail === "two", za = r3(two ? ST.zUp(q.al / 2) : ST.zUp(q.al)), zb = r3(ST.zUp(1 - q.pw));
+    const n = ((za + zb) * q.sig / q.d) ** 2;
+    return { za, zb, n, N: Math.max(2, Math.ceil(n - 1e-9)) };
+  }
+  const powerAt = (q, n) => ST.power({ mu0: 0, mua: q.d, sig: q.sig, n, al: q.al, tail: q.tail === "two" ? "two" : "upper" }).power;
+  function show() {
+    const { errs, q } = read();
+    if (W.showErr(err, errs)) { out.innerHTML = ""; return; }
+    const s = solve(q), zaT = q.tail === "two" ? "z_{\\alpha/2}" : "z_\\alpha";
+    const pN = powerAt(q, s.N), pM = s.N > 2 ? powerAt(q, s.N - 1) : NaN;
+    out.innerHTML = `<p>$${zaT} = ${W.f(s.za, 3)}$, $z_\\beta = z_{${W.f(1 - q.pw, 2)}} = ${W.f(s.zb, 3)}$</p>
+      $$n = \\left(\\frac{(${W.f(s.za, 3)} + ${W.f(s.zb, 3)}) \\times ${q.sig}}{${q.d}}\\right)^2 = ${W.f((s.za + s.zb) * q.sig / q.d, 3)}^2 = ${W.f(s.n, 2)} \\;\\to\\; \\boxed{${s.N}}$$
+      <p>Kontrol (formülün power'ı): $n = ${s.N}$ için power $= ${W.f(pN, 4)}$${Number.isFinite(pM) ? `, $n = ${s.N - 1}$ için $${W.f(pM, 4)}$` : ""}. ${Number.isFinite(pM) && pM < q.pw ? "Bir eksiği hedefin altında kalıyor; bu yüzden yukarı yuvarlanır." : ""}</p>
+      ${q.tail === "two" ? "<p>Two-tailed test'te formül yaklaşık: uzak cut-off'un küçük katkısı ihmal ediliyor.</p>" : ""}`;
+    Lab.renderMath(out);
+    document.dispatchEvent(new CustomEvent("wc:change"));
+  }
+  Object.values(inp).forEach(el => el.addEventListener("change", show));
+  Object.values(inp).forEach(el => { if (el.tagName === "INPUT") el.addEventListener("keydown", e => { if (e.key === "Enter") show(); }); });
+  document.querySelectorAll("[data-wc]").forEach(b => b.addEventListener("click", () => {
+    const P = PRE[b.dataset.wc];
+    Object.keys(P).forEach(k => { inp[k].value = String(k === "pw" ? P[k].toFixed(2) : P[k]); });
+    show();
+  }));
+  show();
+  return { read, solve, powerAt, preset(k) { document.querySelector(`[data-wc="${k}"]`).click(); } };
+})();
+
+(function () {
+  const $ = id => document.getElementById(id);
+  const REPS = 4000, cfg = $("ws-cfg"), err = $("ws-err"), box = $("ws-stepper"), go = $("ws-go");
+  function label() {
+    const { errs, q } = CALC.read();
+    cfg.innerHTML = errs.length ? "Hesaplayıcıdaki değerleri düzelt." : `Ayarlar: $\\alpha = ${q.al}$, power hedefi $${q.pw}$, $\\sigma = ${q.sig}$, $\\delta = ${q.d}$, ${q.tail === "two" ? "two-tailed" : "one-tailed"}`;
+    Lab.renderMath(cfg);
+  }
+  function idle() {
+    Lab.stepper(box, { title: "Simulation ile n arama", frames: [{ caption: "▶ için önce <b>Simülasyonu başlat</b>'a bas." }], render(f, i, el) { el.innerHTML = ""; } });
+  }
+  function run() {
+    const { errs, q } = CALC.read();
+    if (W.showErr(err, errs)) return;
+    const s = CALC.solve(q);
+    if (s.N > 3000) { W.showErr(err, [`Formül $n \\approx ${s.N}$ veriyor; bu büyüklükte simulation tarayıcıda çok uzun sürer. Daha büyük bir $\\delta$ ya da daha küçük bir hedef dene.`]); return; }
+    const step = Math.max(1, Math.round(s.n / 10)), rows = [];
+    let found = null;
+    for (let k = 1; k <= 30; k++) {
+      const n = Math.max(2, k * step);
+      const sim = ST.simPower({ mu0: 0, mua: q.d, sig: q.sig, n, al: q.al, tail: q.tail === "two" ? "two" : "upper" }, REPS, 5000 + n);
+      rows.push({ n, sim, f: CALC.powerAt(q, n) });
+      if (sim >= q.pw) { found = n; break; }
+    }
+    const frames = rows.map((r, i) => ({ k: i + 1, caption: `$n = ${r.n}$: ${REPS} sample'dan ${Math.round(r.sim * REPS)} tanesinde $H_0$ reddedildi ⇒ simulated power $= ${W.f(r.sim, 3)}$ (formül: $${W.f(r.f, 3)}$). ${r.sim >= q.pw ? "Hedefe ulaşıldı." : `Hedefin (${q.pw}) altında; $n$'yi ${step} artır.`}` }));
+    frames.push({ k: rows.length, final: true, caption: found ? `Simulation'ın bulduğu ilk $n$: <b>${found}</b> (adım ${step}). Formül: $${W.f(s.n, 1)} \\to ${s.N}$. Adım aralığı ve Monte Carlo gürültüsü ($\\pm 0.012$ civarı) yüzünden iki sonuç birebir aynı olmayabilir; aynı bölgeyi göstermeleri yeterli.` : `30 adımda hedefe ulaşılamadı.` });
+    const maxN = rows[rows.length - 1].n;
+    Lab.stepper(box, {
+      title: `Simulation ile n arama · ${REPS} sample her n için`,
+      interval: 900,
+      frames,
+      render(f, i, el) {
+        const Wd = 640, H = 230, L = 44, R = 12, T = 12, B = 190;
+        const X = v => L + v / (maxN * 1.05) * (Wd - L - R), Y = v => B - v * (B - T);
+        let sv = `<svg viewBox="0 0 ${Wd} ${H}" role="img" aria-label="Simulated power, n'ye karşı">`;
+        [0, 0.25, 0.5, 0.75, 1].forEach(v => { sv += `<line x1="${L}" x2="${Wd - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--border)"/><text x="${L - 6}" y="${Y(v) + 4}" font-size="12" text-anchor="end" fill="var(--fg-muted)">${v.toFixed(2)}</text>`; });
+        sv += `<line x1="${L}" x2="${Wd - R}" y1="${Y(q.pw)}" y2="${Y(q.pw)}" stroke="var(--fg)" stroke-dasharray="5 4"/><text x="${Wd - R - 4}" y="${Y(q.pw) - 5}" font-size="12" text-anchor="end" fill="var(--fg)">power ${q.pw}</text>`;
+        const pts = [];
+        for (let j = 0; j <= 120; j++) { const n = Math.max(2, maxN * 1.05 * j / 120); pts.push(`${j ? "L" : "M"}${X(n).toFixed(1)},${Y(CALC.powerAt(q, n)).toFixed(1)}`); }
+        sv += `<path d="${pts.join("")}" fill="none" stroke="var(--blue-600)" stroke-width="2.2"/>`;
+        sv += `<line x1="${X(s.n)}" x2="${X(s.n)}" y1="${T}" y2="${B}" stroke="var(--blue-600)" stroke-dasharray="2 3"/><text x="${X(s.n) + 4}" y="${B - 8}" font-size="12" fill="var(--blue-600)">formül n = ${s.N}</text>`;
+        rows.slice(0, f.k).forEach((r, j) => { sv += `<circle cx="${X(r.n)}" cy="${Y(r.sim)}" r="${j === f.k - 1 ? 7 : 5}" fill="var(--accent)" stroke="#fff" stroke-width="1.5"/>`; });
+        const ticks = W.niceTicks(0, maxN * 1.05, 5);
+        ticks.forEach(t => { sv += `<text x="${X(t)}" y="${B + 17}" font-size="12" text-anchor="middle" fill="var(--fg-muted)">${t}</text>`; });
+        sv += `<text x="${(L + Wd - R) / 2}" y="${B + 35}" font-size="13" text-anchor="middle" fill="var(--fg-muted)">n</text></svg>`;
+        el.innerHTML = `<div class="w-power-and-sample-size-plot">${sv}</div>`;
+      }
+    });
+  }
+  $("ws-preset").addEventListener("click", () => { CALC.preset("s19"); err.innerHTML = ""; idle(); });
+  go.addEventListener("click", () => {
+    err.innerHTML = ""; go.disabled = true; go.textContent = "Çalışıyor…";
+    setTimeout(() => { run(); go.disabled = false; go.textContent = "Simülasyonu başlat"; }, 20);
+  });
+  document.addEventListener("wc:change", () => { label(); idle(); });
+  label(); idle();
+})();
+</script>
+</body>
+</html>
