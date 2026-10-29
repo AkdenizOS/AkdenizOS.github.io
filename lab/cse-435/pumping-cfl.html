@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 435: CFL pumping lemma ile bir dilin context-free olmadığını ispatlamak. Parse tree'de tekrar eden variable, Theorem 2.34, beş parça, vxy penceresiyle durum analizi, hocanın ispat şablonu, k = mn ve bölünebilme gibi doğrusal olmayan kısıtlar, closure özellikleri." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>CFL pumping lemma ile 'context-free değildir' ispatı · CSE 435 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-pumping-cfl-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-pumping-cfl-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-pumping-cfl-ctl input[type="text"] { min-width: 0; width: 100%; max-width: 280px; font-family: 'JetBrains Mono', monospace; }
+    .w-pumping-cfl-ctl input[type="range"] { width: 100%; max-width: 320px; accent-color: var(--blue-600); }
+    .w-pumping-cfl-ctl select { max-width: 100%; }
+    .w-pumping-cfl-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-pumping-cfl-ok { color: #2b8a3e; font-weight: 600; }
+    .w-pumping-cfl-bad { color: #c92a2a; font-weight: 600; }
+    .w-pumping-cfl-mono { font-family: 'JetBrains Mono', monospace; }
+    .w-pumping-cfl-tree { display: block; width: 100%; max-width: 520px; height: auto; max-height: 520px; margin: 0 auto; }
+    .w-pumping-cfl-legend { font-size: .82rem; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .w-pumping-cfl-sym { display: inline-block; padding: 0 4px; border-radius: 3px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .w-pumping-cfl-sym.p-u, .w-pumping-cfl-sym.p-z { background: var(--paper); border: 1px solid var(--border); }
+    .w-pumping-cfl-sym.p-v, .w-pumping-cfl-sym.p-y { background: var(--orange-100); color: var(--orange-700); }
+    .w-pumping-cfl-sym.p-x { background: var(--blue-050); color: var(--blue-600); }
+    .w-pumping-cfl-sum { margin: 8px 0; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--paper); }
+    .w-pumping-cfl-tbl td, .w-pumping-cfl-tbl th { font-size: .86rem; vertical-align: top; }
+    .w-pumping-cfl-tbl tr.is-red td { background: #fdecec; }
+    .w-pumping-cfl-tbl tr.is-green td { background: #ebf7ee; }
+    .w-pumping-cfl-cells { display: flex; flex-wrap: wrap; gap: 2px; margin: 8px 0; }
+    .w-pumping-cfl-cell { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 22px; font-family: 'JetBrains Mono', monospace; font-size: .8rem; font-weight: 700; border-radius: 3px; border: 2px solid transparent; }
+    .w-pumping-cfl-cell.b0 { background: #e7f0ff; color: #1c4fa0; }
+    .w-pumping-cfl-cell.b1 { background: #fff0e0; color: #a14a00; }
+    .w-pumping-cfl-cell.b2 { background: #e6f6ea; color: #23703a; }
+    .w-pumping-cfl-cell.b3 { background: #f3e8fb; color: #6b2c91; }
+    .w-pumping-cfl-cell.is-win { border-color: var(--fg); }
+    .w-pumping-cfl-cell.is-out { opacity: .45; }
+    .w-pumping-cfl-pool { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+    .w-pumping-cfl-pool button { display: block; width: 100%; text-align: left; white-space: normal; line-height: 1.4; height: auto; padding: 6px 10px; }
+    .w-pumping-cfl-paper { margin: 8px 0; padding: 8px 10px 8px 28px; border: 1px dashed var(--border); border-radius: var(--radius-md); background: var(--paper); min-height: 48px; }
+    .w-pumping-cfl-paper li { margin: 4px 0; }
+    .w-pumping-cfl-paper li.is-x > span:first-child { text-decoration: line-through; text-decoration-color: #c92a2a; text-decoration-thickness: 2px; color: var(--fg-muted); }
+    .w-pumping-cfl-paper li small { display: block; color: #c92a2a; }
+    .w-pumping-cfl-fill { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 8px 0; }
+    .w-pumping-cfl-fill label { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .w-pumping-cfl-fill input { width: 96px; font-family: 'JetBrains Mono', monospace; }
+    .w-pumping-cfl-fb { font-size: .88rem; min-height: 1.1em; }
+    .w-pumping-cfl-drill { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 8px 0; }
+    .w-pumping-cfl-item { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 10px; background: var(--paper); }
+    .w-pumping-cfl-item__q { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+    .w-pumping-cfl-item__fb { font-size: .88rem; margin-top: 6px; }
+    .w-pumping-cfl-item.is-right { border-color: #2b8a3e; }
+    .w-pumping-cfl-item.is-wrong { border-color: #c92a2a; }
+    .w-pumping-cfl-venn { display: block; width: 100%; max-width: 320px; height: auto; margin: 6px auto; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 435</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 435</a> / CFL pumping lemma ile 'context-free değildir' ispatı</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">Wk 05–06</span><span class="chip">Sipser 2.3</span><span class="chip chip--exam">2024 P5 · 2019 P5</span><span class="src">~65 dk · 12 bölüm</span></div>
+          <h1>CFL pumping lemma ile 'context-free değildir' ispatı</h1>
+          <p class="lead">Vizenin son sorusu: "Prove that the following language is not context-free." Bu derste bir grammar'ın neden her şeyi üretemediğini, parse tree'den çıkan <em>pumping lemma for context-free languages</em>'ı kelimesi kelimesine, beş parçalı bölmenin bütün durumlarını nasıl kapatacağını ve hocanın 2024 P5 çözümünü göreceksin. Regular dillerin pumping lemma'sını (önceki ders) bildiğini varsayıyoruz; yapı aynı, sadece parça sayısı ve pencere değişiyor.</p>
+          <p class="src">Not: CFL pumping lemma dersinin (Ekim ortası) tahta notu ya da slaytı repoda yok; konu Sipser 2.3, hocanın 26 Ekim tekrar dersindeki 2024 P5 tahta çözümü ve eski sınav çözümleri üzerinden anlatıldı.</p>
+          <!-- Kaynak: Sipser 3e §2.3 (PDF s.149–153: Figure 2.33, Thm 2.34, proof idea + Figure 2.35, proof, Ex 2.36–2.38) · alıştırma 2.2, problemler 2.18, 2.30, 2.31, 2.33, 2.36 (PDF s.178–181), seçili çözümler 2.18, 2.30(b)(c) (PDF s.185–186) · exams/README.md "Instructor's midterm review — 26 Oct 2026", Pumping lemma proofs maddeleri ve k = mn uyarısı · resources/2026-2027-fall/2026-10-26-midterm-2024-solved-board.pdf s.5 (hocanın P5 tahtası) · exams/2024-midterm-solutions.pdf s.3 · exams/2024-midterm.pdf P5 · exams/2019-midterm-solutions.pdf s.2 P5 · exams/2020-midterm.pdf P4(c) · weeks/07-pumping-lemma-cfl.md · hocanın sitesindeki pumping duel aracının CF modu. Bütün ispatlar ve gramerler python3 ile brute force kontrol edildi. -->
+        </header>
+
+        <article class="lesson" data-course="cse-435" data-lesson="pumping-cfl">
+
+<!-- 1 -->
+<section class="lsec" id="neden" data-min="4">
+  <h2>Bir stack neyi sayamaz?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · tek stack, tek eşleşme</span>
+    <p>$\{a^nb^n \mid n \ge 0\}$ context-free: PDA her $a$ için stack'e bir sembol koyar, her $b$ için bir sembol çıkarır. Grammar'da da aynı fikir var: $S \to aSb \mid \varepsilon$ her adımda dışarıya bir $a$ ve bir $b$ ekler.</p>
+    <p>Şimdi $\{a^nb^nc^n \mid n \ge 0\}$'ı düşün. $b$'leri $a$'larla eşleştirirken stack boşalır. $c$'ler geldiğinde karşılaştıracak bir şey kalmamıştır. $b$'leri stack'e koyup $c$'lerle eşleştirmeye kalksan bu kez $a$'larla $b$'leri karşılaştıramazsın. Tek stack aynı anda tek bir eşleşmeyi taşır.</p>
+    <p>Bu bir sezgi, ispat değil. Regular dillerde olduğu gibi burada da bir araç lazım: <strong>pumping lemma for context-free languages</strong>.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Sınıflar (Sipser Figure 2.33)</span>
+    <svg class="w-pumping-cfl-venn" viewBox="0 0 320 150" role="img" aria-label="Regular diller context-free dillerin içinde">
+      <ellipse cx="160" cy="75" rx="150" ry="68" style="fill:var(--blue-050);stroke:var(--blue-600);stroke-width:1.5"/>
+      <ellipse cx="120" cy="82" rx="78" ry="44" style="fill:var(--orange-100);stroke:var(--accent);stroke-width:1.5"/>
+      <text x="236" y="40" text-anchor="middle" style="fill:var(--fg);font-size:13px;font-weight:700">context-free</text>
+      <text x="120" y="80" text-anchor="middle" style="fill:var(--fg);font-size:13px;font-weight:700">regular</text>
+      <text x="120" y="98" text-anchor="middle" style="fill:var(--fg-muted);font-size:11px">0*1*, (01)*</text>
+      <text x="236" y="98" text-anchor="middle" style="fill:var(--fg-muted);font-size:11px">a^n b^n</text>
+    </svg>
+    <ul>
+      <li>Her regular dil context-free (DFA'dan bir CFG kurulur). Ters yön yanlış: $a^nb^n$ context-free ama regular değil.</li>
+      <li>Bu dersin konusu çizginin dışı: $a^nb^nc^n$ gibi <strong>context-free olmayan</strong> diller.</li>
+      <li>2019 ve 2024 vizelerinde bu soru P5'ti: 2019'da 20, 2024'te 15 puan. 2020'de P4'ün içinde "decide whether they are context-free or not" diye geldi; o yılın P5'i başka bir konuydu (HopTM). 2023 vizesinde bu tip soru yok.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Sipser §2.3 giriş ve Figure 2.33 (PDF s.149) · weeks/07 Goals · exams/README.md soru tablosu (P5) · 2019 ve 2024 vize kâğıtları (puanlar) · 2020 P4 metni ve exams/README.md (2020 P5 = HopTM) · exams/2023-midterm-solutions.pdf (dört soru, P5 yok). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Üç blok var, o zaman CF değil" demek yanlış. $\{a^nb^nc^m \mid m, n \ge 0\}$ context-free: $c$'ler serbest, eşleşme sadece $a$ ile $b$ arasında.</li>
+      <li>"PDA kuramadım" bir ispat değil. Belki daha iyi bir fikir vardır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-neden">
+    <p class="quiz__q">Hangisi <strong>context-free</strong>?</p>
+    <button class="quiz__opt">$\{a^nb^nc^n \mid n \ge 0\}$<span class="why">Bu Sipser Example 2.36: context-free değil. Üç blok birbirine eşit olmalı ve tek stack iki eşleşmeyi aynı anda taşıyamaz.</span></button>
+    <button class="quiz__opt" data-correct>$\{a^nb^nc^m \mid m, n \ge 0\}$<span class="why">Doğru. $S \to TC$, $T \to aTb \mid \varepsilon$, $C \to cC \mid \varepsilon$. Tek bir eşleşme var ($a$ ile $b$), $c$'ler serbest.</span></button>
+    <button class="quiz__opt">$\{a^nb^{2n}c^{3n} \mid n \ge 0\}$<span class="why">Oranlar sabit ama yine üç blok aynı $n$'e bağlı. Sipser Problem 2.30(b)'nin ikizi, context-free değil.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="agac" data-min="6">
+  <h2>Neden beş parça: parse tree'de tekrar eden variable</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · regular lemma ile aynı hile, başka yerde</span>
+    <p>Regular lemma'da uzun bir string DFA'da bir state'i tekrar ettiriyordu (pigeonhole). Burada DFA yok, grammar var. Uzun bir string'in parse tree'si <strong>yüksek</strong> olmak zorunda, çünkü her node'un sınırlı sayıda çocuğu var. Yüksek bir tree'de kökten bir yaprağa giden uzun bir path vardır. Path üzerinde variable sayısından fazla variable varsa biri tekrar eder; adı $R$ olsun.</p>
+    <p>Üstteki $R$ string'in bir parçasını üretir, alttaki $R$ onun içindeki daha küçük bir parçayı. Üstteki $R$'nin ürettiği parça $vxy$, alttakinin ürettiği $x$ olsun. İkisi de $R$'den türediği için yerlerini değiştirebiliriz:</p>
+    <ul>
+      <li>Alttaki $R$'nin yerine üstteki $R$'nin alt ağacını koy: $uv^2xy^2z$. Tekrar koy: $uv^3xy^3z$.</li>
+      <li>Üstteki $R$'nin yerine alttakini koy: $uxz$, yani $i = 0$.</li>
+    </ul>
+    <p>$v$, $x$'in solunda; $y$, $x$'in sağında kalır. Bu yüzden ikisi <strong>birlikte</strong> pompalanır ve string beş parçaya ayrılır.</p>
+  </div>
+  <p>Aşağıda $a^nb^n$ için gerçek bir parse tree var. Stepper en uzun path'i buluyor, path'te alttan yukarı çıkarken ilk tekrar eden variable'ı seçiyor, sonra alt ağaçları gerçekten yer değiştiriyor ve yeni tree'nin yield'ını dilde mi diye kontrol ediyor.</p>
+  <p class="w-pumping-cfl-guess"><b>Önce tahmin et:</b> $S \to aSb \mid ab$ ile $aaabbb$'nin tree'sinde üstteki $S$ hangi parçayı üretir? $v$ ve $y$ ne olur?</p>
+  <div class="w-pumping-cfl-ctl">
+    <label>Grammar: <select id="w-pt-g" class="btn btn--sm">
+      <option value="g1">S → aSb | ab</option>
+      <option value="g2">CNF: S → AT | AB, T → SB, A → a, B → b</option>
+    </select></label>
+    <label>n = <select id="w-pt-n" class="btn btn--sm"><option>2</option><option selected>3</option><option>4</option></select></label>
+  </div>
+  <div id="w-pt-stepper"></div>
+  <div class="box box--rule">
+    <span class="box__label">Sipser'in ispatı (Theorem 2.34, kısaltılmış)</span>
+    <p>$G$, $A$'yı üreten bir CFG; $|V|$ variable sayısı; $b$ bir kuralın sağ tarafındaki en fazla sembol sayısı ($b \ge 2$ varsay).</p>
+    <ol>
+      <li>Her node'un en fazla $b$ çocuğu var. Yüksekliği en fazla $h$ olan bir tree en fazla $b^h$ yaprak üretir. Tersinden: $|s| \ge b^h + 1$ ise tree'nin yüksekliği en az $h + 1$.</li>
+      <li>$p = b^{|V|+1}$ seç. $b^{|V|+1} \ge b^{|V|} + 1$ olduğundan, $|s| \ge p$ olan her $s$'nin tree'si en az $|V| + 1$ yüksekliğinde.</li>
+      <li>$s$'nin tree'lerinden <strong>en az node'lu</strong> olanı $\tau$ olsun. En uzun path'inde en az $|V| + 2$ node var: biri terminal, en az $|V| + 1$'i variable. Pigeonhole ile bir $R$ tekrar eder. $R$'yi path'in <strong>en alttaki $|V| + 1$ variable'ı</strong> içinde tekrar eden bir variable olarak seç.</li>
+      <li><strong>Şart 1:</strong> alt ağaçları yer değiştirmek yukarıdaki gibi her $i \ge 0$ için $uv^ixy^iz$'yi verir.</li>
+      <li><strong>Şart 2:</strong> $v$ ve $y$ ikisi birden boş olsaydı, üstteki $R$'nin yerine alttakini koymak yine $s$'yi üreten ama daha az node'lu bir tree verirdi. $\tau$ en az node'lu seçildiği için bu olamaz.</li>
+      <li><strong>Şart 3:</strong> iki $R$ de en alttaki $|V| + 1$ variable içinde. Üstteki $R$'nin alt ağacının yüksekliği en fazla $|V| + 1$, yani $|vxy| \le b^{|V|+1} = p$.</li>
+    </ol>
+    <p>Stepper'daki iki grammar için: $S \to aSb \mid ab$'de $b = 3$, $|V| = 1$, $p = 3^2 = 9$. CNF grammar'da $b = 2$, $|V| = 4$, $p = 2^5 = 32$.</p>
+  </div>
+  <!-- Kaynak: Sipser Thm 2.34 proof idea (Figure 2.35 "Surgery on parse trees") ve proof (PDF s.150–151) · weeks/07 Key concepts ("p = b^(|V|+1)", "repeated variable on a root-to-leaf path"). İki grammar'ın a^nb^n (n ≥ 1) ürettiği python ile uzunluk 10'a kadar kontrol edildi. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İspatta $p$'yi bir grammar'dan hesaplamaya kalkma. Dilin CF olduğunu <em>varsayıyorsun</em>, grammar'ı görmüyorsun. $p$ sadece "var" olan bir sayı; rakip verir.</li>
+      <li>İki $R$ <strong>aynı path</strong> üzerinde olmalı: biri diğerinin alt ağacında. Tree'nin farklı dallarındaki iki $S$ yer değiştirmeye izin vermez.</li>
+      <li>Stepper'daki string $p$'den kısa olduğu halde tekrar oluştu. Lemma tekrarı sadece $|s| \ge p$ için <em>garanti eder</em>; kısa string'lerde de olabilir, olmayabilir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-agac">
+    <p class="quiz__q">Bir CFG'de 2 variable var ve en uzun kuralın sağ tarafında 3 sembol var. Sipser'in ispatındaki $p$ kaç?</p>
+    <button class="quiz__opt" data-correct>$27$<span class="why">Doğru. $p = b^{|V|+1} = 3^{3} = 27$.</span></button>
+    <button class="quiz__opt">$9$<span class="why">Bu $b^{|V|} = 3^2$. Yüksekliği $|V| + 1$'e zorlamak için bir üs fazlası gerekir: $b^{|V|+1} \ge b^{|V|} + 1$.</span></button>
+    <button class="quiz__opt">$8$<span class="why">Bu $2^3$: taban ile üssü karıştırmışsın. Taban $b$ (bir node'un en fazla çocuk sayısı), üs $|V| + 1$.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="lemma" data-min="6">
+  <h2>Theorem 2.34, kelimesi kelimesine</h2>
+  <p>Sınav kapalı kitap varsayılıyor. Aşağıdaki kutuyu ezbere yazabilmelisin; hoca 26 Ekim'de girişin tam yazılmasını istedi.</p>
+  <div class="box box--rule">
+    <span class="box__label">Theorem 2.34 (Sipser) · pumping lemma for context-free languages</span>
+    <p><strong>If $A$ is a context-free language, then there is a number $p$ (the pumping length) where, if $s$ is any string in $A$ of length at least $p$, then $s$ may be divided into five pieces $s = uvxyz$ satisfying the conditions</strong></p>
+    <ol>
+      <li><strong>for each $i \ge 0$, $uv^ixy^iz \in A$,</strong></li>
+      <li><strong>$|vy| &gt; 0$, and</strong></li>
+      <li><strong>$|vxy| \le p$.</strong></li>
+    </ol>
+    <p>Sipser'in kendi açıklaması: şart 2, $v$ ile $y$'den <em>en az birinin</em> boş olmadığını söyler (ikisi birden boş olsaydı teorem boş yere doğru olurdu). Şart 3, $v$, $x$, $y$'nin toplam uzunluğunun en fazla $p$ olduğunu söyler.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th></th><th>Regular (Thm 1.70)</th><th>Context-free (Thm 2.34)</th></tr>
+    <tr><td>Parçalar</td><td>$s = xyz$</td><td>$s = uvxyz$</td></tr>
+    <tr><td>Şart 1</td><td>$xy^iz \in A$</td><td>$uv^ixy^iz \in A$ ($v$ ile $y$ aynı $i$ ile)</td></tr>
+    <tr><td>Şart 2</td><td>$|y| &gt; 0$</td><td>$|vy| &gt; 0$ (biri boş olabilir)</td></tr>
+    <tr><td>Şart 3</td><td>$|xy| \le p$: $y$ ilk $p$ sembolde</td><td>$|vxy| \le p$: genişliği en fazla $p$ olan bir pencere, string'in <strong>herhangi bir yerinde</strong></td></tr>
+    <tr><td>Nereden çıkıyor</td><td>DFA'da tekrar eden state</td><td>Parse tree'de tekrar eden variable</td></tr>
+  </table></div>
+  <h3>Ezber kontrolü</h3>
+  <p class="w-pumping-cfl-guess"><b>Önce tahmin et:</b> Kutuya bakmadan beş boşluğu doldurabilir misin? ≥ yerine <code>&gt;=</code>, ≤ yerine <code>&lt;=</code> yazabilirsin.</p>
+  <div class="w-pumping-cfl-fill" id="w-cl">
+    <label>If $A$ is context-free, ∃ $p$ such that every $s \in A$ with $|s| \ge$ <input data-cl="0" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="boşluk 1" /> can be divided as $s =$ <input data-cl="1" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="boşluk 2" /></label>
+    <label>1. for each <input data-cl="2" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="boşluk 3" />, $uv^ixy^iz \in A$</label>
+    <label>2. <input data-cl="3" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="boşluk 4" /> $&gt; 0$</label>
+    <label>3. <input data-cl="4" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="boşluk 5" /> $\le p$</label>
+    <div class="w-pumping-cfl-ctl"><button class="btn btn--sm btn--accent" id="w-cl-go">Kontrol et</button><button class="btn btn--sm" id="w-cl-show">Cevapları göster</button></div>
+    <div class="w-pumping-cfl-fb" id="w-cl-fb" aria-live="polite"></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Lemma tek yönlüdür</span>
+    <p>Lemma "context-free ⇒ pompalanabilir" der. Kullandığımız yön contrapositive'i: <strong>pompalanamıyorsa ⇒ context-free değil</strong>. Ters yön yanlış: pompalanabilen ama context-free olmayan diller var (aşağıdaki Problem 2.36). Pumping'de başarısız olman bir dilin CF olduğunu göstermez; CF olduğunu göstermenin yolu bir CFG ya da PDA vermek.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Şart 3'ü regular lemma'daki $|xy| \le p$'ye benzetip "$|uv| \le p$" ya da "$|uvx| \le p$" yazmak. Pencere $vxy$; başa yapışık değil, $u$ istediği kadar uzun olabilir.</li>
+      <li>Şart 2'yi "$|v| &gt; 0$ and $|y| &gt; 0$" yazmak. Lemma sadece toplamı garanti eder: $v = \varepsilon$, $y = 000$ olabilir. (Sipser Problem 2.37 ikisini de boş olmayan daha güçlü bir sürüm ister; derste kullandığımız sürüm bu değil.)</li>
+      <li>"$i \ge 1$" yazmak: $i = 0$ dahil ve Example 2.37 gibi ispatlar tam olarak $i = 0$'a dayanıyor.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.36"><span class="box__label">Sipser Problem 2.36 · kitap alıştırması</span>
+    <p>"Give an example of a language that is not context free but that acts like a CFL in the pumping lemma. Prove that your example works. (See the analogous example for regular languages in Problem 1.54.)"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Problem 1.54'teki fikri bir blok uzatarak kullan: başta "kaçış kapısı" olan bir blok, arkada $a^nb^nc^n$ gibi üç eşit blok. $F = \{a^ib^jc^kd^l \mid i = 0$ or $j = k = l\}$ dene.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Pompalanabilirlik için $p = 1$ yeter mi? $s$'nin ilk sembolü $a$ ise $v = a$ al. $a$ yoksa $v$ = ilk sembol. CF olmadığını göstermek için $F$'yi $ab^*c^*d^*$ ile kesiştir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$F = \{a^ib^jc^kd^l \mid i, j, k, l \ge 0$, and $i = 0$ or $j = k = l\}$.</p>
+      <p><strong>$F$ acts like a CFL, with $p = 1$.</strong> Let $s \in F$, $|s| \ge 1$. Take $u = \varepsilon$, $v$ = the first symbol of $s$, $x = y = \varepsilon$, $z$ = the rest. Then $|vy| = 1 &gt; 0$ and $|vxy| = 1 \le p$.</p>
+      <ul>
+        <li>If $s$ starts with $a$: pumping changes only the number of $a$'s, from $r \ge 1$ to some $r'$. If $r' = 0$, the string is in $F$ (the first condition holds). If $r' \ge 1$, it is in $F$ too: $s \in F$ with $r \ge 1$ already has $j = k = l$, and pumping does not change $j$, $k$, $l$.</li>
+        <li>If $s$ has no $a$: pumping the first symbol keeps the string in $b^*c^*d^*$, and with no $a$ there is no other condition.</li>
+      </ul>
+      <p><strong>$F$ is not context-free.</strong> Assume it is. $ab^*c^*d^*$ is regular, and CFLs are closed under intersection with a regular language (Bölüm 10), so $F \cap ab^*c^*d^* = \{ab^nc^nd^n \mid n \ge 0\}$ would be context-free. But for $s = ab^pc^pd^p$, every split fails with $i = 2$: if $v$ or $y$ contains an $a$, there are two $a$'s; otherwise $v$ and $y$ (window $\le p$) touch at most two of the three blocks $b$, $c$, $d$, so the counts become unequal (or the order breaks). Contradiction. Lemma pompalanabilir olmanın yetmediğini burada da gösteriyor.</p>
+      <p>Kontrol: python ile uzunluğu 1–8 olan bütün $F$ string'leri $p = 1$ ile $i = 0..6$ için pompalandı, pompalanamayan string çıkmadı; $ab^pc^pd^p$, $p = 1..5$ için bütün split'lerde $i = 2$ ile dışarı çıkıyor.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Problem 2.36 (PDF s.180). Kitapta seçili çözüm yok; örnek bu ders için yazıldı ve brute force ile kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-lemma">
+    <p class="quiz__q">$s = uvxyz$ bölmesinde lemma hangisini <strong>garanti eder</strong>?</p>
+    <button class="quiz__opt">$v \ne \varepsilon$<span class="why">Şart 2 sadece $|vy| &gt; 0$ der: $v$ boş, $y$ boş olmayabilir. İkisinden birini boş kabul etmeyen bir ispat bir durumu atlar.</span></button>
+    <button class="quiz__opt" data-correct>$vxy$, $s$'nin içinde uzunluğu en fazla $p$ olan bir parça<span class="why">Doğru. Şart 3. Pencere string'in herhangi bir yerinde olabilir; başta, ortada ya da sonda.</span></button>
+    <button class="quiz__opt">$vxy$, $s$'nin ilk $p$ sembolü içinde<span class="why">Bu regular lemma'nın şart 3'ü ($|xy| \le p$). CFL lemma'sında $u$ istediği kadar uzun olabilir; pencere başa yapışık değil.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="oyun" data-min="5">
+  <h2>Oyun: kim neyi seçer?</h2>
+  <div class="box box--rule">
+    <span class="box__label">Hamleler</span>
+    <div class="table-wrap"><table>
+      <tr><th>Sıra</th><th>Kim</th><th>Ne</th><th>Sonuç</th></tr>
+      <tr><td>1</td><td>Rakip</td><td>$p$'yi seçer</td><td>$p$'ye sayı veremezsin; ispat her $p$ için çalışmalı</td></tr>
+      <tr><td>2</td><td><strong>Sen</strong></td><td>$s \in L$, $|s| \ge p$ seçersin</td><td>$s$'yi $p$ cinsinden yaz ($a^pb^pc^p$ gibi)</td></tr>
+      <tr><td>3</td><td>Rakip</td><td>$s = uvxyz$ bölmesini seçer ($|vy| &gt; 0$, $|vxy| \le p$)</td><td>Bölmeyi sen seçemezsin; <strong>her</strong> olası bölmeyi kapatmalısın</td></tr>
+      <tr><td>4</td><td><strong>Sen</strong></td><td>$i$'yi seçersin</td><td>$uv^ixy^iz \notin L$ olacak bir $i$ göster ($i = 0$ ya da istediğin kadar büyük bir $i$)</td></tr>
+    </table></div>
+    <p>Kazanma şartı: $\forall p$ $\exists s \in L,\ |s| \ge p$, $\forall uvxyz\ (|vy| &gt; 0,\ |vxy| \le p)$ $\exists i \ge 0:$ $uv^ixy^iz \notin L$.</p>
+  </div>
+  <h3>Bütün split'leri dene</h3>
+  <p>Bir dil seç, $s$'yi $p$ cinsinden yaz (örnek: <code>a^pb^pc^p</code>, <code>0^p1^p0^{p*p}</code>, <code>a^{p+1}b^{(p+1)!}</code>, <code>(0110)^p</code>). Sayfa $|vxy| \le p$, $|vy| \ge 1$ olan <strong>bütün</strong> split'leri sayıyor ve her birinde $i = 0, 2, 3, \dots, 8$'i ve çok büyük bir $i$'yi ($|s| + 1$) gerçekten pompalayıp üyeliği kontrol ediyor. Split'ler $v$ ve $y$'nin düştüğü bloklara göre gruplanıyor; bu gruplar ispattaki durumlar. Kırmızı: o gruptaki her split'te seni kurtaran bir $i$ var. Yeşil: denenen $i$'lerin hiçbiri o split'i dışarı atmadı. Bu bütün $i$'ler için garanti değil; ama rakip o split'i seçerse ispat için denenmemiş bir $i$ bulman gerekir. Son sütun $i = 0$'ın ve $i = 2$'nin gruptaki kaç split'i dışarı attığını sayıyor: ispatta bir durum için tek bir $i$ yazacaksan, o $i$ bütün grubu atmalı.</p>
+  <p class="w-pumping-cfl-guess"><b>Önce tahmin et:</b> 2024 vizesinin dilinde ($k = mn$) $s = 01^p0^p$ seçersen rakip hangi split ile kaçar? $s = 0^p1^p0^{p^2}$ ile kaçabilir mi?</p>
+  <div class="w-pumping-cfl-ctl">
+    <label>Dil: <select id="w-ex-lang" class="btn btn--sm"></select></label>
+  </div>
+  <div class="w-pumping-cfl-ctl">
+    <label>s = <input id="w-ex-s" type="text" value="0^p1^p0^{p*p}" autocomplete="off" spellcheck="false" class="btn btn--sm" /></label>
+    <span id="w-ex-presets" class="w-pumping-cfl-ctl" style="margin:0"></span>
+  </div>
+  <div class="w-pumping-cfl-ctl">
+    <label>Rakibin $p$'si: <select id="w-ex-p" class="btn btn--sm"></select></label>
+    <button class="btn btn--sm" id="w-ex-roll">Rakip yeni p seçsin</button>
+    <label><input type="checkbox" id="w-ex-up" /> sadece pump up ($i \ge 2$)</label>
+    <button class="btn btn--sm btn--accent" id="w-ex-go">Bütün split'leri dene</button>
+  </div>
+  <div class="w-pumping-cfl-err" id="w-ex-err" aria-live="polite"></div>
+  <div id="w-ex-out"></div>
+  <p>Hocanın aracı: <a href="https://muratakcs.github.io/cse435/pumping.html" target="_blank" rel="noopener">The pumping duel</a>, context-free modu. Orada da rakip her split'i dener.</p>
+  <!-- Kaynak: hocanın sitesindeki pumping duel (CF modu) fikrinden. Dil üyelik fonksiyonları python karşılıklarıyla aynı; yeşil split sayıları (ör. k = mn'de 01^p0^p için p = 2..6: 1, 3, 7, 13, 22; 0^p1^p0^(p²) için 0) python brute force ile aynı çıktı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Let $p = 5$." yazmak. $p$'yi rakip seçer.</li>
+      <li>"Let $v = a$, $y = b$." yazmak. Split'i rakip seçer; sen şartlardan ne <em>çıktığını</em> yazarsın: "by condition 3, $vxy$ cannot contain both $a$'s and $c$'s".</li>
+      <li>Tek bir split'te dışarı çıkmak yetmez. Hoca tahtada üç ünlemle yazdı: "After you selected $s$, you must guarantee that however the split is done, the string will eventually go out of the language after certain number of pump-up operations or pump-down."</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-oyun">
+    <p class="quiz__q">CFL ispatında hangi ikisini <strong>sen</strong> seçersin?</p>
+    <button class="quiz__opt">$p$ ve $s$<span class="why">$p$ lemma'nın "var" dediği sayı; değerini bilmiyorsun, rakip verir. İspat her $p$ için çalışmalı.</span></button>
+    <button class="quiz__opt">$s$ ve $v$, $y$<span class="why">Bölme lemma'da "∃" ile geliyor: var olduğu garanti, ama hangisi olduğunu bilmiyorsun. Bu yüzden her olası bölmeyi kapatırsın.</span></button>
+    <button class="quiz__opt" data-correct>$s$ ve $i$<span class="why">Doğru. Lemma "her $s$" ve "her $i$" diyor; çürütmek için tek bir kötü $s$ ve her bölme için bir kötü $i$ yeter.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="sablon" data-min="5">
+  <h2>Hocanın ispat şablonu, cümle cümle</h2>
+  <p>Hoca 26 Ekim'de iki şeyi açıkça söyledi: lemma'nın girişi tam yazılmalı, ve her cümle öncekilerden çıkmalı. Öğrencilerin aktardığına göre sırası bozuk cümlelerin üstü çiziliyor. Şablon İngilizce, çünkü kâğıda İngilizce yazacaksın. Aşağıdaki iskelet hocanın 2024 P5 tahtasındaki cümlelerden.</p>
+  <div class="box box--rule">
+    <span class="box__label">Şablon (sırası değişmez)</span>
+    <ol>
+      <li><strong>Assume</strong> that $L$ is context-free.</li>
+      <li><strong>Then by the pumping lemma for CFLs</strong>, $\exists p \in \mathbb{Z}^+$ such that $\forall s \in L$ with $|s| \ge p$, $s$ can be split into 5 pieces $s = uvxyz$ such that all of the following 3 conditions are met: 1. $\forall i \ge 0$, $uv^ixy^iz \in L$; 2. $|vy| &gt; 0$; 3. $|vxy| \le p$.</li>
+      <li><strong>Let</strong> $s = \dots$ (in terms of $p$). <strong>Then</strong> $s \in L$ because …, and $|s| \ge p$.</li>
+      <li><strong>Consider every way</strong> to divide $s$: case 1 …, case 2 … (use conditions 2 and 3 to limit the cases).</li>
+      <li><strong>In each case</strong>, pump ($i = \dots$) and show $uv^ixy^iz \notin L$.</li>
+      <li><strong>This contradicts</strong> condition 1. <strong>Therefore</strong> $L$ is not context-free. ∎</li>
+    </ol>
+  </div>
+  <div class="box box--exam" data-exam="sipser-ex2.36"><span class="box__label">Sipser Example 2.36 · kitap alıştırması</span>
+    <p>"Use the pumping lemma to show that the language $B = \{a^nb^nc^n \mid n \ge 0\}$ is not context free."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$s = a^pb^pc^p$. Bölmeleri iki gruba ayır: $v$ ve $y$'nin her biri tek tür sembol içeriyor mu, yoksa biri birden fazla tür mü içeriyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Tek tür sembol içeriyorlarsa, $v$ ve $y$ birlikte en fazla iki tür sembole dokunur. Üçüncü sembolün sayısı pompalayınca değişmez.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><em>Proof.</em> Assume that $B$ is context-free. Then by the pumping lemma for CFLs, $\exists p \in \mathbb{Z}^+$ such that $\forall s \in B$ with $|s| \ge p$, $s$ can be split into 5 pieces $s = uvxyz$ such that 1. $\forall i \ge 0$, $uv^ixy^iz \in B$; 2. $|vy| &gt; 0$; 3. $|vxy| \le p$.</p>
+      <p>Let $s = a^pb^pc^p$. Then $s \in B$ ($n = p$) and $|s| = 3p \ge p$. By condition 2, $v$ or $y$ is nonempty. Consider $uv^2xy^2z$:</p>
+      <ol>
+        <li><strong>$v$ and $y$ each contain only one type of symbol.</strong> Then $v$ and $y$ together contain at most two of $a$, $b$, $c$, so at least one symbol keeps its count $p$ while another grows. $uv^2xy^2z$ does not have equal numbers of $a$'s, $b$'s and $c$'s, so it is not in $B$.</li>
+        <li><strong>$v$ or $y$ contains more than one type of symbol.</strong> Then $uv^2xy^2z$ has the symbols out of order (for example a $b$ before an $a$), so it is not in $B$.</li>
+      </ol>
+      <p>One of the two cases must occur, and both contradict condition 1. Therefore $B$ is not context-free. ∎</p>
+      <p>Sipser bu ispatta şart 3'ü hiç kullanmıyor. Kontrol: python ile $p = 1..6$, bütün split'ler $i = 2$ ile dışarı.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Example 2.36 (PDF s.152). weeks/07 Practice: "Prove {aⁿbⁿcⁿ} is not context-free, covering every case of the split". -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$s \in L$ ve $|s| \ge p$ kontrolünü atlamak. Hoca tahtada "(selectable indeed, $\in L$, $\ge p$)" diye not düştü.</li>
+      <li>Sadece "$v = a^j$, $y = b^j$" durumunu yazmak. Bu tek bir durum; rakip başka bir bölme seçebilir.</li>
+      <li>"$v$ or $y$ contains two symbols" durumunu unutmak. En kolay durum ama yazılmazsa ispat eksik kalır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sablon">
+    <p class="quiz__q">$a^nb^nc^n$ ispatında $v = ab$, $y = \varepsilon$ çıktı. Ne yazarsın?</p>
+    <button class="quiz__opt">Bu bölme şart 2'yi bozar, yok sayılır<span class="why">$|vy| = 2 &gt; 0$: şart 2 sağlanıyor. Bu geçerli bir bölme ve kapatılması gerekiyor.</span></button>
+    <button class="quiz__opt" data-correct>$uv^2xy^2z$'de $abab$ var, sıra bozulur, dilde değil<span class="why">Doğru. Durum 2: $v$ iki tür sembol içeriyor. Sayılar eşit kalsa bile sıra bozulur.</span></button>
+    <button class="quiz__opt">$i = 0$ ile $a$ ve $b$ sayısı azalır, $c$ aynı kalır; sadece bu yeterli değil, başka $s$ seçmeli<span class="why">$i = 0$ da bu bölmeyi öldürür ($c$'ler fazla kalır), $s$ iyi bir seçim. Hangi $i$'nin işe yaradığını göstermen yeter; $s$'yi değiştirmek gerekmez.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="vakalar" data-min="6">
+  <h2>vxy penceresiyle durum analizi</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · genişliği p olan pencere</span>
+    <p>Şart 3, $vxy$'yi genişliği en fazla $p$ olan bir pencereye hapseder. $s$'deki her blok en az $p$ uzunluğundaysa, pencere <strong>en fazla iki komşu bloğa</strong> dokunabilir. $a^pb^pc^p$'de pencere hem $a$'lara hem $c$'lere dokunamaz, çünkü aralarında $p$ tane $b$ var.</p>
+    <p>Bu yüzden her ispat iki soruyla ilerler:</p>
+    <ol>
+      <li><strong>$v$ ya da $y$ iki farklı sembol içeriyor mu?</strong> Evet ise pump up ($i = 2$) blok yapısını bozar; string dilin biçimine ($a^*b^*c^*$ gibi) uymaz.</li>
+      <li><strong>Hayır ise</strong> $v$ ve $y$ birer blok içinde. Hangi bloklar değişiyor, hangisi sabit kalıyor? Sabit kalan blok ile değişen blok arasındaki ilişki bozulur.</li>
+    </ol>
+  </div>
+  <p>Aşağıda $s$ renkli bloklar halinde. Kaydırıcıyla genişliği $p$ olan pencereyi string üzerinde gezdir. Sayfa pencerenin içine sığan <strong>bütün</strong> $(v, x, y)$ seçimlerini deniyor ve her grup için hangi $i$'nin string'i dilden çıkardığını gösteriyor.</p>
+  <p class="w-pumping-cfl-guess"><b>Önce tahmin et:</b> $a^ib^jc^k$, $i \le j \le k$ dilinde pencere tamamen $c$'lerin içindeyse hangi $i$ işe yarar: pump up mı, pump down mı?</p>
+  <div class="w-pumping-cfl-ctl">
+    <label>Dil: <select id="w-win-lang" class="btn btn--sm"></select></label>
+    <label>$p$ = <select id="w-win-p" class="btn btn--sm"><option>2</option><option selected>3</option><option>4</option><option>5</option></select></label>
+  </div>
+  <div class="w-pumping-cfl-ctl">
+    <label style="flex:1 1 220px">Pencerenin başı: <input id="w-win-pos" type="range" min="0" max="10" value="0" /></label>
+    <span id="w-win-posv" class="w-pumping-cfl-mono"></span>
+  </div>
+  <div id="w-win-cells" class="w-pumping-cfl-cells" aria-hidden="true"></div>
+  <div id="w-win-out" aria-live="polite"></div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Sipser Example 2.37: $C = \{a^ib^jc^k \mid 0 \le i \le j \le k\}$</span>
+    <p>Yine $s = a^pb^pc^p$, ama bu dilde sayılar eşit olmak zorunda değil; sadece azalmamalı. Bu yüzden durum 1'i, $v$ ve $y$'de <strong>hangi sembolün görünmediğine</strong> göre üçe bölmek gerekir (şart 3 ile en az biri görünmez):</p>
+    <ul>
+      <li><strong>a. $a$'lar yok:</strong> pump down. $uxz$'de $a$ sayısı $p$, ama $b$'ler ya da $c$'ler azaldı: $i \le j \le k$ bozulur.</li>
+      <li><strong>b. $b$'ler yok:</strong> $a$ varsa pump up, $a$'lar $b$'lerden fazla olur. $a$ yoksa ($c$ var) pump down, $b$'ler $c$'lerden fazla olur.</li>
+      <li><strong>c. $c$'ler yok:</strong> pump up, $a$'lar ya da $b$'ler $c$'lerden fazla olur.</li>
+    </ul>
+    <p>Durum 2 ($v$ ya da $y$ iki tür sembol içeriyor) yine $i = 2$ ile sıra bozulur. Pencere gezgininde bu dili seç ve pencereyi $a$'lardan $c$'lere kaydır: bazı gruplar sadece $i = 0$ ile, bazıları sadece $i = 2$ ile dışarı çıkıyor, ama her split en az birinde çıkıyor.</p>
+  </div>
+  <!-- Kaynak: Sipser Example 2.37 (PDF s.152–153). Durum iddiaları python ile p = 1..6 için tek tek kontrol edildi; i ∈ {0, 2} birlikte bütün split'leri öldürüyor, tek başına hiçbiri öldürmüyor. -->
+  <div class="box box--exam" data-exam="sipser-2.30b"><span class="box__label">Sipser Problem 2.30(b) · kitap alıştırması</span>
+    <p>"Use the pumping lemma to show that the following languages are not context free. […] b. $\{0^n\#0^{2n}\#0^{3n} \mid n \ge 0\}$" (problemin bir şıkkı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$s = 0^p\#0^{2p}\#0^{3p}$. $v$ ya da $y$ bir $\#$ içerirse ne olur?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\#$ içermiyorlarsa $v$ ve $y$ en fazla iki parçaya ($\#$'lerle ayrılan üç segmentten ikisine) dokunur. 1 : 2 : 3 oranı ne olur?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Assume the language $B$ is context-free and let $p$ be the pumping length. Let $s = 0^p\#0^{2p}\#0^{3p}$. Then $s \in B$ ($n = p$) and $|s| = 6p + 2 \ge p$.</p>
+      <p>Neither $v$ nor $y$ can contain $\#$: otherwise $uv^2xy^2z$ contains more than two $\#$'s. So $v$ and $y$ lie inside the three segments $0^p$, $0^{2p}$, $0^{3p}$, and at least one segment is not touched by $v$ or $y$ (in fact by condition 3 the window cannot reach both outer segments). In $uv^2xy^2z$ an untouched segment keeps its length while a touched one grows, so the $1 : 2 : 3$ length ratio is not maintained and $uv^2xy^2z \notin B$. Contradiction. ∎</p>
+      <p>Bu Sipser'in seçili çözümü. Kontrol: python ile $p = 1..6$, bütün split'ler $i = 2$ ile dışarı.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Problem 2.30(b) (PDF s.180) ve seçili çözümü (PDF s.186). -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$v$ ile $y$'nin aynı blokta olduğunu varsaymak. Biri bir blokta, diğeri sonraki blokta olabilir; ya da biri boş olabilir.</li>
+      <li>"Pencere iki bloğa dokunamaz" demek. Dokunabilir; dokunamadığı şey <strong>uzaktaki</strong> bloklar (arada $\ge p$ uzunluğunda bir blok varsa).</li>
+      <li>Her durumda aynı $i$'yi zorlamak. Example 2.37'de bazı durumlar pump up, bazıları pump down ister. Her durum için işe yarayanı yaz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-vakalar">
+    <p class="quiz__q">$C = \{a^ib^jc^k \mid i \le j \le k\}$, $s = a^pb^pc^p$. $v$ ve $y$ sadece $c$'lerden oluşuyor. Hangi $i$ işe yarar?</p>
+    <button class="quiz__opt">$i = 2$<span class="why">Pump up $c$'leri artırır; $i \le j \le k$ daha da doğru olur. Büyük tarafı büyütmek kısıtı bozmaz.</span></button>
+    <button class="quiz__opt" data-correct>$i = 0$<span class="why">Doğru. $c$'ler $p$'nin altına iner, $b$'ler $p$ kalır: $j &gt; k$. Sipser durum 1(b), $a$'sız alt durum.</span></button>
+    <button class="quiz__opt">Hiçbiri; bu durum için başka bir $s$ gerekir<span class="why">$s$ doğru seçilmiş. Eksik olan pump down'ı denemek.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="kritik-s" data-min="6">
+  <h2>Kritik s seçimi: ww ve palindromlar</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Hoca: "pick the most critical string", yani dilden en kolay itilebilecek string. CFL lemma'sında rakibin elinde daha fazla seçenek var: $v$ ve $y$'yi iki ayrı yere koyup <strong>birbirini dengeleyecek</strong> şekilde pompalayabilir. İyi bir $s$, bu dengelemenin pencereye sığmadığı bir $s$'dir.</p>
+  </div>
+  <div class="box box--exam" data-exam="sipser-ex2.38"><span class="box__label">Sipser Example 2.38 · kitap alıştırması</span>
+    <p>"Let $D = \{ww \mid w \in \{0,1\}^*\}$. Use the pumping lemma to show that $D$ is not a CFL."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Regular lemma'da işe yarayan $0^p10^p1$ burada işe yaramaz: split gezgininde dene, rakip ilk 1'in iki yanındaki birer 0'ı birlikte pompalar. Dilin "özünü" taşıyan bir string seç: $0^p1^p0^p1^p$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Pencere $p$ genişliğinde. Üç durum: tamamen birinci yarıda, tamamen ikinci yarıda, ya da ortadaki noktanın üzerinde.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Neden $0^p10^p1$ olmaz:</strong> $u = 0^{p-1}$, $v = 0$, $x = 1$, $y = 0$, $z = 0^{p-1}1$ bölmesinde $uv^ixy^iz = 0^{p-1+i}10^{p-1+i}1$, her $i$ için $ww$ biçiminde.</p>
+      <p><em>Proof.</em> Assume $D$ is context-free and let $p$ be the pumping length. Let $s = 0^p1^p0^p1^p$. Then $s \in D$ ($w = 0^p1^p$) and $|s| = 4p \ge p$. By condition 3, $|vxy| \le p$.</p>
+      <ol>
+        <li><strong>$vxy$ lies in the first half.</strong> Pumping up to $uv^2xy^2z$ moves a 1 into the first position of the second half, so it cannot be of the form $ww$.</li>
+        <li><strong>$vxy$ lies in the second half.</strong> Pumping up moves a 0 into the last position of the first half, so again it is not of the form $ww$.</li>
+        <li><strong>$vxy$ straddles the midpoint.</strong> Then $vxy$ lies inside the middle $1^p0^p$, and pumping down gives $uxz = 0^p1^i0^j1^p$ where $i$ and $j$ cannot both be $p$. This is not of the form $ww$.</li>
+      </ol>
+      <p>Every split leads to a contradiction, so $D$ is not context-free. ∎</p>
+      <p>1. ve 2. durumda uzunluk tek çıkarsa string zaten $ww$ olamaz; çift çıkarsa Sipser'in söylediği kayma olur. Kontrol: python ile $p = 1..6$, her split bu üç durumdan birindeki $i$ ile dışarı. $0^p10^p1$ için $p \ge 3$'te yeşil split kalıyor.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Example 2.38 (PDF s.153). -->
+  </div>
+  <div class="box box--exam" data-exam="2019-mid-P5"><span class="box__label">2019 vizesi P5 · çıkmış soru</span>
+    <p>"P5 [20 points] Let $B$ be the language of all palindromes over $\{0,1\}$ containing equal numbers of 0s and 1s. Show that $B$ is not context free."</p>
+    <p>Bu soru Sipser Problem 2.31 ile aynı.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$s = 0^p1^{2p}0^p$: palindrom, $2p$ tane 0 ve $2p$ tane 1. Ortadaki 1 bloğu $2p$ uzunluğunda; pencere iki 0 bloğuna birden dokunabilir mi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Pump down ($i = 0$) her durumda yeter. $vy$'deki 0 ve 1 sayıları farklıysa ne olur? Eşitse, $uxz$ hangi biçimde kalır?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><em>Proof.</em> Assume that $B$ is context-free. Then by the pumping lemma for CFLs, $\exists p \in \mathbb{Z}^+$ such that $\forall s \in B$ with $|s| \ge p$, $s$ can be split into 5 pieces $s = uvxyz$ such that 1. $\forall i \ge 0$, $uv^ixy^iz \in B$; 2. $|vy| &gt; 0$; 3. $|vxy| \le p$.</p>
+      <p>Let $s = 0^p1^{2p}0^p$. Then $s$ is a palindrome with $2p$ 0s and $2p$ 1s, so $s \in B$, and $|s| = 4p \ge p$. We pump down ($i = 0$) in every case.</p>
+      <ol>
+        <li><strong>$vy$ contains different numbers of 0s and 1s.</strong> Then $uxz$ has different numbers of 0s and 1s, so $uxz \notin B$.</li>
+        <li><strong>$vy$ contains $c$ 0s and $c$ 1s.</strong> By condition 2, $c \ge 1$. The two blocks of 0s are separated by $2p &gt; p$ ones, so by condition 3 $vxy$ cannot touch both blocks of 0s. Say it touches only the first one (the other side is symmetric). Deleting $v$ and $y$ from $0^p1^{2p}$ keeps the 0s before the 1s, so $uxz = 0^{p-c}1^{2p-c}0^p$. It starts with $p - c$ zeros and ends with $p$ zeros, and $2p - c \ge 1$ ones sit between them; since $p - c \ne p$, it is not a palindrome. So $uxz \notin B$.</li>
+      </ol>
+      <p>Both cases contradict condition 1. Therefore $B$ is not context-free. ∎</p>
+      <p class="src">Not: Repodaki el yazısı anahtar aynı $s$'yi seçiyor ve aynı iki duruma ayırıyor, ama ikinci durumda sadece "when we pump up, palindrome property is lost" diyor. Neden kaybolduğunu göstermiyor, şart 3'ü hiç kullanmıyor ve $v$'nin ya da $y$'nin hem 0 hem 1 içerdiği bölmeleri ayrıca düşünmüyor (çizimindeki tek bölme $v$ 0'larda, $y$ 1'lerde). Ayrıca $s \in B$ ve $|s| \ge p$ yazılmamış. Yukarıdaki çözüm pump down ile bu boşlukları kapatıyor.</p>
+      <p>Kontrol: python ile $p = 1..6$, bütün split'ler $i = 0$ ile dışarı. Split gezgininde $(0110)^p$'yi dene: o da dilde, ama $p \ge 4$ için yeşil split kalıyor.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2019-midterm-solutions.pdf" target="_blank" rel="noopener">Orijinal soru ve el yazısı anahtar (s.2)</a></p>
+    <!-- Kaynak: exams/2019-midterm-solutions.pdf s.2 P5 (el yazısı: "Assume B is context-free. Then, by Pumping Lemma, ∃p such that ∀s (|s|≥p) ∈ B, s is splittable to s = uvxyz so that 3 conditions hold: 1. ∀i uv^ixy^iz ∈ B 2. |vy| ≥ 1 3. |vxy| ≤ p. Now, let s = 0^p 1^{2p} 0^p. … if we split with #0s and #1s are different in vy, we lose equality … if we split with #0s = #1s in vy, it has to be like 00…0 11…11 00…0 but then, when we pump up, palindrome property is lost.") · Sipser Problem 2.31 (PDF s.180). -->
+  </div>
+  <div class="quiz" id="q-2019key">
+    <p class="quiz__q">2019 anahtarının ikinci durumuna ("#0 = #1 in $vy$ … pump up, palindrome property is lost") hangi cümle eklenmeli?</p>
+    <button class="quiz__opt">"Let $v = 0$ and $y = 1$."<span class="why">Bölmeyi rakip seçer. Tek bir örnek bölme yazmak durumu kapatmaz.</span></button>
+    <button class="quiz__opt" data-correct>"By condition 3, $vxy$ cannot touch both blocks of 0s, so only one end of the string changes."<span class="why">Doğru. Palindromun bozulduğunu gösteren şey bu: bir uçtaki 0 bloğu değişiyor, diğeri $p$ kalıyor.</span></button>
+    <button class="quiz__opt">"Since $|vy| \ge 1$, the string becomes longer."<span class="why">Uzunluğun artması bir palindromu bozmaz; $0^{p+1}1^{2p}0^{p+1}$ da palindrom. Bozulmanın nedeni iki ucun farklı değişmesi.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.30c"><span class="box__label">Sipser Problem 2.30(c) · kitap alıştırması</span>
+    <p>"Use the pumping lemma to show that the following languages are not context free. […] c. $\{w\#t \mid w$ is a substring of $t$, where $w, t \in \{a,b\}^*\}$" (problemin bir şıkkı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$s = a^pb^p\#a^pb^p$. $\#$'in solu ile sağı aynı; sol taraf büyürse alt string olamaz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Dört durum: $v$ ya da $y$ $\#$ içeriyor; ikisi de solda; ikisi de sağda; biri solda biri sağda ($\#$'in üzerinden). Sonuncuda şart 3 $v$'yi ve $y$'yi nereye koyar?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Let $p$ be the pumping length and $s = a^pb^p\#a^pb^p \in C$, $|s| = 4p + 1 \ge p$.</p>
+      <ul>
+        <li>$v$ or $y$ contains $\#$: $uv^0xy^0z$ has no $\#$, so it is not in $C$.</li>
+        <li>$v$ and $y$ both on the left of $\#$: $uv^2xy^2z$ is longer on the left than on the right, so the left part cannot be a substring of the right part.</li>
+        <li>$v$ and $y$ both on the right: $uv^0xy^0z$ is again longer on the left side.</li>
+        <li>If one of $v$, $y$ is empty, treat it as if both were on the same side as the nonempty one.</li>
+        <li>Both nonempty and straddling $\#$: by condition 3, $v$ consists of $b$'s (end of the left side) and $y$ of $a$'s (start of the right side). $uv^2xy^2z$ has more $b$'s on the left than the right side has, so it is not in $C$.</li>
+      </ul>
+      <p>Every case contradicts condition 1, so $C$ is not context-free. ∎ (Sipser'in seçili çözümü.) Kontrol: python ile $p = 1..5$, her durumdaki $i$ ile dışarı.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Problem 2.30(c) (PDF s.180) ve seçili çözümü (PDF s.186). -->
+  </div>
+  <div class="quiz" id="q-kritik">
+    <p class="quiz__q">$\{ww \mid w \in \{0,1\}^*\}$ için hangi $s$ bir CFL ispatı <strong>kurmaz</strong>?</p>
+    <button class="quiz__opt" data-correct>$0^p10^p1$<span class="why">Doğru, kurmaz. Rakip ilk 1'in iki yanındaki birer 0'ı birlikte pompalar ($v = 0$, $x = 1$, $y = 0$) ve iki yarı hep eşit kalır. Regular ispatında işe yarıyordu, çünkü orada $y$ ilk $p$ sembole hapsediliyordu.</span></button>
+    <button class="quiz__opt">$0^p1^p0^p1^p$<span class="why">Bu Sipser'in seçimi ve çalışır: pencere bir yarıda kalırsa pump up, ortadaysa pump down.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="carpim" data-min="7">
+  <h2>2024 P5: k = mn ve hocanın uyarısı</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · pompalamak doğrusal, çarpım değil</span>
+    <p>Pompalarken bloklar $(i-1)|v|$ ve $(i-1)|y|$ kadar, yani <strong>doğrusal</strong> büyür. $k = mn$ ise çarpım. Rakip çarpımı korumak için bir faktörü sabit tutup diğerini ve $k$'yı birlikte büyütmeye çalışır: $m$ sabitken $n$ bir artarsa $k$ tam $m$ artmalı.</p>
+    <ul>
+      <li>$s = 01^p0^p$ ($m = 1$): rakip $v = 1$, $y = 0$ seçer (1'lerin sonu ile son 0'ların başı, pencereye sığar). $n$ ve $k$ birlikte artar, $k = 1 \cdot n$ hep doğru.</li>
+      <li>$s = 0^21^p0^{2p}$ ($m = 2$): rakip $v = 1$, $y = 00$ seçer. Yine kaçar.</li>
+      <li>$s = 0^p1^p0^{p^2}$ ($m = p$): $n$ bir artarsa $k$ tam $p$ artmalı. $|v| \ge 1$ ve $|y| = p|v| \ge p$ ise pencere $p + 1$'den geniş olur. Rakip kaçamaz.</li>
+    </ul>
+    <p>Hoca: ilk blok $p$'ye bağlı olmalı. Split gezgininde bu üç $s$'yi dene.</p>
+  </div>
+  <div class="box box--exam" data-exam="2024-mid-P5"><span class="box__label">2024 vizesi P5 · çıkmış soru</span>
+    <p>"P5 [15 points] Prove that the following language is not context-free: $L = \{0^m1^n0^k \mid k, m, n \ge 0, k = mn\}$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$s = 0^p1^p0^{p^2}$. Önce: $v$ ya da $y$ iki farklı sembol içeriyorsa ne olur?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$v$ ve $y$ birer blok içindeyse, $k = mn$'yi korumak için hangi bloklara düşmeleri gerekir ve $|y|$ ile $|v|$ arasında hangi ilişki olmalı? Bu ilişki şart 3 ile uyuşuyor mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Hocanın tahtadaki çözümü</strong> (cümle sırası korunarak):</p>
+      <p><em>Proof.</em> Assume that $L$ is CF. Then, by PL for CFL, $\exists p \in \mathbb{Z}^+$ s.t. $\forall s \in L$ with $|s| \ge p$, $s$ can be split into 5 pieces as $s = uvxyz$ s.t. all following 3 conditions are met: 1. $\forall i \ge 0$, $uv^ixy^iz \in L$; 2. $|vy| &gt; 0$; 3. $|vxy| \le p$.</p>
+      <p>Now, let $s = 0^p1^p0^{p^2}$ (selectable indeed: $\in L$, $\ge p$).</p>
+      <p>Note that to keep the multiplication correct (to satisfy condition 1), we need to select $v$ from the 1 sequence and $y$ from the second 0 sequence, and it must be the case that $p \cdot |v| = |y|$. But due to condition 2, $|v|$ and $|y|$ cannot be zero at the same time. Therefore the minimum possible lengths are $|v| = 1$, $|y| = p$, but then condition 3 is not met, because $|vxy| \ge p + 1$.</p>
+      <p>Therefore we're done. $L$ is not C.F. QED.</p>
+      <p><strong>Bütün durumlar</strong> (hocanın "however the split is done" uyarısı; yazılı anahtar da bu listeyi ekliyor). Her durumda $i = 2$:</p>
+      <ol>
+        <li>$v$ or $y$ contains two different symbols: $uv^2xy^2z$ is not of the form $0^*1^*0^*$, so it is not in $L$.</li>
+        <li>Otherwise $v$ and $y$ each lie in one block. By condition 3, $vxy$ cannot touch both blocks of 0s (there are $p$ ones between them).
+          <ul>
+            <li>Only the first 0-block and/or the 1-block change, the last block does not: $mn$ grows (both factors are at least $p \ge 1$) but $k$ stays $p^2$.</li>
+            <li>Only the last block changes: $k$ grows, $mn = p^2$ does not.</li>
+            <li>$v$ in the 1s and $y$ in the last 0s: $mn = p(p + |v|) = p^2 + p|v|$ and $k = p^2 + |y|$. They are equal only if $|y| = p|v|$. If $|v| = 0$ we are in the previous case; if $|v| \ge 1$ then $|vxy| \ge |v| + |y| \ge p + 1$, impossible.</li>
+          </ul>
+        </li>
+      </ol>
+      <p>Every split leaves $L$, contradicting condition 1. Therefore $L$ is not context-free. ∎</p>
+      <p>Hocanın versiyonu durumları tek cümlede topluyor ("to keep the multiplication correct we need …"). Puan kaybetmemek için yukarıdaki listeyi de ekle; hoca aynı sayfada "go case by case" dedi.</p>
+      <p>Kontrol: python ile $p = 1..6$, bütün split'ler $i = 2$ ile dışarı; $i = 0$ tek başına yetmiyor. Yazılı anahtar (2024-midterm-solutions) ile tahta aynı ve doğru.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2024-midterm.pdf" target="_blank" rel="noopener">Orijinal soru (2024 vizesi)</a></p>
+    <!-- Kaynak: exams/2024-midterm.pdf P5 · resources/2026-2027-fall/2026-10-26-midterm-2024-solved-board.pdf s.5 (tahta metni yukarıda; s altında "1", "+r" karalamaları ilk denenen 01^p0^p'ye ait) · exams/2024-midterm-solutions.pdf s.3 ("Other splits, for a complete answer" listesi) · exams/README.md 26 Oct review (k = mn uyarısı). -->
+  </div>
+  <p class="src">Not: 2023 vizesinde P5 yok. Repodaki kâğıtta dört soru var (25 + 25 + 20 + 30 = 100 puan) ve son soru P4 (CFG + PDA); exams/README.md'deki tablo burada yanıltıcı.</p>
+  <!-- Kaynak: exams/2023-midterm-solutions.pdf s.1–2 (P1 10+15, P2 10+15, P3 20, P4 15+15 puan; P5 yok). -->
+  <h3>Kâğıda sırayla yaz</h3>
+  <p>2024 P5 ispatının cümleleri karışık; aralarına üç yanlış cümle karıştı. Sıradaki cümleye dokun. Sırası gelmemiş bir cümleyi seçersen üstü çizilir (cümle havuzda kalır, sonra doğru yerde kullanabilirsin).</p>
+  <p class="w-pumping-cfl-guess"><b>Önce tahmin et:</b> Hangi üç cümle hiç yazılmamalı?</p>
+  <div id="w-ord">
+    <ol class="w-pumping-cfl-paper" id="w-ord-paper"></ol>
+    <div class="w-pumping-cfl-fb" id="w-ord-fb" aria-live="polite"></div>
+    <div class="w-pumping-cfl-pool" id="w-ord-pool"></div>
+    <div class="w-pumping-cfl-ctl"><button class="btn btn--sm" id="w-ord-reset">Baştan karıştır</button></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$s = 01^p0^p$ ya da $0^21^p0^{2p}$ seçmek. Dilde ve uzun, ama rakip bir 1 ile $m$ tane 0'ı birlikte pompalar ve sonsuza dek kaçar. Hoca derste bu iki string'i örnek olarak verdi.</li>
+      <li>Sadece hoşuna giden bölmeyi incelemek. "$v$ in the 1s, $y$ in the last 0s" en zor durum, ama tek durum değil.</li>
+      <li>Dilde $k, m, n \ge 0$: $1^n$ ($m = k = 0$) ve $0^m$ ($n = k = 0$) de dilde. $s$'nin dilde olduğunu yazarken sayıları açıkça ver: "$m = n = p$, $k = p^2 = p \cdot p$".</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-carpim">
+    <p class="quiz__q">$s = 0^p1^p0^{p^2}$'de rakip $v = 1$ (bir tane 1) ve $y$'yi son 0 bloğundan seçiyor. $k = mn$'nin korunması için $|y|$ kaç olmalı?</p>
+    <button class="quiz__opt">$1$<span class="why">$m = p$ iken $n$ bir artınca $mn$ tam $p$ artar. $|y| = 1$ ise $k$ sadece 1 artar; $p \ge 2$ için dengelenmez.</span></button>
+    <button class="quiz__opt" data-correct>$p$, ama o zaman $|vxy| \ge p + 1$ olur<span class="why">Doğru. $|y| = p|v| = p$ şart, ve $v$ ile $y$ birlikte pencereyi $p$'den genişletir. Hocanın ispatının çekirdeği bu.</span></button>
+    <button class="quiz__opt">$p^2$<span class="why">$k$'nın tamamı $p^2$; $y$ sadece artışı karşılamalı. $n$ bir artınca $mn$ $p$ artar, $p^2$ değil.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="bolme" data-min="6">
+  <h2>Bölünebilme: m divides n</h2>
+  <p>2020 vizesi P4'te üç dil verdi ve her biri için "decide whether they are context-free or not" dedi. (a) ve (b) context-free (CFG ve PDA dersleri). (c) değil, ve ispatı $k = mn$ ile aynı fikri kullanıyor: doğrusal pompalamanın doğrusal olmayan bir kısıtı korumaya yetmemesi.</p>
+  <div class="box box--rule">
+    <span class="box__label">Doğrusal olmayan kısıtlarda s seçimi</span>
+    <ol>
+      <li><strong>Rakibin dengeleme bölmesini pencereye sığdırma.</strong> İki bloğu oranlı pompalayarak kısıtı koruyabiliyorsa, oran $p$'den büyük olsun ($k = mn$'de $|y| = p|v|$).</li>
+      <li><strong>Tek blok pompalamayı da kapat.</strong> Bir blok $t \le p$ kadar değişince kısıt bozulmalı. Bölünebilmede bunun yolu: bölen $p$'den büyük olsun, ya da bölünen $2, 3, \dots, p+1$ sayılarının hepsine bölünsün ($(p+1)!$ hilesi).</li>
+      <li><strong>İstediğin kadar büyük $i$ kullanabilirsin.</strong> Hoca: "after certain number of pump-up operations". Bir sayı diğerini aşınca bölünebilme biter.</li>
+    </ol>
+  </div>
+  <div class="box box--exam" data-exam="2020-mid-P4c"><span class="box__label">2020 vizesi P4(c) · çıkmış soru</span>
+    <p>"P4 [25 points] For each of the languages below, decide whether they are context-free or not. If yes, give a context-free grammar and a pushdown automata for the following languages. Otherwise prove that it is not context-free. (Do not forget that PDAs can be non-deterministic.) […] (c) $\{a^mb^n \mid m, n \ge 1$ and $m$ divides $n\}$" (sorunun bu bölümle ilgili şıkkı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce kötü seçimleri gör: $s = a^pb^p$'de rakip $v = a$, $y = b$ seçer ($m = n$ hep korunur). $s = a^pb^{p^2}$'de rakip $y = b^p$ seçer ($n$ hep $p$'nin katı kalır). İki kaçış da $p \ge 2$ ister: $p = 1$ iken $s = ab$ ve pump down $b$'siz bir string verir. İkisini de split gezgininde $p \ge 2$ ile dene.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$s = a^{p+1}b^{(p+1)!}$. Dört durum: karışık parça; sadece $a$'lar; sadece $b$'ler; $v$ $a$'larda, $y$ $b$'lerde. $2 \le d \le p+1$ olan her $d$, $(p+1)!$'i böler.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Not context-free.</strong></p>
+      <p><em>Proof.</em> Assume that $L$ is context-free. Then by the pumping lemma for CFLs, $\exists p \in \mathbb{Z}^+$ such that $\forall s \in L$ with $|s| \ge p$, $s$ can be split into 5 pieces $s = uvxyz$ such that 1. $\forall i \ge 0$, $uv^ixy^iz \in L$; 2. $|vy| &gt; 0$; 3. $|vxy| \le p$.</p>
+      <p>Let $s = a^{p+1}b^{(p+1)!}$. Then $s \in L$ since $m = p + 1 \ge 1$, $n = (p+1)! \ge 1$ and $(p+1) \mid (p+1)!$; and $|s| \ge p$. Write $N = (p+1)!$.</p>
+      <ol>
+        <li><strong>$v$ or $y$ contains both $a$ and $b$.</strong> $uv^2xy^2z$ has a $b$ before an $a$, so it is not in $L$.</li>
+        <li><strong>$vy$ contains only $a$'s</strong>, $t = |vy| \ge 1$. Pump up with $i = N + 1$: there are $p + 1 + Nt &gt; N$ $a$'s and still $N$ $b$'s. A number larger than $N$ cannot divide $N$, so the string is not in $L$.</li>
+        <li><strong>$vy$ contains only $b$'s</strong>, $1 \le t = |vy| \le p$. Pump up with $i = 2$: there are $N + t$ $b$'s and $p + 1$ $a$'s. Since $(p+1) \mid N$ and $0 &lt; t &lt; p + 1$, $(p+1) \nmid N + t$. Not in $L$.</li>
+        <li><strong>$v = a^\alpha$ and $y = b^\beta$ with $\alpha, \beta \ge 1$.</strong> By condition 3, $\alpha + \beta \le p$. Pump down ($i = 0$): $m' = p + 1 - \alpha$ and $n' = N - \beta$. Here $2 \le m' \le p$, so $m' \mid N$, and therefore $m' \mid n'$ only if $m' \mid \beta$. But $1 \le \beta \le p - \alpha &lt; m'$, so $m' \nmid n'$. Not in $L$.</li>
+      </ol>
+      <p>Every split contradicts condition 1. Therefore $L$ is not context-free. ∎</p>
+      <p>Durum 4, $k = mn$'deki "dengeleme" bölmesinin karşılığı: rakip $a$ ve $b$'yi aynı anda pompalayarak bölünebilmeyi korumaya çalışıyor. Bu ders için yazılan bir çözüm; repoda anahtar yok. Kontrol: python ile $p = 1..5$, her durum yazılan $i$ ile dışarı; $a^pb^p$ ve $a^pb^{p^2}$ için $p \ge 2$'de yeşil split kalıyor.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2020-midterm.pdf" target="_blank" rel="noopener">Orijinal soru (2020 vizesi)</a></p>
+    <!-- Kaynak: exams/2020-midterm.pdf P4(c), anahtar yok · exams/README.md "Nonlinear constraints (m divides n, k = mn) are the not-context-free ones". -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.33"><span class="box__label">Sipser Problem 2.33 · kitap alıştırması</span>
+    <p>"Show that $F = \{a^ib^j \mid i = kj$ for some positive integer $k\}$ is not context free."</p>
+    <p>2020 P4(c)'nin ikizi: burada $b$ sayısı $a$ sayısını bölüyor.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Rolleri değiştir: $s = a^{(p+1)!}b^{p+1}$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$k$ pozitif olduğu için $F$'deki her string'de $i \ge j$. Sadece $b$'ler pompalanırsa ne kadar pompalaman gerekir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Assume $F$ is context-free, $p$ the pumping length, $N = (p+1)!$, $s = a^Nb^{p+1}$. Then $s \in F$ ($k = p! \ge 1$) and $|s| \ge p$.</p>
+      <ul>
+        <li>$v$ or $y$ mixed: $i = 2$ breaks the order.</li>
+        <li>Only $b$'s, $t = |vy| \ge 1$: $i = N + 1$ gives $p + 1 + Nt &gt; N$ $b$'s, more $b$'s than $a$'s, so the number of $a$'s cannot be $k$ times the number of $b$'s with $k \ge 1$.</li>
+        <li>Only $a$'s, $1 \le t \le p$: $i = 2$ gives $N + t$ $a$'s, not a multiple of $p + 1$.</li>
+        <li>$v = a^\alpha$, $y = b^\beta$, $\alpha, \beta \ge 1$: $i = 0$ gives $j' = p + 1 - \beta \in [2, p]$, which divides $N$, so $j' \mid N - \alpha$ only if $j' \mid \alpha$; but $1 \le \alpha &lt; j'$.</li>
+      </ul>
+      <p>Contradiction in every case. ∎ Kontrol: python ile $p = 1..4$, her durum yazılan $i$ ile dışarı.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Problem 2.33 (PDF s.180). Kitapta seçili çözüm yok. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"$m \le n \le 3m$ de iki sayı arasında bir ilişki, o da CF değil" demek. 2020 P4(b) context-free: $n$, $m$'nin 1 ile 3 katı arasında; her $a$ için 1, 2 ya da 3 tane $b$ üretilir ($S \to aSb \mid aSbb \mid aSbbb \mid \varepsilon$). Ama ters genelleme de yanlış: doğrusal kısıtlar tek başına dilin sınıfını belirlemez. $\{a^kb^mc^n \mid k = m = n\}$ sadece doğrusal eşitliklerden oluşur ve context-free değil; $k + m + n = 100$ ise sonlu, yani regular bir dil verir.</li>
+      <li>Pump down'ın her durumda işe yarayacağını sanmak. Durum 2'de $i = 0$ ile $a$ sayısı $p + 1 - t$ olur ve bu sayı $(p+1)!$'i böler (örneğin $t = p$ iken 1). Bu yüzden orada pump up kullandık.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-bolme">
+    <p class="quiz__q">$\{a^mb^n \mid m, n \ge 1, m \mid n\}$ için $s = a^pb^{p^2}$ seçtin; rakip $p \ge 2$ seçmiş olsun. Rakip hangi bölmeyle kaçar?</p>
+    <button class="quiz__opt">$v = a$, $y = \varepsilon$<span class="why">$i = 2$ ile $p + 1$ tane $a$ olur ve $p + 1 \nmid p^2$ (ardışık sayılar). Bu bölme kırmızı.</span></button>
+    <button class="quiz__opt" data-correct>$v = \varepsilon$, $y = b^p$<span class="why">Doğru. $b$ sayısı $p^2 + (i-1)p$, her $i$ için $p$'nin katı; $i = 0$'da da $p^2 - p \ge 1$ ($p \ge 2$). Bölen $p$'yi $p + 1$'e çıkarınca bu kaçış kapanır.</span></button>
+    <button class="quiz__opt">Hiçbiriyle; $a^pb^{p^2}$ iyi bir seçim<span class="why">Split gezgininde bu dil ve $p = 3$ ile dene: 28 yeşil split kalıyor. $y = b^p$ en basit olanı.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="closure" data-min="5">
+  <h2>Closure: kapalı olanlar ve olmayanlar</h2>
+  <div class="box box--rule">
+    <span class="box__label">CFL'ler hangi işlemler altında kapalı?</span>
+    <div class="table-wrap"><table>
+      <tr><th>İşlem</th><th>Kapalı mı?</th><th>Neden</th></tr>
+      <tr><td>Union $A_1 \cup A_2$</td><td>Evet</td><td>Yeni start: $S \to S_1 \mid S_2$</td></tr>
+      <tr><td>Concatenation $A_1 \circ A_2$</td><td>Evet</td><td>$S \to S_1S_2$</td></tr>
+      <tr><td>Star $A_1^*$</td><td>Evet</td><td>Yeni start: $S \to SS_1 \mid \varepsilon$</td></tr>
+      <tr><td>$A \cap R$, $R$ regular</td><td>Evet</td><td>PDA ile DFA'yı birlikte çalıştır: state'ler $Q_P \times Q_D$ (Problem 2.18(a))</td></tr>
+      <tr><td>Intersection $A_1 \cap A_2$</td><td><strong>Hayır</strong></td><td>Exercise 2.2(a): iki CFL'nin kesişimi $a^nb^nc^n$ olabilir</td></tr>
+      <tr><td>Complement $\overline{A}$</td><td><strong>Hayır</strong></td><td>Exercise 2.2(b): De Morgan ile intersection'a indirgenir</td></tr>
+    </table></div>
+    <p>Kullanımı regular closure ile aynı: "Assume $L$ is CF. Then $L \cap R$ is CF. But $L \cap R$ = (CF olmadığını bildiğimiz bir dil). Contradiction."</p>
+  </div>
+  <!-- Kaynak: weeks/07 Key concepts ("CFLs are closed under ∪, ∘, *, and intersection with a regular language, but not under ∩ or complement") · Sipser Exercise 2.16 (regular operations), 2.15 (S → SS yetmez), Problem 2.18(a) seçili çözümü (PDF s.185), Exercise 2.2 (PDF s.178). Exercise 2.15 karşı örneği (S → aSb | ε + S → SS, aababb) python ile kontrol edildi. -->
+  <div class="box box--exam" data-exam="sipser-2.2"><span class="box__label">Sipser Exercise 2.2 · kitap alıştırması</span>
+    <p>"a. Use the languages $A = \{a^mb^nc^n \mid m, n \ge 0\}$ and $B = \{a^nb^nc^m \mid m, n \ge 0\}$ together with Example 2.36 to show that the class of context-free languages is not closed under intersection. b. Use part (a) and DeMorgan's law (Theorem 0.20) to show that the class of context-free languages is not closed under complementation."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$A$ ve $B$ için birer grammar yaz. $A \cap B$'deki bir string'de hangi sayılar eşit olmak zorunda?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b) $A \cap B = \overline{\overline{A} \cup \overline{B}}$. Complement altında kapalı olsaydı sağ taraf ne olurdu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $A$ is context-free: $S \to aS \mid T$, $T \to bTc \mid \varepsilon$. $B$ is context-free: $S \to Sc \mid T$, $T \to aTb \mid \varepsilon$. A string in $A \cap B$ has the form $a^*b^*c^*$ with #b = #c (from $A$) and #a = #b (from $B$), so $A \cap B = \{a^nb^nc^n \mid n \ge 0\}$, which is not context-free by Example 2.36. Two CFLs whose intersection is not a CFL: the class is not closed under intersection.</p>
+      <p><strong>(b)</strong> Suppose the class were closed under complement. It is closed under union, so for CFLs $A$, $B$ the language $\overline{\overline{A} \cup \overline{B}}$ would be context-free. By De Morgan's law this is $A \cap B$, which part (a) showed need not be context-free. Contradiction, so the class is not closed under complement.</p>
+      <p>Kontrol: $A \cap B = a^nb^nc^n$ eşitliği python ile uzunluk 9'a kadar doğrulandı.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.2 (PDF s.178). Seçili çözüm yok. weeks/07 Practice: "Show CFLs are not closed under intersection with a counterexample". -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.18b"><span class="box__label">Sipser Problem 2.18(b) · kitap alıştırması</span>
+    <p>"a. Let $C$ be a context-free language and $R$ be a regular language. Prove that the language $C \cap R$ is context free. b. Let $A = \{w \mid w \in \{a,b,c\}^*$ and $w$ contains equal numbers of $a$'s, $b$'s, and $c$'s$\}$. Use part (a) to show that $A$ is not a CFL."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$A$'da sıra serbest; pumping ile uğraşmak zor. Hangi regular dil sırayı sabitler?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$A \cap a^*b^*c^*$ nedir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> Let $P$ be a PDA for $C$ with states $Q$ and $D$ a DFA for $R$ with states $Q'$. Build $P'$ with states $Q \times Q'$: it does what $P$ does and also tracks the state of $D$ on each input symbol. It accepts iff it ends in $F_P \times F_D$. $P'$ recognizes $C \cap R$, so $C \cap R$ is context-free.</p>
+      <p><strong>(b)</strong> Let $R = a^*b^*c^*$, which is regular. If $A$ were a CFL, $A \cap R$ would be a CFL by part (a). But $A \cap R = \{a^nb^nc^n \mid n \ge 0\}$, which is not context-free (Example 2.36). So $A$ is not a CFL. ∎ (Sipser'in seçili çözümü.)</p>
+      <p>Kontrol: $A \cap a^*b^*c^* = a^nb^nc^n$ python ile uzunluk 9'a kadar doğrulandı.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Problem 2.18 (PDF s.180) ve seçili çözümü (PDF s.185). -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"$L \cap L'$ CF değil, o zaman $L$ CF değil" ancak $L'$ <strong>regular</strong> ise geçerli. $L'$ sadece CF ise kesişim CF olmayabilir, $L$ yine de CF olabilir ($A \cap B$ örneği).</li>
+      <li>Star için eski start variable'a sadece $S \to SS$ eklemek yetmez (Exercise 2.15). $S \to aSb \mid \varepsilon$'a $S \to SS$ eklersen $S \Rightarrow aSb \Rightarrow aSSb \overset{*}{\Rightarrow} aababb$ türer; bu $(a^nb^n)^*$'da yok. Yeni bir start variable kullan.</li>
+      <li>"Not closed under complement" her CFL'nin complement'inin CF olmadığı anlamına gelmez. Regular dillerin complement'i regular, dolayısıyla CF. Sadece <em>her zaman</em> CF değil.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-closure">
+    <p class="quiz__q">$L = \{w \in \{0,1\}^* \mid \#0 = \#1\}$ context-free. $L \cap 0^*1^*$ hakkında ne söylenir?</p>
+    <button class="quiz__opt" data-correct>Context-free; zaten $\{0^n1^n\}$'e eşit<span class="why">Doğru. CFL ∩ regular her zaman CF. Burada sonuç $0^n1^n$.</span></button>
+    <button class="quiz__opt">Belli olmaz, CFL'ler intersection altında kapalı değil<span class="why">Kapalı olmadıkları, iki CFL'nin kesişimi. Biri regular ise kesişim her zaman CF (Problem 2.18(a)).</span></button>
+    <button class="quiz__opt">Regular, çünkü $0^*1^*$ regular<span class="why">Regular bir dille kesişmek sonucu regular yapmaz: $0^n1^n$ regular değil.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="siniflandir" data-min="5">
+  <h2>CF mi, değil mi? Kısıtı sınıflandır</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kaba kural (ispat değil, yön bulmak için)</span>
+    <ul>
+      <li><strong>CF olma eğiliminde:</strong> iki blok arasında doğrusal bir eşitlik ya da eşitsizlik ($k = 2m$, $k \ne m$, $m \le n \le 3m$); iç içe eşleşmeler ($k = m + n$: dış $a$'lar $c$'lerle, iç $a$'lar $b$'lerle); bunların union'ı ($k = m$ or $m = n$); sonlu diller.</li>
+      <li><strong>CF olmama eğiliminde:</strong> üç bloğun aynı anda bağlı olması ($k = m = n$, $k \le m \le n$, $k &gt; m &gt; n$); çarpım, kare, bölünebilme ($k = mn$, $k = m^2$, $m \mid n$).</li>
+      <li>Sınavda kural yetmez: CF ise CFG ve PDA ver, değilse pumping ile ispatla.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: exams/README.md "Linear constraints on aᵏbᵐcⁿ" ve "Nonlinear constraints (m divides n, k = mn) are the not-context-free ones" · 26 Oct review (k ≥ m+n gramerinin "onion" fikri). Aşağıdaki her CF dil için gramer python ile uzunluk 9'a kadar dille karşılaştırıldı; her CF olmayan dil için verilen s, p = 1..5 için bütün split'lerde dışarı çıkıyor. -->
+  <p>Aşağıdaki her dil $\{a^kb^mc^n \mid k, m, n \ge 0, \text{kısıt}\}$ biçiminde. Karar ver, sonra gerekçeyi oku.</p>
+  <p class="w-pumping-cfl-guess"><b>Önce tahmin et:</b> On iki dilden kaçı context-free?</p>
+  <div class="w-pumping-cfl-drill" id="w-cls"></div>
+  <div class="w-pumping-cfl-fb" id="w-cls-fb" aria-live="polite"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$k + m + n = 100$ "sayma" gibi duruyor ama dil sonlu: sonlu ⇒ regular ⇒ CF.</li>
+      <li>$k = n$ ile $m$ arada: $a$'lar ile $c$'ler dıştan içe eşleşir, $b$'ler ortada serbest. Uzak bloklar iç içe eşleşiyorsa stack yeter.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sinif">
+    <p class="quiz__q">2020 P4(b): $\{a^mb^n \mid m \le n \le 3m\}$. Karar?</p>
+    <button class="quiz__opt" data-correct>Context-free<span class="why">Doğru. Her $a$ için 1 ile 3 arasında $b$: $S \to aSb \mid aSbb \mid aSbbb \mid \varepsilon$. Doğrusal kısıt.</span></button>
+    <button class="quiz__opt">CF değil, çünkü iki eşitsizlik var<span class="why">İki eşitsizlik de aynı iki blok ($a$ ve $b$) arasında ve doğrusal. Üç ayrı blok bağlı değil; tek bir stack yeter.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="son-kontrol" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle düşün, sonra seç. Sonra Theorem 2.34'ü ve şablonu bir kez daha ezberden yaz.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">CFL pumping lemma'nın 3. şartı hangisi?</p>
+    <button class="quiz__opt">$|xy| \le p$<span class="why">Bu regular lemma'nın 3. şartı. CFL'de pencere $vxy$.</span></button>
+    <button class="quiz__opt" data-correct>$|vxy| \le p$<span class="why">Doğru. Pencere string'in herhangi bir yerinde olabilir.</span></button>
+    <button class="quiz__opt">$|vy| &gt; 0$<span class="why">Bu 2. şart. Sıra: 1. $uv^ixy^iz \in A$, 2. $|vy| &gt; 0$, 3. $|vxy| \le p$.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">$\{0^m1^n0^k \mid k = mn\}$ için hangisi doğru $s$?</p>
+    <button class="quiz__opt">$01^p0^p$<span class="why">Dilde ama rakip $v = 1$, $y = 0$ ile kaçar: $m = 1$ iken $n$ ve $k$ birlikte artar. Hoca bunu "fails" diye örnek verdi.</span></button>
+    <button class="quiz__opt">$0^21^p0^{2p}$<span class="why">Rakip $v = 1$, $y = 00$ ile kaçar. İlk blok sabit bir sayı olduğu sürece dengeleme pencereye sığar.</span></button>
+    <button class="quiz__opt" data-correct>$0^p1^p0^{p^2}$<span class="why">Doğru. Dengeleme için $|y| = p|v| \ge p$ gerekir ve pencere $p + 1$'i aşar.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">$s = a^pb^pc^p$, şart 3 ile $vxy$ penceresi hakkında ne kesin?</p>
+    <button class="quiz__opt">Sadece tek bir bloğun içinde<span class="why">İki komşu bloğa dokunabilir: $a$'ların sonu ile $b$'lerin başı gibi.</span></button>
+    <button class="quiz__opt" data-correct>Hem $a$'lara hem $c$'lere dokunamaz<span class="why">Doğru. Aralarında $p$ tane $b$ var; $|vxy| \le p$ olan bir pencere ikisine birden ulaşamaz.</span></button>
+    <button class="quiz__opt">İlk $p$ sembolün içinde<span class="why">Bu regular lemma. CFL'de $u$ istediği kadar uzun olabilir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Hangisi context-free <strong>olmayabilir</strong>?</p>
+    <button class="quiz__opt">Bir CFL ile $a^*b^*$'ın kesişimi<span class="why">CFL ∩ regular her zaman CF.</span></button>
+    <button class="quiz__opt" data-correct>İki CFL'nin kesişimi<span class="why">Doğru: $\{a^mb^nc^n\} \cap \{a^nb^nc^m\} = a^nb^nc^n$. CFL'ler intersection altında kapalı değil.</span></button>
+    <button class="quiz__opt">İki CFL'nin union'ı<span class="why">Union altında kapalı: $S \to S_1 \mid S_2$ her zaman bir CFG.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">İspatta "$v$ and $y$ consist of only $a$'s, so pump up" yazdın, ama dil $\{a^mb^n \mid m \mid n\}$ ve $s = a^{p+1}b^{(p+1)!}$. $i = 2$ yeter mi?</p>
+    <button class="quiz__opt">Evet, $a$ sayısı değişti<span class="why">$p + 1 + t$ yine $(p+1)!$'i bölebilir (ör. $p = 3$, $t = 2$: $6 \mid 24$). Değişmek yetmez, bölünebilme bozulmalı.</span></button>
+    <button class="quiz__opt" data-correct>Hayır; $a$ sayısı $b$ sayısını aşana kadar pompala ($i = N + 1$)<span class="why">Doğru. Daha büyük bir sayı daha küçük pozitif bir sayıyı bölemez. $i$'yi istediğin kadar büyük seçebilirsin.</span></button>
+    <button class="quiz__opt">Hayır; bu durumda $s$ işe yaramıyor<span class="why">$s$ işe yarıyor, sadece doğru $i$ gerekiyor. Lemma her $i \ge 0$ için konuşur.</span></button>
+  </div>
+  <!-- Sıradaki konu: dil sınıflandırma ve 90 dakikalık vize stratejisi. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* Pure helpers and languages (no DOM): shared by the widgets below */
+const PC = {
+  esc: (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])),
+  /* KaTeX run-length form of a concrete string: 000011 -> 0^{4}11 */
+  rl(s) {
+    if (s === "") return "\\varepsilon";
+    const parts = [];
+    let i = 0;
+    while (i < s.length) {
+      let j = i;
+      while (j < s.length && s[j] === s[i]) j++;
+      const c = s[i] === "#" ? "\\#" : s[i], n = j - i;
+      parts.push(n >= 3 ? c + "^{" + n + "}" : c.repeat(n));
+      i = j;
+    }
+    if (parts.length > 30) return parts.slice(0, 14).join("") + "\\cdots" + parts.slice(-5).join("") + "\\;(|\\cdot| = " + s.length + ")";
+    return parts.join("");
+  },
+  fact(n) {
+    if (!Number.isInteger(n) || n < 0) throw "Faktöriyel sadece doğal sayılar için tanımlı.";
+    if (n > 8) throw "Faktöriyel çok büyük: daha küçük bir p dene.";
+    let r = 1; for (let k = 2; k <= n; k++) r *= k; return r;
+  },
+  /* integers, variables from env, + - * ^ ! and parentheses, implicit product (2p) */
+  evalExpr(src, env) {
+    const t = String(src).replace(/\s+/g, "").replace(/[−–]/g, "-").replace(/[×·]/g, "*");
+    if (t === "") throw "Boş ifade.";
+    let i = 0;
+    function atom() {
+      const c = t[i];
+      if (c === "(") { i++; const v = expr(); if (t[i] !== ")") throw "Parantez kapanmıyor."; i++; return v; }
+      if (c !== undefined && /[0-9]/.test(c)) { let j = i; while (j < t.length && /[0-9]/.test(t[j])) j++; const v = Number(t.slice(i, j)); i = j; return v; }
+      if (c !== undefined && /[a-z]/i.test(c)) {
+        if (Object.prototype.hasOwnProperty.call(env, c)) { i++; return env[c]; }
+        throw "'" + c + "' tanınmıyor; sadece " + (Object.keys(env).join(", ") || "sayılar") + " kullanılabilir.";
+      }
+      throw c === undefined ? "İfade yarım kaldı." : "'" + c + "' beklenmedik.";
+    }
+    function post() { let v = atom(); while (t[i] === "!") { i++; v = PC.fact(v); } return v; }
+    function power() { const b = post(); if (t[i] === "^") { i++; return Math.pow(b, unary()); } return b; }
+    function unary() { if (t[i] === "-") { i++; return -unary(); } return power(); }
+    function term() {
+      let v = unary();
+      for (;;) {
+        if (t[i] === "*") { i++; v *= unary(); }
+        else if (t[i] !== undefined && /[0-9a-z(]/i.test(t[i])) v *= unary();
+        else return v;
+      }
+    }
+    function expr() {
+      let v = term();
+      for (;;) {
+        if (t[i] === "+") { i++; v += term(); }
+        else if (t[i] === "-") { i++; v -= term(); }
+        else return v;
+      }
+    }
+    const v = expr();
+    if (i !== t.length) throw "'" + t[i] + "' beklenmedik.";
+    return v;
+  },
+  /* template like 0^p1^p0^{p*p}, (0110)^p, a^{(p+1)!} -> concrete string */
+  build(tpl, p, alpha, maxLen) {
+    const t = tpl.replace(/\s+/g, "");
+    if (t === "") throw "s boş. Örnek: a^pb^pc^p";
+    let i = 0, out = "";
+    while (i < t.length) {
+      let unit;
+      if (t[i] === "(") {
+        const j = t.indexOf(")", i);
+        if (j < 0) throw "Açılan parantez kapanmıyor.";
+        unit = t.slice(i + 1, j); i = j + 1;
+        if (!unit) throw "Boş parantez: () içine sembol yaz.";
+      } else if (t[i] === "^" || t[i] === "{" || t[i] === "}") {
+        throw "'" + t[i] + "' bir sembolden sonra gelmeli (örnek: 0^p).";
+      } else { unit = t[i]; i++; }
+      for (const ch of unit) if (!alpha.includes(ch)) throw "'" + ch + "' bu dilin alphabet'inde yok. Alphabet: {" + alpha.split("").join(", ") + "}.";
+      let n = 1;
+      if (t[i] === "^") {
+        i++;
+        if (t[i] === "{") {
+          let depth = 1, j = i + 1;
+          while (j < t.length && depth) { if (t[j] === "{") depth++; else if (t[j] === "}") depth--; j++; }
+          if (depth) throw "Süslü parantez kapanmıyor: 0^{p+1} gibi yaz.";
+          n = PC.evalExpr(t.slice(i + 1, j - 1), { p }); i = j;
+        } else {
+          let j = i;
+          if (t[j] === "p") j++; else while (j < t.length && /[0-9]/.test(t[j])) j++;
+          while (t[j] === "!") j++;
+          if (j === i) throw "^ işaretinden sonra üs yaz: p, bir sayı ya da {…}.";
+          n = PC.evalExpr(t.slice(i, j), { p }); i = j;
+        }
+      }
+      if (!Number.isInteger(n) || n < 0) throw "Üs " + n + " çıktı (p = " + p + "). Üsler her p için 0 ya da pozitif tam sayı olmalı.";
+      if (out.length + unit.length * n > maxLen) throw "s çok uzun (" + maxLen + " sembolden fazla). Daha küçük bir p seç.";
+      out += unit.repeat(n);
+    }
+    return out;
+  },
+  blocks(s) {
+    const B = [];
+    let i = 0;
+    while (i < s.length) { let j = i; while (j < s.length && s[j] === s[i]) j++; B.push({ c: s[i], a: i, b: j }); i = j; }
+    return B;
+  },
+  /* -1: empty piece, k: inside block k, "m": spans two or more blocks */
+  where(B, st, len) {
+    if (len === 0) return -1;
+    const hit = [];
+    B.forEach((bl, k) => { if (st < bl.b && st + len > bl.a) hit.push(k); });
+    return hit.length === 1 ? hit[0] : "m";
+  },
+  pump(s, a, lv, lx, ly, i) {
+    return s.slice(0, a) + s.slice(a, a + lv).repeat(i) + s.slice(a + lv, a + lv + lx) + s.slice(a + lv + lx, a + lv + lx + ly).repeat(i) + s.slice(a + lv + lx + ly);
+  },
+  /* every split with vxy inside [lo, hi), |vy| >= 1, |vxy| <= p; groups by where v and y fall.
+     Per group: how many splits i = 0 kills, how many i = 2 kills, how many only another i kills. */
+  explore(pred, s, p, is, lo, hi) {
+    const B = PC.blocks(s), groups = new Map();
+    const has0 = is.includes(0), rest = is.filter((i) => i !== 0 && i !== 2);
+    let total = 0, green = 0;
+    for (let a = lo; a < hi; a++)
+      for (let lv = 0; lv <= p; lv++)
+        for (let lx = 0; lv + lx <= p; lx++)
+          for (let ly = 0; lv + lx + ly <= p; ly++) {
+            if (lv + ly === 0 || a + lv + lx + ly > hi) continue;
+            const d0 = has0 && !pred(PC.pump(s, a, lv, lx, ly, 0));
+            const d2 = !pred(PC.pump(s, a, lv, lx, ly, 2));
+            const dx = !d0 && !d2 && rest.some((i) => !pred(PC.pump(s, a, lv, lx, ly, i)));
+            const wv = PC.where(B, a, lv), wy = PC.where(B, a + lv + lx, ly);
+            const key = wv + "|" + wy;
+            if (!groups.has(key)) groups.set(key, { wv, wy, n: 0, k0: 0, k2: 0, kx: 0, green: [] });
+            const g = groups.get(key);
+            g.n++; total++;
+            if (d0) g.k0++;
+            if (d2) g.k2++;
+            if (dx) g.kx++;
+            if (!d0 && !d2 && !dx) { green++; g.green.push([a, lv, lx, ly]); }
+          }
+    return { B, groups: Array.from(groups.values()), total, green, has0 };
+  },
+  /* "i = 0: 3/5 · i = 2: 5/5" style summary of one group */
+  kills(g, has0) {
+    const part = [];
+    if (has0) part.push(`$i = 0$: ${g.k0}/${g.n}`);
+    part.push(`$i = 2$: ${g.k2}/${g.n}`);
+    if (g.kx) part.push(`sadece başka bir $i$: ${g.kx}`);
+    return part.join(" · ");
+  },
+  cnt: (s, c) => { let k = 0; for (const ch of s) if (ch === c) k++; return k; }
+};
+
+PC.LANGS = [
+  { key: "kmn", label: "{0^m1^n0^k | k = mn} · 2024 P5", alpha: "01",
+    pred: (w) => { if (!w.includes("1")) return /^0*$/.test(w); const m = /^(0*)(1+)(0*)$/.exec(w); return !!m && m[3].length === m[1].length * m[2].length; },
+    presets: ["0^p1^p0^{p*p}", "01^p0^p", "0^{2}1^p0^{2p}"] },
+  { key: "abc", label: "{a^nb^nc^n} · Sipser 2.36", alpha: "abc",
+    pred: (w) => { const m = /^(a*)(b*)(c*)$/.exec(w); return !!m && m[1].length === m[2].length && m[2].length === m[3].length; },
+    presets: ["a^pb^pc^p", "(abc)^p"] },
+  { key: "ijk", label: "{a^ib^jc^k | i ≤ j ≤ k} · Sipser 2.37", alpha: "abc",
+    pred: (w) => { const m = /^(a*)(b*)(c*)$/.exec(w); return !!m && m[1].length <= m[2].length && m[2].length <= m[3].length; },
+    presets: ["a^pb^pc^p"] },
+  { key: "ww", label: "{ww} · Sipser 2.38", alpha: "01",
+    pred: (w) => w.length % 2 === 0 && w.slice(0, w.length / 2) === w.slice(w.length / 2),
+    presets: ["0^p10^p1", "0^p1^p0^p1^p"] },
+  { key: "pal", label: "palindrom, #0 = #1 · 2019 P5", alpha: "01",
+    pred: (w) => w === w.split("").reverse().join("") && PC.cnt(w, "0") === PC.cnt(w, "1"),
+    presets: ["0^p1^{2p}0^p", "(0110)^p"] },
+  { key: "div", label: "{a^mb^n | m, n ≥ 1, m | n} · 2020 P4(c)", alpha: "ab",
+    pred: (w) => { const m = /^(a+)(b+)$/.exec(w); return !!m && m[2].length % m[1].length === 0; },
+    presets: ["a^{p+1}b^{(p+1)!}", "a^pb^p", "a^pb^{p*p}"] },
+  { key: "230b", label: "{0^n#0^{2n}#0^{3n}} · Sipser 2.30(b)", alpha: "0#",
+    pred: (w) => { const m = /^(0*)#(0*)#(0*)$/.exec(w); return !!m && m[2].length === 2 * m[1].length && m[3].length === 3 * m[1].length; },
+    presets: ["0^p#0^{2p}#0^{3p}"] },
+  { key: "anbn", label: "{a^nb^n} (context-free: rakip p ≥ 2 seçerse kazanır)", alpha: "ab",
+    pred: (w) => { const m = /^(a*)(b*)$/.exec(w); return !!m && m[1].length === m[2].length; },
+    presets: ["a^pb^p"] }
+];
+
+/* ---- DOM ---- */
+const $ = (id) => document.getElementById(id);
+const mathIn = (el) => { if (window.Lab && Lab.renderMath) Lab.renderMath(el); };
+const pieceName = (B, w) => w === -1 ? "boş" : w === "m" ? "iki blok (sıra bozulur)" : `${w + 1}. blok ($${B[w].c === "#" ? "\\#" : B[w].c}$)`;
+
+/* 1. Parse-tree surgery stepper */
+(function () {
+  let uid = 0;
+  const N = (sym, kids) => ({ sym, kids, id: ++uid });
+  const T = (c) => ({ sym: c, kids: [], leaf: true, id: ++uid });
+  const GR = {
+    g1: { b: 3, V: 1, title: "S → aSb | ab",
+      build(n) { const S = (k) => k === 1 ? N("S", [T("a"), T("b")]) : N("S", [T("a"), S(k - 1), T("b")]); return S(n); } },
+    g2: { b: 2, V: 4, title: "S → AT | AB, T → SB, A → a, B → b",
+      build(n) { const S = (k) => k === 1 ? N("S", [N("A", [T("a")]), N("B", [T("b")])]) : N("S", [N("A", [T("a")]), N("T", [S(k - 1), N("B", [T("b")])])]); return S(n); } }
+  };
+  const yieldOf = (t) => t.leaf ? t.sym : t.kids.map(yieldOf).join("");
+  const height = (t) => t.leaf ? 0 : 1 + Math.max(...t.kids.map(height));
+  function clone(t, map) { const c = t.leaf ? T(t.sym) : N(t.sym, t.kids.map((k) => clone(k, map))); if (map) map.set(t.id, c); return c; }
+  function replace(t, id, sub) { if (t.id === id) return sub; if (t.leaf) return t; const kids = t.kids.map((k) => replace(k, id, sub)); return Object.assign({}, t, { kids }); }
+  function deepestPath(t) {
+    if (t.leaf) return [t];
+    let best = null;
+    t.kids.forEach((k) => { const p = deepestPath(k); if (!best || p.length > best.length) best = p; });
+    return [t].concat(best);
+  }
+  function findRepeat(path) {
+    const vars = path.slice(0, -1), seen = new Map(), scan = [];
+    for (let k = vars.length - 1; k >= 0; k--) {
+      scan.push(vars[k].sym);
+      if (seen.has(vars[k].sym)) return { upper: vars[k], lower: seen.get(vars[k].sym), scan };
+      seen.set(vars[k].sym, vars[k]);
+    }
+    return null;
+  }
+  const inL = (w) => { const m = /^(a+)(b+)$/.exec(w); return !!m && m[1].length === m[2].length; };
+  function svg(t, opt) {
+    const leaves = [], pos = new Map();
+    let maxD = 0;
+    (function walk(n, d) { maxD = Math.max(maxD, d); if (n.leaf) { leaves.push(n); pos.set(n.id, { x: 0, d }); } else { n.kids.forEach((k) => walk(k, d + 1)); pos.set(n.id, { x: 0, d }); } })(t, 0);
+    const DX = 30, DY = 40, PAD = 18;
+    leaves.forEach((l, k) => { pos.get(l.id).x = PAD + k * DX; });
+    (function setX(n) { if (n.leaf) return pos.get(n.id).x; const xs = n.kids.map(setX); const x = (xs[0] + xs[xs.length - 1]) / 2; pos.get(n.id).x = x; return x; })(t);
+    const W = PAD * 2 + (leaves.length - 1) * DX, H = PAD * 2 + maxD * DY;
+    const leafPart = new Map();
+    if (opt.parts) leaves.forEach((l, k) => leafPart.set(l.id, opt.parts[k]));
+    let h = `<svg class="w-pumping-cfl-tree" viewBox="0 0 ${W} ${H}" role="img" aria-label="parse tree">`;
+    (function edges(n) { if (n.leaf) return; const a = pos.get(n.id); n.kids.forEach((k) => { const b = pos.get(k.id); const on = opt.path && opt.path.has(n.id) && opt.path.has(k.id); h += `<line x1="${a.x}" y1="${PAD + a.d * DY}" x2="${b.x}" y2="${PAD + b.d * DY}" style="stroke:${on ? "var(--blue-600)" : "var(--border)"};stroke-width:${on ? 2.5 : 1.3}"/>`; edges(k); }); })(t);
+    (function nodes(n) {
+      const a = pos.get(n.id), y = PAD + a.d * DY;
+      if (n.leaf) {
+        const part = leafPart.get(n.id) || "";
+        const fill = part === "v" || part === "y" ? "var(--orange-100)" : part === "x" ? "var(--blue-050)" : "var(--paper)";
+        h += `<rect x="${a.x - 10}" y="${y - 11}" width="20" height="22" rx="4" style="fill:${fill};stroke:var(--border)"/>`;
+        h += `<text x="${a.x}" y="${y + 4}" text-anchor="middle" style="fill:var(--fg);font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace">${n.sym}</text>`;
+        if (part) h += `<text x="${a.x}" y="${y + 24}" text-anchor="middle" style="fill:var(--fg-muted);font-size:10px;font-family:'JetBrains Mono',monospace">${part}</text>`;
+      } else {
+        const isU = opt.upper === n.id, isL = opt.lower === n.id, isC = opt.copy && opt.copy.has(n.id);
+        const fill = isU ? "var(--orange-100)" : isL ? "var(--blue-050)" : "var(--paper)";
+        const stroke = isU ? "var(--accent)" : isL ? "var(--blue-600)" : opt.path && opt.path.has(n.id) ? "var(--blue-600)" : "var(--border)";
+        h += `<circle cx="${a.x}" cy="${y}" r="12" style="fill:${fill};stroke:${stroke};stroke-width:${isU || isL ? 2.5 : 1.4}${isC ? ";stroke-dasharray:3 2" : ""}"/>`;
+        h += `<text x="${a.x}" y="${y + 4}" text-anchor="middle" style="fill:var(--fg);font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace">${n.sym}</text>`;
+      }
+      n.kids.forEach(nodes);
+    })(t);
+    return h + "</svg>";
+  }
+  const partsOf = (lens, i) => [].concat(Array(lens.u).fill("u"), Array(lens.v * i).fill("v"), Array(lens.x).fill("x"), Array(lens.y * i).fill("y"), Array(lens.z).fill("z"));
+  const ids = (t, set) => { set.add(t.id); t.kids.forEach((k) => ids(k, set)); return set; };
+  const box = $("w-pt-stepper"), gSel = $("w-pt-g"), nSel = $("w-pt-n");
+  function build() {
+    const G = GR[gSel.value], n = Number(nSel.value), p = Math.pow(G.b, G.V + 1);
+    const tree = G.build(n), w = yieldOf(tree), h = height(tree);
+    const path = deepestPath(tree), pathIds = new Set(path.map((x) => x.id));
+    const rep = findRepeat(path);
+    const vxy = yieldOf(rep.upper), x = yieldOf(rep.lower);
+    /* positions of the upper and lower subtrees in the yield */
+    let off = 0, upOff = -1, loOff = -1;
+    (function walk(t) { if (t.id === rep.upper.id) upOff = off; if (t.id === rep.lower.id) loOff = off; if (t.leaf) { off++; return; } t.kids.forEach(walk); })(tree);
+    const lens = { u: upOff, v: loOff - upOff, x: x.length, y: vxy.length - x.length - (loOff - upOff), z: w.length - upOff - vxy.length };
+    const piece = (k, len) => w.slice(k, k + len);
+    const u = piece(0, lens.u), v = piece(lens.u, lens.v), y = piece(loOff + x.length, lens.y), z = piece(upOff + vxy.length, lens.z);
+    const legend = `<div class="w-pumping-cfl-legend"><span class="w-pumping-cfl-sym p-v">v, y</span><span class="w-pumping-cfl-sym p-x">x</span><span class="w-pumping-cfl-sym p-u">u, z</span><span>turuncu daire: üstteki ${rep.upper.sym}, mavi daire: alttaki ${rep.lower.sym}, kesikli: kopyalanan alt ağaç</span></div>`;
+    const frames = [];
+    frames.push({ caption: `$${PC.rl(w)}$ için parse tree, yükseklik $${h}$. Bu grammar'da $b = ${G.b}$, $|V| = ${G.V}$, yani Sipser'in $p = b^{|V|+1} = ${p}$.`,
+      draw: () => svg(tree, {}) });
+    frames.push({ caption: `En uzun path: ${path.map((q) => q.sym).join(" → ")} (${path.length} node, ${path.length - 1} variable). ${path.length - 1 > G.V ? `Variable'lar sadece ${G.V} çeşit; path'te daha fazla variable olduğu için pigeonhole ile biri tekrar eder.` : `Variable'lar ${G.V} çeşit ve path'te de ${path.length - 1} variable var; sayma argümanı burada tekrarı garanti etmez. Bu tree'de yine de bir variable tekrar ediyor.`}`,
+      draw: () => svg(tree, { path: pathIds }) });
+    frames.push({ caption: `Path'te alttan yukarı: ${rep.scan.join(", ")}. $${rep.upper.sym}$ ikinci kez görüldü. Üstteki $${rep.upper.sym}$'nin ürettiği parça $vxy = ${PC.rl(vxy)}$, alttakinin ürettiği parça $x = ${PC.rl(x)}$.`,
+      draw: () => svg(tree, { path: pathIds, upper: rep.upper.id, lower: rep.lower.id }) });
+    frames.push({ caption: `$u = ${PC.rl(u)}$, $v = ${PC.rl(v)}$, $x = ${PC.rl(x)}$, $y = ${PC.rl(y)}$, $z = ${PC.rl(z)}$. $|vy| = ${v.length + y.length} &gt; 0$, $|vxy| = ${vxy.length} \\le ${p}$.`,
+      draw: () => svg(tree, { upper: rep.upper.id, lower: rep.lower.id, parts: partsOf(lens, 1) }) + legend });
+    /* i = 2 and i = 3: put a copy of the upper subtree where the lower one was */
+    let cur = tree, lowerNow = rep.lower;
+    for (const i of [2, 3]) {
+      const map = new Map(), copy = clone(rep.upper, map);
+      cur = replace(cur, lowerNow.id, copy);
+      lowerNow = map.get(rep.lower.id);
+      const wi = yieldOf(cur), snap = cur, copyIds = ids(copy, new Set());
+      frames.push({ caption: `$i = ${i}$: alttaki $${rep.lower.sym}$'nin yerine üstteki $${rep.upper.sym}$'nin bir kopyası kondu. Yeni yield $uv^{${i}}xy^{${i}}z = ${PC.rl(wi)}$, ${inL(wi) ? "dilde ✓" : "dilde değil ✗"}.`,
+        draw: () => svg(snap, { copy: copyIds, parts: partsOf(lens, i) }) + legend });
+    }
+    const t0 = replace(tree, rep.upper.id, clone(rep.lower)), w0 = yieldOf(t0);
+    frames.push({ caption: `$i = 0$: üstteki $${rep.upper.sym}$'nin yerine alttaki konuldu. $uxz = ${PC.rl(w0)}$, ${inL(w0) ? "dilde ✓" : "dilde değil ✗"}. Lemma'nın şart 1'i tam olarak bu ameliyat.`,
+      draw: () => svg(t0, { parts: partsOf(lens, 0) }) + legend });
+    Lab.stepper(box, { title: `${G.title} · a^${n}b^${n}`, interval: 1800, frames, render(f, idx, el) { el.innerHTML = f.draw(); } });
+  }
+  gSel.addEventListener("change", build);
+  nSel.addEventListener("change", build);
+  build();
+})();
+
+/* 2. Statement cloze (closed-book drill) */
+(function () {
+  const norm = (v) => v.toLowerCase().replace(/\s+/g, "").replace(/≥/g, ">=").replace(/≤/g, "<=");
+  const KEYS = [
+    { ok: ["p"], show: "p" },
+    { ok: ["uvxyz"], show: "uvxyz" },
+    { ok: ["i>=0", "0<=i"], show: "i ≥ 0" },
+    { ok: ["|vy|"], show: "|vy|" },
+    { ok: ["|vxy|"], show: "|vxy|" }
+  ];
+  const HINT = { 1: { xyz: "Beş parça: $uvxyz$. $xyz$ regular lemma." }, 3: { "|y|": "$|y|$ regular lemma'da. Burada $v$ ve $y$ birlikte: $|vy|$.", "|v|": "Sadece $v$ değil: $v$ ya da $y$'den biri boş olabilir, toplam $|vy|$." },
+    4: { "|xy|": "$|xy| \\le p$ regular lemma'nın şartı. Burada pencere $vxy$.", "|uv|": "Pencere başa yapışık değil; $u$ serbest. Doğrusu $|vxy|$.", "|uvx|": "Pencere $vxy$; $u$ dahil değil." } };
+  const ins = Array.from(document.querySelectorAll("[data-cl]")), fb = $("w-cl-fb");
+  $("w-cl-go").addEventListener("click", () => {
+    let good = 0; const notes = [];
+    ins.forEach((el, k) => {
+      const v = norm(el.value), ok = KEYS[k].ok.includes(v);
+      el.style.borderColor = ok ? "#2b8a3e" : "#c92a2a";
+      if (ok) good++;
+      else if (HINT[k] && HINT[k][v]) notes.push(`${k + 1}. boşluk: ${HINT[k][v]}`);
+      else notes.push(`${k + 1}. boşluk yanlış ya da boş.`);
+    });
+    fb.innerHTML = good === KEYS.length ? `<span class="w-pumping-cfl-ok">Beşi de doğru. Şimdi bir kâğıda tamamını yaz.</span>` : `${good}/5 doğru.<br>` + notes.join("<br>");
+    mathIn(fb);
+  });
+  $("w-cl-show").addEventListener("click", () => {
+    ins.forEach((el, k) => { el.value = KEYS[k].show; el.style.borderColor = ""; });
+    fb.textContent = "Cevaplar yerleştirildi. Silip yarın bir daha dene.";
+  });
+})();
+
+/* 3. Exhaustive split explorer, grouped by case */
+(function () {
+  const sel = $("w-ex-lang"), sIn = $("w-ex-s"), pSel = $("w-ex-p"), up = $("w-ex-up");
+  const err = $("w-ex-err"), out = $("w-ex-out"), pre = $("w-ex-presets");
+  sel.innerHTML = PC.LANGS.map((L, k) => `<option value="${k}">${PC.esc(L.label)}</option>`).join("");
+  pSel.innerHTML = [1, 2, 3, 4, 5, 6].map((p) => `<option value="${p}"${p === 3 ? " selected" : ""}>${p}</option>`).join("");
+  function presets() {
+    const L = PC.LANGS[sel.value];
+    pre.innerHTML = `<span class="src">dene:</span>` + L.presets.map((t) => `<button class="btn btn--sm w-pumping-cfl-mono" data-tpl="${PC.esc(t)}">${PC.esc(t)}</button>`).join("");
+    pre.querySelectorAll("[data-tpl]").forEach((b) => b.addEventListener("click", () => { sIn.value = b.dataset.tpl; go(); }));
+  }
+  function go() {
+    out.innerHTML = "";
+    const L = PC.LANGS[sel.value], p = Number(pSel.value);
+    let s;
+    try { s = PC.build(sIn.value, p, L.alpha, 400); } catch (e) { err.textContent = String(e); return; }
+    if (!L.pred(s)) { err.innerHTML = `$s = ${PC.rl(s)}$ bu dilde değil (p = ${p}). İlk iş: seçtiğin $s$ her $p$ için dilde olmalı.`; mathIn(err); return; }
+    if (s.length < p) { err.innerHTML = `$|s| = ${s.length} &lt; p = ${p}$. Lemma sadece $|s| \\ge p$ olan string'ler için konuşur.`; mathIn(err); return; }
+    err.textContent = "";
+    const is = (up.checked ? [2, 3, 4, 5, 6, 7, 8] : [0, 2, 3, 4, 5, 6, 7, 8]).concat([s.length + 1]);
+    const R = PC.explore(L.pred, s, p, is, 0, s.length);
+    R.groups.sort((g1, g2) => (g2.green.length > 0) - (g1.green.length > 0));
+    let h = `<div class="w-pumping-cfl-sum">$s = ${PC.rl(s)}$, $|s| = ${s.length}$, $s \\in L$ ✓. $p = ${p}$ için ${R.total} split var. Denenen: $i = ${up.checked ? "" : "0, "}2, \\dots, 8$ ve $i = ${s.length + 1}$.<br>`;
+    h += R.green === 0
+      ? `<b class="w-pumping-cfl-ok">Bütün ${R.total} split kırmızı.</b> Bu $p$ için $s$ işe yarıyor. Rakip başka bir $p$ seçebilir; ispatta argümanı $p$ cinsinden yazacaksın.${L.key === "anbn" ? " Bu dil context-free: rakip $p \\ge 2$ seçerse kaçar." : ""}`
+      : `<b class="w-pumping-cfl-bad">${R.green} split yeşil kaldı.</b> Denenen $i$ değerlerinde bu split'ler dilde kaldı; bu sonuç bütün $i$'ler için garanti değildir.${up.checked ? " $i = 0$ denenmedi; ispat pump down ile çalışabilir." : ""}${L.key === "anbn" ? " Dil zaten context-free." : ""}`;
+    h += `</div><div class="table-wrap"><table class="w-pumping-cfl-tbl"><tr><th>$v$ nerede</th><th>$y$ nerede</th><th>split</th><th>sonuç</th></tr>`;
+    R.groups.forEach((g) => {
+      let res;
+      if (g.green.length === 0) res = `hepsi dışarı<br>${PC.kills(g, R.has0)}`;
+      else {
+        const ex = g.green.slice(0, 3).map(([a, lv, lx, ly]) => `$${PC.rl(s.slice(0, a))} \\mid ${PC.rl(s.slice(a, a + lv))} \\mid ${PC.rl(s.slice(a + lv, a + lv + lx))} \\mid ${PC.rl(s.slice(a + lv + lx, a + lv + lx + ly))} \\mid ${PC.rl(s.slice(a + lv + lx + ly))}$`).join("<br>");
+        res = `<b>${g.green.length} yeşil</b>, örnek $u \\mid v \\mid x \\mid y \\mid z$:<br>${ex}`;
+      }
+      h += `<tr class="${g.green.length ? "is-green" : "is-red"}"><td>${pieceName(R.B, g.wv)}</td><td>${pieceName(R.B, g.wy)}</td><td>${g.n}</td><td>${res}</td></tr>`;
+    });
+    h += "</table></div>";
+    out.innerHTML = h;
+    mathIn(out);
+  }
+  sel.addEventListener("change", () => { presets(); sIn.value = PC.LANGS[sel.value].presets[0]; go(); });
+  $("w-ex-go").addEventListener("click", go);
+  $("w-ex-roll").addEventListener("click", () => { pSel.value = String(2 + Math.floor(Math.random() * 4)); go(); });
+  pSel.addEventListener("change", go);
+  up.addEventListener("change", go);
+  sIn.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  presets(); go();
+})();
+
+/* 4. Window slider: which blocks a width-p window touches, and what dies inside it */
+(function () {
+  const OPTS = [
+    { lang: "ijk", tpl: "a^pb^pc^p", label: "a^ib^jc^k, i ≤ j ≤ k · s = a^pb^pc^p" },
+    { lang: "abc", tpl: "a^pb^pc^p", label: "a^nb^nc^n · s = a^pb^pc^p" },
+    { lang: "kmn", tpl: "0^p1^p0^{p*p}", label: "k = mn · s = 0^p1^p0^{p²}" },
+    { lang: "pal", tpl: "0^p1^{2p}0^p", label: "palindrom, #0 = #1 · s = 0^p1^{2p}0^p" },
+    { lang: "ww", tpl: "0^p1^p0^p1^p", label: "ww · s = 0^p1^p0^p1^p" }
+  ];
+  const sel = $("w-win-lang"), pSel = $("w-win-p"), pos = $("w-win-pos"), posv = $("w-win-posv"), cells = $("w-win-cells"), out = $("w-win-out");
+  sel.innerHTML = OPTS.map((o, k) => `<option value="${k}">${PC.esc(o.label)}</option>`).join("");
+  let s = "", L = null, p = 3;
+  function setup() {
+    const o = OPTS[sel.value];
+    L = PC.LANGS.find((x) => x.key === o.lang); p = Number(pSel.value);
+    s = PC.build(o.tpl, p, L.alpha, 400);
+    pos.max = String(s.length - p);
+    if (Number(pos.value) > s.length - p) pos.value = "0";
+    draw();
+  }
+  function draw() {
+    const a = Number(pos.value), B = PC.blocks(s);
+    posv.textContent = `${a + 1}–${a + p}. semboller`;
+    cells.innerHTML = s.split("").map((c, k) => {
+      const blk = B.findIndex((bl) => k >= bl.a && k < bl.b);
+      const inWin = k >= a && k < a + p;
+      return `<span class="w-pumping-cfl-cell b${blk % 4}${inWin ? " is-win" : " is-out"}">${c}</span>`;
+    }).join("");
+    const touched = B.map((bl, k) => (a < bl.b && a + p > bl.a) ? k : -1).filter((k) => k >= 0);
+    const is = [0, 2, 3, 4, 5, 6, 7, 8, s.length + 1];
+    const R = PC.explore(L.pred, s, p, is, a, a + p);
+    let h = `<div class="w-pumping-cfl-sum">Pencere ${touched.length === 1 ? `sadece <b>${touched[0] + 1}. bloğun</b> içinde: $v$ ve $y$ aynı bloktan, pompalayınca sadece o bloğun uzunluğu değişir.` : `<b>${touched.map((k) => k + 1).join(". ve ")}. blokları</b> kesiyor: $v$ ve $y$ ya aynı blokta, ya biri birinde biri diğerinde, ya da biri sınırı içeriyor (o zaman $i = 2$ sırayı bozar).`} Uzaktaki bloklara dokunamaz.<br>`;
+    h += `Pencerenin içine sığan ${R.total} split var: ${R.green === 0 ? `<span class="w-pumping-cfl-ok">hepsi dışarı çıkıyor.</span>` : `<span class="w-pumping-cfl-bad">${R.green} tanesi kaçıyor.</span>`}</div>`;
+    h += `<div class="table-wrap"><table class="w-pumping-cfl-tbl"><tr><th>$v$</th><th>$y$</th><th>split</th><th>kaç tanesini öldürüyor</th></tr>`;
+    R.groups.forEach((g) => {
+      h += `<tr class="${g.green.length ? "is-green" : "is-red"}"><td>${pieceName(R.B, g.wv)}</td><td>${pieceName(R.B, g.wy)}</td><td>${g.n}</td><td>${PC.kills(g, R.has0)}${g.green.length ? `<br><b>${g.green.length} kaçıyor</b>` : ""}</td></tr>`;
+    });
+    h += "</table></div>";
+    out.innerHTML = h;
+    mathIn(out);
+  }
+  sel.addEventListener("change", setup);
+  pSel.addEventListener("change", setup);
+  pos.addEventListener("input", draw);
+  setup();
+})();
+
+/* 5. Proof-order puzzle for 2024 P5 */
+(function () {
+  const SENT = [
+    { t: "Assume that $L$ is context-free.", name: "Assume" },
+    { t: "Then by the pumping lemma for CFLs, $\\exists p \\in \\mathbb{Z}^+$ such that $\\forall s \\in L$ with $|s| \\ge p$, $s = uvxyz$ with 1. $\\forall i \\ge 0$, $uv^ixy^iz \\in L$; 2. $|vy| &gt; 0$; 3. $|vxy| \\le p$.", name: "lemma'nın girişi" },
+    { t: "Let $s = 0^p1^p0^{p^2}$. Then $s \\in L$ since $p^2 = p \\cdot p$, and $|s| \\ge p$.", name: "s seçimi" },
+    { t: "If $v$ or $y$ contains two different symbols, $uv^2xy^2z$ is not of the form $0^*1^*0^*$, so it is not in $L$.", name: "karışık parça durumu" },
+    { t: "Otherwise $v$ and $y$ each lie in one block, and by condition 3 $vxy$ cannot touch both blocks of 0s.", name: "pencere gözlemi" },
+    { t: "To keep $k = mn$ for $i = 2$, $v$ must lie in the 1s and $y$ in the last block with $|y| = p|v|$; if only the first two blocks change, $mn$ changes but $k$ does not, and if only the last block changes, $k$ changes but $mn$ does not.", name: "dengeleme şartı" },
+    { t: "By condition 2 this needs $|v| \\ge 1$, so $|y| \\ge p$ and $|vxy| \\ge p + 1 &gt; p$, which violates condition 3.", name: "şart 3 çelişkisi" },
+    { t: "So every split leaves $L$. This contradicts condition 1; therefore $L$ is not context-free. ∎", name: "sonuç" }
+  ];
+  const DIST = [
+    { t: "Let $p = 4$.", why: "$p$'yi rakip seçer; ispat her $p$ için çalışmalı." },
+    { t: "Let $s = 01^p0^p$.", why: "Bu $s$ ile rakip $v = 1$, $y = 0$ seçer ve $k = n$ hep korunur. Hoca bunu kaçan örnek olarak verdi." },
+    { t: "Choose $v = 1$, $x = \\varepsilon$, $y = 0^p$.", why: "Bölmeyi rakip seçer. Sen sadece şartlardan ne çıktığını yazarsın." }
+  ];
+  const paper = $("w-ord-paper"), pool = $("w-ord-pool"), fb = $("w-ord-fb");
+  let next, items, crossed;
+  function shuffle(a) { for (let k = a.length - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [a[k], a[r]] = [a[r], a[k]]; } return a; }
+  function reset() {
+    next = 0; crossed = 0; paper.innerHTML = ""; fb.textContent = "";
+    items = shuffle(SENT.map((x, k) => ({ t: x.t, k })).concat(DIST.map((x) => ({ t: x.t, why: x.why, k: -1 }))));
+    draw();
+  }
+  function add(t, ok, why) {
+    const li = document.createElement("li");
+    if (!ok) li.className = "is-x";
+    li.innerHTML = `<span>${t}</span>` + (why ? `<small>${why}</small>` : "");
+    paper.appendChild(li);
+    mathIn(li);
+  }
+  function draw() {
+    pool.innerHTML = "";
+    items.forEach((it, idx) => {
+      const b = document.createElement("button");
+      b.className = "btn btn--sm"; b.type = "button"; b.innerHTML = it.t;
+      b.addEventListener("click", () => pick(idx));
+      pool.appendChild(b);
+    });
+    mathIn(pool);
+  }
+  function pick(idx) {
+    const it = items[idx];
+    if (it.k === -1) { add(it.t, false, "Üstü çizildi: " + it.why); crossed++; items.splice(idx, 1); }
+    else if (it.k === next) { add(it.t, true, ""); items.splice(idx, 1); next++; }
+    else { add(it.t, false, `Üstü çizildi: bu cümle, henüz yazmadığın "${SENT[next].name}" cümlesine dayanıyor. Cümle havuzda kalıyor.`); crossed++; }
+    if (next === SENT.length) {
+      fb.innerHTML = crossed === 0 ? `<span class="w-pumping-cfl-ok">Kâğıt tamam, hiç üstü çizilen cümle yok.</span>` : `Kâğıt tamam. Üstü çizilen cümle sayısı: ${crossed}. Bir kez daha karıştırıp sıfır hatayla dene.`;
+      items = items.filter((x) => x.k !== -1);
+    }
+    draw();
+  }
+  $("w-ord-reset").addEventListener("click", reset);
+  reset();
+})();
+
+/* 6. Classify the constraint: CF or not */
+(function () {
+  const ITEMS = [
+    { c: "k = m + n", cf: true, why: "İç içe eşleşme: dış $a$'lar $c$'lerle, iç $a$'lar $b$'lerle.", g: "S → aSc | B,  B → aBb | ε" },
+    { c: "k \\ge m + n", cf: true, why: "2024 P4. Hocanın soğan kuralı: önce $c$'ler, sonra $b$'ler, sonra fazla $a$'lar.", g: "S → aSc | B,  B → aBb | A,  A → aA | ε" },
+    { c: "k = m = n", cf: false, why: "Sipser Example 2.36. Üç blok aynı anda bağlı.", s: "a^pb^pc^p, i = 2" },
+    { c: "k = n", cf: true, why: "Uzak bloklar ($a$ ve $c$) dıştan içe eşleşiyor, $b$'ler ortada serbest.", g: "S → aSc | B,  B → bB | ε" },
+    { c: "k \\le m \\le n", cf: false, why: "Sipser Example 2.37. Zincir üç bloğu bağlıyor.", s: "a^pb^pc^p, i = 0 ya da 2" },
+    { c: "k = 2m", cf: true, why: "İki blok arasında doğrusal eşitlik; $c$'ler serbest.", g: "S → TC,  T → aaTb | ε,  C → cC | ε" },
+    { c: "k = mn", cf: false, why: "Çarpım. 2024 P5 ile aynı fikir.", s: "a^{p²}b^pc^p, i = 2" },
+    { c: "k \\ne m", cf: true, why: "Doğrusal eşitsizlik: eşleşen kısımdan sonra en az bir fazla $a$ ya da $b$.", g: "S → TC,  T → aTb | D | E,  D → aD | a,  E → bE | b,  C → cC | ε" },
+    { c: "k + m + n = 100", cf: true, why: "Sonlu dil (5151 string): sonlu ⇒ regular ⇒ CF.", g: "her string için bir kural; ya da bir DFA" },
+    { c: "k &gt; m &gt; n", cf: false, why: "2024 P3'teki dilin $a$, $b$, $c$ ile yazılmışı (orada regular olmadığı istendi). Zincir üç bloğu bağlıyor; context-free de değil.", s: "a^{p+2}b^{p+1}c^p, i = 0 ya da 2" },
+    { c: "k = m \\text{ or } m = n", cf: true, why: "İki CF dilin union'ı (Sipser Exercise 2.9).", g: "S → XC | AY,  X → aXb | ε,  C → cC | ε,  A → aA | ε,  Y → bYc | ε" },
+    { c: "k = m^2", cf: false, why: "Kare. $b$'ler bir artınca $a$'lar $2m + 1$ artmalı; pencereye sığmaz.", s: "a^{p²}b^p, i = 2" }
+  ];
+  const root = $("w-cls"), fb = $("w-cls-fb");
+  let answered = 0, right = 0;
+  ITEMS.forEach((it, k) => {
+    const d = document.createElement("div");
+    d.className = "w-pumping-cfl-item";
+    d.innerHTML = `<div class="w-pumping-cfl-item__q"><span>${k + 1}. $${it.c}$</span><span class="w-pumping-cfl-ctl" style="margin:0"><button class="btn btn--sm" data-a="1" type="button">CF</button><button class="btn btn--sm" data-a="0" type="button">CF değil</button></span></div><div class="w-pumping-cfl-item__fb"></div>`;
+    const f = d.querySelector(".w-pumping-cfl-item__fb");
+    d.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", () => {
+      if (d.dataset.done) return;
+      d.dataset.done = "1";
+      const ok = (b.dataset.a === "1") === it.cf;
+      answered++; if (ok) right++;
+      d.classList.add(ok ? "is-right" : "is-wrong");
+      f.innerHTML = `<b class="${ok ? "w-pumping-cfl-ok" : "w-pumping-cfl-bad"}">${ok ? "Doğru" : "Yanlış"}: ${it.cf ? "context-free" : "context-free değil"}.</b> ${it.why} ` +
+        (it.cf ? `<span class="w-pumping-cfl-mono">${PC.esc(it.g)}</span>` : `Kritik string: <span class="w-pumping-cfl-mono">${PC.esc(it.s)}</span>`);
+      mathIn(f);
+      fb.textContent = answered === ITEMS.length ? `${right}/${ITEMS.length} doğru. Yedisi context-free, beşi değil.` : `${answered}/${ITEMS.length} cevaplandı.`;
+    }));
+    root.appendChild(d);
+  });
+})();
+</script>
+</body>
+</html>

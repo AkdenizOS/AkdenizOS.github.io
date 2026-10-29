@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 435: regular operation'lar, regular expression'ın formal tanımı, precedence, regex okumak ve yazmak; Lemma 1.55 ile regex → NFA; GNFA, state elimination ve (R1)(R2)*(R3) ∪ (R4) kuralı; 2019 vizesi P2." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Regular expression ↔ NFA ve GNFA · CSE 435 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-regex-gnfa-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-regex-gnfa-box { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; margin: 12px 0; background: var(--bg-elevated); min-width: 0; }
+    .w-regex-gnfa-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+    .w-regex-gnfa-row label { font-weight: 600; font-size: .92rem; color: var(--fg-brand); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+    .w-regex-gnfa-box select, .w-regex-gnfa-box input[type="text"] { font: inherit; font-size: .92rem; padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); max-width: 100%; min-width: 0; box-sizing: border-box; }
+    .w-regex-gnfa-box input[type="text"] { font-family: 'JetBrains Mono', monospace; }
+    .w-regex-gnfa-re { width: 17em; }
+    .w-regex-gnfa-sm { width: 6.5em; }
+    .w-regex-gnfa-box select { width: 100%; }
+    .w-regex-gnfa-keys { display: flex; flex-wrap: wrap; gap: 4px; }
+    .w-regex-gnfa-keys button { font-family: 'JetBrains Mono', monospace; min-width: 34px; }
+    .w-regex-gnfa-ta { display: block; width: 100%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: .86rem; line-height: 1.45; padding: 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--paper); color: var(--fg); resize: vertical; }
+    .w-regex-gnfa-err { color: #c92a2a; font-weight: 600; font-size: .9rem; min-height: 1.2em; margin: 4px 0; }
+    .w-regex-gnfa-ok { color: #2b8a3e; font-weight: 600; font-size: .9rem; margin: 4px 0; }
+    .w-regex-gnfa-warn { color: #b7791f; font-weight: 600; font-size: .9rem; margin: 4px 0; }
+    .w-regex-gnfa-diag, .w-regex-gnfa-fig { overflow-x: auto; max-width: 100%; margin: 6px 0; }
+    .w-regex-gnfa-diag svg, .w-regex-gnfa-fig svg { display: block; width: 100%; height: auto; margin: 0 auto; }
+    .w-regex-gnfa-alt { font-size: .85rem; color: var(--fg-muted); margin: 2px 0 6px; }
+    .w-regex-gnfa-alt p { margin: 4px 0 0; overflow-wrap: anywhere; }
+    .w-regex-gnfa-figrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
+    .w-regex-gnfa-figrow figure { margin: 0; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 6px; background: var(--paper); }
+    .w-regex-gnfa-figrow figcaption { font-size: .85rem; text-align: center; color: var(--fg-muted); }
+    .w-regex-gnfa-node { fill: var(--paper); stroke: var(--fg-brand); stroke-width: 1.6; }
+    .w-regex-gnfa-node.is-new { fill: var(--blue-050); }
+    .w-regex-gnfa-node.is-rip { fill: var(--orange-100); stroke: var(--accent); stroke-width: 2.6; stroke-dasharray: 4 3; }
+    .w-regex-gnfa-inner { fill: none; stroke: var(--fg-brand); stroke-width: 1.4; }
+    .w-regex-gnfa-edge { fill: none; stroke: var(--fg-muted); stroke-width: 1.5; }
+    .w-regex-gnfa-edge.is-on { stroke: var(--accent); stroke-width: 2.4; }
+    .w-regex-gnfa-ah { fill: var(--fg-muted); }
+    .w-regex-gnfa-ah2 { fill: var(--accent); }
+    .w-regex-gnfa-name { fill: var(--fg); font-family: 'JetBrains Mono', monospace; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+    .w-regex-gnfa-lbl { fill: var(--blue-600); font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: var(--paper); stroke-width: 3px; }
+    .w-regex-gnfa-lbl.is-on { fill: var(--accent); }
+    .w-regex-gnfa-pre { font-family: 'JetBrains Mono', monospace; font-size: .85rem; line-height: 1.35; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px; overflow-x: auto; white-space: pre; margin: 6px 0; }
+    .w-regex-gnfa-kv { font-family: 'JetBrains Mono', monospace; font-size: .88rem; overflow-wrap: anywhere; }
+    .w-regex-gnfa-strs { display: flex; flex-wrap: wrap; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: .85rem; max-height: 220px; overflow-y: auto; }
+    .w-regex-gnfa-strs span { border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 0 6px; background: var(--paper); }
+    .w-regex-gnfa-strs b { font-weight: 600; color: var(--fg-muted); font-size: .8rem; flex-basis: 100%; margin-top: 4px; }
+    .w-regex-gnfa-tbl { font-family: 'JetBrains Mono', monospace; font-size: .82rem; }
+    .w-regex-gnfa-tbl td, .w-regex-gnfa-tbl th { white-space: nowrap; }
+    .w-regex-gnfa-res { font-size: .95rem; margin-top: 6px; overflow-wrap: anywhere; }
+    @media (max-width: 480px) { .w-regex-gnfa-re { width: 100%; } }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 435</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 435</a> / Regular expression ↔ NFA ve GNFA</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L5</span><span class="chip chip--exam">Son kez 2019 vizesinde P2</span><span class="chip">Sipser 1.3</span><span class="src">~50 dk · 11 bölüm</span></div>
+          <h1>Regular expression ↔ NFA ve GNFA ile state elimination</h1>
+          <p class="lead">Şimdiye kadar bir language'ı bir makineyle (DFA, NFA) tarif ettin. Bu derste aynı language'ları bir formülle yazacaksın: <em>regular expression</em>. Önce formülü okumayı ve yazmayı öğreneceksin. Sonra iki yönü de göreceksin: bir regular expression'dan NFA kurmak (Lemma 1.55) ve bir DFA'dan, <em>GNFA</em> denen ara makine üzerinden state söke söke regular expression çıkarmak (Lemma 1.60). İkisi birlikte şunu söyler: regular expression, NFA ve DFA aynı language sınıfını tanır.</p>
+          <p class="src">Not: Bu konunun slaytları ve tahta notu repoda yok; konu Sipser 1.3, 28 Eylül tahtasındaki star örneği, 2019 vizesinin P2'si ve hocanın Regex → NFA → DFA aracı üzerinden anlatıldı. 2020–2024 vizelerinde GNFA ile state elimination sorulmadı; 2020 P2(b)'de regular expression ile verilen bir language için NFA istendi. Son kez 2019'da 20 puanlık P2 olarak geldi. Hoca kitaptaki alıştırmaların da sorulabileceğini söyledi; bu yüzden ilgili Sipser alıştırmaları da burada.</p>
+          <!-- Kaynak: Sipser 3e §1.3 (PDF s.87–100: Def 1.52, Ex 1.51/1.53, Thm 1.54, Lemma 1.55, Ex 1.56/1.58, Lemma 1.60, Fig 1.61–1.63, Def 1.64, CONVERT, Claim 1.65, Ex 1.66/1.68) · §1.2 Thm 1.45/1.47/1.49 kurulumları (PDF s.83–87) · Exercises 1.18–1.21, 1.28 (PDF s.108–111) · exams/2019-midterm-solutions.pdf s.1 P2 · exams/2020-midterm.pdf P2(b) · resources/2026-2027-fall/2026-09-28-Note-12-17.pdf s.3 (L = {a, ab, ba}, L*; L = {0}, L*) · weeks/03-regular-languages-finite-automata.md (hedefler; Efe'nin kişisel notu boş) · muratakcs.github.io/cse435/regex.html (hocanın aracı: "| or + is union", precedence, backreference notu) · exams/README.md (26 Ekim: NFA puanlama kuralı). Bütün sonuçlar python3 ve aynı JS motoruyla brute force kontrol edildi. -->
+        </header>
+
+        <article class="lesson" data-course="cse-435" data-lesson="regex-gnfa">
+
+<!-- 1 -->
+<section class="lsec" id="ops" data-min="4">
+  <h2>Regular operation'lar: union, concatenation, star</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · formülün değeri</span>
+    <p>Aritmetikte $+$ ve $\times$ ile $(5 + 3) \times 4$ gibi ifadeler kurarsın ve ifadenin değeri bir sayıdır: 32. Language'larda da üç işlem var ve onlarla kurulan ifadenin değeri bir <strong>language</strong> olur. Örnek: $(0 \cup 1)0^*$. Değeri "0 ya da 1 ile başlayıp ardından istediği kadar 0 gelen string'ler" language'ı: $\{0, 1, 00, 10, 000, 100, \dots\}$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · üç regular operation (Sipser Def 1.23)</span>
+    <p>$A$ ve $B$ iki language olsun.</p>
+    <ul>
+      <li><strong>Union:</strong> $A \cup B = \{x \mid x \in A \text{ or } x \in B\}$.</li>
+      <li><strong>Concatenation:</strong> $A \circ B = \{xy \mid x \in A \text{ and } y \in B\}$. Önce $A$'dan bir string, hemen arkasına $B$'den bir string.</li>
+      <li><strong>Star:</strong> $A^* = \{x_1x_2\cdots x_k \mid k \ge 0 \text{ and each } x_i \in A\}$. $A$'dan istediğin kadar string'i (sıfır tane de olabilir) art arda yaz. $k = 0$ olunca ε çıkar, yani <strong>ε her zaman $A^*$'tadır</strong>.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · 28 Eylül tahtası</span>
+    <p>Hoca tahtaya $L = \{a, ab, ba\}$ yazdı ve $L^*$'ı saydı: $L^* = \{\varepsilon, a, ab, ba, aa, aab, aba, aaab, abba, \dots\}$. Her eleman $L$'nin parçalarına bölünebilir: $abba = ab \cdot ba$, $aab = a \cdot ab$. Hemen altında daha basit bir örnek vardı: $L = \{0\}$ için $L^* = \{\varepsilon, 0, 00, 000, \dots\}$.</p>
+    <p>$bb$ ise $L^*$'ta yok: $b$ ile başlayan tek parça $ba$, ve $bb$ bu parçayla başlamıyor.</p>
+  </div>
+  <!-- Kaynak: Sipser Def 1.23 (§1.1, PDF s.68) · 28 Eylül tahta notu s.3 · Sipser §1.3 giriş (PDF s.87). {a,ab,ba}* üyelikleri python ile kontrol edildi. -->
+  <div class="box box--exam" data-exam="board-2026-09-28-abstar"><span class="box__label">28 Eylül tahtası, $(a|b)^*$ · slayt sorusu</span>
+    <p>Aynı gün tahtanın ilk satırında şu vardı: "$L = (a|b)^*$, $\;abbaaa \in L$, $\;\varepsilon \in L$". Üç şeyi cevapla: (1) Buradaki $|$ hangi regular operation? (2) $abbaaa \in L$ ve $\varepsilon \in L$ neden doğru? (3) $L$'yi kelimelerle anlat. Bu dilin DFA'sı kaç state ister?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>2019 anahtarında $(a+b)a^*b$ diye bir ifade var. İki ifadenin arasındaki $+$ ile tahtadaki $|$ aynı işi yapıyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Star'ın tanımında $k = 0$ da serbest. $abbaaa$'yı tek harflik parçalara böl: her parça $\{a, b\}$'de mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(1)</strong> $|$ union demek: $(a|b) = a \cup b$, değeri $\{a, b\}$. Hocanın aracı da "| or + is union" diyor. Kendi cevabında $\cup$ yaz, karışıklık olmaz.</p>
+      <p><strong>(2)</strong> Star, $\{a, b\}$'den istediğin kadar parçayı art arda yazmak. $abbaaa = a \cdot b \cdot b \cdot a \cdot a \cdot a$: altı parça, hepsi $\{a, b\}$'de, yani $k = 6$. $\varepsilon$ ise $k = 0$ parça seçince çıkar. Star'ın tanımı gereği $\varepsilon$ her zaman içeride.</p>
+      <p><strong>(3)</strong> $L = \{a, b\}^*$, yani $\{a, b\}$ üzerindeki bütün string'ler. DFA tek state ister: start state aynı zamanda accept, $a$ ve $b$ ile kendine döner. Örneğin length'i 6 olan $2^6 = 64$ string'in hepsi $L$'de.</p>
+      <p>Dikkat: $(a|b)^+$ olsaydı $\varepsilon$ dışarıda kalırdı ve tek state yetmezdi.</p>
+      <p>Length'i 10'a kadar bütün 2047 string python ile kontrol edildi.</p>
+    </div></details>
+    <!-- Kaynak: resources/2026-2027-fall/2026-09-28-Note-12-17.pdf s.1 en üst satır ("L = (a|b)*", "abbaaa ∈ L", "ε ∈ L"). Dosya origin/main'de yok, link verilmedi. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Concatenation'da sıra önemli: $\{0\} \circ \{1\} = \{01\}$ ama $\{1\} \circ \{0\} = \{10\}$.</li>
+      <li>$A$ ε içermese bile $A^*$ ε içerir. Boş language'ın bile star'ı boş değil: $\emptyset^* = \{\varepsilon\}$.</li>
+      <li>Concatenation'da bir taraf $\emptyset$ ise sonuç $\emptyset$: birleştirilecek string bulunamaz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ops">
+    <p class="quiz__q">$L = \{a, ab, ba\}$. Hangisi $L^*$'ın elemanıdır?</p>
+    <button class="quiz__opt">$bb$<span class="why">$b$ ile başlayan tek parça $ba$; $bb$ böyle başlamıyor. Star yalnızca $L$'deki parçaları yan yana koyar, tek tek symbol'leri değil.</span></button>
+    <button class="quiz__opt" data-correct>$abba$<span class="why">Doğru: $abba = ab \cdot ba$, iki parça da $L$'de.</span></button>
+    <button class="quiz__opt">$bab$<span class="why">$ba$ ile başlarsan geriye $b$ kalıyor; $b$ tek başına $L$'de değil. Başka bir bölüş de yok. "Harfler $L$'de geçiyor" yetmez, parçalar $L$'de olmalı.</span></button>
+    <button class="quiz__opt">$b$<span class="why">$b$ tek başına $L$'nin bir elemanı değil ve daha kısa parçalara da bölünemez.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="tanim" data-min="5">
+  <h2>Regular expression'ın formal tanımı</h2>
+  <div class="box box--rule">
+    <span class="box__label">Definition 1.52 (Sipser, aynen)</span>
+    <p>Say that $R$ is a <strong>regular expression</strong> if $R$ is</p>
+    <ol>
+      <li>$a$ for some $a$ in the alphabet $\Sigma$,</li>
+      <li>$\varepsilon$,</li>
+      <li>$\emptyset$,</li>
+      <li>$(R_1 \cup R_2)$, where $R_1$ and $R_2$ are regular expressions,</li>
+      <li>$(R_1 \circ R_2)$, where $R_1$ and $R_2$ are regular expressions, or</li>
+      <li>$(R_1^*)$, where $R_1$ is a regular expression.</li>
+    </ol>
+    <p>In items 1 and 2, the regular expressions $a$ and $\varepsilon$ represent the languages $\{a\}$ and $\{\varepsilon\}$, respectively. In item 3, the regular expression $\emptyset$ represents the empty language. In items 4, 5, and 6, the expressions represent the languages obtained by taking the union or concatenation of the languages $R_1$ and $R_2$, or the star of the language $R_1$, respectively.</p>
+  </div>
+  <p>İlk üç madde temel parçalar, son üç madde onları birleştirme kuralları. Tanım kendi içinde regular expression kelimesini kullanıyor ama döngü yok: $R_1$ ve $R_2$ her zaman $R$'den küçük. Bu tür tanıma <strong>inductive definition</strong> denir. Aynı yapı ileride ispatı da kuracak: önce üç temel parça için bir NFA, sonra üç birleştirme kuralı için birer NFA kurulumu.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kısaltmalar</span>
+    <ul>
+      <li>$\circ$ genelde yazılmaz: $(0 \cup 1)0^*$ aslında $(0 \cup 1) \circ 0^*$.</li>
+      <li>$R^+ = RR^*$: $R$'den <strong>bir ya da daha fazla</strong> parça. Bu yüzden $R^+ \cup \varepsilon = R^*$.</li>
+      <li>$R^k$: $k$ tane $R$'nin concatenation'ı. Örnek: $(\Sigma \cup \varepsilon)^5$.</li>
+      <li>$\Sigma = \{0,1\}$ ise $\Sigma$ regular expression olarak $(0 \cup 1)$ demek. $\Sigma^*$ bütün string'ler, $\Sigma^*1$ "1 ile biten" string'ler.</li>
+      <li>$L(R)$: $R$'nin tarif ettiği language. İfadeyle language'ı ayırmak istediğinde yazılır.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak · ε ile ∅ farklı şeyler</span>
+    <p>Sipser'in uyarısı: "Don't confuse the regular expressions $\varepsilon$ and $\emptyset$." $\varepsilon$ tek bir string içeren language'ı ($\{\varepsilon\}$), $\emptyset$ hiç string içermeyen language'ı tarif eder. Birincinin bir elemanı var, ikincinin hiç yok.</p>
+    <p>Bir de: $R^+$ ile $R^*$ genelde farklıdır. Sadece $\varepsilon \in L(R)$ ise eşit olurlar. Örneğin $0^+$ ε içermez, $0^*$ içerir.</p>
+  </div>
+  <!-- Kaynak: Sipser Def 1.52 (PDF s.88), s.89 (inductive definition, R+, R^k, L(R)), Ex 1.51 (Σ kısaltması). -->
+  <div class="quiz" id="q-tanim">
+    <p class="quiz__q">$L(\emptyset^*)$ nedir?</p>
+    <button class="quiz__opt">$\emptyset$<span class="why">Star sıfır parça seçmeye her zaman izin verir ve sıfır parçanın birleşimi ε'dur. Boş language'ın star'ı bile boş değil.</span></button>
+    <button class="quiz__opt" data-correct>$\{\varepsilon\}$<span class="why">Doğru. Seçilecek parça yok, sadece $k = 0$ mümkün: tek eleman ε. Sipser Example 1.53(12).</span></button>
+    <button class="quiz__opt">$\{\emptyset\}$<span class="why">$\emptyset$ bir string değil, bir language. Language'ın elemanları string'lerdir; burada ε ile $\emptyset$ karışmış.</span></button>
+    <button class="quiz__opt">$\Sigma^*$<span class="why">$\Sigma^*$'ı elde etmek için star'ın içinde symbol'ler olmalı ($(0 \cup 1)^*$ gibi). $\emptyset$'ın içinde hiçbir şey yok.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="oku" data-min="6">
+  <h2>Precedence ve bir regex'i okumak</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · işlem sırası</span>
+    <p>Parantez yoksa önce <strong>star</strong>, sonra <strong>concatenation</strong>, en son <strong>union</strong> yapılır. Aritmetikte $\times$'in $+$'dan önce gelmesi gibi.</p>
+    $$01^* \cup 1 \;=\; \big(0\,(1^*)\big) \cup 1 \;=\; \{0, 01, 011, \dots\} \cup \{1\}$$
+    <p>Star sadece hemen solundaki parçaya uygulanır: $01^*$'ta star yalnız $1$'in üstünde. $(01)^*$ ise $\{\varepsilon, 01, 0101, \dots\}$.</p>
+  </div>
+  <h3>Sipser Example 1.53: on iki okuma (Σ = {0,1})</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Regular expression</th><th>Language</th></tr>
+    <tr><td>$0^*10^*$</td><td>$\{w \mid w$ contains a single 1$\}$</td></tr>
+    <tr><td>$\Sigma^*1\Sigma^*$</td><td>$\{w \mid w$ has at least one 1$\}$</td></tr>
+    <tr><td>$\Sigma^*001\Sigma^*$</td><td>$\{w \mid w$ contains the string 001 as a substring$\}$</td></tr>
+    <tr><td>$1^*(01^+)^*$</td><td>$\{w \mid$ every 0 in $w$ is followed by at least one 1$\}$</td></tr>
+    <tr><td>$(\Sigma\Sigma)^*$</td><td>$\{w \mid w$ is a string of even length$\}$</td></tr>
+    <tr><td>$(\Sigma\Sigma\Sigma)^*$</td><td>$\{w \mid$ the length of $w$ is a multiple of 3$\}$</td></tr>
+    <tr><td>$01 \cup 10$</td><td>$\{01, 10\}$</td></tr>
+    <tr><td>$0\Sigma^*0 \cup 1\Sigma^*1 \cup 0 \cup 1$</td><td>$\{w \mid w$ starts and ends with the same symbol$\}$</td></tr>
+    <tr><td>$(0 \cup \varepsilon)1^*$</td><td>$01^* \cup 1^*$: her $1^*$ string'inin önüne ya 0 ya ε eklenir</td></tr>
+    <tr><td>$(0 \cup \varepsilon)(1 \cup \varepsilon)$</td><td>$\{\varepsilon, 0, 1, 01\}$</td></tr>
+    <tr><td>$1^*\emptyset$</td><td>$\emptyset$: boş kümeyle concatenation boş küme verir</td></tr>
+    <tr><td>$\emptyset^*$</td><td>$\{\varepsilon\}$</td></tr>
+  </table></div>
+  <p>Satır 8'deki "$\cup\, 0 \cup 1$" kısmı neden var? $0\Sigma^*0$ en az iki symbol'lü string üretir. Tek symbol'lü $0$ ve $1$ de aynı symbol'le başlayıp bitiyor; onları ayrıca eklemezsen kaçarlar.</p>
+  <!-- Kaynak: Sipser Ex 1.53 (PDF s.89), precedence s.88–89. Her satır python ile uzunluk 10'a kadar brute force kontrol edildi. -->
+
+  <h3>Kendin dene: regex okuyucu</h3>
+  <p>Bir regular expression yaz. Sayfa onu Definition 1.52'ye göre bir parse tree'ye çevirir, tam parantezli halini yazar ve seçtiğin uzunluğa kadar bütün string'leri tek tek deneyip language'ın elemanlarını listeler. Union için <code>∪</code> ya da <code>|</code>, star için <code>*</code>, ε için <code>eps</code>, ∅ için <code>empty</code> yazabilir ya da alttaki tuşları kullanabilirsin.</p>
+  <p class="w-regex-gnfa-guess"><b>Önce tahmin et:</b> $01^* \cup 1$ language'ında length'i en fazla 3 olan kaç string var? Sonra "<code>01*∪1</code>" hazırını seç ve kontrol et.</p>
+  <div class="w-regex-gnfa-box" id="w-rx">
+    <div class="w-regex-gnfa-row"><label>Hazır <select data-r="preset" aria-label="Hazır regular expression"></select></label></div>
+    <div class="w-regex-gnfa-row">
+      <label>R = <input type="text" data-r="re" class="w-regex-gnfa-re" aria-label="Regular expression" spellcheck="false" autocomplete="off" /></label>
+      <label>Σ = <input type="text" data-r="sig" class="w-regex-gnfa-sm" aria-label="Alphabet, virgülle" spellcheck="false" autocomplete="off" /></label>
+    </div>
+    <div class="w-regex-gnfa-row w-regex-gnfa-keys" data-r="keys"></div>
+    <div class="w-regex-gnfa-row">
+      <label><code>+</code> işareti <select data-r="plus" aria-label="Artı işaretinin anlamı"><option value="plus">R⁺ (Sipser, 2020 kâğıdı: 001⁺)</option><option value="union">union (2019 anahtarı: a+b)</option></select></label>
+    </div>
+    <div class="w-regex-gnfa-row"><label>En fazla length <select data-r="len" aria-label="En fazla length"><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option></select></label><button class="btn btn--sm btn--accent" data-r="go">Oku</button></div>
+    <div class="w-regex-gnfa-err" data-r="err" aria-live="polite"></div>
+    <div data-r="out"></div>
+    <div class="w-regex-gnfa-row"><label>String dene <input type="text" data-r="w" class="w-regex-gnfa-sm" aria-label="Denenecek string" placeholder="ε için boş" spellcheck="false" autocomplete="off" /></label><button class="btn btn--sm" data-r="test">Dene</button></div>
+    <div class="w-regex-gnfa-res" data-r="tres" aria-live="polite"></div>
+  </div>
+
+  <div class="box box--trap">
+    <span class="box__label">Tuzak · aynı "+" iki farklı anlam</span>
+    <ul>
+      <li>Sipser'de ve 2020 kâğıdında üstte yazılan $^+$ "bir ya da daha fazla" demek: $001^+ = 0011^*$.</li>
+      <li>Hocanın 2019 çözümünde ise iki ifadenin <em>arasındaki</em> $+$ union demek: $(a+b)a^*b$ = $(a \cup b)a^*b$. Hocanın aracı da "| or + is union" diyor.</li>
+      <li>Kendi cevabında union için $\cup$ yaz. Böylece karışıklık olmaz.</li>
+    </ul>
+  </div>
+
+  <div class="box box--exam" data-exam="2020-mid-P2b-regex"><span class="box__label">2020 vizesi P2(b), regex'i okumak · çıkmış soru</span>
+    <p>"P2 [20 points] Construct an NFA for the languages. … (b) The language $1^*(001^+)^*$. (Use three states, every extra state halves your points)" (soru metninden bu bölümle ilgili kısım)</p>
+    <p>NFA'yı kurmadan önce ifadeyi okuman lazım. Bu kutuda iki şey soruluyor: (1) language'ı kelimelerle anlat, üç eleman ve üç eleman olmayan string ver; (2) ifadeden Lemma 1.55 ile NFA kursaydın kaç state çıkardı ve bu soruda kaç puan alırdın?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Star'ın içindeki parça $001^+$: tam iki 0, ardından en az bir 1. Bu parçalar art arda geliyor. Başta da $1^*$ var.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Example 1.53'teki $1^*(01^+)^*$ ile karşılaştır: orada her 0'ın arkasından en az bir 1 geliyordu. Burada 0'lar tek tek değil, ikişerli bloklar halinde.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(1) Okuma.</strong> $1^*(001^+)^*$ = başta istediği kadar 1, sonra her biri "tam iki 0 ve ardından en az bir 1" olan bloklar. Yani: <em>her 0-bloğunun uzunluğu tam 2'dir ve her 0-bloğunun arkasından en az bir 1 gelir</em> (dolayısıyla string 0 ile bitmez).</p>
+      <ul>
+        <li>Elemanlar: ε, $1$, $001$, $0011$, $1001$, $001001$.</li>
+        <li>Eleman değil: $0$, $00$ (sonda 1 yok), $01$ ve $0001$ (0-bloğu 2 değil), $100$ (son blokta 1 yok), $010$.</li>
+      </ul>
+      <p><strong>(2) Lemma 1.55 ile.</strong> $1^+ = 11^*$ diye açılıp kurulunca NFA <strong>13 state</strong> çıkar (aşağıdaki stepper'da kendin kur). Soru 3 state istiyor: 10 fazla state. Halving kuralıyla puan $20/2^{10} \approx 0.02$; 26 Ekim'de konuşulan "her fazla state için −2 ya da −3" kuralıyla $20 - 20 = 0$ ya da $20 - 30 &lt; 0$, yani 0. İki kuralda da puan yok.</p>
+      <p>3 state'li cevap: start state $q_1$ aynı zamanda accept; $q_1 \xrightarrow{1} q_1$, $q_1 \xrightarrow{0} q_2 \xrightarrow{0} q_3 \xrightarrow{1} q_1$. $q_3$'ten 1 ile $q_1$'e dönünce ek 1'ler $q_1$'deki loop'ta okunur. Bu makine ifadeyle uzunluk 12'ye kadar bütün string'lerde aynı cevabı veriyor. En az state'li NFA kurma yöntemleri <a href="nfa-fewest.html">En az state'li NFA</a> dersinde.</p>
+      <div class="w-regex-gnfa-fig" data-fig="p2b3"></div>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2020-midterm.pdf" target="_blank" rel="noopener">Orijinal soru (2020-midterm.pdf)</a></p>
+    <!-- Kaynak: exams/2020-midterm.pdf P2(b). Anahtar yok. Okuma, 13 state sayısı ve 3 state'li NFA python ve JS motoruyla uzunluk 12'ye kadar kontrol edildi. -->
+  </div>
+
+  <div class="box box--exam" data-exam="sipser-ex1.20"><span class="box__label">Sipser Exercise 1.20 · kitap alıştırması</span>
+    <p>"For each of the following languages, give two strings that are members and two strings that are <em>not</em> members—a total of four strings for each part. Assume the alphabet $\Sigma = \{a,b\}$ in all parts."</p>
+    <p>a. $a^*b^*$ &nbsp; b. $a(ba)^*b$ &nbsp; c. $a^* \cup b^*$ &nbsp; d. $(aaa)^*$ &nbsp; e. $\Sigma^*a\Sigma^*b\Sigma^*a\Sigma^*$ &nbsp; f. $aba \cup bab$ &nbsp; g. $(\varepsilon \cup a)b$ &nbsp; h. $(a \cup ba \cup bb)\Sigma^*$</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce en kısa elemanı bul (star'ları sıfır kez, union'da en kısa kolu seç). Eleman olmayan için ifadenin <em>zorunlu</em> kıldığı bir şeyi boz: sıra, başlangıç symbol'ü, uzunluk.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c)'de $ab$ neden eleman değil? Union iki kolu karıştırmaz: string ya tamamen $a^*$'tan ya tamamen $b^*$'tan gelir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th></th><th>Eleman</th><th>Eleman değil</th><th>Neden</th></tr>
+        <tr><td>a</td><td>ab, aabbb</td><td>ba, aba</td><td>bütün a'lar bütün b'lerden önce</td></tr>
+        <tr><td>b</td><td>ab, abab</td><td>a, ba</td><td>a ile başlar, b ile biter, arada ba blokları</td></tr>
+        <tr><td>c</td><td>aa, bb</td><td>ab, ba</td><td>ya sadece a ya sadece b (ε de eleman)</td></tr>
+        <tr><td>d</td><td>ε, aaa</td><td>a, aa</td><td>a sayısı 3'ün katı</td></tr>
+        <tr><td>e</td><td>aba, abba</td><td>a, ab</td><td>sırayla bir a, sonra bir b, sonra bir a geçiyor</td></tr>
+        <tr><td>f</td><td>aba, bab</td><td>ε, ab</td><td>sadece iki string</td></tr>
+        <tr><td>g</td><td>b, ab</td><td>ε, a</td><td>$\{b, ab\}$</td></tr>
+        <tr><td>h</td><td>a, ba</td><td>ε, b</td><td>a, ba ya da bb ile başlayan her string</td></tr>
+      </table></div>
+      <p>Hepsini yukarıdaki okuyucuda (Σ = a,b) tek tek deneyebilirsin.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 1.20 (PDF s.110). Cevaplar python ile kontrol edildi. -->
+  </div>
+
+  <div class="quiz" id="q-oku">
+    <p class="quiz__q">Hangisi $1^*(01^+)^*$ language'ındadır?</p>
+    <button class="quiz__opt" data-correct>$1011$<span class="why">Doğru: $1 \cdot (011)$. Tek 0'ın arkasında 1'ler var.</span></button>
+    <button class="quiz__opt">$0110$<span class="why">Son 0'ın arkasından 1 gelmiyor. Star'ın her parçası $01^+$, yani 1 ile biter; ifade 0 ile biten bir string üretemez.</span></button>
+    <button class="quiz__opt">$100$<span class="why">İlk 0'ın arkasından 1 değil 0 geliyor. $01^+$ parçası 0'dan hemen sonra en az bir 1 ister.</span></button>
+    <button class="quiz__opt">$0$<span class="why">$01^+$ en az bir 1 ister. $1^+$'yı $1^*$ gibi okumak bu hatayı yaptırır.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="yaz" data-min="5">
+  <h2>Dilden regex'e ve birkaç kimlik</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · $\emptyset$ ve $\varepsilon$ ile kimlikler</span>
+    <ul>
+      <li>$R \cup \emptyset = R$: boş language'ı eklemek bir şey değiştirmez.</li>
+      <li>$R \circ \varepsilon = R$: boş string'i eklemek bir string'i değiştirmez.</li>
+    </ul>
+    <p>İkisinin yerini değiştirince eşitlik bozulabilir:</p>
+    <ul>
+      <li>$R \cup \varepsilon$, $R$'ye eşit olmayabilir: $R = 0$ ise $L(R) = \{0\}$ ama $L(R \cup \varepsilon) = \{0, \varepsilon\}$.</li>
+      <li>$R \circ \emptyset$, $R$'ye eşit olmayabilir: $R = 0$ ise $L(R \circ \emptyset) = \emptyset$.</li>
+    </ul>
+    <p>State elimination'da sürekli bu kurallarla sadeleştireceksin: $\emptyset$ concatenation'ı öldürür, union'da kaybolur; $\varepsilon$ concatenation'da kaybolur; $\emptyset^* = \varepsilon$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tarif · bir language için regex yazmak</span>
+    <ol>
+      <li>"İçinde $x$ geçiyor" → $\Sigma^* x \Sigma^*$. "$x$ ile bitiyor" → $\Sigma^* x$. "$x$ ile başlıyor" → $x\Sigma^*$.</li>
+      <li>"Ya şu ya bu" → iki ayrı ifade yaz, araya $\cup$ koy.</li>
+      <li>Sayma (tam iki 1, uzunluk 3'ün katı) → zorunlu parçaları sırayla yaz, aralarını serbest parçayla doldur: $0^*10^*10^*$.</li>
+      <li>Kısa string'leri ayrıca düşün: ε ve tek symbol'lü string'ler en sık kaçan elemanlardır.</li>
+      <li>Kontrol: iki eleman, iki eleman olmayan string seç ve ifadeyle dene.</li>
+    </ol>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · derleyicide token'lar</span>
+    <p>Regular expression'lar compiler'larda <strong>token</strong>'ları (variable adları, sabitler) tarif etmek için kullanılır. İşaretli ve kesirli olabilen bir sayı sabiti, $D = \{0, 1, \dots, 9\}$ ile:</p>
+    $$(+ \cup - \cup \varepsilon)\,(D^+ \cup D^+.D^* \cup D^*.D^+)$$
+    <p>Ürettiği string'lerden bazıları: <code>72</code>, <code>3.14159</code>, <code>+7.</code>, <code>-.01</code>. Tek başına <code>.</code> üretilmez: noktanın en az bir yanında bir rakam olmalı. Bir dilin token'ları böyle yazılınca <strong>lexical analyzer</strong> (derleyicinin input'u ilk işleyen kısmı) otomatik üretilebilir.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak · programlama dilindeki "regex" başka bir şey</span>
+    <p>Java, Python gibi dillerdeki pattern'ler <em>backreference</em>'a izin verir: <code>(\w+)\1</code> tam olarak "aynı parça iki kez" string'lerini, yani $ww$'yi yakalar. $\{ww\}$ regular bir language değil. Yani o motorlar bu dersteki anlamda regular expression değil. Sınavda sadece Definition 1.52'deki altı kural ve $R^+$, $R^k$, $\Sigma$ kısaltmaları var.</p>
+  </div>
+  <!-- Kaynak: Sipser PDF s.90 (kimlikler ve token örneği) · hocanın regex.html aracı ("Not the same as regex" kutusu) · token örneği python ile kontrol edildi. -->
+
+  <div class="box box--exam" data-exam="sipser-ex1.18"><span class="box__label">Sipser Exercise 1.18 · kitap alıştırması</span>
+    <p>"Give regular expressions generating the languages of Exercise 1.6." Exercise 1.6'nın language'ları (alphabet $\{0,1\}$):</p>
+    <p>a. $\{w \mid w$ begins with a 1 and ends with a 0$\}$ · b. at least three 1s · c. contains the substring 0101 · d. length at least 3 and its third symbol is a 0 · e. starts with 0 and has odd length, or starts with 1 and has even length · f. doesn't contain the substring 110 · g. the length of $w$ is at most 5 · h. any string except 11 and 111 · i. every odd position of $w$ is a 1 · j. contains at least two 0s and at most one 1 · k. $\{\varepsilon, 0\}$ · l. contains an even number of 0s, or contains exactly two 1s · m. the empty set · n. all strings except the empty string</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>a, b, c, d, g, k, m, n tarifteki 1. ve 2. adımla direkt yazılır. (e) ve (l) "or" içeriyor: iki ifade ve $\cup$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(f): 110 geçmiyorsa, iki 1 yan yana geldiği anda bir daha 0 gelemez. Önce "11 olmadan" kısım, sonra sondaki 1'ler. (h): uzunluğa göre ayır (0, 1, 2, 3, ≥4). (i): her iki symbol'lük blok 1 ile başlar.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th></th><th>Regular expression</th></tr>
+        <tr><td>a</td><td>$1\Sigma^*0$</td></tr>
+        <tr><td>b</td><td>$\Sigma^*1\Sigma^*1\Sigma^*1\Sigma^*$</td></tr>
+        <tr><td>c</td><td>$\Sigma^*0101\Sigma^*$</td></tr>
+        <tr><td>d</td><td>$\Sigma\Sigma0\Sigma^*$</td></tr>
+        <tr><td>e</td><td>$0(\Sigma\Sigma)^* \cup 1\Sigma(\Sigma\Sigma)^*$</td></tr>
+        <tr><td>f</td><td>$(0 \cup 10)^*1^*$</td></tr>
+        <tr><td>g</td><td>$(\Sigma \cup \varepsilon)^5$</td></tr>
+        <tr><td>h</td><td>$\varepsilon \cup \Sigma \cup 0\Sigma \cup 10 \cup 0\Sigma\Sigma \cup 10\Sigma \cup 110 \cup \Sigma\Sigma\Sigma\Sigma\Sigma^*$</td></tr>
+        <tr><td>i</td><td>$(1\Sigma)^*(1 \cup \varepsilon)$</td></tr>
+        <tr><td>j</td><td>$000^* \cup 000^*10^* \cup 0100^* \cup 1000^*$</td></tr>
+        <tr><td>k</td><td>$\varepsilon \cup 0$</td></tr>
+        <tr><td>l</td><td>$(1^*01^*0)^*1^* \cup 0^*10^*10^*$</td></tr>
+        <tr><td>m</td><td>$\emptyset$</td></tr>
+        <tr><td>n</td><td>$\Sigma\Sigma^*$ (yani $\Sigma^+$)</td></tr>
+      </table></div>
+      <p>Açıklamalar: (f) $0 \cup 10$ blokları "her 1'in arkasından 0 geldiği" kısmı üretir; ilk kez 11 geldiğinde artık sadece 1 gelebilir. (j) 1 yoksa en az iki 0; bir tane 1 varsa 0'lar 1'in iki yanına "toplam en az iki" olacak şekilde dağılır: önde en az iki, önde tam bir ve arkada en az bir, önde hiç yok ve arkada en az iki. (l) çift sayıda 0: 0'ları ikişer ikişer al, araları 1 ile doldur.</p>
+      <p>Her biri Exercise 1.6'daki tanımla uzunluk 10'a kadar bütün string'lerde karşılaştırıldı. Başka doğru cevaplar da var; kendi cevabını okuyucuda dene.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 1.18 ve 1.6 (PDF s.108, 110). Kitapta bu alıştırmanın çözümü yok; cevaplar python ile kontrol edildi. -->
+  </div>
+
+  <div class="quiz" id="q-yaz">
+    <p class="quiz__q">$\{w \in \{0,1\}^* \mid w$ contains exactly two 1s$\}$ için hangisi doğru?</p>
+    <button class="quiz__opt">$(0^*1)^2$<span class="why">Bu ifade 1 ile bitmek zorunda: ikinci 1'den sonra 0 gelemez. $110$ ya da $01100$ kaçar. Sondaki serbest parçayı unutmak tipik hata.</span></button>
+    <button class="quiz__opt" data-correct>$0^*10^*10^*$<span class="why">Doğru. İki zorunlu 1, araları ve iki yanı serbest 0 blokları.</span></button>
+    <button class="quiz__opt">$0^*110^*$<span class="why">İki 1'i yan yana zorluyor: $101$ kaçar. Zorunlu parçaların arasına serbest blok koymak gerekir.</span></button>
+    <button class="quiz__opt">$\Sigma^*1\Sigma^*1\Sigma^*$<span class="why">Bu "en az iki 1". $\Sigma^*$ içinde başka 1'ler de olabilir; "tam olarak" için araları sadece 0 ile doldurmalısın.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="kleene" data-min="5">
+  <h2>Regex ile NFA aynı güçte: Theorem 1.54</h2>
+  <div class="box box--rule">
+    <span class="box__label">Theorem 1.54 (Sipser, aynen)</span>
+    <p>A language is regular if and only if some regular expression describes it.</p>
+    <p>İki yönü ayrı lemma'lar:</p>
+    <ul>
+      <li><strong>Lemma 1.55:</strong> If a language is described by a regular expression, then it is regular. (regex → NFA)</li>
+      <li><strong>Lemma 1.60:</strong> If a language is regular, then it is described by a regular expression. (DFA → GNFA → regex)</li>
+    </ul>
+    <p>Subset construction (Theorem 1.39) ile birlikte zincir kapanır: <strong>regex → NFA → DFA → GNFA → regex</strong>. Yani regex, NFA ve DFA aynı language sınıfını tanır: regular language'lar. Hafta 3 planında buna Kleene's theorem deniyor.</p>
+  </div>
+  <p>Lemma 1.55'in ispatı tanımın altı maddesini sırayla geçer. İlk üçü tek tek NFA'lar:</p>
+  <div class="w-regex-gnfa-figrow">
+    <figure><div class="w-regex-gnfa-fig" data-fig="base-a"></div><figcaption>1. $R = a$: $L(R) = \{a\}$</figcaption></figure>
+    <figure><div class="w-regex-gnfa-fig" data-fig="base-eps"></div><figcaption>2. $R = \varepsilon$: $L(R) = \{\varepsilon\}$</figcaption></figure>
+    <figure><div class="w-regex-gnfa-fig" data-fig="base-emp"></div><figcaption>3. $R = \emptyset$: $L(R) = \emptyset$</figcaption></figure>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Lemma 1.55 · altı durum</span>
+    <ol>
+      <li>$R = a$: $N = (\{q_1, q_2\}, \Sigma, \delta, q_1, \{q_2\})$, $\delta(q_1, a) = \{q_2\}$ ve $r \ne q_1$ ya da $b \ne a$ için $\delta(r, b) = \emptyset$.</li>
+      <li>$R = \varepsilon$: $N = (\{q_1\}, \Sigma, \delta, q_1, \{q_1\})$, her $r, b$ için $\delta(r, b) = \emptyset$.</li>
+      <li>$R = \emptyset$: $N = (\{q\}, \Sigma, \delta, q, \emptyset)$, her $r, b$ için $\delta(r, b) = \emptyset$.</li>
+      <li>$R = R_1 \cup R_2$: union kurulumu (Thm 1.45). Yeni bir start state, ondan iki NFA'nın start'ına ε ok. Accept state'ler: ikisininki.</li>
+      <li>$R = R_1 \circ R_2$: concatenation kurulumu (Thm 1.47). $N_1$'in her accept state'inden $N_2$'nin start'ına ε ok. Start $N_1$'inki, accept state'ler sadece $N_2$'ninkiler.</li>
+      <li>$R = R_1^*$: star kurulumu (Thm 1.49). Yeni bir start state, <em>kendisi de accept</em>, ondan eski start'a ε ok. Eski accept state'lerden eski start'a ε ok.</li>
+    </ol>
+  </div>
+  <p>Son üç kurulum, NFA dersinde gördüğün closure ispatlarının aynısı. Aşağıda her biri en küçük örnekle, aynı kodla çizildi:</p>
+  <div class="w-regex-gnfa-figrow">
+    <figure><div class="w-regex-gnfa-fig" data-fig="cl-u"></div><figcaption>4. $a \cup b$</figcaption></figure>
+    <figure><div class="w-regex-gnfa-fig" data-fig="cl-c"></div><figcaption>5. $ab$</figcaption></figure>
+    <figure><div class="w-regex-gnfa-fig" data-fig="cl-s"></div><figcaption>6. $a^*$</figcaption></figure>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Durum 1'deki makine bir DFA değil: $q_1$'den $a$ dışındaki symbol'ler için ok yok, $q_2$'den hiç ok yok. NFA olması yeterli.</li>
+      <li>$\varepsilon$ ile $\emptyset$'ın makinesi tek state'li ve aynı görünüyor. Tek fark: $\varepsilon$'unkinde o state accept, $\emptyset$'ınkinde değil.</li>
+      <li>Star'da yeni start state'i atlama. "Eski start'ı accept yap, accept'lerden ona ε ok çiz" yanlış: $a^*b$'nin NFA'sında ($q_1$'de $a$ loop'u, $q_1 \xrightarrow{b} q_2$) $q_1$'i accept yaparsan makine $a$'yı kabul eder, ama $a \notin (a^*b)^*$. Aşağıda bu yanlış makine var.</li>
+    </ul>
+    <div class="w-regex-gnfa-fig" data-fig="badstar" style="max-width:320px"></div>
+  </div>
+  <!-- Kaynak: Sipser Thm 1.54, Lemma 1.55 ve ispatı (PDF s.90–92) · Thm 1.45/1.47/1.49 (PDF s.83–87) · yanlış star kurulumu Sipser Exercise 1.15'in fikri. Yanlış makinenin a'yı kabul ettiği python ile kontrol edildi. -->
+  <div class="quiz" id="q-kleene">
+    <p class="quiz__q">Lemma 1.55'te $R_1^*$ için neden <strong>yeni</strong> bir start state ekleniyor?</p>
+    <button class="quiz__opt" data-correct>ε'u kabul etmek için start'ın accept olması gerekiyor, ama eski start'ı accept yapmak fazladan string kabul ettirebilir<span class="why">Doğru. Yeni start sadece ε'u kabul ettirmek için var ve ona hiçbir ok geri dönmüyor. Eski start'a geri dönen oklar varsa, onu accept yapmak $a^*b$ örneğindeki gibi $a$'yı da kabul ettirir.</span></button>
+    <button class="quiz__opt">NFA'nın tek bir start state'i olsun diye<span class="why">Eski NFA'nın da zaten tek start state'i var. Sorun start sayısı değil, ε'un kabul edilmesi.</span></button>
+    <button class="quiz__opt">Sonuç en az state'li olsun diye<span class="why">Tersine: kurulum state ekliyor. Sipser de bu yöntemin genelde en az state'li NFA'yı vermediğini söylüyor.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="thompson" data-min="6">
+  <h2>Regex → NFA adım adım</h2>
+  <p>Yöntem: ifadeyi en küçük parçalarından başlayarak kur. Önce her symbol'ün iki state'li NFA'sı, sonra onları içeriden dışarıya doğru union, concatenation, star ile birleştir. Parse tree'yi aşağıdan yukarıya gezmek demek.</p>
+  <div class="box box--example">
+    <span class="box__label">Example 1.56 · $(ab \cup a)^*$</span>
+    <p>Sırayla: $a$, $b$, $ab$ (concatenation: ε ok ile bağla), $ab \cup a$ (yeni start, iki ε ok), $(ab \cup a)^*$ (yeni start ve accept, geri dönen ε oklar). Sonuç <strong>8 state</strong>:</p>
+    <div class="w-regex-gnfa-fig" data-fig="ex156"></div>
+    <p>Sipser'in sorusu: en küçük eşdeğer NFA kaç state? Cevap <strong>2</strong>: start state accept, $a$ ile hem kendine hem ikinci state'e, ikinci state'ten $b$ ile geri.</p>
+    <div class="w-regex-gnfa-fig" data-fig="two156" style="max-width:260px"></div>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Example 1.58 · $(a \cup b)^*aba$</span>
+    <p>$a$, $b$, $a \cup b$ (5 state), $(a \cup b)^*$ (6 state), sonra $a$, $b$, $a$ ve iki concatenation ile $aba$ (6 state), en son ikisinin concatenation'ı: <strong>12 state</strong>. Aşağıdaki stepper'da hazır olarak var.</p>
+  </div>
+  <h3>Kendin dene: regex → NFA stepper</h3>
+  <p>İfadeyi yaz, "Kur"a bas. Her kare parse tree'deki bir alt ifadenin NFA'sını gösterir; kareler Lemma 1.55'in hangi durumunun kullanıldığını söyler. Kurulum gerçekten yapılıyor ve en sonda NFA, ifadeyle bütün kısa string'lerde karşılaştırılıyor.</p>
+  <p class="w-regex-gnfa-guess"><b>Önce tahmin et:</b> $(0 \cup 1)^*$ için bu yöntem kaç state verir? Sonra kendin kur.</p>
+  <div class="w-regex-gnfa-box" id="w-th">
+    <div class="w-regex-gnfa-row"><label>Hazır <select data-r="preset" aria-label="Hazır regular expression"></select></label></div>
+    <div class="w-regex-gnfa-row">
+      <label>R = <input type="text" data-r="re" class="w-regex-gnfa-re" aria-label="Regular expression" spellcheck="false" autocomplete="off" /></label>
+      <label>Σ = <input type="text" data-r="sig" class="w-regex-gnfa-sm" aria-label="Alphabet, virgülle" spellcheck="false" autocomplete="off" /></label>
+      <button class="btn btn--sm btn--accent" data-r="go">Kur</button>
+    </div>
+    <div class="w-regex-gnfa-row w-regex-gnfa-keys" data-r="keys"></div>
+    <div class="w-regex-gnfa-err" data-r="err" aria-live="polite"></div>
+    <div data-r="step"></div>
+    <div class="w-regex-gnfa-res" data-r="res" aria-live="polite"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Bu yöntem doğru bir NFA verir ama <strong>en az state'li</strong> NFA'yı vermez. Vizenin P2'si en az state istiyor; orada bu yöntemi kullanma (2020 P2(b)'de 13 state = 0 puan).</li>
+      <li>Concatenation'da iki state'i birleştirme, ε ok çiz. Kurulumun doğruluğu bu oklara dayanıyor; kâğıtta bu yöntemi kullan dendiyse adımları atlama.</li>
+      <li>$R^+$'yı $RR^*$ diye aç: $R$'nin makinesi iki kez kurulur.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Sipser Ex 1.56 ve Fig 1.57 (PDF s.92), Ex 1.58 ve Fig 1.59 (PDF s.93). State sayıları ve 2 state'li NFA python ve JS motoruyla kontrol edildi. -->
+
+  <div class="box box--exam" data-exam="sipser-ex1.19-1.28"><span class="box__label">Sipser Exercise 1.19 ve 1.28 · kitap alıştırması</span>
+    <p>1.19: "Use the procedure described in Lemma 1.55 to convert the following regular expressions to nondeterministic finite automata. a. $(0 \cup 1)^*000(0 \cup 1)^*$ b. $(((00)^*(11)) \cup 01)^*$ c. $\emptyset^*$"</p>
+    <p>1.28: "Convert the following regular expressions to NFAs using the procedure given in Theorem 1.54. In all parts, $\Sigma = \{a, b\}$. a. $a(abb)^* \cup b$ b. $a^+ \cup (ab)^+$ c. $(a \cup b^+)a^+b^+$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce parse tree'yi çiz: en dıştaki işlem hangisi? Sonra yapraklardan başla. Her symbol 2 state, her union ve her star 1 yeni state ekler, concatenation state eklemez.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bu sayma kuralıyla toplamı kurmadan bulabilirsin: $2 \times$(symbol sayısı) + (union sayısı) + (star sayısı) + (ε ve ∅ sayısı). $R^+$'yı önce $RR^*$ diye aç.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>İfade</th><th>State sayısı</th><th>Nasıl</th></tr>
+        <tr><td>1.19a $(0 \cup 1)^*000(0 \cup 1)^*$</td><td>18</td><td>iki kez $(0 \cup 1)^*$ (6 + 6), arada $000$ (6), iki ε concatenation</td></tr>
+        <tr><td>1.19b $(((00)^*(11)) \cup 01)^*$</td><td>15</td><td>$(00)^*$ 5, $11$ 4, $01$ 4, union +1, star +1</td></tr>
+        <tr><td>1.19c $\emptyset^*$</td><td>2</td><td>$\emptyset$'ın tek (accept olmayan) state'i + yeni start (accept). Language $\{\varepsilon\}$</td></tr>
+        <tr><td>1.28a $a(abb)^* \cup b$</td><td>12</td><td>$a$ 2, $(abb)^*$ 7, $b$ 2, union +1</td></tr>
+        <tr><td>1.28b $a^+ \cup (ab)^+$</td><td>15</td><td>$aa^*$ 5, $ab(ab)^*$ 9, union +1</td></tr>
+        <tr><td>1.28c $(a \cup b^+)a^+b^+$</td><td>18</td><td>$a \cup bb^*$ 8, $aa^*$ 5, $bb^*$ 5</td></tr>
+      </table></div>
+      <p>Kâğıtta cevap Sipser'in Figure 1.57'si gibi aşama aşama çizilir: her alt ifade için bir satır. Her birini yukarıdaki stepper'da kurup kareleri kendi çizimlerinle karşılaştır; stepper son karede makineyi ifadeyle uzunluk 8'e kadar test ediyor.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 1.19 (PDF s.110) ve 1.28 (PDF s.111). Kitapta çözüm yok. State sayıları ve NFA'ların doğruluğu python ve JS ile kontrol edildi. -->
+  </div>
+
+  <div class="quiz" id="q-thompson">
+    <p class="quiz__q">Lemma 1.55'in yöntemi $(0 \cup 1)^*$ için kaç state'li NFA verir?</p>
+    <button class="quiz__opt">1<span class="why">Bu, $(0 \cup 1)^*$'ın en küçük NFA'sı (tek accept state, iki loop). Yöntem ise küçültme yapmaz, her adımda state ekler.</span></button>
+    <button class="quiz__opt">5<span class="why">Bu $0 \cup 1$'in makinesi: 2 + 2 + yeni start. Star da bir yeni start ekler.</span></button>
+    <button class="quiz__opt" data-correct>6<span class="why">Doğru: $0$ ve $1$ için 4, union'ın yeni start'ı 1, star'ın yeni start'ı 1.</span></button>
+    <button class="quiz__opt">4<span class="why">Sadece symbol'lerin state'lerini saydın. Union ve star kurulumlarının her biri bir yeni start state ekliyor.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="gnfa" data-min="5">
+  <h2>GNFA: ok'ların üstünde regex</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Diğer yönde (DFA → regex) makineyi küçülte küçülte tek bir ok'a indireceğiz ve o ok'un üstündeki etiket cevap olacak. Bunun için ok'ların üstüne sadece tek symbol değil, <strong>bütün bir regular expression</strong> yazabilmemiz lazım. Böyle bir makineye <strong>generalized nondeterministic finite automaton (GNFA)</strong> denir. GNFA input'u symbol symbol değil, <em>blok blok</em> okur: bir ok'tan geçmek için okunan blok o ok'un etiketindeki regex'e uymalı.</p>
+  </div>
+  <p>Sipser'in Figure 1.61'i, bir GNFA örneği (çizimde qs = $q_\text{start}$, qa = $q_\text{accept}$). Mesela $q_\text{start} \xrightarrow{ab^*}$ üstteki state, orada $aa$ loop'u, sonra $ab \cup ba$ ile $q_\text{accept}$: bu yol $abb \cdot aa \cdot ba$ gibi string'leri kabul eder.</p>
+  <div class="w-regex-gnfa-fig" data-fig="f161" style="max-width:520px"></div>
+  <div class="box box--rule">
+    <span class="box__label">Özel biçim (special form)</span>
+    <ul>
+      <li>The start state has transition arrows going to every other state but no arrows coming in from any other state.</li>
+      <li>There is only a single accept state, and it has arrows coming in from every other state but no arrows going to any other state. Furthermore, the accept state is not the same as the start state.</li>
+      <li>Except for the start and accept states, one arrow goes from every state to every other state and also from each state to itself.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Definition 1.64 (Sipser, aynen)</span>
+    <p>A <strong>generalized nondeterministic finite automaton</strong> is a 5-tuple, $(Q, \Sigma, \delta, q_\text{start}, q_\text{accept})$, where</p>
+    <ol>
+      <li>$Q$ is the finite set of states,</li>
+      <li>$\Sigma$ is the input alphabet,</li>
+      <li>$\delta\colon \big(Q - \{q_\text{accept}\}\big) \times \big(Q - \{q_\text{start}\}\big) \longrightarrow \mathcal{R}$ is the transition function,</li>
+      <li>$q_\text{start}$ is the start state, and</li>
+      <li>$q_\text{accept}$ is the accept state.</li>
+    </ol>
+    <p>$\mathcal{R}$: alphabet üzerindeki bütün regular expression'ların kümesi. $\delta(q_i, q_j) = R$, $q_i$'den $q_j$'ye giden ok'un etiketi $R$ demek. Domain'de $q_\text{accept}$'ten çıkan ve $q_\text{start}$'a giren ok yok.</p>
+    <p><strong>Kabul:</strong> A GNFA accepts a string $w$ in $\Sigma^*$ if $w = w_1w_2\cdots w_k$, where each $w_i$ is in $\Sigma^*$ and a sequence of states $q_0, q_1, \dots, q_k$ exists such that</p>
+    <ol>
+      <li>$q_0 = q_\text{start}$ is the start state,</li>
+      <li>$q_k = q_\text{accept}$ is the accept state, and</li>
+      <li>for each $i$, we have $w_i \in L(R_i)$, where $R_i = \delta(q_{i-1}, q_i)$; in other words, $R_i$ is the expression on the arrow from $q_{i-1}$ to $q_i$.</li>
+    </ol>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tarif · DFA → GNFA</span>
+    <ol>
+      <li>Yeni bir start state ekle, ondan eski start'a <strong>ε</strong> ok.</li>
+      <li>Yeni bir accept state ekle, <strong>her</strong> eski accept state'ten ona ε ok. Eski accept'ler artık normal state.</li>
+      <li>Birden fazla etiketli ok (ya da aynı yönde birden fazla ok) varsa tek ok yap, etiketi union: <code>a,b</code> → $a \cup b$.</li>
+      <li>Ok olmayan yerlere $\emptyset$ etiketli ok ekle. $\emptyset$ ok hiç kullanılamaz, language değişmez. Çizimde genelde gösterilmez.</li>
+    </ol>
+    <p>Sipser yeni state'lere $s$ ve $a$ der; hocanın 2019 çözümünde $S$ ve $A$. Bu derste $S$ ve $A$ yazıyoruz.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>DFA'daki <code>a,b</code> etiketi <em>iki ayrı</em> transition demek. GNFA'da iki state arasında tek ok olur, etiket $a \cup b$.</li>
+      <li>Eski start state accept ise (2019 sorusundaki 1 gibi) yine de yeni start ve yeni accept eklenir: $S \xrightarrow{\varepsilon} 1$ ve $1 \xrightarrow{\varepsilon} A$. Bu ε ok sonradan $R_4$ olarak geri gelecek; unutulursa ε cevaptan düşer.</li>
+      <li>Yeni accept'e ε ok'u sadece bir accept state'ten değil, hepsinden çiz.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Sipser PDF s.94 (GNFA, Fig 1.61, özel biçim), s.95 (DFA → GNFA), s.96–97 (δ, Def 1.64, kabul tanımı). 2019 anahtarındaki S/A adları exams/2019-midterm-solutions.pdf s.1. -->
+  <div class="quiz" id="q-gnfa">
+    <p class="quiz__q">Bir GNFA'da $S \xrightarrow{ab^*} q$, $q$'da $aa$ loop'u ve $q \xrightarrow{ab \cup ba} A$ var (başka ok yok). Hangisini kabul eder?</p>
+    <button class="quiz__opt">$ba$<span class="why">$S$'den çıkan tek ok $ab^*$ ve bu blok $a$ ile başlamak zorunda. $ba$ önce $ab^*$'a uyan bir blok okuyamaz.</span></button>
+    <button class="quiz__opt">$abb$<span class="why">$abb$ ilk ok'u geçer ama $A$'ya varmak için $ab$ ya da $ba$ bloğu da okunmalı. Input bitince $q$'da kalınıyor, $q$ accept değil.</span></button>
+    <button class="quiz__opt" data-correct>$abbaaba$<span class="why">Doğru: $abb \in L(ab^*)$, $aa$ loop'ta, $ba \in L(ab \cup ba)$. GNFA blok blok okur.</span></button>
+    <button class="quiz__opt">$aaa$<span class="why">$a$ ile $q$'ya gelinir, $aa$ loop'u da okunur, ama $A$'ya varmak için son blok $ab$ ya da $ba$ olmalı. Geriye okunacak symbol kalmıyor; $aa$ da $L(ab \cup ba)$'da değil.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="rip" data-min="6">
+  <h2>State elimination: (R₁)(R₂)*(R₃) ∪ (R₄)</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · bir state'i sök, yolları onar</span>
+    <p>GNFA'nın $k$ state'i olsun. $k = 2$ ise tek ok $S \to A$ kalmıştır ve etiketi cevaptır. $k &gt; 2$ ise start ve accept dışında bir state seç, ona $q_\text{rip}$ de, sök. Söktüğün state'ten geçen yollar kaybolmasın diye diğer ok'ların etiketlerini düzelt: $q_i$'den $q_j$'ye yeni etiket, $q_i$'den $q_j$'ye <em>ya doğrudan ya $q_\text{rip}$ üzerinden</em> gidilen bütün string'leri tarif etmeli.</p>
+  </div>
+  <div class="w-regex-gnfa-fig" data-fig="rip163" style="max-width:360px"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Figure 1.63</span>
+    <p>Eski makinede</p>
+    <ol>
+      <li>$q_i$ goes to $q_\text{rip}$ with an arrow labeled $R_1$,</li>
+      <li>$q_\text{rip}$ goes to itself with an arrow labeled $R_2$,</li>
+      <li>$q_\text{rip}$ goes to $q_j$ with an arrow labeled $R_3$, and</li>
+      <li>$q_i$ goes to $q_j$ with an arrow labeled $R_4$,</li>
+    </ol>
+    <p>ise yeni makinede $q_i$'den $q_j$'ye giden ok'un etiketi</p>
+    $$(R_1)(R_2)^*(R_3) \cup (R_4).$$
+    <p>Bunu <strong>her</strong> $(q_i, q_j)$ çifti için yap, $q_i = q_j$ dahil (self-loop'lar da güncellenir). $q_i$ = $S$ olabilir, $q_j$ = $A$ olabilir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">CONVERT(G) (Sipser)</span>
+    <ol>
+      <li>Let $k$ be the number of states of $G$.</li>
+      <li>If $k = 2$, then $G$ must consist of a start state, an accept state, and a single arrow connecting them and labeled with a regular expression $R$. Return the expression $R$.</li>
+      <li>If $k &gt; 2$, we select any state $q_\text{rip} \in Q$ different from $q_\text{start}$ and $q_\text{accept}$ and let $G'$ be the GNFA $(Q', \Sigma, \delta', q_\text{start}, q_\text{accept})$, where $Q' = Q - \{q_\text{rip}\}$, and for any $q_i \in Q' - \{q_\text{accept}\}$ and any $q_j \in Q' - \{q_\text{start}\}$, let $\delta'(q_i, q_j) = (R_1)(R_2)^*(R_3) \cup (R_4)$, for $R_1 = \delta(q_i, q_\text{rip})$, $R_2 = \delta(q_\text{rip}, q_\text{rip})$, $R_3 = \delta(q_\text{rip}, q_j)$, and $R_4 = \delta(q_i, q_j)$.</li>
+      <li>Compute CONVERT$(G')$ and return this value.</li>
+    </ol>
+    <p><strong>Neden doğru (Claim 1.65, induction on $k$):</strong> $k = 2$'de tek ok'un etiketi language'ın kendisi. $G$'nin kabul eden bir yolunda $q_\text{rip}$ hiç yoksa aynı yol $G'$'de de var, çünkü her yeni etiket eski etiketi ($R_4$) union olarak içeriyor. Varsa, art arda gelen $q_\text{rip}$'leri çıkar: onları çevreleyen $q_i$ ve $q_j$ arasındaki yeni etiket tam bu string'leri tarif ediyor. Tersi de aynı şekilde. Yani $G$ ile $G'$ aynı language'ı tanır ve $G'$'nin bir state'i eksik.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Example 1.66 · iki state'li DFA</span>
+    <p>DFA: start 1, $1 \xrightarrow{a} 1$, $1 \xrightarrow{b} 2$, $2 \xrightarrow{a,b} 2$, accept 2. GNFA: $S \xrightarrow{\varepsilon} 1$, $2 \xrightarrow{\varepsilon} A$, 2'deki loop $a \cup b$.</p>
+    <p><strong>2'yi sök.</strong> Değişen tek ok $1 \to A$: $q_i = 1$, $q_j = A$, $R_1 = b$, $R_2 = a \cup b$, $R_3 = \varepsilon$, $R_4 = \emptyset$. Yeni etiket $(b)(a \cup b)^*(\varepsilon) \cup \emptyset = b(a \cup b)^*$.</p>
+    <p><strong>1'i sök.</strong> $S \to A$: $R_1 = \varepsilon$, $R_2 = a$, $R_3 = b(a \cup b)^*$, $R_4 = \emptyset$. Sonuç: $\boxed{a^*b(a \cup b)^*}$, yani "en az bir $b$ içeren string'ler".</p>
+  </div>
+  <h3>Kendin dene: state elimination stepper</h3>
+  <p>Makineyi yazılı tablo olarak gir (biçim: <code>1 a,b -&gt; 2</code>; ε için <code>eps</code>) ve söküm sırasını seç. İlk kare GNFA'yı kurar; her sonraki kare bir state'i söker ve değişen her ok için $R_1, R_2, R_3, R_4$'ü ve yeni etiketi tablo halinde gösterir. $\emptyset$ ok'lar çizilmez. En sonda çıkan regex, makineyle bütün kısa string'lerde karşılaştırılır; yanlış bir adım olsa burada yakalanırdı.</p>
+  <p class="w-regex-gnfa-guess"><b>Önce tahmin et:</b> Example 1.66'da önce 1'i, sonra 2'yi sökersen sonuç değişir mi? Sırayı <code>1,2</code> yapıp dene.</p>
+  <div class="w-regex-gnfa-box" id="w-el">
+    <div class="w-regex-gnfa-row"><label>Hazır makine <select data-r="preset" aria-label="Hazır makine"></select></label></div>
+    <textarea class="w-regex-gnfa-ta" data-r="ta" rows="8" spellcheck="false" aria-label="Makinenin transition listesi"></textarea>
+    <div class="w-regex-gnfa-row"><label>Söküm sırası <input type="text" data-r="order" class="w-regex-gnfa-sm" aria-label="Söküm sırası, virgülle" spellcheck="false" autocomplete="off" /></label><button class="btn btn--sm btn--accent" data-r="go">Sök</button></div>
+    <div class="w-regex-gnfa-err" data-r="err" aria-live="polite"></div>
+    <div data-r="step"></div>
+    <div class="w-regex-gnfa-res" data-r="res" aria-live="polite"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>$\cup\, R_4$'ü unutmak.</strong> $q_i$'den $q_j$'ye doğrudan bir ok varsa ($R_4 \ne \emptyset$), eski etiket yeni etiketin içinde kalmalı. 2019 anahtarındaki hata tam olarak bu (Bölüm 10).</li>
+      <li>$q_i = q_j$ çiftini atlamak: $q_\text{rip}$'e girip aynı state'e geri dönen yollar yeni bir self-loop olur.</li>
+      <li>$R_2 = \emptyset$ ise $(R_2)^* = \varepsilon$: loop yoksa orta parça kaybolur, ama ifade $\emptyset$ olmaz.</li>
+      <li>Start ya da accept state sökülmez. Sadece aradaki state'ler sökülür.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Sipser PDF s.95–98 (rip adımı, Fig 1.62–1.63, CONVERT, Claim 1.65), Ex 1.66 ve Fig 1.67 (PDF s.98–99). Sonuç python ve JS motoruyla uzunluk 10'a kadar kontrol edildi. -->
+  <div class="quiz" id="q-rip">
+    <p class="quiz__q">$R_1 = b$, $R_2 = \emptyset$, $R_3 = a$, $R_4 = a$ ise yeni etiket nedir?</p>
+    <button class="quiz__opt" data-correct>$ba \cup a$<span class="why">Doğru: $(b)(\emptyset)^*(a) \cup a = b\varepsilon a \cup a$. Example 1.68'de 1 sökülünce $3 \to 2$ ok'u tam olarak bu.</span></button>
+    <button class="quiz__opt">$a$<span class="why">$\emptyset^* = \varepsilon$, $\emptyset$ değil. Loop olmaması orta parçayı ε yapar; $b \cdot a$ yolu hâlâ var.</span></button>
+    <button class="quiz__opt">$ba$<span class="why">$\cup\, R_4$ unutulmuş: doğrudan $a$ ok'u da yeni etikette kalmalı.</span></button>
+    <button class="quiz__opt">$b^*a \cup a$<span class="why">Star $R_2$'ye uygulanır, $R_1$'e değil. $R_1$ ve $R_3$ birer kez okunur.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="ornek" data-min="5">
+  <h2>Üç state'li örnek ve söküm sırası</h2>
+  <div class="box box--example">
+    <span class="box__label">Example 1.68 · Figure 1.69</span>
+    <p>DFA: start 1, accept 2 ve 3. $1 \xrightarrow{a} 2$, $1 \xrightarrow{b} 3$, $2 \xrightarrow{a} 1$, $2 \xrightarrow{b} 2$, $3 \xrightarrow{a} 2$, $3 \xrightarrow{b} 1$. Sipser sırasıyla 1, 2, 3'ü söker.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Adım</th><th>Ok'lar (∅ olmayanlar)</th></tr>
+      <tr><td>(b) GNFA</td><td>$S \xrightarrow{\varepsilon} 1$, $2 \xrightarrow{\varepsilon} A$, $3 \xrightarrow{\varepsilon} A$ + DFA'nın ok'ları</td></tr>
+      <tr><td>(c) 1 söküldü</td><td>$S \xrightarrow{a} 2$, $S \xrightarrow{b} 3$, $2 \circlearrowleft aa \cup b$, $2 \xrightarrow{ab} 3$, $3 \xrightarrow{ba \cup a} 2$, $3 \circlearrowleft bb$, $2, 3 \xrightarrow{\varepsilon} A$</td></tr>
+      <tr><td>(d) 2 söküldü</td><td>$S \xrightarrow{a(aa \cup b)^*} A$, $S \xrightarrow{a(aa \cup b)^*ab \cup b} 3$, $3 \circlearrowleft (ba \cup a)(aa \cup b)^*ab \cup bb$, $3 \xrightarrow{(ba \cup a)(aa \cup b)^* \cup \varepsilon} A$</td></tr>
+      <tr><td>(e) 3 söküldü</td><td>$S \to A$ etiketi aşağıda</td></tr>
+    </table></div>
+    $$(a(aa \cup b)^*ab \cup b)\big((ba \cup a)(aa \cup b)^*ab \cup bb\big)^*\big((ba \cup a)(aa \cup b)^* \cup \varepsilon\big) \cup a(aa \cup b)^*$$
+    <p>(c) adımında $2 \circlearrowleft aa \cup b$ nereden geldi? $q_i = q_j = 2$: $R_1 = a$ ($2 \to 1$), $R_2 = \emptyset$, $R_3 = a$ ($1 \to 2$), $R_4 = b$ (eski loop). $a\varepsilon a \cup b = aa \cup b$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Sıra sonucu değiştirir mi?</span>
+    <p>Language'ı değiştirmez, ifadenin <em>görünüşünü</em> değiştirir. Aynı DFA için altı sıranın hepsi doğru ama farklı regex verir. Mesela 3, 2, 1 sırası çok daha kısa:</p>
+    $$\big((ba \cup a)b^*a \cup bb\big)^*\big((ba \cup a)b^* \cup b\big)$$
+    <p>Pratik öneri: önce az ok'u olan ya da self-loop'u olmayan state'leri sök, etiketler daha kısa kalır. Soruda sıra verildiyse ("remove 2, then 3, then 1" gibi) o sırayı kullan.</p>
+  </div>
+  <!-- Kaynak: Sipser Ex 1.68 ve Fig 1.69 (PDF s.100). Altı sıranın hepsi JS motoruyla üretilip DFA ile uzunluk 9'a kadar karşılaştırıldı; 1,2,3 sırası kitaptaki ifadeyle aynı. -->
+
+  <div class="box box--exam" data-exam="sipser-ex1.21a"><span class="box__label">Sipser Exercise 1.21(a) · kitap alıştırması</span>
+    <p>"Use the procedure described in Lemma 1.60 to convert the following finite automata to regular expressions." (a) şıkkı: start 1, accept 2; $1 \xrightarrow{a} 1$, $1 \xrightarrow{b} 2$, $2 \xrightarrow{b} 1$, $2 \xrightarrow{a} 2$.</p>
+    <div class="w-regex-gnfa-fig" data-fig="ex121a" style="max-width:260px"></div>
+    <p>(b) şıkkındaki makine, 2019 vizesinin P2'sindeki makinenin aynısı: Bölüm 10'da.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>GNFA: $S \xrightarrow{\varepsilon} 1$, $2 \xrightarrow{\varepsilon} A$. İki state var, iki sıra mümkün. Önce 1'i sökmeyi dene: 1'e giren ok'lar $S$ ve 2'den, 1'den çıkan ok 2'ye.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>1 sökülünce: $S \to 2$ için $R_1 = \varepsilon$, $R_2 = a$, $R_3 = b$, $R_4 = \emptyset$. $2 \to 2$ için $R_1 = b$, $R_2 = a$, $R_3 = b$, $R_4 = a$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>GNFA:</strong> $S \xrightarrow{\varepsilon} 1$, $1 \circlearrowleft a$, $1 \xrightarrow{b} 2$, $2 \xrightarrow{b} 1$, $2 \circlearrowleft a$, $2 \xrightarrow{\varepsilon} A$.</p>
+      <p><strong>Remove 1:</strong> $S \to 2$: $(\varepsilon)(a)^*(b) \cup \emptyset = a^*b$. $2 \to 2$: $(b)(a)^*(b) \cup a = ba^*b \cup a$. $2 \to A$ değişmez: ε.</p>
+      <p><strong>Remove 2:</strong> $S \to A$: $(a^*b)(ba^*b \cup a)^*(\varepsilon) \cup \emptyset$.</p>
+      $$\boxed{a^*b\,(ba^*b \cup a)^*}$$
+      <p>Diğer sırayla (önce 2): $(ba^*b \cup a)^*ba^*$. İkisi de aynı language: <strong>tek sayıda b içeren string'ler</strong> (state 1 = "çift sayıda b gördüm", state 2 = "tek"). Uzunluk 10'a kadar kontrol edildi.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 1.21(a) (PDF s.110). Kitapta çözüm yok. -->
+  </div>
+
+  <div class="quiz" id="q-ornek">
+    <p class="quiz__q">Aynı DFA'yı iki farklı sırayla söküp iki farklı görünen regex buldun. Ne söylenebilir?</p>
+    <button class="quiz__opt">Birinde mutlaka hata var<span class="why">Söküm sırası serbest ve her sıra doğru bir regex verir. Example 1.68'deki altı sıranın altısı da farklı görünüyor ve hepsi doğru.</span></button>
+    <button class="quiz__opt" data-correct>İkisi de doğruysa aynı language'ı tarif ederler; yazılış farkı normal<span class="why">Doğru. Bir language'ın sonsuz çok regex'i var. Kontrol için birkaç kısa string'i iki ifadede de dene.</span></button>
+    <button class="quiz__opt">Kısa olan doğru, uzun olan yanlış<span class="why">Uzunluk doğruluk ölçüsü değil. Sipser'in kitaptaki cevabı en uzunlardan biri ve doğru.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="v2019" data-min="6">
+  <h2>Çıkmış soru: 2019 vizesi P2</h2>
+  <p>Bu bölümde gerçek sınav sorusu var. Soru Sipser Exercise 1.21(b)'nin makinesini veriyor ve "derste gördüğümüz yöntemle" diyor: yani GNFA ve state elimination. Kâğıtta her adımı (GNFA, hangi state söküldü, değişen ok'lar) yazman bekleniyor.</p>
+  <div class="box box--exam" data-exam="2019-mid-P2"><span class="box__label">2019 vizesi P2 · çıkmış soru</span>
+    <p>"P2 [20 points] Use the procedure we saw in class to turn the following automata into a regular expression."</p>
+    <div class="w-regex-gnfa-fig" data-fig="m19" style="max-width:320px"></div>
+    <p>Makine: start 1; accept 1 ve 3; $1 \xrightarrow{a,b} 2$, $2 \xrightarrow{a} 2$, $2 \xrightarrow{b} 3$, $3 \xrightarrow{b} 2$, $3 \xrightarrow{a} 1$.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>GNFA'yı kur. 1 hem start hem accept: $S \xrightarrow{\varepsilon} 1$ <em>ve</em> $1 \xrightarrow{\varepsilon} A$. 3'ten de $A$'ya ε. $1 \to 2$ etiketi $a \cup b$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Hocanın sırası 2, 3, 1. 2'ye giren ok'lar 1 ve 3'ten, 2'den çıkan ok sadece 3'e. Yani 2 sökülünce değişen çiftler $(1, 3)$ ve $(3, 3)$. 3'ü sökerken $(1, A)$ çiftinde $R_4$'ün ne olduğuna dikkat et.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>GNFA.</strong> Yeni start $S$, yeni accept $A$. $S \xrightarrow{\varepsilon} 1$, $1 \xrightarrow{\varepsilon} A$, $3 \xrightarrow{\varepsilon} A$, $1 \xrightarrow{a \cup b} 2$, $2 \circlearrowleft a$, $2 \xrightarrow{b} 3$, $3 \xrightarrow{b} 2$, $3 \xrightarrow{a} 1$. Diğer ok'lar $\emptyset$.</p>
+      <p><strong>Remove 2.</strong> Rule: $(R_1)(R_2)^*(R_3) \cup (R_4)$.</p>
+      <ul>
+        <li>$1 \to 3$: $R_1 = a \cup b$, $R_2 = a$, $R_3 = b$, $R_4 = \emptyset$ ⇒ $(a \cup b)a^*b$.</li>
+        <li>$3 \to 3$: $R_1 = b$, $R_2 = a$, $R_3 = b$, $R_4 = \emptyset$ ⇒ $ba^*b$.</li>
+      </ul>
+      <p><strong>Remove 3.</strong> $R_2 = ba^*b$.</p>
+      <ul>
+        <li>$1 \to 1$: $R_1 = (a \cup b)a^*b$, $R_3 = a$, $R_4 = \emptyset$ ⇒ $(a \cup b)a^*b(ba^*b)^*a$.</li>
+        <li>$1 \to A$: $R_1 = (a \cup b)a^*b$, $R_3 = \varepsilon$, $R_4 = \varepsilon$ ⇒ $(a \cup b)a^*b(ba^*b)^* \cup \varepsilon$.</li>
+      </ul>
+      <p><strong>Remove 1.</strong> $S \to A$: $R_1 = \varepsilon$, $R_2 = (a \cup b)a^*b(ba^*b)^*a$, $R_3 = (a \cup b)a^*b(ba^*b)^* \cup \varepsilon$, $R_4 = \emptyset$.</p>
+      $$\boxed{\big((a \cup b)a^*b(ba^*b)^*a\big)^*\big((a \cup b)a^*b(ba^*b)^* \cup \varepsilon\big)}$$
+      <p><strong>Kontrol:</strong> ε (1 start ve accept) ve $aba$ ($1 \to 2 \to 3 \to 1$) kabul edilmeli; ikisi de ifadede var. $a$ (2'de biter) yok. İfade, makineyle uzunluk 10'a kadar bütün string'lerde aynı cevabı veriyor.</p>
+    </div></details>
+    <p class="src">Not: Repodaki çözüm (2019-midterm-solutions.pdf, s.1) "remove 3" adımında $1 \to A$ ok'unun eski etiketini unutuyor. 1 bir accept state olduğu için $R_4 = \varepsilon$ ve doğru etiket $(a+b)a^*b(ba^*b)^* \cup \varepsilon$; anahtar sadece $(a+b)a^*b(ba^*b)^*$ yazıyor. Bu yüzden anahtarın son cevabı $((a+b)a^*b(ba^*b)^*a)^*(a+b)a^*b(ba^*b)^*$ ε'u ve 1'de biten bütün string'leri kaçırıyor: $aba$, $bba$, $aaba$, … (uzunluk 6'ya kadar 19 string). Fazladan kabul ettiği string yok. Doğru cevap yukarıda, sonunda $\cup\, \varepsilon$ var.</p>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2019-midterm-solutions.pdf" target="_blank" rel="noopener">Orijinal soru ve el yazısı çözüm (2019-midterm-solutions.pdf)</a></p>
+    <!-- Kaynak: exams/2019-midterm-solutions.pdf s.1 P2 (taranmış, sadece görüntü). Makine Sipser Exercise 1.21(b) ile aynı. Anahtarın ara adımları (remove 2: 1→2→3 (a+b)a*b, 3→2→3 ba*b; remove 3; remove 1) okunup motorla yeniden üretildi; fark python ile bulundu. -->
+  </div>
+  <p>Stepper'da "2019 vizesi P2" hazırını seç, sırayı <code>2,3,1</code> bırak ve adımları anahtarla karşılaştır. Sonra sırayı <code>3,2,1</code> yap: daha kısa bir cevap çıkar, $((a \cup b)(bb \cup a)^*ba)^*((a \cup b)(bb \cup a)^*b \cup \varepsilon)$.</p>
+  <div class="quiz" id="q-2019">
+    <p class="quiz__q">2019 anahtarının cevabı $((a+b)a^*b(ba^*b)^*a)^*(a+b)a^*b(ba^*b)^*$. Hangi string'i <strong>yanlışlıkla reddeder</strong>?</p>
+    <button class="quiz__opt" data-correct>$aba$<span class="why">Doğru: $1 \xrightarrow{a} 2 \xrightarrow{b} 3 \xrightarrow{a} 1$, 1 accept. Anahtarın ifadesi $b$ (ya da $ba^*b$) ile bitmek zorunda, $a$ ile biten bir string'i üretemiyor.</span></button>
+    <button class="quiz__opt">$ab$<span class="why">$ab$ makinede 3'te biter (accept) ve anahtarın ifadesinde de var: $(a)(\varepsilon)b$. Burada hata yok.</span></button>
+    <button class="quiz__opt">$bb$<span class="why">$bb$ de 3'te biter ve ifade onu üretir. Anahtarın sorunu 3'te değil, 1'de biten string'lerde.</span></button>
+    <button class="quiz__opt">$a$<span class="why">$a$ makinede 2'de biter ve 2 accept değil; reddedilmesi doğru.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="son-kontrol" data-min="4">
+  <h2>Son kontrol</h2>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">$0 \cup 10^*$ nasıl okunur?</p>
+    <button class="quiz__opt">$(0 \cup 1)0^*$<span class="why">Union en son yapılır. $0 \cup 1$'i önce birleştirmek precedence'ı tersine çevirmek olur.</span></button>
+    <button class="quiz__opt" data-correct>$0 \cup \big(1(0^*)\big)$<span class="why">Doğru: önce star ($0^*$), sonra concatenation ($1 \circ 0^*$), en son union.</span></button>
+    <button class="quiz__opt">$(0 \cup 10)^*$<span class="why">Star sadece hemen solundaki $0$'a uygulanır, bütün ifadeye değil.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Hangisi GNFA'nın özel biçiminin bir şartı <strong>değildir</strong>?</p>
+    <button class="quiz__opt">Start state'e hiçbir ok girmez<span class="why">Bu bir şart: δ'nın domain'inde ikinci bileşen $Q - \{q_\text{start}\}$.</span></button>
+    <button class="quiz__opt">Accept state'ten hiçbir ok çıkmaz ve accept, start'tan farklıdır<span class="why">Bu bir şart: tek accept state var, ondan ok çıkmaz ve start ile aynı olamaz.</span></button>
+    <button class="quiz__opt" data-correct>Her ok'un etiketi tek bir symbol ya da ε'dur<span class="why">Doğru, bu şart değil. GNFA'nın farkı tam da ok'larda bütün regular expression'ların olabilmesi.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Lemma 1.55'in yöntemi $a^*$ için kaç state'li NFA verir?</p>
+    <button class="quiz__opt">1<span class="why">Bu $a^*$'ın en küçük NFA'sı. Yöntem $a$ için 2 state kurar ve star bir state daha ekler.</span></button>
+    <button class="quiz__opt">2<span class="why">Star'ın yeni start state'ini unuttun. Eski start'ı accept yapmak doğru kurulum değil.</span></button>
+    <button class="quiz__opt" data-correct>3<span class="why">Doğru: $a$ için 2 state, star için yeni start (accept) 1 state.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Her regular expression $R$ için hangisi her zaman doğrudur?</p>
+    <button class="quiz__opt">$R \cup \varepsilon = R$<span class="why">$R = 0$ ise $\{0\} \ne \{0, \varepsilon\}$. Doğru kimlik $R \cup \emptyset = R$.</span></button>
+    <button class="quiz__opt">$R \circ \emptyset = R$<span class="why">$\emptyset$ ile concatenation her zaman $\emptyset$ verir. Doğru kimlik $R \circ \varepsilon = R$.</span></button>
+    <button class="quiz__opt" data-correct>$R^+ \cup \varepsilon = R^*$<span class="why">Doğru: $R^*$ = sıfır parça (ε) ya da bir ve daha fazla parça ($R^+$).</span></button>
+    <button class="quiz__opt">$R^+ = R^*$<span class="why">Sadece $\varepsilon \in L(R)$ ise doğru. $0^+$ ε içermez, $0^*$ içerir.</span></button>
+  </div>
+  <!-- Sıradaki konu: Pumping lemma ile "regular değildir" ispatı. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="w-regex-gnfa-figs">
+{
+  "base-a": { "type": "th", "re": "a", "sigma": "a,b" },
+  "base-eps": { "type": "th", "re": "ε", "sigma": "a,b" },
+  "base-emp": { "type": "th", "re": "∅", "sigma": "a,b" },
+  "cl-u": { "type": "th", "re": "a∪b", "sigma": "a,b" },
+  "cl-c": { "type": "th", "re": "ab", "sigma": "a,b" },
+  "cl-s": { "type": "th", "re": "a*", "sigma": "a,b" },
+  "ex156": { "type": "th", "re": "(ab∪a)*", "sigma": "a,b" },
+  "two156": { "type": "m", "text": "start: 1\naccept: 1\n1 a -> 1\n1 a -> 2\n2 b -> 1", "pos": { "1": [0, 0], "2": [1.6, 0] } },
+  "p2b3": { "type": "m", "text": "start: q1\naccept: q1\nq1 1 -> q1\nq1 0 -> q2\nq2 0 -> q3\nq3 1 -> q1", "pos": { "q1": [0, 0], "q2": [1.6, 0], "q3": [0.8, 1.3] } },
+  "badstar": { "type": "m", "text": "# a*b için yanlış star: q1 accept yapıldı, q2'den q1'e ε\nstart: q1\naccept: q1, q2\nq1 a -> q1\nq1 b -> q2\nq2 eps -> q1", "pos": { "q1": [0, 0], "q2": [1.7, 0] } },
+  "ex121a": { "type": "m", "text": "start: 1\naccept: 2\n1 a -> 1\n1 b -> 2\n2 b -> 1\n2 a -> 2", "pos": { "1": [0, 0], "2": [0, 1.4] } },
+  "m19": { "type": "m", "text": "start: 1\naccept: 1, 3\n1 a,b -> 2\n2 a -> 2\n2 b -> 3\n3 b -> 2\n3 a -> 1", "pos": { "1": [0, 0], "2": [1.8, 0], "3": [0.9, 1.5] } },
+  "f161": { "type": "g", "start": "qs", "accept": ["qa"], "states": ["qs", "q1", "q2", "qa"],
+    "edges": [["qs", "ab*", "q1"], ["q1", "aa", "q1"], ["q1", "ab∪ba", "qa"], ["qs", "∅", "q2"], ["q1", "a*", "q2"], ["q2", "(aa)*", "q1"], ["q2", "ab", "q2"], ["q2", "b*", "qa"], ["qs", "b", "qa", 125]],
+    "pos": { "qs": [0, 0.3], "q1": [2, 0], "q2": [1.3, 1.5], "qa": [3, 1.5] }, "ux": 105, "uy": 80 },
+  "rip163": { "type": "g", "start": null, "accept": [], "states": ["qi", "qj", "rip"],
+    "edges": [["qi", "R1", "rip"], ["rip", "R2", "rip"], ["rip", "R3", "qj"], ["qi", "R4", "qj"]],
+    "pos": { "qi": [0, 0], "qj": [1.8, 0], "rip": [0.9, 1.1] } }
+}
+</script>
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+(function () {
+  "use strict";
+  const P = "w-regex-gnfa-";
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const fmtW = (w) => (w === "" ? "ε" : w);
+
+  /*ENGINE-START*/
+  /* Regex AST: t = sym | eps | emp | u | c | s | p (R⁺) | pow (R^k). */
+  let NID = 0;
+  const node = (t, a, b, extra) => Object.assign({ t, a, b, id: ++NID }, extra || {});
+  const SYM = (c) => node("sym", null, null, { c });
+  const EPS = () => node("eps");
+  const EMP = () => node("emp");
+
+  /* Parser. opt.plusUnion: "+" between expressions is union (a+b); otherwise R+ (Sipser). */
+  function parseRegex(src, opt) {
+    opt = opt || {};
+    const sigma = opt.sigma || [];
+    const text = String(src).replace(/eps/g, "ε").replace(/empty/g, "∅");
+    const tk = Array.from(text).filter((c) => !/\s/.test(c));
+    let i = 0;
+    const err = (m) => { const e = new Error(m); e.pos = i; throw e; };
+    const peek = () => (i < tk.length ? tk[i] : null);
+    const isUnion = (c) => c === "∪" || c === "|" || (opt.plusUnion && c === "+");
+    const isPost = (c) => c === "*" || c === "⁺" || c === "^" || (!opt.plusUnion && c === "+");
+    function union() {
+      let n = concat();
+      while (peek() !== null && isUnion(peek())) { i++; if (peek() === null || isUnion(peek()) || peek() === ")") err("Union işaretinin sağı boş. Boş string için ε yaz."); n = node("u", n, concat()); }
+      return n;
+    }
+    function concat() {
+      const parts = [];
+      while (peek() !== null && !isUnion(peek()) && peek() !== ")") parts.push(post());
+      if (!parts.length) err(peek() !== null && isUnion(peek()) ? "Union işaretinin solu boş. Boş string için ε yaz." : i === 0 ?"İfade boş. Boş string'i ε, boş dili ∅ ile yaz." : "Burada bir ifade bekleniyordu (boş parantez ya da boş union kolu var).");
+      return parts.reduce((x, y) => node("c", x, y));
+    }
+    function post() {
+      let n = atom();
+      while (peek() !== null && isPost(peek())) {
+        const c = tk[i++];
+        if (c === "*") n = node("s", n);
+        else if (c === "^") {
+          let k = "";
+          while (peek() !== null && /[0-9]/.test(peek())) k += tk[i++];
+          if (!k) err("^ işaretinden sonra bir sayı yaz (R^3 gibi).");
+          if (+k > 12) err("Üs en fazla 12 olabilir.");
+          n = node("pow", n, null, { k: +k });
+        } else n = node("p", n);
+      }
+      return n;
+    }
+    function atom() {
+      const c = peek();
+      if (c === null) err("İfade yarıda bitti.");
+      if (c === "(") {
+        i++;
+        const n = union();
+        if (peek() !== ")") err("Kapanmayan parantez var.");
+        i++;
+        return n;
+      }
+      if (c === ")") err("Fazladan kapanan parantez var.");
+      if (c === "*" || c === "⁺" || c === "^" || c === "+") err(`“${c}” solunda bir ifade olmadan geldi.`);
+      if (isUnion(c)) err("Union işaretinin solu boş. Boş string için ε yaz.");
+      i++;
+      if (c === "ε") return EPS();
+      if (c === "∅") return EMP();
+      if (c === "Σ") {
+        if (!sigma.length) err("Σ kullanmak için alphabet'i yaz.");
+        return sigma.map(SYM).reduce((x, y) => node("u", x, y));
+      }
+      if (sigma.length && !sigma.includes(c)) err(`“${c}” alphabet'te yok. Alphabet: {${sigma.join(", ")}}.`);
+      return SYM(c);
+    }
+    const n = union();
+    if (i < tk.length) err(tk[i] === ")" ? "Fazladan kapanan parantez var." : `“${tk[i]}” burada beklenmiyordu.`);
+    return n;
+  }
+
+  function symbolsOf(n, out) {
+    out = out || [];
+    if (!n) return out;
+    if (n.t === "sym" && !out.includes(n.c)) out.push(n.c);
+    symbolsOf(n.a, out); symbolsOf(n.b, out);
+    return out;
+  }
+
+  /* Membership: the set of end positions j such that w[i..j) ∈ L(n). */
+  function ends(n, w, i, memo) {
+    const key = n.id * 64 + i;
+    if (memo.has(key)) return memo.get(key);
+    let r;
+    const star = (from) => {
+      const S = new Set(from), fr = Array.from(from);
+      while (fr.length) { const j = fr.pop(); ends(n.a, w, j, memo).forEach((m) => { if (!S.has(m)) { S.add(m); fr.push(m); } }); }
+      return S;
+    };
+    switch (n.t) {
+      case "sym": r = new Set(i < w.length && w[i] === n.c ? [i + 1] : []); break;
+      case "eps": r = new Set([i]); break;
+      case "emp": r = new Set(); break;
+      case "u": r = new Set([...ends(n.a, w, i, memo), ...ends(n.b, w, i, memo)]); break;
+      case "c": r = new Set(); ends(n.a, w, i, memo).forEach((j) => ends(n.b, w, j, memo).forEach((m) => r.add(m))); break;
+      case "s": r = star([i]); break;
+      case "p": r = star(Array.from(ends(n.a, w, i, memo))); break;
+      case "pow": {
+        let cur = new Set([i]);
+        for (let k = 0; k < n.k; k++) { const nx = new Set(); cur.forEach((j) => ends(n.a, w, j, memo).forEach((m) => nx.add(m))); cur = nx; }
+        r = cur; break;
+      }
+    }
+    memo.set(key, r);
+    return r;
+  }
+  const matches = (n, w) => w.length < 60 && ends(n, Array.from(w), 0, new Map()).has(Array.from(w).length);
+
+  function* allStrings(sigma, maxLen) {
+    let layer = [""];
+    for (let L = 0; L <= maxLen; L++) {
+      for (const w of layer) yield w;
+      if (L < maxLen) { const nx = []; layer.forEach((w) => sigma.forEach((a) => nx.push(w + a))); layer = nx; }
+    }
+  }
+
+  /* Printing with the fewest parentheses: star > concatenation > union. */
+  function show(n, ctx) {
+    ctx = ctx || 0;
+    switch (n.t) {
+      case "sym": return n.c;
+      case "eps": return "ε";
+      case "emp": return "∅";
+      case "u": { const s = show(n.a, 0) + "∪" + show(n.b, 0); return ctx >= 1 ? "(" + s + ")" : s; }
+      case "c": { const s = show(n.a, 1) + show(n.b, 1); return ctx >= 2 ? "(" + s + ")" : s; }
+      case "s": return show(n.a, 2) + "*";
+      case "p": return show(n.a, 2) + "⁺";
+      case "pow": return show(n.a, 2) + "^" + n.k;
+    }
+    return "?";
+  }
+  /* Fully parenthesised, as in Definition 1.52. */
+  function full(n) {
+    switch (n.t) {
+      case "sym": return n.c;
+      case "eps": return "ε";
+      case "emp": return "∅";
+      case "u": return "(" + full(n.a) + " ∪ " + full(n.b) + ")";
+      case "c": return "(" + full(n.a) + " ∘ " + full(n.b) + ")";
+      case "s": return "(" + full(n.a) + "*)";
+      case "p": return "(" + full(n.a) + "⁺)";
+      case "pow": return "(" + full(n.a) + "^" + n.k + ")";
+    }
+    return "?";
+  }
+  function treeLines(n, pre, last, out, top) {
+    out = out || [];
+    const lab = { sym: n.c, eps: "ε", emp: "∅", u: "∪  union", c: "∘  concatenation", s: "*  star", p: "⁺  (RR*)", pow: "^" + n.k + "  (k kez ∘)" }[n.t];
+    out.push(top ? lab : pre + (last ? "└─ " : "├─ ") + lab);
+    const kids = [n.a, n.b].filter(Boolean);
+    const np = top ? "" : pre + (last ? "   " : "│  ");
+    kids.forEach((k, j) => treeLines(k, np, j === kids.length - 1, out, false));
+    return out;
+  }
+
+  /* Smart constructors used by state elimination (the simplifications Sipser does by hand). */
+  const isEmp = (x) => x.t === "emp", isEps = (x) => x.t === "eps";
+  const U = (x, y) => (isEmp(x) ? y : isEmp(y) ? x : show(x) === show(y) ? x : node("u", x, y));
+  const C = (x, y) => (isEmp(x) || isEmp(y) ? EMP() : isEps(x) ? y : isEps(y) ? x : node("c", x, y));
+  const S = (x) => (isEmp(x) || isEps(x) ? EPS() : x.t === "s" ? x : node("s", x));
+
+  /* Sipser's Lemma 1.55 construction. Every sub-expression gets a frame. */
+  function thompson(root) {
+    const M = { n: 0, edges: [] };
+    const frames = [];
+    const nw = () => M.n++;
+    const ed = (p, c, q) => M.edges.push({ p, c, q });
+    function b(n, quiet) {
+      const lo = M.n;
+      let start, acc, cs;
+      switch (n.t) {
+        case "sym": { const p = nw(), q = nw(); ed(p, n.c, q); start = p; acc = [q]; cs = 1; break; }
+        case "eps": { const p = nw(); start = p; acc = [p]; cs = 2; break; }
+        case "emp": { const p = nw(); start = p; acc = []; cs = 3; break; }
+        case "u": { const s0 = nw(); const A = b(n.a, quiet), B = b(n.b, quiet); ed(s0, "ε", A.start); ed(s0, "ε", B.start); start = s0; acc = A.acc.concat(B.acc); cs = 4; break; }
+        case "c": { const A = b(n.a, quiet), B = b(n.b, quiet); A.acc.forEach((f) => ed(f, "ε", B.start)); start = A.start; acc = B.acc; cs = 5; break; }
+        case "s": { const s0 = nw(); const A = b(n.a, quiet); ed(s0, "ε", A.start); A.acc.forEach((f) => ed(f, "ε", A.start)); start = s0; acc = [s0].concat(A.acc); cs = 6; break; }
+        case "p": { const A = b(n.a, quiet), B = b(node("s", n.a), true); A.acc.forEach((f) => ed(f, "ε", B.start)); start = A.start; acc = B.acc; cs = 7; break; }
+        case "pow": {
+          if (n.k === 0) { const p = nw(); start = p; acc = [p]; }
+          else {
+            let A = b(n.a, quiet);
+            start = A.start;
+            for (let k = 1; k < n.k; k++) { const B = b(n.a, true); A.acc.forEach((f) => ed(f, "ε", B.start)); A = B; }
+            acc = A.acc;
+          }
+          cs = 8; break;
+        }
+      }
+      if (!quiet) frames.push({ n, lo, hi: M.n, start, acc: acc.slice(), cs, ne: M.edges.length });
+      return { start, acc };
+    }
+    const top = b(root, false);
+    return { M, frames, start: top.start, acc: top.acc };
+  }
+
+  /* NFA run with ε-closure. m: {start, accept:Set, edges:[{p,c,q}]} */
+  function nfaAccepts(m, w) {
+    const out = {};
+    m.edges.forEach((e) => { (out[e.p] = out[e.p] || []).push(e); });
+    const close = (S) => { const R = new Set(S), fr = Array.from(S); while (fr.length) { const p = fr.pop(); (out[p] || []).forEach((e) => { if (e.c === "ε" && !R.has(e.q)) { R.add(e.q); fr.push(e.q); } }); } return R; };
+    let cur = close([m.start]);
+    for (const a of Array.from(w)) {
+      const nx = new Set();
+      cur.forEach((p) => (out[p] || []).forEach((e) => { if (e.c === a) nx.add(e.q); }));
+      cur = close(nx);
+      if (!cur.size) return false;
+    }
+    for (const q of cur) if (m.accept.has(q)) return true;
+    return false;
+  }
+
+  /* Parse a typed automaton: start: q / accept: q, r / p a,b -> q (ε or eps allowed). */
+  function parseMachine(text) {
+    const d = { states: [], start: null, accept: new Set(), edges: [], sigma: [], errors: [] };
+    const add = (q) => { if (!d.states.includes(q)) d.states.push(q); };
+    String(text).split("\n").forEach((raw, k) => {
+      const line = raw.replace(/#.*/, "").trim();
+      if (!line) return;
+      let m;
+      if ((m = line.match(/^start\s*:\s*(\S+)\s*$/i))) { d.start = m[1]; add(m[1]); return; }
+      if ((m = line.match(/^accept\s*:\s*(.*)$/i))) { m[1].split(/[\s,]+/).filter(Boolean).forEach((q) => { d.accept.add(q); add(q); }); return; }
+      if ((m = line.match(/^(\S+)\s+(\S+)\s*->\s*(\S+)$/))) {
+        add(m[1]); add(m[3]);
+        m[2].split(",").filter(Boolean).forEach((a) => {
+          if (a === "eps" || a === "ε") { d.edges.push({ p: m[1], c: "ε", q: m[3] }); return; }
+          if (Array.from(a).length !== 1 || /[()*∪|+∅Σ⁺^]/.test(a)) { d.errors.push(`Satır ${k + 1}: “${a}” tek karakterlik bir symbol değil.`); return; }
+          if (!d.sigma.includes(a)) d.sigma.push(a);
+          d.edges.push({ p: m[1], c: a, q: m[3] });
+        });
+        return;
+      }
+      d.errors.push(`Satır ${k + 1} okunamadı: “${line}”. Biçim: 1 a,b -> 2`);
+    });
+    if (!d.start) { if (d.states.length) d.start = d.states[0]; else d.errors.push("Hiç state yok."); }
+    return d;
+  }
+
+  /* DFA/NFA → GNFA → regex (Lemma 1.60). Returns the frames of the elimination. */
+  function eliminate(d, order) {
+    let sN = "S", aN = "A";
+    while (d.states.includes(sN)) sN += "'";
+    while (d.states.includes(aN)) aN += "'";
+    const K = (p, q) => p + "\u0001" + q;
+    let lab = new Map();
+    const get = (p, q) => lab.get(K(p, q)) || EMP();
+    d.edges.forEach((e) => lab.set(K(e.p, e.q), U(get(e.p, e.q), e.c === "ε" ? EPS() : SYM(e.c))));
+    lab.set(K(sN, d.start), U(get(sN, d.start), EPS()));
+    d.accept.forEach((f) => lab.set(K(f, aN), U(get(f, aN), EPS())));
+    let live = d.states.slice();
+    const frames = [{ kind: "gnfa", live: live.slice(), lab: new Map(lab), rip: null, changes: [] }];
+    order.forEach((r) => {
+      live = live.filter((q) => q !== r);
+      const nl = new Map(), changes = [];
+      const R2 = get(r, r);
+      [sN].concat(live).forEach((i) => live.concat([aN]).forEach((j) => {
+        const R1 = get(i, r), R3 = get(r, j), R4 = get(i, j);
+        const v = U(C(C(R1, S(R2)), R3), R4);
+        if (!isEmp(v)) nl.set(K(i, j), v);
+        if (!isEmp(R1) && !isEmp(R3)) changes.push({ i, j, R1, R2, R3, R4, v });
+      }));
+      lab = nl;
+      frames.push({ kind: "rip", live: live.slice(), lab: new Map(lab), rip: r, changes });
+    });
+    return { frames, sN, aN, result: get(sN, aN) };
+  }
+  /*ENGINE-END*/
+
+
+  /* ── Alphabet input: "0,1" → ["0","1"] ── */
+  function readSigma(raw) {
+    const xs = String(raw).split(/[\s,]+/).filter(Boolean);
+    const out = [];
+    for (const x of xs) {
+      if (Array.from(x).length !== 1) return { err: `“${esc(x)}” tek karakter değil. Symbol'leri virgülle ayır: 0,1` };
+      if (/[()*∪|+⁺^εΣ∅$\\]/.test(x)) return { err: `“${esc(x)}” bir işlem işareti, symbol olamaz.` };
+      if (!out.includes(x)) out.push(x);
+    }
+    return { sigma: out };
+  }
+
+  /* ── State diagram as inline SVG. m: {states, start, accept:Set, edges:[{p,q,label}]} ── */
+  let uidN = 0;
+  function draw(m, o) {
+    o = o || {};
+    const uid = P + "svg" + (++uidN);
+    const R = 17, UX = o.ux || 90, UY = o.uy || 78;
+    const pos = {};
+    m.states.forEach((q) => { const p = o.pos && o.pos[q]; if (p) pos[q] = { x: p[0] * UX, y: p[1] * UY }; });
+    const miss = m.states.filter((q) => !pos[q]);
+    if (miss.length) {
+      if (miss.length === 1 && !Object.keys(pos).length) pos[miss[0]] = { x: 0, y: 0 };
+      else { const rad = Math.max(70, 16 * miss.length); miss.forEach((q, i) => { const t = Math.PI + (2 * Math.PI * i) / miss.length; pos[q] = { x: rad * Math.cos(t), y: rad * Math.sin(t) }; }); }
+    }
+    const xs = m.states.map((q) => pos[q].x), ys = m.states.map((q) => pos[q].y);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const away = (q) => { const dx = pos[q].x - cx, dy = pos[q].y - cy; return Math.hypot(dx, dy) < 1 || Math.abs(dy) < 2 ? -Math.PI / 2 : (dy > 0 ? Math.PI / 2 : -Math.PI / 2); };
+    const groups = {}, order = [];
+    m.edges.forEach((e) => { const k = e.p + "\u0001" + e.q; if (!groups[k]) { groups[k] = { p: e.p, q: e.q, labels: [], bend: e.bend }; order.push(k); } if (!groups[k].labels.includes(e.label)) groups[k].labels.push(e.label); });
+    const on = o.on || new Set();
+    let edges = "", labels = "";
+    let minX = Math.min(...xs) - 34, maxX = Math.max(...xs) + 34, minY = Math.min(...ys) - 34, maxY = Math.max(...ys) + 34;
+    const grow = (x, y, w) => { w = w || 14; minX = Math.min(minX, x - w); maxX = Math.max(maxX, x + w); minY = Math.min(minY, y - 12); maxY = Math.max(maxY, y + 12); };
+    const lw = (s) => Array.from(s).length * 3.7 + 4;
+    order.forEach((k) => {
+      const g = groups[k];
+      const hot = on.has(k);
+      const cls = P + "edge" + (hot ? " is-on" : "");
+      const lcls = P + "lbl" + (hot ? " is-on" : "");
+      const mk = `url(#${uid}-${hot ? "ah2" : "ah"})`;
+      const text = g.labels.join(",");
+      const label = esc(text);
+      const A = pos[g.p], B = pos[g.q];
+      if (g.p === g.q) {
+        const t = away(g.p);
+        const pt = (a, rr) => ({ x: A.x + rr * Math.cos(a), y: A.y + rr * Math.sin(a) });
+        const a1 = pt(t - 0.45, R), a2 = pt(t + 0.45, R + 2), c1 = pt(t - 0.62, R + 36), c2 = pt(t + 0.62, R + 36), lp = pt(t, R + 40);
+        edges += `<path class="${cls}" d="M${a1.x.toFixed(1)},${a1.y.toFixed(1)} C${c1.x.toFixed(1)},${c1.y.toFixed(1)} ${c2.x.toFixed(1)},${c2.y.toFixed(1)} ${a2.x.toFixed(1)},${a2.y.toFixed(1)}" marker-end="${mk}"/>`;
+        labels += `<text class="${lcls}" x="${lp.x.toFixed(1)}" y="${lp.y.toFixed(1)}">${label}</text>`;
+        grow(lp.x, lp.y, lw(text));
+        return;
+      }
+      const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1;
+      const ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
+      let off = 0;
+      if (groups[g.q + "\u0001" + g.p]) off = 15;
+      const blocked = m.states.some((q) => {
+        if (q === g.p || q === g.q) return false;
+        const Cq = pos[q], tt = ((Cq.x - A.x) * dx + (Cq.y - A.y) * dy) / (L * L);
+        if (tt <= 0 || tt >= 1) return false;
+        return Math.hypot(A.x + tt * dx - Cq.x, A.y + tt * dy - Cq.y) < R + 12;
+      });
+      if (blocked) off = Math.max(off, 32);
+      if (o.layered && B.x < A.x - 1) off = Math.max(off, 30);
+      if (g.bend) off = g.bend;
+      const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+      const Cc = { x: mx + nx * off * 2, y: my + ny * off * 2 };
+      const toC = (Sx, rr) => { const vx = Cc.x - Sx.x, vy = Cc.y - Sx.y, vl = Math.hypot(vx, vy) || 1; return { x: Sx.x + (vx / vl) * rr, y: Sx.y + (vy / vl) * rr }; };
+      const s = off ? toC(A, R) : { x: A.x + ux * R, y: A.y + uy * R };
+      const e = off ? toC(B, R + 2) : { x: B.x - ux * (R + 2), y: B.y - uy * (R + 2) };
+      const bx = 0.25 * s.x + 0.5 * Cc.x + 0.25 * e.x, by = 0.25 * s.y + 0.5 * Cc.y + 0.25 * e.y;
+      const lo = off ? 10 : -10;
+      const lx = bx + nx * lo, ly = by + ny * lo;
+      edges += `<path class="${cls}" d="M${s.x.toFixed(1)},${s.y.toFixed(1)} Q${Cc.x.toFixed(1)},${Cc.y.toFixed(1)} ${e.x.toFixed(1)},${e.y.toFixed(1)}" marker-end="${mk}"/>`;
+      labels += `<text class="${lcls}" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}">${label}</text>`;
+      grow(lx, ly, lw(text)); grow(bx, by);
+    });
+    let nodes = "";
+    const stCls = o.stateCls || {};
+    const names = o.names || {};
+    m.states.forEach((q) => {
+      const A = pos[q];
+      const nm = names[q] !== undefined ? names[q] : q;
+      const fs = nm.length > 5 ? 8 : nm.length > 3 ? 9.5 : 12;
+      nodes += `<circle class="${P}node${stCls[q] ? " " + stCls[q] : ""}" cx="${A.x.toFixed(1)}" cy="${A.y.toFixed(1)}" r="${R}"/>`;
+      if (m.accept.has(q)) nodes += `<circle class="${P}inner" cx="${A.x.toFixed(1)}" cy="${A.y.toFixed(1)}" r="${R - 4}"/>`;
+      if (nm) nodes += `<text class="${P}name" x="${A.x.toFixed(1)}" y="${A.y.toFixed(1)}" style="font-size:${fs}px">${esc(nm)}</text>`;
+    });
+    let start = "";
+    if (m.start !== null && m.start !== undefined && pos[m.start]) {
+      const A = pos[m.start];
+      start = `<path class="${P}edge" d="M${(A.x - R - 26).toFixed(1)},${A.y.toFixed(1)} L${(A.x - R - 2).toFixed(1)},${A.y.toFixed(1)}" marker-end="url(#${uid}-ah)"/>`;
+      grow(A.x - R - 26, A.y, 4);
+    }
+    const W = maxX - minX, H = maxY - minY;
+    const defs = `<defs><marker id="${uid}-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="${P}ah" d="M0,0 L10,5 L0,10 z"/></marker><marker id="${uid}-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="${P}ah2" d="M0,0 L10,5 L0,10 z"/></marker></defs>`;
+    const minW = o.minW ? `min-width:${Math.round(Math.min(W * 0.75, o.minW))}px;` : "";
+    /* Text equivalent of the drawing: screen readers get it through aria-describedby, sighted readers can open it. */
+    const sn = (q) => (names[q] ? names[q] : q);
+    const acc = m.states.filter((q) => m.accept.has(q)).map(sn);
+    const trans = order.map((k) => `${sn(groups[k].p)} —${groups[k].labels.join(",")}→ ${sn(groups[k].q)}`);
+    const desc = `State'ler: ${m.states.map(sn).join(", ")}. Start state: ${m.start !== null && m.start !== undefined ? sn(m.start) : "yok"}. Accept state'ler: ${acc.length ? acc.join(", ") : "yok"}. Geçişler: ${trans.length ? trans.join("; ") : "yok"}.`;
+    const alt = `<details class="${P}alt"><summary>Diyagramın metin hali</summary><p id="${uid}-desc">${esc(desc)}</p></details>`;
+    return `<svg viewBox="${minX.toFixed(0)} ${minY.toFixed(0)} ${W.toFixed(0)} ${H.toFixed(0)}" style="${minW}max-width:${Math.round(W * 1.25)}px" role="img" aria-label="${esc(o.aria || "State diagram")}" aria-describedby="${uid}-desc">${defs}${edges}${start}${nodes}${labels}</svg>${alt}`;
+  }
+
+  /* Left-to-right layers by BFS distance from the start (for the Lemma 1.55 machines). */
+  function layered(states, start, edges) {
+    const depth = {};
+    depth[start] = 0;
+    const q = [start];
+    while (q.length) { const p = q.shift(); edges.forEach((e) => { if (e.p === p && depth[e.q] === undefined) { depth[e.q] = depth[p] + 1; q.push(e.q); } }); }
+    let mx = 0;
+    states.forEach((s) => { if (depth[s] !== undefined) mx = Math.max(mx, depth[s]); });
+    states.forEach((s) => { if (depth[s] === undefined) depth[s] = ++mx; });
+    const byD = {};
+    states.forEach((s) => { (byD[depth[s]] = byD[depth[s]] || []).push(s); });
+    const pos = {};
+    Object.keys(byD).forEach((d) => { const L = byD[d]; L.forEach((s, i) => { pos[s] = [+d, (i - (L.length - 1) / 2) * 0.95]; }); });
+    return pos;
+  }
+
+  /* Machine of a Lemma 1.55 build, restricted to states lo..hi-1. */
+  function subMachine(T, f) {
+    const states = [];
+    for (let k = f.lo; k < f.hi; k++) states.push(String(k + 1));
+    const edges = T.M.edges.slice(0, f.ne).filter((e) => e.p >= f.lo && e.p < f.hi && e.q >= f.lo && e.q < f.hi).map((e) => ({ p: String(e.p + 1), q: String(e.q + 1), label: e.c }));
+    return { states, start: String(f.start + 1), accept: new Set(f.acc.map((x) => String(x + 1))), edges };
+  }
+  function machineOfText(d) {
+    return { states: d.states, start: d.start, accept: d.accept, edges: d.edges.map((e) => ({ p: e.p, q: e.q, label: e.c })) };
+  }
+
+  /* ── Static figures ── */
+  let FIGS = {};
+  try { FIGS = JSON.parse(document.getElementById(P + "figs").textContent); } catch (e) { FIGS = {}; }
+  document.querySelectorAll("." + P + "fig[data-fig]").forEach((el) => {
+    const f = FIGS[el.dataset.fig];
+    if (!f) return;
+    try {
+      if (f.type === "th") {
+        const t = parseRegex(f.re, { sigma: readSigma(f.sigma).sigma });
+        const T = thompson(t);
+        const m = subMachine(T, T.frames[T.frames.length - 1]);
+        el.innerHTML = draw(m, { pos: layered(m.states, m.start, m.edges), layered: true, ux: 74, uy: 66, names: Object.fromEntries(m.states.map((s) => [s, ""])), aria: "NFA: " + f.re });
+      } else if (f.type === "m") {
+        const d = parseMachine(f.text);
+        el.innerHTML = draw(machineOfText(d), { pos: f.pos });
+      } else if (f.type === "g") {
+        const m = { states: f.states, start: f.start, accept: new Set(f.accept), edges: f.edges.map((e) => ({ p: e[0], label: e[1], q: e[2], bend: e[3] })) };
+        el.innerHTML = draw(m, { pos: f.pos, ux: f.ux, uy: f.uy, aria: "GNFA" });
+      }
+    } catch (e) { el.textContent = ""; }
+  });
+
+  /* Symbol keys for phones */
+  function keys(host, input) {
+    ["∪", "*", "⁺", "ε", "∅", "Σ", "(", ")"].forEach((k) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "btn btn--sm"; b.textContent = k;
+      b.setAttribute("aria-label", "Ekle: " + k);
+      b.addEventListener("click", () => {
+        const s = input.selectionStart ?? input.value.length, e = input.selectionEnd ?? input.value.length;
+        input.value = input.value.slice(0, s) + k + input.value.slice(e);
+        input.focus();
+        const c = s + k.length;
+        try { input.setSelectionRange(c, c); } catch (x) { /* some inputs refuse */ }
+      });
+      host.appendChild(b);
+    });
+  }
+
+  function prepare(reText, sigText, plusUnion) {
+    const sg = readSigma(sigText);
+    if (sg.err) return { err: sg.err };
+    let t;
+    try { t = parseRegex(reText, { sigma: sg.sigma, plusUnion }); } catch (e) { return { err: esc(e.message) }; }
+    let sigma = sg.sigma.length ? sg.sigma : symbolsOf(t);
+    if (!sigma.length) sigma = ["0", "1"];
+    return { t, sigma };
+  }
+
+  /* ── Widget 1: regex reader ── */
+  (function reader() {
+    const root = document.getElementById("w-rx");
+    if (!root) return;
+    const $ = (r) => root.querySelector(`[data-r="${r}"]`);
+    const PRE = [
+      { re: "01*∪1", sig: "0,1", name: "01*∪1 (precedence)" },
+      { re: "(0∪1)0*", sig: "0,1", name: "(0∪1)0* (Sipser'in ilk örneği)" },
+      { re: "0*10*", sig: "0,1", name: "0*10* (Ex 1.53-1)" },
+      { re: "Σ*001Σ*", sig: "0,1", name: "Σ*001Σ* (Ex 1.53-3)" },
+      { re: "1*(01⁺)*", sig: "0,1", name: "1*(01⁺)* (Ex 1.53-4)" },
+      { re: "(ΣΣΣ)*", sig: "0,1", name: "(ΣΣΣ)* (Ex 1.53-6)" },
+      { re: "0Σ*0∪1Σ*1∪0∪1", sig: "0,1", name: "0Σ*0∪1Σ*1∪0∪1 (Ex 1.53-8)" },
+      { re: "(0∪ε)(1∪ε)", sig: "0,1", name: "(0∪ε)(1∪ε) (Ex 1.53-10)" },
+      { re: "1*∅", sig: "0,1", name: "1*∅ (Ex 1.53-11)" },
+      { re: "∅*", sig: "0,1", name: "∅* (Ex 1.53-12)" },
+      { re: "1*(001⁺)*", sig: "0,1", name: "1*(001⁺)* (2020 vizesi P2b)" },
+      { re: "(a∪ab∪ba)*", sig: "a,b", name: "(a∪ab∪ba)* (28 Eylül tahtası)" },
+      { re: "a*(b∪ε)a*", sig: "a,b", name: "a*(b∪ε)a* (hocanın aracı)" },
+      { re: "(a+b)a*b", sig: "a,b", name: "(a+b)a*b (2019 anahtarı, + = union)", plus: "union" },
+      { re: "0*10*10*", sig: "0,1", name: "0*10*10* (tam iki 1)" }
+    ];
+    const sel = $("preset");
+    PRE.forEach((p, i) => { const o = document.createElement("option"); o.value = i; o.textContent = p.name; sel.appendChild(o); });
+    keys($("keys"), $("re"));
+    let cur = null;
+    function load(i) { const p = PRE[i]; $("re").value = p.re; $("sig").value = p.sig; $("plus").value = p.plus || "plus"; go(); }
+    function go() {
+      $("tres").innerHTML = "";
+      const r = prepare($("re").value, $("sig").value, $("plus").value === "union");
+      if (r.err) { $("err").innerHTML = r.err; $("out").innerHTML = ""; cur = null; return; }
+      $("err").innerHTML = "";
+      cur = r;
+      let L = +$("len").value;
+      let warn = "";
+      while (L > 0 && Math.pow(r.sigma.length, L) > 60000) L--;
+      if (L < +$("len").value) warn = `<div class="${P}warn">Alphabet büyük olduğu için length ${L}'e kadar denendi.</div>`;
+      const byLen = {};
+      let tried = 0, cnt = 0;
+      for (const w of allStrings(r.sigma, L)) { tried++; if (matches(r.t, w)) { cnt++; (byLen[w.length] = byLen[w.length] || []).push(w); } }
+      let list = "";
+      let shown = 0;
+      Object.keys(byLen).forEach((n) => {
+        list += `<b>length ${n}: ${byLen[n].length}</b>`;
+        byLen[n].forEach((w) => { if (shown < 260) { list += `<span>${esc(fmtW(w))}</span>`; shown++; } });
+      });
+      if (cnt > shown) list += `<span>… +${cnt - shown}</span>`;
+      $("out").innerHTML = `${warn}<div class="${P}kv">Σ = {${r.sigma.map(esc).join(", ")}} · tam parantezli (Def 1.52): ${esc(full(r.t))}</div>
+        <div class="${P}pre" aria-label="Parse tree">${esc(treeLines(r.t, "", true, [], true).join("\n"))}</div>
+        <p>Length'i 0'dan ${L}'e kadar ${tried} string denendi, <strong>${cnt}</strong> tanesi $L(R)$'de${cnt ? ":" : ". Bu uzunluklarda language boş."}</p>
+        <div class="${P}strs">${list}</div>`;
+      Lab.renderMath($("out"));
+    }
+    function test() {
+      if (!cur) { $("tres").innerHTML = `<span class="${P}err">Önce geçerli bir ifade gir ve "Oku"ya bas.</span>`; return; }
+      let w = $("w").value.replace(/\s+/g, "");
+      if (w === "ε" || w === "eps") w = "";
+      const bad = Array.from(w).filter((c) => !cur.sigma.includes(c));
+      if (bad.length) { $("tres").innerHTML = `<span class="${P}err">“${esc(bad[0])}” alphabet'te yok. Σ = {${cur.sigma.map(esc).join(", ")}}.</span>`; return; }
+      if (w.length > 40) { $("tres").innerHTML = `<span class="${P}err">En fazla 40 symbol.</span>`; return; }
+      const ok = matches(cur.t, w);
+      $("tres").innerHTML = ok ? `<span class="${P}ok">✓ ${esc(fmtW(w))} ∈ L(R)</span>` : `<span class="${P}err">✗ ${esc(fmtW(w))} ∉ L(R)</span>`;
+    }
+    sel.addEventListener("change", () => load(+sel.value));
+    $("go").addEventListener("click", go);
+    $("len").addEventListener("change", go);
+    $("plus").addEventListener("change", go);
+    $("re").addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+    $("sig").addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+    $("test").addEventListener("click", test);
+    $("w").addEventListener("keydown", (e) => { if (e.key === "Enter") test(); });
+    load(0);
+  })();
+
+  /* ── Widget 2: Lemma 1.55 stepper ── */
+  (function builder() {
+    const root = document.getElementById("w-th");
+    if (!root) return;
+    const $ = (r) => root.querySelector(`[data-r="${r}"]`);
+    const PRE = [
+      { re: "(ab∪a)*", sig: "a,b", name: "(ab∪a)* (Example 1.56)" },
+      { re: "(a∪b)*aba", sig: "a,b", name: "(a∪b)*aba (Example 1.58)" },
+      { re: "(0∪1)*", sig: "0,1", name: "(0∪1)*" },
+      { re: "1*(001⁺)*", sig: "0,1", name: "1*(001⁺)* (2020 vizesi P2b)" },
+      { re: "(0∪1)*000(0∪1)*", sig: "0,1", name: "Exercise 1.19a" },
+      { re: "(((00)*(11))∪01)*", sig: "0,1", name: "Exercise 1.19b" },
+      { re: "∅*", sig: "0,1", name: "Exercise 1.19c" },
+      { re: "a(abb)*∪b", sig: "a,b", name: "Exercise 1.28a" },
+      { re: "a⁺∪(ab)⁺", sig: "a,b", name: "Exercise 1.28b" },
+      { re: "(a∪b⁺)a⁺b⁺", sig: "a,b", name: "Exercise 1.28c" }
+    ];
+    const CASE = {
+      1: "Durum 1 (tek symbol): iki state, aralarında bu symbol'le bir ok.",
+      2: "Durum 2 (ε): tek state, hem start hem accept.",
+      3: "Durum 3 (∅): tek state, accept değil.",
+      4: "Durum 4 (union): yeni bir start state, iki alt makinenin start'larına ε ok. Accept'ler ikisininki.",
+      5: "Durum 5 (concatenation): soldaki makinenin her accept state'inden sağdakinin start'ına ε ok. Accept'ler sadece sağdakininki.",
+      6: "Durum 6 (star): yeni bir start state (kendisi de accept), ondan eski start'a ε ok; eski accept'lerden eski start'a ε ok.",
+      7: "R⁺ = RR*: R'nin makinesi bir kez daha kurulup star'ı alındı ve concatenation ile bağlandı.",
+      8: "R^k: R'nin makinesi k kez kurulup concatenation ile art arda bağlandı."
+    };
+    const sel = $("preset");
+    PRE.forEach((p, i) => { const o = document.createElement("option"); o.value = i; o.textContent = p.name; sel.appendChild(o); });
+    keys($("keys"), $("re"));
+    function load(i) { const p = PRE[i]; $("re").value = p.re; $("sig").value = p.sig; go(); }
+    function go() {
+      $("step").innerHTML = ""; $("res").innerHTML = "";
+      if (Array.from($("re").value).length > 60) { $("err").textContent = "İfade en fazla 60 karakter olsun."; return; }
+      const r = prepare($("re").value, $("sig").value, false);
+      if (r.err) { $("err").innerHTML = r.err; return; }
+      $("err").innerHTML = "";
+      const T = thompson(r.t);
+      if (T.M.n > 80) { $("err").textContent = `Bu ifade ${T.M.n} state veriyor; çizim için çok büyük. Daha kısa bir ifade dene.`; return; }
+      const frames = T.frames.map((f, k) => {
+        const m = subMachine(T, f);
+        const isLast = k === T.frames.length - 1;
+        return {
+          m,
+          re: show(f.n),
+          caption: `<b>${k + 1}. alt ifade:</b> <code>${esc(show(f.n))}</code> · ${CASE[f.cs]} Bu alt makinede ${f.hi - f.lo} state var.${isLast ? " <b>Bitti: bütün ifadenin NFA'sı.</b>" : ""}`
+        };
+      });
+      const host = document.createElement("div");
+      $("step").appendChild(host);
+      Lab.stepper(host, {
+        title: `${show(r.t)} için Lemma 1.55 kurulumu`,
+        interval: 1500,
+        frames,
+        render(f, i, stage) {
+          if (f.m.states.length > 40) { stage.innerHTML = `<p class="src">Bu alt makine ${f.m.states.length} state; çizilmedi.</p>`; return; }
+          stage.innerHTML = `<div class="${P}diag">${draw(f.m, { pos: layered(f.m.states, f.m.start, f.m.edges), layered: true, ux: 72, uy: 64, minW: 520, aria: "NFA: " + f.re })}</div>`;
+        }
+      });
+      const m = { start: T.start, accept: new Set(T.acc), edges: T.M.edges };
+      let L = 8;
+      while (L > 0 && Math.pow(r.sigma.length, L) > 6000) L--;
+      let tried = 0, bad = null;
+      for (const w of allStrings(r.sigma, L)) { tried++; if (nfaAccepts(m, w) !== matches(r.t, w)) { bad = w; break; } }
+      const nEps = T.M.edges.filter((e) => e.c === "ε").length;
+      $("res").innerHTML = `Toplam <b>${T.M.n} state</b>, ${T.M.edges.length} ok (${nEps} tanesi ε). ` +
+        (bad === null ? `<span class="${P}ok">✓ NFA ile ifade, length ≤ ${L} olan ${tried} string'in hepsinde aynı cevabı verdi.</span>` : `<span class="${P}err">✗ ${esc(fmtW(bad))} için farklı cevap.</span>`);
+    }
+    sel.addEventListener("change", () => load(+sel.value));
+    $("go").addEventListener("click", go);
+    $("re").addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+    load(0);
+  })();
+
+  /* ── Widget 3: state elimination stepper ── */
+  (function elim() {
+    const root = document.getElementById("w-el");
+    if (!root) return;
+    const $ = (r) => root.querySelector(`[data-r="${r}"]`);
+    const PRE = [
+      { name: "Example 1.66 (iki state)", text: "# Sipser Example 1.66\nstart: 1\naccept: 2\n1 a -> 1\n1 b -> 2\n2 a,b -> 2\n", order: "2,1",
+        pos: { S: [0, 0], 1: [1.4, 0], 2: [1.4, 1.3], A: [0, 1.3] } },
+      { name: "Example 1.68 (üç state)", text: "# Sipser Example 1.68\nstart: 1\naccept: 2, 3\n1 a -> 2\n1 b -> 3\n2 a -> 1\n2 b -> 2\n3 a -> 2\n3 b -> 1\n", order: "1,2,3",
+        pos: { S: [0, 0.9], 1: [1, 0], 2: [2.6, 0], 3: [1.8, 1.4], A: [3.6, 0.9] } },
+      { name: "Exercise 1.21(a)", text: "# Sipser Exercise 1.21(a)\nstart: 1\naccept: 2\n1 a -> 1\n1 b -> 2\n2 b -> 1\n2 a -> 2\n", order: "1,2",
+        pos: { S: [0, 0], 1: [1.4, 0], 2: [1.4, 1.4], A: [0, 1.4] } },
+      { name: "2019 vizesi P2 = Exercise 1.21(b)", text: "# 2019 vizesi P2 (Sipser Exercise 1.21(b))\nstart: 1\naccept: 1, 3\n1 a,b -> 2\n2 a -> 2\n2 b -> 3\n3 b -> 2\n3 a -> 1\n", order: "2,3,1",
+        pos: { S: [0, 0], 1: [1.3, 0], 2: [3.1, 0], 3: [2.2, 1.5], A: [0.4, 1.5] } }
+    ];
+    const sel = $("preset");
+    PRE.forEach((p, i) => { const o = document.createElement("option"); o.value = i; o.textContent = p.name; sel.appendChild(o); });
+    let pos = null;
+    function load(i) { const p = PRE[i]; $("ta").value = p.text; $("order").value = p.order; pos = p.pos; go(); }
+    function go() {
+      $("step").innerHTML = ""; $("res").innerHTML = "";
+      const d = parseMachine($("ta").value);
+      if (d.errors.length) { $("err").innerHTML = d.errors.map(esc).join("<br>"); return; }
+      if (d.states.length > 7) { $("err").textContent = "En fazla 7 state: elle söküm için bu bile çok."; return; }
+      const toks = $("order").value.split(/[\s,]+/).filter(Boolean);
+      let order = toks.length ? toks : d.states.slice();
+      const unknown = order.filter((q) => !d.states.includes(q));
+      const missing = d.states.filter((q) => !order.includes(q));
+      if (unknown.length) { $("err").innerHTML = `“${esc(unknown[0])}” makinede bir state değil. State'ler: ${d.states.map(esc).join(", ")}.`; return; }
+      if (new Set(order).size !== order.length) { $("err").textContent = "Sırada bir state iki kez geçiyor."; return; }
+      if (missing.length) { $("err").innerHTML = `Sırada şu state'ler eksik: ${missing.map(esc).join(", ")}. Hepsi sökülmeli.`; return; }
+      $("err").innerHTML = "";
+      const E = eliminate(d, order);
+      const sN = E.sN, aN = E.aN;
+      let ps = pos && d.states.every((q) => pos[q]) ? Object.assign({}, pos) : null;
+      if (ps) { ps[sN] = ps.S; ps[aN] = ps.A; }
+      else {
+        ps = {};
+        const n = d.states.length, rad = n === 1 ? 0 : Math.max(0.9, 0.35 * n);
+        d.states.forEach((q, i) => { const t = Math.PI + (2 * Math.PI * i) / n; ps[q] = [rad * Math.cos(t), rad * Math.sin(t)]; });
+        const xs = d.states.map((q) => ps[q][0]);
+        ps[sN] = [Math.min(...xs) - 1.5, 0]; ps[aN] = [Math.max(...xs) + 1.5, 0];
+      }
+      const K = (p, q) => p + "\u0001" + q;
+      const frames = [];
+      frames.push({ m: machineOfText(d), cls: {}, on: new Set(), table: "",
+        caption: `Başlangıç makinesi. Start ${esc(d.start)}, accept {${Array.from(d.accept).map(esc).join(", ")}}. Söküm sırası: ${order.map(esc).join(", ")}.` });
+      E.frames.forEach((f, k) => {
+        const states = [sN].concat(f.live, [aN]);
+        const edges = [];
+        f.lab.forEach((v, key) => { const [p, q] = key.split("\u0001"); edges.push({ p, q, label: show(v) }); });
+        const m = { states, start: sN, accept: new Set([aN]), edges };
+        const cls = {}; cls[sN] = "is-new"; cls[aN] = "is-new";
+        let caption, table = "";
+        const on = new Set();
+        if (f.kind === "gnfa") {
+          caption = `GNFA: yeni start ${esc(sN)} → ${esc(d.start)} (ε), her eski accept → yeni accept ${esc(aN)} (ε). Çoklu etiketler union oldu. ∅ ok'lar çizilmedi. ${f.live.length + 2} state.`;
+          const nextRip = order[0];
+          if (nextRip !== undefined) cls[nextRip] = "is-rip";
+        } else {
+          f.changes.forEach((c) => on.add(K(c.i, c.j)));
+          const nextRip = order[k];
+          if (nextRip !== undefined) cls[nextRip] = "is-rip";
+          table = `<div class="table-wrap"><table class="${P}tbl"><tr><th>q<sub>i</sub> → q<sub>j</sub></th><th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>yeni etiket</th></tr>` +
+            f.changes.map((c) => `<tr><td>${esc(c.i)} → ${esc(c.j)}</td><td>${esc(show(c.R1))}</td><td>${esc(show(c.R2))}</td><td>${esc(show(c.R3))}</td><td>${esc(show(c.R4))}</td><td><b>${esc(show(c.v))}</b></td></tr>`).join("") +
+            `</table></div>`;
+          if (!f.changes.length) table = `<p class="src">${esc(f.rip)}'ye giren ya da ondan çıkan (∅ olmayan) ok yoktu; hiçbir etiket değişmedi.</p>`;
+          const last = k === E.frames.length - 1;
+          caption = `q<sub>rip</sub> = <b>${esc(f.rip)}</b> söküldü. Değişen ok sayısı: ${f.changes.length} (turuncu). ${f.live.length + 2} state kaldı.` +
+            (last ? ` <b>k = 2: cevap ${esc(sN)} → ${esc(aN)} ok'unun etiketi.</b>` : ` Sıradaki: ${esc(order[k])} (kesikli).`);
+        }
+        frames.push({ m, cls, on, table, caption });
+      });
+      const host = document.createElement("div");
+      $("step").appendChild(host);
+      Lab.stepper(host, {
+        title: "State elimination",
+        interval: 2200,
+        frames,
+        render(f, i, stage) {
+          stage.innerHTML = `<div class="${P}diag">${draw(f.m, { pos: ps, ux: 120, uy: 84, stateCls: f.cls, on: f.on, minW: 560, aria: `GNFA, ${i + 1}. adım` })}</div>${f.table}`;
+        }
+      });
+      const re = show(E.result);
+      const sigma = d.sigma.length ? d.sigma : ["a"];
+      let L = 9;
+      while (L > 0 && Math.pow(sigma.length, L) > 6000) L--;
+      let tried = 0, bad = null;
+      for (const w of allStrings(sigma, L)) { tried++; if (matches(E.result, w) !== nfaAccepts(d, w)) { bad = w; break; } }
+      $("res").innerHTML = `<div>Sonuç: <code>${esc(re)}</code></div>` +
+        (bad === null ? `<div class="${P}ok">✓ Regex ile makine, length ≤ ${L} olan ${tried} string'in hepsinde aynı cevabı verdi.</div>` : `<div class="${P}err">✗ ${esc(fmtW(bad))} için farklı cevap.</div>`);
+    }
+    sel.addEventListener("change", () => load(+sel.value));
+    $("go").addEventListener("click", go);
+    $("order").addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+    $("ta").addEventListener("input", () => { pos = null; });
+    load(0);
+  })();
+})();
+</script>
+</body>
+</html>

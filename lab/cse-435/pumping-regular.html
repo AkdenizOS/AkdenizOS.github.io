@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 435: pumping lemma ile bir dilin regular olmadığını ispatlamak. Pigeonhole sezgisi, Theorem 1.70, rakip oyunu, hocanın ispat şablonu, kritik s seçimi, pump down, case analysis, p! hilesi, closure yolu ve tuzaklar." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Pumping lemma ile 'regular değildir' ispatı · CSE 435 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-pumping-regular-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-pumping-regular-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-pumping-regular-ctl input[type="text"] { min-width: 0; width: 100%; max-width: 280px; font-family: 'JetBrains Mono', monospace; }
+    .w-pumping-regular-ctl select { max-width: 100%; }
+    .w-pumping-regular-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-pumping-regular-ok { color: #2b8a3e; font-weight: 600; }
+    .w-pumping-regular-svg { display: block; width: 100%; max-width: 260px; height: auto; margin: 0 auto; }
+    .w-pumping-regular-run { display: flex; flex-wrap: wrap; gap: 2px 0; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: .85rem; margin: 8px 0 2px; }
+    .w-pumping-regular-st { display: inline-block; padding: 1px 5px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); }
+    .w-pumping-regular-st.is-rep { border-color: var(--accent); background: var(--orange-100); font-weight: 700; }
+    .w-pumping-regular-st.is-cur { outline: 2px solid var(--blue-600); }
+    .w-pumping-regular-sym { display: inline-block; padding: 0 3px; margin: 0 1px; border-radius: 3px; font-weight: 700; }
+    .w-pumping-regular-sym.p-x { background: var(--blue-050); color: var(--blue-600); }
+    .w-pumping-regular-sym.p-y { background: var(--orange-100); color: var(--orange-700); }
+    .w-pumping-regular-sym.p-z { background: #ebf7ee; color: #2b8a3e; }
+    .w-pumping-regular-legend { font-size: .82rem; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .w-pumping-regular-tbl td, .w-pumping-regular-tbl th { white-space: nowrap; font-size: .88rem; }
+    .w-pumping-regular-tbl tr.is-red td { background: #fdecec; }
+    .w-pumping-regular-tbl tr.is-green td { background: #ebf7ee; }
+    .w-pumping-regular-sum { margin: 8px 0; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--paper); }
+    .w-pumping-regular-pool { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+    .w-pumping-regular-pool button { display: block; width: 100%; text-align: left; white-space: normal; line-height: 1.4; height: auto; padding: 6px 10px; }
+    .w-pumping-regular-paper li > span:first-child { overflow-wrap: anywhere; }
+    .w-pumping-regular-paper { margin: 8px 0; padding: 8px 10px 8px 28px; border: 1px dashed var(--border); border-radius: var(--radius-md); background: var(--paper); min-height: 48px; }
+    .w-pumping-regular-paper li { margin: 4px 0; }
+    .w-pumping-regular-paper li.is-x > span:first-child { text-decoration: line-through; text-decoration-color: #c92a2a; text-decoration-thickness: 2px; color: var(--fg-muted); }
+    .w-pumping-regular-paper li small { display: block; color: #c92a2a; }
+    .w-pumping-regular-fill { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 8px 0; }
+    .w-pumping-regular-fill label { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .w-pumping-regular-fill input { width: 110px; font-family: 'JetBrains Mono', monospace; }
+    .w-pumping-regular-fb { font-size: .88rem; min-height: 1.1em; }
+    .w-pumping-regular-mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 435</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 435</a> / Pumping lemma ile 'regular değildir' ispatı</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">Wk 03</span><span class="chip">Sipser 1.4</span><span class="chip chip--exam">Her vizede P3</span><span class="src">~60 dk · 12 bölüm</span></div>
+          <h1>Pumping lemma ile 'regular değildir' ispatı</h1>
+          <p class="lead">Vizenin üçüncü sorusu hep aynı: "Prove that the language … is not regular." Bu derste bir DFA'nın neden her şeyi tanıyamadığını, <em>pumping lemma</em>'yı kelimesi kelimesine, ispatın hangi cümlelerle hangi sırayla yazıldığını ve doğru string'i nasıl seçeceğini göreceksin. 2019'dan 2024'e her vizede bu soru 15–25 puan.</p>
+          <p class="src">Not: Pumping lemma dersinin (Ekim başı) tahta notu ya da slaytı repoda yok; konu Sipser 1.4, hocanın 26 Ekim tekrar dersindeki 2024 P3 tahta çözümü ve eski sınav çözümleri üzerinden anlatıldı.</p>
+          <!-- Kaynak: Sipser 3e §1.4 (PDF s.101–106: Thm 1.70, ispatı, Ex 1.73–1.77), alıştırmalar 1.29, 1.30, problemler 1.46–1.49, 1.54, 1.55 (PDF s.112–114), seçili çözümler (PDF s.121–123) · exams/README.md "Instructor's midterm review — 26 Oct 2026" Pumping lemma proofs maddeleri · resources/2026-2027-fall/2026-10-26-midterm-2024-solved-board.pdf s.3 (hocanın P3 ispatı) · exams/2024-midterm-solutions.pdf s.2 · exams/2023-midterm-solutions.pdf s.2 · exams/2019-midterm-solutions.pdf s.1 · exams/2020-midterm.pdf · 28 Eylül tahta notu s.2–3 (0^n1^n, sonsuz state zinciri) · hocanın sitesindeki "The pumping duel" aracı (muratakcs.github.io/cse435/pumping.html). Bütün ispatlar python3 ile brute force kontrol edildi. -->
+        </header>
+
+        <article class="lesson" data-course="cse-435" data-lesson="pumping-regular">
+
+<!-- 1 -->
+<section class="lsec" id="neden" data-min="5">
+  <h2>Neden bazı diller regular değil?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · sonlu hafıza</span>
+    <p>Bir DFA'nın hafızası state'lerinden ibaret. 5 state'li bir DFA, okuduğu her şeyi 5 durumdan birine sıkıştırmak zorunda. "Şimdiye kadar çift sayıda 0 gördüm" gibi bilgiler buna sığar. "Şimdiye kadar tam 37 tane 0 gördüm" bilgisi ise 5 state'e sığmaz: 0'dan 37'ye kadar her sayı ayrı bir state ister. Yine de bu koşul sonlu hafızayla kontrol edilebilir: 0–37 sayaç state'leri ve bir taşma state'i yeter, çünkü 38, 39, … sayılarının hepsi aynı cevabı verir. $0^n1^n$'de ise önceden sabitlenmiş bir üst sınır yoktur.</p>
+    <p>28 Eylül'de tahtada şu dil vardı: $B = \{0^n1^n \mid n \ge 0\} = \{\varepsilon, 01, 0011, 000111, \dots\}$. Bunu tanıyan bir makine, 1'lere geçmeden önce kaç tane 0 okuduğunu hatırlamalı. Hoca da tahtaya $0 \to 0 \to 0 \to \dots$ diye uzayıp giden bir state zinciri çizip sonuna soru işareti koydu: her yeni sayı için yeni bir state gerekiyor ve zincir hiç bitmiyor. Sonlu bir DFA'da bu mümkün değil.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Sezgi ispat değildir</span>
+    <p>Sipser aynı yerde bir uyarı yapar. Σ = {0,1} üzerinde iki dil:</p>
+    <ul>
+      <li>$C = \{w \mid w$ has an equal number of 0s and 1s$\}$: saymak gerekiyor gibi görünüyor ve gerçekten <strong>regular değil</strong>.</li>
+      <li>$D = \{w \mid w$ has an equal number of occurrences of 01 and 10 as substrings$\}$: bu da saymak gerekiyor gibi görünüyor ama <strong>regular</strong>. Çünkü bir string'de 01 ve 10 sayıları ancak string aynı sembolle başlayıp aynı sembolle bitiyorsa eşit olur (ε dahil). 2019 vizesinin P1(b)'sinde çözüm anahtarı da bu gözlemi kullanıyor.</li>
+    </ul>
+    <p>Yani "sayması lazım gibi duruyor" demek yetmez. Bir dilin regular olmadığını <strong>ispatlamak</strong> için bir araç lazım. Bu araç <strong>pumping lemma</strong>.</p>
+  </div>
+  <!-- Kaynak: Sipser §1.4 giriş (PDF s.101) · 28 Eylül tahta notu s.2 (0^n1^n, L = {ε, 01, 0011, …}) ve s.3 (0'larla uzayan state zinciri, "???") · D'nin gözlemi için Sipser Problem 1.48 ve 2019 vize anahtarı P1(b). D = {ε} ∪ {ilk sembol = son sembol} python ile uzunluk 12'ye kadar doğrulandı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Sonsuz dil, regular olmayan dil demek değil.</strong> $0^*$ sonsuz ama tek state'li bir DFA onu tanır. Sorun sonsuzluk değil, <em>sınırsız sayma</em> ihtiyacı.</li>
+      <li>"Bu dil için DFA çizemedim" bir ispat değil. Belki daha iyi bir fikir vardır ($D$'deki gibi).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-neden">
+    <p class="quiz__q">Hangisi <strong>regular</strong>?</p>
+    <button class="quiz__opt">$\{w \in \{0,1\}^* \mid w$ has an equal number of 0s and 1s$\}$<span class="why">Bu Sipser'in $C$ dili, regular değil (Example 1.74). 0 ve 1 sayıları arasındaki fark sınırsız büyüyebilir ve DFA'nın bu farkı tutması gerekir.</span></button>
+    <button class="quiz__opt" data-correct>$\{w \in \{0,1\}^* \mid$ #01 = #10 as substrings$\}$<span class="why">Doğru. Saymak gerekiyor gibi görünse de bu dil "ε ya da ilk sembol = son sembol" diline eşit, bunun için 5 state'li bir DFA yeter.</span></button>
+    <button class="quiz__opt">$\{0^n1^n \mid n \ge 0\}$<span class="why">Bu dil regular değil: 0'ların sayısını sınırsız hatırlamak gerekir. Bu derste ispatını yazacağız (Sipser Example 1.73).</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="pigeonhole" data-min="5">
+  <h2>Pigeonhole: uzun bir string state tekrarlatır</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · pigeonhole principle</span>
+    <p>$p$ state'li bir DFA'ya uzunluğu $n \ge p$ olan bir string ver. Her sembolden sonra bir state'e girer; başlangıçla birlikte $n+1 \ge p+1$ state ziyareti yapar. $p$ farklı state'e $p+1$ ziyaret düşüyorsa en az bir state <strong>iki kez</strong> ziyaret edilir. Buna <strong>pigeonhole principle</strong> denir: $p$ deliğe $p+1$ güvercin koyarsan bir delikte iki güvercin olur.</p>
+    <p>Aynı state'e ikinci kez geldiysen arada bir <strong>döngü</strong> okudun. Bu döngüyü (adı $y$) hiç okumasan da, iki kez, üç kez okusan da DFA sonunda aynı state'te biter. DFA farkı göremez.</p>
+  </div>
+  <p>Aşağıdaki DFA 4 state'li ($p = 4$). Kabul ettiği dil: "#0 − #1, 4'ün katı". 0 okuyunca saat yönünde, 1 okuyunca ters yönde bir adım gider. Bir string yaz ve çalıştır: stepper gerçek run'ı yapıyor, <strong>ilk</strong> tekrar eden state'i buluyor, string'i $x \mid y \mid z$ diye bölüyor ve sonra $xz$, $xy^2z$, $xy^3z$'yi de çalıştırıyor.</p>
+  <p class="w-pumping-regular-guess"><b>Önce tahmin et:</b> $s = 001101$ için ilk tekrar eden state hangisi olur, ve $y$ hangi parça olur?</p>
+  <div class="w-pumping-regular-ctl">
+    <label>s = <input id="w-pg-s" type="text" value="001101" autocomplete="off" spellcheck="false" class="btn btn--sm" /></label>
+    <button class="btn btn--sm btn--accent" id="w-pg-go">Çalıştır</button>
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-pg="001101">001101</button>
+    <button class="btn btn--sm" data-pg="0000">0000</button>
+    <button class="btn btn--sm" data-pg="01100110">01100110</button>
+    <button class="btn btn--sm" data-pg="011">011</button>
+  </div>
+  <div class="w-pumping-regular-err" id="w-pg-err" aria-live="polite"></div>
+  <div id="w-pg-stepper"></div>
+  <div class="box box--rule">
+    <span class="box__label">Sipser'in ispatı (Theorem 1.70, kısaltılmış)</span>
+    <p>$M = (Q, \Sigma, \delta, q_1, F)$, $A$'yı tanıyan bir DFA ve $p = |Q|$ olsun. $s = s_1 s_2 \cdots s_n \in A$, $n \ge p$. $M$'nin $s$ üzerinde girdiği state'ler $r_1, \dots, r_{n+1}$ ($r_{i+1} = \delta(r_i, s_i)$).</p>
+    <ol>
+      <li>İlk $p+1$ eleman arasında pigeonhole ile iki tanesi aynı: ilk tekrar $r_j = r_l$, $j &lt; l \le p+1$.</li>
+      <li>$x = s_1 \cdots s_{j-1}$, $y = s_j \cdots s_{l-1}$, $z = s_l \cdots s_n$.</li>
+      <li>$x$: $r_1 \to r_j$; $y$: $r_j \to r_j$; $z$: $r_j \to r_{n+1} \in F$. O yüzden her $i \ge 0$ için $xy^iz$ kabul edilir.</li>
+      <li>$j \ne l$ ⇒ $|y| &gt; 0$. $l \le p+1$ ⇒ $|xy| = l - 1 \le p$.</li>
+    </ol>
+  </div>
+  <!-- Kaynak: Sipser Thm 1.70 proof idea ve proof (PDF s.102–103), Figure 1.71–1.72. Demo DFA bu ders için seçildi; 001101 için run q0,q1,q2,q1,q0,q1,q0, ilk tekrar q1 (r2 = r4), x = 0, y = 01, z = 101; python ile doğrulandı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$p$'yi sen bilmiyorsun. $p$, dili tanıyan <em>bir</em> DFA'nın state sayısı; o DFA'yı (varsa) görmedin. İspatta $p$ sana "verilir", sayı olarak seçemezsin.</li>
+      <li>$|xy| \le p$ şartı, <strong>ilk</strong> tekrarı aldığımız için doğar. Herhangi bir tekrarı alsaydık $y$ string'in sonlarına düşebilirdi.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-pigeon">
+    <p class="quiz__q">7 state'li bir DFA, uzunluğu 10 olan bir string okuyor. Hangisi kesin?</p>
+    <button class="quiz__opt">Run'da tam olarak bir state iki kez geçer<span class="why">"Tam olarak bir" denemez: 11 ziyaret 7 state'e dağılıyor, birçok state tekrar edebilir. Pigeonhole sadece "en az bir" der.</span></button>
+    <button class="quiz__opt" data-correct>İlk 8 state ziyareti içinde bir state tekrar eder<span class="why">Doğru. 7 state'e 8 ziyaret düşer, biri tekrar eder. Bu yüzden $|xy| \le 7 = p$.</span></button>
+    <button class="quiz__opt">Bir tekrar ancak string 7'den uzunsa olur; uzunluk tam 7 ise olmaz<span class="why">Uzunluk 7 iken run 8 state içerir ($r_1, \dots, r_8$). Başlangıç state'ini saymayı unutma: $n$ sembol, $n+1$ state demek.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="lemma" data-min="6">
+  <h2>Pumping lemma: Theorem 1.70, kelimesi kelimesine</h2>
+  <p>Sınav kapalı kitap varsayılıyor. Aşağıdaki kutuyu ezbere yazabilmelisin; hoca 26 Ekim'de "sınavda bu girişi tam yazmalı mıyız?" sorusuna "evet" dedi.</p>
+  <div class="box box--rule">
+    <span class="box__label">Theorem 1.70 (Sipser) · pumping lemma</span>
+    <p><strong>If $A$ is a regular language, then there is a number $p$ (the pumping length) where if $s$ is any string in $A$ of length at least $p$, then $s$ may be divided into three pieces, $s = xyz$, satisfying the following conditions:</strong></p>
+    <ol>
+      <li><strong>for each $i \ge 0$, $xy^iz \in A$,</strong></li>
+      <li><strong>$|y| &gt; 0$, and</strong></li>
+      <li><strong>$|xy| \le p$.</strong></li>
+    </ol>
+    <p>$y^i$: $y$'nin $i$ kopyası yan yana. $y^0 = \varepsilon$, yani $xy^0z = xz$. $x$ ya da $z$ boş olabilir, $y$ olamaz.</p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Her şart ne işe yarıyor?</span>
+    <ul>
+      <li><strong>Şart 1</strong> asıl iddia: $y$ "pompalanabilir". Biz ispatta bunu bozacağız.</li>
+      <li><strong>Şart 2</strong> olmasa teorem boş olurdu: $y = \varepsilon$ alınca $xy^iz = s$ her zaman dilde.</li>
+      <li><strong>Şart 3</strong> $y$'yi string'in ilk $p$ sembolünün içine hapseder. İspatların çoğu bu şart sayesinde çalışır.</li>
+    </ul>
+  </div>
+  <h3>Ezber kontrolü</h3>
+  <p class="w-pumping-regular-guess"><b>Önce tahmin et:</b> Kutuya bakmadan beş boşluğu doldurabilir misin? Klavyede ≥ yerine <code>&gt;=</code>, ≤ yerine <code>&lt;=</code> yazabilirsin.</p>
+  <div class="w-pumping-regular-fill" id="w-cl">
+    <label>If $A$ is regular, ∃ $p$ such that every $s \in A$ with $|s| \ge$ <input data-cl="0" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="boşluk 1" /> can be written as $s =$ <input data-cl="1" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="boşluk 2" /></label>
+    <label>1. for each <input data-cl="2" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="boşluk 3" />, $xy^iz \in A$</label>
+    <label>2. $|y|$ <input data-cl="3" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="boşluk 4" /></label>
+    <label>3. <input data-cl="4" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="boşluk 5" /> $\le p$</label>
+    <div class="w-pumping-regular-ctl"><button class="btn btn--sm btn--accent" id="w-cl-go">Kontrol et</button><button class="btn btn--sm" id="w-cl-show">Cevapları göster</button></div>
+    <div class="w-pumping-regular-fb" id="w-cl-fb" aria-live="polite"></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Lemma tek yönlüdür</span>
+    <p>Lemma "regular ⇒ pompalanabilir" der. Kullandığımız yön bunun contrapositive'i: <strong>pompalanamıyorsa ⇒ regular değil</strong>. Ters yön doğru değil: pompalanabilen ama regular olmayan diller var (aşağıdaki Problem 1.54). Hocanın sitesindeki oyun da aynı şeyi söylüyor: pumping'de başarısız olman hiçbir şey ispatlamaz, lemma bir dilin regular <em>olduğunu</em> asla gösteremez.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Şartların sırası Sipser'de 1: $xy^iz$, 2: $|y| &gt; 0$, 3: $|xy| \le p$. 2019 anahtarı 2 ile 3'ü yer değiştirmiş yazmış. İspatta "by condition 3" dediğinde hangisini kastettiğin belli olsun diye Sipser'in sırasını kullan.</li>
+      <li>"$i \ge 1$" yazma: $i = 0$ da dahil ve bazı ispatlar tam olarak $i = 0$'a dayanıyor.</li>
+      <li>Dilde $p$'den uzun string yoksa (sonlu dil, $p$ en uzun string'den büyük) lemma boş yere doğru olur: üzerine konuşacak $s$ yoktur.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="sipser-1.54"><span class="box__label">Sipser Problem 1.54 · kitap alıştırması</span>
+    <p>"Consider the language $F = \{a^ib^jc^k \mid i, j, k \ge 0$ and if $i = 1$ then $j = k\}$. a. Show that F is not regular. b. Show that F acts like a regular language in the pumping lemma. In other words, give a pumping length p and demonstrate that F satisfies the three conditions of the pumping lemma for this value of p. c. Explain why parts (a) and (b) do not contradict the pumping lemma."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(b) için $p = 2$ dene. $i = 0$, $i = 1$, $i = 2$, $i \ge 3$ durumlarında $y$'yi nasıl seçersen $a$ sayısı pompalanınca "tam 1" olmaz?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(a) için $F \cap ab^*c^*$'a bak. $ab^*c^*$ regular. Kesişim ne çıkıyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $F \cap ab^*c^* = \{ab^nc^n \mid n \ge 0\}$. Bu dil regular değil: $s = ab^pc^p$ al; $|xy| \le p$ olduğundan $y$, $ab^{p-1}$'in içinde. $y$ içinde $a$ varsa pump down $a$'yı siler ve string $a$ ile başlamaz; $y = b^j$ ise pump down $b$ ve $c$ sayılarını eşitsiz bırakır. Regular diller intersection altında kapalı olduğundan, $F$ regular olsaydı kesişim de regular olurdu. Çelişki.</p>
+      <p><strong>(b)</strong> $p = 2$, $s \in F$, $|s| \ge 2$:</p>
+      <ul>
+        <li>$a$ yoksa ($s \in b^*c^*$): $x = \varepsilon$, $y$ = ilk sembol. Pompalayınca yine $b^*c^*$ içinde ve $a$ sayısı 0, şart yok.</li>
+        <li>Tam bir $a$ varsa: $x = \varepsilon$, $y = a$. $a$ sayısı $i$ olur: $i = 1$ iken $s$'nin kendisi, $i \ne 1$ iken şart yok.</li>
+        <li>Tam iki $a$ varsa: $x = \varepsilon$, $y = aa$. $a$ sayısı $0, 2, 4, \dots$ olur, asla 1 değil.</li>
+        <li>Üç ya da daha fazla $a$ varsa: $x = \varepsilon$, $y = a$. $a$ sayısı en az 2 kalır.</li>
+      </ul>
+      <p><strong>(c)</strong> Lemma "regular ⇒ pompalanabilir" der, tersini söylemez. $F$ pompalanabilir ama regular değil; bu lemmayla çelişmez.</p>
+      <p>Kontrol: python ile uzunluk 2–9 arası bütün $F$ string'leri $p = 2$ ile $i = 0..6$ için pompalandı, pompalanamayan string çıkmadı.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Problem 1.54 (PDF s.114). Kitapta seçili çözüm yok; çözüm bu ders için yazıldı ve brute force ile kontrol edildi. -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-1.55ab"><span class="box__label">Sipser Problem 1.55 (a), (b) · kitap alıştırması</span>
+    <p>"The minimum pumping length for A is the smallest p that is a pumping length for A. For example, if A = 01*, the minimum pumping length is 2. […] For each of the following languages, give the minimum pumping length and justify your answer. a. 0001* b. 0*1*" (sorunun ilk iki şıkkı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce pompalanamayan en uzun string'i bul. Minimum pumping length ondan bir fazla olmalı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(a) $000$'ı pompalarsan ne olur? (b) $\varepsilon$ pompalanabilir mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a) 4.</strong> $000 \in A$ ama pompalanamaz: $y$'nin içinde bir 0 olur ve $i = 0$ ya da $i = 2$ string'i $0001^*$ dışına çıkarır. Yani 3 bir pumping length değil. Uzunluğu 4 ya da fazla olan her string'de en az bir 1 var: $x = 000$, $y$ = ilk 1, $z$ = gerisi. $|xy| = 4 \le p$.</p>
+      <p><strong>(b) 1.</strong> $p = 0$ olamaz: $\varepsilon \in A$ ve $\varepsilon$ pompalanamaz ($|y| &gt; 0$ şartı). Boş olmayan her string'de $x = \varepsilon$, $y$ = ilk sembol, $z$ = gerisi seçilir; pompalamak sadece baştaki blok uzunluğunu değiştirir.</p>
+      <p>Bu sonuçlar Sipser'in seçili çözümleriyle aynı ve python ile brute force kontrol edildi (aynı yöntemle $(01)^*$ için 2, $1011$ için 5 çıkıyor).</p>
+    </div></details>
+    <!-- Kaynak: Sipser Problem 1.55 (PDF s.114) ve seçili çözüm 1.55(a),(b) (PDF s.123). -->
+  </div>
+  <div class="quiz" id="q-lemma">
+    <p class="quiz__q">Bir $L$ dili için pumping lemma'nın üç şartını sağlayan bir $p$ buldun. Ne söyleyebilirsin?</p>
+    <button class="quiz__opt">$L$ regular<span class="why">Lemma tek yönlü: "regular ⇒ pompalanabilir". Pompalanabilir olmak regular olmayı göstermez; Problem 1.54'teki $F$ bunun karşı örneği.</span></button>
+    <button class="quiz__opt">$L$ regular değil<span class="why">Pompalanabilmek, regular olmamanın değil, regular dillerin her zaman sağladığı bir özellik. Regular olmadığını göstermek için pompalanamayan bir $s$ bulmalısın.</span></button>
+    <button class="quiz__opt" data-correct>Hiçbir şey; lemma bu yönde bir şey söylemez<span class="why">Doğru. Lemma sadece contrapositive yönde kullanılır: pompalanamıyorsa regular değil.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="oyun" data-min="5">
+  <h2>Oyun: kim neyi seçer?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · rakiple düello</span>
+    <p>Lemma'nın içinde dört quantifier var: ∃$p$ ∀$s$ ∃$xyz$ ∀$i$. Bunu iki kişilik bir oyun gibi düşün. "∃" olan hamleleri rakip (dilin regular olduğunu iddia eden) yapar, "∀" olan hamlelerde rakip sana meydan okur ve hangi seçimi yaparsan yap tutmalıdır. İspatta rolleri tersine çeviriyoruz: biz lemma'nın <strong>tutmadığını</strong> göstereceğiz.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Hamleler</span>
+    <div class="table-wrap"><table>
+      <tr><th>Sıra</th><th>Kim</th><th>Ne</th><th>Sonuç</th></tr>
+      <tr><td>1</td><td>Rakip</td><td>$p$'yi seçer</td><td>$p$'ye bir sayı veremezsin; ispat her $p$ için çalışmalı</td></tr>
+      <tr><td>2</td><td><strong>Sen</strong></td><td>$s \in L$, $|s| \ge p$ seçersin</td><td>$s$'yi $p$ cinsinden yaz ($0^{p}1^{p}$ gibi)</td></tr>
+      <tr><td>3</td><td>Rakip</td><td>$s = xyz$ bölmesini seçer ($|y| &gt; 0$, $|xy| \le p$)</td><td>Split'i sen seçemezsin; <strong>her</strong> olası split'i ele almalısın</td></tr>
+      <tr><td>4</td><td><strong>Sen</strong></td><td>$i$'yi seçersin</td><td>$xy^iz \notin L$ olacak bir $i$ göster ($i = 0$ dahil)</td></tr>
+    </table></div>
+    <p>Kazanma şartı, mantık diliyle: $\forall p\ \exists s \in L,\ |s| \ge p,\ \forall xyz\ (|y| &gt; 0, |xy| \le p)\ \exists i \ge 0:\ xy^iz \notin L$.</p>
+  </div>
+  <h3>Bütün split'leri dene</h3>
+  <p>Bir dil seç, $s$'yi $p$ cinsinden yaz (örnek: <code>0^{p+2}1^{p+1}0^p</code>, <code>0^p10^p1</code>, <code>(01)^p</code>, <code>1^{p*p}</code>, <code>0^p1^{p+p!}</code>). Rakip $p$'yi seçiyor. Sayfa $|xy| \le p$, $|y| \ge 1$ olan <strong>bütün</strong> split'leri sayıyor ve her birinde $i = 0, 2, 3, \dots, 8$'i gerçekten pompalayıp dilin üyeliğini kontrol ediyor ($p!$'li string'lerde ayrıca $i = 1 + p!/|y|$ deneniyor). Kırmızı satır: o split'te seni kurtaran bir $i$ var. Yeşil satır: denenen $i$ değerlerinde dışarı çıkılmadı; daha büyük bir $i$ işe yarayabilir. Yeşil satır kalırsa ya kâğıt üzerinde daha büyük bir $i$ ara ya da başka bir $s$ dene.</p>
+  <p class="w-pumping-regular-guess"><b>Önce tahmin et:</b> 2024 vizesinin dili $\{0^k1^m0^n \mid k &gt; m &gt; n &gt; 0\}$'da $s = 0^{3p}1^{2p}0^p$ seçersen kaç split yeşil kalır? $s = 0^{p+2}1^{p+1}0^p$ ile?</p>
+  <div class="w-pumping-regular-ctl">
+    <label>Dil: <select id="w-ex-lang" class="btn btn--sm"></select></label>
+  </div>
+  <div class="w-pumping-regular-ctl">
+    <label>s = <input id="w-ex-s" type="text" value="0^{p+2}1^{p+1}0^p" autocomplete="off" spellcheck="false" class="btn btn--sm" /></label>
+    <span id="w-ex-presets" class="w-pumping-regular-ctl" style="margin:0"></span>
+  </div>
+  <div class="w-pumping-regular-ctl">
+    <label>Rakibin $p$'si: <select id="w-ex-p" class="btn btn--sm"></select></label>
+    <button class="btn btn--sm" id="w-ex-roll">Rakip yeni p seçsin</button>
+    <label><input type="checkbox" id="w-ex-up" /> sadece pump up ($i \ge 2$)</label>
+    <button class="btn btn--sm btn--accent" id="w-ex-go">Bütün split'leri dene</button>
+  </div>
+  <div class="w-pumping-regular-err" id="w-ex-err" aria-live="polite"></div>
+  <div id="w-ex-out"></div>
+  <p>Hocanın aracı: <a href="https://muratakcs.github.io/cse435/pumping.html" target="_blank" rel="noopener">The pumping duel</a>. Orada da rakip her split'i dener ve $i \le 8$'e kadar pompalar. Aynı sayfanın context-free modunu 9. derste kullanacaksın.</p>
+  <!-- Kaynak: hocanın sitesindeki "The pumping duel" (rakip her split'i dener, i ≤ 8) fikrinden; dil üyelik fonksiyonları python karşılıklarıyla aynı ve brute force sonuçlarıyla karşılaştırıldı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Let $p = 5$." yazmak: $p$'yi rakip seçer. Sayıyla bir örnek düşünmek serbest, ispata yazmak değil.</li>
+      <li>"Let $x = \varepsilon$, $y = 0$." yazmak: split'i rakip seçer. Sen sadece şartlardan ne <em>çıktığını</em> yazarsın: "by conditions 2 and 3, $y = 0^j$ with $j \ge 1$".</li>
+      <li>Tek bir split'te dışarı çıkmak yetmez. Hoca: "After you select $s$ you must guarantee that however the split is done, the string eventually leaves the language."</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-oyun">
+    <p class="quiz__q">İspatta hangi iki seçimi <strong>sen</strong> yaparsın?</p>
+    <button class="quiz__opt">$p$ ve $s$<span class="why">$p$, lemma'nın varlığını garanti ettiği sayı (∃p); onu rakip verir. Sen $p$'nin her değeri için çalışan bir argüman yazarsın.</span></button>
+    <button class="quiz__opt" data-correct>$s$ ve $i$<span class="why">Doğru. Lemma "∀s" ve "∀i" diyor; lemma'yı çürütmek için tek bir kötü $s$ ve her split için tek bir kötü $i$ göstermen yeter.</span></button>
+    <button class="quiz__opt">$s$ ve split ($x, y, z$)<span class="why">Split lemma'da "∃" ile geliyor: var olduğu garanti edilen, ama hangisi olduğunu bilmediğin bir bölme. Bu yüzden her olası split'i kapatmalısın.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="sablon" data-min="5">
+  <h2>Hocanın ispat şablonu, cümle cümle</h2>
+  <p>Hoca 26 Ekim'de iki şeyi açıkça söyledi: (1) lemma'nın girişi tam yazılmalı, (2) cümleler sırayla birbirinden çıkmalı. Öğrencilerin aktardığına göre sırası bozuk cümlelerin üstü çiziliyor. Şablon İngilizce, çünkü sınav kâğıdına İngilizce yazacaksın.</p>
+  <div class="box box--rule">
+    <span class="box__label">Şablon (sırası değişmez)</span>
+    <ol>
+      <li><strong>Assume</strong> that $L$ is regular.</li>
+      <li><strong>Then by the pumping lemma</strong> for regular languages, $\exists p \in \mathbb{Z}^+$ such that $\forall s \in L$ with $|s| \ge p$, $s$ can be split into 3 pieces $s = xyz$ such that all of the following hold: 1. $\forall i \ge 0$, $xy^iz \in L$; 2. $|y| &gt; 0$; 3. $|xy| \le p$.</li>
+      <li><strong>Let</strong> $s = \dots$ (in terms of $p$). <strong>Then</strong> $s \in L$ because …, and $|s| \ge p$.</li>
+      <li><strong>By conditions 2 and 3</strong>, $y = \dots$ (what $y$ must look like).</li>
+      <li><strong>Pump</strong> ($i = \dots$): $s' = xy^iz = \dots$, and $s' \notin L$ because …</li>
+      <li><strong>This contradicts</strong> condition 1. <strong>Therefore</strong> $L$ is not regular. ∎</li>
+    </ol>
+    <p>Kendi cümlelerinle yazabilirsin (hoca öyle dedi), yeter ki her cümle öncekilerden çıksın.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Sipser Example 1.73: $B = \{0^n1^n \mid n \ge 0\}$</span>
+    <p><em>Proof.</em> Assume that $B$ is regular. Then by the pumping lemma, $\exists p \in \mathbb{Z}^+$ such that $\forall s \in B$ with $|s| \ge p$, $s = xyz$ with 1. $\forall i \ge 0$, $xy^iz \in B$; 2. $|y| &gt; 0$; 3. $|xy| \le p$.</p>
+    <p>Let $s = 0^p1^p$. Then $s \in B$ ($n = p$) and $|s| = 2p \ge p$.</p>
+    <p>By conditions 2 and 3, $xy$ lies inside the first $p$ symbols, which are all 0s, so $y = 0^j$ with $j \ge 1$.</p>
+    <p>Pump up ($i = 2$): $xyyz = 0^{p+j}1^p$. Since $j \ge 1$, it has more 0s than 1s, so $xyyz \notin B$.</p>
+    <p>This contradicts condition 1. Therefore $B$ is not regular. ∎</p>
+    <p>Sipser kitapta şart 3'ü kullanmadan üç durum yazıyor: $y$ sadece 0'lardan, sadece 1'lerden, ya da ikisinden oluşabilir; sonuncusunda $xyyz$'de 1'ler 0'ların önüne geçer. Sonra ekliyor: şart 3 ile son iki durum zaten elenir. Sınavda şart 3'lü kısa yolu kullan.</p>
+  </div>
+  <!-- Kaynak: exams/README.md 26 Oct review, "Pumping lemma proofs" maddeleri ve "Reported by students" (sıra kuralı) · board pdf s.3 (cümle yapısı) · Sipser Ex 1.73 (PDF s.104). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$s \in L$ ve $|s| \ge p$ kontrolünü atlamak. Hoca tahtada hızlı geçti ama yazılı anahtar bunu açıkça yazıyor; seçtiğin $s$ dilde değilse ispat çöker.</li>
+      <li>"∀$s$" yerine "for some $s$" yazmak lemma'yı yanlış söylemektir. Lemma her uzun $s$ için konuşur; sen o "her"in içinden kötü bir tane seçiyorsun.</li>
+      <li>$y$'nin şeklini söylemeden pompalamak: "$s' = 0^{p+1}1^p$" gibi tek bir sayı yazarsan sadece $|y| = 1$ durumunu kapatmış olursun. $j$ ile genel yaz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sablon">
+    <p class="quiz__q">Şablonda "Let $s = 0^p1^p$." cümlesinden hemen sonra ne gelir?</p>
+    <button class="quiz__opt">"Pump up: $xyyz = 0^{p+j}1^p$."<span class="why">$j$'nin ne olduğunu henüz söylemedin. Önce $s$'nin dilde olduğunu, sonra şartlardan $y = 0^j$ çıktığını yazmalısın; sıra bozulursa cümlenin üstü çizilir.</span></button>
+    <button class="quiz__opt" data-correct>"Then $s \in B$ and $|s| \ge p$."<span class="why">Doğru. Lemma sadece dildeki ve en az $p$ uzunluğundaki string'ler için konuşur; önce $s$'nin bu şartları sağladığını göstermelisin.</span></button>
+    <button class="quiz__opt">"Let $x = \varepsilon$, $y = 0$, $z = 0^{p-1}1^p$."<span class="why">Split'i sen seçemezsin, rakip seçer. Yazacağın şey "by conditions 2 and 3, $y = 0^j$, $j \ge 1$".</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="kritik-s" data-min="5">
+  <h2>Kritik s seçimi</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Hoca: "Pick the most critical string", yani dilden en kolay itilebilecek string'i. Sipser: dilin regular olmamasının "özünü" taşıyan string'i seç. İki örnek, aynı dersi veriyor:</p>
+    <ul>
+      <li><strong>Sipser Ex 1.74</strong>, $C$ = eşit sayıda 0 ve 1. $s = 0^p1^p$ çalışır: şart 3 ile $y$ sadece 0'lardan oluşur ve $xyyz$'de 0'lar fazla gelir. $s = (01)^p$ <strong>çalışmaz</strong>: rakip $x = \varepsilon$, $y = 01$ seçer ve her $i$ için eşitlik korunur.</li>
+      <li><strong>Sipser Ex 1.75</strong>, $F = \{ww \mid w \in \{0,1\}^*\}$. $s = 0^p10^p1$ çalışır: $y$ ilk blokta, pompalayınca iki yarı eşit kalmaz. $s = 0^p0^p$ <strong>çalışmaz</strong>: $0^{2p}$ hep $0$'lardan oluşur, rakip $y = 00$ seçer, uzunluk çift kalır ve string yine $ww$ biçiminde.</li>
+    </ul>
+    <p>Yukarıdaki split gezgininde bu dört seçimi dene: iki tanesi bütün satırları kırmızı yapar, iki tanesi yeşil satır bırakır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">s seçerken üç kural</span>
+    <ol>
+      <li><strong>İlk bloğu en az $p$ uzunluğunda yap.</strong> Şart 3 ile $y$ o bloğun içine düşer ve tek bir durum kalır.</li>
+      <li><strong>$s$'yi kısıtın sınırına koy.</strong> Bir sembol eklemek ya da silmek kısıtı bozsun ($0^{p+2}1^{p+1}0^p$'de her blok bir öncekinden tam 1 eksik).</li>
+      <li><strong>Ayırıcı kullan.</strong> $0^p\,1\,0^p\,1$'deki 1'ler gibi, yapıyı kilitleyen semboller $y$'nin kaçacağı yeri kapatır.</li>
+    </ol>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$s$'nin dilde olması için $p$'nin <em>her</em> değerinde şartlar tutmalı. $0^{p+1}1^p0^{p-1}$ 2024 dilinde $p = 1$ için $0^210^0$ olur ve son blok boş kalır ($n &gt; 0$ bozulur). Hocanın $+2/+1/+0$ seçimi bu yüzden.</li>
+      <li>Bir $s$ çalışmadı diye dil regular demek değil. Sipser: "If you fail on your first attempt to find a string that cannot be pumped, don't despair. Try another one!"</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="2023-mid-P3"><span class="box__label">2023 vizesi P3 · çıkmış soru</span>
+    <p>"[In the questions below, $w^R$ denotes the reverse of $w$, meaning $w$ written backwards.] P3 [20 points] (a) Let $\Sigma = \{0,1\}$ and let $Y = \{ww^Rw \mid w \in \Sigma^*\}$. (For example, 001100001 ∈ Y because it matches the pattern $ww^Rw$ when $w$ = 001) Prove that Y is not regular."</p>
+    <p class="src">Not: exams/README.md bu soruyu $\{ww^Ry\}$ diye yazıyor. Kâğıtta $\{ww^Rw\}$ var.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$w$'yi $p$'ye bağlı ve ilk bloğu en az $p$ uzunluğunda olacak biçimde seç: $w = 0^p1^p$ ya da $w = 0^p1$. $s = ww^Rw$'yi açık yaz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Pump down'dan sonra $s'$ dilde olsaydı $s' = uu^Ru$ olurdu: uzunluğu 3'e bölünür ve <strong>ilk</strong> $|u|$ sembol ile <strong>son</strong> $|u|$ sembol aynı string olurdu. Bu ikisini karşılaştır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><em>Proof.</em> Assume that $Y$ is regular. Then by the pumping lemma for regular languages, $\exists p \in \mathbb{Z}^+$ such that $\forall s \in Y$ with $|s| \ge p$, $s$ can be split into 3 pieces $s = xyz$ such that 1. $\forall i \ge 0$, $xy^iz \in Y$; 2. $|y| &gt; 0$; 3. $|xy| \le p$.</p>
+      <p>Let $s = 0^p1^{2p}0^{2p}1^p$, i.e. $w = 0^p1^p$, $w^R = 1^p0^p$. Then $s \in Y$ and $|s| = 6p \ge p$.</p>
+      <p>By conditions 2 and 3, $y = 0^j$ with $1 \le j \le p$, inside the first block of 0s.</p>
+      <p>Pump down ($i = 0$): $s' = xz = 0^{p-j}1^{2p}0^{2p}1^p$, $|s'| = 6p - j$.</p>
+      <p>Suppose $s' \in Y$, i.e. $s' = uu^Ru$. Then $3 \mid 6p - j$, so $j = 3t$ with $t \ge 1$, and $|u| = 2p - t$. The first $u$ is the prefix of length $2p - t$: since $p - 3t &lt; 2p - t$, it is $0^{p-3t}1^{p+2t}$. The last $u$ is the suffix of length $2p - t$: since $p \le 2p - t \le 3p$, it is $0^{p-t}1^p$. These have $p - 3t \ne p - t$ zeros, so they are different, a contradiction. Hence $s' \notin Y$ (and if $3 \nmid j$, $|s'|$ is not a multiple of 3, so again $s' \notin Y$).</p>
+      <p>This contradicts condition 1. Therefore $Y$ is not regular. ∎</p>
+      <p><strong>Daha kısa bir seçim:</strong> $w = 0^p1$ ile $s = 0^p\,11\,0^{2p}\,1$. Pump down sonrası $|u| = p + 1 - t$; önek $0^{p-3t}11\dots$ iki tane 1 içerir, sonek $0^{p-t}1$ ise tek bir 1. Aynı çelişki.</p>
+      <p class="src">Not: Repodaki çözüm (bir öğrencinin cevabı) aynı $s$'yi seçip doğru yönde ilerliyor ama son adımda sadece "$s'$ doesn't fit into the pattern $ww^Rw$" diyor. Neden uymadığını göstermiyor; yukarıdaki önek/sonek karşılaştırması o boşluğu dolduruyor. Ayrıca "$\forall s$ with $|s| \ge p$" yazmış, "$s \in Y$" kısmını atlamış.</p>
+      <p>Kontrol: iki $s$ seçimi de python ile $p = 1..8$ için bütün split'lerde $i = 0$ ile dışarı çıkıyor.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2023-midterm-solutions.pdf" target="_blank" rel="noopener">Orijinal soru ve öğrenci çözümü (s.2)</a></p>
+    <!-- Kaynak: exams/2023-midterm-solutions.pdf s.2 (el yazısı, s = 0^p 1^p 1^p 0^p 0^p 1^p, x = 0^m, y = 0^k, pump down). Önek/sonek formülleri python ile p ≤ 11 için doğrulandı. -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-1.29b"><span class="box__label">Sipser Exercise 1.29(b) · kitap alıştırması</span>
+    <p>"Use the pumping lemma to show that the following languages are not regular. b. $A_2 = \{www \mid w \in \{a,b\}^*\}$" (alıştırmanın bir şıkkı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>2023 sorusuyla aynı fikir: $w = a^pb$ al, $s = a^pb\,a^pb\,a^pb$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Pump up sonrası uzunluk 3'e bölünüyorsa, ilk üçte bir sadece $a$'lardan oluşur. Son üçte bir neyle biter?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Assume $A_2$ is regular, $p$ the pumping length. Let $s = a^pba^pba^pb \in A_2$, $|s| = 3p + 3 \ge p$. By conditions 2 and 3, $y = a^j$, $1 \le j \le p$. Pump up: $s' = a^{p+j}ba^pba^pb$, $|s'| = 3p + 3 + j$. If $3 \nmid j$, $|s'|$ is not a multiple of 3, so $s' \notin A_2$. If $j = 3t$, a third has length $p + 1 + t \le p + 3t = p + j$, so the first third is all $a$'s, while the last third ends with $b$. They differ, so $s' \notin A_2$. Contradiction; $A_2$ is not regular. ∎</p>
+      <p>Kontrol: python ile $p = 1..8$, bütün split'ler, $i = 2$.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 1.29(b) (PDF s.112). Kitapta bu şıkkın seçili çözümü yok. -->
+  </div>
+  <div class="quiz" id="q-kritik">
+    <p class="quiz__q">$\{ww \mid w \in \{0,1\}^*\}$ için hangi $s$ ispatı <strong>kurmaz</strong>?</p>
+    <button class="quiz__opt">$0^p10^p1$<span class="why">Bu Sipser'in seçimi ve çalışır: $y$ ilk 0 bloğunda, pompalayınca iki yarı farklı olur.</span></button>
+    <button class="quiz__opt" data-correct>$0^{2p}$<span class="why">Doğru, bu kurmaz. Rakip $y = 00$ seçer; $0^{2p + 2(i-1)}$ her $i$ için çift uzunlukta ve $ww$ biçiminde. Dilin "özü" (iki yarının eşleşmesi) bu string'de yok.</span></button>
+    <button class="quiz__opt">$1^p01^p0$<span class="why">Bu da çalışır, sadece 0 ile 1'in rolü değişmiş. Ayırıcı yine yapıyı kilitliyor.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="asagi" data-min="6">
+  <h2>Pump down mu, pump up mu?</h2>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Sipser Example 1.77: $E = \{0^i1^j \mid i &gt; j\}$</span>
+    <p>$s = 0^{p+1}1^p$. Şart 3 ile $y = 0^j$. Pump up 0'ları artırır ve $i &gt; j$ hâlâ doğru: dışarı çıkmıyoruz. Lemma $i = 0$'a da izin veriyor: $xz = 0^{p+1-j}1^p$ ve $j \ge 1$ olduğundan 0'lar artık 1'lerden fazla değil. $xz \notin E$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Ne zaman hangisi?</span>
+    <ul>
+      <li>$y$'nin olduğu blok kısıtın <strong>büyük</strong> tarafındaysa ($k &gt; m$'de $k$, $i &gt; j$'de $i$): pump up işe yaramaz, <strong>pump down</strong> ($i = 0$) yap.</li>
+      <li>$y$'nin olduğu blok eşitliğin ya da <strong>küçük</strong> tarafın içindeyse: <strong>pump up</strong> ($i = 2$) genelde yeter.</li>
+      <li>Emin değilsen ikisini de karalama kâğıdında dene. İspata sadece işe yarayanı yaz.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="2024-mid-P3"><span class="box__label">2024 vizesi P3 · çıkmış soru</span>
+    <p>"P3 [15 points] Prove that the language $\{0^k1^m0^n \mid$ where $k &gt; m &gt; n &gt; 0.\}$ is not regular."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kritik string: her blok bir sonrakinden tam 1 fazla, son blok da 0 olamaz. $p$ ile yaz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$y$ ilk 0 bloğunda. Bu blok kısıtın büyük tarafı ($k$). Pompalayınca $k$ büyürse kısıt bozulur mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><em>Proof.</em> Assume that $L$ is regular. Then by the pumping lemma for regular languages, $\exists p \in \mathbb{Z}^+$ such that $\forall s \in L$ with $|s| \ge p$, $s$ can be split into 3 pieces $s = xyz$ such that all of the following hold: 1. $\forall i \ge 0$, $xy^iz \in L$; 2. $|y| &gt; 0$; 3. $|xy| \le p$.</p>
+      <p>Let $s = 0^{p+2}1^{p+1}0^p$. Then $s \in L$ since $p+2 &gt; p+1 &gt; p &gt; 0$, and $|s| = 3p+3 \ge p$.</p>
+      <p>By conditions 2 and 3, $y = 0^j$ with $j \ge 1$, and $y$ lies in the first block of 0s.</p>
+      <p>Pump down ($i = 0$): $s' = xz = 0^{p+2-j}1^{p+1}0^p$. Since $j \ge 1$, $p+2-j \le p+1$, so $k &gt; m$ fails and $s' \notin L$.</p>
+      <p>This contradicts condition 1. Therefore $L$ is not regular. ∎</p>
+      <p><strong>Neden pump down:</strong> pump up sadece ilk bloğa 0 ekler, $k &gt; m$ doğru kalır. $+2/+1$ payları $s$'yi dilde tutar ama tek bir 0 silinince hiç boşluk bırakmaz.</p>
+      <p><strong>Neden $0^{3p}1^{2p}0^p$ olmaz:</strong> pump down ile ilk blok $3p - j \ge 2p$ olur; $j &lt; p$ ise hâlâ $&gt; 2p$, dilde kalır. Pump up da dilde tutar. Split gezgininde bu seçimle yeşil satırlar kalıyor. Hoca bu yüzden "en kritik" string'i istedi.</p>
+      <p>Hoca tahtada $|y|$ için de $k$ harfini kullandı ($y = 0^k$). Dilin içinde de bir $k$ olduğu için burada $j$ yazdık; sınavda karışıklık çıkarmayacak bir harf seç.</p>
+      <p>Kontrol: python ile $p = 1..8$, bütün split'ler $i = 0$ ile dışarı.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2024-midterm.pdf" target="_blank" rel="noopener">Orijinal soru (2024 vizesi)</a></p>
+    <!-- Kaynak: exams/2024-midterm.pdf P3 · board pdf s.3 (hocanın ispatı: "Proof. Assume that L is regular. So, by PL for RL, ∃p∈Z+ s.t. ∀s∈L with |s|≥p … Now let s = 0^{p+2}1^{p+1}0^p. To satisfy cond 2 and 3, y = 0^k k≥1 lies in the first 0 sequence. But when we pump down, s' = 0^{p+2-k}1^{p+1}0^p ∉ L since p+2-k ≤ p+1. So L is not reg. QED.") · exams/2024-midterm-solutions.pdf s.2. Anahtar doğru. -->
+  </div>
+  <h3>Kâğıda sırayla yaz</h3>
+  <p>Aşağıda 2024 P3 ispatının cümleleri karışık duruyor; aralarına iki de yanlış cümle karıştı. Sıradaki cümleye dokun. Sırası gelmemiş bir cümleyi seçersen hocanın yaptığı gibi üstü çizilir (cümle havuzda kalır, sonra doğru yerde kullanabilirsin).</p>
+  <p class="w-pumping-regular-guess"><b>Önce tahmin et:</b> Hangi iki cümle hiç yazılmamalı?</p>
+  <div id="w-ord">
+    <ol class="w-pumping-regular-paper" id="w-ord-paper"></ol>
+    <div class="w-pumping-regular-fb" id="w-ord-fb" aria-live="polite"></div>
+    <div class="w-pumping-regular-pool" id="w-ord-pool"></div>
+    <div class="w-pumping-regular-ctl"><button class="btn btn--sm" id="w-ord-reset">Baştan karıştır</button></div>
+  </div>
+  <h3>Boşlukları doldur</h3>
+  <p>Aynı ispatın sayısal kısmı. $p$ ve $j$ kullanabilirsin (örnek: <code>p+2-j</code>). Sayfa cevabını $p = 3..7$, $1 \le j \le p$ için gerçek değerlerle karşılaştırıyor.</p>
+  <div class="w-pumping-regular-fill" id="w-fill">
+    <label>By conditions 2 and 3, $y = 0^j$ with $j \ge$ <input data-f="0" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="j'nin alt sınırı" /></label>
+    <label>We pump with $i =$ <input data-f="1" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="i değeri" /></label>
+    <label>$s' = 0^{\square}1^{p+1}0^p$, $\square =$ <input data-f="2" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="ilk blok üssü" /></label>
+    <label>$|s'| =$ <input data-f="3" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" aria-label="s' uzunluğu" /></label>
+    <div class="w-pumping-regular-ctl"><button class="btn btn--sm btn--accent" id="w-fill-go">Kontrol et</button></div>
+    <div class="w-pumping-regular-fb" id="w-fill-fb" aria-live="polite"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"$i \ge 1$" sanıp pump down'ı hiç düşünmemek. $y^0 = \varepsilon$ ve $i = 0$ şart 1'in içinde.</li>
+      <li>Pump down'da $y$'nin bütün bloğu silebileceğini unutmak. 2024'te ilk blok $p + 2 &gt; p \ge |y|$ olduğu için en az 2 sıfır kalır; blok boşalsaydı ayrıca "artık $k = 0$" diye ayrı bir durum yazman gerekirdi.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-asagi">
+    <p class="quiz__q">$\{0^i1^j \mid i &gt; j\}$ için $s = 0^{p+1}1^p$ seçtin. Hangi $i$ ispatı bitirir?</p>
+    <button class="quiz__opt">$i = 2$<span class="why">Pump up 0'ları artırır, $i &gt; j$ daha da doğru olur: string dilde kalır. Büyük tarafı büyütmek kısıtı bozmaz.</span></button>
+    <button class="quiz__opt" data-correct>$i = 0$<span class="why">Doğru. $xz = 0^{p+1-j}1^p$ ve $j \ge 1$ ⇒ 0'lar en fazla 1'ler kadar. Sipser Example 1.77.</span></button>
+    <button class="quiz__opt">Hiçbiri, başka bir $s$ lazım<span class="why">$s$ doğru seçilmiş: tam sınırda (0'lar 1'lerden sadece bir fazla). Eksik olan pump down'ı denemek.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="vakalar" data-min="5">
+  <h2>Her split'i ve her okumayı kapat</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Şart 3 $y$'yi tek bir bloğa hapsetmiyorsa (ilk blok $p$'den kısaysa, ya da şart 3'ü hiç kullanmıyorsan) $y$ birkaç farklı biçimde olabilir. Her biçim bir <strong>durum</strong> (case) ve her durum için ayrı bir $i$ göstermelisin. Sipser bunu şöyle söyler: "demonstrate that $s$ cannot be pumped by considering all ways of dividing $s$ into $x$, $y$, and $z$".</p>
+    <p>Bir de ikinci bir "her" var: $s'$'nin dilde <strong>olmadığını</strong> söylerken, dilin tanımındaki her olası okumayı (her $k$'yı, her $w$'yu) dışlaman gerekir.</p>
+  </div>
+  <div class="box box--exam" data-exam="sipser-1.29a"><span class="box__label">Sipser Exercise 1.29(a) · kitap alıştırması</span>
+    <p>"Use the pumping lemma to show that the following languages are not regular. a. $A_1 = \{0^n1^n2^n \mid n \ge 0\}$" (alıştırmanın bir şıkkı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$s = 0^p1^p2^p$. Şart 3'ü kullanmadan çözmeye çalış: $y$ hangi biçimlerde olabilir?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İki durum yeter: $y$ tek tür sembol içeriyor, ya da birden fazla tür içeriyor.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Assume $A_1$ is regular, $p$ the pumping length. Let $s = 0^p1^p2^p \in A_1$, $|s| = 3p \ge p$. Consider $xyyz$:</p>
+      <ol>
+        <li>$y$ consists of only 0s, only 1s or only 2s: $xyyz$ does not have equal numbers of 0s, 1s and 2s, so $xyyz \notin A_1$.</li>
+        <li>$y$ contains more than one kind of symbol: in $xyyz$ the symbols are out of order (e.g. a 1 before a 0), so $xyyz \notin A_1$.</li>
+      </ol>
+      <p>Either way a contradiction, so $A_1$ is not regular. ∎ (Sipser'in seçili çözümü.) Şart 3 ile kısaltma: $y = 0^j$ olur ve sadece 1. durum kalır.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 1.29(a) ve seçili çözümü (PDF s.112, s.121). -->
+  </div>
+  <div class="box box--exam" data-exam="2020-mid-P3c"><span class="box__label">2020 vizesi P3(c) · çıkmış soru</span>
+    <p>"P3 [25 points] For all the languages below, decide whether they are regular or not and prove your answer. […] (c) $L = \{1^ky \mid y \in \{0,1\}^*$ and $y$ contains at most $k$ 1s, for $k \ge 1\}$" (sorunun bu bölümle ilgili şıkkı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce karar ver: regular değil. "At least $k$" olsaydı regular olurdu (Bölüm 11'de). $s = 1^p01^p$ dene: $k = p$ ile dilde.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Pump up işe yaramaz ($k$'yı büyütürsün). Pump down sonrası $s'$'nin <em>hiçbir</em> $k$ seçimiyle dilde olmadığını göster: $k$ en fazla baştaki 1 bloğunun uzunluğu olabilir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Not regular.</strong></p>
+      <p><em>Proof.</em> Assume that $L$ is regular. Then by the pumping lemma, $\exists p \in \mathbb{Z}^+$ such that $\forall s \in L$ with $|s| \ge p$, $s = xyz$ with 1. $\forall i \ge 0$, $xy^iz \in L$; 2. $|y| &gt; 0$; 3. $|xy| \le p$.</p>
+      <p>Let $s = 1^p01^p$. Then $s \in L$ (take $k = p$; the rest $01^p$ has $p \le k$ ones) and $|s| = 2p + 1 \ge p$.</p>
+      <p>By conditions 2 and 3, $y = 1^j$ with $1 \le j \le p$, inside the first block of 1s.</p>
+      <p>Pump down ($i = 0$): $s' = 1^{p-j}01^p$. If $j = p$, $s'$ starts with 0, but every string in $L$ starts with 1 (since $k \ge 1$), so $s' \notin L$. Otherwise any way of reading $s' = 1^ky'$ has $1 \le k \le p - j$, and then $y' = 1^{p-j-k}01^p$ contains $(p - j - k) + p$ ones. We would need $(p - j - k) + p \le k$, i.e. $k \ge p - j/2$, but $k \le p - j &lt; p - j/2$. So no $k$ works and $s' \notin L$.</p>
+      <p>This contradicts condition 1. Therefore $L$ is not regular. ∎</p>
+      <p><strong>Neden pump up olmaz:</strong> $1^{p+j}01^p$ dilde ($k = p + j$ al). Split gezgininde "sadece pump up" kutusunu işaretleyip dene.</p>
+      <p>Bu soru Sipser Problem 1.49(b) ile aynı. Kontrol: python ile $p = 1..8$, bütün split'ler $i = 0$ ile dışarı.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2020-midterm.pdf" target="_blank" rel="noopener">Orijinal soru (2020 vizesi)</a></p>
+    <!-- Kaynak: exams/2020-midterm.pdf P3(c), anahtar yok · Sipser Problem 1.49(b) (PDF s.113). -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-1.46a"><span class="box__label">Sipser Problem 1.46(a) · kitap alıştırması</span>
+    <p>"Prove that the following languages are not regular. You may use the pumping lemma and the closure of the class of regular languages under union, intersection, and complement. a. $\{0^n1^m0^n \mid m, n \ge 0\}$" (problemin bir şıkkı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$s = 0^p10^p$. 1'i ayırıcı olarak kullan.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Pump up sonrası 1'in solunda ve sağında kaç sıfır var? $m$'nin değeri (1'lerin sayısı) önemli mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Assume the language is regular, $p$ the pumping length. Let $s = 0^p10^p$ ($n = p$, $m = 1$), $|s| = 2p + 1 \ge p$. By conditions 2 and 3, $y = 0^j$, $j \ge 1$, in the first block. Pump up: $xyyz = 0^{p+j}10^p$. The only way to read it as $0^n1^m0^n$ has $m = 1$ with $p + j$ zeros before and $p$ zeros after; $p + j \ne p$, so $xyyz$ is not in the language. Contradiction. ∎</p>
+    </div></details>
+    <!-- Kaynak: Sipser Problem 1.46(a) (PDF s.113). Seçili çözüm yok; python ile p = 1..8, i = 2 kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-vakalar">
+    <p class="quiz__q">2020 P3(c)'de pump down sonrası $s' = 1^{p-j}01^p$ için "$k = p - j$ al, $y'$'de $p$ tane 1 var, $p &gt; p - j$, dışarıda" dedin. Eksik ne?</p>
+    <button class="quiz__opt">Hiçbir şey, ispat tamam<span class="why">Dil "∃k" ile tanımlı: $s'$'nin dilde olmadığını göstermek için <em>her</em> $k$'yı dışlamalısın, sadece en doğal görüneni değil.</span></button>
+    <button class="quiz__opt" data-correct>Daha küçük $k$ seçimlerini de dışlamak<span class="why">Doğru. $k$ küçülünce $y'$'deki 1'ler artar, yani durum kötüleşir; ama bunu yazman gerekir. En büyük $k = p - j$ bile yetmiyorsa hiçbiri yetmez.</span></button>
+    <button class="quiz__opt">$y$'nin 0 içerdiği split'ler<span class="why">Şart 3 ile $|xy| \le p$ ve ilk $p$ sembol 1; $y$ 0 içeremez. Bu durum zaten elendi.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="sayilar" data-min="5">
+  <h2>Uzunluk oyunları: kareler, 2'nin kuvvetleri, p!</h2>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Sipser Example 1.76: $D = \{1^{n^2} \mid n \ge 0\}$</span>
+    <p>Tek sembollü (unary) dillerde blok yok; sadece uzunluk var. Kareler: $0, 1, 4, 9, 16, 25, \dots$. Ardışık kareler arasındaki boşluk büyüyor. $s = 1^{p^2}$ al. $|xyz| = p^2$ ve $1 \le |y| \le p$ olduğundan $p^2 &lt; |xy^2z| \le p^2 + p &lt; p^2 + 2p + 1 = (p+1)^2$. Uzunluk iki ardışık karenin arasında kalıyor, kare değil: $xy^2z \notin D$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">İki uzunluk hilesi</span>
+    <ul>
+      <li><strong>Boşluk hilesi:</strong> pompalamak uzunluğu en fazla $p$ kadar değiştirir. Dilin $|s|$'den sonraki üyesi $p$'den daha uzakta ise $xy^2z$ arada kalır.</li>
+      <li><strong>$p!$ hilesi:</strong> $p! = p(p-1)\cdots 1$, 1'den $p$'ye kadar her sayıya bölünür. $|y| = m \le p$ ise $i = 1 + p!/m$ ile tam $p!$ tane sembol eklersin; $y$'nin uzunluğunu bilmeden hedef bir uzunluğa varırsın.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="sipser-1.29c"><span class="box__label">Sipser Exercise 1.29(c) · kitap alıştırması</span>
+    <p>"Use the pumping lemma to show that the following languages are not regular. c. $A_3 = \{a^{2^n} \mid n \ge 0\}$ (Here, $a^{2^n}$ means a string of $2^n$ a's.)" (alıştırmanın bir şıkkı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$s = a^{2^p}$. $|y| \le p &lt; 2^p$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$|xyyz|$, $2^p$ ile $2^{p+1}$ arasına düşüyor mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Assume $A_3$ is regular, $p$ the pumping length. Let $s = a^{2^p} \in A_3$, $|s| = 2^p \ge p$. By condition 3, $|y| \le p &lt; 2^p$, so $|xyyz| = 2^p + |y| &lt; 2^{p+1}$. By condition 2, $|xyyz| &gt; 2^p$. So $2^p &lt; |xyyz| &lt; 2^{p+1}$, not a power of 2, and $xyyz \notin A_3$. Contradiction. ∎ (Sipser'in seçili çözümü.)</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 1.29(c) ve seçili çözümü (PDF s.112, s.121). -->
+  </div>
+  <div class="box box--exam" data-exam="2019-mid-P3"><span class="box__label">2019 vizesi P3 · çıkmış soru</span>
+    <p>"P3 [20 points] Let $\Sigma = \{1, \#\}$ and let $Y = \{w \mid w = x_1\#x_2\#\dots\#x_k$ for $k \ge 0$, each $x_i \in 1^*$, and $x_i \ne x_j$ for $i \ne j\}$. (For example, 111#1#11 ∈ Y but 11#1#11 ∉ Y.) Prove that Y is not regular."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İlk blok $1^p$ olsun, sonraki bloklar $p+1, p+2, \dots, 2p$ uzunluğunda. $y$ ilk blokta kalır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Pump down ilk bloğu $p$'den kısa yapar, o uzunlukta başka blok yok. Pump up ise $p + m$ yapar: $1 \le m \le p$ iken bu sayı başka bir blokla çakışıyor mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><em>Proof.</em> Assume that $Y$ is regular. Then by the pumping lemma, $\exists p \in \mathbb{Z}^+$ such that $\forall s \in Y$ with $|s| \ge p$, $s = xyz$ with 1. $\forall i \ge 0$, $xy^iz \in Y$; 2. $|y| &gt; 0$; 3. $|xy| \le p$.</p>
+      <p>Let $s = 1^p\#1^{p+1}\#1^{p+2}\#\cdots\#1^{2p}$. All blocks have different lengths, so $s \in Y$, and $|s| \ge p$.</p>
+      <p>By conditions 2 and 3, $y = 1^m$ with $1 \le m \le p$, inside the first block.</p>
+      <p>Pump up ($i = 2$): $s' = 1^{p+m}\#1^{p+1}\#\cdots\#1^{2p}$. Since $1 \le m \le p$, $p + m$ is one of $p+1, \dots, 2p$, so two blocks are equal and $s' \notin Y$.</p>
+      <p>This contradicts condition 1. Therefore $Y$ is not regular. ∎</p>
+      <p><strong>Anahtardaki ikinci yol:</strong> $s = 1^p\#1^{p+p!}$. $y = 1^m$ ise $i = 1 + p!/m$ ile ilk blok $1^{p+p!}$ olur ve ikinci blokla aynı. Anahtar bunu "pump up $p!/m$ times" diye yazmış; yani $p!/m$ tane <em>ek</em> kopya, $i = 1 + p!/m$.</p>
+      <p>Anahtar doğru. Tek fark: şartları "2. $|xy| \le p$, 3. $|y| \ge 1$" sırasıyla yazmış; sen Sipser'in sırasını kullan. Bu soru Sipser Problem 1.47'nin aynısı.</p>
+      <p>Kontrol: python ile $p = 1..8$ ($i = 2$) ve $p! $ yolu için $p = 1..5$ bütün split'ler dışarı; pump down ise işe yaramıyor.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2019-midterm-solutions.pdf" target="_blank" rel="noopener">Orijinal soru ve çözüm (s.1)</a></p>
+    <!-- Kaynak: exams/2019-midterm-solutions.pdf s.1 P3 (el yazısı çözüm ve p! notu) · Sipser Problem 1.47 (PDF s.113). -->
+  </div>
+  <div class="quiz" id="q-sayilar">
+    <p class="quiz__q">$\{0^m1^n \mid m \ne n\}$ için $s = 0^p1^{p+1}$ seçtin. Rakip neden kazanabilir?</p>
+    <button class="quiz__opt">$s$ dilde değil<span class="why">$p \ne p + 1$, yani $s$ dilde. Sorun $s$'nin üyeliği değil, pompalama.</span></button>
+    <button class="quiz__opt" data-correct>$|y| = 2$ seçerse $p + 2(i-1)$ hiçbir $i$ için $p + 1$ olmaz<span class="why">Doğru. Sıfır sayısı hep $p$'den çift sayı kadar uzakta kalır ve $p + 1$'e asla eşit olmaz. $s = 0^p1^{p+p!}$ ile her $|y|$ için hedefe varırsın.</span></button>
+    <button class="quiz__opt">Pump down her zaman dilde tutar<span class="why">Pump down $0^{p-j}1^{p+1}$ verir, dilde kalır, doğru. Ama pump up $|y| = 1$ için $0^{p+1}1^{p+1}$ yapar ve dışarı çıkarır; sorun sadece bazı $|y|$ değerlerinde.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="closure" data-min="5">
+  <h2>Closure yolu: başka bir dile indirgemek</h2>
+  <div class="box box--rule">
+    <span class="box__label">Closure ile ispat</span>
+    <p>Regular diller union, intersection ve complement altında kapalıdır (union: Sipser Thm 1.25, intersection: aynı ispatın dipnotu 3, complement: Exercise 1.14, DFA'da accept ve nonaccept state'leri yer değiştirir). Yöntem:</p>
+    <ol>
+      <li>Assume $L$ is regular.</li>
+      <li>$R$ regular bir dil (çoğunlukla $0^*1^*$ gibi bir regex). Closure ile $L \cap R$ (ya da $\overline{L} \cap R$) de regular.</li>
+      <li>Ama bu kesişim, regular olmadığını bildiğimiz bir dile eşit. Çelişki.</li>
+    </ol>
+    <p>Sipser Example 1.74'te ikinci yol: $C \cap 0^*1^* = \{0^n1^n\}$. $C$ regular olsaydı kesişim de regular olurdu.</p>
+  </div>
+  <div class="box box--exam" data-exam="2020-mid-P3b"><span class="box__label">2020 vizesi P3(b) · çıkmış soru</span>
+    <p>"P3 [25 points] For all the languages below, decide whether they are regular or not and prove your answer. […] (b) $L = \{0^m1^n \mid m, n \ge 0, m \ne n\}$" (sorunun bu bölümle ilgili şıkkı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Doğrudan pumping zor: önceki bölümün sorusundaki gibi rakip $|y| = 2$ ile kaçar. $\overline{L}$'ye bak.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\overline{L}$, ya $0^*1^*$ biçiminde olmayan string'ler ya da $0^n1^n$. $0^*1^*$ ile kesiştir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Not regular.</strong></p>
+      <p><em>Proof (closure).</em> Assume that $L$ is regular. Regular languages are closed under complement, so $\overline{L}$ is regular. $0^*1^*$ is regular (it is a regular expression), and regular languages are closed under intersection, so $\overline{L} \cap 0^*1^*$ is regular. But $\overline{L} \cap 0^*1^* = \{0^n1^n \mid n \ge 0\}$, which is not regular (pumping lemma with $s = 0^p1^p$, as shown above). Contradiction. Therefore $L$ is not regular. ∎</p>
+      <p>Sınavda $0^n1^n$'in regular olmadığını bir cümleyle de olsa ispatla (Bölüm 5'teki 5 satır), sadece "biliniyor" deme.</p>
+      <p><em>Proof (pumping lemma, Sipser'in ikinci yolu).</em> Let $s = 0^p1^{p+p!} \in L$, $|s| \ge p$. By conditions 2 and 3, $y = 0^b$, $1 \le b \le p$. Since $b \mid p!$, take $i = 1 + p!/b$: $xy^iz = 0^{p+p!}1^{p+p!}$, which has $m = n$, so it is not in $L$. Contradiction. ∎</p>
+      <p>Kontrol: $\overline{L} \cap 0^*1^* = 0^n1^n$ eşitliği python ile uzunluk 10'a kadar, $p!$ yolu $p = 1..5$ için bütün split'lerde doğrulandı. Bu soru Sipser Problem 1.46(b) ile aynı.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2020-midterm.pdf" target="_blank" rel="noopener">Orijinal soru (2020 vizesi)</a></p>
+    <!-- Kaynak: exams/2020-midterm.pdf P3(b), anahtar yok · Sipser Problem 1.46(b) seçili çözümü (PDF s.122). -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-1.46c"><span class="box__label">Sipser Problem 1.46(c) · kitap alıştırması</span>
+    <p>"Prove that the following languages are not regular. You may use the pumping lemma and the closure of the class of regular languages under union, intersection, and complement. c. $\{w \mid w \in \{0,1\}^*$ is not a palindrome$\}$" (problemin bir şıkkı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Not a palindrome" dilinde $s$ seçmek zor. Complement'i al.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Palindromlar için $s = 0^p10^p$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Assume $N$ (non-palindromes) is regular. Then $\overline{N} = P$ (palindromes) is regular by closure under complement. Apply the pumping lemma to $P$: let $s = 0^p10^p \in P$, $|s| \ge p$. By conditions 2 and 3, $y = 0^j$, $j \ge 1$. Then $xyyz = 0^{p+j}10^p$ is not a palindrome (the single 1 is not in the middle), so $xyyz \notin P$. Contradiction, so $P$ is not regular, and hence $N$ is not regular. ∎</p>
+    </div></details>
+    <!-- Kaynak: Sipser Problem 1.46(c) (PDF s.113). Seçili çözüm yok; python ile p = 1..8, i = 2 kontrol edildi. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Yön önemli: "$L$ regular ⇒ $L \cap R$ regular" kullanılır. "$L \cap R$ regular değil ⇒ $L$ regular değil" doğru, ama "$L$, regular olmayan bir dilin parçası ⇒ $L$ regular değil" <strong>yanlış</strong>: her dil $\Sigma^*$'ın parçası ve $\Sigma^*$ regular.</li>
+      <li>İki regular olmayan dilin union'ı regular olabilir: $0^n1^n \cup \overline{0^n1^n} = \Sigma^*$.</li>
+      <li>$R$ mutlaka regular olmalı. "$L \cap \{0^n1^n\}$" gibi bir kesişim hiçbir şey göstermez.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-closure">
+    <p class="quiz__q">$L = \{0^m1^n \mid m \ne n\}$. Hangi adım dizisi geçerli bir ispat?</p>
+    <button class="quiz__opt" data-correct>$L$ regular ⇒ $\overline{L}$ regular ⇒ $\overline{L} \cap 0^*1^* = 0^n1^n$ regular. Çelişki.<span class="why">Doğru. İki closure adımı da regular dillere uygulanıyor ve sonuç regular olmadığını bildiğimiz bir dil.</span></button>
+    <button class="quiz__opt">$L \subseteq 0^*1^*$ ve $0^*1^*$ regular ⇒ $L$ regular<span class="why">Regular bir dilin alt kümesi regular olmak zorunda değil: $0^n1^n$ de $0^*1^*$'ın alt kümesi.</span></button>
+    <button class="quiz__opt">$L \cup 0^n1^n = 0^*1^*$ regular ⇒ $L$ regular<span class="why">Union regular diye parçalar regular olmaz. Burada iki parça da regular değil, union'ları ise regular.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="regular-mi" data-min="4">
+  <h2>Regular mı, değil mi? Tuzak sorular</h2>
+  <p>2020 vizesi "decide whether they are regular or not and prove your answer" diye sordu. Her dil regular değil; bazen doğru cevap bir DFA ya da tek cümlelik bir gerekçe.</p>
+  <div class="box box--exam" data-exam="2020-mid-P3a"><span class="box__label">2020 vizesi P3(a) · çıkmış soru</span>
+    <p>"P3 [25 points] For all the languages below, decide whether they are regular or not and prove your answer. (a) $L = \{a^kb^mc^n \mid$ where $k + m + n = 100\}$" (sorunun bu bölümle ilgili şıkkı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bu dilde kaç string var? Sonlu mu?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Rakip $p = 101$ seçerse sen hangi $s$'yi seçebilirsin?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Regular.</strong> Every string in $L$ has length exactly 100, so $L$ is finite: it has $\binom{102}{2} = 5151$ strings (one for each $(k, m, n)$ with $k + m + n = 100$). Every finite language is regular: each single string $w$ is regular (a chain DFA, or the regular expression $w$), and regular languages are closed under union, so the union of finitely many of them is regular. Equivalently, $L$ is described by the regular expression $\bigcup_{k+m+n=100} a^kb^mc^n$.</p>
+      <p><strong>Neden pumping lemma tutmaz:</strong> dil sonlu olduğu için rakip $p = 101$ seçer; dilde uzunluğu en az 101 olan string yok, seçecek $s$ kalmaz.</p>
+      <p>$k + m + n = 100$ "sayma" gibi duruyor, ama sayaç 100'de duruyor: sınırlı sayma, sonlu sayıda state demek. Kontrol: python ile üçlü sayısı 5151.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2020-midterm.pdf" target="_blank" rel="noopener">Orijinal soru (2020 vizesi)</a></p>
+    <!-- Kaynak: exams/2020-midterm.pdf P3(a), anahtar yok. -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-1.30"><span class="box__label">Sipser Exercise 1.30 · kitap alıştırması</span>
+    <p>"Describe the error in the following "proof" that $0^*1^*$ is not a regular language. (An error must exist because $0^*1^*$ is regular.) The proof is by contradiction. Assume that $0^*1^*$ is regular. Let $p$ be the pumping length for $0^*1^*$ given by the pumping lemma. Choose $s$ to be the string $0^p1^p$. You know that $s$ is a member of $0^*1^*$, but Example 1.73 shows that $s$ cannot be pumped. Thus you have a contradiction. So $0^*1^*$ is not regular."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Example 1.73, $s$'nin <em>hangi dilde</em> pompalanamadığını gösterdi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$x = \varepsilon$, $y = 0$ ile $xy^iz$ hangi dilde kalır?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Example 1.73 shows that $s = 0^p1^p$ cannot be pumped <em>in</em> $\{0^n1^n\}$: pumping leaves that language. Here the language is $0^*1^*$. With $x = \varepsilon$, $y = 0$, $z = 0^{p-1}1^p$, every $xy^iz = 0^{p-1+i}1^p$ is in $0^*1^*$, so $s$ can be pumped in $0^*1^*$. "Cannot be pumped" always depends on the language; the "proof" used the wrong one.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 1.30 (PDF s.112). Seçili çözüm yok; python ile 0^p1^p'nin 0*1* içinde pompalanabildiği kontrol edildi. -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-1.49a"><span class="box__label">Sipser Problem 1.49(a) · kitap alıştırması</span>
+    <p>"a. Let $B = \{1^ky \mid y \in \{0,1\}^*$ and $y$ contains at least $k$ 1s, for $k \ge 1\}$. Show that B is a regular language." (2020 P3(c)'nin ikizi; tek fark "at most" yerine "at least")</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$k$'yı sen seçebiliyorsun ("for some $k$"). En küçük $k$ hangisi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$k = 1$ ile şart ne oluyor? Dil, "1 ile başlayan ve en az iki 1 içeren" string'lere eşit mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Claim: $B = 1\Sigma^*1\Sigma^*$. If $w \in B$, then $w = 1^ky$ with $k \ge 1$ and $y$ has at least $k \ge 1$ ones, so $w$ starts with 1 and contains another 1. Conversely, if $w$ starts with 1 and has another 1, take $k = 1$: $y$ has at least one 1. $1\Sigma^*1\Sigma^*$ is a regular expression, so $B$ is regular. ∎</p>
+      <p>Ders: "at least $k$" ile $k$'yı küçültmek koşulu kolaylaştırır ($k = 1$ yeter). "At most $k$" ile $k$'yı büyütmek gerekir ve o zaman baştaki 1 bloğu sınırsız sayma ister. Kontrol: python ile uzunluk 12'ye kadar eşitlik doğrulandı.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Problem 1.49(a) (PDF s.113). -->
+  </div>
+  <div class="quiz" id="q-rm-1">
+    <p class="quiz__q">$\{a^nb^n \mid 0 \le n \le 1000\}$ regular mı?</p>
+    <button class="quiz__opt" data-correct>Evet<span class="why">Doğru. Dil sonlu (1001 string), her sonlu dil regular. Sayaç 1000'de duruyor.</span></button>
+    <button class="quiz__opt">Hayır, $0^n1^n$ gibi<span class="why">$0^n1^n$'de $n$ sınırsız. Burada $n \le 1000$; rakip $p = 2001$ seçer ve pompalanacak string kalmaz.</span></button>
+  </div>
+  <div class="quiz" id="q-rm-2">
+    <p class="quiz__q">$\{(01)^n \mid n \ge 0\}$ regular mı?</p>
+    <button class="quiz__opt" data-correct>Evet<span class="why">Doğru. Bu tam olarak $(01)^*$ regex'i. Üs tek bir $n$; iki ayrı yeri eşleştirmek gerekmiyor.</span></button>
+    <button class="quiz__opt">Hayır, $n$ sınırsız<span class="why">Sınırsız tekrar regular dillerde de var (star). Regular olmayanlar, iki ayrı yerdeki sayıların <em>eşleşmesini</em> isteyen diller ($0^n1^n$ gibi).</span></button>
+  </div>
+  <div class="quiz" id="q-rm-3">
+    <p class="quiz__q">$\{w \in \{0,1\}^* \mid (\#0 - \#1) \bmod 4 = 0\}$ regular mı?</p>
+    <button class="quiz__opt" data-correct>Evet<span class="why">Doğru. Farkı mod 4 tutmak için 4 state yeter: Bölüm 2'deki DFA tam olarak bu dil.</span></button>
+    <button class="quiz__opt">Hayır, $C$ (eşit 0 ve 1) gibi<span class="why">$C$'de fark tam 0 olmalı ve fark sınırsız büyüyebilir. Mod 4'te farkın sadece kalanını tutman yeterli: sonlu bilgi.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="son-kontrol" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle düşün, sonra seç. Sonra Theorem 1.70'i ve şablonu bir kez daha ezberden yaz.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Pumping lemma'nın 3. şartı hangisi?</p>
+    <button class="quiz__opt">$|y| &gt; 0$<span class="why">Bu 2. şart. Sipser'in sırası: 1. $xy^iz \in A$, 2. $|y| &gt; 0$, 3. $|xy| \le p$.</span></button>
+    <button class="quiz__opt" data-correct>$|xy| \le p$<span class="why">Doğru. $y$'yi ilk $p$ sembolün içine hapseden şart.</span></button>
+    <button class="quiz__opt">$|xyz| \ge p$<span class="why">$|s| \ge p$ bir şart değil, lemma'nın hangi $s$'lerden söz ettiğini belirleyen ön koşul.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">$\{0^k1^m0^n \mid k &gt; m &gt; n &gt; 0\}$ için hangisi en iyi $s$?</p>
+    <button class="quiz__opt">$0^{3p}1^{2p}0^p$<span class="why">Dilde ama sınırda değil: $y = 0^j$, $j &lt; p$ ise pump down sonrası ilk blok hâlâ $&gt; 2p$. Rakip böyle bir split seçer ve kaybedersin.</span></button>
+    <button class="quiz__opt" data-correct>$0^{p+2}1^{p+1}0^p$<span class="why">Doğru. Her blok bir sonrakinden tam 1 fazla; pump down tek bir 0 silse bile $k &gt; m$ bozulur.</span></button>
+    <button class="quiz__opt">$0^{p+1}1^p0^{p-1}$<span class="why">$p = 1$ için son blok boş ($n = 0$) ve $s$ dilde değil. $s$, $p$'nin her değerinde dilde olmalı.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">İspatında "Let $p = 4$" yazdın. Hoca ne der?</p>
+    <button class="quiz__opt">Sorun yok, $p$ herhangi bir sayı olabilir<span class="why">$p$'nin var olduğunu lemma söyler ama değerini sen bilemezsin. Tek bir $p$ için yapılan ispat diğer $p$'ler için hiçbir şey göstermez.</span></button>
+    <button class="quiz__opt" data-correct>Yanlış: $p$ rakibin seçimi, ispat her $p$ için çalışmalı<span class="why">Doğru. $s$'yi $p$ cinsinden yazmanın sebebi bu.</span></button>
+    <button class="quiz__opt">Sadece $p \ge 4$ olduğunu da yazarsan doğru<span class="why">Yine tek bir değer seçmiş oluyorsun. $p$'yi bilmiyorsun; argüman $p = 1$ için de çalışmalı.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Bir dil için pompalanamayan bir $s$ bulamadın. Sonuç?</p>
+    <button class="quiz__opt">Dil regular<span class="why">Lemma bir dilin regular olduğunu asla göstermez. Belki daha iyi bir $s$ vardır, belki dil pompalanabilir ama yine de regular değildir (Problem 1.54).</span></button>
+    <button class="quiz__opt" data-correct>Bir şey söyleyemezsin; başka bir $s$ dene ya da DFA/closure ile regular olduğunu göster<span class="why">Doğru. Regular olduğunu göstermenin yolu bir DFA, NFA ya da regex vermek (2020 P3(a) gibi).</span></button>
+    <button class="quiz__opt">Dil regular değil, çünkü uğraştın ama DFA çizemedin<span class="why">"Çizemedim" bir ispat değil. Bölüm 1'deki $D$ dili saymak gerekiyor gibi görünüp regular çıkıyor.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">$\{1^ky \mid y$ contains at most $k$ 1s, $k \ge 1\}$'de $s = 1^p01^p$ ile pump up ($i = 2$) neden işe yaramaz?</p>
+    <button class="quiz__opt">$s$ dilde değil<span class="why">$k = p$ ile $y = 01^p$'de $p$ tane 1 var, $p \le p$: $s$ dilde.</span></button>
+    <button class="quiz__opt" data-correct>$1^{p+j}01^p$ dilde kalır, çünkü $k = p + j$ seçilebilir<span class="why">Doğru. Baştaki bloğu büyütmek "at most $k$" şartını gevşetir. Pump down ile bloğu küçültmek gerekir.</span></button>
+    <button class="quiz__opt">$y$ 0'ı da içerebilir<span class="why">Şart 3 ile $|xy| \le p$, ilk $p$ sembolün hepsi 1. $y$ sadece 1'lerden oluşur.</span></button>
+  </div>
+  <!-- Sıradaki konu: CFG tasarımı, derivation, ambiguity ve CNF. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* Shared helpers for this lesson */
+const PR = {
+  $: (id) => document.getElementById(id),
+  esc: (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])),
+  math(el) { if (window.Lab && Lab.renderMath) Lab.renderMath(el); },
+  /* KaTeX run-length form of a concrete string: 000011 -> 0^{4}11 */
+  rl(s) {
+    if (s === "") return "\\varepsilon";
+    const parts = [];
+    let i = 0;
+    while (i < s.length) {
+      let j = i;
+      while (j < s.length && s[j] === s[i]) j++;
+      const c = s[i] === "#" ? "\\#" : s[i], n = j - i;
+      parts.push(n >= 3 ? c + "^{" + n + "}" : c.repeat(n));
+      i = j;
+    }
+    if (parts.length > 40) return parts.slice(0, 18).join("") + "\\cdots" + parts.slice(-6).join("") + "\\;(|\\cdot| = " + s.length + ")";
+    return parts.join("");
+  },
+  fact(n) {
+    if (!Number.isInteger(n) || n < 0) throw "Faktöriyel sadece doğal sayılar için tanımlı.";
+    if (n > 10) throw "p! çok büyük: p ≤ 6 iken dene.";
+    let r = 1; for (let k = 2; k <= n; k++) r *= k; return r;
+  },
+  /* Small expression evaluator: integers, variables from env, + - * ^ ! and parentheses, implicit product (2p) */
+  evalExpr(src, env) {
+    const t = String(src).replace(/\s+/g, "").replace(/[−–]/g, "-").replace(/[×·]/g, "*");
+    if (t === "") throw "Boş ifade.";
+    let i = 0;
+    function atom() {
+      const c = t[i];
+      if (c === "(") { i++; const v = expr(); if (t[i] !== ")") throw "Parantez kapanmıyor."; i++; return v; }
+      if (c !== undefined && /[0-9]/.test(c)) { let j = i; while (j < t.length && /[0-9]/.test(t[j])) j++; const v = Number(t.slice(i, j)); i = j; return v; }
+      if (c !== undefined && /[a-z]/i.test(c)) {
+        if (Object.prototype.hasOwnProperty.call(env, c)) { i++; return env[c]; }
+        throw "'" + c + "' tanınmıyor; sadece " + (Object.keys(env).join(", ") || "sayılar") + " kullanılabilir.";
+      }
+      throw c === undefined ? "İfade yarım kaldı." : "'" + c + "' beklenmedik.";
+    }
+    function post() { let v = atom(); while (t[i] === "!") { i++; v = PR.fact(v); } return v; }
+    function power() { const b = post(); if (t[i] === "^") { i++; return Math.pow(b, unary()); } return b; }
+    function unary() { if (t[i] === "-") { i++; return -unary(); } return power(); }
+    function term() {
+      let v = unary();
+      for (;;) {
+        if (t[i] === "*") { i++; v *= unary(); }
+        else if (t[i] !== undefined && /[0-9a-z(]/i.test(t[i])) v *= unary();
+        else return v;
+      }
+    }
+    function expr() {
+      let v = term();
+      for (;;) {
+        if (t[i] === "+") { i++; v += term(); }
+        else if (t[i] === "-") { i++; v -= term(); }
+        else return v;
+      }
+    }
+    const v = expr();
+    if (i !== t.length) throw "'" + t[i] + "' beklenmedik.";
+    return v;
+  }
+};
+
+/* 1. Pigeonhole stepper: real run of a 4-state DFA, first repeated state, x|y|z, pumped runs */
+(function () {
+  const P = 4;
+  const delta = (q, c) => (c === "0" ? (q + 1) % P : (q + P - 1) % P);
+  const run = (s) => { const seq = [0]; for (const c of s) seq.push(delta(seq[seq.length - 1], c)); return seq; };
+  const POS = [[52, 38], [168, 38], [168, 122], [52, 122]];
+  function edge(a, b, label, side) {
+    const [x1, y1] = POS[a], [x2, y2] = POS[b];
+    const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+    const nx = -uy * side * 6, ny = ux * side * 6, r = 17;
+    const sx = x1 + ux * r + nx, sy = y1 + uy * r + ny, ex = x2 - ux * (r + 3) + nx, ey = y2 - uy * (r + 3) + ny;
+    const lx = (x1 + x2) / 2 - uy * side * 15, ly = (y1 + y2) / 2 + ux * side * 15 + 4;
+    return `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" style="stroke:var(--fg-muted);stroke-width:1.3" marker-end="url(#w-pumping-regular-arr)"/>` +
+      `<text x="${lx}" y="${ly}" text-anchor="middle" style="fill:var(--fg-muted);font-size:11px;font-family:'JetBrains Mono',monospace">${label}</text>`;
+  }
+  function svg(cur, rep) {
+    let h = `<svg class="w-pumping-regular-svg" viewBox="0 0 220 160" role="img" aria-label="4 state'li DFA"><defs><marker id="w-pumping-regular-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--fg-muted)"/></marker></defs>`;
+    for (let q = 0; q < P; q++) { h += edge(q, (q + 1) % P, "0", 1); h += edge((q + 1) % P, q, "1", 1); }
+    h += `<line x1="8" y1="38" x2="32" y2="38" style="stroke:var(--fg);stroke-width:1.5" marker-end="url(#w-pumping-regular-arr)"/>`;
+    for (let q = 0; q < P; q++) {
+      const [x, y] = POS[q];
+      const on = q === cur, isRep = q === rep;
+      const fill = on ? "var(--blue-050)" : isRep ? "var(--orange-100)" : "var(--paper)";
+      const stroke = on ? "var(--blue-600)" : isRep ? "var(--accent)" : "var(--border)";
+      h += `<circle cx="${x}" cy="${y}" r="16" style="fill:${fill};stroke:${stroke};stroke-width:${on ? 2.5 : 1.5}"/>`;
+      if (q === 0) h += `<circle cx="${x}" cy="${y}" r="12" style="fill:none;stroke:${stroke};stroke-width:1.2"/>`;
+      h += `<text x="${x}" y="${y + 4}" text-anchor="middle" style="fill:var(--fg);font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace">q${q}</text>`;
+    }
+    return h + "</svg>";
+  }
+  /* states r1..r_{n+1} interleaved with symbols; parts: array of "x"/"y"/"z"/"" per symbol */
+  function line(str, seq, upto, parts, repIdx) {
+    let h = `<div class="w-pumping-regular-run">`;
+    for (let t = 0; t <= upto; t++) {
+      const cls = (repIdx.includes(t) ? " is-rep" : "") + (t === upto ? " is-cur" : "");
+      h += `<span class="w-pumping-regular-st${cls}">q${seq[t]}</span>`;
+      if (t < upto) h += `<span class="w-pumping-regular-sym${parts[t] ? " p-" + parts[t] : ""}">${str[t]}</span>`;
+    }
+    return h + "</div>";
+  }
+  const legend = `<div class="w-pumping-regular-legend"><span class="w-pumping-regular-sym p-x">x</span><span class="w-pumping-regular-sym p-y">y</span><span class="w-pumping-regular-sym p-z">z</span><span>turuncu kutu: tekrar eden state</span></div>`;
+  const inp = PR.$("w-pg-s"), err = PR.$("w-pg-err"), box = PR.$("w-pg-stepper");
+  function build() {
+    const s = inp.value.trim();
+    if (!/^[01]*$/.test(s)) { err.textContent = "Sadece 0 ve 1 yaz: bu DFA'nın alphabet'i {0, 1}."; return; }
+    if (s.length === 0) { err.textContent = "Boş string'de okunacak sembol yok, run sadece q0'dan ibaret. En az bir sembol yaz."; return; }
+    if (s.length > 14) { err.textContent = "En fazla 14 sembol: ekrana sığsın. Tekrar zaten ilk 5 state içinde çıkar."; return; }
+    err.textContent = "";
+    const seq = run(s), n = s.length, accept = seq[n] === 0;
+    let j = -1, l = -1;
+    const seen = {};
+    for (let t = 0; t <= n; t++) { if (seen[seq[t]] !== undefined) { j = seen[seq[t]]; l = t; break; } seen[seq[t]] = t; }
+    const frames = [];
+    const none = Array(n).fill("");
+    for (let t = 0; t <= n; t++) {
+      let cap = t === 0 ? `Başlangıç: $r_1 = q_0$. Bu DFA'da $p = 4$ state var.` :
+        `$s_{${t}} = ${s[t - 1]}$ okundu: $r_{${t}} = q_{${seq[t - 1]}} \\to r_{${t + 1}} = q_{${seq[t]}}$.`;
+      const reps = [];
+      if (l !== -1 && t >= l) { reps.push(j, l); if (t === l) cap += ` <b>$q_{${seq[l]}}$ ikinci kez!</b> $r_{${j + 1}} = r_{${l + 1}}$. ${l + 1} ziyaret, ${P} state: pigeonhole.`; }
+      if (t === n) cap += accept ? " Sonda $q_0$: <b>accept</b>." : ` Sonda $q_{${seq[n]}}$: <b>reject</b> (bu $s$ dilde değil, ama döngü yine de var).`;
+      frames.push({ cap, render: (el) => { el.innerHTML = svg(seq[t], l !== -1 && t >= l ? seq[l] : -1) + line(s, seq, t, none, reps); } });
+      frames[frames.length - 1].caption = cap;
+    }
+    if (l === -1) {
+      frames.push({ caption: `Hiç tekrar yok: $|s| = ${n} &lt; 4 = p$, run sadece ${n + 1} state içeriyor. Pigeonhole tekrarı ancak $|s| \\ge p$ iken garanti eder.`, render: (el) => { el.innerHTML = svg(seq[n], -1) + line(s, seq, n, none, []); } });
+    } else {
+      const x = s.slice(0, j), y = s.slice(j, l), z = s.slice(l);
+      const parts = [...x].map(() => "x").concat([...y].map(() => "y"), [...z].map(() => "z"));
+      frames.push({
+        caption: `İlk tekrar $r_{${j + 1}} = r_{${l + 1}} = q_{${seq[l]}}$. $x = ${PR.rl(x)}$ ($q_0 \\to q_{${seq[l]}}$), $y = ${PR.rl(y)}$ ($q_{${seq[l]}} \\to q_{${seq[l]}}$), $z = ${PR.rl(z)}$. $|y| = ${y.length} &gt; 0$ ve $|xy| = ${x.length + y.length} \\le 4$.`,
+        render: (el) => { el.innerHTML = svg(seq[l], seq[l]) + line(s, seq, n, parts, [j, l]) + legend; }
+      });
+      [0, 2, 3].forEach((i) => {
+        const w = x + y.repeat(i) + z, sq = run(w);
+        const pp = [...x].map(() => "x").concat([...y.repeat(i)].map(() => "y"), [...z].map(() => "z"));
+        const same = sq[w.length] === seq[n];
+        frames.push({
+          caption: `$i = ${i}$: $xy^{${i}}z = ${PR.rl(w)}$. Run $q_{${sq[w.length]}}$'de bitiyor, $s$ ile ${same ? "aynı" : "farklı"} state. ${sq[w.length] === 0 ? "Accept." : "Reject."} DFA $y$ döngüsünün kaç kez döndüğünü ayırt edemiyor.`,
+          render: (el) => { el.innerHTML = svg(sq[w.length], seq[l]) + line(w, sq, w.length, pp, []) + legend; }
+        });
+      });
+    }
+    Lab.stepper(box, { title: `DFA: (#0 − #1) mod 4 = 0 · s = ${s}`, interval: 1200, frames, render(f, idx, el) { f.render(el); } });
+  }
+  PR.$("w-pg-go").addEventListener("click", build);
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") build(); });
+  document.querySelectorAll("[data-pg]").forEach((b) => b.addEventListener("click", () => { inp.value = b.dataset.pg; build(); }));
+  build();
+})();
+
+/* 2. Statement cloze (closed-book drill) */
+(function () {
+  const norm = (v) => v.toLowerCase().replace(/\s+/g, "").replace(/≥/g, ">=").replace(/≤/g, "<=").replace(/＞/g, ">");
+  const KEYS = [
+    { ok: ["p"], show: "p" },
+    { ok: ["xyz"], show: "xyz" },
+    { ok: ["i>=0", "0<=i"], show: "i ≥ 0" },
+    { ok: [">0", ">=1", "!=0", "≠0"], show: "> 0" },
+    { ok: ["|xy|"], show: "|xy|" }
+  ];
+  const ins = Array.from(document.querySelectorAll("[data-cl]")), fb = PR.$("w-cl-fb");
+  PR.$("w-cl-go").addEventListener("click", () => {
+    let good = 0;
+    ins.forEach((el, k) => {
+      const v = norm(el.value);
+      const ok = KEYS[k].ok.includes(v);
+      el.style.borderColor = ok ? "#2b8a3e" : "#c92a2a";
+      if (ok) good++;
+    });
+    const miss = ins.map((el, k) => KEYS[k].ok.includes(norm(el.value)) ? null : k + 1).filter((x) => x);
+    fb.innerHTML = good === KEYS.length ? `<span class="w-pumping-regular-ok">Beşi de doğru. Şimdi bir kâğıda tamamını yaz.</span>` :
+      `${good}/5 doğru. Yanlış ya da boş: ${miss.join(", ")}. numaralı boşluk. ${miss.includes(3) ? "3. boşlukta $i = 0$'ın dahil olduğunu unutma. " : ""}${miss.includes(4) ? "4. boşluk $y$'nin boş olamayacağını söyler. " : ""}`;
+    PR.math(fb);
+  });
+  PR.$("w-cl-show").addEventListener("click", () => {
+    ins.forEach((el, k) => { el.value = KEYS[k].show; el.style.borderColor = ""; });
+    fb.textContent = "Cevaplar yerleştirildi. Silip yarın bir daha dene.";
+  });
+})();
+
+/* 3. Exhaustive split explorer */
+(function () {
+  const re01 = /^0*1*$/;
+  const cnt = (s, c) => { let k = 0; for (const ch of s) if (ch === c) k++; return k; };
+  const LANGS = [
+    { key: "2024", label: "{0^k1^m0^n | k > m > n > 0} · 2024 P3", alpha: "01",
+      pred: (s) => { const m = /^(0+)(1+)(0+)$/.exec(s); return !!m && m[1].length > m[2].length && m[2].length > m[3].length; },
+      presets: ["0^{p+2}1^{p+1}0^p", "0^{3p}1^{2p}0^p", "0^{p+1}1^p0^{p-1}"] },
+    { key: "0n1n", label: "{0^n1^n | n ≥ 0} · Sipser 1.73", alpha: "01",
+      pred: (s) => re01.test(s) && cnt(s, "0") === cnt(s, "1"), presets: ["0^p1^p"] },
+    { key: "C", label: "eşit sayıda 0 ve 1 · Sipser 1.74", alpha: "01",
+      pred: (s) => cnt(s, "0") === cnt(s, "1"), presets: ["0^p1^p", "(01)^p"] },
+    { key: "ww", label: "{ww} · Sipser 1.75", alpha: "01",
+      pred: (s) => s.length % 2 === 0 && s.slice(0, s.length / 2) === s.slice(s.length / 2), presets: ["0^p10^p1", "0^p0^p"] },
+    { key: "gt", label: "{0^i1^j | i > j} · Sipser 1.77", alpha: "01",
+      pred: (s) => re01.test(s) && cnt(s, "0") > cnt(s, "1"), presets: ["0^{p+1}1^p"] },
+    { key: "wwrw", label: "{ww^Rw} · 2023 P3", alpha: "01",
+      pred: (s) => { if (s.length % 3) return false; const k = s.length / 3, w = s.slice(0, k); return s === w + [...w].reverse().join("") + w; },
+      presets: ["0^p1^{2p}0^{2p}1^p", "0^p110^{2p}1", "0^{3p}"] },
+    { key: "sq", label: "{1^{n²}} · Sipser 1.76", alpha: "1",
+      pred: (s) => { const r = Math.round(Math.sqrt(s.length)); return r * r === s.length; }, presets: ["1^{p*p}", "1^{(p+1)^2}"] },
+    { key: "neq", label: "{0^m1^n | m ≠ n} · 2020 P3(b)", alpha: "01",
+      pred: (s) => re01.test(s) && cnt(s, "0") !== cnt(s, "1"), presets: ["0^p1^{p+1}", "0^p1^{p+p!}"] },
+    { key: "atmost", label: "{1^k y | y has ≤ k 1s, k ≥ 1} · 2020 P3(c)", alpha: "01",
+      pred: (s) => { let r = 0; while (r < s.length && s[r] === "1") r++; return r >= 1 && 2 * r >= cnt(s, "1"); }, presets: ["1^p01^p"] },
+    { key: "distinct", label: "x1#x2#…#xk, xi farklı · 2019 P3", alpha: "1#",
+      pred: (s) => { const parts = s.split("#"); return parts.every((x) => /^1*$/.test(x)) && new Set(parts).size === parts.length; },
+      presets: ["1^p#1^{p+p!}", "1^p#1^{p+1}"] },
+    { key: "reg", label: "0*1* (regular, burada hep kaybedersin) · Sipser 1.30", alpha: "01",
+      pred: (s) => re01.test(s), presets: ["0^p1^p"] }
+  ];
+  const sel = PR.$("w-ex-lang"), sIn = PR.$("w-ex-s"), pSel = PR.$("w-ex-p"), up = PR.$("w-ex-up");
+  const err = PR.$("w-ex-err"), out = PR.$("w-ex-out"), pre = PR.$("w-ex-presets");
+  sel.innerHTML = LANGS.map((L, k) => `<option value="${k}">${PR.esc(L.label)}</option>`).join("");
+  pSel.innerHTML = [1, 2, 3, 4, 5, 6, 7, 8].map((p) => `<option value="${p}"${p === 5 ? " selected" : ""}>${p}</option>`).join("");
+  function presets() {
+    const L = LANGS[sel.value];
+    pre.innerHTML = `<span class="src">dene:</span>` + L.presets.map((t) => `<button class="btn btn--sm w-pumping-regular-mono" data-tpl="${PR.esc(t)}">${PR.esc(t)}</button>`).join("");
+    pre.querySelectorAll("[data-tpl]").forEach((b) => b.addEventListener("click", () => { sIn.value = b.dataset.tpl; go(); }));
+  }
+  /* template like 0^{p+2}1^{p+1}0^p, (01)^p, 1^{p*p} -> concrete string */
+  function build(tpl, p, alpha) {
+    const t = tpl.replace(/\s+/g, "");
+    if (t === "") throw "s boş. Örnek: 0^{p+2}1^{p+1}0^p";
+    let i = 0, out = "";
+    while (i < t.length) {
+      let unit;
+      if (t[i] === "(") {
+        const j = t.indexOf(")", i);
+        if (j < 0) throw "Açılan parantez kapanmıyor.";
+        unit = t.slice(i + 1, j); i = j + 1;
+        if (!unit) throw "Boş parantez: () içine sembol yaz.";
+      } else if (t[i] === "^" || t[i] === "{" || t[i] === "}") {
+        throw "'" + t[i] + "' bir sembolden sonra gelmeli (örnek: 0^p).";
+      } else { unit = t[i]; i++; }
+      for (const ch of unit) if (!alpha.includes(ch)) throw "'" + ch + "' bu dilin alphabet'inde yok. Alphabet: {" + alpha.split("").join(", ") + "}.";
+      let n = 1;
+      if (t[i] === "^") {
+        i++;
+        if (t[i] === "{") {
+          let depth = 1, j = i + 1;
+          while (j < t.length && depth) { if (t[j] === "{") depth++; else if (t[j] === "}") depth--; j++; }
+          if (depth) throw "Süslü parantez kapanmıyor: 0^{p+1} gibi yaz.";
+          n = PR.evalExpr(t.slice(i + 1, j - 1), { p }); i = j;
+        } else {
+          let j = i;
+          if (t[j] === "p") j++; else while (j < t.length && /[0-9]/.test(t[j])) j++;
+          while (t[j] === "!") j++;
+          if (j === i) throw "^ işaretinden sonra üs yaz: p, bir sayı ya da {…}.";
+          n = PR.evalExpr(t.slice(i, j), { p }); i = j;
+        }
+      }
+      if (!Number.isInteger(n) || n < 0) throw "Üs " + n + " çıktı (p = " + p + "). Üsler her p için 0 ya da pozitif tam sayı olmalı.";
+      if (out.length + unit.length * n > 2000) throw "s çok uzun (2000 sembolden fazla). p'yi küçült.";
+      out += unit.repeat(n);
+    }
+    return out;
+  }
+  function go() {
+    out.innerHTML = "";
+    const L = LANGS[sel.value], p = Number(pSel.value);
+    let s;
+    try { s = build(sIn.value, p, L.alpha); } catch (e) { err.textContent = String(e); return; }
+    if (!L.pred(s)) { err.innerHTML = `$s = ${PR.rl(s)}$ bu dilde değil (p = ${p}). İlk iş: seçtiğin $s$ her $p$ için dilde olmalı.`; PR.math(err); return; }
+    if (s.length < p) { err.innerHTML = `$|s| = ${s.length} &lt; p = ${p}$. Lemma sadece $|s| \\ge p$ olan string'ler için konuşur.`; PR.math(err); return; }
+    err.textContent = "";
+    const pf = p <= 6 ? PR.fact(p) : null;
+    const usesFact = /!/.test(sIn.value);
+    const rows = [];
+    for (let a = 0; a < p; a++) for (let b = a + 1; b <= Math.min(p, s.length); b++) {
+      const x = s.slice(0, a), y = s.slice(a, b), z = s.slice(b);
+      const is = up.checked ? [2, 3, 4, 5, 6, 7, 8] : [0, 2, 3, 4, 5, 6, 7, 8];
+      if (usesFact && pf && pf % y.length === 0) { const big = 1 + pf / y.length; if (!is.includes(big)) is.push(big); }
+      let hit = null;
+      for (const i of is) { const w = x + y.repeat(i) + z; if (!L.pred(w)) { hit = { i, w }; break; } }
+      rows.push({ x, y, z, hit });
+    }
+    const green = rows.filter((r) => !r.hit);
+    rows.sort((r1, r2) => (r1.hit ? 1 : 0) - (r2.hit ? 1 : 0));
+    const tested = (up.checked ? "$i = 2, \\dots, 8$" : "$i = 0, 2, \\dots, 8$") + (usesFact && pf ? ", ve $i = 1 + p!/|y|$" : "");
+    let h = `<div class="w-pumping-regular-sum">$s = ${PR.rl(s)}$, $|s| = ${s.length}$, $s \\in L$ ✓. $p = ${p}$ için ${rows.length} split var. Denenen: ${tested}.<br>`;
+    h += green.length === 0
+      ? `<b class="w-pumping-regular-ok">Bütün ${rows.length} split kırmızı.</b> Bu $p$ için $s$ işe yarıyor. Rakip başka bir $p$ seçebilir; ispatta argümanı $p$ cinsinden yazacaksın.`
+      : `<b style="color:#c92a2a">${green.length} split yeşil kaldı.</b> Denenen $i$ değerlerinde dışarı çıkılmadı; daha büyük bir $i$ işe yarayabilir${L.key === "reg" ? ". Bu dil regular olduğu için burada hiçbir $i$ işe yaramaz" : ""}.`;
+    h += `</div><div class="table-wrap"><table class="w-pumping-regular-tbl"><tr><th>x</th><th>y</th><th>z</th><th>sonuç</th></tr>`;
+    rows.forEach((r) => {
+      h += `<tr class="${r.hit ? "is-red" : "is-green"}"><td>$${PR.rl(r.x)}$</td><td>$${PR.rl(r.y)}$</td><td>$${PR.rl(r.z)}$</td><td>${r.hit ? `$i = ${r.hit.i}$: $${PR.rl(r.hit.w)} \\notin L$` : "her denenen $i$ için $xy^iz \\in L$"}</td></tr>`;
+    });
+    h += "</table></div>";
+    out.innerHTML = h;
+    PR.math(out);
+  }
+  sel.addEventListener("change", () => { presets(); sIn.value = LANGS[sel.value].presets[0]; go(); });
+  PR.$("w-ex-go").addEventListener("click", go);
+  PR.$("w-ex-roll").addEventListener("click", () => { pSel.value = String(2 + Math.floor(Math.random() * 6)); go(); });
+  pSel.addEventListener("change", go);
+  up.addEventListener("change", go);
+  sIn.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  presets(); go();
+})();
+
+/* 4. Proof-order puzzle for 2024 P3 and numeric fill-in */
+(function () {
+  const SENT = [
+    { t: "Assume that $L$ is regular.", name: "Assume" },
+    { t: "Then by the pumping lemma for regular languages, $\\exists p \\in \\mathbb{Z}^+$ such that $\\forall s \\in L$ with $|s| \\ge p$, $s = xyz$ with 1. $\\forall i \\ge 0$, $xy^iz \\in L$; 2. $|y| &gt; 0$; 3. $|xy| \\le p$.", name: "lemma'nın girişi" },
+    { t: "Let $s = 0^{p+2}1^{p+1}0^p$. Then $s \\in L$ since $p+2 &gt; p+1 &gt; p &gt; 0$, and $|s| = 3p+3 \\ge p$.", name: "s seçimi" },
+    { t: "By conditions 2 and 3, $y = 0^j$ with $j \\ge 1$, inside the first block of 0s.", name: "y'nin şekli" },
+    { t: "Pump down ($i = 0$): $s' = xz = 0^{p+2-j}1^{p+1}0^p$.", name: "pump down" },
+    { t: "Since $j \\ge 1$, $p+2-j \\le p+1$, so $k &gt; m$ fails and $s' \\notin L$.", name: "s' ∉ L gerekçesi" },
+    { t: "This contradicts condition 1. Therefore $L$ is not regular. ∎", name: "sonuç" }
+  ];
+  const DIST = [
+    { t: "Let $p = 5$.", why: "$p$'yi rakip seçer; ispat her $p$ için çalışmalı. Bu cümle kâğıtta olmamalı." },
+    { t: "Choose the split $x = \\varepsilon$, $y = 0$, $z = 0^{p+1}1^{p+1}0^p$.", why: "Split'i rakip seçer. Sen sadece şartlardan $y$'nin ne olabileceğini çıkarırsın." }
+  ];
+  const paper = PR.$("w-ord-paper"), pool = PR.$("w-ord-pool"), fb = PR.$("w-ord-fb");
+  let next, items, crossed;
+  function shuffle(a) { for (let k = a.length - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [a[k], a[r]] = [a[r], a[k]]; } return a; }
+  function reset() {
+    next = 0; crossed = 0; paper.innerHTML = ""; fb.textContent = "";
+    items = shuffle(SENT.map((x, k) => ({ t: x.t, k })).concat(DIST.map((x) => ({ t: x.t, why: x.why, k: -1 }))));
+    draw();
+  }
+  function add(t, ok, why) {
+    const li = document.createElement("li");
+    if (!ok) li.className = "is-x";
+    li.innerHTML = `<span>${t}</span>` + (why ? `<small>${why}</small>` : "");
+    paper.appendChild(li);
+    PR.math(li);
+  }
+  function draw() {
+    pool.innerHTML = "";
+    items.forEach((it, idx) => {
+      const b = document.createElement("button");
+      b.className = "btn btn--sm"; b.type = "button"; b.innerHTML = it.t;
+      b.addEventListener("click", () => pick(idx));
+      pool.appendChild(b);
+    });
+    PR.math(pool);
+  }
+  function pick(idx) {
+    const it = items[idx];
+    if (it.k === -1) { add(it.t, false, "Üstü çizildi: " + it.why); crossed++; items.splice(idx, 1); }
+    else if (it.k === next) { add(it.t, true, ""); items.splice(idx, 1); next++; }
+    else { add(it.t, false, `Üstü çizildi: bu cümle, henüz yazmadığın "${SENT[next].name}" cümlesine dayanıyor. Cümle havuzda kalıyor.`); crossed++; }
+    if (next === SENT.length) {
+      fb.innerHTML = crossed === 0 ? `<span class="w-pumping-regular-ok">Kâğıt tamam, hiç üstü çizilen cümle yok.</span>` : `Kâğıt tamam. Üstü çizilen cümle sayısı: ${crossed}. Bir kez daha karıştırıp sıfır hatayla dene.`;
+      items = items.filter((x) => x.k !== -1);
+    }
+    draw();
+  }
+  PR.$("w-ord-reset").addEventListener("click", reset);
+  reset();
+
+  const F = [
+    { want: () => 1, vars: [], msg: "$|y| &gt; 0$ şartından $j$ en az 1." },
+    { want: () => 0, vars: [], msg: "Pump down $i = 0$ demek: $y$ tamamen silinir." },
+    { want: (p, j) => p + 2 - j, vars: ["p", "j"], msg: "İlk blokta $p+2$ sıfır vardı, $y$ ile $j$ tanesi silindi." },
+    { want: (p, j) => 3 * p + 3 - j, vars: ["p", "j"], msg: "$|s| = 3p+3$; pump down $|y| = j$ kadar kısaltır." }
+  ];
+  const ins = Array.from(document.querySelectorAll("[data-f]")), ffb = PR.$("w-fill-fb");
+  PR.$("w-fill-go").addEventListener("click", () => {
+    const notes = [];
+    let good = 0;
+    ins.forEach((el, k) => {
+      let ok = true, why = "";
+      try {
+        for (let p = 3; p <= 7 && ok; p++) for (let j = 1; j <= p && ok; j++) {
+          const env = F[k].vars.length ? { p, j } : {};
+          const v = PR.evalExpr(el.value, env);
+          if (!Number.isFinite(v) || Math.abs(v - F[k].want(p, j)) > 1e-9) { ok = false; why = F[k].vars.length ? `p = ${p}, j = ${j} için ${v} çıkıyor, ${F[k].want(p, j)} olmalı.` : ""; }
+        }
+      } catch (e) { ok = false; why = String(e); }
+      el.style.borderColor = ok ? "#2b8a3e" : "#c92a2a";
+      if (ok) good++; else notes.push(`${k + 1}. boşluk: ${why} ${F[k].msg}`);
+    });
+    ffb.innerHTML = good === F.length ? `<span class="w-pumping-regular-ok">Dördü de doğru.</span>` : notes.join("<br>");
+    PR.math(ffb);
+  });
+})();
+</script>
+</body>
+</html>

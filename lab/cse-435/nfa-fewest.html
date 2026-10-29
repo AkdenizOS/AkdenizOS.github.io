@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 435: vizenin P2 sorusu için en az state'li NFA. Puanlama kuralı, dead state'i atmak, son k sembolü tahmin etmek, çıkışı olmayan accept state'leri birleştirmek, serbest semboller, ε ile iki kapı, son sembolü hatırlamak, alt sınır ve çıkmış P2 soruları." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>En az state'li NFA · CSE 435 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-nfa-fewest-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-nfa-fewest-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-nfa-fewest-ctl select { max-width: 100%; }
+    .w-nfa-fewest-ctl input[type="text"] { width: 150px; max-width: 100%; font-family: 'JetBrains Mono', monospace; }
+    .w-nfa-fewest-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-nfa-fewest-ok { color: #2b8a3e; font-weight: 700; }
+    .w-nfa-fewest-bad { color: var(--orange-700); font-weight: 700; }
+    .w-nfa-fewest-ta { width: 100%; min-height: 170px; font-family: 'JetBrains Mono', monospace; font-size: .85rem; line-height: 1.35; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); box-sizing: border-box; resize: vertical; }
+    .w-nfa-fewest-scroll { overflow-x: auto; max-width: 100%; margin: 6px 0; }
+    .w-nfa-fewest-scroll svg { display: block; max-width: none; }
+    .w-nfa-fewest-fig { margin: 8px 0; }
+    .w-nfa-fewest-figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+    .w-nfa-fewest-figs > div { min-width: 0; }
+    .w-nfa-fewest-figs p { margin: 4px 0 0; font-size: .88rem; font-weight: 700; color: var(--fg-muted); }
+    .w-nfa-fewest-edge { fill: none; stroke: var(--fg); stroke-width: 1.4; }
+    .w-nfa-fewest-elab { fill: var(--fg); font-size: 12px; font-weight: 700; font-family: 'JetBrains Mono', monospace; paint-order: stroke; stroke: var(--paper); stroke-width: 3px; }
+    .w-nfa-fewest-node { fill: var(--paper); stroke: var(--fg); stroke-width: 1.6; }
+    .w-nfa-fewest-node.is-hl { fill: var(--orange-100); stroke: var(--accent); stroke-width: 2.6; }
+    .w-nfa-fewest-ring { fill: none; stroke: var(--fg); stroke-width: 1.3; }
+    .w-nfa-fewest-ring.is-hl { stroke: var(--accent); }
+    .w-nfa-fewest-nlab { fill: var(--fg); font-size: 12px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .w-nfa-fewest-sym { fill: var(--fg); font-size: 14px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .w-nfa-fewest-sym.is-on { fill: var(--accent); }
+    .w-nfa-fewest-sym.is-later { fill: var(--fg-faint); }
+    .w-nfa-fewest-tedge { stroke: var(--fg-muted); stroke-width: 1.3; }
+    .w-nfa-fewest-tnode { fill: var(--paper); stroke: var(--fg-muted); stroke-width: 1.4; }
+    .w-nfa-fewest-tnode.is-front { fill: var(--blue-050); stroke: var(--blue-600); stroke-width: 2; }
+    .w-nfa-fewest-tnode.is-acc { fill: #d3f9d8; stroke: #2b8a3e; stroke-width: 2.4; }
+    .w-nfa-fewest-tnode.is-rej { stroke-dasharray: 3 3; }
+    .w-nfa-fewest-tring { fill: none; stroke: var(--fg-muted); stroke-width: 1.1; }
+    .w-nfa-fewest-tlab { fill: var(--fg); font-size: 10px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .w-nfa-fewest-x { fill: var(--orange-700); font-size: 15px; font-weight: 800; }
+    .w-nfa-fewest-tbl { border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: .84rem; margin: 6px 0; }
+    .w-nfa-fewest-tbl th, .w-nfa-fewest-tbl td { border: 1px solid var(--border); padding: 2px 8px; text-align: center; white-space: nowrap; }
+    .w-nfa-fewest-res { margin: 6px 0; font-size: .95rem; }
+    .w-nfa-fewest-res code { font-size: .9rem; }
+    .w-nfa-fewest-sug { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 6px 0; }
+    .w-nfa-fewest-sug .btn { white-space: normal; text-align: left; max-width: 100%; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 435</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 435</a> / En az state'li NFA</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L4</span><span class="chip chip--exam">Her vizede P2</span><span class="chip">Sipser 1.2</span><span class="src">~50 dk · 11 bölüm</span></div>
+          <h1>En az state'li NFA: sınavın P2 sorusu</h1>
+          <p class="lead">Vizenin ikinci sorusu (P2) her yıl iki dil verir ve her biri için bir NFA ister. Doğru bir NFA yetmez: kâğıtta "Use as few states as you can. Fewest gets full score, every extra state halves your score." yazar. Bu derste en az state'li NFA kurmanın kalıplarını göreceksin: dead state'i atmak, son sembolleri tahmin etmek, çıkışı olmayan accept state'leri birleştirmek, her state'te dönen serbest semboller, ε ile iki kapı ve son sembolü hatırlamak. Her kalıbın yanında onu isteyen çıkmış soru var.</p>
+          <p class="src">Not: Hocanın derse getirilmesini istediği basılı handout repoda yok. Konu 26 Ekim vize tekrarının tahtası (2024 P2), 28 Eylül tahtası, Sipser 1.2 ve çıkmış sorular üzerinden anlatıldı.</p>
+          <!-- Kaynak: resources/2026-2027-fall/2026-10-26-midterm-2024-solved-board.pdf s.2 (P2 çizimleri, "Start, wait for a, b, c, accept", "two extra states 1/4", "3 states are nec. 1. a 2. t 3. start") · exams/README.md "26 Oct 2026 review" (halving kuralı, −2/−3 önerisi, 2^n gerekçesi, merge end states, ε kabulü) · exams/2024-midterm-solutions.pdf s.2 (öğrenci anahtarı: 5 ve 3 state) · resources/2026-2027-fall/2026-09-28-Note-12-17.pdf s.1 ("every 3rd char is 1" DFA'sı) ve s.3 (L = {0} için 2 state) · Sipser 3e §1.2 Example 1.30, 1.33 (PDF s.75–76), Exercise 1.7 (PDF s.108) ve çözümleri 1.7(a), (f) (PDF s.120) · 2020, 2023, 2024 vizeleri P2 · exams/2023-midterm-solutions.pdf s.1 (öğrenci cevapları). 2022 vizesi mock için ayrıldı, burada kullanılmadı. Bütün NFA'lar python3 ile brute force kontrol edildi; alt sınırlar fooling set ya da bütün küçük NFA'ları deneyen arama ile. -->
+        </header>
+
+        <article class="lesson" data-course="cse-435" data-lesson="nfa-fewest">
+
+<!-- 1 -->
+<section class="lsec" id="rule" data-min="5">
+  <h2>P2 sorusu ve puanlama kuralı</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · neden state sayılıyor?</span>
+    <p>P1'de DFA'nın kaç state'i olduğu önemli değildi, doğru olması yetiyordu. P2'de durum farklı. 2024 kâğıdında soru şöyle başlıyor: "P2 [20 points] Construct an NFA for the languages below. Use as few states as you can. Fewest gets full score, every extra state halves your score."</p>
+    <p>Hoca 26 Ekim tekrarında bu kuralın nedenini de söyledi: bir NFA'yı DFA'ya çevirince state sayısı $2^n$'e kadar çıkabilir. NFA'daki tek bir fazla state, DFA tarafında state sayısını ikiye katlayabilir. Ceza da bu yüzden üstel. Tekrar notlarında şöyle geçiyor: doğru bir NFA çizmek kolay, asıl soru onu küçültmek.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Hatırlatma · NFA</span>
+    <ul>
+      <li>$N = (Q, \Sigma, \delta, q_0, F)$ ve $\delta: Q \times \Sigma_\varepsilon \to \mathcal{P}(Q)$. Bir state'ten aynı sembolle birden fazla ok çıkabilir: makine bütün seçenekleri paralel dener.</li>
+      <li>Bir sembol için ok yoksa o dal ölür. NFA'da dead state çizmek zorunda değilsin.</li>
+      <li>ε-ok sembol okumadan geçer.</li>
+      <li>Input bittiğinde dallardan <strong>en az biri</strong> accept state'teyse string kabul edilir.</li>
+      <li>Her DFA aynı zamanda bir NFA'dır. Yani DFA çizersen cevap doğru sayılır, ama genelde fazla state taşır.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · puanlama</span>
+    <p>Bir şıkkın puanı $P$, mümkün olan en az state sayısı $k^*$, senin doğru NFA'nın state sayısı $k$ olsun.</p>
+    <ul>
+      <li><strong>Kâğıttaki kural</strong> (2020'den beri her kâğıtta basılı): puan $= P \cdot \left(\tfrac12\right)^{k - k^*}$.</li>
+      <li><strong>Konuşulan seçenek:</strong> 26 Ekim'de hoca bu soruyu "muhtemelen" yine soracağını söyledi ve yarıya indirmek yerine fazla state başına −2 ya da −3 puanı da önerdi. Karar vermedi. İkisini de bil.</li>
+    </ul>
+    <div class="table-wrap"><table class="w-nfa-fewest-tbl">
+      <tr><th>fazla state</th><th>yarıya indirme</th><th>−2 / state</th><th>−3 / state</th></tr>
+      <tr><td>0</td><td>10</td><td>10</td><td>10</td></tr>
+      <tr><td>1</td><td>5</td><td>8</td><td>7</td></tr>
+      <tr><td>2</td><td>2.5</td><td>6</td><td>4</td></tr>
+      <tr><td>3</td><td>1.25</td><td>4</td><td>1</td></tr>
+    </table></div>
+    <p>Tablo 10 puanlık bir şık için. Kural her şıkta ayrı uygulanır: hoca tahtada 2024 P2(a) için "two extra states, 1/4" yazıp 10 puanlık şıktan 2.5 hesapladı. 2023'te şıklar 10 ve 15 puandı.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tarif · sınavda P2'yi çözme sırası</span>
+    <ol>
+      <li>Dili oku, kalıbı tanı (bu dersin bölümleri), NFA'yı çiz.</li>
+      <li>Sorudaki örnekleri ve kısa string'leri (ε, tek semboller, iki semboller) makinende yürüt.</li>
+      <li>State'leri say. Kâğıttaki her çember sayılır, start dahil.</li>
+      <li>Birleştirme turu: dead state'i sil, çıkışı olmayan accept state'leri tek state yap, aynı geleceğe sahip state'leri birleştir. Her değişiklikten sonra 2. adıma dön.</li>
+    </ol>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>DFA çizip bırakmak. DFA da bir NFA olduğu için cevap doğru sayılır, ama dead state yüzünden genelde en az bir fazla state vardır: puanın yarısı gider.</li>
+      <li>State sayısı uğruna doğruluğu bozmak. Yanlış bir NFA'nın nasıl puanlanacağı kâğıtta yazmıyor. Önce doğruluk, sonra state sayısı.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-rule-score">
+    <p class="quiz__q">2024 P2(a) 10 puan ve en az 5 state ile çözülüyor. Doğru ama 7 state'li bir NFA çizdin. Kâğıttaki kurala göre kaç puan alırsın?</p>
+    <button class="quiz__opt" data-correct>2.5<span class="why">Doğru. İki fazla state: $10 \cdot \tfrac12 \cdot \tfrac12 = 2.5$. Hoca tahtaya da "1/4" yazdı.</span></button>
+    <button class="quiz__opt">5<span class="why">Bu tek fazla state'in puanı. $7 - 5 = 2$ fazla state var, puan iki kez yarıya iner.</span></button>
+    <button class="quiz__opt">6<span class="why">Bu −2 kuralının sonucu. O kural sadece konuşuldu; kâğıtlarda basılı olan yarıya indirme.</span></button>
+    <button class="quiz__opt">0<span class="why">NFA doğru. Fazla state puanı sıfırlamaz, her biri yarıya indirir.</span></button>
+  </div>
+  <div class="quiz" id="q-rule-why">
+    <p class="quiz__q">Hoca fazla state cezasını neden üstel (yarıya indirme) seçti?</p>
+    <button class="quiz__opt">NFA'lar DFA'lardan daha fazla dil tanıdığı için<span class="why">Yanlış: NFA ve DFA aynı dilleri tanır (her NFA'nın eşdeğer bir DFA'sı var). Fark güçte değil, boyutta.</span></button>
+    <button class="quiz__opt" data-correct>NFA'yı DFA'ya çevirmek state sayısını $2^n$'e kadar çıkarabildiği için<span class="why">Doğru. Subset construction'da DFA'nın state'leri NFA state'lerinin alt kümeleridir. Bir fazla NFA state'i, olası alt küme sayısını ikiye katlar.</span></button>
+    <button class="quiz__opt">Her state'i çizmek sınavda zaman aldığı için<span class="why">Gerekçe süre değil. Hoca sebebi NFA → DFA dönüşümündeki $2^n$ ile açıkladı.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="no-dead" data-min="4">
+  <h2>NFA'da dead state'e gerek yok</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>DFA'da her state'ten her sembol için tam bir ok olmak zorundaydı. Dili bozan bir sembol gelince gidecek bir yer lazımdı: dead state. NFA'da ok yoksa o dal ölür ve string o dalda reddedilir. Dead state'in yaptığı işi NFA bedavaya yapıyor. P1 alışkanlığıyla bir DFA çizdiysen, NFA'ya geçerken ilk iş dead state'i silmek.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · 28 Eylül tahtası, "every 3rd char is 1"</span>
+    <p>Hoca union örneğinde $L_2 = \{w \mid$ every 3rd char is 1$\}$ için 4 state'li bir DFA çizdi: $q_0 \to q_1 \to q_2$ arasında 0 ve 1 ile ilerle, $q_2$'den 1 ile $q_0$'a dön, $q_2$'de 0 gelirse $d$'ye düş. ε dilde (3. pozisyon yok), bu yüzden start accept; $q_0, q_1, q_2$'nin hepsi accept.</p>
+    <div class="w-nfa-fewest-figs">
+      <div><div class="w-nfa-fewest-fig" data-fig="p20a-dead"></div><p>DFA: 4 state</p></div>
+      <div><div class="w-nfa-fewest-fig" data-fig="p20a"></div><p>NFA: d silindi, 3 state</p></div>
+    </div>
+    <p>Sağdaki makinede $q_2$'de 0 için ok yok. <code>000</code> okunurken dal $q_2$'de 0 ile ölür ve string reddedilir: soldaki makinenin $d$'ye düşüp orada kalmasıyla aynı sonuç.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · dili değiştirmeden silinebilen state'ler</span>
+    <ol>
+      <li><strong>Dead state:</strong> start state olmayan ve hiçbir accept state'e ulaşamayan state. Oradan geçen her dal zaten reddediliyor.</li>
+      <li><strong>Ulaşılamayan state:</strong> start'tan hiçbir yolla varılamayan state. Hiçbir dal oraya gitmiyor.</li>
+    </ol>
+    <p>İkisini (ve onlara giden okları) silmek dili değiştirmez. Start state'i silemezsin: NFA'nın tam bir start state'i olmalı. Start'tan hiçbir accept state'e ulaşılamıyorsa dil $\emptyset$'dir; bu durumda accept olmayan tek bir start state bırak.</p>
+  </div>
+  <div class="box box--exam" data-exam="2020-mid-P2a"><span class="box__label">2020 vizesi P2(a) · çıkmış soru</span>
+    <p>"P2 [20 points] Construct an NFA for the languages. (a) Binary strings where every third position (3rd, 6th, 9th, etc. positions) contains a 1. (Use three states, every extra state halves your points)" (sorunun (a) kısmı; (b) Bölüm 5'te)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bu dil 28 Eylül tahtasındaki $L_2$'nin aynısı. Önce DFA'yı hatırla: pozisyonu mod 3 sayan üç state ve bir dead state.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>DFA'nın 4 state'inden hangisi hiçbir zaman bir accept state'e ulaşamıyor? NFA'da ona ihtiyacın var mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="w-nfa-fewest-fig" data-fig="p20a"></div>
+      <ul>
+        <li>$q_0$: sıradaki pozisyon $3k+1$; $q_1$: sıradaki pozisyon $3k+2$; $q_2$: sıradaki pozisyon 3'ün katı, yani 1 gelmeli.</li>
+        <li>$q_0 \xrightarrow{0,1} q_1 \xrightarrow{0,1} q_2 \xrightarrow{1} q_0$. $q_2$'de 0 için ok yok: dal ölür.</li>
+        <li>Üç state de accept, çünkü string herhangi bir yerde bitebilir. Start accept: ε dilde.</li>
+      </ul>
+      <p>Örnekler: ε, <code>0</code>, <code>00</code>, <code>001</code>, <code>001101</code> dilde; <code>000</code> ve <code>001110</code> dilde değil (3. ya da 6. pozisyon 0).</p>
+      <p><strong>3 state:</strong> soru da 3 istiyor. DFA (dead state ile) 4 state olurdu, puanın yarısı. Daha azı olmaz: bütün 2 state'li NFA'lar denendi, hiçbiri bu dili tanımıyor (Bölüm 9'da fooling set ile de gösteriliyor).</p>
+      <p><strong>Kontrol:</strong> uzunluğu 12'ye kadar bütün binary string'lerde bu NFA dilin tanımıyla aynı cevabı veriyor.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2020-midterm.pdf">Orijinal soru (2020 vizesi)</a></p>
+    <!-- Kaynak: exams/2020-midterm.pdf P2(a) (anahtar yok) · tahta 2026-09-28 s.1, L2 = "every 3rd char is 1" DFA'sı (q2'de 0 ile dead state). Python ile uzunluk 12'ye kadar kontrol, 2-state arama sonuçsuz. -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-ex1.7dgh"><span class="box__label">Sipser Exercise 1.7(d), (g), (h) · kitap alıştırması</span>
+    <p>"1.7 Give state diagrams of NFAs with the specified number of states recognizing each of the following languages. In all parts, the alphabet is {0,1}. d. The language {0} with two states … g. The language {ε} with one state h. The language 0* with one state" (alıştırmanın (d), (g), (h) şıkları; (a), (b) Bölüm 3'te, (c), (e) Bölüm 6'da, (f) Bölüm 5'te)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(d): $\{0\}$ için bir DFA kaç state? Biri dead değil mi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(g) ve (h): tek state hem start hem accept olmak zorunda (ε dilde). İki dil arasındaki tek fark bir ok.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="w-nfa-fewest-figs">
+        <div><div class="w-nfa-fewest-fig" data-fig="s17d"></div><p>(d) $\{0\}$: 2 state</p></div>
+        <div><div class="w-nfa-fewest-fig" data-fig="s17g"></div><p>(g) $\{\varepsilon\}$: 1 state</p></div>
+        <div><div class="w-nfa-fewest-fig" data-fig="s17h"></div><p>(h) $0^*$: 1 state</p></div>
+      </div>
+      <p><strong>(d)</strong> $q_1 \xrightarrow{0} q_2$, $q_2$ accept, başka ok yok. <code>0</code>'dan sonra gelen her sembol dalı öldürür, 1 ile başlayan string ilk sembolde ölür. 28 Eylül tahtasında hoca $L = \{0\}$ için tam bu iki state'i çizdi. DFA olsaydı bir dead state daha gerekirdi.</p>
+      <p><strong>(g)</strong> Tek state, accept, hiç ok yok. ε dışındaki her string ilk sembolde ölür.</p>
+      <p><strong>(h)</strong> Tek state, accept, 0 ile kendine dönen ok. 1 için ok yok.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=108">Kitapta alıştırma (PDF s.108)</a></p>
+    <!-- Kaynak: Sipser Exercise 1.7(d), (g), (h) (PDF s.108) · tahta 2026-09-28 s.3 (L = {0}: iki state, 0 oku). Uzunluk 12'ye kadar python ile kontrol. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Çıkan oku olmayan her state'i dead sanmak. Accept olan ve ok çıkmayan bir state dead değildir: input tam orada biterse kabul eder (2024 P2(a)'daki $f$ gibi). Dead, <em>hiçbir accept state'e ulaşamayan</em> state'tir.</li>
+      <li>"DFA'da her ok olmalıydı" diye NFA'ya da eksik okları tamamlamak. Bu sadece state ekler.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-dead">
+    <p class="quiz__q">Bir NFA'da $d$ start state değil, accept değil ve $d$'den çıkan bütün oklar yine $d$'ye dönüyor. $d$'yi ve ona giden bütün okları silersen ne olur?</p>
+    <button class="quiz__opt" data-correct>Dil aynı kalır, bir state kazanırsın<span class="why">Doğru. $d$'ye giren bir dal oradan hiç çıkamıyor ve accept değil, yani zaten reddediliyordu. Ok silinince aynı dal hemen ölüyor.</span></button>
+    <button class="quiz__opt">Bazı string'ler artık reddedilir<span class="why">$d$'den geçen hiçbir dal kabul etmiyordu. Silinen bir şey kabulü etkilemez.</span></button>
+    <button class="quiz__opt">Bazı string'ler artık kabul edilir<span class="why">Ok silmek yeni bir accept yolu açamaz, sadece yol kapatır.</span></button>
+    <button class="quiz__opt">Makine NFA olmaktan çıkar, çünkü bazı sembollerin oku kalmaz<span class="why">Bu DFA kuralı. NFA'da eksik ok serbest: $\delta(q, a) = \emptyset$ olabilir.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="suffix" data-min="5">
+  <h2>Son k sembol: start'ta bekle, tahmin et, kontrol et</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · Sipser Example 1.30</span>
+    <p>"Third position from the end is 1" dili için Sipser 4 state'li bir NFA verir ve şöyle anlatır: "it stays in the start state $q_1$ until it 'guesses' that it is three places from the end." NFA string'in nerede biteceğini bilmiyor, bilmesine de gerek yok.</p>
+    <ul>
+      <li>Start state'te her sembolle kendine dönen bir döngü var: "son kısım henüz başlamadı".</li>
+      <li>Her pozisyonda ayrıca bir dal "son kısım şimdi başlıyor" diye tahmin eder ve son kısmı okumaya başlar.</li>
+      <li>Yanlış tahmin eden dallar ya ölür ya da input bitmeden accept'ten çıkıp ölür. Doğru tahmin eden dal input biterken accept state'te olur.</li>
+    </ul>
+    <p>Aynı dilin en küçük DFA'sı 8 state. NFA burada çok daha küçük, çünkü son üç sembolün sekiz halini ayrı ayrı hatırlamak yerine doğru anı tahmin ediyor.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kalıp · "w ends with x", $|x| = k$</span>
+    <ol>
+      <li>Start'ta $\Sigma$'nın <strong>bütün</strong> sembolleriyle döngü.</li>
+      <li>Start'tan $x$'in sembolleriyle $k$ okluk bir zincir.</li>
+      <li>Zincirin sonu accept ve <strong>hiç çıkan oku yok</strong>.</li>
+    </ol>
+    <p>Toplam $k + 1$ state. "Contains $x$" (substring) için tek fark: zincirin sonundaki accept state'e de bütün sembollerle döngü koy. $x$ bir kez görüldükten sonra ne gelirse gelsin string dilde.</p>
+  </div>
+  <h3>Tahmin ağacı</h3>
+  <p>Aşağıdaki araç NFA'nın bir string üzerindeki bütün dallarını ağaç olarak çizer. Her sütun bir sembol okunduktan sonraki durum. Mavi düğümler o anda yaşayan dallar, ✗ ölen dallar, yeşil input bittiğinde accept'te olan dal. Ağaç NFA'nın gerçek transition'larından kuruluyor, alttaki "aktif state'ler" satırı da ayrı bir simülasyondan geliyor.</p>
+  <p class="w-nfa-fewest-guess"><b>Önce tahmin et:</b> 2024 P2(a)'nın 5 state'li NFA'sı <code>abcc</code>'yi okurken start'tan kaç kez yeni bir tahmin dalı açılır? Kaç dal accept'te biter ve hangi pozisyonda ayrılan dal doğru tahmin etmiştir?</p>
+  <div class="w-nfa-fewest-ctl">
+    <label>NFA: <select id="wt-sel" class="btn btn--sm"></select></label>
+    <label>string: <input id="wt-w" type="text" class="btn btn--sm" value="abcc" /></label>
+    <button class="btn btn--sm btn--accent" id="wt-go">Ağacı kur</button>
+  </div>
+  <div class="w-nfa-fewest-err" id="wt-err" aria-live="polite"></div>
+  <div id="wt-fig"></div>
+  <div id="wt-stepper"></div>
+  <div class="box box--exam" data-exam="sipser-ex1.7ab"><span class="box__label">Sipser Exercise 1.7(a), (b) · kitap alıştırması</span>
+    <p>"1.7 Give state diagrams of NFAs with the specified number of states recognizing each of the following languages. In all parts, the alphabet is {0,1}. a. The language {w| w ends with 00} with three states b. The language of Exercise 1.6c with five states" (alıştırmanın (a), (b) şıkları). Exercise 1.6c: "{w| w contains the substring 0101 (i.e., w = x0101y for some x and y)}".</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) bir suffix dili: $k = 2$, yani $k + 1 = 3$ state. (b) bir substring dili: $k = 4$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(a) ile (b) arasındaki tek fark son state'te: birinde çıkan ok yok, diğerinde bütün sembollerle döngü var. Hangisi hangisinde?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="w-nfa-fewest-fig" data-fig="s17a"></div>
+      <p><strong>(a)</strong> $q_1$'de 0,1 döngüsü; $q_1 \xrightarrow{0} q_2 \xrightarrow{0} q_3$; $q_3$ accept ve çıkan oku yok. Kitabın çözümüyle aynı.</p>
+      <div class="w-nfa-fewest-fig" data-fig="s17b"></div>
+      <p><strong>(b)</strong> $q_1$'de 0,1 döngüsü; $q_1 \xrightarrow{0} q_2 \xrightarrow{1} q_3 \xrightarrow{0} q_4 \xrightarrow{1} q_5$; $q_5$ accept ve 0,1 döngüsü var. 5 state.</p>
+      <p>İkisinde de daha azı olmaz (Bölüm 9'daki fooling set ile 3 ve 5). <strong>Kontrol:</strong> uzunluğu 12'ye kadar bütün string'lerde doğru.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=108">Kitapta alıştırma (PDF s.108)</a> · <a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=120">kitabın (a) çözümü (PDF s.120)</a></p>
+    <!-- Kaynak: Sipser Exercise 1.7(a), (b) ve Exercise 1.6(c) (PDF s.108); Selected Solutions 1.7(a) (PDF s.120). Python ile kontrol; fooling set'ler v/claims.py'de. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Suffix dilinde son state'e döngü koymak. "Ends with 00" yerine "contains 00" tanırsın: <code>001</code> yanlışlıkla kabul edilir.</li>
+      <li>Start döngüsünde bir sembolü unutmak. $\{a, b, c\}$ için döngüye sadece a, b yazarsan c içeren bir ön ek bütün dalları öldürür.</li>
+      <li>"Tahmin" kelimesinden korkmak. NFA şans eseri doğruyu bulmuyor; bütün dallar paralel deneniyor ve bir tanesinin tutması yetiyor.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-suffix">
+    <p class="quiz__q">$\{w \in \{0,1\}^* \mid w$ ends with 101$\}$ için en az kaç state'li bir NFA var?</p>
+    <button class="quiz__opt" data-correct>4<span class="why">Doğru: $k + 1 = 3 + 1$. Start döngüsü, sonra $1, 0, 1$ zinciri, çıkışı olmayan bir accept state.</span></button>
+    <button class="quiz__opt">3<span class="why">Suffix'in üç sembolü üç ok ister, okların başında ve sonunda state olmalı: start dahil 4 çember.</span></button>
+    <button class="quiz__opt">8<span class="why">$2^3$, "sondan üçüncü sembol 1" dilinin DFA'sından aklında kalmış olabilir. Burada NFA soruluyor ve suffix sabit.</span></button>
+    <button class="quiz__opt">5<span class="why">Bu bir dead state eklemek olur. NFA'da gerekmiyor.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="merge-sinks" data-min="5">
+  <h2>Çıkışı olmayan accept state'leri birleştir: 2024 P2(a)</h2>
+  <div class="box box--exam" data-exam="2024-mid-P2a"><span class="box__label">2024 vizesi P2(a) · çıkmış soru</span>
+    <p>"P2 [20 points] Construct an NFA for the languages below. Use as few states as you can. Fewest gets full score, every extra state halves your score. (a) $L = \{w \mid w \in \{a, b, c\}^*, |w| \ge 2$, and the last two symbols of $w$ are the same.$\}$" (sorunun (a) kısmı; (b) Bölüm 6'da)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Son iki sembol <code>aa</code>, <code>bb</code> ya da <code>cc</code>. Bunlar üç suffix: Bölüm 3'teki kalıbı her biri için kur. Start'ı paylaşabilirsin.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Üç zincirin sonundaki accept state'lerin hiçbirinden ok çıkmıyor. Birbirlerinden ne farkları var? Hoca tahtada state'leri tek tek saydı: "Start, wait for a, b, c, accept".</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="w-nfa-fewest-fig" data-fig="p24a"></div>
+      <div class="table-wrap"><table class="w-nfa-fewest-tbl">
+        <tr><th>state</th><th>a</th><th>b</th><th>c</th></tr>
+        <tr><td>→ q0</td><td>{q0, qa}</td><td>{q0, qb}</td><td>{q0, qc}</td></tr>
+        <tr><td>qa</td><td>{f}</td><td>∅</td><td>∅</td></tr>
+        <tr><td>qb</td><td>∅</td><td>{f}</td><td>∅</td></tr>
+        <tr><td>qc</td><td>∅</td><td>∅</td><td>{f}</td></tr>
+        <tr><td>* f</td><td>∅</td><td>∅</td><td>∅</td></tr>
+      </table></div>
+      <ul>
+        <li>$q_0$'da a, b, c döngüsü: "son iki sembol henüz başlamadı".</li>
+        <li>$q_0 \xrightarrow{a} q_a$: "son iki sembol şimdi başlıyor ve ilki a" tahmini. $q_a$'dan sadece a ile çıkılır. $q_b$ ve $q_c$ aynı şekilde.</li>
+        <li>$f$ tek accept state ve ondan ok çıkmıyor: accept eden dal $f$'ye tam input'un sonunda varmış olmalı.</li>
+        <li>Start accept değil: $|w| \ge 2$ şartı ε, <code>a</code>, <code>b</code>, <code>c</code>'yi dışarıda bırakıyor.</li>
+      </ul>
+      <p>Toplam <strong>5 state</strong>, hocanın sayımıyla: start (1), wait for a, b, c (2, 3, 4), accept (5).</p>
+      <p><strong>Tuzak cevap:</strong> <code>aa</code>, <code>bb</code>, <code>cc</code> için üç ayrı accept state ($f_a, f_b, f_c$). Doğru ama 7 state, 2 fazla: $10 \cdot \tfrac14 = 2.5$ puan. Hoca tahtaya tam bunu çizip "two extra states, 1/4" yazdı. (−2 kuralıyla 6, −3 kuralıyla 4.)</p>
+      <p><strong>Kontrol:</strong> uzunluğu 9'a kadar bütün $\{a,b,c\}$ string'lerinde (29524 string) doğru. 5'ten azı olmaz: Bölüm 9'daki fooling set.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2024-midterm.pdf">Orijinal soru (2024 vizesi)</a></p>
+    <!-- Kaynak: exams/2024-midterm.pdf P2(a) · 26 Ekim tahtası s.2 (5 state'li çizim, üç accept'li çizim, "two extra states 1/4 ~2.5", "Start, wait for a, b, c, accept") · exams/2024-midterm-solutions.pdf s.2 (aynı tablo; "Start and accept must differ since |w| ≥ 2") · exams/README.md ("Merge end states that have no outgoing edges"). -->
+  </div>
+  <div class="w-nfa-fewest-figs">
+    <div><div class="w-nfa-fewest-fig" data-fig="p24a-3acc"></div><p>Doğru ama 7 state: puan × 1/4</p></div>
+    <div><div class="w-nfa-fewest-fig" data-fig="p24a"></div><p>Birleştirilmiş: 5 state, tam puan</p></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · çıkışı olmayan accept state'ler</span>
+    <p>İki state'in ikisi de accept ve ikisinden de hiç ok çıkmıyorsa, ikisi de aynı şeyi söyler: "input burada biterse kabul, bir sembol daha gelirse dal ölür". Onları tek state yap ve gelen okları bu state'e yönlendir. Dil değişmez.</p>
+    <p>Tekrar notlarındaki cümle: "Merge end states that have no outgoing edges."</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Ara state'leri ($q_a, q_b, q_c$) de birleştirmek. Ortak bir state a ile de b ile de $f$'ye giderse <code>ab</code> kabul edilir, ama son iki sembol farklı.</li>
+      <li>$f$'ye döngü koymak. Bu "bir yerde iki eşit ardışık sembol var" dilini verir: <code>aab</code> kabul edilir.</li>
+      <li>Start'ı accept yapmak. $|w| \ge 2$ yüzünden ε dilde değil.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sinks">
+    <p class="quiz__q">$f_a, f_b, f_c$'yi tek bir $f$ yaptın. Yeni NFA aşağıdakilerden hangisinde yanlış cevap verir?</p>
+    <button class="quiz__opt" data-correct>Hiçbirinde: dil değişmedi<span class="why">Doğru. Üç state'in de geleceği aynıydı (accept, çıkış yok). Tek fark adlarıydı.</span></button>
+    <button class="quiz__opt"><code>ab</code>'yi kabul eder<span class="why">$q_0 \xrightarrow{a} q_a$, ama $q_a$'dan b ile ok yok. $q_a$ ile $q_b$ ayrı kaldığı sürece <code>ab</code> reddedilir.</span></button>
+    <button class="quiz__opt"><code>aab</code>'yi kabul eder<span class="why">$f$'ye <code>aa</code> ile varan dal, b gelince ölür, çünkü $f$'den ok çıkmıyor. Sorun ancak $f$'ye döngü koyarsan çıkar.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="same-future" data-min="5">
+  <h2>Aynı geleceğe sahip state'ler: 1*(001+)*</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Çıkışı olmayan accept state'ler daha genel bir kuralın özel hali. İki state'in accept durumu aynıysa ve her sembolde aynı yerlere gidiyorlarsa, o state'lerden sonra olabilecek her şey aynıdır. Makinenin hangisinde olduğunu bilmesine gerek yok: birleştir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · birleştirme testi</span>
+    <p>$p$ ile $q$'yu birleştirmeden önce iki soru sor:</p>
+    <ol>
+      <li>İkisi de accept mi, ya da ikisi de değil mi?</li>
+      <li>Her sembol (ve ε) için $p$'den çıkan okların hedefleri, $q$'dan çıkanlarla aynı mı? ($q$'ya giden bir oku $p$'ye gidiyor say.)</li>
+    </ol>
+    <p>İkisine de "evet" ise birleştir, dil değişmez. Bu test yeterli ama gerekli değil: bazen daha küçük bir NFA ancak dili baştan düşünerek bulunur (Bölüm 8).</p>
+  </div>
+  <div class="box box--exam" data-exam="2020-mid-P2b"><span class="box__label">2020 vizesi P2(b) · çıkmış soru</span>
+    <p>"(b) The language $1^*(001^+)^*$. (Use three states, every extra state halves your points)" (sorunun (b) kısmı)</p>
+    <p>Bu şık Sipser Exercise 1.7(f) ile aynı: "f. The language 1*(001+)* with three states". Hoca soruyu kitaptan almış; kitabın Selected Solutions bölümünde çözümü var.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Regex'i parça parça oku: önce istediğin kadar 1, sonra istediğin kadar "00 ve ardından en az bir 1" grubu. Her parça için state'ler çiz: ilk denemede 4 state çıkar.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>4 state'li çiziminde iki accept state var. Birleştirme testinin iki sorusunu onlara sor.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>İlk çizim (4 state):</strong> $q_0$ start ve accept, 1 ile döngü ($1^*$). Sonra bir grup: $q_0 \xrightarrow{0} q_1 \xrightarrow{0} q_2 \xrightarrow{1} q_3$, $q_3$'te 1 döngüsü ($1^+$'nın geri kalanı), $q_3$ accept, $q_3 \xrightarrow{0} q_1$ (yeni grup).</p>
+      <div class="w-nfa-fewest-fig" data-fig="p20b-4"></div>
+      <p><strong>Birleştirme testi</strong> $q_0$ ve $q_3$ için: ikisi de accept. $q_0$: 1 → $q_0$, 0 → $q_1$. $q_3$: 1 → $q_3$, 0 → $q_1$. $q_3$'ü $q_0$ say: aynı. Birleştir:</p>
+      <div class="w-nfa-fewest-fig" data-fig="p20b"></div>
+      <p><strong>3 state:</strong> $q_0$ (start, accept, 1 döngüsü), $q_0 \xrightarrow{0} q_1 \xrightarrow{0} q_2 \xrightarrow{1} q_0$. Kitabın çözümüyle aynı. Neden doğru: $1^*(001^+)^* = 1^*(001\,1^*)^*$, yani "001" grupları arasında ve başta istediğin kadar 1 olabilir. $q_0$'daki 1 döngüsü tam bunu yapıyor.</p>
+      <p>Dilde: ε, <code>1</code>, <code>001</code>, <code>0011</code>, <code>001001</code>, <code>11001</code>. Dilde değil: <code>0</code>, <code>00</code>, <code>0010</code>, <code>0101</code>.</p>
+      <p><strong>Kontrol:</strong> uzunluğu 12'ye kadar doğru. 2 state'le olmaz (fooling set: $(\varepsilon, \varepsilon), (0, 01), (00, 1)$, Bölüm 9).</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2020-midterm.pdf">Orijinal soru (2020 vizesi)</a> · <a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=120">Sipser 1.7(f) çözümü (PDF s.120)</a></p>
+    <!-- Kaynak: exams/2020-midterm.pdf P2(b) (anahtar yok) · Sipser Exercise 1.7(f) (PDF s.108) ve Selected Solutions 1.7(f) çizimi (PDF s.120): aynı 3 state. Python ile kontrol. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Gelen oklara bakarak birleştirmek. $q_1$ ve $q_2$'ye ikisine de 0 ile giriliyor, ama çıkışları farklı ($q_1$'den 0, $q_2$'den 1 ile çıkılıyor). Test sadece çıkan oklara bakar.</li>
+      <li>Accept olanla olmayanı birleştirmek. $q_0$ ile $q_2$'yi birleştirirsen <code>00</code> kabul edilir.</li>
+      <li>Birleştirdikten sonra test etmemek. Her birleştirmeden sonra kısa string'leri yeniden yürüt.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-merge">
+    <p class="quiz__q">Bir NFA'da $r$ ve $s$'nin çıkan okları tamamen aynı: 0 → $\{r\}$, 1 → $\{t\}$. $r$ accept, $s$ değil. Bu çift birleştirme testini geçer mi?</p>
+    <button class="quiz__opt">Evet, çıkan okları aynı<span class="why">Testin ilk sorusunu atladın: accept durumları da aynı olmalı. Burada aynı değil, yani test bu çifte uygulanamaz.</span></button>
+    <button class="quiz__opt" data-correct>Hayır, accept durumları farklı<span class="why">Doğru. Test bu çift için bir garanti vermez. Bu, birleştirmenin dili mutlaka bozacağı anlamına gelmez. Örnek: $t$ start ve $s$'ye giren tek ok $t \xrightarrow{0} \{r, s\}$ ise $s$ hiçbir zaman $r$'siz aktif olmaz; birleştirilmiş state'i accept yapmak dili korur. Böyle bir birleştirmeyi ayrıca kanıtlaman gerekir.</span></button>
+    <button class="quiz__opt">Evet, birleştirilmiş state'i accept yaparsan<span class="why">Test birleştirmeden önceki iki state'e bakar; birleştirilmiş state'in accept durumunu seçmek testin parçası değil. Üstelik $s$ tek başına aktif olabiliyorsa dil değişir: $t$ start ve $t \xrightarrow{1} \{s\}$ ise <code>1</code> önce reddediliyordu, birleştirmeden sonra kabul edilir.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="free-eps" data-min="6">
+  <h2>Serbest semboller ve ε ile iki kapı: 2024 P2(b)</h2>
+  <div class="box box--exam" data-exam="2024-mid-P2b"><span class="box__label">2024 vizesi P2(b) · çıkmış soru</span>
+    <p>"(b) $L = \{w \mid w \in \{a, c, g, t\}^*$ where the symbols $a$ and $t$ alternate when the symbols $c$ and $g$ are ignored $\}$. For example catgatgga, cggc, $\varepsilon \in L$ but cgatgacact $\notin L$ (because ataat has two consecutive as.)" (sorunun (b) kısmı; (a) Bölüm 4'te)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>c ve g dilin şartını hiç etkilemiyor. Bir state'te c ya da g gelince ne olmalı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>a ve t için iki bilgi yeter: "sıradaki a olmalı" ve "sıradaki t olmalı". String a ile de t ile de başlayabilir. Başta ikisine birden nasıl izin verirsin?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="w-nfa-fewest-fig" data-fig="p24b"></div>
+      <div class="table-wrap"><table class="w-nfa-fewest-tbl">
+        <tr><th>state</th><th>a</th><th>t</th><th>c, g</th><th>ε</th></tr>
+        <tr><td>→ s</td><td>∅</td><td>∅</td><td>∅</td><td>{p, q}</td></tr>
+        <tr><td>* p (sıradaki a olmalı)</td><td>{q}</td><td>∅</td><td>{p}</td><td>∅</td></tr>
+        <tr><td>* q (sıradaki t olmalı)</td><td>∅</td><td>{p}</td><td>{q}</td><td>∅</td></tr>
+      </table></div>
+      <ul>
+        <li>c ve g "serbest": $p$ ve $q$'da kendine dönen ok.</li>
+        <li>$p \xrightarrow{a} q$ ve $q \xrightarrow{t} p$: a'dan sonra t, t'den sonra a beklenir. $p$'de t, $q$'da a için ok yok: iki a ya da iki t art arda gelirse dal ölür.</li>
+        <li>$s \xrightarrow{\varepsilon} p$, $s \xrightarrow{\varepsilon} q$: string a ile de t ile de başlayabilir. Bu hocanın tahtadaki çözümü, 3 state.</li>
+        <li>$p$ ve $q$ accept. ε kabul edilir, çünkü start'tan ε ile accept state'lere varılıyor.</li>
+      </ul>
+      <p><strong>Örnekler:</strong> <code>catgatgga</code>'nın a/t kısmı <code>atata</code>, sırayla gidiyor: kabul. <code>cgatgacact</code>'ın a/t kısmı <code>ataat</code>: ikinci a geldiğinde dal $q$'da, a için ok yok, ölür. ε ve <code>cggc</code> kabul (şartı bozan bir şey yok). <code>tatat</code> ve <code>tactg</code> de dilde: string t ile başlayabilir; hoca bunları tahtaya ayrıca yazdı.</p>
+      <p><strong>ε'suz seçenek:</strong> $s$'yi accept yap, $s$'ye de c, g döngüsü koy, $s \xrightarrow{a} q$ ve $s \xrightarrow{t} p$. Bu da 3 state ve aynı dili tanır.</p>
+      <div class="w-nfa-fewest-fig" data-fig="p24b-noeps"></div>
+      <p><strong>Neden 3:</strong> hoca tahtaya "3 states are nec." yazıp sıraladı: "1. a 2. t 3. start". DFA çizseydin bir dead state daha gerekirdi: 4 state, puanın yarısı. Bütün 2 state'li NFA'ları deneyen bir arama da hiçbirinin bu dili tanımadığını gösterdi.</p>
+      <p><strong>Kontrol:</strong> uzunluğu 8'e kadar bütün $\{a, c, g, t\}$ string'lerinde (87381 string) iki NFA da doğru.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2024-midterm.pdf">Orijinal soru (2024 vizesi)</a></p>
+    <!-- Kaynak: exams/2024-midterm.pdf P2(b) · 26 Ekim tahtası s.2 (ε'lu 3-state çizim, "tatat", "tactg ∈ L", "3 states are nec.", "1. a 2. t 3. start") · exams/2024-midterm-solutions.pdf s.2 (tablo; "like 0 being divisible by 5") · exams/README.md ("Accept ε when nothing breaks the condition"). 2-state arama ve brute force python ile. -->
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kalıp · serbest sembol</span>
+    <p>Dilin şartını etkilemeyen semboller <strong>her</strong> state'te kendine döner. Unutulan tek bir döngü, o state'te o sembolü yasaklar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kalıp · ε ile iki kapı</span>
+    <p>String iki farklı "mod"da başlayabiliyorsa, start'tan ε-oklarıyla her modun state'ine dallan. Sipser Example 1.33 de aynı fikri kullanır: "initially guessing whether to test for a multiple of 2 or a multiple of 3". Union için de aynı resim: start'tan ε ile iki makineye.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · ε ∈ L ise</span>
+    <p>Start ya accept olmalı ya da start'tan ε-oklarıyla bir accept state'e varılabilmeli. Hoca tekrarda şunu vurguladı: şartı bozan bir şey yoksa ε dilde, örnek verilmese bile bunu görmeni bekliyor ("0 is divisible by 5" gibi).</p>
+  </div>
+  <div class="box box--exam" data-exam="sipser-ex1.7c"><span class="box__label">Sipser Exercise 1.7(c) · kitap alıştırması</span>
+    <p>"c. The language of Exercise 1.6l with six states" (alıştırmanın (c) şıkkı). Exercise 1.6l: "{w| w contains an even number of 0s, or contains exactly two 1s}", alphabet {0,1}.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"or" gördün. İki koşul için iki küçük makine çiz: "even 0s" kaç state, "exactly two 1s" kaç state (dead state olmadan)?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$2 + 3 = 5$. Altıncı state, ikisine birden ε ile giden yeni start.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="w-nfa-fewest-fig" data-fig="s17c"></div>
+      <p>$s \xrightarrow{\varepsilon} e_0$ ve $s \xrightarrow{\varepsilon} c_0$. Üst kol "even 0s": $e_0 \leftrightarrow e_1$ 0 ile, ikisinde 1 döngüsü, $e_0$ accept. Alt kol "exactly two 1s": $c_0 \xrightarrow{1} c_1 \xrightarrow{1} c_2$, üçünde 0 döngüsü, $c_2$ accept; $c_2$'de 1 için ok yok (üçüncü 1 dalı öldürür, dead state gerekmiyor). Toplam 6.</p>
+      <p>Önceki derste aynı dilin DFA'sını product construction ile 8 state kurmuştuk. NFA'da union için state'ler çarpılmıyor, toplanıyor (+1 start).</p>
+      <p><strong>Kontrol:</strong> uzunluğu 12'ye kadar doğru.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=108">Kitapta alıştırma (PDF s.108)</a></p>
+    <!-- Kaynak: Sipser Exercise 1.7(c) ve 1.6(l) (PDF s.108) · Sipser Example 1.33 (PDF s.76, ε ile iki döngüye dallanma). Python ile kontrol. Altıdan az state'in imkânsız olduğu burada kontrol edilmedi; kitap 6 istiyor. -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-ex1.7e"><span class="box__label">Sipser Exercise 1.7(e) · kitap alıştırması</span>
+    <p>"e. The language 0*1*0+ with three states" (alıştırmanın (e) şıkkı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Üç faz var: 0'lar, 1'ler, en az bir 0. Her faza bir state. Fazlar arasında nasıl geçersin?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$1^*$ fazı boş olabilir. ε-ok ile 0 fazından 1 fazına sembol okumadan geçebilirsin.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="w-nfa-fewest-fig" data-fig="s17e"></div>
+      <p>$p$: 0 döngüsü ($0^*$). $p \xrightarrow{\varepsilon} q$. $q$: 1 döngüsü ($1^*$). $q \xrightarrow{0} r$, $r$: 0 döngüsü, $r$ accept ($0^+$). 3 state. Dilde: <code>0</code>, <code>10</code>, <code>010</code>, <code>0110</code>; dilde değil: ε, <code>1</code>, <code>01</code>.</p>
+      <p>ε'suz da olur: $p \xrightarrow{0} \{p, r\}$, $p \xrightarrow{1} q$, gerisi aynı. Yine 3 state. 2 state'le olmadığını bütün küçük NFA'ları deneyen arama gösterdi.</p>
+      <p><strong>Kontrol:</strong> iki çizim de uzunluğu 12'ye kadar doğru.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=108">Kitapta alıştırma (PDF s.108)</a></p>
+    <!-- Kaynak: Sipser Exercise 1.7(e) (PDF s.108). Python ile kontrol ve 2-state arama. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>c, g döngüsünü sadece bir state'e koymak. $q$'da unutursan <code>ac</code> reddedilir, ama dilde.</li>
+      <li>Start'ı accept yapmayıp ε-ok da koymamak: ε ve <code>cggc</code> reddedilir.</li>
+      <li>State adlarını karıştırmak. $p$ "sıradaki a olmalı" demek; a okununca "sıradaki t olmalı" state'ine ($q$) geçilir, $p$'de kalınmaz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-free">
+    <p class="quiz__q">Hocanın NFA'sında $q$'daki c, g döngüsünü unuttun ($p$'deki duruyor). Hangi string yanlış cevap alır?</p>
+    <button class="quiz__opt" data-correct><code>acgt</code><span class="why">Doğru. a ile $q$'ya geçilir, sonra c için $q$'da ok yok: dal ölür. Ama a/t kısmı <code>at</code>, dilde.</span></button>
+    <button class="quiz__opt"><code>cggc</code><span class="why">ε ile $p$'ye geçen dal c, g döngüsüyle bütün string'i okur ve accept'te biter. Bu string doğru cevap alır.</span></button>
+    <button class="quiz__opt"><code>aa</code><span class="why"><code>aa</code> dilde değil ve NFA da reddediyor (ikinci a'da $q$'dan ok yok). Cevap doğru.</span></button>
+    <button class="quiz__opt">ε<span class="why">Start'tan ε ile $p$ ve $q$'ya varılıyor, ikisi de accept. ε yine kabul edilir.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="last-symbol" data-min="4">
+  <h2>Ardışık eşit sembol yok: 2023 P2(a)</h2>
+  <div class="box box--exam" data-exam="2023-mid-P2a"><span class="box__label">2023 vizesi P2(a) · çıkmış soru</span>
+    <p>"P2 [10+15 points] Construct an NFA for the languages below. Use as few states as you can. Fewest possible gets full credit. Every extra state halves your points. (a) $L = \{w \mid w \in \{a, b, c\}^*$ doesn't contain aa, bb, cc.$\}$ For example, abc, cbca, $\varepsilon$, b $\in L$, but baac, ccabb $\notin L$." (sorunun (a) kısmı; (b) Bölüm 8'de)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bir sonraki sembolün yasak olup olmadığını anlamak için neyi hatırlaman gerekiyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Son okunan sembol: a, b ya da c. Bir de henüz hiçbir şey okunmamış durum. Hangileri accept? Yasak geçiş için ne çizersin?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="w-nfa-fewest-fig" data-fig="p23a"></div>
+      <ul>
+        <li>$A, B, C$: "son okunan sembol a / b / c". $X$'ten $Y$'ye, $Y \ne X$ olan her sembol için ok var: $A \xrightarrow{b} B$, $A \xrightarrow{c} C$, $B \xrightarrow{a} A$, …</li>
+        <li>$A$'dan a, $B$'den b, $C$'den c için ok yok: aynı sembol art arda gelirse dal ölür. Dead state gerekmiyor.</li>
+        <li>$s$: start, henüz sembol yok. $s \xrightarrow{a} A$, $s \xrightarrow{b} B$, $s \xrightarrow{c} C$.</li>
+        <li>Dört state'in hepsi accept. ε dilde (örnekte bile yazıyor), bu yüzden $s$ de accept.</li>
+      </ul>
+      <p><strong>4 state.</strong> $s$ ile $A$'yı birleştiremezsin: $s$'den a ile çıkılıyor, $A$'dan çıkılmıyor. Dead state'li DFA 5 state olurdu: 10 puanın yarısı.</p>
+      <p>Repodaki çözüm (bir öğrencinin cevabı) aynı 4 state'i çiziyor ve doğru. Bütün 3 state'li NFA'ları deneyen bir arama hiçbirinin bu dili tanımadığını gösterdi, yani 4 en az.</p>
+      <p><strong>Kontrol:</strong> uzunluğu 9'a kadar bütün string'lerde doğru.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2023-midterm-solutions.pdf">Orijinal soru ve öğrenci çözümü (2023)</a></p>
+    <!-- Kaynak: exams/2023-midterm-solutions.pdf s.1 P2(a): soru metni ve el yazısı 4-state çözüm (start çift halka). 3-state arama (536870912 aday, 0 bulundu) C ile, brute force python ile. -->
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kalıp · son sembolü hatırla</span>
+    <p>Şart sadece yan yana iki sembole bakıyorsa, state = "son okunan sembol" (artı bir start). Yasak geçişin okunu çizme; NFA'da o dal kendiliğinden ölür.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Start'ı accept yapmayı unutmak. Soru ε'u örneklerde sayıyor.</li>
+      <li>P1 alışkanlığıyla bir "aa/bb/cc görüldü" dead state'i eklemek: 5 state.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-last">
+    <p class="quiz__q">$\Sigma = \{0, 1\}$ ve dil "ne 00 ne de 11 içeren string'ler". En az kaç state'li NFA?</p>
+    <button class="quiz__opt" data-correct>3<span class="why">Doğru: start ($s$), "son 0" ve "son 1". Hepsi accept; 0'dan sonra 0, 1'den sonra 1 için ok yok. 2 state'le olmadığını küçük NFA araması gösteriyor.</span></button>
+    <button class="quiz__opt">2<span class="why">"Son 0" ve "son 1" yetmez: start bunlardan biri olursa ilk sembol için yanlış bir yasak koyar. Mesela start "son 0" olursa <code>0</code> reddedilir.</span></button>
+    <button class="quiz__opt">4<span class="why">Bu dead state'li DFA. NFA'da dead state'e gerek yok.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="two-conditions" data-min="5">
+  <h2>Şartı yeniden yaz: 2023 P2(b)</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Birleştirme testi her zaman yetmez. Bazen ilk çizdiğin NFA'nın state'leri birbirine benzemez ama yine de fazladır. O zaman dili başka sözlerle söyle: sayma yerine yerel bir desen ara. Desen bulunursa suffix kalıbı yeter.</p>
+  </div>
+  <div class="box box--exam" data-exam="2023-mid-P2b"><span class="box__label">2023 vizesi P2(b) · çıkmış soru</span>
+    <p>"(b) $L = \{w \mid w \in \{0, 1\}^*$ has at least one 1 and the last three characters contain one or two 0s$\}$. For example, 0110, 11001 $\in L$ but 0, 00, 0111, 1000 $\notin L$" (sorunun (b) kısmı, 15 puan)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Son üç karakterde bir ya da iki 0" ne demek? Son üç karakter 000 değil ve 111 değil. Üç karakterin hepsi aynı değilse içlerinde ne vardır?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Yan yana iki farklı karakter: <code>01</code> ya da <code>10</code>. Bu çift ya en sonda biter ya da sondan bir önce. "At least one 1" şartı uzun string'lerde kendiliğinden sağlanıyor; sadece kısa string'lerde iş görüyor.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Şartı yeniden yaz.</strong> Üç karakterin 0 sayısı 1 ya da 2 ise üçü aynı değildir, yani son üç karakterin içinde yan yana duran bir <code>01</code> ya da <code>10</code> vardır. Tersi de doğru. Bu çift ya son iki karakterdir ya da son karakterden hemen öncesinde biter. O zaman:</p>
+      <p style="text-align:center">$w \in L \iff w$ ends with $01$ or $10$, or ends with $01x$ or $10x$ ($x \in \{0,1\}$).</p>
+      <div class="w-nfa-fewest-fig" data-fig="p23b"></div>
+      <div class="table-wrap"><table class="w-nfa-fewest-tbl">
+        <tr><th>state</th><th>0</th><th>1</th><th>anlamı</th></tr>
+        <tr><td>→ q0</td><td>{q0, A}</td><td>{q0, B}</td><td>bekle</td></tr>
+        <tr><td>A</td><td>∅</td><td>{F}</td><td>çiftin ilki 0</td></tr>
+        <tr><td>B</td><td>{F}</td><td>∅</td><td>çiftin ilki 1</td></tr>
+        <tr><td>* F</td><td>{G}</td><td>{G}</td><td>son iki karakter 01 ya da 10</td></tr>
+        <tr><td>* G</td><td>∅</td><td>∅</td><td>çiftten sonra bir karakter</td></tr>
+      </table></div>
+      <p><strong>5 state.</strong> Örnekler: <code>0110</code> "10" ile bitiyor, kabul. <code>11001</code> "01" ile bitiyor, kabul. <code>0111</code>: son üç <code>111</code>, hiçbir dal $F$ ya da $G$'de bitmiyor. <code>1000</code>: son üç <code>000</code>, reddedilir. <code>0</code> ve <code>00</code>'da hiç 1 yok, reddedilir.</p>
+      <p><strong>Kısa string'ler:</strong> kâğıt üçten kısa string'ler için ne dediğini açıkça yazmıyor. Bu çözüm ve repodaki çözüm "son üç karakter" yerine string'in tamamına bakıyor: <code>01</code> ve <code>10</code> dilde (bir 1, bir 0), <code>1</code> ve <code>11</code> değil (hiç 0 yok). "At least one 1" şartının işe yaradığı tek yer de burası: <code>0</code> ve <code>00</code>. Sınavda böyle bir belirsizlik görürsen varsayımını bir cümleyle yaz.</p>
+      <p><strong>Kontrol:</strong> uzunluğu 12'ye kadar bütün binary string'lerde doğru. 5'ten azı olmaz: fooling set $(\varepsilon, 01), (0, 1), (1, 00), (10, 0), (100, \varepsilon)$, Bölüm 9.</p>
+    </div></details>
+    <p class="src">Not: Repodaki çözüm (bir öğrencinin cevabı, resmî değil) doğru bir NFA ama 7 state'li: <code>001</code> ve <code>110</code> için ayrı yollar çizmiş, oysa bu string'ler zaten <code>01</code> ve <code>10</code> ile biten yollardan geçiyor. 2 fazla state, kâğıttaki kurala göre 15 puanın 3.75'i (−2 kuralıyla 11, −3 kuralıyla 9). Tam puan için yukarıdaki 5 state'li NFA gerekiyor.</p>
+    <div class="w-nfa-fewest-figs">
+      <div><div class="w-nfa-fewest-fig" data-fig="p23b-key"></div><p>Repodaki çözüm: 7 state</p></div>
+    </div>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2023-midterm-solutions.pdf">Orijinal soru ve öğrenci çözümü (2023)</a></p>
+    <!-- Kaynak: exams/2023-midterm-solutions.pdf s.1 P2(b): soru metni ve el yazısı 7-state çözüm (q0 0,1 döngüsü; 0→u1, u1 0→u2, u2 1→F; u1 1→M; 1→d1, d1 0→M, d1 1→d2, d2 0→F; M 0,1→F; M ve F accept). Anahtar ve 5-state cevap uzunluk 12'ye kadar python ile doğru; fooling set v/claims.py'de. exams/README.md bu soruyu "≥ one 1 and last three have one or two 0s" diye özetliyor. -->
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kalıp · saymak yerine desen</span>
+    <p>Bir şartı sayarak ("kaç tane 0") değil de yerel bir desenle ("bir yerde 01 ya da 10 var") söyleyebiliyorsan NFA küçülür: desen için suffix kalıbını kullan, desenden sonra kaç karakter gelebileceği kadar state ekle.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Son üç karakterin bütün iyi hallerini (001, 010, 011, 100, 101, 110) ayrı yollarla çizmek. Doğru olur ama state sayısı patlar.</li>
+      <li>Kısa string'leri hiç düşünmemek. <code>01</code> ve <code>10</code>'un cevabını bir kez kendin kararlaştır ve makinenin buna uyduğunu kontrol et.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-fg">
+    <p class="quiz__q">5 state'li çözümde $F$ ve $G$'nin ikisi de accept. $F$ ile $G$'yi birleştirip (0,1 döngüsüyle) tek state yapabilir misin?</p>
+    <button class="quiz__opt" data-correct>Hayır: <code>1000</code> gibi string'ler kabul edilir<span class="why">Doğru. Birleşince makine "bir yerde 01 ya da 10 var" dilini tanır. <code>1000</code>'da <code>10</code> var ama son üç karakter <code>000</code>.</span></button>
+    <button class="quiz__opt">Evet, ikisi de accept<span class="why">Testin sadece ilk sorusu bu. Çıkan oklar farklı: $F$'den 0,1 ile $G$'ye gidiliyor, $G$'den hiç ok çıkmıyor.</span></button>
+    <button class="quiz__opt">Evet, $G$'nin oku yok, $F$'ninki fazlalık<span class="why">$F$'nin okları gerekli. Çift sondan bir önce bittiğinde son karakteri okuyan dal onlardan geçiyor: <code>011</code>'de dal <code>01</code> ile $F$'ye, son <code>1</code> ile $G$'ye gider. Oklar silinirse <code>011</code> reddedilir.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="lower-bound" data-min="4">
+  <h2>Neden daha azı olmaz?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · hocanın cümlesi</span>
+    <p>Sınav "en az kaç state" diye bir ispat istemiyor. Ama durmak için kendini ikna etmen gerekiyor: "daha da küçültebilir miyim?" sorusu zaman yer. Hoca 2024 P2(b)'de tek cümleyle yetindi: "3 states are nec.: 1. a 2. t 3. start". Her state'in yaptığı farklı bir işi sayıyor.</p>
+    <p>Bu sayımı biraz daha sağlam yapmanın yolu <em>fooling set</em>. Sınavda istenmez; burada kendi cevabından emin olmak için var.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · fooling set</span>
+    <p>$(x_1, y_1), \dots, (x_n, y_n)$ string çiftleri şöyle olsun:</p>
+    <ol>
+      <li>Her $i$ için $x_i y_i \in L$.</li>
+      <li>Her $i \ne j$ için $x_i y_j \notin L$ ya da $x_j y_i \notin L$.</li>
+    </ol>
+    <p>O zaman $L$'yi tanıyan her NFA'nın en az $n$ state'i vardır.</p>
+    <p><strong>Neden:</strong> $x_i y_i$'nin accept eden bir dalını al ve bu dalın $x_i$'yi okuduktan sonraki state'ine $r_i$ de. İki farklı çift için $r_i = r_j$ olsaydı: $x_i$ ile $r_i$'ye gel, oradan $y_j$'nin accept eden yolunu izle. $x_i y_j$ kabul edilirdi; aynı şekilde $x_j y_i$ de. 2. şart bunu yasaklıyor. Yani $r_1, \dots, r_n$ hep farklı.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · 2024 P2(a) için 5 çift</span>
+    <div class="table-wrap"><table class="w-nfa-fewest-tbl">
+      <tr><th>$i$</th><th>$x_i$</th><th>$y_i$</th><th>$x_i y_i$</th></tr>
+      <tr><td>1</td><td>ε</td><td>aa</td><td>aa</td></tr>
+      <tr><td>2</td><td>a</td><td>a</td><td>aa</td></tr>
+      <tr><td>3</td><td>b</td><td>b</td><td>bb</td></tr>
+      <tr><td>4</td><td>c</td><td>c</td><td>cc</td></tr>
+      <tr><td>5</td><td>aa</td><td>ε</td><td>aa</td></tr>
+    </table></div>
+    <p>Hepsi dilde. Birkaç çapraz kontrol: (2) ve (3): <code>ab</code> dilde değil. (1) ve (2): $x_1 y_2$ = <code>a</code>, tek sembol, dilde değil. (1) ve (5): $x_1 y_5$ = ε, dilde değil. (3) ve (5): $x_5 y_3$ = <code>aab</code>, son iki farklı. On çiftin hepsi tutuyor, yani 5 state şart. Bu çiftler tam da hocanın sayımına karşılık geliyor: start, "a bekleniyor", "b bekleniyor", "c bekleniyor", accept.</p>
+    <p>Aynı yolla: 2023 P2(b) için $(\varepsilon, 01), (0, 1), (1, 00), (10, 0), (100, \varepsilon)$ → en az 5. 2020 P2(a) için $(\varepsilon, \varepsilon), (0, 010), (00, 100)$ → en az 3.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Hatırlanması gereken farklı durum sayısı" DFA için alt sınırdır, NFA için değil. "Sondan üçüncü sembol 1" dilinde son üç sembolün 8 hali farklı davranır ve en küçük DFA 8 state'tir; NFA ise 4 state'le yapar.</li>
+      <li>Fooling set her zaman en iyi sınırı vermez. 2024 P2(b) ve 2023 P2(a) için kısa string'lerle kurulan fooling set'ler 3 ve 4'e ulaşmadı; oradaki sınırları, bütün küçük NFA'ları tek tek deneyen bir bilgisayar araması doğruladı.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: 26 Ekim tahtası s.2 ("3 states are nec.", "1. a 2. t 3. start"). Fooling set tekniği Glaister ve Shallit (1996, Information Processing Letters) "A lower bound technique for the size of nondeterministic finite automata"; Sipser'de yok, ders içeriği değil, sadece kendi kontrolün için. Bütün çiftler ve çapraz koşullar v/claims.py ile kontrol edildi. -->
+  <div class="quiz" id="q-fool">
+    <p class="quiz__q">2024 P2(a)'nın fooling set'inde $(a, a)$ ve $(b, b)$ çiftlerinin $r$ state'leri neden aynı olamaz?</p>
+    <button class="quiz__opt" data-correct>Aynı olsaydı NFA <code>ab</code>'yi de kabul ederdi<span class="why">Doğru. <code>a</code> ile $r$'ye gel, sonra <code>bb</code>'nin dalının $r$'den sonraki kısmını izle: b ile accept. Ama <code>ab</code> dilde değil.</span></button>
+    <button class="quiz__opt">Farklı sembollerle başladıkları için<span class="why">Başlangıç sembolü tek başına bir şey kanıtlamaz; farklı string'ler aynı state'e gidebilir. Argüman çapraz string'in ($x_i y_j$) dilde olmamasına dayanıyor.</span></button>
+    <button class="quiz__opt">NFA deterministik olmadığı için<span class="why">Nondeterminism burada aleyhimize: bir string birçok state'e gidebilir. Argüman bu yüzden accept eden <em>bir</em> dalı seçip onun state'ini kullanıyor.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="grader" data-min="5">
+  <h2>Sınav provası: NFA'nı yaz, puanını gör</h2>
+  <p>Bir dil seç ve NFA'nı metin olarak yaz. Sayfa iki şey yapar: (1) bütün kısa string'leri hem senin NFA'nda hem dilin tanımında dener ve ilk farkı gösterir; (2) state'leri sayıp üç puanlama kuralına göre puanını hesaplar. Altında birleştirme asistanı silinebilecek ve birleştirilebilecek state'leri önerir; bir öneriye tıklarsan uygulanır ve kontrol yeniden çalışır. Önce kâğıtta çöz, sonra yaz.</p>
+  <p class="w-nfa-fewest-guess"><b>Önce tahmin et:</b> "2024 P2(a)" seçiliyken hazır başlangıç 7 state'li, doğru bir NFA. Asistan hangi state'leri birleştirmeyi önerecek? Kaç birleştirmeden sonra puan 10 olur?</p>
+  <div class="w-nfa-fewest-ctl">
+    <label>dil: <select id="wg-lang" class="btn btn--sm"></select></label>
+  </div>
+  <p class="w-nfa-fewest-res" id="wg-def"></p>
+  <textarea id="wg-ta" class="w-nfa-fewest-ta" spellcheck="false" aria-label="NFA metni"></textarea>
+  <p class="src">Biçim: <code>start q0</code>, <code>accept f g</code>, sonra her satırda bir geçiş: <code>q0 a,b -&gt; q1 q2</code> (q0'dan a ve b ile q1'e ve q2'ye). ε için <code>eps</code> yaz. Bir sembolde hiçbir yere gidilmiyorsa satır yazma. <code>#</code>'dan sonrası açıklama.</p>
+  <div class="w-nfa-fewest-ctl">
+    <button class="btn btn--sm btn--accent" id="wg-go">Kontrol et</button>
+    <button class="btn btn--sm" id="wg-start">Hazır başlangıcı yükle</button>
+    <button class="btn btn--sm" id="wg-ans">Bu dersin cevabını yükle</button>
+  </div>
+  <div class="w-nfa-fewest-err" id="wg-err" aria-live="polite"></div>
+  <div class="w-nfa-fewest-res" id="wg-out" aria-live="polite"></div>
+  <div id="wg-fig"></div>
+  <div class="w-nfa-fewest-sug" id="wg-sug"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kâğıtta kendi kontrolün</span>
+    <p>Sınavda bu sayfa yok. Teslim etmeden önce:</p>
+    <ol>
+      <li>Sorudaki her örneği makinende yürüt, hem $\in L$ hem $\notin L$ olanları.</li>
+      <li>ε'u ve tek sembolleri dene. ε dilde mi? Start buna uyuyor mu?</li>
+      <li>Serbest semboller her state'te dönüyor mu?</li>
+      <li>Dead state var mı? Çıkışı olmayan birden fazla accept state var mı? Aynı geleceğe sahip iki state var mı?</li>
+      <li>Start'ı ok ile, accept'leri çift halka ile işaretledin mi?</li>
+    </ol>
+  </div>
+  <div class="quiz" id="q-grader">
+    <p class="quiz__q">Checker "uzunluğu en fazla 9 olan bütün string'lerde doğru, 6 state, hedef 5" dedi ve asistan hiçbir öneri bulamadı. Ne yaparsın?</p>
+    <button class="quiz__opt">Teslim ederim, doğru zaten<span class="why">Doğru ama bir fazla state: puanın yarısı. Zamanın varsa küçültmeyi dene.</span></button>
+    <button class="quiz__opt" data-correct>Dili başka sözlerle yazıp yeniden çizerim (2023 P2(b) gibi)<span class="why">Doğru. Basit birleştirme testi her fazlalığı yakalamaz. Daha az state çoğu zaman dilin farklı bir tarifinden gelir.</span></button>
+    <button class="quiz__opt">Bir dead state ekleyip DFA'ya çeviririm<span class="why">Bu state sayısını artırır. DFA'ya çevirmek küçültmez.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Her kartta önce kalıbı seç, sonra kâğıtta çiz.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">$\{w \in \{0,1\}^* \mid$ the second symbol from the end is 0$\}$ için en az kaç state'li NFA?</p>
+    <button class="quiz__opt" data-correct>3<span class="why">Doğru. Start'ta 0,1 döngüsü, 0 ile tahmin state'i, oradan 0,1 ile çıkışı olmayan accept. Fooling set: $(\varepsilon, 00), (0, 0), (00, \varepsilon)$.</span></button>
+    <button class="quiz__opt">4<span class="why">4, bu dilin en küçük DFA'sı. NFA son iki sembolün dört halini ayrı tutmak zorunda değil.</span></button>
+    <button class="quiz__opt">2<span class="why">0'ı okuyan tahmin okunun başında ve sonunda birer state, sonra bir sembol daha: start dahil 3 state gerekiyor.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">$\{w \in \{a, b, x\}^* \mid$ a and b alternate when x is ignored$\}$ için hangi kalıp ve kaç state?</p>
+    <button class="quiz__opt" data-correct>Her state'te x döngüsü, ε ile iki kapı: 3 state<span class="why">Doğru: 2024 P2(b)'nin aynısı. "Sıradaki a", "sıradaki b" ve start. 2 state'le olmadığı arama ile doğrulandı.</span></button>
+    <button class="quiz__opt">Son sembol başına bir state ve dead state: 4 state<span class="why">Dead state NFA'da gereksiz: 1 fazla state, puanın yarısı.</span></button>
+    <button class="quiz__opt">Suffix tahmini: 2 state<span class="why">Şart string'in sonunda değil, her yerde geçerli. Suffix kalıbı uymuyor; ayrıca 2 state yetmiyor.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">15 puanlık bir şıkta en az 5 state yetiyor, sen 6 state'li doğru bir NFA çizdin. Hoca −3 kuralını seçerse kaç puan alırsın? Kâğıttaki kuralla kaç?</p>
+    <button class="quiz__opt" data-correct>12 ve 7.5<span class="why">Doğru: $15 - 3 = 12$ ve $15 \cdot \tfrac12 = 7.5$.</span></button>
+    <button class="quiz__opt">7.5 ve 12<span class="why">Sıra ters: yarıya indirme 7.5, −3 kuralı 12 verir.</span></button>
+    <button class="quiz__opt">13 ve 7.5<span class="why">13, −2 kuralının sonucu.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">NFA'nda iki accept state var, ikisinden de hiç ok çıkmıyor. İlk yapacağın şey?</p>
+    <button class="quiz__opt" data-correct>İkisini tek state yapıp gelen okları ona bağlamak<span class="why">Doğru: 2024 P2(a)'daki birleştirme. Gelecekleri aynı, dil değişmez.</span></button>
+    <button class="quiz__opt">İkisini de silmek, nasılsa çıkışları yok<span class="why">Onlar accept state. Silersen o dallar hiç kabul edemez ve dil değişir. Silinen şey dead state olur, accept state değil.</span></button>
+    <button class="quiz__opt">Birine 0,1 döngüsü koymak<span class="why">Döngü dili değiştirir (suffix dili substring diline döner) ve state sayısını azaltmaz.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">$\{w \in \{0,1\}^* \mid w$ contains 11$\}$ için en az kaç state'li NFA ve son state'te ne var?</p>
+    <button class="quiz__opt" data-correct>3; son state'te 0,1 döngüsü<span class="why">Doğru: substring kalıbı. $11$ görüldükten sonra ne gelirse gelsin string dilde.</span></button>
+    <button class="quiz__opt">3; son state'ten ok çıkmıyor<span class="why">Bu "ends with 11" dili olurdu: <code>110</code> reddedilirdi.</span></button>
+    <button class="quiz__opt">4; dead state ile<span class="why">NFA'da dead state'e gerek yok.</span></button>
+  </div>
+  <!-- Kaynak: son kontrol dillerinin hepsi v/claims.py'de brute force, fooling set ve 2-state arama ile kontrol edildi. Sıradaki konu: Regular expression ↔ NFA ve GNFA. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="nfa-fewest-data">
+{
+  "figs": {
+    "p24a": { "sigma": "abc", "text": "start q0\naccept f\nq0 a,b,c -> q0\nq0 a -> qa\nq0 b -> qb\nq0 c -> qc\nqa a -> f\nqb b -> f\nqc c -> f\n",
+      "pos": { "q0": [0, 1], "qa": [1.5, 0], "qb": [1.5, 1], "qc": [1.5, 2], "f": [3, 1] } },
+    "p24a-3acc": { "sigma": "abc", "text": "start q0\naccept fa fb fc\nq0 a,b,c -> q0\nq0 a -> qa\nq0 b -> qb\nq0 c -> qc\nqa a -> fa\nqb b -> fb\nqc c -> fc\n",
+      "pos": { "q0": [0, 1], "qa": [1.4, 0], "qb": [1.4, 1], "qc": [1.4, 2], "fa": [2.8, 0], "fb": [2.8, 1], "fc": [2.8, 2] } },
+    "p24b": { "sigma": "acgt", "text": "start s\naccept p q\ns eps -> p q\np a -> q\nq t -> p\np c,g -> p\nq c,g -> q\n",
+      "pos": { "s": [1, 0], "p": [0, 1.4], "q": [2, 1.4] } },
+    "p24b-noeps": { "sigma": "acgt", "text": "start s\naccept s p q\ns c,g -> s\ns a -> q\ns t -> p\np a -> q\nq t -> p\np c,g -> p\nq c,g -> q\n",
+      "pos": { "s": [1, 0], "p": [0, 1.4], "q": [2, 1.4] } },
+    "p24b-dead": { "sigma": "acgt", "text": "# DFA gibi: dead state d ile 4 state\nstart s\naccept s p q\ns c,g -> s\ns a -> q\ns t -> p\np a -> q\nq t -> p\np c,g -> p\nq c,g -> q\np t -> d\nq a -> d\nd a,c,g,t -> d\n",
+      "pos": { "s": [1, 0], "p": [0, 1.4], "q": [2, 1.4], "d": [1, 2.6] } },
+    "p23a": { "sigma": "abc", "text": "start s\naccept s A B C\ns a -> A\ns b -> B\ns c -> C\nA b -> B\nA c -> C\nB a -> A\nB c -> C\nC a -> A\nC b -> B\n",
+      "pos": { "s": [0, 1.1], "A": [1.5, 0], "B": [3, 1.1], "C": [1.5, 2.2] } },
+    "p23a-dead": { "sigma": "abc", "text": "# DFA gibi: dead state D ile 5 state\nstart s\naccept s A B C\ns a -> A\ns b -> B\ns c -> C\nA b -> B\nA c -> C\nB a -> A\nB c -> C\nC a -> A\nC b -> B\nA a -> D\nB b -> D\nC c -> D\nD a,b,c -> D\n",
+      "pos": { "s": [0, 1.1], "A": [1.5, 0], "B": [3, 1.1], "C": [1.5, 2.2], "D": [4.4, 1.1] } },
+    "p23b": { "sigma": "01", "text": "start q0\naccept F G\nq0 0,1 -> q0\nq0 0 -> A\nq0 1 -> B\nA 1 -> F\nB 0 -> F\nF 0,1 -> G\n",
+      "pos": { "q0": [0, 1], "A": [1.3, 0.2], "B": [1.3, 1.8], "F": [2.6, 1], "G": [3.9, 1] } },
+    "p23b-key": { "sigma": "01", "text": "# repodaki öğrenci çözümü (2023 P2(b)), 7 state\nstart q0\naccept M F\nq0 0,1 -> q0\nq0 0 -> u1\nu1 0 -> u2\nu2 1 -> F\nu1 1 -> M\nq0 1 -> d1\nd1 0 -> M\nd1 1 -> d2\nd2 0 -> F\nM 0,1 -> F\n",
+      "pos": { "q0": [0, 1.5], "u1": [1.2, 0.6], "u2": [2.4, 0], "M": [2.4, 1.5], "d1": [1.2, 2.4], "d2": [2.4, 3], "F": [3.6, 1.5] } },
+    "p20a": { "sigma": "01", "text": "start q0\naccept q0 q1 q2\nq0 0,1 -> q1\nq1 0,1 -> q2\nq2 1 -> q0\n",
+      "pos": { "q0": [0, 0], "q1": [1.5, 0], "q2": [3, 0] } },
+    "p20a-dead": { "sigma": "01", "text": "# 28 Eylül tahtasındaki DFA: dead state d ile 4 state\nstart q0\naccept q0 q1 q2\nq0 0,1 -> q1\nq1 0,1 -> q2\nq2 1 -> q0\nq2 0 -> d\nd 0,1 -> d\n",
+      "pos": { "q0": [0, 0], "q1": [1.5, 0], "q2": [3, 0], "d": [3, 1.3] } },
+    "p20b": { "sigma": "01", "text": "start q0\naccept q0\nq0 1 -> q0\nq0 0 -> q1\nq1 0 -> q2\nq2 1 -> q0\n",
+      "pos": { "q0": [0, 0], "q1": [1.5, 0], "q2": [3, 0] } },
+    "p20b-4": { "sigma": "01", "text": "# ilk çizim: 1* ve (001+)* için ayrı state'ler, 4 state\nstart q0\naccept q0 q3\nq0 1 -> q0\nq0 0 -> q1\nq1 0 -> q2\nq2 1 -> q3\nq3 1 -> q3\nq3 0 -> q1\n",
+      "pos": { "q0": [0, 0], "q1": [1.5, 0], "q2": [3, 0], "q3": [4.5, 0] } },
+    "s130": { "sigma": "01", "text": "start q1\naccept q4\nq1 0,1 -> q1\nq1 1 -> q2\nq2 0,1 -> q3\nq3 0,1 -> q4\n",
+      "pos": { "q1": [0, 0], "q2": [1.5, 0], "q3": [3, 0], "q4": [4.5, 0] } },
+    "s17a": { "sigma": "01", "text": "start q1\naccept q3\nq1 0,1 -> q1\nq1 0 -> q2\nq2 0 -> q3\n",
+      "pos": { "q1": [0, 0], "q2": [1.5, 0], "q3": [3, 0] } },
+    "s17b": { "sigma": "01", "text": "start q1\naccept q5\nq1 0,1 -> q1\nq1 0 -> q2\nq2 1 -> q3\nq3 0 -> q4\nq4 1 -> q5\nq5 0,1 -> q5\n",
+      "pos": { "q1": [0, 0], "q2": [1.3, 0], "q3": [2.6, 0], "q4": [3.9, 0], "q5": [5.2, 0] } },
+    "s17c": { "sigma": "01", "text": "start s\naccept e0 c2\ns eps -> e0 c0\ne0 0 -> e1\ne1 0 -> e0\ne0 1 -> e0\ne1 1 -> e1\nc0 0 -> c0\nc0 1 -> c1\nc1 0 -> c1\nc1 1 -> c2\nc2 0 -> c2\n",
+      "pos": { "s": [0, 1.1], "e0": [1.4, 0.3], "e1": [2.8, 0.3], "c0": [1.4, 1.9], "c1": [2.8, 1.9], "c2": [4.2, 1.9] } },
+    "s17d": { "sigma": "01", "text": "start q1\naccept q2\nq1 0 -> q2\n",
+      "pos": { "q1": [0, 0], "q2": [1.5, 0] } },
+    "s17e": { "sigma": "01", "text": "start p\naccept r\np 0 -> p\np eps -> q\nq 1 -> q\nq 0 -> r\nr 0 -> r\n",
+      "pos": { "p": [0, 0], "q": [1.5, 0], "r": [3, 0] } },
+    "s17g": { "sigma": "01", "text": "start q1\naccept q1\n", "pos": { "q1": [0, 0] } },
+    "s17h": { "sigma": "01", "text": "start q1\naccept q1\nq1 0 -> q1\n", "pos": { "q1": [0, 0] } }
+  },
+  "langs": [
+    { "id": "p24a", "label": "2024 P2(a): son iki sembol aynı", "sigma": "abc", "opt": 5, "proven": true, "pts": 10,
+      "def": "$\\{w \\in \\{a,b,c\\}^* \\mid |w| \\ge 2$ and the last two symbols of $w$ are the same$\\}$", "start": "p24a-3acc", "answer": "p24a" },
+    { "id": "p24b", "label": "2024 P2(b): a ve t sırayla (c, g serbest)", "sigma": "acgt", "opt": 3, "proven": true, "pts": 10,
+      "def": "$\\{w \\in \\{a,c,g,t\\}^* \\mid$ a and t alternate when c and g are ignored$\\}$", "start": "p24b-dead", "answer": "p24b" },
+    { "id": "p23a", "label": "2023 P2(a): aa, bb, cc yok", "sigma": "abc", "opt": 4, "proven": true, "pts": 10,
+      "def": "$\\{w \\in \\{a,b,c\\}^* \\mid w$ doesn't contain aa, bb, cc$\\}$", "start": "p23a-dead", "answer": "p23a" },
+    { "id": "p23b", "label": "2023 P2(b): en az bir 1, son üçte bir ya da iki 0", "sigma": "01", "opt": 5, "proven": true, "pts": 15,
+      "def": "$\\{w \\in \\{0,1\\}^* \\mid w$ has at least one 1 and the last three characters contain one or two 0s$\\}$ (üçten kısa string'lerde string'in tamamı)", "start": "p23b-key", "answer": "p23b" },
+    { "id": "p20a", "label": "2020 P2(a): her üçüncü pozisyon 1", "sigma": "01", "opt": 3, "proven": true, "pts": 10,
+      "def": "binary strings where every third position (3rd, 6th, 9th, …) contains a 1", "start": "p20a-dead", "answer": "p20a" },
+    { "id": "p20b", "label": "2020 P2(b) = Sipser 1.7(f): 1*(001+)*", "sigma": "01", "opt": 3, "proven": true, "pts": 10,
+      "def": "$1^*(001^+)^*$", "start": "p20b-4", "answer": "p20b" },
+    { "id": "s17a", "label": "Sipser 1.7(a): ends with 00 (3 state)", "sigma": "01", "opt": 3, "proven": true, "pts": 0,
+      "def": "$\\{w \\mid w$ ends with 00$\\}$", "start": "", "answer": "s17a" },
+    { "id": "s17b", "label": "Sipser 1.7(b): contains 0101 (5 state)", "sigma": "01", "opt": 5, "proven": true, "pts": 0,
+      "def": "$\\{w \\mid w$ contains the substring 0101$\\}$", "start": "", "answer": "s17b" },
+    { "id": "s17c", "label": "Sipser 1.7(c): even 0s or exactly two 1s (6 state)", "sigma": "01", "opt": 6, "proven": false, "pts": 0,
+      "def": "$\\{w \\mid w$ contains an even number of 0s, or contains exactly two 1s$\\}$", "start": "", "answer": "s17c" },
+    { "id": "s17d", "label": "Sipser 1.7(d): {0} (2 state)", "sigma": "01", "opt": 2, "proven": true, "pts": 0,
+      "def": "$\\{0\\}$", "start": "", "answer": "s17d" },
+    { "id": "s17e", "label": "Sipser 1.7(e): 0*1*0+ (3 state)", "sigma": "01", "opt": 3, "proven": true, "pts": 0,
+      "def": "$0^*1^*0^+$", "start": "", "answer": "s17e" },
+    { "id": "s17g", "label": "Sipser 1.7(g): {ε} (1 state)", "sigma": "01", "opt": 1, "proven": true, "pts": 0,
+      "def": "$\\{\\varepsilon\\}$", "start": "", "answer": "s17g" },
+    { "id": "s17h", "label": "Sipser 1.7(h): 0* (1 state)", "sigma": "01", "opt": 1, "proven": true, "pts": 0,
+      "def": "$0^*$", "start": "", "answer": "s17h" }
+  ],
+  "trees": [
+    { "label": "2024 P2(a): son iki sembol aynı (5 state)", "fig": "p24a", "w": "abcc" },
+    { "label": "Sipser Example 1.30: sondan üçüncü sembol 1 (4 state)", "fig": "s130", "w": "000100" },
+    { "label": "2023 P2(b): 5 state'li cevap", "fig": "p23b", "w": "11001" }
+  ]
+}
+</script>
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* ===== NFA engine: parse a typed transition list, simulate with ε-closure, brute-force check, simplify, draw ===== */
+const NF = (function () {
+  const EPS = "ε", SEP = "\u0001";
+  const key = (q, c) => q + SEP + c;
+  const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+  const show = w => w === "" ? "ε" : w;
+  const NAME = /^[A-Za-z0-9_']+$/;
+  function parse(text, sigma) {
+    let start = null;
+    const accept = new Set(), states = [], seen = new Set(), d = new Map();
+    const add = q => { if (!seen.has(q)) { seen.add(q); states.push(q); } };
+    const lines = String(text).split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const raw = lines[i].replace(/#.*$/, "").trim();
+      if (!raw) continue;
+      const ln = i + 1;
+      let m;
+      if ((m = raw.match(/^start\s*:?\s*(.*)$/i))) {
+        const parts = m[1].split(/[\s,]+/).filter(Boolean);
+        if (parts.length !== 1) return { err: `Satır ${ln}: tam olarak bir start state yaz. Sipser'in tanımında NFA'nın tek bir start state'i var; iki yerden başlamak istiyorsan start'tan ε ile dallan.` };
+        if (!NAME.test(parts[0])) return { err: `Satır ${ln}: <b>${esc(parts[0])}</b> geçerli bir state adı değil (harf, rakam, _ kullan).` };
+        if (start !== null && start !== parts[0]) return { err: `Satır ${ln}: start iki kez, farklı state'lerle verilmiş (${esc(start)} ve ${esc(parts[0])}).` };
+        start = parts[0]; add(start); continue;
+      }
+      if ((m = raw.match(/^accept\s*:?\s*(.*)$/i))) {
+        for (const p of m[1].split(/[\s,]+/).filter(Boolean)) {
+          if (!NAME.test(p)) return { err: `Satır ${ln}: <b>${esc(p)}</b> geçerli bir state adı değil.` };
+          accept.add(p); add(p);
+        }
+        continue;
+      }
+      const ar = raw.indexOf("->");
+      if (ar < 0) return { err: `Satır ${ln}: <code>${esc(raw)}</code> okunamadı. Biçim: <code>q0 a,b -&gt; q1 q2</code>, <code>start q0</code> ya da <code>accept f</code>.` };
+      const left = raw.slice(0, ar).trim().split(/[\s,]+/).filter(Boolean);
+      const targets = raw.slice(ar + 2).trim().split(/[\s,]+/).filter(Boolean);
+      if (left.length < 2) return { err: `Satır ${ln}: okun solunda önce state, sonra sembol(ler) olmalı, örneğin <code>q0 a,b -&gt; q1</code>.` };
+      const from = left[0];
+      if (!NAME.test(from)) return { err: `Satır ${ln}: <b>${esc(from)}</b> geçerli bir state adı değil.` };
+      if (!targets.length) return { err: `Satır ${ln}: okun sağında en az bir state olmalı. Bir sembolde hiçbir yere gidilmiyorsa o satırı hiç yazma: NFA'da eksik ok, o dalın ölmesi demek.` };
+      for (const t of targets) if (!NAME.test(t)) return { err: `Satır ${ln}: <b>${esc(t)}</b> geçerli bir state adı değil.` };
+      add(from);
+      for (let s of left.slice(1)) {
+        if (s === "eps" || s === "ε") s = EPS;
+        else if (s.length !== 1 || !sigma.includes(s)) return { err: `Satır ${ln}: <b>${esc(s)}</b> bu sorunun alphabet'inde yok. Σ = {${sigma.split("").join(", ")}}; ε için <code>eps</code> yaz.` };
+        if (!d.has(key(from, s))) d.set(key(from, s), new Set());
+        for (const t of targets) { add(t); d.get(key(from, s)).add(t); }
+      }
+    }
+    if (start === null) return { err: "Start state yok: bir satıra <code>start q0</code> yaz." };
+    return { start, accept, states, d };
+  }
+  function closure(N, S) {
+    const out = new Set(S), st = [...S];
+    while (st.length) {
+      const q = st.pop(), t = N.d.get(key(q, EPS));
+      if (t) for (const r of t) if (!out.has(r)) { out.add(r); st.push(r); }
+    }
+    return out;
+  }
+  function step(N, S, c) {
+    const T = new Set();
+    for (const q of S) { const t = N.d.get(key(q, c)); if (t) for (const r of t) T.add(r); }
+    return closure(N, T);
+  }
+  const hasAcc = (N, S) => { for (const q of S) if (N.accept.has(q)) return true; return false; };
+  /* every string up to length n, shortest first; the active set is carried along so each string costs one step */
+  function check(N, sigma, pred, n) {
+    let level = [["", closure(N, [N.start])]], tested = 0, falseAcc = null, falseRej = null;
+    for (let L = 0; L <= n; L++) {
+      const next = [];
+      for (const [w, S] of level) {
+        tested++;
+        const a = hasAcc(N, S), p = pred(w);
+        if (a && !p && falseAcc === null) falseAcc = w;
+        if (!a && p && falseRej === null) falseRej = w;
+        if (L < n) for (const c of sigma) next.push([w + c, step(N, S, c)]);
+      }
+      level = next;
+    }
+    return { tested, falseAcc, falseRej, ok: falseAcc === null && falseRej === null };
+  }
+  function outgoing(N, q) {
+    const res = [];
+    for (const [k, t] of N.d) { const [a, c] = k.split(SEP); if (a === q && t.size) res.push([c, t]); }
+    return res;
+  }
+  function reachable(N) {
+    const seen = new Set([N.start]), st = [N.start];
+    while (st.length) { const q = st.pop(); for (const [, t] of outgoing(N, q)) for (const r of t) if (!seen.has(r)) { seen.add(r); st.push(r); } }
+    return seen;
+  }
+  function coreachable(N) {
+    const seen = new Set(N.accept), st = [...N.accept];
+    while (st.length) {
+      const r = st.pop();
+      for (const [k, t] of N.d) { const q = k.split(SEP)[0]; if (t.has(r) && !seen.has(q)) { seen.add(q); st.push(q); } }
+    }
+    return seen;
+  }
+  /* sufficient test: same acceptance and identical outgoing sets once q is renamed to p */
+  function mergeable(N, p, q) {
+    if (N.accept.has(p) !== N.accept.has(q)) return false;
+    const syms = new Set([...N.d.keys()].map(k => k.split(SEP)[1]));
+    const norm = S => [...new Set([...(S || [])].map(x => (x === q ? p : x)))].sort().join(" ");
+    for (const c of syms) if (norm(N.d.get(key(p, c))) !== norm(N.d.get(key(q, c)))) return false;
+    return true;
+  }
+  function suggest(N) {
+    const out = [], R = reachable(N), C = coreachable(N);
+    for (const q of N.states) if (!R.has(q)) out.push({ kind: "unreach", q });
+    for (const q of N.states) if (R.has(q) && !C.has(q) && q !== N.start) out.push({ kind: "dead", q });
+    const live = N.states.filter(q => R.has(q) && C.has(q));
+    for (let i = 0; i < live.length; i++)
+      for (let j = i + 1; j < live.length; j++)
+        if (mergeable(N, live[i], live[j])) {
+          const [p, q] = live[j] === N.start ? [live[j], live[i]] : [live[i], live[j]];
+          out.push({ kind: "merge", p, q, sink: N.accept.has(p) && !outgoing(N, p).length && !outgoing(N, q).length });
+        }
+    return out;
+  }
+  function removeState(N, r) {
+    const d = new Map();
+    for (const [k, t] of N.d) {
+      if (k.split(SEP)[0] === r) continue;
+      const t2 = new Set([...t].filter(x => x !== r));
+      if (t2.size) d.set(k, t2);
+    }
+    return { start: N.start, accept: new Set([...N.accept].filter(x => x !== r)), states: N.states.filter(x => x !== r), d };
+  }
+  function mergeStates(N, p, q) {
+    const d = new Map();
+    for (const [k, t] of N.d) {
+      const [a, c] = k.split(SEP), k2 = key(a === q ? p : a, c);
+      if (!d.has(k2)) d.set(k2, new Set());
+      for (const x of t) d.get(k2).add(x === q ? p : x);
+    }
+    return { start: N.start === q ? p : N.start, accept: new Set([...N.accept].map(x => (x === q ? p : x))), states: N.states.filter(x => x !== q), d };
+  }
+  function toText(N, sigma) {
+    const lines = [`start ${N.start}`];
+    if (N.accept.size) lines.push(`accept ${N.states.filter(q => N.accept.has(q)).join(" ")}`);
+    const order = sigma.split("").concat([EPS]);
+    for (const q of N.states) {
+      const groups = new Map();
+      for (const c of order) {
+        const t = N.d.get(key(q, c));
+        if (!t || !t.size) continue;
+        const tk = [...t].join(" ");
+        if (!groups.has(tk)) groups.set(tk, []);
+        groups.get(tk).push(c === EPS ? "eps" : c);
+      }
+      for (const [tk, cs] of groups) lines.push(`${q} ${cs.join(",")} -> ${tk}`);
+    }
+    return lines.join("\n") + "\n";
+  }
+  /* inline SVG state diagram; pos (grid units) when every state has one, otherwise a circle layout */
+  let uid = 0;
+  function draw(N, sigma, pos, hl) {
+    hl = hl || new Set();
+    const U = 86, R = 18, P = {}, names = N.states;
+    if (pos && names.every(q => pos[q])) names.forEach(q => { P[q] = [pos[q][0] * U, pos[q][1] * U]; });
+    else {
+      const n = names.length, rad = n <= 1 ? 0 : Math.max(64, n * 22);
+      names.forEach((q, i) => { const a = Math.PI + 2 * Math.PI * i / n; P[q] = [rad * Math.cos(a), rad * Math.sin(a)]; });
+    }
+    const xs = names.map(q => P[q][0]), ys = names.map(q => P[q][1]);
+    const x0 = Math.min(...xs) - 74, y0 = Math.min(...ys) - 66, W = Math.max(...xs) - x0 + 74, H = Math.max(...ys) - y0 + 66;
+    const id = "nfw-arr-" + (++uid);
+    const groups = new Map(), order = sigma.split("").concat([EPS]);
+    for (const q of names) for (const c of order) {
+      const T = N.d.get(key(q, c)); if (!T) continue;
+      for (const r of T) { const k = q + SEP + r; if (!groups.has(k)) groups.set(k, { q, r, labs: [] }); groups.get(k).labs.push(c); }
+    }
+    /* a self-loop goes on the side of the state that is farthest from its other edges and the start arrow */
+    const nb = {};
+    names.forEach(q => { nb[q] = []; });
+    groups.forEach(({ q, r }) => {
+      if (q === r) return;
+      nb[q].push(Math.atan2(P[r][1] - P[q][1], P[r][0] - P[q][0]));
+      nb[r].push(Math.atan2(P[q][1] - P[r][1], P[q][0] - P[r][0]));
+    });
+    nb[N.start].push(Math.PI);
+    const gap = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+    const loopDir = q => {
+      let best = -Math.PI / 2, bv = -1;
+      for (const c of [-Math.PI / 2, Math.PI / 2, 0, Math.PI]) {
+        const v = nb[q].length ? Math.min(...nb[q].map(a => gap(a, c))) : 9;
+        if (v > bv + 1e-6) { bv = v; best = c; }
+      }
+      return best;
+    };
+    const f1 = v => v.toFixed(1);
+    const lab = (x, y, t) => `<text x="${f1(x)}" y="${f1(y)}" text-anchor="middle" class="w-nfa-fewest-elab">${esc(t)}</text>`;
+    let s = `<svg viewBox="${f1(x0)} ${f1(y0)} ${f1(W)} ${f1(H)}" width="${Math.round(W)}" height="${Math.round(H)}" role="img" aria-label="NFA diagramı"><defs><marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--fg)"/></marker></defs>`;
+    groups.forEach(({ q, r, labs }) => {
+      const [x1, y1] = P[q], [x2, y2] = P[r], t = labs.join(",");
+      if (q === r) {
+        const th = loopDir(q), pt = (rad, a) => [x1 + rad * Math.cos(a), y1 + rad * Math.sin(a)];
+        const [ax, ay] = pt(R, th - 0.5), [bx, by] = pt(R + 1, th + 0.5), [c1x, c1y] = pt(R + 40, th - 0.75), [c2x, c2y] = pt(R + 40, th + 0.75);
+        s += `<path d="M${f1(ax)},${f1(ay)} C${f1(c1x)},${f1(c1y)} ${f1(c2x)},${f1(c2y)} ${f1(bx)},${f1(by)}" class="w-nfa-fewest-edge" marker-end="url(#${id})"/>`;
+        const [lx, ly] = pt(Math.abs(Math.cos(th)) > 0.5 ? R + 46 : R + 37, th);
+        s += lab(lx, ly + 4, t);
+        return;
+      }
+      const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
+      let bend = groups.has(r + SEP + q) ? 16 : 0;
+      for (const o of names) {
+        if (o === q || o === r) continue;
+        const [ox, oy] = P[o], along = (ox - x1) * ux + (oy - y1) * uy;
+        if (along <= 0 || along >= L) continue;
+        if (Math.abs((ox - x1) * nx + (oy - y1) * ny) < R + 8) bend = Math.max(bend, 40);
+      }
+      const mx = (x1 + x2) / 2 + nx * bend * 2, my = (y1 + y2) / 2 + ny * bend * 2;
+      const a1 = Math.atan2(my - y1, mx - x1), a2 = Math.atan2(my - y2, mx - x2);
+      const sx = x1 + R * Math.cos(a1), sy = y1 + R * Math.sin(a1), ex = x2 + (R + 1) * Math.cos(a2), ey = y2 + (R + 1) * Math.sin(a2);
+      s += `<path d="M${f1(sx)},${f1(sy)} Q${f1(mx)},${f1(my)} ${f1(ex)},${f1(ey)}" class="w-nfa-fewest-edge" marker-end="url(#${id})"/>`;
+      s += lab(0.25 * sx + 0.5 * mx + 0.25 * ex + nx * 10, 0.25 * sy + 0.5 * my + 0.25 * ey + ny * 10 + 4, t);
+    });
+    names.forEach(q => {
+      const [x, y] = P[q], h = hl.has(q) ? " is-hl" : "";
+      s += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${R}" class="w-nfa-fewest-node${h}"/>`;
+      if (N.accept.has(q)) s += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${R - 4}" class="w-nfa-fewest-ring${h}"/>`;
+      s += `<text x="${f1(x)}" y="${f1(y + 4)}" text-anchor="middle" class="w-nfa-fewest-nlab"${q.length > 2 ? ' style="font-size:9px"' : ""}>${esc(q)}</text>`;
+    });
+    const [qx, qy] = P[N.start];
+    s += `<line x1="${f1(qx - R - 30)}" y1="${f1(qy)}" x2="${f1(qx - R - 2)}" y2="${f1(qy)}" class="w-nfa-fewest-edge" marker-end="url(#${id})"/>`;
+    return `<div class="w-nfa-fewest-scroll">${s}</svg></div>`;
+  }
+  /* every branch of an ε-free NFA on w, as a tree (leaf order gives the rows) */
+  function runTree(N, w) {
+    const nodes = [], edges = [];
+    let leaves = 0;
+    (function rec(q, i, parent) {
+      const node = { q, i, parent, y: 0 };
+      nodes.push(node);
+      if (parent) edges.push([parent, node]);
+      if (i === w.length) { node.end = N.accept.has(q) ? "acc" : "rej"; node.y = leaves++; return node; }
+      const T = [...(N.d.get(key(q, w[i])) || [])];
+      if (!T.length) { node.end = "dead"; node.y = leaves++; return node; }
+      const kids = T.map(r => rec(r, i + 1, node));
+      node.y = (kids[0].y + kids[kids.length - 1].y) / 2;
+      return node;
+    })(N.start, 0, null);
+    return { nodes, edges, leaves };
+  }
+  return { EPS, esc, show, parse, closure, step, hasAcc, check, suggest, removeState, mergeStates, toText, draw, runTree };
+})();
+
+const DATA = JSON.parse(document.getElementById("nfa-fewest-data").textContent);
+
+/* Target languages: definitions straight from the problem statements, independent of any automaton */
+const PRED = {
+  p24a: w => w.length >= 2 && w[w.length - 1] === w[w.length - 2],
+  p24b: w => { const s = w.replace(/[cg]/g, ""); for (let i = 1; i < s.length; i++) if (s[i] === s[i - 1]) return false; return true; },
+  p23a: w => { for (let i = 1; i < w.length; i++) if (w[i] === w[i - 1]) return false; return true; },
+  p23b: w => { const z = (w.slice(-3).match(/0/g) || []).length; return w.includes("1") && (z === 1 || z === 2); },
+  p20a: w => { for (let i = 2; i < w.length; i += 3) if (w[i] !== "1") return false; return true; },
+  p20b: w => /^1*(001+)*$/.test(w),
+  s17a: w => w.endsWith("00"),
+  s17b: w => w.includes("0101"),
+  s17c: w => (w.split("0").length - 1) % 2 === 0 || (w.split("1").length - 1) === 2,
+  s17d: w => w === "0",
+  s17e: w => /^0*1*0+$/.test(w),
+  s17g: w => w === "",
+  s17h: w => /^0*$/.test(w)
+};
+const CHECK_LEN = { 2: 12, 3: 9, 4: 8 };
+
+/* ===== Static figures inside the text ===== */
+document.querySelectorAll(".w-nfa-fewest-fig[data-fig]").forEach(el => {
+  const F = DATA.figs[el.dataset.fig];
+  const N = NF.parse(F.text, F.sigma);
+  el.innerHTML = N.err ? "" : NF.draw(N, F.sigma, F.pos);
+});
+
+/* ===== Widget 1: guess tree ===== */
+(function () {
+  const $ = id => document.getElementById(id);
+  const sel = $("wt-sel"), inp = $("wt-w"), err = $("wt-err"), box = $("wt-stepper"), figBox = $("wt-fig");
+  sel.innerHTML = DATA.trees.map((t, i) => `<option value="${i}">${NF.esc(t.label)}</option>`).join("");
+  const setStr = S => "{" + [...S].join(", ") + "}";
+  function svgTree(T, w, t, N) {
+    const CW = 56, RH = 30, R = 12, X0 = 24, Y0 = 36;
+    const W = X0 + w.length * CW + 48, H = Y0 + Math.max(1, T.leaves) * RH;
+    const X = n => X0 + n.i * CW, Y = n => Y0 + n.y * RH;
+    let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="NFA dal ağacı">`;
+    for (let i = 0; i < w.length; i++) {
+      const cls = i === t - 1 ? " is-on" : i < t ? "" : " is-later";
+      s += `<text x="${X0 + i * CW + CW / 2}" y="16" text-anchor="middle" class="w-nfa-fewest-sym${cls}">${NF.esc(w[i])}</text>`;
+    }
+    T.edges.forEach(([a, b]) => { if (b.i <= t) s += `<line x1="${X(a) + R}" y1="${Y(a)}" x2="${X(b) - R}" y2="${Y(b)}" class="w-nfa-fewest-tedge"/>`; });
+    T.nodes.forEach(n => {
+      if (n.i > t) return;
+      let cls = "w-nfa-fewest-tnode";
+      if (n.i === t && t < w.length) cls += " is-front";
+      if (t === w.length && n.i === t) cls += n.end === "acc" ? " is-acc" : " is-rej";
+      s += `<circle cx="${X(n)}" cy="${Y(n)}" r="${R}" class="${cls}"/>`;
+      if (N.accept.has(n.q)) s += `<circle cx="${X(n)}" cy="${Y(n)}" r="${R - 3}" class="w-nfa-fewest-tring"/>`;
+      s += `<text x="${X(n)}" y="${Y(n) + 4}" text-anchor="middle" class="w-nfa-fewest-tlab">${NF.esc(n.q)}</text>`;
+      if (n.end === "dead" && t > n.i) s += `<text x="${X(n) + R + 10}" y="${Y(n) + 5}" class="w-nfa-fewest-x">✗</text>`;
+    });
+    return `<div class="w-nfa-fewest-scroll">${s}</svg></div>`;
+  }
+  function build() {
+    const P = DATA.trees[sel.value], F = DATA.figs[P.fig], w = inp.value.trim();
+    const N = NF.parse(F.text, F.sigma);
+    const bad = [...w].filter(c => !F.sigma.includes(c));
+    if (bad.length) { err.textContent = `Bu NFA'nın alphabet'i {${F.sigma.split("").join(", ")}}; "${bad[0]}" sembolü yok.`; box.innerHTML = ""; return; }
+    if (w.length > 10) { err.textContent = "En fazla 10 sembol yaz: daha uzun string'lerde ağaç ekrana sığmıyor."; box.innerHTML = ""; return; }
+    err.textContent = "";
+    figBox.innerHTML = NF.draw(N, F.sigma, F.pos);
+    const T = NF.runTree(N, w), sets = [NF.closure(N, [N.start])];
+    for (const c of w) sets.push(NF.step(N, sets[sets.length - 1], c));
+    const frames = [];
+    for (let t = 0; t <= w.length; t++) {
+      let cap;
+      if (t === 0) cap = `Henüz sembol okunmadı. Tek dal var, start state: <b>${NF.esc(N.start)}</b>. Aktif state'ler: ${setStr(sets[0])}.`;
+      else {
+        cap = `${t}. sembol <code>${NF.esc(w[t - 1])}</code> okundu. Aktif state'ler: <b>${NF.esc(setStr(sets[t]))}</b>.`;
+        const born = T.nodes.filter(n => n.i === t && n.parent && n.parent.q === N.start && n.q !== N.start);
+        if (born.length) cap += ` Start'ta bekleyen dal yeni bir tahmin yaptı: ${born.map(n => "<b>" + NF.esc(n.q) + "</b>").join(", ")}.`;
+        const died = T.nodes.filter(n => n.end === "dead" && n.i === t - 1);
+        if (died.length) cap += ` Ölen dal: ${died.map(n => "<b>" + NF.esc(n.q) + "</b>").join(", ")} (bu sembol için ok yok).`;
+      }
+      if (t === w.length) {
+        const win = T.nodes.find(n => n.i === t && n.end === "acc");
+        if (win) {
+          let g = win;
+          while (g.parent && g.q !== N.start) g = g.parent;
+          cap += ` Input bitti ve yeşil dal accept state'te: <b>${NF.esc(NF.show(w))}</b> kabul edilir. Doğru tahmin, start'tan ${g.i + 1}. sembolde ayrılan daldı.`;
+        } else cap += ` Input bitti, hiçbir dal accept state'te değil: <b>${NF.esc(NF.show(w))}</b> reddedilir.`;
+      }
+      frames.push({ t, caption: cap });
+    }
+    Lab.stepper(box, {
+      title: "Tahmin ağacı",
+      interval: 1400,
+      frames,
+      render(f, idx, el) { el.innerHTML = svgTree(T, w, f.t, N); }
+    });
+  }
+  sel.addEventListener("change", () => { inp.value = DATA.trees[sel.value].w; build(); });
+  $("wt-go").addEventListener("click", build);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") build(); });
+  build();
+})();
+
+/* ===== Widget 2: exam grader + merge assistant ===== */
+(function () {
+  const $ = id => document.getElementById(id);
+  const sel = $("wg-lang"), ta = $("wg-ta"), err = $("wg-err"), out = $("wg-out"), fig = $("wg-fig"), sug = $("wg-sug"), def = $("wg-def");
+  const LANGS = DATA.langs;
+  sel.innerHTML = LANGS.map((L, i) => `<option value="${i}">${NF.esc(L.label)}</option>`).join("");
+  const num = x => String(Math.round(x * 100) / 100);
+  let current = null;
+  function load(which) {
+    const L = LANGS[sel.value];
+    if (which === "ans") ta.value = DATA.figs[L.answer].text;
+    else ta.value = L.start ? DATA.figs[L.start].text : "start q1\n# geçişleri buraya yaz\n";
+    run();
+  }
+  function run() {
+    const L = LANGS[sel.value];
+    def.innerHTML = `<b>Dil:</b> ${L.def}. Hedef: <b>${L.opt}</b> state${L.pts ? `, şık puanı ${L.pts}` : ""}.`;
+    Lab.renderMath(def);
+    const N = NF.parse(ta.value, L.sigma);
+    current = null;
+    if (N.err) { err.innerHTML = N.err; out.innerHTML = ""; fig.innerHTML = ""; sug.innerHTML = ""; return; }
+    err.innerHTML = "";
+    current = N;
+    const n = CHECK_LEN[L.sigma.length], r = NF.check(N, L.sigma, PRED[L.id], n), k = N.states.length;
+    let h = "";
+    if (r.ok) h += `<p><span class="w-nfa-fewest-ok">Doğru</span> (uzunluğu en fazla ${n} olan ${r.tested} string'in hepsinde dilin tanımıyla aynı cevap). State sayısı: <b>${k}</b>.</p>`;
+    else {
+      h += `<p><span class="w-nfa-fewest-bad">Yanlış.</span>`;
+      if (r.falseRej !== null) h += ` <code>${NF.esc(NF.show(r.falseRej))}</code> dilde ama NFA'n reddediyor.`;
+      if (r.falseAcc !== null) h += ` <code>${NF.esc(NF.show(r.falseAcc))}</code> dilde değil ama NFA'n kabul ediyor.`;
+      h += ` (En kısa karşı örnekler.) Yanlış bir NFA için puan hesaplamıyoruz.</p>`;
+    }
+    if (r.ok) {
+      const P0 = L.pts || 10, e = k - L.opt;
+      const lead = L.pts ? "" : "Bu bir kitap alıştırması; 10 puanlık bir şık olsaydı: ";
+      if (e < 0) h += `<p>${L.proven ? `Hedeften az state! Bu dersteki alt sınıra göre bu olmamalı: checker sadece uzunluğu en fazla ${n} olan string'lere baktı, daha uzun bir karşı örnek ara.` : "Kitabın istediğinden az state: daha da iyi."}</p>`;
+      else if (e === 0) h += `<p>${lead}<span class="w-nfa-fewest-ok">${k} state = hedef: tam puan (${P0}).</span></p>`;
+      else h += `<p>${lead}${e} fazla state. Kâğıttaki kural: $${P0} \\cdot (1/2)^{${e}} = ${num(P0 / 2 ** e)}$. Konuşulan seçenekler: −2 ile <b>${num(Math.max(0, P0 - 2 * e))}</b>, −3 ile <b>${num(Math.max(0, P0 - 3 * e))}</b>.</p>`;
+    }
+    out.innerHTML = h;
+    Lab.renderMath(out);
+    const S = NF.suggest(N), hl = new Set();
+    S.forEach(x => { if (x.kind === "merge") { hl.add(x.p); hl.add(x.q); } else hl.add(x.q); });
+    const pos = [L.start && DATA.figs[L.start].pos, DATA.figs[L.answer].pos].find(p => p && N.states.every(q => p[q]));
+    fig.innerHTML = NF.draw(N, L.sigma, pos, hl);
+    let sh = "";
+    if (S.length) {
+      sh += `<p class="w-nfa-fewest-res"><b>Birleştirme asistanı</b> (turuncu state'ler). Bir öneriye tıkla:</p>`;
+      S.forEach((x, i) => {
+        let t;
+        if (x.kind === "unreach") t = `Sil: <b>${NF.esc(x.q)}</b>. Start'tan hiçbir yolla ulaşılmıyor.`;
+        else if (x.kind === "dead") t = `Sil: <b>${NF.esc(x.q)}</b>. Buradan hiçbir accept state'e varılamıyor (dead state).`;
+        else t = `Birleştir: <b>${NF.esc(x.p)}</b> + <b>${NF.esc(x.q)}</b>. ${x.sink ? "İkisi de accept ve ikisinden de ok çıkmıyor." : "Accept durumları aynı ve çıkan okları aynı."}`;
+        sh += `<button class="btn btn--sm" data-i="${i}">${t}</button>`;
+      });
+    } else if (r.ok && k > L.opt) sh = `<p class="w-nfa-fewest-res">Asistanın basit testleri burada bir şey bulamıyor. Daha az state için dili başka sözlerle düşün (Bölüm 8).</p>`;
+    sug.innerHTML = sh;
+    sug.querySelectorAll("button[data-i]").forEach(b => b.addEventListener("click", () => {
+      const x = S[+b.dataset.i];
+      const N2 = x.kind === "merge" ? NF.mergeStates(current, x.p, x.q) : NF.removeState(current, x.q);
+      ta.value = NF.toText(N2, L.sigma);
+      run();
+    }));
+  }
+  sel.addEventListener("change", () => load("start"));
+  $("wg-go").addEventListener("click", run);
+  $("wg-start").addEventListener("click", () => load("start"));
+  $("wg-ans").addEventListener("click", () => load("ans"));
+  load("start");
+})();
+</script>
+</body>
+</html>

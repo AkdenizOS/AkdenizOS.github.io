@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 435: NFA, kopyalar ve parmaklar, ε-move ve ε-closure, formal definition, subset construction (Theorem 1.39), 2^n patlaması, union / concatenation / star için NFA yapıları ve complement tuzağı." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>NFA, ε-move ve subset construction · CSE 435 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-nfa-subset-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-nfa-subset-box { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; margin: 12px 0; background: var(--bg-elevated); min-width: 0; }
+    .w-nfa-subset-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+    .w-nfa-subset-row label { font-weight: 600; font-size: .92rem; color: var(--fg-brand); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; min-width: 0; }
+    .w-nfa-subset-box select, .w-nfa-subset-box input[type="text"] { font: inherit; font-size: .92rem; padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); max-width: 100%; min-width: 0; }
+    .w-nfa-subset-box input[type="text"] { font-family: 'JetBrains Mono', monospace; width: 11em; }
+    .w-nfa-subset-box input[type="range"] { width: min(260px, 100%); accent-color: var(--blue-600); }
+    .w-nfa-subset-ta { display: block; width: 100%; box-sizing: border-box; min-height: 150px; font-family: 'JetBrains Mono', monospace; font-size: .86rem; line-height: 1.45; padding: 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--paper); color: var(--fg); resize: vertical; }
+    .w-nfa-subset-err { color: #c92a2a; font-weight: 600; font-size: .9rem; min-height: 1.2em; margin: 4px 0; }
+    .w-nfa-subset-err ul { margin: 2px 0 2px 18px; }
+    .w-nfa-subset-ok { color: #2b8a3e; font-weight: 600; }
+    .w-nfa-subset-bad { color: #c92a2a; font-weight: 600; }
+    .w-nfa-subset-diag, .w-nfa-subset-fig { overflow-x: auto; max-width: 100%; margin: 6px 0; }
+    .w-nfa-subset-diag svg, .w-nfa-subset-fig svg { display: block; width: 100%; height: auto; margin: 0 auto; }
+    .w-nfa-subset-node { fill: var(--paper); stroke: var(--fg-brand); stroke-width: 1.6; }
+    .w-nfa-subset-node.is-cur { fill: var(--orange-100); stroke: var(--accent); stroke-width: 2.8; }
+    .w-nfa-subset-node.is-dim { fill: var(--bg-muted); stroke: var(--fg-faint); stroke-dasharray: 4 3; }
+    .w-nfa-subset-inner { fill: none; stroke: var(--fg-brand); stroke-width: 1.4; }
+    .w-nfa-subset-edge { fill: none; stroke: var(--fg-muted); stroke-width: 1.5; }
+    .w-nfa-subset-edge.is-eps { stroke-dasharray: 5 3; }
+    .w-nfa-subset-edge.is-on { stroke: var(--accent); stroke-width: 2.6; }
+    .w-nfa-subset-ah { fill: var(--fg-muted); }
+    .w-nfa-subset-ah2 { fill: var(--accent); }
+    .w-nfa-subset-name { fill: var(--fg); font-family: 'JetBrains Mono', monospace; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+    .w-nfa-subset-lbl { fill: var(--blue-600); font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: var(--paper); stroke-width: 3px; }
+    .w-nfa-subset-kv { font-family: 'JetBrains Mono', monospace; font-size: .86rem; overflow-wrap: anywhere; margin: 4px 0; }
+    .w-nfa-subset-tw { overflow-x: auto; max-width: 100%; }
+    .w-nfa-subset-tw table { border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: .84rem; margin: 6px 0; }
+    .w-nfa-subset-tw th, .w-nfa-subset-tw td { border: 1px solid var(--border); padding: 3px 8px; text-align: left; white-space: nowrap; }
+    .w-nfa-subset-tw tr.is-cur td { background: var(--blue-050); }
+    .w-nfa-subset-tw td.is-cur { background: var(--orange-100); outline: 2px solid var(--accent); outline-offset: -2px; }
+    .w-nfa-subset-tw td.is-acc { font-weight: 700; color: #2b8a3e; }
+    .w-nfa-subset-chips { display: flex; flex-wrap: wrap; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: .82rem; margin: 6px 0; }
+    .w-nfa-subset-chips span { border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 0 6px; background: var(--paper); }
+    .w-nfa-subset-chips span.is-new { border-color: var(--accent); background: var(--orange-100); }
+    .w-nfa-subset-chips span.is-dim { color: var(--fg-faint); text-decoration: line-through; background: var(--bg-muted); }
+    .w-nfa-subset-chips span.is-on { border-color: var(--blue-600); background: var(--blue-050); }
+    .w-nfa-subset-bars { margin: 8px 0; }
+    .w-nfa-subset-bar { display: grid; grid-template-columns: minmax(0, 9em) minmax(0, 1fr) 3.5em; gap: 8px; align-items: center; margin: 4px 0; font-size: .9rem; }
+    .w-nfa-subset-bar > i { display: block; height: 14px; border-radius: 3px; background: var(--blue-600); min-width: 2px; }
+    .w-nfa-subset-bar > i.is-dfa { background: var(--accent); }
+    .w-nfa-subset-bar > b { text-align: right; font-family: 'JetBrains Mono', monospace; }
+    .w-nfa-subset-small { font-size: .86rem; color: var(--fg-muted); }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 435</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 435</a> / NFA, ε-move ve subset construction</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L3</span><span class="chip chip--exam">Vizede P2'nin temeli</span><span class="chip">Sipser 1.2</span><span class="src">~57 dk · 11 bölüm</span></div>
+          <h1>Nondeterminism: NFA, ε-move ve subset construction</h1>
+          <p class="lead">DFA her an tek bir state'te durur ve her sembolde tek bir yere gider. Bu derste bu kuralı gevşeten makineyi göreceksin: <em>nondeterministic finite automaton</em> (NFA). NFA aynı anda birden fazla yolu dener ve yollardan biri accept state'e varırsa string'i kabul eder. Sonra her NFA'nın bir DFA'ya çevrilebildiğini (subset construction) ve bu çevirmenin neden $2^n$ state'e kadar büyüyebildiğini göreceksin. Vizenin P2 sorusu (en az state'li NFA) bu dersin üzerine kurulu.</p>
+          <p class="src">Not: Bu konunun slaytı ya da handout'u repoda yok. Konu 28 Eylül tahta notu, Sipser 1.2 ve hocanın sitesindeki NFA aracı üzerinden anlatıldı.</p>
+          <!-- Kaynak: resources/2026-2027-fall/2026-09-28-Note-12-17.pdf (3 s. tahta: DFA vs NFA, third symbol from the end, 0^n1^n, q1 q2 q3'ün subset'leri, 2^7, L={a,ab,ba} ve L*, {0}*) · Sipser 3e PDF s.71–87 (1.2 Nondeterminism: Fig 1.27–1.50, Def 1.37, Ex 1.38, Thm 1.39, Cor 1.40, Ex 1.41, Thm 1.45/1.47/1.49) · Sipser Exercises 1.7, 1.11, 1.14, 1.15, 1.16 (PDF s.108–110) · muratakcs.github.io/cse435/nfa.html (hocanın NFA aracı: "= became ∈", E({q0}) uyarısı, complement uyarısı, 4th-from-right 2^4 örneği) · exams/README.md 26 Ekim özeti (P2 puanlama kuralı ve gerekçesi) · weeks/02 Efe notları Q11 (NFA'ya ilk atıf). -->
+        </header>
+
+        <article class="lesson" data-course="cse-435" data-lesson="nfa-subset">
+
+<!-- 1 -->
+<section class="lsec" id="dfa-zor" data-min="5">
+  <h2>Sondan üçüncü sembol: DFA neden zorlanıyor?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Hafta 2 notunda, DFA'da her state'ten her sembol için neden tam bir ok olduğunu konuşmuştuk (Q11). O cevabın sonunda şu cümle vardı: "Birden fazla seçeneğe izin veren makineye NFA deniyor, o da yakında gelecek." Bu ders o makine.</p>
+    <p>Önce DFA'nın zorlandığı bir dil görelim. Alphabet $\{0,1\}$ ve</p>
+    $$A = \{w \mid w\text{'nin sondan üçüncü sembolü } 1\}.$$
+    <p>Örneğin <code>000100</code> $\in A$ (sondan üçüncü sembol 1), ama <code>0011</code> $\notin A$ (sondan üçüncü sembol 0). Uzunluğu 3'ten kısa bir string'in sondan üçüncü sembolü yoktur, o yüzden <code>11</code> de $A$'da değil.</p>
+  </div>
+  <p>DFA tasarımındaki soruyu sor: <strong>okurken neyi hatırlamam lazım?</strong> DFA string'in nerede biteceğini bilmez. Her an "şimdi bitse kabul eder miyim?" sorusuna cevap verebilmesi gerekir. Bunun için son üç sembolü aklında tutmak zorunda. Üç sembolün $2^3 = 8$ farklı hali var, yani 8 state.</p>
+  <p>28 Eylül'de hoca bunu tahtada iki adımda çizdi. Önce kısa başlangıçlar için de state koydu: $q_\varepsilon$, $q_0$, $q_1$, $q_{00}$, $q_{01}$, $q_{10}$, $q_{11}$ ve son üç sembol için $q_{000}, \dots, q_{111}$. Bu 15 state eder. Sonra kısa başlangıç state'lerinin üstünü kırmızıyla karaladı ve input'un önüne kırmızı bir <code>000</code> yazdı. Fikir şu: string'in başında <code>000</code> varmış gibi düşün. O zaman makine $q_{000}$'dan başlayabilir ve 8 state yeter. Başa eklenen 0'lar sonucu değiştirmez: <code>1</code> string'i <code>0001</code> gibi okunur ve sondan üçüncüsü 0 olduğu için reddedilir. Bu doğru, çünkü <code>1</code>'in sondan üçüncü sembolü yok.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · "sondan üçüncü 1" için 8 state'li DFA</span>
+    <p>State $q_{xyz}$ = "okunan son üç sembol $xyz$". Bir sembol $c$ gelince en eski sembol düşer: $q_{xyz} \xrightarrow{c} q_{yzc}$. Start $q_{000}$, accept state'ler $x = 1$ olanlar.</p>
+    <div class="table-wrap"><table>
+      <tr><th>State</th><th>0</th><th>1</th><th>Anlamı</th></tr>
+      <tr><td>→ $q_{000}$</td><td>$q_{000}$</td><td>$q_{001}$</td><td>son üç: 000 (ya da string kısa)</td></tr>
+      <tr><td>$q_{001}$</td><td>$q_{010}$</td><td>$q_{011}$</td><td>son üç: 001</td></tr>
+      <tr><td>$q_{010}$</td><td>$q_{100}$</td><td>$q_{101}$</td><td>son üç: 010</td></tr>
+      <tr><td>$q_{011}$</td><td>$q_{110}$</td><td>$q_{111}$</td><td>son üç: 011</td></tr>
+      <tr><td>* $q_{100}$</td><td>$q_{000}$</td><td>$q_{001}$</td><td>sondan üçüncü 1</td></tr>
+      <tr><td>* $q_{101}$</td><td>$q_{010}$</td><td>$q_{011}$</td><td>sondan üçüncü 1</td></tr>
+      <tr><td>* $q_{110}$</td><td>$q_{100}$</td><td>$q_{101}$</td><td>sondan üçüncü 1</td></tr>
+      <tr><td>* $q_{111}$</td><td>$q_{110}$</td><td>$q_{111}$</td><td>sondan üçüncü 1</td></tr>
+    </table></div>
+    <p>Sipser de aynı şeyi söyler: "The smallest DFA for $A$ contains eight states." (Example 1.30, Figure 1.32)</p>
+  </div>
+  <!-- Kaynak: 28 Eylül tahtası s.2 (15 state'li ağaç, kırmızı "000" dolgusu ve q000'a giren yeni start oku) · Sipser Example 1.30. Python ile: 15 state'li ve 8 state'li DFA uzunluk ≤ 10'da A ile aynı; subset + minimization ile en küçük DFA 8 state. -->
+  <p>Şimdi aynı dili tanıyan bir NFA'ya bak. Tahtada hoca DFA'nın yanına "NFA" yazıp bunu çizdi; Sipser'deki adı $N_2$ (Figure 1.31):</p>
+  <div class="w-nfa-subset-fig" data-fig="N2" role="img" aria-label="N2: q1'de 0,1 döngüsü, q1'den 1 ile q2'ye, q2'den 0,1 ile q3'e, q3'ten 0,1 ile q4'e; q4 accept"></div>
+  <p>Sadece 4 state. $q_1$'de iki tane 1 oku var: biri $q_1$'e geri döner, biri $q_2$'ye gider. $q_4$'ten hiç ok çıkmıyor. DFA'da bu ikisi de yasak. NFA'da ikisi de serbest ve bir sonraki bölümde makinenin bunları nasıl yorumladığını göreceksin. Kısaca: makine $q_1$'de beklerken "bu 1, sondan üçüncü sembol" diye <strong>tahmin eder</strong> ve $q_2 \to q_3 \to q_4$ yolu tahmini kontrol eder.</p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Baştan üçüncü ile sondan üçüncüyü karıştırmak.</strong> "Üçüncü sembol 0" (Sipser 1.6d) DFA için kolaydır: bir sayaç yeter, çünkü başlangıç noktası belli. Sondan saymak zordur, çünkü sonun nerede olduğu okurken belli değil.</li>
+      <li><strong>Tahtadaki 15 state'li çizimi minimal sanmak.</strong> O çizim doğru ama gereksiz state'leri var. "000 ile başlıyormuş gibi" fikri onu 8'e indirir ve 8'den azı mümkün değil (nedeni 8. bölümde).</li>
+      <li><strong>Kısa string'leri unutmak.</strong> <code>1</code>, <code>10</code>, <code>11</code> dilde değil. DFA'n bunları reddediyor mu, mutlaka dene.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="board-2026-09-28-third"><span class="box__label">28 Eylül tahtası · slayt sorusu</span>
+    <p>Tahtada hoca aynı dil için DFA ve NFA'yı yan yana koydu: "third symbol from the end is 1". İkisini de çiz ve state sayılarını karşılaştır.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>DFA için: kaç sembolü hatırlaman gerekiyor? Her olası hatırlama durumu bir state olur.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>NFA için: start state'te her sembolde bekle. Bir 1 okuyunca "bu sondan üçüncü" diye tahmin edip yeni bir yola sap. Tahminden sonra tam iki sembol daha gelmeli.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>DFA:</strong> yukarıdaki tablo. State'ler $q_{000}, \dots, q_{111}$ (son üç sembol), start $q_{000}$, $F = \{q_{100}, q_{101}, q_{110}, q_{111}\}$, geçiş $q_{xyz} \xrightarrow{c} q_{yzc}$. 8 state.</p>
+      <p><strong>NFA:</strong> $q_1 \xrightarrow{0,1} q_1$, $q_1 \xrightarrow{1} q_2$, $q_2 \xrightarrow{0,1} q_3$, $q_3 \xrightarrow{0,1} q_4$, start $q_1$, $F = \{q_4\}$. 4 state.</p>
+      <p><strong>Karşılaştırma:</strong> NFA'da state sayısı "sondan $k$'ıncı" için $k+1$, DFA'da $2^k$. $k = 3$ için 4 ve 8. Bu fark 8. bölümde bir slider ile büyüyecek.</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-dfa-zor">
+    <p class="quiz__q">"Sondan üçüncü sembol 1" dilini tanıyan en küçük DFA kaç state'tir?</p>
+    <button class="quiz__opt">4<span class="why">4, NFA'nın state sayısı. NFA bir sembolde iki yere gidebildiği için daha az state'le yetinir; DFA bu serbestliğe sahip değil.</span></button>
+    <button class="quiz__opt">3<span class="why">"Üç sembol hatırla" ile "üç state"i karıştırma. Üç sembolün $2^3$ farklı içeriği var, her biri ayrı bir state.</span></button>
+    <button class="quiz__opt" data-correct>8<span class="why">Doğru. Son üç sembolün $2^3 = 8$ hali var ve hepsi ayrı tutulmak zorunda. Sipser: "The smallest DFA for $A$ contains eight states."</span></button>
+    <button class="quiz__opt">15<span class="why">Tahtadaki ilk çizim 15 state'liydi, ama kısa başlangıç state'leri gereksiz: string'in başında 000 varmış gibi düşününce 8 state kalır.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="nfa-nasil" data-min="6">
+  <h2>NFA nasıl çalışır: kopyalar ve parmaklar</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>DFA'yı tek bir parmakla takip edersin: parmak bir state'te durur, her sembolde tek bir oka göre kayar. NFA'da bir sembol için birden fazla ok varsa parmağın <strong>çoğalır</strong>: her ok için bir parmak. Hiç ok yoksa o parmak <strong>kalkar</strong>. String bitince parmaklardan en az biri accept state'teyse NFA kabul eder.</p>
+  </div>
+  <p>Sipser'in ilk NFA örneği $N_1$ (Figure 1.27):</p>
+  <div class="w-nfa-subset-fig" data-fig="N1" role="img" aria-label="N1: q1'de 0,1 döngüsü, q1'den 1 ile q2'ye, q2'den 0 ya da ε ile q3'e, q3'ten 1 ile q4'e, q4'te 0,1 döngüsü; q4 accept"></div>
+  <p>Bu makine DFA kurallarını üç yerden bozuyor: $q_1$'de 1 için iki ok var, $q_2$'de 1 için hiç ok yok ve $q_2 \to q_3$ okunun etiketinde $\varepsilon$ var.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · DFA'dan farklar ve bir NFA'nın hesaplaması</span>
+    <ol>
+      <li>Bir state'ten bir sembol için <strong>sıfır, bir ya da birden fazla</strong> ok çıkabilir.</li>
+      <li>Okların etiketi bir sembol ya da $\varepsilon$ olabilir. $\varepsilon$ oku <strong>input okumadan</strong> geçilir.</li>
+      <li>Birden fazla seçenek varsa makine <strong>kopyalarına ayrılır</strong> ve hepsini paralel izler. $\varepsilon$ okunda da ayrılır: bir kopya okun ucuna gider, bir kopya olduğu yerde kalır.</li>
+      <li>Okunan sembol için ok yoksa o kopya <strong>ölür</strong> (dies). Sadece o kopya; diğerleri devam eder.</li>
+      <li>Input bitince kopyalardan <strong>en az biri</strong> accept state'teyse NFA kabul eder. Hiçbiri değilse reddeder.</li>
+    </ol>
+    <p>Sipser iki bakış açısı verir: paralel çalışan "process" ya da "thread"ler (biri accept ederse hepsi accept), ve bir <strong>olasılıklar ağacı</strong> (tree of possibilities): kök başlangıç, her dallanma bir seçim; dallardan biri accept state'te biterse kabul (Figure 1.28). Tahtada hoca da bunu çizdi: DFA'nın hesaplaması düz bir çizgi, NFA'nınki dallanan bir ağaç.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · $N_1$ input <code>010110</code> üzerinde (Figure 1.29)</span>
+    <p>Her adımda parmakların durduğu state'lerin <strong>kümesini</strong> yaz:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Okunan</th><th>Ne oldu</th><th>Parmaklar</th></tr>
+      <tr><td>(başlangıç)</td><td>start state</td><td>$\{q_1\}$</td></tr>
+      <tr><td>0</td><td>$q_1$'de 0 için tek ok: yerinde kal</td><td>$\{q_1\}$</td></tr>
+      <tr><td>1</td><td>$q_1$ ikiye ayrılır ($q_1$, $q_2$); $q_2$'deki parmak $\varepsilon$ ile $q_3$'e de kopyalanır</td><td>$\{q_1, q_2, q_3\}$</td></tr>
+      <tr><td>0</td><td>$q_1$ kalır, $q_2 \to q_3$, $q_3$'te 0 oku yok: o parmak ölür</td><td>$\{q_1, q_3\}$</td></tr>
+      <tr><td>1</td><td>$q_1 \to q_1, q_2$ (+ $\varepsilon$ ile $q_3$), $q_3 \to q_4$</td><td>$\{q_1, q_2, q_3, q_4\}$</td></tr>
+      <tr><td>1</td><td>aynısı; $q_2$'de 1 oku yok; $q_4$'e iki parmak gelir, biri yeter</td><td>$\{q_1, q_2, q_3, q_4\}$</td></tr>
+      <tr><td>0</td><td>$q_1$ kalır, $q_2 \to q_3$, $q_3$ ölür, $q_4$ kalır</td><td>$\{q_1, q_3, q_4\}$</td></tr>
+    </table></div>
+    <p>Sonda $q_4$ kümede ve $q_4$ accept state: <strong>accept</strong>. Aynı makine <code>010</code>'da $\{q_1\} \to \{q_1\} \to \{q_1,q_2,q_3\} \to \{q_1,q_3\}$ ile biter. Kümede accept state yok: <strong>reject</strong>. Sipser'e göre $N_1$, içinde <code>101</code> ya da <code>11</code> substring'i geçen string'leri kabul eder.</p>
+  </div>
+  <!-- Kaynak: Sipser s.47–50 (PDF 71–74), Figure 1.27–1.29. Python: N1 izleri {q1},{q1},{q1,q2,q3},{q1,q3},{q1,q2,q3,q4},{q1,q2,q3,q4},{q1,q3,q4}; L(N1) = "101 ya da 11 içerir" uzunluk ≤ 10'da doğrulandı. Tahta s.2: ağaç ve tek çizgi çizimi. -->
+  <h3>Simülatör: aktif state kümesini izle</h3>
+  <p>NFA'yı metin olarak yaz (hocanın aracındaki biçimle aynı: <code>p a,b -&gt; q</code>, $\varepsilon$ için <code>eps</code>) ya da tablo olarak yaz (ilk satırda semboller, sonra her state için bir satır, hücrede küme; <code>&gt;</code> start, <code>*</code> accept, boş küme için <code>-</code>). Sonra bir input gir ve adım adım oynat. Her adımda iki şey olur: önce okunan sembolle gidilen state'ler, sonra bunların $\varepsilon$ ile ulaştıkları.</p>
+  <p class="w-nfa-subset-guess"><b>Önce tahmin et:</b> $N_1$ input <code>0100</code> üzerinde hangi kümede biter, kabul eder mi? Kâğıda yaz, sonra oynat.</p>
+  <div class="w-nfa-subset-box" id="w-sim" data-preset="N1" data-input="0100"></div>
+  <p class="w-nfa-subset-small">Hocanın sitesindeki NFA aracı da aynı işi yapıyor: <a href="https://muratakcs.github.io/cse435/nfa.html">hocanın aracı (muratakcs.github.io/cse435/nfa.html)</a>.</p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>"Bir kopya reddetti, o halde NFA reddeder."</strong> Yanlış. Bir kopyanın ölmesi ya da accept olmayan bir state'te bitmesi önemli değil. Tek bir accepting kopya yeter.</li>
+      <li><strong>Aynı state'e gelen parmakları saymak.</strong> İki parmak aynı state'e gelirse biri yeter: önemli olan "bu state mümkün mü?", kaç farklı yoldan gelindiği değil. Bu yüzden her an bir <strong>küme</strong> tutarsın.</li>
+      <li><strong>$\varepsilon$ okunu unutmak.</strong> $q_2$'ye gelen her parmak hemen $q_3$'e de kopyalanır. <code>010</code>'u izlerken 1'den sonra $q_3$'ü unutursan yanlış kümeyle devam edersin.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-nfa-nasil">
+    <p class="quiz__q">$N_1$ input <code>010</code>'u okuduktan sonra parmaklar $\{q_1, q_3\}$'te. Sonuç ne?</p>
+    <button class="quiz__opt" data-correct>Reject, çünkü kümede accept state yok<span class="why">Doğru. Kabul için kopyalardan en az biri accept state'te ($q_4$) olmalıydı.</span></button>
+    <button class="quiz__opt">Accept, çünkü hiçbir kopya ölmedi<span class="why">Kopyaların hayatta kalması yetmez; hayatta kalanlardan biri accept state'te olmalı. (Ayrıca $q_3$'teki kopya 0 okununca öldü.)</span></button>
+    <button class="quiz__opt">Karar verilemez, çünkü makine nondeterministic<span class="why">Nondeterminism sonucu belirsiz yapmaz. Tanım net: input bitince accept state'te bir kopya var mı? Yoksa reject.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="tahmin" data-min="5">
+  <h2>Tahmin et, sonra kontrol et: NFA tasarlamak</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · "guess and check"</span>
+    <p>Sipser $N_2$ için şöyle der: makine start state $q_1$'de bekler, ta ki sondan üçüncü yerde olduğunu "tahmin edene" kadar. O anda sembol 1 ise $q_2$'ye dallanır ve $q_3$, $q_4$ ile tahminin doğru olup olmadığını kontrol eder. Yanlış tahminler kendiliğinden elenir: ya erken biten kopya accept state'e varamaz, ya da $q_4$'ten sonra sembol gelirse kopya ölür.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · NFA tasarım kalıbı</span>
+    <ol>
+      <li><strong>Bekleme kısmı:</strong> start state'te ilgisiz sembolleri döngüyle oku ($q_1 \xrightarrow{0,1} q_1$).</li>
+      <li><strong>Tahmin oku:</strong> desen başlayabilecek sembolde ikinci bir ok ile yeni bir yola sap.</li>
+      <li><strong>Kontrol zinciri:</strong> desenin geri kalanını tek tek oku. Her state bir sembolü kontrol eder.</li>
+      <li><strong>Son:</strong> "desen sonda olmalı" ise son state'ten ok çıkmaz (fazladan gelen sembol kopyayı öldürür). "Desen bir yerde geçsin" ise son state'te $0,1$ döngüsü olur.</li>
+    </ol>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Sipser'in metin içi sorusu (Example 1.30'dan sonra)</span>
+    <p>"Suppose that we added $\varepsilon$ to the labels on the arrows going from $q_2$ to $q_3$ and from $q_3$ to $q_4$ in machine $N_2$ … What language would $N_2$ recognize with this modification? Try modifying the DFA in Figure 1.32 to recognize that language."</p>
+    <p>$\varepsilon$ eklenince $q_2$'ye gelen kopya sembol okumadan $q_3$'e ve $q_4$'e de geçebilir. Yani tahmin edilen 1'den sonra 2, 1 ya da 0 sembol gelmesi yeter: dil "son üç sembolden en az biri 1" olur. DFA için son üç sembolün hepsini tutmak gerekmez, "son 1'den beri kaç sembol geçti" (0, 1, 2 ya da 3+) yeter: <strong>4 state</strong>. Bu 4 state'li DFA en küçüğüdür.</p>
+  </div>
+  <!-- Kaynak: Sipser Example 1.30 sonrası paragraf (PDF s.75). Python: değiştirilmiş N2'nin dili "son üçte 1 var" (uzunluk ≤ 10), subset + minimization ile en küçük DFA 4 state; elle yazılan 4 state'li sayaç DFA'sı da doğru. -->
+  <div class="box box--exam" data-exam="sipser-ex1.7-abe"><span class="box__label">Sipser Exercise 1.7 (a)(b)(e) · kitap alıştırması</span>
+    <p>"Give state diagrams of NFAs with the specified number of states recognizing each of the following languages. In all parts, the alphabet is $\{0,1\}$.<br>a. The language $\{w \mid w$ ends with 00$\}$ with three states<br>b. The language of Exercise 1.6c with five states<br>e. The language $0^*1^*0^+$ with three states"</p>
+    <p class="src">Exercise 1.6c'nin dili: $\{w \mid w$ contains the substring 0101$\}$. Diğer şıklar bu dersin başka bölümlerinde: (c) 9. bölümde, (d)(g)(h) 5. bölümde. (f) şıkkı $1^*(001^+)^*$, 2020 vizesinin P2(b)'si; bir sonraki derste.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) ve (b) aynı kalıp: bekleme döngüsü, tahmin, kontrol zinciri. Fark sadece sonda: (a)'da desen sonda olmalı, (b)'de herhangi bir yerde.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(e) için üç parça var: önce 0'lar, sonra 1'ler, sonra en az bir 0. Her parçaya bir state ver. İlk parçadan ikinciye geçiş için bir $\varepsilon$ oku kullanabilirsin (1'ler hiç olmayabilir).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $a \xrightarrow{0,1} a$, $a \xrightarrow{0} b$, $b \xrightarrow{0} c$; start $a$, $F = \{c\}$; $c$'den ok yok. 3 state.</p>
+      <p><strong>(b)</strong> $a \xrightarrow{0,1} a$, $a \xrightarrow{0} b \xrightarrow{1} c \xrightarrow{0} d \xrightarrow{1} e$, $e \xrightarrow{0,1} e$; start $a$, $F = \{e\}$. 5 state. Burada $e$'de döngü var, çünkü 0101'den sonra ne gelirse gelsin string dilde.</p>
+      <p><strong>(e)</strong> $a \xrightarrow{0} a$, $a \xrightarrow{\varepsilon} b$, $b \xrightarrow{1} b$, $b \xrightarrow{0} c$, $c \xrightarrow{0} c$; start $a$, $F = \{c\}$. 3 state. $\varepsilon$ oku "0'lar bitti" tahminidir; $b \xrightarrow{0} c$ ise $0^+$'nın ilk 0'ını okur, yani en az bir 0 garanti.</p>
+      <p>Üçü de Python ile uzunluk 10'a kadar bütün string'lerde dilin tanımıyla karşılaştırıldı.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=108">Kitapta alıştırma (PDF s.108)</a></p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Vizede bu fikir · ileriye bakış</span>
+    <p>2020 vizesinin P2(a)'sı şöyle: "Binary strings where every third position (3rd, 6th, 9th, etc. positions) contains a 1. (Use three states, every extra state halves your points)". P2 her yıl böyle: NFA kur, ama <strong>en az state ile</strong>. Bu sorunun çözümü ve "neden daha azı olmaz" tartışması bir sonraki derste.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Kontrol zincirinin sonuna yanlışlıkla döngü koymak.</strong> $N_2$'de $q_4$'e $0,1$ döngüsü eklersen makine "sondan üçüncü 1" yerine "arkasında en az iki sembol olan bir 1 var" dilini tanır. <code>1000</code> kabul edilir ama dilde değil.</li>
+      <li><strong>Tahmin okunu unutup tek ok çizmek.</strong> $q_1$'den 1 ile sadece $q_2$'ye gidersen bekleme bozulur: ilk 1'de makine zorla zincire girer.</li>
+      <li><strong>Her geçişi $\varepsilon$ ile yapmak.</strong> (e)'de $b \xrightarrow{0} c$ yerine $b \xrightarrow{\varepsilon} c$ çizersen "en az bir 0" şartı kaybolur. Makine $0^*1^*0^*$'ı tanır: $\varepsilon$, <code>1</code> ve <code>01</code> kabul edilir ama $0^*1^*0^+$'da değiller.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Sipser Ex 1.30 (PDF s.75) "guess" anlatımı · Exercise 1.7 (PDF s.108) · exams/2020-midterm.pdf P2(a) metni (tam çözümü nfa-fewest dersinde). Python: N2 + q4'te 0,1 döngüsü = "en az iki sembolle takip edilen bir 1"; 1000 kabul. b→c'yi ε yapınca dil 0*1*0* oluyor (uzunluk ≤ 9); ε, 1, 01 fazladan kabul. -->
+  <div class="quiz" id="q-tahmin">
+    <p class="quiz__q">$N_2$'de ($q_1 \xrightarrow{0,1} q_1$, $q_1 \xrightarrow{1} q_2 \xrightarrow{0,1} q_3 \xrightarrow{0,1} q_4$) $q_4$'e bir $0,1$ döngüsü eklenirse <code>1000</code> ne olur?</p>
+    <button class="quiz__opt">Reject, çünkü sondan üçüncü sembol 0<span class="why">Dilin tanımına göre öyle olmalı, ama makine değişti. Döngü eklenince $q_4$'e ulaşan kopya artık fazla sembollerde ölmüyor.</span></button>
+    <button class="quiz__opt" data-correct>Accept, çünkü ilk 1'den sonra $q_2, q_3, q_4$'e gidilir ve kalan 0 döngüde okunur<span class="why">Doğru. Kontrol zinciri "tam iki sembol sonra bitmeli" demiyordu, son state'teki ok eksikliği diyordu. Döngü bu kontrolü siler.</span></button>
+    <button class="quiz__opt">Hiçbir kopya $q_4$'e ulaşamaz<span class="why">İlk sembol 1. Tahmin oku ile $q_2$'ye, sonra iki 0 ile $q_3$ ve $q_4$'e gidilir; dördüncü sembol 0 da yeni döngüde okunur.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="epsilon" data-min="5">
+  <h2>ε-move ve ε-closure</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>$\varepsilon$ oku "bedava geçiş"tir: input'tan sembol tüketmez. Makine bir state'e geldiği anda, oradan $\varepsilon$ ile gidilebilen her yerde de bir kopyası olur. $\varepsilon$ okları zincir halindeyse kopya zincirin sonuna kadar yayılır.</p>
+  </div>
+  <p>Sipser'in $N_3$ örneği (Example 1.33) bunun en sade hali. Alphabet tek sembollü, $\{0\}$ (buna <em>unary alphabet</em> denir):</p>
+  <div class="w-nfa-subset-fig" data-fig="N3" role="img" aria-label="N3: start s, ε ile iki döngüye: üstte iki state'li 0 döngüsü, altta üç state'li 0 döngüsü; her döngünün ilk state'i accept"></div>
+  <p>Makine başta bir tahmin yapar: üstteki döngüye mi, alttakine mi? Üst döngü 0 sayısının 2'nin katı olduğunu, alt döngü 3'ün katı olduğunu kontrol eder. Böylece $N_3$, $k$ 2'nin ya da 3'ün katı olmak üzere $0^k$'ları kabul eder: $\varepsilon$, <code>00</code>, <code>000</code>, <code>0000</code>, <code>000000</code> dilde; <code>0</code> ve <code>00000</code> değil. Sipser'in notu: aynı dil için $\varepsilon$'suz, hatta nondeterminism'siz bir makine de kurulabilir, ama en kolay anlaşılanı bu.</p>
+  <p>İkinci örnek $N_4$ (Example 1.35). Subset construction'da da bu makineyi kullanacağız:</p>
+  <div class="w-nfa-subset-fig" data-fig="N4" role="img" aria-label="N4: state 1 start ve accept; 1'den b ile 2'ye, 1'den ε ile 3'e; 2'de a döngüsü; 2'den a ve b ile 3'e; 3'ten a ile 1'e"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · ε-closure $E(R)$</span>
+    <p>$R$ bir state kümesi olsun. $E(R)$, $R$'deki state'lerden <strong>sadece $\varepsilon$ okları üzerinden</strong> gidilebilen state'lerin kümesidir; $R$'nin kendi elemanları da dahil:</p>
+    $$E(R) = \{q \mid q \text{ can be reached from } R \text{ by traveling along 0 or more } \varepsilon \text{ arrows}\}$$
+    <p><strong>Elle hesaplamak:</strong> $R$'yi yaz. Kümedeki her state'in $\varepsilon$ oklarına bak; yeni bir state bulursan ekle ve onun $\varepsilon$ oklarına da bak. Yeni state çıkmayınca dur.</p>
+    <p><strong>Ne zaman uygulanır:</strong> başta bir kez ($E(\{q_0\})$) ve <strong>her sembolden sonra</strong>.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · birkaç ε-closure</span>
+    <ul>
+      <li>$N_4$'te $E(\{1\}) = \{1, 3\}$, çünkü $1 \xrightarrow{\varepsilon} 3$. Yani $N_4$ daha hiçbir şey okumadan hem 1'de hem 3'te.</li>
+      <li>$N_1$'de $E(\{q_2\}) = \{q_2, q_3\}$, $E(\{q_1\}) = \{q_1\}$.</li>
+      <li>$N_3$'te $E(\{s\}) = \{s, a_0, b_0\}$. $a_0$ ve $b_0$ accept olduğu için $\varepsilon$ kabul edilir.</li>
+      <li>Zincir: $p \xrightarrow{\varepsilon} q \xrightarrow{\varepsilon} r$ ise $E(\{p\}) = \{p, q, r\}$. Tek adımda durma.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>$R$'nin kendisini kümeye koymamak.</strong> "0 or more" $\varepsilon$ okları: sıfır ok da bir yol. $E(\{1\})$'de 1 de var.</li>
+      <li><strong>Zinciri tek adımda kesmek.</strong> $\varepsilon$ okları art arda takip edilir.</li>
+      <li><strong>Sembol okuduktan sonra closure'ı unutmak.</strong> $N_4$'te 3'ten <code>a</code> ile 1'e gidersin; 1'den $\varepsilon$ ile 3'e de geçersin. Sonuç $\{1\}$ değil $\{1,3\}$.</li>
+      <li><strong>$\varepsilon$ okunu "boş string okuyan" bir sembol gibi saymak.</strong> $\varepsilon$ bir input sembolü değil; string'te $\varepsilon$ diye bir harf yok. <code>a</code> okurken $\varepsilon$ okları "aradan" bedava geçilir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="sipser-ex1.35"><span class="box__label">Sipser Example 1.35 · kitap alıştırması</span>
+    <p>"Practice with it to satisfy yourself that it accepts the strings $\varepsilon$, a, baba, and baa, but that it doesn't accept the strings b, bb, and babba."</p>
+    <p class="src">Metin içindeki alıştırma; makine yukarıdaki $N_4$.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Başlangıç kümesi $\{1\}$ değil, $E(\{1\})$. Önce onu bul.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her sembolde: kümedeki her state'ten o sembolün oklarını izle, sonuçların birleşimini al, sonra $\varepsilon$-closure'ını al. Kümede 1 varsa o anda accept.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Input</th><th>Kümeler</th><th>Sonuç</th></tr>
+        <tr><td>$\varepsilon$</td><td>$\{1,3\}$</td><td>accept (1 var)</td></tr>
+        <tr><td><code>a</code></td><td>$\{1,3\} \to \{1,3\}$</td><td>accept</td></tr>
+        <tr><td><code>baba</code></td><td>$\{1,3\} \to \{2\} \to \{2,3\} \to \{3\} \to \{1,3\}$</td><td>accept</td></tr>
+        <tr><td><code>baa</code></td><td>$\{1,3\} \to \{2\} \to \{2,3\} \to \{1,2,3\}$</td><td>accept</td></tr>
+        <tr><td><code>b</code></td><td>$\{1,3\} \to \{2\}$</td><td>reject</td></tr>
+        <tr><td><code>bb</code></td><td>$\{1,3\} \to \{2\} \to \{3\}$</td><td>reject</td></tr>
+        <tr><td><code>babba</code></td><td>$\{1,3\} \to \{2\} \to \{2,3\} \to \{3\} \to \emptyset \to \emptyset$</td><td>reject (bütün kopyalar öldü)</td></tr>
+      </table></div>
+      <p>Örneğin <code>a</code>: 1'den <code>a</code> oku yok, 3'ten <code>a</code> ile 1'e gidilir; $E(\{1\}) = \{1,3\}$.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=76">Kitapta örnek (PDF s.76)</a></p>
+  </div>
+  <!-- Kaynak: Sipser Example 1.33 (Fig 1.34) ve 1.35 (Fig 1.36), PDF s.76–77; E(R) tanımı Theorem 1.39 ispatında (PDF s.80). Python: N3 kabul ettiği uzunluklar 0,2,3,4,6,8,9,10,12; N4 izleri yukarıdaki tablo. -->
+  <div class="quiz" id="q-eps-1">
+    <p class="quiz__q">$N_4$'te $E(\{1\})$ nedir?</p>
+    <button class="quiz__opt">$\{1\}$<span class="why">$1 \xrightarrow{\varepsilon} 3$ okunu atlamışsın. Closure, $\varepsilon$ ile gidilen state'leri de içerir.</span></button>
+    <button class="quiz__opt">$\{3\}$<span class="why">$R$'nin kendisi de closure'da: "0 or more" $\varepsilon$ oku. 1'i kümeden çıkarma.</span></button>
+    <button class="quiz__opt" data-correct>$\{1, 3\}$<span class="why">Doğru. 1'in kendisi ve $\varepsilon$ ile gidilen 3. 3'ten $\varepsilon$ oku çıkmıyor, zincir burada biter.</span></button>
+    <button class="quiz__opt">$\{1, 2, 3\}$<span class="why">$1 \to 2$ oku <code>b</code> etiketli; closure sadece $\varepsilon$ oklarını izler.</span></button>
+  </div>
+  <div class="quiz" id="q-eps-2">
+    <p class="quiz__q">$N_3$ (2 ya da 3'ün katı kadar 0) input <code>00000</code>'ı kabul eder mi?</p>
+    <button class="quiz__opt">Evet, çünkü başta $\varepsilon$ ile accept state'lere gidildi<span class="why">Başta accept state'lerde olmak sadece $\varepsilon$ için önemli. Karar input'un <strong>sonundaki</strong> kümeye bakar.</span></button>
+    <button class="quiz__opt" data-correct>Hayır: 5, ne 2'nin ne 3'ün katı; son küme $\{a_1, b_2\}$'de accept state yok<span class="why">Doğru. Üst döngü 5 adımda $a_1$'de, alt döngü $b_2$'de durur.</span></button>
+    <button class="quiz__opt">Evet, çünkü bir kopya bir ara accept state'ten geçti<span class="why">Yoldaki accept state'ler sayılmaz. NFA da DFA gibi input bittiğinde nerede olduğuna bakar.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="tanim" data-min="5">
+  <h2>Formal definition: 5-tuple ve δ : Q × Σ<sub>ε</sub> → P(Q)</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · tek fark transition function'da</span>
+    <p>DFA'da $\delta(q, a)$ <strong>bir state</strong> verir. NFA'da $\delta(q, a)$ <strong>bir state kümesi</strong> verir: gidilebilecek bütün yerler. Ok yoksa küme boştur. Hocanın aracındaki cümle: DFA'dan NFA'ya geçerken bir "=" işareti "∈" oldu. Tahtada da bunu yazdı: $q_1 \xrightarrow{a} \{q_1, q_3\}$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Notasyon · power set ve $\Sigma_\varepsilon$</span>
+    <ul>
+      <li>$\mathcal{P}(Q)$: $Q$'nun bütün alt kümelerinin kümesi (<em>power set</em>). $|Q| = k$ ise $|\mathcal{P}(Q)| = 2^k$. Tahtada: $Q = \{q_1, q_2, q_3\}$ için $\emptyset, \{q_1\}, \{q_2\}, \{q_3\}, \{q_1,q_2\}, \{q_1,q_3\}, \{q_2,q_3\}, \{q_1,q_2,q_3\}$: sekiz tane.</li>
+      <li>$\Sigma_\varepsilon = \Sigma \cup \{\varepsilon\}$: alphabet artı boş string. $\delta$'nın ikinci girdisi buradan gelir, çünkü oklar $\varepsilon$ etiketli de olabilir.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Definition 1.37 (Sipser, kelimesi kelimesine)</span>
+    <p>A <strong>nondeterministic finite automaton</strong> is a 5-tuple $(Q, \Sigma, \delta, q_0, F)$, where</p>
+    <ol>
+      <li>$Q$ is a finite set of states,</li>
+      <li>$\Sigma$ is a finite alphabet,</li>
+      <li>$\delta : Q \times \Sigma_\varepsilon \longrightarrow \mathcal{P}(Q)$ is the transition function,</li>
+      <li>$q_0 \in Q$ is the start state, and</li>
+      <li>$F \subseteq Q$ is the set of accept states.</li>
+    </ol>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Example 1.38 · $N_1$'in formal description'ı</span>
+    <p>$N_1 = (Q, \Sigma, \delta, q_1, F)$: $Q = \{q_1, q_2, q_3, q_4\}$, $\Sigma = \{0,1\}$, start $q_1$, $F = \{q_4\}$ ve</p>
+    <div class="table-wrap"><table>
+      <tr><th>$\delta$</th><th>0</th><th>1</th><th>$\varepsilon$</th></tr>
+      <tr><td>$q_1$</td><td>$\{q_1\}$</td><td>$\{q_1, q_2\}$</td><td>$\emptyset$</td></tr>
+      <tr><td>$q_2$</td><td>$\{q_3\}$</td><td>$\emptyset$</td><td>$\{q_3\}$</td></tr>
+      <tr><td>$q_3$</td><td>$\emptyset$</td><td>$\{q_4\}$</td><td>$\emptyset$</td></tr>
+      <tr><td>$q_4$</td><td>$\{q_4\}$</td><td>$\{q_4\}$</td><td>$\emptyset$</td></tr>
+    </table></div>
+    <p>Tablonun her hücresi bir küme. Simülatöre bu tabloyu aynen yazabilirsin (boş küme için <code>-</code>).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · NFA'nın kabul etmesi (formal)</span>
+    <p>$N = (Q, \Sigma, \delta, q_0, F)$ bir NFA ve $w$, $\Sigma$ üzerinde bir string olsun. $w$'yi $w = y_1 y_2 \cdots y_m$ olarak yazabiliyorsak (her $y_i \in \Sigma_\varepsilon$) ve $Q$'da şu üç şartı sağlayan bir $r_0, r_1, \dots, r_m$ dizisi varsa $N$, $w$'yi <strong>kabul eder</strong>:</p>
+    <ol>
+      <li>$r_0 = q_0$ (start state'te başla),</li>
+      <li>$r_{i+1} \in \delta(r_i, y_{i+1})$, $i = 0, \dots, m-1$ için (her adım izin verilen bir ok),</li>
+      <li>$r_m \in F$ (son state accept).</li>
+    </ol>
+    <p>DFA tanımından iki fark: 2. şartta "=" yerine "∈" var, ve $y_i$'ler arasına $\varepsilon$ girebildiği için $m$, $|w|$'den büyük olabilir. "Bir dizi <strong>vardır</strong>" demek, kopyalardan <strong>birinin</strong> kabul etmesi demek.</p>
+  </div>
+  <p>Her DFA aynı zamanda bir NFA'dır: DFA'nın $\delta(q,a) = q'$'su, NFA dilinde $\delta(q,a) = \{q'\}$ ve $\delta(q,\varepsilon) = \emptyset$ olur.</p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>$\delta(q,a) = q'$ yazmak.</strong> NFA'nın formal description'ında hücreler küme: $\{q'\}$. Tek elemanlı da olsa süslü parantez gerekir.</li>
+      <li><strong>Eksik ok için dead state çizmek zorunda sanmak.</strong> NFA'da $\delta(q,a) = \emptyset$ serbest. Dead state DFA'nın derdi; NFA'da ok çizmemek yeter.</li>
+      <li><strong>$\emptyset$ ile $\{\emptyset\}$'yi karıştırmak.</strong> $\delta(q_2, 1) = \emptyset$: hiç state yok. $\{\emptyset\}$ yazmak "boş kümeden oluşan bir eleman var" demek olur, burada anlamsız.</li>
+      <li><strong>$\delta$'nın ikinci girdisini $\Sigma$ sanmak.</strong> $\varepsilon$ okları için $\Sigma_\varepsilon$ gerekir; tablo bu yüzden bir $\varepsilon$ sütunu içerir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="sipser-ex1.7-dgh"><span class="box__label">Sipser Exercise 1.7 (d)(g)(h) · kitap alıştırması</span>
+    <p>"Give state diagrams of NFAs with the specified number of states recognizing each of the following languages. In all parts, the alphabet is $\{0,1\}$.<br>d. The language $\{0\}$ with two states<br>g. The language $\{\varepsilon\}$ with one state<br>h. The language $0^*$ with one state"</p>
+    <p class="src">28 Eylül tahtasının son sayfasında hoca da bu küçük makineleri çizdi: $\{0\}$ için iki state'li makine, tek state'li makineler.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>NFA'da eksik ok serbest. Dilde olmayan string'ler için hiçbir şey çizmene gerek yok: kopya ölür.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\varepsilon$'u kabul etmek için start state'in accept olması gerekir. Tek state'le $\{\varepsilon\}$ ve $0^*$ arasındaki fark sadece bir döngü.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(d)</strong> $a \xrightarrow{0} b$; start $a$, $F = \{b\}$. Başka ok yok. <code>00</code>'da ikinci 0 için $b$'den ok yok, kopya ölür.</p>
+      <p><strong>(g)</strong> Tek state $a$, hem start hem accept, hiç ok yok. $\varepsilon$ kabul; ilk sembolde kopya ölür.</p>
+      <p><strong>(h)</strong> Tek state $a$, start ve accept, $a \xrightarrow{0} a$. 1 için ok yok.</p>
+      <p>Formal: (g) için $\delta(a, 0) = \delta(a, 1) = \delta(a, \varepsilon) = \emptyset$. Aynı diller için DFA sırasıyla 3, 2 ve 2 state ister, çünkü eksik oklar bir dead state'e gitmek zorunda.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=108">Kitapta alıştırma (PDF s.108)</a></p>
+  </div>
+  <!-- Kaynak: Sipser Def 1.37, Example 1.38 ve formal computation tanımı (PDF s.77–78) · hocanın NFA aracı ("= became an ∈") · 28 Eylül tahtası s.2 (q1 –a→ {q1,q3}, q1 q2 q3'ün 8 subset'i) ve s.3 (→○–0→◎, tek state'li makineler). Python: 1.7 d, g, h uzunluk ≤ 10'da doğru. En küçük DFA'lar (subset + minimization): {0} 3, {ε} 2, 0* 2 state. -->
+  <div class="quiz" id="q-tanim">
+    <p class="quiz__q">$N_1$'in formal description'ında $\delta(q_2, 1)$ nedir?</p>
+    <button class="quiz__opt">$q_2$<span class="why">Ok yokken "yerinde kalır" diye düşünme; NFA'da ok yoksa kopya ölür. Ayrıca $\delta$'nın değeri bir küme olmalı.</span></button>
+    <button class="quiz__opt">$\{q_3\}$<span class="why">$q_2 \to q_3$ okunun etiketi $0, \varepsilon$; 1 değil. $\delta(q_2, 0)$ ve $\delta(q_2, \varepsilon)$ $\{q_3\}$'tür.</span></button>
+    <button class="quiz__opt" data-correct>$\emptyset$<span class="why">Doğru. $q_2$'den 1 etiketli ok yok, değer boş küme.</span></button>
+    <button class="quiz__opt">Tanımsız, çünkü ok yok<span class="why">NFA'da $\delta$ her $(q, a)$ çifti için tanımlı; ok yoksa değeri $\emptyset$. Tanımsız bırakmak DFA'da hata olurdu, NFA'da gerek yok.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="subset" data-min="6">
+  <h2>Subset construction: her NFA bir DFA'ya çevrilir</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · parmak kümesi = DFA'nın state'i</span>
+    <p>NFA'yı elle izlerken her an tek bir şeyi tuttun: parmakların durduğu state'lerin <strong>kümesi</strong>. Sonraki küme sadece şimdiki kümeye ve okunan sembole bağlı. Bu tam olarak bir DFA'nın tanımı: DFA'nın her state'i, NFA'nın state'lerinden oluşan bir küme olsun.</p>
+    <p>Tahtada hoca 7 state'li bir NFA çizdi ($q_1, \dots, q_7$), içindeki aktif kopyaları kırmızıyla çevirdi ve yanına tek bir DFA state'i olarak yazdı: $\{q_2, q_3, q_5\}$. NFA'nın $k$ state'i varsa en fazla $2^k$ farklı küme olabilir; tahtadaki örnekte $2^7 = 128$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Theorem 1.39 ve yapı</span>
+    <p><strong>Theorem 1.39.</strong> Every nondeterministic finite automaton has an equivalent deterministic finite automaton.</p>
+    <p>$N = (Q, \Sigma, \delta, q_0, F)$ verilsin. $M = (Q', \Sigma, \delta', q_0', F')$ şöyle kurulur:</p>
+    <ol>
+      <li>$Q' = \mathcal{P}(Q)$. $M$'nin her state'i, $N$'nin state'lerinden bir küme.</li>
+      <li>$R \in Q'$ ve $a \in \Sigma$ için
+        $$\delta'(R, a) = \{q \in Q \mid q \in E(\delta(r, a)) \text{ for some } r \in R\} = \bigcup_{r \in R} E(\delta(r, a))$$
+        Yani: $R$'deki her state'ten $a$ oklarını izle, sonuçları birleştir, $\varepsilon$-closure'ını al.</li>
+      <li>$q_0' = E(\{q_0\})$. Start, $N$'nin start state'inin $\varepsilon$-closure'ı.</li>
+      <li>$F' = \{R \in Q' \mid R \text{ contains an accept state of } N\}$.</li>
+    </ol>
+    <p>$\varepsilon$ oku olmayan NFA'da $E$ hiçbir şey eklemez: $\delta'(R,a) = \bigcup_{r\in R} \delta(r,a)$ ve $q_0' = \{q_0\}$.</p>
+    <p><strong>Corollary 1.40.</strong> A language is regular if and only if some nondeterministic finite automaton recognizes it. (Bir yön Theorem 1.39; diğer yön: her DFA zaten bir NFA.)</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tarif · kâğıtta sadece ulaşılabilen subset'ler</span>
+    <ol>
+      <li>$q_0' = E(\{q_0\})$'ı hesapla, tabloya ilk satır olarak yaz.</li>
+      <li>Tabloda işlenmemiş bir satır $R$ al. Her sembol $a$ için $\delta'(R,a)$'yı hesapla ve hücreye yaz.</li>
+      <li>Hücrede yeni bir küme çıktıysa (boş küme dahil) onu yeni bir satır olarak ekle.</li>
+      <li>Yeni satır çıkmayınca dur. Accept state'leri işaretle: içinde $N$'nin bir accept state'i olan her satır.</li>
+    </ol>
+    <p>$2^k$ subset'in hepsini yazmak teoremin ispatı için gerekir. Kâğıtta sadece start'tan ulaşılanları yazmak hem daha kısa hem aynı dili tanır.</p>
+  </div>
+  <h3>Stepper: algoritmayı adım adım çalıştır</h3>
+  <p>Bir NFA seç (ya da 2. bölümdeki simülatöre kendi NFA'nı yazıp "Simülatördeki NFA"yı seç). Her adım tabloya bir hücre ekler. Alttaki gri kutular $2^n$ subset'in hepsi; bulunanlar renklenir, sonda hiç ulaşılmayanların üstü çizilir.</p>
+  <p class="w-nfa-subset-guess"><b>Önce tahmin et:</b> $N_4$'ün 3 state'i var, yani $2^3 = 8$ subset. Start'tan kaç tanesine ulaşılır? Hangileri hiç görünmez?</p>
+  <div class="w-nfa-subset-box" id="w-sub"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Start'ı $\{q_0\}$ almak.</strong> $\varepsilon$ okları varsa start $E(\{q_0\})$'dır. Hocanın aracı bunu "the single commonest mistake in this construction" diye uyarıyor: ilk satır yanlışsa bütün tablo yanlış olur.</li>
+      <li><strong>Sembolden sonra closure almamak.</strong> $\delta'(R,a)$ = önce $a$ okları, sonra $E$. Sadece $a$ oklarını alırsan $\varepsilon$ ile gelen kopyaları kaybedersin.</li>
+      <li><strong>Accept'i "bütün state'ler accept" sanmak.</strong> $F'$: kümede <strong>en az bir</strong> accept state olması yeter. Bir kopyanın kabul etmesi yeter kuralının aynısı.</li>
+      <li><strong>$\emptyset$'yi çizmemek.</strong> Sonuç bir DFA; her state'ten her sembol için tam bir ok olmalı. $\emptyset$'ye bir kez ulaşıldıysa o, kendine dönen oklarıyla bir dead state olarak çizilir.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Sipser Theorem 1.39 ve ispatı, Corollary 1.40 (PDF s.79–80) · 28 Eylül tahtası s.2 (7 state'li NFA, {q2,q3,q5}, 2^7) · hocanın NFA aracı ("The first row is q0' = E({q0}) ... commonest mistake"). -->
+  <div class="quiz" id="q-subset">
+    <p class="quiz__q">Subset construction'da DFA'nın accept state'leri hangileri?</p>
+    <button class="quiz__opt">Sadece $N$'nin accept state'lerinin tamamından oluşan küme, $F$<span class="why">Tek bir $R = F$ değil: kabul için kopyalardan birinin accept state'te olması yeter, bu yüzden $F$ ile kesişen her küme accept.</span></button>
+    <button class="quiz__opt" data-correct>İçinde $N$'nin en az bir accept state'i olan her $R$<span class="why">Doğru: $F' = \{R \in Q' \mid R \cap F \ne \emptyset\}$.</span></button>
+    <button class="quiz__opt">Bütün elemanları accept olan kümeler<span class="why">Bu "her kopya kabul etmeli" demek olur. NFA'nın kuralı "en az bir kopya".</span></button>
+    <button class="quiz__opt">Start state'in closure'ını içeren kümeler<span class="why">Start ile accept'i karıştırma. Accept, $N$'nin $F$'sine bakarak belirlenir.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="ornek" data-min="6">
+  <h2>Example 1.41 ve Exercise 1.16: elle çevirme</h2>
+  <p>Sipser yapıyı $N_4$ üzerinde gösterir (state'leri 1, 2, 3 olarak adlandırır). $N_4 = (Q, \{a,b\}, \delta, 1, \{1\})$.</p>
+  <div class="box box--example">
+    <span class="box__label">Example 1.41 · $N_4 \to D$</span>
+    <ol>
+      <li><strong>State'ler:</strong> $\{1,2,3\}$'ün 8 subset'i: $\emptyset, \{1\}, \{2\}, \{3\}, \{1,2\}, \{1,3\}, \{2,3\}, \{1,2,3\}$.</li>
+      <li><strong>Start:</strong> $E(\{1\}) = \{1, 3\}$ ($1 \xrightarrow{\varepsilon} 3$ yüzünden).</li>
+      <li><strong>Accept:</strong> 1'i içerenler: $\{1\}, \{1,2\}, \{1,3\}, \{1,2,3\}$.</li>
+      <li><strong>Geçişler</strong> (Sipser'in açıkladığı birkaçı):
+        <ul>
+          <li>$\{2\} \xrightarrow{a} \{2,3\}$: 2, <code>a</code> ile hem 2'ye hem 3'e gider; ikisinden de $\varepsilon$ oku yok.</li>
+          <li>$\{2\} \xrightarrow{b} \{3\}$.</li>
+          <li>$\{1\} \xrightarrow{a} \emptyset$ (1'den <code>a</code> oku yok), $\{1\} \xrightarrow{b} \{2\}$.</li>
+          <li>$\{3\} \xrightarrow{a} \{1,3\}$: 3, <code>a</code> ile 1'e gider ve 1'den $\varepsilon$ ile 3'e. $\{3\} \xrightarrow{b} \emptyset$.</li>
+          <li>$\{1,2\} \xrightarrow{a} \{2,3\}$ ve $\{1,2\} \xrightarrow{b} \{2,3\}$.</li>
+        </ul>
+      </li>
+    </ol>
+    <div class="table-wrap"><table>
+      <tr><th>$R$</th><th><code>a</code></th><th><code>b</code></th><th></th></tr>
+      <tr><td>$\emptyset$</td><td>$\emptyset$</td><td>$\emptyset$</td><td></td></tr>
+      <tr><td>* $\{1\}$</td><td>$\emptyset$</td><td>$\{2\}$</td><td>ulaşılamaz</td></tr>
+      <tr><td>$\{2\}$</td><td>$\{2,3\}$</td><td>$\{3\}$</td><td></td></tr>
+      <tr><td>$\{3\}$</td><td>$\{1,3\}$</td><td>$\emptyset$</td><td></td></tr>
+      <tr><td>* $\{1,2\}$</td><td>$\{2,3\}$</td><td>$\{2,3\}$</td><td>ulaşılamaz</td></tr>
+      <tr><td>→ * $\{1,3\}$</td><td>$\{1,3\}$</td><td>$\{2\}$</td><td>start</td></tr>
+      <tr><td>$\{2,3\}$</td><td>$\{1,2,3\}$</td><td>$\{3\}$</td><td></td></tr>
+      <tr><td>* $\{1,2,3\}$</td><td>$\{1,2,3\}$</td><td>$\{2,3\}$</td><td></td></tr>
+    </table></div>
+    <p><strong>Sadeleştirme:</strong> $\{1\}$ ve $\{1,2\}$'ye hiçbir ok gelmiyor; silinince dil değişmez (Figure 1.44). Geriye 6 state kalır: $\{1,3\}, \{2\}, \{2,3\}, \{3\}, \{1,2,3\}, \emptyset$.</p>
+    <p>Sipser'in notu: burada $\varepsilon$ okları her sembolden <strong>sonra</strong> izlendi. Her sembolden <strong>önce</strong> izleyen bir yöntem de aynı derecede çalışır, ama kitap onu göstermez. Sınavda kitabın yöntemiyle (sembol, sonra $E$) yaz.</p>
+  </div>
+  <!-- Kaynak: Sipser Example 1.41, Figure 1.42–1.44 (PDF s.80–82). Python: 8 satırlık tablo ve ulaşılabilen 6 state ({1,3},{2},{2,3},{3},{1,2,3},∅), ulaşılamayan {1},{1,2}. -->
+  <div class="box box--exam" data-exam="sipser-ex1.16a"><span class="box__label">Sipser Exercise 1.16 (a) · kitap alıştırması</span>
+    <p>"Use the construction given in Theorem 1.39 to convert the following two nondeterministic finite automata to equivalent deterministic finite automata." (a) şıkkı:</p>
+    <div class="w-nfa-subset-fig" data-fig="ex116a" role="img" aria-label="Exercise 1.16a: state 1 start ve accept, a döngüsü; 1'den a ve b ile 2'ye; 2'den b ile 1'e"></div>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$\varepsilon$ oku yok, yani start $\{1\}$ ve closure hiçbir şey eklemez. Sadece okları birleştir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\{1\}$ ile başla: <code>a</code> ile 1 hem 1'e hem 2'ye gider. 2'den <code>a</code> oku yok: $\{2\} \xrightarrow{a} \emptyset$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>$R$</th><th><code>a</code></th><th><code>b</code></th></tr>
+        <tr><td>→ * $\{1\}$</td><td>$\{1,2\}$</td><td>$\{2\}$</td></tr>
+        <tr><td>* $\{1,2\}$</td><td>$\{1,2\}$</td><td>$\{1,2\}$</td></tr>
+        <tr><td>$\{2\}$</td><td>$\emptyset$</td><td>$\{1\}$</td></tr>
+        <tr><td>$\emptyset$</td><td>$\emptyset$</td><td>$\emptyset$</td></tr>
+      </table></div>
+      <p>4 subset'in dördüne de ulaşılıyor. Accept: 1'i içerenler, $\{1\}$ ve $\{1,2\}$. Bu DFA zaten minimal (4 state).</p>
+      <p>$\{1,2\} \xrightarrow{b} \{1,2\}$'nin nedeni: $\delta(1,b) = \{2\}$, $\delta(2,b) = \{1\}$, birleşim $\{1,2\}$.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=110">Kitapta alıştırma (PDF s.110)</a></p>
+  </div>
+  <div class="box box--exam" data-exam="sipser-ex1.16b"><span class="box__label">Sipser Exercise 1.16 (b) · kitap alıştırması</span>
+    <p>"Use the construction given in Theorem 1.39 to convert the following two nondeterministic finite automata to equivalent deterministic finite automata." (b) şıkkı:</p>
+    <div class="w-nfa-subset-fig" data-fig="ex116b" role="img" aria-label="Exercise 1.16b: state 1 start; 1'den ε ile 2'ye (accept); 2'den a ile 1'e; 1'den a ile 3'e; 3'ten a ve b ile 2'ye; 3'te b döngüsü"></div>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Burada $1 \xrightarrow{\varepsilon} 2$ var. Start $\{1\}$ değil: $E(\{1\})$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bir sembolden sonra 1'e varan her kopya, $\varepsilon$ ile 2'ye de yayılır. Örneğin $\delta'(\{2\}, a) = E(\{1\})$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Start: $E(\{1\}) = \{1,2\}$, accept çünkü 2 var.</p>
+      <div class="table-wrap"><table>
+        <tr><th>$R$</th><th><code>a</code></th><th><code>b</code></th><th>Hesap</th></tr>
+        <tr><td>→ * $\{1,2\}$</td><td>$\{1,2,3\}$</td><td>$\emptyset$</td><td>$a$: $\{3\} \cup \{1\}$, $E$ ile 2 eklenir. $b$: 1'den de 2'den de ok yok</td></tr>
+        <tr><td>* $\{1,2,3\}$</td><td>$\{1,2,3\}$</td><td>$\{2,3\}$</td><td>$a$: $\{3\} \cup \{1\} \cup \{2\}$, $E$ ile 2 zaten var. $b$: sadece 3'ten $\{2,3\}$</td></tr>
+        <tr><td>$\emptyset$</td><td>$\emptyset$</td><td>$\emptyset$</td><td>dead state</td></tr>
+        <tr><td>* $\{2,3\}$</td><td>$\{1,2\}$</td><td>$\{2,3\}$</td><td>$a$: $\{1\} \cup \{2\}$, $E$ ile $\{1,2\}$. $b$: 3'ten $\{2,3\}$</td></tr>
+      </table></div>
+      <p>8 subset'ten 4'üne ulaşılır; $\{1\}, \{2\}, \{3\}, \{1,3\}$ hiç görünmez. Accept: 2'yi içerenler, yani $\{1,2\}$, $\{1,2,3\}$, $\{2,3\}$. Bu DFA da minimal (4 state).</p>
+      <p>Tablodaki her hücre Python ile ve aşağıdaki stepper ile kontrol edildi; 8 satırlık tam tabloyu görmek için stepper'da "Exercise 1.16(b)"yi seç.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=110">Kitapta alıştırma (PDF s.110)</a></p>
+  </div>
+  <!-- Kaynak: Sipser Exercise 1.16 (PDF s.110, şekil render edilip okundu). Python: (a) {1},{1,2},{2},∅, min 4; (b) start {1,2}; {1,2},{1,2,3},∅,{2,3}, min 4; ulaşılamayan {1},{2},{3},{1,3}. Repoda bu alıştırmanın çözüm anahtarı yok. -->
+  <div class="quiz" id="q-ornek">
+    <p class="quiz__q">$N_4$'ün DFA'sında $\delta'(\{2,3\}, a)$ nedir?</p>
+    <button class="quiz__opt">$\{2,3\}$<span class="why">Sadece 2'nin <code>a</code> oklarına baktın. 3 de <code>a</code> ile 1'e gider; birleşime 1 girer.</span></button>
+    <button class="quiz__opt">$\{1,2\}$<span class="why">2, <code>a</code> ile 3'e de gider, 3 kümeden düşmez. Ayrıca 3'ten gelen 1, $\varepsilon$ ile yine 3'ü ekler.</span></button>
+    <button class="quiz__opt" data-correct>$\{1,2,3\}$<span class="why">Doğru: $\delta(2,a) = \{2,3\}$, $\delta(3,a) = \{1\}$, birleşim $\{1,2,3\}$; $E$ yeni bir şey eklemez.</span></button>
+    <button class="quiz__opt">$\{1\}$<span class="why">Sadece 3'ün okuna baktın ve closure'ı da unuttun. Kümedeki <strong>her</strong> state'in okları birleştirilir.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="patlama" data-min="5">
+  <h2>2ⁿ patlaması ve P2'nin puanlama kuralı</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Subset construction $n$ state'li bir NFA'dan en fazla $2^n$ state'li bir DFA çıkarır. Çoğu zaman ulaşılan subset sayısı çok daha azdır ($N_4$'te 8 yerine 6). Ama bazı dillerde $2^n$'nin neredeyse hepsi gerçekten gerekir. "Sondan $k$'ıncı sembol 1" bunun standart örneği: NFA $k+1$ state, en küçük DFA $2^k$ state.</p>
+  </div>
+  <p class="w-nfa-subset-guess"><b>Önce tahmin et:</b> $k = 5$ için ("sondan beşinci sembol 1") NFA kaç state? Subset construction kaç DFA state'i üretir, minimization sonrası kaç kalır?</p>
+  <div class="w-nfa-subset-box" id="w-blow"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · neden $2^k$'dan az olmaz</span>
+    <p>Uzunluğu $k$ olan iki farklı string al, $x \ne y$. Bir pozisyonda ayrılırlar, diyelim $i$'nci pozisyonda $x_i = 1$, $y_i = 0$. İkisinin de sonuna $i-1$ tane 0 ekle. Şimdi $x0^{i-1}$'in sondan $k$'ıncı sembolü $x_i = 1$, $y0^{i-1}$'inki $y_i = 0$. Biri dilde, öteki değil.</p>
+    <p>Bir DFA $x$ ve $y$'yi okuduktan sonra aynı state'te olsaydı, aynı ekten sonra da aynı state'te olurdu ve ikisine aynı cevabı verirdi. Demek ki $2^k$ string'in her biri ayrı bir state'e gider: DFA'nın en az $2^k$ state'i var.</p>
+    <p class="w-nfa-subset-small">Bu argümanın adı <em>distinguishable strings</em> (Sipser Problem 1.51–1.52, Myhill–Nerode). Hocanın aracı aynı argümanı "4th symbol from the right" örneğiyle anlatıyor: 5 state'li NFA'dan 16 state'li DFA çıkar ve daha küçüğü yoktur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Vize kuralı · P2'de fazla state</span>
+    <p>2020'den beri vize kâğıtlarında P2'nin yanında yarıya inme kuralı basılı. 2020'de: "(Use three states, every extra state halves your points)". 2024'te: "Use as few states as you can. Fewest gets full score, every extra state halves your score." 26 Ekim'deki tekrar dersinde hoca bu kuralın gerekçesini de söyledi: NFA'dan DFA'ya geçerken state sayısı $2^n$'e kadar çıkabiliyor, o yüzden fazla state'in cezası da üstel. Aynı derste ekstra state başına $-2$ ya da $-3$ puanlık bir kural da önerdi ama karar vermedi. İki kuralı da bil:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Fazla state</th><th>Yarıya inme (kâğıttaki kural)</th><th>State başına −2</th><th>State başına −3</th></tr>
+      <tr><td>0</td><td>10</td><td>10</td><td>10</td></tr>
+      <tr><td>1</td><td>5</td><td>8</td><td>7</td></tr>
+      <tr><td>2</td><td>2,5</td><td>6</td><td>4</td></tr>
+      <tr><td>3</td><td>1,25</td><td>4</td><td>1</td></tr>
+    </table></div>
+    <p class="src">Not: Tablo bir şıkkı 10 puan sayıyor (P2 iki dil, toplam 20 puan). Hangi kuralın uygulanacağı 26 Ekim'de belli değildi; kâğıtta yazan kural yarıya inme.</p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Tahtadan · DFA'sı olmayan bir dil</span>
+    <p>28 Eylül'de hoca iki dili yan yana yazdı. $\{w \in \{0\}^* \mid w$ has an even number of zeros$\} = \{\varepsilon, 00, 0000, \dots\}$ için iki state'li bir DFA yeter: sadece çift mi tek mi, onu hatırla. Ama $\{0^n1^n\} = \{\varepsilon, 01, 0011, 000111, \dots\}$ için DFA yok: kaç tane 0 okuduğunu hatırlaman gerekir ve bu sayı sınırsız büyüyebilir; DFA'nın belleği (state sayısı) ise sabit. NFA da işe yaramaz, çünkü Corollary 1.40'a göre NFA'ların tanıdığı diller tam olarak DFA'larınkiyle aynı. Bunun ispatı (pumping lemma) 6. derste.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>"NFA daha güçlü, daha çok dil tanır."</strong> Hayır. NFA'lar daha <strong>kısa</strong> olabilir, ama tanıdıkları dil sınıfı aynı: regular languages. Fark güçte değil, boyutta.</li>
+      <li><strong>"Subset construction her zaman $2^n$ state verir."</strong> $2^n$ bir üst sınır. Ulaşılabilen subset'ler genelde daha az ($N_4$: 6, Exercise 1.16: 4 ve 4).</li>
+      <li><strong>Subset construction'ın sonucunu minimal sanmak.</strong> $N_3$'ten 7 subset'e ulaşılır ama en küçük DFA 6 state. Minimal olmak ayrı bir adım (minimization).</li>
+    </ul>
+  </div>
+  <!-- Kaynak: exams/README.md 26 Ekim özeti (halving kuralı, −2/−3 önerisi, gerekçe "NFA → DFA can blow up to 2ⁿ") · exams/2020-midterm.pdf ve 2024-midterm.pdf P2 başlıkları · 28 Eylül tahtası s.2 (0^n1^n "DFA" yok çizimi, even zeros, 2^7) · hocanın NFA aracı ("Why the blow-up is real") · Sipser Problem 1.51–1.52. Python: k = 1..7 için NFA k+1, ulaşılan subset 2^k, minimal DFA 2^k; N3 ulaşılan 7, minimal 6. -->
+  <div class="quiz" id="q-patlama">
+    <p class="quiz__q">"Sondan beşinci sembol 1" dili için en küçük DFA kaç state'tir?</p>
+    <button class="quiz__opt">6<span class="why">6, NFA'nın state sayısı ($k+1$). DFA'da her son-5-sembol kombinasyonu ayrı bir state ister.</span></button>
+    <button class="quiz__opt">10<span class="why">$2k$ değil $2^k$. Hatırlanan şey 5 bitlik bir pencere; $2 \cdot 5$ farklı pencere yok, $2^5$ var.</span></button>
+    <button class="quiz__opt" data-correct>32<span class="why">Doğru: $2^5 = 32$. Her uzunluk-5 string ayrı bir state'e gitmek zorunda (distinguishable strings).</span></button>
+    <button class="quiz__opt">64<span class="why">Bu $2^6$, yani NFA'nın 6 state'inin bütün subset'leri. Ulaşılan subset'ler ise 32 tane; start'taki state her kümede var.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="closure" data-min="6">
+  <h2>Closure: union, concatenation ve star için NFA</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · tahmin edilecek yer</span>
+    <p>2. derste union'ı product construction ile, iki DFA'yı aynı anda çalıştırarak yapmıştın. Concatenation $A \circ B$ için aynı fikir tıkanır: makine input'u nereden ikiye böleceğini bilmez. NFA ile bu kolay: makine bölme noktasını <strong>tahmin eder</strong>. Sipser'in deyişiyle nondeterminism bu ispatları "much easier" yapar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Theorem 1.45 · union, $A_1 \cup A_2$</span>
+    <p>$N_1 = (Q_1, \Sigma, \delta_1, q_1, F_1)$, $N_2 = (Q_2, \Sigma, \delta_2, q_2, F_2)$. Önce state'leri yeniden adlandırarak $Q_1 \cap Q_2 = \emptyset$ yap; eklenen $q_0$ da mevcut state'lerden farklı olsun. Yeni bir start $q_0$ ekle, $\varepsilon$ ile iki eski start'a dallan. $N = (Q, \Sigma, \delta, q_0, F)$:</p>
+    <ol>
+      <li>$Q = \{q_0\} \cup Q_1 \cup Q_2$, start $q_0$, $F = F_1 \cup F_2$.</li>
+      <li>$\delta(q, a) = \begin{cases} \delta_1(q,a) & q \in Q_1 \\ \delta_2(q,a) & q \in Q_2 \\ \{q_1, q_2\} & q = q_0 \text{ and } a = \varepsilon \\ \emptyset & q = q_0 \text{ and } a \ne \varepsilon \end{cases}$</li>
+    </ol>
+    <p>State sayısı $|Q_1| + |Q_2| + 1$. Product construction ise $|Q_1| \cdot |Q_2|$ verir ama sonucu DFA'dır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Theorem 1.47 · concatenation, $A_1 \circ A_2$</span>
+    <p>Burada da önce $Q_1 \cap Q_2 = \emptyset$ olacak şekilde yeniden adlandır. Start $N_1$'in start'ı. $N_1$'in her accept state'inden $N_2$'nin start'ına $\varepsilon$ oku. Accept sadece $F_2$. $N = (Q_1 \cup Q_2, \Sigma, \delta, q_1, F_2)$:</p>
+    $$\delta(q, a) = \begin{cases} \delta_1(q,a) & q \in Q_1 \text{ and } q \notin F_1 \\ \delta_1(q,a) & q \in F_1 \text{ and } a \ne \varepsilon \\ \delta_1(q,a) \cup \{q_2\} & q \in F_1 \text{ and } a = \varepsilon \\ \delta_2(q,a) & q \in Q_2 \end{cases}$$
+    <p>Makine, $N_1$'in kabul ettiği bir başlangıç parçası bulduğunu tahmin ettiği anda $N_2$'ye atlar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Theorem 1.49 · star, $A_1^*$</span>
+    <p>Accept state'lerden eski start'a $\varepsilon$ okları (bir parça bitti, yenisine başla). $\varepsilon$'u kabul etmek için <strong>yeni bir start</strong> $q_0$: hem accept, hem $\varepsilon$ ile eski start $q_1$'e gider. $N = (\{q_0\} \cup Q_1, \Sigma, \delta, q_0, \{q_0\} \cup F_1)$:</p>
+    $$\delta(q, a) = \begin{cases} \delta_1(q,a) & q \in Q_1 \text{ and } q \notin F_1 \\ \delta_1(q,a) & q \in F_1 \text{ and } a \ne \varepsilon \\ \delta_1(q,a) \cup \{q_1\} & q \in F_1 \text{ and } a = \varepsilon \\ \{q_1\} & q = q_0 \text{ and } a = \varepsilon \\ \emptyset & q = q_0 \text{ and } a \ne \varepsilon \end{cases}$$
+    <p>Neden eski start'ı accept yapmak yetmez? Exercise 1.15, aşağıda.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Tahtadan · $L = \{a, ab, ba\}$ ve $L^*$</span>
+    <p>Hoca $L$'nin yanına "reg." yazdı (sonlu her dil regular'dır) ve oktan sonra $L^*$'ın da regular olduğunu not etti: $L^* = \{\varepsilon, a, ab, ba, aa, aab, aba, aaab, abbaba, \dots\}$. Her eleman $L$'den parçaların art arda yazılması: <code>aab</code> = <code>a</code>·<code>ab</code>, <code>abbaba</code> = <code>ab</code>·<code>ba</code>·<code>ba</code>. $\varepsilon$ de içinde, çünkü sıfır parça da bir seçim.</p>
+  </div>
+  <div class="box box--exam" data-exam="board-2026-09-28-star"><span class="box__label">28 Eylül tahtası · slayt sorusu</span>
+    <p>$L = \{0\}$, $L^* = \{\varepsilon, 0, 00, 000, \dots\}$. $L$ için iki state'li makineyi çiz ve ondan $L^*$'ı tanıyan bir NFA kur.</p>
+    <p class="src">Tahtada hoca önce her uzunluk için yeni bir state ekleyen bir zincir denedi ($\circ \xrightarrow{0} \circ \xrightarrow{0} \circ \cdots$) ve yanına "??" koydu: zincir hiç bitmez, sonlu bir makine olmaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Zincir yerine döngü: bir 0 okuyup accept state'e varan kopya, $\varepsilon$ ile başa dönüp bir 0 daha okuyabilmeli.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\varepsilon$'u da kabul etmen gerek. Theorem 1.49'daki yeni start state'i ekle.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$L$: $s \xrightarrow{0} f$, start $s$, $F = \{f\}$.</p>
+      <p>$L^*$ (Theorem 1.49): yeni start $n$ (accept), $n \xrightarrow{\varepsilon} s$, $s \xrightarrow{0} f$, $f \xrightarrow{\varepsilon} s$; $F = \{n, f\}$. Üç state. <code>000</code>: $\{n, s\} \to \{f, s\} \to \{f, s\} \to \{f, s\}$, accept.</p>
+      <p>Bu dil zaten $0^*$ ve onu tek state'li bir NFA da tanır (Exercise 1.7h). Ama soru "yapıyı uygula" diyorsa yapının verdiği makineyi çiz.</p>
+    </div></details>
+  </div>
+  <h3>Yapıları kendin dene</h3>
+  <p>İki dil ve bir işlem seç. Sayfa Theorem 1.45, 1.47 ya da 1.49'daki makineyi kurar, çizer ve uzunluğu 8'e kadar her string'de dilin tanımıyla karşılaştırır. "Yanlış star" seçeneği Exercise 1.15'teki yapıdır.</p>
+  <p class="w-nfa-subset-guess"><b>Önce tahmin et:</b> $A = b^*a$ için "yanlış star" (eski start'ı accept yap, yeni start ekleme) hangi kısa string'i fazladan kabul eder?</p>
+  <div class="w-nfa-subset-box" id="w-clo"></div>
+  <div class="box box--exam" data-exam="sipser-ex1.15"><span class="box__label">Sipser Exercise 1.15 · kitap alıştırması</span>
+    <p>"Give a counterexample to show that the following construction fails to prove Theorem 1.49, the closure of the class of regular languages under the star operation. Let $N_1 = (Q_1, \Sigma, \delta_1, q_1, F_1)$ recognize $A_1$. Construct $N = (Q_1, \Sigma, \delta, q_1, F)$ as follows. $N$ is supposed to recognize $A_1^*$. a. The states of $N$ are the states of $N_1$. b. The start state of $N$ is the same as the start state of $N_1$. c. $F = \{q_1\} \cup F_1$. … d. Define $\delta$ so that for any $q \in Q_1$ and any $a \in \Sigma_\varepsilon$, $\delta(q,a) = \delta_1(q,a)$ if $q \notin F_1$ or $a \ne \varepsilon$, and $\delta_1(q,a) \cup \{q_1\}$ if $q \in F_1$ and $a = \varepsilon$."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Sorun start state'e geri dönen oklarda. Start'ta bir döngü varsa, start'ı accept yapmak o döngünün okuduğu her şeyi de kabul ettirir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\Sigma = \{a,b\}$, $N_1$: $q_1 \xrightarrow{b} q_1$, $q_1 \xrightarrow{a} q_2$, $F_1 = \{q_2\}$. $A_1 = b^*a$. <code>b</code> string'i $A_1^*$'da mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$N_1$ yukarıdaki gibi: $A_1 = b^*a$. O zaman $A_1^* = \{\varepsilon\} \cup \{w \mid w \text{ ends with } a\}$, çünkü her parça <code>a</code> ile biter.</p>
+      <p>Hatalı yapıda $q_1$ accept olur. <code>b</code> okununca kopya $q_1 \xrightarrow{b} q_1$ ile $q_1$'de kalır ve kabul edilir. Ama <code>b</code> $a$ ile bitmiyor ve boş değil: $b \notin A_1^*$. Yani $L(N) \ne A_1^*$. (Fazladan kabul edilen diğer kısa string'ler: <code>ab</code>, <code>bb</code>, <code>aab</code>, …)</p>
+      <p>Doğru yapı (Theorem 1.49) yeni bir start $q_0$ ekler; $q_0$'a hiçbir ok geri gelmediği için accept olması sadece $\varepsilon$'u ekler.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=109">Kitapta alıştırma (PDF s.109)</a></p>
+  </div>
+  <p class="src">Not: Sipser Exercise 1.7(c) (Exercise 1.6l'nin dili, 6 state) <a href="nfa-fewest.html">En az state'li NFA</a> dersinde çözümüyle birlikte.</p>
+  <div class="box box--exam" data-exam="sipser-ex1.11"><span class="box__label">Sipser Exercise 1.11 · kitap alıştırması</span>
+    <p>"Prove that every NFA can be converted to an equivalent one that has a single accept state."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Union ve concatenation yapılarında eski accept state'lerden $\varepsilon$ okları çıkardık. Aynı numarayı yeni bir state'e doğru yap.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Eski accept state'ler artık accept olmamalı, yoksa iki accept state kalır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$N = (Q, \Sigma, \delta, q_0, F)$ verilsin. Yeni bir state $q_f \notin Q$ ekle. $N' = (Q \cup \{q_f\}, \Sigma, \delta', q_0, \{q_f\})$, burada her $q \in F$ için $\delta'(q, \varepsilon) = \delta(q, \varepsilon) \cup \{q_f\}$, $q_f$'den hiç ok yok, diğer bütün değerler $\delta$ ile aynı.</p>
+      <p><strong>Neden eşdeğer:</strong> $N$, $w$'yi kabul ederse bir kopya $w$'nin sonunda bir $q \in F$'dedir; $\varepsilon$ ile $q_f$'ye geçer, $N'$ kabul eder. Tersine $N'$, $w$'yi kabul ederse kopya $q_f$'ye ancak bir $q \in F$'den $\varepsilon$ ile gelmiştir ve $q_f$'den sonra sembol okunamaz; demek ki $N$'nin o kopyası $w$'nin sonunda $q \in F$'deydi.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=109">Kitapta alıştırma (PDF s.109)</a></p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Concatenation'da $N_1$'in accept state'lerini accept bırakmak.</strong> O zaman makine $A_1$'deki string'leri $A_2$'den parça okumadan kabul eder. $N$'nin accept state'leri sadece $F_2$.</li>
+      <li><strong>Star'da yeni start eklemeden eski start'ı accept yapmak.</strong> Exercise 1.15: start'a dönen oklar varsa istenmeyen string'ler kabul edilir.</li>
+      <li><strong>Union'da $\varepsilon$ okları yerine iki start state çizmek.</strong> NFA'nın tanımında tek bir $q_0$ var. Birden fazla start, yeni bir start ve $\varepsilon$ okları ile yazılır.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Sipser Theorem 1.45, 1.47, 1.49 ve ispatlardaki δ tanımları (PDF s.83–87) · 28 Eylül tahtası s.3 (L={a,ab,ba}, L*, L={0}, zincir denemesi ve "??") · Exercises 1.7c, 1.11, 1.15 (PDF s.108–109). Python: {a,ab,ba} ve star NFA'ları, {0}* yapısı, 1.15 karşı örneği (b, ab, bb, aab, abb, bab, bbb fazladan), 1.7c ve 1.11 yapıları uzunluk ≤ 10'da doğrulandı. -->
+  <div class="quiz" id="q-closure">
+    <p class="quiz__q">Theorem 1.47'deki concatenation NFA'sında hangi state'ler accept?</p>
+    <button class="quiz__opt">$F_1 \cup F_2$<span class="why">Bu union'ın accept kümesi. Concatenation'da $F_1$'de bitmek, $A_2$'den parça okunmadığı anlamına gelir.</span></button>
+    <button class="quiz__opt" data-correct>Sadece $F_2$<span class="why">Doğru. $F_1$'deki state'ler sadece $\varepsilon$ ile $N_2$'ye geçiş noktası olur.</span></button>
+    <button class="quiz__opt">Sadece $F_1$<span class="why">O zaman ikinci parçanın hiç okunmasına gerek kalmaz; tanınan dil $A_1$ olur, $A_1 \circ A_2$ değil.</span></button>
+    <button class="quiz__opt">Yeni bir $q_0$<span class="why">Yeni state union ve star'da start olarak eklenir. Concatenation'da yeni state yok: start $q_1$, accept $F_2$.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="complement" data-min="4">
+  <h2>NFA'da complement: accept'leri çevirmek yetmez</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>DFA'da her string tek bir hesaplama yapar ve tek bir state'te biter. Accept'leri çevirince her cevap tersine döner. NFA'da ise bir string'in aynı anda kabul eden ve reddeden kopyaları olabilir. Accept'leri çevirince kabul eden kopya reddeder, ama reddeden kopya bu sefer kabul eder: string yine kabul edilir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · iki karşı örnek</span>
+    <p><strong>1.</strong> $\Sigma = \{0\}$, $q_0 \xrightarrow{0} q_1$, $q_0 \xrightarrow{0} q_2$, $F = \{q_1\}$. Tanıdığı dil $\{0\}$. Accept'leri çevir: $F = \{q_0, q_2\}$. Yeni makine $\{\varepsilon, 0\}$'ı tanır. <code>0</code> hâlâ kabul ediliyor ($q_2$'deki kopya sayesinde), ama complement'te olmamalıydı.</p>
+    <div class="w-nfa-subset-fig" data-fig="flip14" role="img" aria-label="q0'dan 0 ile q1'e ve q2'ye; q1 accept"></div>
+    <p><strong>2.</strong> $\Sigma = \{0,1\}$, tek state $a$, start ve accept, hiç ok yok. Dil $\{\varepsilon\}$. Çevir: $a$ accept değil, dil $\emptyset$. Ama $\{\varepsilon\}$'un complement'i bütün boş olmayan string'ler. Ölen kopyalar çevirmeyle dirilmez.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · NFA'nın complement'i</span>
+    <ol>
+      <li>Önce subset construction ile DFA'ya çevir (her state'ten her sembol için bir ok, $\emptyset$ dahil).</li>
+      <li>Sonra DFA'nın accept'lerini çevir: $F' \to Q' - F'$.</li>
+    </ol>
+    <p>Hocanın aracındaki uyarı: "You cannot complement an NFA by flipping its accept states. One string can have an accepting and a rejecting computation at the same time. … Determinise first."</p>
+  </div>
+  <div class="box box--exam" data-exam="sipser-ex1.14"><span class="box__label">Sipser Exercise 1.14 · kitap alıştırması</span>
+    <p>"a. Show that if $M$ is a DFA that recognizes language $B$, swapping the accept and nonaccept states in $M$ yields a new DFA recognizing the complement of $B$. Conclude that the class of regular languages is closed under complement.<br>b. Show by giving an example that if $M$ is an NFA that recognizes language $C$, swapping the accept and nonaccept states in $M$ doesn't necessarily yield a new NFA that recognizes the complement of $C$. Is the class of languages recognized by NFAs closed under complement? Explain your answer."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) için: DFA'da her $w$ için tek bir son state $r$ var. $w \in B \iff r \in F$. Çevrilmiş makinede aynı $r$'ye varılır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b) için yukarıdaki iki örnekten birini kullan. Son soru için: NFA'ların tanıdığı diller hangi sınıf? (Corollary 1.40)</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $M = (Q, \Sigma, \delta, q_0, F)$, $M' = (Q, \Sigma, \delta, q_0, Q - F)$. $\delta$ aynı olduğu için $M$ ve $M'$ her $w$'yi okuyunca aynı state $r$'de biter. $w \in L(M') \iff r \in Q - F \iff r \notin F \iff w \notin B$. Yani $L(M') = \overline{B}$. $B$ regular ise bir DFA'sı vardır, o halde $\overline{B}$'nin de vardır: regular languages complement altında kapalı.</p>
+      <p><strong>(b)</strong> $M$: $q_0 \xrightarrow{0} q_1$, $q_0 \xrightarrow{0} q_2$, $F = \{q_1\}$, $\Sigma = \{0\}$. $L(M) = \{0\}$. Çevrilmiş makine $F = \{q_0, q_2\}$ ile $\{\varepsilon, 0\}$'ı tanır; $0 \in \{\varepsilon, 0\}$ ama $0 \notin \overline{\{0\}}$. Çevirme çalışmadı.</p>
+      <p><strong>Kapalı mı?</strong> Evet. NFA'ların tanıdığı diller tam olarak regular languages (Corollary 1.40). $C$, bir NFA tarafından tanınıyorsa regular'dır; (a)'ya göre $\overline{C}$ de regular'dır; o halde bir DFA'sı, dolayısıyla bir NFA'sı vardır. Kapalılık doğru, sadece "accept'leri çevir" yöntemi NFA'da yanlış.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/resources/books/sipser-introduction-to-the-theory-of-computation-3e.pdf#page=109">Kitapta alıştırma (PDF s.109)</a></p>
+  </div>
+  <p>2. bölümdeki simülatörde "Accept'leri çevir" düğmesi var. "Exercise 1.14(b) örneği"ni seç, <code>0</code>'ı çalıştır, çevir, tekrar çalıştır.</p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>"NFA'larda çevirme çalışmıyor, demek ki NFA'lar complement altında kapalı değil."</strong> Yöntemin çalışmaması, kapalılığın yanlış olduğunu göstermez. Kapalılık subset construction üzerinden doğru.</li>
+      <li><strong>DFA'da da eksik oklarla çevirmek.</strong> Dead state'i çizilmemiş bir DFA aslında bir NFA'dır; çevirmeden önce dead state'i ekle (2. derste gördün).</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Sipser Exercise 1.14 (PDF s.109) · hocanın NFA aracı ("Careful: You cannot complement an NFA by flipping its accept states...") · dfa-design dersinin complement bölümü. Python: {0} → çevrilince {ε,0}; {ε} → çevrilince ∅. -->
+  <div class="quiz" id="q-complement">
+    <p class="quiz__q">Bir NFA $N$'nin dilinin complement'ini tanıyan bir makine nasıl elde edilir?</p>
+    <button class="quiz__opt">$N$'nin accept ve non-accept state'lerini değiştir<span class="why">NFA'da bir string'in hem kabul eden hem reddeden kopyası olabilir; çevirince yine kabul edilir. Karşı örnek: $\{0\}$ → $\{\varepsilon, 0\}$.</span></button>
+    <button class="quiz__opt" data-correct>Önce subset construction ile DFA'ya çevir, sonra DFA'nın accept'lerini değiştir<span class="why">Doğru. DFA'da her string tek bir state'te biter, çevirme her cevabı tersine çevirir.</span></button>
+    <button class="quiz__opt">Okların yönünü ters çevir<span class="why">Bu reverse'e ($A^R$) giden bir fikir, complement'e değil.</span></button>
+    <button class="quiz__opt">Mümkün değil, NFA'lar complement altında kapalı değil<span class="why">Kapalılar: NFA'ların tanıdığı sınıf regular languages ve o sınıf complement altında kapalı.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="son-kontrol" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Dersin ana fikirleri: NFA bir küme olarak çalışır, $\varepsilon$ okları her adımdan sonra closure ile eklenir, subset construction o kümeleri DFA state'i yapar, ve NFA'nın gücü fazla değil, boyutu küçüktür.</p>
+  <div class="quiz" id="q-son-1">
+    <p class="quiz__q">Bir NFA'da $q_0 \xrightarrow{\varepsilon} q_5$ ve $q_5 \xrightarrow{\varepsilon} q_7$ var, başka $\varepsilon$ oku yok. Subset construction'daki DFA'nın start state'i nedir?</p>
+    <button class="quiz__opt">$\{q_0\}$<span class="why">$\varepsilon$ okları varsa start $E(\{q_0\})$'dır. Hocanın "en sık hata" dediği şey bu.</span></button>
+    <button class="quiz__opt">$\{q_0, q_5\}$<span class="why">Zinciri bir adımda kestin; $q_5$'ten $\varepsilon$ ile $q_7$'ye de gidilir.</span></button>
+    <button class="quiz__opt" data-correct>$\{q_0, q_5, q_7\}$<span class="why">Doğru: $E(\{q_0\})$, $q_0$'ın kendisi ve $\varepsilon$ zinciriyle ulaşılan her state.</span></button>
+    <button class="quiz__opt">$\{q_5, q_7\}$<span class="why">"0 or more" $\varepsilon$ oku: $q_0$'ın kendisi de closure'da.</span></button>
+  </div>
+  <div class="quiz" id="q-son-2">
+    <p class="quiz__q">5 state'li bir NFA'yı subset construction ile çevirdin. Hangisi kesin doğru?</p>
+    <button class="quiz__opt">DFA'nın tam 32 state'i olur<span class="why">32 ($2^5$) üst sınır. Sadece ulaşılanları yazarsan genelde daha az çıkar.</span></button>
+    <button class="quiz__opt" data-correct>Ulaşılabilen state sayısı en fazla 32'dir ve DFA aynı dili tanır<span class="why">Doğru. Theorem 1.39 eşdeğerliği garanti eder; $2^5$ ise subset sayısı.</span></button>
+    <button class="quiz__opt">DFA'nın state sayısı en fazla 5'tir<span class="why">Tersi: DFA, NFA'dan küçük olmak zorunda değil. "Sondan $k$'ıncı" örneğinde DFA üstel büyür.</span></button>
+    <button class="quiz__opt">Elde edilen DFA minimaldir<span class="why">Subset construction minimize etmez. $N_3$'ten 7 state'li bir DFA çıkar, en küçüğü 6.</span></button>
+  </div>
+  <div class="quiz" id="q-son-3">
+    <p class="quiz__q">Hangisi doğru?</p>
+    <button class="quiz__opt">NFA'lar DFA'ların tanıyamadığı bazı dilleri tanır<span class="why">Corollary 1.40: bir dil regular'dır ancak ve ancak bir NFA onu tanır. Sınıf aynı.</span></button>
+    <button class="quiz__opt">$\{0^n1^n\}$'i tanıyan bir NFA vardır ama DFA yoktur<span class="why">Bir NFA olsaydı subset construction ile DFA da olurdu. İkisi de yok; ispatı 6. derste.</span></button>
+    <button class="quiz__opt" data-correct>NFA'lar ve DFA'lar aynı dilleri tanır, ama NFA üstel derecede daha küçük olabilir<span class="why">Doğru. "Sondan $k$'ıncı 1": NFA $k+1$, DFA $2^k$ state.</span></button>
+    <button class="quiz__opt">Her NFA'nın daha az state'li eşdeğer bir DFA'sı vardır<span class="why">Çoğu zaman tersi. Subset construction state sayısını artırabilir, ve bazen bu artış kaçınılmazdır.</span></button>
+  </div>
+  <div class="quiz" id="q-son-4">
+    <p class="quiz__q">Union için Theorem 1.45'teki NFA'yı $N_1$ (3 state) ve $N_2$ (4 state) ile kurdun. Kaç state çıkar ve hangisi start?</p>
+    <button class="quiz__opt">12 state, start $(q_1, q_2)$ çifti<span class="why">Bu product construction (DFA). NFA yapısı çarpmaz, toplar.</span></button>
+    <button class="quiz__opt">7 state, start $q_1$<span class="why">Yeni start state'i unuttun. $q_1$'den başlarsan $N_2$'ye nasıl geçeceksin?</span></button>
+    <button class="quiz__opt" data-correct>8 state, start yeni $q_0$ ve $q_0$'dan $\varepsilon$ ile $q_1$ ve $q_2$'ye<span class="why">Doğru: $|Q_1| + |Q_2| + 1 = 8$.</span></button>
+    <button class="quiz__opt">8 state, start yeni $q_0$ ve $q_0$ accept<span class="why">$q_0$ union'da accept değil; $F = F_1 \cup F_2$. Start'ın accept olduğu yapı star'dır.</span></button>
+  </div>
+  <div class="quiz" id="q-son-5">
+    <p class="quiz__q">$N_4$'te ($1 \xrightarrow{b} 2$, $1 \xrightarrow{\varepsilon} 3$, $2 \xrightarrow{a} 2, 3$, $2 \xrightarrow{b} 3$, $3 \xrightarrow{a} 1$; start ve accept 1) input <code>bab</code> için son küme nedir?</p>
+    <button class="quiz__opt">$\{2\}$<span class="why">Adımlar: $\{1,3\} \xrightarrow{b} \{2\} \xrightarrow{a} \{2,3\} \xrightarrow{b} \{3\}$. Son adımda 2, <code>b</code> ile 3'e gider; 3'ten <code>b</code> oku yok.</span></button>
+    <button class="quiz__opt" data-correct>$\{3\}$, yani reject<span class="why">Doğru: $\{1,3\} \to \{2\} \to \{2,3\} \to \{3\}$. Kümede 1 yok.</span></button>
+    <button class="quiz__opt">$\{1,3\}$, yani accept<span class="why">3'ten 1'e gidilen ok <code>a</code> etiketli; son sembol <code>b</code>.</span></button>
+  </div>
+  <!-- Kaynak: q-son-5 Python ile: N4 bab izi {1,3},{2},{2,3},{3}. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* ===== NFA engine: parse (edge list or typed table), ε-closure, run, subset construction, minimization, SVG ===== */
+/*ENGINE-BEGIN*/
+const NF = (function () {
+  "use strict";
+  const P = "w-nfa-subset-";
+  const EPS = "ε";
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const isEps = t => /^(eps|ε|epsilon)$/i.test(t);
+  const MARK = /^(->|>|→|\*)/;
+
+  function build(states, alpha, start, acc, edges) {
+    const d = {};
+    states.forEach(q => { d[q] = {}; });
+    edges.forEach(([p, a, q]) => { (d[p][a] = d[p][a] || new Set()).add(q); });
+    return { states, alpha, start, acc: new Set(acc), d };
+  }
+
+  /* text → { nfa } | { errors }. Two formats:
+     edge list  : "start: q1", "accept: q4", "p a,b -> q" (eps for ε)  — the instructor's tool syntax
+     typed table: first line = symbols (eps allowed), then "[>][*]name cell cell …", cell = q1,q2 | {q1,q2} | - */
+  function parse(text) {
+    const lines = text.split("\n").map((raw, i) => ({ i, s: raw.replace(/#.*/, "").trim() })).filter(l => l.s);
+    if (!lines.length) return { errors: ["Metin boş. Bir NFA yaz ya da bir örnek seç."] };
+    const edgeFmt = lines.some(l => /^(start|accept|alphabet)\s*:/i.test(l.s) || /^[^\s>*→-]\S*\s+\S+\s*->\s*\S+$/.test(l.s));
+    return edgeFmt ? parseEdges(lines) : parseTable(lines);
+  }
+
+  function parseEdges(lines) {
+    const errors = [], states = [], add = q => { if (!states.includes(q)) states.push(q); };
+    let start = null, alpha = null;
+    const acc = [], edges = [];
+    lines.forEach(l => {
+      let m;
+      if ((m = l.s.match(/^start\s*:\s*(\S+)$/i))) {
+        if (start && start !== m[1]) errors.push(`Satır ${l.i + 1}: ikinci bir start yazılmış. NFA'nın tek start state'i olur; birden fazla başlangıç için yeni bir start ve $\\varepsilon$ okları kullan.`);
+        start = m[1]; add(start); return;
+      }
+      if ((m = l.s.match(/^accept\s*:\s*(.*)$/i))) { m[1].split(/[\s,]+/).filter(Boolean).forEach(q => { acc.push(q); add(q); }); return; }
+      if ((m = l.s.match(/^alphabet\s*:\s*(.*)$/i))) { alpha = m[1].split(/[\s,]+/).filter(Boolean); return; }
+      if ((m = l.s.match(/^(\S+)\s+(\S+)\s*->\s*(\S+)$/))) {
+        add(m[1]); add(m[3]);
+        m[2].split(",").filter(Boolean).forEach(a => {
+          if (isEps(a)) edges.push([m[1], EPS, m[3]]);
+          else if (a.length !== 1) errors.push(`Satır ${l.i + 1}: <code>${esc(a)}</code> tek karakterlik bir sembol değil. Sembolleri virgülle ayır (<code>0,1</code>), $\\varepsilon$ için <code>eps</code> yaz.`);
+          else edges.push([m[1], a, m[3]]);
+        });
+        return;
+      }
+      errors.push(`Satır ${l.i + 1} okunamadı: <code>${esc(l.s)}</code>. Biçim: <code>p a,b -&gt; q</code>.`);
+    });
+    if (!start) errors.push("Start state yok: <code>start: q1</code> satırı ekle.");
+    let syms = alpha || [...new Set(edges.map(e => e[1]).filter(a => a !== EPS))].sort();
+    if (alpha) edges.forEach(e => { if (e[1] !== EPS && !alpha.includes(e[1])) errors.push(`<code>${esc(e[1])}</code> sembolü alphabet satırında yok.`); });
+    if (!syms.length) syms = ["0", "1"];
+    if (errors.length) return { errors: [...new Set(errors)] };
+    states.sort((x, y) => x.localeCompare(y, "en", { numeric: true }));
+    return { nfa: build(states, syms, start, acc, edges) };
+  }
+
+  function parseTable(lines) {
+    const errors = [];
+    const head = lines[0].s.split(/\s+/);
+    if (head.some(t => MARK.test(t)) || head.some(t => !isEps(t) && t.length !== 1)) {
+      return { errors: ["Tablo biçiminde ilk satır sembolleri listeler, örneğin <code>a b eps</code>. Kenar listesi yazıyorsan <code>start:</code> satırını ve <code>p a -&gt; q</code> biçimini kullan."] };
+    }
+    const cols = head.map(t => isEps(t) ? EPS : t);
+    const rows = [];
+    lines.slice(1).forEach(l => {
+      const norm = l.s.replace(/\s*,\s*/g, ",").replace(/\{\s+/g, "{").replace(/\s+\}/g, "}");
+      let tok = norm.split(/\s+/);
+      let start = false, acc = false;
+      while (tok.length && /^(->|>|→|\*)+$/.test(tok[0])) {
+        for (const ch of tok[0].replace("->", ">")) { if (ch === "*") acc = true; else start = true; }
+        tok = tok.slice(1);
+      }
+      if (!tok.length) { errors.push(`Satır ${l.i + 1}: işaretten sonra state adı yok.`); return; }
+      let name = tok[0], m;
+      while ((m = name.match(MARK))) { if (m[1] === "*") acc = true; else start = true; name = name.slice(m[1].length); }
+      if (!name) { errors.push(`Satır ${l.i + 1}: state adı yok.`); return; }
+      const cells = tok.slice(1);
+      if (cells.length !== cols.length) {
+        errors.push(`<b>${esc(name)}</b> satırında ${cells.length} hücre var; başlıkta ${cols.length} sütun var (${cols.map(esc).join(" ")}). Boş küme için <code>-</code> yaz.`);
+        return;
+      }
+      const sets = cells.map(c => (c === "-" || c === "∅" || c === "{}") ? [] : c.replace(/^\{|\}$/g, "").split(",").filter(Boolean));
+      rows.push({ name, start, acc, sets, line: l.i + 1 });
+    });
+    const names = new Map();
+    rows.forEach(r => { if (names.has(r.name)) errors.push(`<b>${esc(r.name)}</b> iki kez tanımlanmış (satır ${names.get(r.name).line} ve ${r.line}).`); else names.set(r.name, r); });
+    if (!rows.length && !errors.length) errors.push("Tabloda state satırı yok.");
+    rows.forEach(r => r.sets.forEach((S, i) => S.forEach(t => {
+      if (!names.has(t)) errors.push(`<b>${esc(r.name)}</b> satırı ${esc(cols[i])} ile <b>${esc(t)}</b> state'ine gidiyor ama <b>${esc(t)}</b> için satır yok.`);
+    })));
+    const starts = rows.filter(r => r.start);
+    if (rows.length && !starts.length) errors.push("Start state yok: adının önüne <code>&gt;</code> koy.");
+    if (starts.length > 1) errors.push(`Birden fazla start var (${starts.map(r => esc(r.name)).join(", ")}). NFA'nın tek bir start state'i olur.`);
+    if (errors.length) return { errors: [...new Set(errors)] };
+    const edges = [];
+    rows.forEach(r => r.sets.forEach((S, i) => S.forEach(t => edges.push([r.name, cols[i], t]))));
+    return { nfa: build(rows.map(r => r.name), cols.filter(c => c !== EPS), starts[0].name, rows.filter(r => r.acc).map(r => r.name), edges) };
+  }
+
+  function serialize(N) {
+    const g = {};
+    N.states.forEach(p => Object.keys(N.d[p]).forEach(a => N.d[p][a].forEach(q => { const k = p + "\u0001" + q; (g[k] = g[k] || { p, q, s: [] }).s.push(a === EPS ? "eps" : a); })));
+    let t = `start: ${N.start}\naccept: ${N.states.filter(q => N.acc.has(q)).join(" ")}\n`;
+    Object.values(g).forEach(e => { t += `${e.p} ${e.s.join(",")} -> ${e.q}\n`; });
+    return t;
+  }
+
+  const idx = (N, q) => N.states.indexOf(q);
+  const sortS = (N, arr) => arr.slice().sort((a, b) => idx(N, a) - idx(N, b));
+  /* JSON keys keep a state named "a,b" apart from the subset {a, b} */
+  const key = (N, S) => JSON.stringify(sortS(N, [...S]));
+  const show = (N, S) => esc(S.size ? "{" + sortS(N, [...S]).join(",") + "}" : "∅");
+
+  function closure(N, S) {
+    const R = new Set(S), st = [...S], added = [];
+    while (st.length) {
+      const p = st.pop();
+      (N.d[p][EPS] || []).forEach(q => { if (!R.has(q)) { R.add(q); st.push(q); added.push([p, q]); } });
+    }
+    return { R, added };
+  }
+  function move(N, R, a) {
+    const T = new Set(), used = [];
+    R.forEach(r => (N.d[r][a] || []).forEach(q => { T.add(q); used.push([r, q]); }));
+    return { T, used };
+  }
+  function run(N, w) {
+    const c0 = closure(N, [N.start]);
+    const steps = [{ R: c0.R, moved: new Set([N.start]), used: [], added: c0.added, sym: null, died: [] }];
+    let R = c0.R;
+    for (const a of w) {
+      const mv = move(N, R, a);
+      const cl = closure(N, mv.T);
+      const died = [...R].filter(r => !(N.d[r][a] && N.d[r][a].size));
+      steps.push({ R: cl.R, moved: mv.T, used: mv.used, added: cl.added, sym: a, died });
+      R = cl.R;
+    }
+    return steps;
+  }
+  const accepts = (N, w) => { const s = run(N, w); return [...s[s.length - 1].R].some(q => N.acc.has(q)); };
+
+  function subset(N) {
+    const c0 = closure(N, [N.start]);
+    const sets = new Map([[key(N, c0.R), c0.R]]), order = [key(N, c0.R)], rows = {}, steps = [];
+    for (let i = 0; i < order.length; i++) {
+      const k = order[i], R = sets.get(k);
+      rows[k] = {};
+      N.alpha.forEach(a => {
+        const mv = move(N, R, a), cl = closure(N, mv.T), tk = key(N, cl.R);
+        const isNew = !sets.has(tk);
+        if (isNew) { sets.set(tk, cl.R); order.push(tk); }
+        rows[k][a] = tk;
+        steps.push({ from: k, a, moved: mv.T, added: cl.added, to: tk, isNew });
+      });
+    }
+    return { start: order[0], startAdded: c0.added, order, sets, rows, steps };
+  }
+  /* partition refinement on the reachable subset DFA; returns the number of blocks */
+  function minCount(N, S) {
+    const isAcc = k => [...S.sets.get(k)].some(q => N.acc.has(q));
+    let part = {};
+    S.order.forEach(k => { part[k] = isAcc(k) ? 1 : 0; });
+    let n = new Set(Object.values(part)).size;
+    for (;;) {
+      const ids = new Map(), nx = {};
+      S.order.forEach(k => { const sig = [part[k], ...N.alpha.map(a => part[S.rows[k][a]])].join(","); if (!ids.has(sig)) ids.set(sig, ids.size); nx[k] = ids.get(sig); });
+      if (ids.size === n) return n;
+      part = nx; n = ids.size;
+    }
+  }
+  function* strings(alpha, n) {
+    let level = [""];
+    for (let L = 0; L <= n; L++) {
+      for (const w of level) yield w;
+      if (L < n) { const next = []; for (const w of level) for (const c of alpha) next.push(w + c); level = next; }
+    }
+  }
+
+  /* graph for drawing: { states, start, acc:Set, groups:[{p,q,syms}] } */
+  function graphOf(N) {
+    const g = {};
+    N.states.forEach(p => Object.keys(N.d[p]).forEach(a => N.d[p][a].forEach(q => { const k = p + "\u0001" + q; (g[k] = g[k] || { p, q, syms: [] }).syms.push(a); })));
+    return { states: N.states, start: N.start, acc: N.acc, groups: Object.values(g) };
+  }
+  function autoPos(G) {
+    const adj = {};
+    G.states.forEach(q => { adj[q] = []; });
+    G.groups.forEach(e => adj[e.p].push(e.q));
+    const layer = { [G.start]: 0 }, Q = [G.start];
+    for (let i = 0; i < Q.length; i++) adj[Q[i]].forEach(q => { if (!(q in layer)) { layer[q] = layer[Q[i]] + 1; Q.push(q); } });
+    const maxL = Math.max(0, ...Object.values(layer));
+    G.states.forEach(q => { if (!(q in layer)) layer[q] = maxL + 1; });
+    const cols = {};
+    G.states.forEach(q => (cols[layer[q]] = cols[layer[q]] || []).push(q));
+    const tall = Math.max(...Object.values(cols).map(c => c.length));
+    const pos = {};
+    Object.keys(cols).forEach(L => cols[L].forEach((q, j) => { pos[q] = [L * 1.6, (j - (cols[L].length - 1) / 2) * 1.25 + (tall - 1) * 0.625]; }));
+    return pos;
+  }
+  let uidN = 0;
+  function draw(G, o) {
+    o = o || {};
+    const uid = P + "svg" + (++uidN);
+    const lab = o.label || (q => q);
+    const rad = q => Math.max(19, 7 + lab(q).length * 4.2);
+    const usePos = !!(o.pos && G.states.every(q => o.pos[q]));
+    const P0 = usePos ? o.pos : autoPos(G);
+    const pos = {};
+    G.states.forEach(q => { pos[q] = { x: P0[q][0] * 90, y: P0[q][1] * 80 }; });
+    const xs = G.states.map(q => pos[q].x), ys = G.states.map(q => pos[q].y);
+    const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const cur = o.cur || new Set(), dim = o.dim || new Set(), on = o.on || new Set();
+    let minX = Math.min(...xs) - 50, maxX = Math.max(...xs) + 50, minY = Math.min(...ys) - 45, maxY = Math.max(...ys) + 45;
+    const grow = (x, y) => { minX = Math.min(minX, x - 16); maxX = Math.max(maxX, x + 16); minY = Math.min(minY, y - 12); maxY = Math.max(maxY, y + 12); };
+    const has = {};
+    G.groups.forEach(e => { has[e.p + "\u0001" + e.q] = true; });
+    let edges = "", labels = "";
+    G.groups.forEach(e => {
+      const k = e.p + "\u0001" + e.q, hot = on.has(k);
+      const epsOnly = e.syms.every(s => s === EPS);
+      const cls = P + "edge" + (hot ? " is-on" : "") + (epsOnly ? " is-eps" : "");
+      const mk = `url(#${uid}-${hot ? "ah2" : "ah"})`;
+      const label = esc(e.syms.join(","));
+      const A = pos[e.p], B = pos[e.q], RA = rad(e.p), RB = rad(e.q);
+      if (e.p === e.q) {
+        const t = A.y > cy + 1 ? Math.PI / 2 : -Math.PI / 2;
+        const pt = (a, rr) => ({ x: A.x + rr * Math.cos(a), y: A.y + rr * Math.sin(a) });
+        const a1 = pt(t - 0.45, RA), a2 = pt(t + 0.45, RA + 2), c1 = pt(t - 0.62, RA + 38), c2 = pt(t + 0.62, RA + 38), lp = pt(t, RA + 41);
+        edges += `<path class="${cls}" d="M${a1.x.toFixed(1)},${a1.y.toFixed(1)} C${c1.x.toFixed(1)},${c1.y.toFixed(1)} ${c2.x.toFixed(1)},${c2.y.toFixed(1)} ${a2.x.toFixed(1)},${a2.y.toFixed(1)}" marker-end="${mk}"/>`;
+        labels += `<text class="${P}lbl" x="${lp.x.toFixed(1)}" y="${lp.y.toFixed(1)}">${label}</text>`;
+        grow(lp.x, lp.y);
+        return;
+      }
+      const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1;
+      const ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
+      let off = 0;
+      if (has[e.q + "\u0001" + e.p]) off = 16;
+      else {
+        const blocked = G.states.some(q => {
+          if (q === e.p || q === e.q) return false;
+          const C = pos[q], tt = ((C.x - A.x) * dx + (C.y - A.y) * dy) / (L * L);
+          if (tt <= 0 || tt >= 1) return false;
+          return Math.hypot(A.x + tt * dx - C.x, A.y + tt * dy - C.y) < rad(q) + 10;
+        });
+        if (blocked) off = 34;
+      }
+      const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+      const C = { x: mx + nx * off * 2, y: my + ny * off * 2 };
+      const toC = (S, rr) => { const vx = C.x - S.x, vy = C.y - S.y, vl = Math.hypot(vx, vy) || 1; return { x: S.x + (vx / vl) * rr, y: S.y + (vy / vl) * rr }; };
+      const s = off ? toC(A, RA) : { x: A.x + ux * RA, y: A.y + uy * RA };
+      const t2 = off ? toC(B, RB + 2) : { x: B.x - ux * (RB + 2), y: B.y - uy * (RB + 2) };
+      const bx = 0.25 * s.x + 0.5 * C.x + 0.25 * t2.x, by = 0.25 * s.y + 0.5 * C.y + 0.25 * t2.y;
+      const lo = off ? 11 : -10;
+      const lx = bx + nx * lo, ly = by + ny * lo;
+      edges += `<path class="${cls}" d="M${s.x.toFixed(1)},${s.y.toFixed(1)} Q${C.x.toFixed(1)},${C.y.toFixed(1)} ${t2.x.toFixed(1)},${t2.y.toFixed(1)}" marker-end="${mk}"/>`;
+      labels += `<text class="${P}lbl" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}">${label}</text>`;
+      grow(lx, ly); grow(C.x * 0.5 + mx * 0.5, C.y * 0.5 + my * 0.5);
+    });
+    let nodes = "";
+    G.states.forEach(q => {
+      const A = pos[q], r = rad(q);
+      const c = cur.has(q) ? " is-cur" : dim.has(q) ? " is-dim" : "";
+      const nl = lab(q).length, fs = nl > 5 ? 10.5 : nl > 3 ? 11.5 : 12.5;
+      nodes += `<circle class="${P}node${c}" cx="${A.x.toFixed(1)}" cy="${A.y.toFixed(1)}" r="${r.toFixed(1)}"/>`;
+      if (G.acc.has(q)) nodes += `<circle class="${P}inner" cx="${A.x.toFixed(1)}" cy="${A.y.toFixed(1)}" r="${(r - 4).toFixed(1)}"/>`;
+      nodes += `<text class="${P}name" x="${A.x.toFixed(1)}" y="${A.y.toFixed(1)}" style="font-size:${fs}px">${esc(lab(q))}</text>`;
+      grow(A.x - r, A.y - r); grow(A.x + r, A.y + r);
+    });
+    let start = "";
+    if (G.start && pos[G.start]) {
+      const A = pos[G.start], r = rad(G.start);
+      const sx = A.x - r - 30, ex = A.x - r - 2;
+      start = `<path class="${P}edge" d="M${sx.toFixed(1)},${A.y.toFixed(1)} L${ex.toFixed(1)},${A.y.toFixed(1)}" marker-end="url(#${uid}-ah)"/>`;
+      grow(sx, A.y);
+    }
+    const W = maxX - minX, H = maxY - minY;
+    const defs = `<defs><marker id="${uid}-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="${P}ah" d="M0,0 L10,5 L0,10 z"/></marker><marker id="${uid}-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="${P}ah2" d="M0,0 L10,5 L0,10 z"/></marker></defs>`;
+    return `<svg viewBox="${minX.toFixed(0)} ${minY.toFixed(0)} ${W.toFixed(0)} ${H.toFixed(0)}" style="max-width:${Math.round(W * 1.3)}px;min-width:${Math.round(Math.min(W, 640) * 0.55)}px" role="img" aria-label="State diagram">${defs}${edges}${start}${nodes}${labels}</svg>`;
+  }
+
+  return { EPS, esc, parse, serialize, closure, move, run, accepts, subset, minCount, strings, graphOf, draw, show, key, build };
+})();
+/*ENGINE-END*/
+
+/* ===== Presets (Sipser figures, exercises, the instructor's tool) ===== */
+const NFA_PRESETS = {
+  N1: { name: "N1 (Sipser Fig. 1.27): 101 ya da 11 içerir", pos: { q1: [0, 0], q2: [1.5, 0], q3: [3, 0], q4: [4.5, 0] },
+    text: "# N1: Sipser Figure 1.27\nstart: q1\naccept: q4\nq1 0,1 -> q1\nq1 1 -> q2\nq2 0,eps -> q3\nq3 1 -> q4\nq4 0,1 -> q4\n" },
+  N2: { name: "N2 (Sipser Fig. 1.31): sondan üçüncü 1", pos: { q1: [0, 0], q2: [1.5, 0], q3: [3, 0], q4: [4.5, 0] },
+    text: "# N2: third symbol from the end is 1\nstart: q1\naccept: q4\nq1 0,1 -> q1\nq1 1 -> q2\nq2 0,1 -> q3\nq3 0,1 -> q4\n" },
+  N3: { name: "N3 (Sipser Fig. 1.34): 2'nin ya da 3'ün katı kadar 0", pos: { s: [0, 1], a0: [1.4, 0], a1: [2.8, 0], b0: [1.4, 1.75], b1: [2.8, 1.75], b2: [2.1, 2.7] },
+    text: "# N3: Sipser Figure 1.34, unary alphabet\nalphabet: 0\nstart: s\naccept: a0 b0\ns eps -> a0\ns eps -> b0\na0 0 -> a1\na1 0 -> a0\nb0 0 -> b1\nb1 0 -> b2\nb2 0 -> b0\n" },
+  N4: { name: "N4 (Sipser Fig. 1.36 / 1.42)", pos: { "1": [0.9, 0], "2": [0, 1.5], "3": [1.8, 1.5] },
+    text: "# N4: Sipser Example 1.35 / 1.41\nstart: 1\naccept: 1\n1 b -> 2\n1 eps -> 3\n2 a -> 2\n2 a,b -> 3\n3 a -> 1\n" },
+  N4t: { name: "N4, tablo biçiminde", pos: { "1": [0.9, 0], "2": [0, 1.5], "3": [1.8, 1.5] },
+    text: "# N4 as a typed transition table (> start, * accept, - empty set)\n       a     b     eps\n>*1    -     2     3\n2      2,3   3     -\n3      1     -     -\n" },
+  ex116a: { name: "Exercise 1.16(a)", pos: { "1": [0, 0], "2": [1.8, 0] },
+    text: "# Sipser Exercise 1.16 (a)\nstart: 1\naccept: 1\n1 a -> 1\n1 a,b -> 2\n2 b -> 1\n" },
+  ex116b: { name: "Exercise 1.16(b)", pos: { "1": [0, 0], "2": [1.9, 0], "3": [0.95, 1.4] },
+    text: "# Sipser Exercise 1.16 (b)\nstart: 1\naccept: 2\n1 eps -> 2\n2 a -> 1\n1 a -> 3\n3 a,b -> 2\n3 b -> 3\n" },
+  flip14: { name: "Exercise 1.14(b) örneği", pos: { q0: [0, 0.6], q1: [1.5, 0], q2: [1.5, 1.2] },
+    text: "# L = {0}; flip the accept states and run 0 again\nalphabet: 0\nstart: q0\naccept: q1\nq0 0 -> q1\nq0 0 -> q2\n" },
+  atg: { name: "Hocanın aracından: atg ya da gat içerir", pos: { s: [0, 0.7], x1: [1.2, 0], x2: [2.4, 0], y1: [1.2, 1.4], y2: [2.4, 1.4], f: [3.6, 0.7] },
+    text: "# from the instructor's NFA tool: contains atg or gat\nstart: s\naccept: f\ns a,c,g,t -> s\ns a -> x1\nx1 t -> x2\nx2 g -> f\ns g -> y1\ny1 a -> y2\ny2 t -> f\nf a,c,g,t -> f\n" },
+  blank: { name: "Boş şablon", text: "# Kendi NFA'n. Biçim: p a,b -> q ; ε için eps\nstart: q0\naccept: q1\nq0 0,1 -> q0\nq0 1 -> q1\n" }
+};
+
+/* ===== Static figures ===== */
+document.querySelectorAll(".w-nfa-subset-fig[data-fig]").forEach(el => {
+  const p = NFA_PRESETS[el.dataset.fig];
+  const r = NF.parse(p.text);
+  el.innerHTML = NF.draw(NF.graphOf(r.nfa), { pos: p.pos });
+});
+
+/* ===== Widget 1: NFA simulator ===== */
+const SIM = (function () {
+  const root = document.getElementById("w-sim");
+  if (!root) return null;
+  const esc = NF.esc, show = NF.show;
+  let presetKey = root.dataset.preset || "N1";
+  root.innerHTML = `
+    <div class="w-nfa-subset-row"><label>örnek: <select id="ws-pre"></select></label></div>
+    <textarea id="ws-ta" class="w-nfa-subset-ta" spellcheck="false" aria-label="NFA metni"></textarea>
+    <div class="w-nfa-subset-row">
+      <button class="btn btn--sm btn--accent" id="ws-draw">Çiz</button>
+      <button class="btn btn--sm" id="ws-flip">Accept'leri çevir</button>
+      <button class="btn btn--sm" id="ws-list">Kabul edilen kısa string'ler</button>
+    </div>
+    <div class="w-nfa-subset-err" id="ws-err" role="alert"></div>
+    <div class="w-nfa-subset-kv" id="ws-info"></div>
+    <div class="w-nfa-subset-diag" id="ws-diag"></div>
+    <div class="w-nfa-subset-row">
+      <label>input: <input type="text" id="ws-w" value="${esc(root.dataset.input || "")}" autocomplete="off" spellcheck="false" /></label>
+      <button class="btn btn--sm btn--accent" id="ws-run">Adım adım</button>
+    </div>
+    <div class="w-nfa-subset-err" id="ws-werr" role="alert"></div>
+    <div id="ws-step"></div>
+    <div class="w-nfa-subset-chips" id="ws-out"></div>`;
+  const $ = id => root.querySelector("#" + id);
+  const sel = $("ws-pre"), ta = $("ws-ta"), err = $("ws-err"), werr = $("ws-werr"), info = $("ws-info"), diag = $("ws-diag"), stepEl = $("ws-step"), out = $("ws-out");
+  Object.keys(NFA_PRESETS).forEach(k => sel.insertAdjacentHTML("beforeend", `<option value="${k}">${esc(NFA_PRESETS[k].name)}</option>`));
+  sel.value = presetKey;
+  ta.value = NFA_PRESETS[presetKey].text;
+  let N = null, pos = NFA_PRESETS[presetKey].pos;
+  function showErr(el, list) { el.innerHTML = list.length ? `<ul>${list.map(e => `<li>${e}</li>`).join("")}</ul>` : ""; Lab.renderMath(el); }
+  function load() {
+    const r = NF.parse(ta.value);
+    out.innerHTML = "";
+    if (r.errors) { N = null; showErr(err, r.errors); diag.innerHTML = ""; info.innerHTML = ""; stepEl.innerHTML = ""; return false; }
+    showErr(err, []);
+    N = r.nfa;
+    info.innerHTML = `Q = {${N.states.map(esc).join(", ")}} · Σ = {${N.alpha.map(esc).join(", ")}} · start = ${esc(N.start)} · F = ${show(N, N.acc)}`;
+    diag.innerHTML = NF.draw(NF.graphOf(N), { pos });
+    return true;
+  }
+  function readW() {
+    let w = $("ws-w").value.replace(/\s+/g, "");
+    if (w === "ε" || /^eps$/i.test(w)) w = "";
+    const bad = [...new Set([...w].filter(c => !N.alpha.includes(c)))];
+    if (bad.length) { showErr(werr, [`Input'ta alphabet'te olmayan sembol var: ${bad.map(c => `<code>${esc(c)}</code>`).join(", ")}. Σ = {${N.alpha.map(esc).join(", ")}}. Boş string için kutuyu boş bırak ya da <code>eps</code> yaz.`]); return null; }
+    showErr(werr, []);
+    return w;
+  }
+  function runIt() {
+    if (!load()) return;
+    const w = readW();
+    if (w === null) { stepEl.innerHTML = ""; return; }
+    const steps = NF.run(N, w);
+    const G = NF.graphOf(N);
+    const hist = [];
+    const frames = steps.map((st, i) => {
+      const acc = [...st.R].some(q => N.acc.has(q));
+      const addTxt = st.added.length ? ` ε ile eklenen: ${st.added.map(([p, q]) => `${esc(p)}→${esc(q)}`).join(", ")}.` : "";
+      let cap;
+      if (i === 0) cap = `Başlangıç: start ${esc(N.start)} ve ε-closure'ı. E({${esc(N.start)}}) = <b>${show(N, st.R)}</b>.${addTxt}`;
+      else {
+        cap = `${i}. sembol <code>${esc(st.sym)}</code> okundu. Ok izlenince: ${show(N, st.moved)}.${addTxt}`;
+        if (st.died.length) cap += ` Ölen kopyalar (bu sembol için oku yok): ${st.died.map(esc).join(", ")}.`;
+        cap += ` Yeni küme: <b>${show(N, st.R)}</b>.`;
+      }
+      if (i === steps.length - 1) cap += acc ? ` <span class="w-nfa-subset-ok">Input bitti; kümede accept state var ⇒ ACCEPT.</span>` : ` <span class="w-nfa-subset-bad">Input bitti; kümede accept state yok ⇒ REJECT.</span>`;
+      hist.push({ i, sym: st.sym, moved: st.moved, R: st.R, acc });
+      return { i, cap, R: st.R, on: new Set([...st.used, ...st.added].map(([p, q]) => p + "\u0001" + q)), upto: hist.slice() };
+    });
+    Lab.stepper(stepEl, {
+      title: `${w === "" ? "ε" : w} üzerinde aktif state kümesi`,
+      interval: 1400,
+      frames: frames.map(f => ({ caption: f.cap, f })),
+      render(fr, k, stage) {
+        const f = fr.f;
+        let h = NF.draw(G, { pos, cur: f.R, on: f.on });
+        h = `<div class="w-nfa-subset-diag">${h}</div><div class="w-nfa-subset-tw"><table><tr><th>adım</th><th>okunan</th><th>ok ile</th><th>ε-closure sonrası</th><th></th></tr>` +
+          f.upto.map(x => `<tr${x.i === f.i ? ' class="is-cur"' : ""}><td>${x.i}</td><td>${x.sym === null ? "–" : esc(x.sym)}</td><td>${x.i === 0 ? "{" + esc(N.start) + "}" : show(N, x.moved)}</td><td>${show(N, x.R)}</td><td class="${x.acc ? "is-acc" : ""}">${x.acc ? "accept var" : ""}</td></tr>`).join("") + `</table></div>`;
+        stage.innerHTML = h;
+      }
+    });
+  }
+  function listAcc() {
+    if (!load()) return;
+    const n = N.alpha.length <= 2 ? 5 : N.alpha.length === 3 ? 4 : 3;
+    const acc = [];
+    for (const w of NF.strings(N.alpha, n)) if (NF.accepts(N, w)) acc.push(w);
+    out.innerHTML = `<span class="is-on">uzunluk ≤ ${n}: ${acc.length} string</span>` + (acc.length ? acc.slice(0, 120).map(w => `<span>${w === "" ? "ε" : esc(w)}</span>`).join("") : "<span>hiçbiri</span>") + (acc.length > 120 ? "<span>…</span>" : "");
+  }
+  sel.addEventListener("change", () => { presetKey = sel.value; ta.value = NFA_PRESETS[presetKey].text; pos = NFA_PRESETS[presetKey].pos; stepEl.innerHTML = ""; load(); });
+  $("ws-draw").addEventListener("click", () => { stepEl.innerHTML = ""; load(); });
+  $("ws-run").addEventListener("click", runIt);
+  $("ws-w").addEventListener("keydown", e => { if (e.key === "Enter") runIt(); });
+  $("ws-list").addEventListener("click", listAcc);
+  $("ws-flip").addEventListener("click", () => {
+    if (!load()) return;
+    const F = NF.build(N.states, N.alpha, N.start, N.states.filter(q => !N.acc.has(q)), []);
+    N.states.forEach(p => { F.d[p] = N.d[p]; });
+    let t = NF.serialize(F);
+    if (!/^alphabet/m.test(t)) t = `alphabet: ${N.alpha.join(" ")}\n` + t;
+    ta.value = "# accept'ler çevrildi\n" + t;
+    stepEl.innerHTML = "";
+    load();
+  });
+  load();
+  return { text: () => ta.value, pos: () => pos };
+})();
+
+/* ===== Widget 2: subset construction stepper ===== */
+(function () {
+  const root = document.getElementById("w-sub");
+  if (!root) return;
+  const esc = NF.esc;
+  const opts = { N4: "N4 (Example 1.41)", ex116a: "Exercise 1.16(a)", ex116b: "Exercise 1.16(b)", N1: "N1", N2: "N2 (sondan üçüncü 1)", N3: "N3 (unary)", sim: "Simülatördeki NFA" };
+  root.innerHTML = `<div class="w-nfa-subset-row"><label>NFA: <select id="wu-pre">${Object.keys(opts).map(k => `<option value="${k}">${esc(opts[k])}</option>`).join("")}</select></label><button class="btn btn--sm btn--accent" id="wu-go">Hazırla</button></div><div class="w-nfa-subset-err" id="wu-err" role="alert"></div><div class="w-nfa-subset-diag" id="wu-nfa"></div><div id="wu-step"></div>`;
+  const sel = root.querySelector("#wu-pre"), err = root.querySelector("#wu-err"), nfaEl = root.querySelector("#wu-nfa"), stepEl = root.querySelector("#wu-step");
+  const lab = k => { const a = JSON.parse(k); return a.length ? "{" + a.join(",") + "}" : "∅"; };
+  const disp = k => esc(lab(k));
+  function prep() {
+    let text, pos;
+    if (sel.value === "sim") { text = SIM ? SIM.text() : ""; pos = SIM ? SIM.pos() : null; }
+    else { text = NFA_PRESETS[sel.value].text; pos = NFA_PRESETS[sel.value].pos; }
+    const r = NF.parse(text);
+    if (r.errors) { err.innerHTML = "Simülatördeki metin okunamadı: " + r.errors.join(" "); Lab.renderMath(err); stepEl.innerHTML = ""; nfaEl.innerHTML = ""; return; }
+    err.innerHTML = "";
+    const N = r.nfa, n = N.states.length;
+    if (n > 8) { err.innerHTML = `Bu NFA'nın ${n} state'i var; stepper en fazla 8 state'le çalışır ($2^8 = 256$ subset).`; Lab.renderMath(err); stepEl.innerHTML = ""; return; }
+    nfaEl.innerHTML = NF.draw(NF.graphOf(N), { pos });
+    const S = NF.subset(N);
+    const isAcc = k => [...S.sets.get(k)].some(q => N.acc.has(q));
+    const all = [];
+    for (let m = 0; m < (1 << n); m++) all.push(NF.key(N, new Set(N.states.filter((q, i) => m & (1 << i)))));
+    all.sort((a, b) => JSON.parse(a).length - JSON.parse(b).length);
+    const frames = [];
+    const sAdd = S.startAdded.length ? ` (ε ile: ${S.startAdded.map(([p, q]) => `${esc(p)}→${esc(q)}`).join(", ")})` : " (ε oku yok, closure bir şey eklemez)";
+    frames.push({ rows: 1, cell: null, found: 1, caption: `Start: q0' = E({${esc(N.start)}}) = <b>${disp(S.start)}</b>${sAdd}. Tabloya ilk satır olarak yazılır.` });
+    let found = 1;
+    S.steps.forEach((st, i) => {
+      if (st.isNew) found++;
+      const parts = [...S.sets.get(st.from)].map(r => `δ(${esc(r)},${esc(st.a)}) = ${NF.show(N, (N.d[r][st.a] || new Set()))}`).join(", ");
+      let cap = `${disp(st.from)} satırı, <code>${esc(st.a)}</code> sütunu: ${parts || "küme boş"}. Birleşim ${NF.show(N, st.moved)}`;
+      cap += st.added.length ? `, ε-closure ile <b>${disp(st.to)}</b>.` : ` = <b>${disp(st.to)}</b>.`;
+      cap += st.isNew ? ` Yeni bir küme: tabloya yeni satır.` : ` Bu küme tabloda zaten var.`;
+      const rowIdx = S.order.indexOf(st.from);
+      frames.push({ rows: Math.max(rowIdx + 1, 1), cell: [st.from, st.a], found, upto: i, caption: cap });
+    });
+    const unreach = all.filter(k => !S.sets.has(k));
+    const minN = NF.minCount(N, S);
+    frames.push({ rows: S.order.length, cell: null, found, upto: S.steps.length - 1, final: true,
+      caption: `Bitti. NFA ${n} state → DFA <b>${S.order.length}</b> ulaşılabilir state ($2^{${n}} = ${1 << n}$ olası subset). Accept: F = ${NF.show(N, N.acc)} ile kesişen satırlar. ${unreach.length ? `Hiç ulaşılmayan ${unreach.length} subset: ${unreach.map(disp).join(" ")}.` : "Bütün subset'lere ulaşıldı."} Minimization sonrası en küçük DFA: ${minN} state.` });
+    const doneCells = upto => { const set = new Set(); for (let j = 0; j <= upto; j++) set.add(S.steps[j].from + "|" + S.steps[j].a); return set; };
+    Lab.stepper(stepEl, {
+      title: `Subset construction: ${opts[sel.value]}`,
+      interval: 1500,
+      frames,
+      render(f, k, stage) {
+        const shown = new Set(S.order.slice(0, f.found));
+        const done = f.upto === undefined ? new Set() : doneCells(f.upto);
+        let h = `<div class="w-nfa-subset-tw"><table><tr><th>DFA state</th>${N.alpha.map(a => `<th>${esc(a)}</th>`).join("")}</tr>`;
+        S.order.slice(0, f.found).forEach(rk => {
+          const curRow = f.cell && f.cell[0] === rk;
+          h += `<tr${curRow ? ' class="is-cur"' : ""}><td class="${isAcc(rk) ? "is-acc" : ""}">${rk === S.start ? "→ " : ""}${isAcc(rk) ? "* " : ""}${disp(rk)}</td>`;
+          N.alpha.forEach(a => {
+            const c = f.cell && f.cell[0] === rk && f.cell[1] === a;
+            h += `<td class="${c ? "is-cur" : ""}">${done.has(rk + "|" + a) ? disp(S.rows[rk][a]) : ""}</td>`;
+          });
+          h += `</tr>`;
+        });
+        h += `</table></div>`;
+        if (n <= 5) {
+          h += `<div class="w-nfa-subset-chips" aria-label="Bütün subset'ler">` + all.map(k2 => {
+            const c = shown.has(k2) ? (f.cell && S.rows[f.cell[0]] && k2 === S.steps[f.upto].to ? "is-new" : "is-on") : (f.final ? "is-dim" : "");
+            return `<span class="${c}">${disp(k2)}</span>`;
+          }).join("") + `</div>`;
+        } else h += `<p class="w-nfa-subset-small">${1 << n} subset'in hepsini göstermek için çok fazla; bulunan: ${f.found}.</p>`;
+        if (f.final) {
+          const groups = {};
+          S.order.forEach(p => N.alpha.forEach(a => { const q = S.rows[p][a], kk = p + "\u0001" + q; (groups[kk] = groups[kk] || { p, q, syms: [] }).syms.push(a); }));
+          const G = { states: S.order, start: S.start, acc: new Set(S.order.filter(isAcc)), groups: Object.values(groups) };
+          h += `<div class="w-nfa-subset-diag">${NF.draw(G, { label: lab })}</div>`;
+        }
+        stage.innerHTML = h;
+      }
+    });
+  }
+  root.querySelector("#wu-go").addEventListener("click", prep);
+  sel.addEventListener("change", prep);
+  prep();
+})();
+
+/* ===== Widget 3: k-th symbol from the end, NFA k+1 vs DFA 2^k ===== */
+(function () {
+  const root = document.getElementById("w-blow");
+  if (!root) return;
+  root.innerHTML = `<div class="w-nfa-subset-row"><label for="wb-k">k = <b id="wb-kv">3</b></label><input type="range" id="wb-k" min="1" max="6" value="3" /></div><div class="w-nfa-subset-diag" id="wb-nfa"></div><div class="w-nfa-subset-bars" id="wb-bars"></div><p class="w-nfa-subset-small" id="wb-note"></p>`;
+  const kIn = root.querySelector("#wb-k");
+  const ORD = { 1: "birinci", 2: "ikinci", 3: "üçüncü", 4: "dördüncü", 5: "beşinci", 6: "altıncı" };
+  function nfaText(k) {
+    let t = `start: s\naccept: t${k}\ns 0,1 -> s\ns 1 -> t1\n`;
+    for (let i = 1; i < k; i++) t += `t${i} 0,1 -> t${i + 1}\n`;
+    return t;
+  }
+  function upd() {
+    const k = +kIn.value;
+    root.querySelector("#wb-kv").textContent = k;
+    const N = NF.parse(nfaText(k)).nfa;
+    const pos = { s: [0, 0] };
+    for (let i = 1; i <= k; i++) pos["t" + i] = [i * 1.3, 0];
+    root.querySelector("#wb-nfa").innerHTML = NF.draw(NF.graphOf(N), { pos });
+    const S = NF.subset(N), m = NF.minCount(N, S), nn = N.states.length;
+    let bad = 0;
+    for (const w of NF.strings(["0", "1"], 10)) if (NF.accepts(N, w) !== (w.length >= k && w[w.length - k] === "1")) bad++;
+    const mx = 1 << nn;
+    const bar = (lab, v, cls) => `<div class="w-nfa-subset-bar"><span>${lab}</span><i class="${cls}" style="width:${Math.max(1, 100 * v / mx).toFixed(1)}%"></i><b>${v}</b></div>`;
+    root.querySelector("#wb-bars").innerHTML = bar("NFA state", nn, "") + bar("ulaşılan subset", S.order.length, "is-dfa") + bar("en küçük DFA", m, "is-dfa") + bar("bütün subset'ler", mx, "is-dfa");
+    root.querySelector("#wb-note").innerHTML = `Dil: sondan ${ORD[k]} sembol 1. NFA ${nn} state; subset construction ${S.order.length} state üretti; minimization sonrası en küçük DFA ${m} state, yani $2^{${k}}$. Bütün subset'ler $2^{${nn}} = ${mx}$, ama start state s her kümede olduğu için yarısına hiç ulaşılmaz. NFA, uzunluk ≤ 10'daki ${(1 << 11) - 1} string'in ${bad === 0 ? "hepsinde dilin tanımıyla aynı" : bad + " tanesinde tanımdan farklı"}.`;
+    Lab.renderMath(root.querySelector("#wb-note"));
+  }
+  kIn.addEventListener("input", upd);
+  upd();
+})();
+
+/* ===== Widget 4: closure constructions (Thm 1.45, 1.47, 1.49, and the broken star of Ex 1.15) ===== */
+(function () {
+  const root = document.getElementById("w-clo");
+  if (!root) return;
+  const esc = NF.esc, EPS = NF.EPS;
+  const LANGS = {
+    L3: { name: "{a, ab, ba} (tahta)", start: "s", acc: ["f"], edges: [["s", "a", "f"], ["s", "a", "x"], ["x", "b", "f"], ["s", "b", "y"], ["y", "a", "f"]],
+      pos: { s: [0, 0.6], x: [1, 0], y: [1, 1.2], f: [2, 0.6] }, has: w => w === "a" || w === "ab" || w === "ba" },
+    BA: { name: "b*a (Exercise 1.15)", start: "q1", acc: ["q2"], edges: [["q1", "b", "q1"], ["q1", "a", "q2"]],
+      pos: { q1: [0, 0.6], q2: [1.3, 0.6] }, has: w => /^b*a$/.test(w) },
+    AB: { name: "ab ile biter", start: "p", acc: ["r"], edges: [["p", "a", "p"], ["p", "b", "p"], ["p", "a", "m"], ["m", "b", "r"]],
+      pos: { p: [0, 0.6], m: [1.2, 0.6], r: [2.4, 0.6] }, has: w => w.endsWith("ab") },
+    EV: { name: "çift uzunluk", start: "e", acc: ["e"], edges: [["e", "a", "o"], ["e", "b", "o"], ["o", "a", "e"], ["o", "b", "e"]],
+      pos: { e: [0, 0.6], o: [1.4, 0.6] }, has: w => w.length % 2 === 0 }
+  };
+  const OPS = { union: "A ∪ B (Theorem 1.45)", concat: "A ∘ B (Theorem 1.47)", star: "A* (Theorem 1.49)", bad: "A* yanlış yapı (Exercise 1.15)" };
+  const opt = o => Object.keys(o).map(k => `<option value="${k}">${esc(o[k].name || o[k])}</option>`).join("");
+  root.innerHTML = `<div class="w-nfa-subset-row"><label>A: <select id="wc-a">${opt(LANGS)}</select></label><label>işlem: <select id="wc-op">${opt(OPS)}</select></label><label id="wc-bl">B: <select id="wc-b">${opt(LANGS)}</select></label></div><div class="w-nfa-subset-diag" id="wc-d"></div><div id="wc-res"></div><div class="w-nfa-subset-chips" id="wc-acc"></div>`;
+  const a = root.querySelector("#wc-a"), b = root.querySelector("#wc-b"), op = root.querySelector("#wc-op");
+  a.value = "BA"; op.value = "bad"; b.value = "AB";
+  const memo = new Map();
+  function inStar(L, w) {
+    const k = L.name + "|" + w;
+    if (memo.has(k)) return memo.get(k);
+    let r = w === "";
+    for (let i = 1; !r && i <= w.length; i++) if (L.has(w.slice(0, i)) && inStar(L, w.slice(i))) r = true;
+    memo.set(k, r);
+    return r;
+  }
+  function build() {
+    const A = LANGS[a.value], B = LANGS[b.value], o = op.value;
+    root.querySelector("#wc-bl").style.display = (o === "union" || o === "concat") ? "" : "none";
+    const ren = (L, tag) => q => q + tag;
+    const rA = ren(A, "₁"), rB = ren(B, "₂");
+    const eA = A.edges.map(([p, s, q]) => [rA(p), s, rA(q)]), eB = B.edges.map(([p, s, q]) => [rB(p), s, rB(q)]);
+    const pA = {}, pB = {};
+    Object.keys(A.pos).forEach(q => { pA[rA(q)] = A.pos[q]; });
+    Object.keys(B.pos).forEach(q => { pB[rB(q)] = B.pos[q]; });
+    let states, start, acc, edges, pos = {}, def;
+    const sA = Object.keys(pA), sB = Object.keys(pB);
+    if (o === "union") {
+      states = ["q0", ...sA, ...sB]; start = "q0"; acc = [...A.acc.map(rA), ...B.acc.map(rB)];
+      edges = [["q0", EPS, rA(A.start)], ["q0", EPS, rB(B.start)], ...eA, ...eB];
+      pos.q0 = [0, 1.5]; sA.forEach(q => { pos[q] = [pA[q][0] + 1.3, pA[q][1] * 0.8]; }); sB.forEach(q => { pos[q] = [pB[q][0] + 1.3, pB[q][1] * 0.8 + 2]; });
+      def = w => A.has(w) || B.has(w);
+    } else if (o === "concat") {
+      states = [...sA, ...sB]; start = rA(A.start); acc = B.acc.map(rB);
+      edges = [...eA, ...eB, ...A.acc.map(f => [rA(f), EPS, rB(B.start)])];
+      const wA = Math.max(...sA.map(q => pA[q][0]));
+      sA.forEach(q => { pos[q] = pA[q]; }); sB.forEach(q => { pos[q] = [pB[q][0] + wA + 1.4, pB[q][1]]; });
+      def = w => { for (let i = 0; i <= w.length; i++) if (A.has(w.slice(0, i)) && B.has(w.slice(i))) return true; return false; };
+    } else if (o === "star") {
+      states = ["q0", ...sA]; start = "q0"; acc = ["q0", ...A.acc.map(rA)];
+      edges = [["q0", EPS, rA(A.start)], ...eA, ...A.acc.map(f => [rA(f), EPS, rA(A.start)])];
+      pos.q0 = [0, A.pos[A.start][1]]; sA.forEach(q => { pos[q] = [pA[q][0] + 1.3, pA[q][1]]; });
+      def = w => inStar(A, w);
+    } else {
+      states = [...sA]; start = rA(A.start); acc = [...new Set([rA(A.start), ...A.acc.map(rA)])];
+      edges = [...eA, ...A.acc.map(f => [rA(f), EPS, rA(A.start)])];
+      sA.forEach(q => { pos[q] = pA[q]; });
+      def = w => inStar(A, w);
+    }
+    const N = NF.build(states, ["a", "b"], start, acc, edges);
+    root.querySelector("#wc-d").innerHTML = NF.draw(NF.graphOf(N), { pos });
+    let total = 0, wrong = [];
+    for (const w of NF.strings(["a", "b"], 8)) { total++; if (NF.accepts(N, w) !== def(w)) wrong.push(w); }
+    const target = o === "union" ? `A ∪ B` : o === "concat" ? `A ∘ B` : `A*`;
+    const fmt = w => w === "" ? "ε" : esc(w);
+    const extra = wrong.filter(w => NF.accepts(N, w)), miss = wrong.filter(w => !NF.accepts(N, w));
+    root.querySelector("#wc-res").innerHTML = `<p class="w-nfa-subset-kv">${states.length} state · start ${esc(start)} · F = {${acc.map(esc).join(", ")}}</p>` + (wrong.length
+      ? `<p class="w-nfa-subset-bad">Tanımla uyuşmuyor: uzunluk ≤ 8'deki ${total} string'in ${wrong.length} tanesinde farklı.${extra.length ? ` Makine kabul ediyor ama ${target} içinde değil: ${extra.slice(0, 6).map(w => `<code>${fmt(w)}</code>`).join(", ")}.` : ""}${miss.length ? ` ${target} içinde ama makine reddediyor: ${miss.slice(0, 6).map(w => `<code>${fmt(w)}</code>`).join(", ")}.` : ""}</p>`
+      : `<p class="w-nfa-subset-ok">Uzunluk ≤ 8'deki ${total} string'in hepsinde makine ile ${target} aynı cevabı veriyor.</p>` + (o === "bad" ? `<p class="w-nfa-subset-small">Bu dilde yanlış yapı fazladan string eklemedi. Yapının yanlış olduğunu göstermek için tek bir karşı örnek dil yeter (Exercise 1.15); A olarak b*a ya da "ab ile biter"i seç.</p>` : ""));
+    Lab.renderMath(root.querySelector("#wc-res"));
+    const acc4 = [];
+    for (const w of NF.strings(["a", "b"], 4)) if (NF.accepts(N, w)) acc4.push(w);
+    root.querySelector("#wc-acc").innerHTML = `<span class="is-on">kabul edilen, uzunluk ≤ 4:</span>` + acc4.map(w => `<span class="${def(w) ? "" : "is-new"}">${fmt(w)}</span>`).join("");
+  }
+  [a, b, op].forEach(s => s.addEventListener("change", build));
+  build();
+})();
+</script>
+</body>
+</html>

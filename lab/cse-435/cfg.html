@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 435: context-free grammar. (V, Σ, R, S), derivation, leftmost derivation, parse tree, hocanın soğan kuralı, aᵏbᵐcⁿ ailesi, union ve DFA'dan CFG, grammar doğrulama, ambiguity ve Chomsky normal form." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Context-free grammar tasarımı, derivation, ambiguity ve CNF · CSE 435 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-cfg-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-cfg-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-cfg-ctl select { max-width: 100%; }
+    .w-cfg-ctl input[type="text"] { min-width: 0; width: 100%; max-width: 220px; font-family: 'JetBrains Mono', monospace; }
+    .w-cfg-ctl input[type="number"] { width: 64px; }
+    .w-cfg-ta { display: block; box-sizing: border-box; width: 100%; max-width: 460px; min-height: 92px; padding: 8px 10px; font-family: 'JetBrains Mono', monospace; font-size: .9rem; line-height: 1.5; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); color: var(--fg); resize: vertical; }
+    .w-cfg-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-cfg-ok { color: #2b8a3e; font-weight: 600; }
+    .w-cfg-bad { color: #c92a2a; font-weight: 600; }
+    .w-cfg-note { font-size: .88rem; color: var(--fg-muted); }
+    .w-cfg-mono { font-family: 'JetBrains Mono', monospace; }
+    .w-cfg-scroll { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+    .w-cfg-svg { display: block; margin: 4px auto; }
+    .w-cfg-svg .w-cfg-edge { stroke: var(--ink-400); stroke-width: 1.3; }
+    .w-cfg-svg .w-cfg-tv { fill: var(--blue-600); font: 700 15px 'JetBrains Mono', monospace; }
+    .w-cfg-svg .w-cfg-tt { fill: var(--fg); font: 700 15px 'JetBrains Mono', monospace; }
+    .w-cfg-svg .w-cfg-te { fill: var(--fg-muted); font: 400 14px 'JetBrains Mono', monospace; }
+    .w-cfg-svg .w-cfg-hi { fill: var(--orange-100); stroke: var(--accent); stroke-width: 1.5; }
+    .w-cfg-svg .w-cfg-open { fill: var(--blue-050); }
+    .w-cfg-form { display: flex; flex-wrap: wrap; gap: 1px; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 1rem; margin: 6px 0; word-break: break-all; }
+    .w-cfg-form span { padding: 1px 3px; border-radius: 3px; }
+    .w-cfg-form .w-cfg-v { color: var(--blue-600); font-weight: 700; }
+    .w-cfg-form .w-cfg-new { background: var(--orange-100); }
+    .w-cfg-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+    .w-cfg-chip { font-family: 'JetBrains Mono', monospace; font-size: .82rem; padding: 1px 7px; border: 1px solid var(--border); border-radius: var(--radius-full); background: var(--paper); }
+    .w-cfg-chip.is-bad { border-color: #c92a2a; background: #fdecec; }
+    .w-cfg-chip.is-miss { border-color: var(--accent); background: var(--orange-100); }
+    .w-cfg-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin: 8px 0; }
+    .w-cfg-card { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px; background: var(--paper); min-width: 0; }
+    .w-cfg-card h4 { margin: 0 0 4px; font-size: .95rem; color: var(--fg-brand); }
+    .w-cfg-der { font-family: 'JetBrains Mono', monospace; font-size: .82rem; line-height: 1.6; word-break: break-all; margin: 4px 0 0; }
+    .w-cfg-gram { font-family: 'JetBrains Mono', monospace; font-size: .92rem; line-height: 1.7; margin: 4px 0; }
+    .w-cfg-gram div { white-space: normal; }
+    .w-cfg-gram .w-cfg-add { color: #2b8a3e; font-weight: 700; }
+    .w-cfg-gram .w-cfg-del { color: var(--fg-faint); text-decoration: line-through; }
+    .w-cfg-badge { display: inline-block; font-size: .82rem; font-weight: 700; border-radius: var(--radius-full); padding: 1px 9px; margin: 4px 0; }
+    .w-cfg-badge.is-ok { color: #fff; background: #2b8a3e; }
+    .w-cfg-badge.is-bad { color: #fff; background: #c92a2a; }
+    .w-cfg-fig { margin: 8px 0; }
+    .w-cfg-figcap { font-size: .85rem; color: var(--fg-muted); text-align: center; margin: 2px 0 0; }
+    .w-cfg-figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+    .w-cfg-pick { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+    .w-cfg-pick .is-on { outline: 2px solid var(--blue-600); }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 435</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 435</a> / Context-free grammar tasarımı, derivation, ambiguity ve CNF</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">Wk 04</span><span class="chip">Sipser 2.1</span><span class="chip chip--exam">Her vizede P4(a)</span><span class="src">~60 dk · 11 bölüm</span></div>
+          <h1>Context-free grammar tasarımı, derivation, ambiguity ve CNF</h1>
+          <p class="lead">Vizenin dördüncü sorusu her yıl aynı kalıpta: "Give the CFG and PDA for …". Bu derste CFG kısmını göreceksin: grammar nedir, bir string nasıl türetilir (<em>derivation</em>, <em>parse tree</em>), hocanın "soğan" kuralıyla bir dil için grammar nasıl kurulur ve yazdığın grammar'ı nasıl kontrol edersin. Sonra <em>ambiguity</em> ve <em>Chomsky normal form</em>. PDA kısmı bir sonraki derste.</p>
+          <p class="src">Not: CFG dersinin (Ekim başı) tahta notu ya da slaytı repoda yok; konu Sipser 2.1, hocanın 26 Ekim tekrar dersindeki 2024 P4(a) tahta çözümü, hocanın sitesindeki grammar aracı ve eski sınav çözümleri üzerinden anlatıldı.</p>
+          <!-- Kaynak: Sipser 3e §2.1 (PDF s.125–135: G1, G2, Def 2.2, Ex 2.3, Ex 2.4, Designing CFGs, Ambiguity, Def 2.7, CNF Def 2.8, Thm 2.9, Ex 2.10), alıştırmalar 2.1, 2.3, 2.4, 2.6, 2.8, 2.9, 2.13–2.17, Problem 2.26, 2.29 (PDF s.178–180), seçili çözümler 2.3, 2.4, 2.6, 2.8 (PDF s.184–185) · exams/README.md "Instructor's midterm review — 26 Oct 2026" PDA / CFG maddeleri (onion kuralı) · resources/2026-2027-fall/2026-10-26-midterm-2024-solved-board.pdf s.4 (hocanın CFG'si ve türetmesi) · exams/2024-midterm-solutions.pdf/.html P4(a) · exams/2023-midterm-solutions.pdf s.2 · exams/2019-midterm-solutions.pdf s.2 · exams/2020-midterm.pdf P4 · weeks/05-context-free-grammars.md (Efe'nin not kısmı boş) · hocanın sitesindeki "Grammars generate" aracı (muratakcs.github.io/cse435/cfg.html). Bütün grammar'lar python3 ve sayfadaki motorla uzunluk 8–12'ye kadar brute force kontrol edildi. 2022 vizesi deneme sınavı için ayrıldı ve kullanılmadı. -->
+        </header>
+
+        <article class="lesson" data-course="cse-435" data-lesson="cfg">
+
+<!-- 1 -->
+<section class="lsec" id="uretmek" data-min="5">
+  <h2>Makine okur, grammar üretir</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · okumak yerine üretmek</span>
+    <p>Şimdiye kadar gördüğün DFA ve NFA bir string'i <strong>okur</strong> ve sonunda "kabul" ya da "red" der. Grammar tersini yapar: string <strong>üretir</strong>. Hocanın sitesindeki cümle: "A machine reads a string and answers. A grammar does the opposite: it produces strings, and the record of how it produced one is a parse tree."</p>
+    <p>Bir önceki derste $\{0^n1^n \mid n \ge 0\}$'ın regular olmadığını gördün: hiçbir DFA onu tanıyamaz. Bir grammar ile iki satır yeter.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Sipser'in $G_1$'i</span>
+    $$A \to 0A1 \qquad A \to B \qquad B \to \#$$
+    <p>Her satır bir <strong>substitution rule</strong> (kısaca <em>rule</em>, ya da <em>production</em>). Okun solunda bir <strong>variable</strong> var (büyük harf). Sağda variable'lardan ve <strong>terminal</strong>'lerden oluşan bir string var. Terminal'ler alfabenin harfleri gibidir (küçük harf, rakam, $\#$ gibi semboller). Variable'lardan biri <strong>start variable</strong>: aksi söylenmedikçe en üstteki kuralın solundaki, burada $A$.</p>
+    <p>Grammar bir string'i şöyle üretir:</p>
+    <ol>
+      <li>Start variable'ı yaz.</li>
+      <li>Yazılı bir variable seç ve o variable ile başlayan bir kuralın sağ tarafını onun yerine koy.</li>
+      <li>Hiç variable kalmayana kadar 2. adımı tekrarla.</li>
+    </ol>
+    <p>$000\#111$ böyle üretilir. Bu adımlar dizisine <strong>derivation</strong> denir:</p>
+    $$A \Rightarrow 0A1 \Rightarrow 00A11 \Rightarrow 000A111 \Rightarrow 000B111 \Rightarrow 000\#111$$
+    <p>Aynı bilgiyi gösteren resim <strong>parse tree</strong>: kök start variable, her iç düğüm bir kural uygulaması, yapraklar soldan sağa okununca string çıkıyor.</p>
+    <div class="w-cfg-fig" data-g="A -> 0A1 | B\nB -> #" data-w="000#111"></div>
+    <p class="w-cfg-figcap">$G_1$'de $000\#111$'in parse tree'si (Sipser Figure 2.1)</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Sözlük</span>
+    <ul>
+      <li><strong>$L(G)$</strong>: grammar'ın bu şekilde üretebildiği bütün string'ler, yani <em>language of the grammar</em>. Biraz deneyince $L(G_1) = \{0^n\#1^n \mid n \ge 0\}$ çıkar.</li>
+      <li><strong>Context-free language (CFL)</strong>: bir context-free grammar'ın ürettiği dil.</li>
+      <li>Aynı sol taraflı kuralları "|" (or) ile tek satırda yazarsın: $A \to 0A1 \mid B$.</li>
+    </ul>
+    <p>Grammar'lar önce insan dillerini incelemek için kullanıldı. Sipser'in $G_2$'si İngilizcenin küçük bir parçasını üretir ($\langle\text{SENTENCE}\rangle \to \langle\text{NOUN-PHRASE}\rangle\langle\text{VERB-PHRASE}\rangle$, …) ve "a boy sees", "the boy sees a flower" gibi cümleler çıkarır. Programlama dillerinin sözdizimi de grammar ile yazılır; compiler'ın <em>parser</em> kısmı kodun parse tree'sini çıkarır.</p>
+  </div>
+  <!-- Kaynak: Sipser §2.1 giriş (PDF s.125–127): G1, üretme prosedürü, 000#111 derivation'ı, Figure 2.1, L(G1), CFL tanımı, "|" kısaltması, G2. Hocanın sitesi: "Grammars generate" lede. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İçinde hâlâ variable olan bir string ($00A11$ gibi) $L(G)$'de değildir. Bu sadece bir ara adım.</li>
+      <li>Kuralda tek çizgili ok ($A \to 0A1$), derivation'da çift çizgili ok ($A \Rightarrow 0A1$) kullanılır.</li>
+      <li>$G_1$'de bir derivation ancak $B \to \#$ ile bitebilir. O yüzden $\#$ içermeyen hiçbir string, örneğin $0011$, $L(G_1)$'de değil.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-uretmek">
+    <p class="quiz__q">Hangisi $L(G_1)$'in elemanı?</p>
+    <button class="quiz__opt" data-correct>$00\#11$<span class="why">Doğru. $A \Rightarrow 0A1 \Rightarrow 00A11 \Rightarrow 00B11 \Rightarrow 00\#11$.</span></button>
+    <button class="quiz__opt">$0\#11$<span class="why">$A \to 0A1$ her seferinde bir 0 ve bir 1'i <em>birlikte</em> ekler. 0 ve 1 sayıları farklı olamaz.</span></button>
+    <button class="quiz__opt">$0011$<span class="why">Derivation'ı bitirmenin tek yolu $B \to \#$. $\#$ olmadan variable'dan kurtulamazsın.</span></button>
+    <button class="quiz__opt">$00A11$<span class="why">İçinde variable var. Bu bir ara adım; $L(G)$ sadece terminal'lerden oluşan string'leri içerir.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="tanim" data-min="5">
+  <h2>Formal tanım: (V, Σ, R, S)</h2>
+  <p>Sınav kapalı kitap varsayılıyor. Aşağıdaki tanımı kendi cümlelerinle yazabilmelisin; dört parçanın adını bil.</p>
+  <div class="box box--rule">
+    <span class="box__label">Definition 2.2 (Sipser)</span>
+    <p><strong>A context-free grammar is a 4-tuple $(V, \Sigma, R, S)$, where</strong></p>
+    <ol>
+      <li><strong>$V$ is a finite set called the variables,</strong></li>
+      <li><strong>$\Sigma$ is a finite set, disjoint from $V$, called the terminals,</strong></li>
+      <li><strong>$R$ is a finite set of rules, with each rule being a variable and a string of variables and terminals, and</strong></li>
+      <li><strong>$S \in V$ is the start variable.</strong></li>
+    </ol>
+    <p>If $u$, $v$, and $w$ are strings of variables and terminals, and $A \to w$ is a rule of the grammar, we say that $uAv$ <strong>yields</strong> $uwv$, written $uAv \Rightarrow uwv$. Say that $u$ <strong>derives</strong> $v$, written $u \overset{*}{\Rightarrow} v$, if $u = v$ or if a sequence $u_1, u_2, \dots, u_k$ exists for $k \ge 0$ and $u \Rightarrow u_1 \Rightarrow u_2 \Rightarrow \dots \Rightarrow u_k \Rightarrow v$.</p>
+    <p>The language of the grammar is $\{w \in \Sigma^* \mid S \overset{*}{\Rightarrow} w\}$.</p>
+  </div>
+  <p>$G_1$'de $V = \{A, B\}$, $\Sigma = \{0, 1, \#\}$, $S = A$ ve $R$ üç kuraldan oluşuyor. Pratikte sadece kurallar yazılır. Variable'lar kuralların solunda görünen semboller, terminal'ler geri kalanlar, start variable ilk kuralın solundaki. Hocanın sitesindeki araç da grammar'ı böyle okuyor: "A symbol is a variable exactly when it appears on some left-hand side."</p>
+  <div class="box box--example">
+    <span class="box__label">Örnek 2.3 · $G_3$</span>
+    <p>$G_3 = (\{S\}, \{a, b\}, R, S)$ ve $R$: $\;S \to aSb \mid SS \mid \varepsilon$.</p>
+    <p>$abab$, $aaabbb$, $aababb$ gibi string'ler üretir. $a$'yı "(" ve $b$'yi ")" diye okursan $L(G_3)$, düzgün iç içe geçmiş parantezlerin dili olur. Bir kuralın sağ tarafı $\varepsilon$ olabilir.</p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Neden "context-free"?</span>
+    <p>Her kuralın solunda <strong>tek bir variable</strong> var. O variable'ı değiştirirken etrafında ne olduğuna (context'ine) bakmazsın: $A$ nerede durursa dursun aynı kurallar uygulanır.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$\Rightarrow$ tek adım, $\overset{*}{\Rightarrow}$ sıfır ya da daha fazla adım. $T \overset{*}{\Rightarrow} T$ her zaman doğru (sıfır adım). $T \Rightarrow T$ ise ancak grammar'da $T \to T$ diye bir kural varsa doğru.</li>
+      <li>$V$ ve $\Sigma$ ayrık: bir sembol hem variable hem terminal olamaz.</li>
+      <li>$L(G)$'nin elemanları $\Sigma^*$'dan, yani sadece terminal'lerden oluşur.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.3"><span class="box__label">Sipser Exercise 2.3 · kitap alıştırması</span>
+    <p>"Answer each part for the following context-free grammar G.<br />$R \to XRX \mid S$<br />$S \to aTb \mid bTa$<br />$T \to XTX \mid X \mid \varepsilon$<br />$X \to a \mid b$<br />a. What are the variables of G? b. What are the terminals of G? c. Which is the start variable of G? d. Give three strings in L(G). e. Give three strings not in L(G). f. True or False: $T \Rightarrow aba$. g. True or False: $T \overset{*}{\Rightarrow} aba$. h. True or False: $T \Rightarrow T$. i. True or False: $T \overset{*}{\Rightarrow} T$. j. True or False: $XXX \overset{*}{\Rightarrow} aba$. k. True or False: $X \overset{*}{\Rightarrow} aba$. l. True or False: $T \overset{*}{\Rightarrow} XX$. m. True or False: $T \overset{*}{\Rightarrow} XXX$. n. True or False: $S \overset{*}{\Rightarrow} \varepsilon$. o. Give a description in English of L(G)."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(f)–(n)'de önce okun türüne bak: tek adım mı, çok adım mı? Tek adımda $T$'nin yerine ancak $XTX$, $X$ ya da $\varepsilon$ gelebilir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(o) için: $S$ ortada $a\,\dots\,b$ ya da $b\,\dots\,a$ koyar, $R$ ise iki yana eşit sayıda herhangi sembol ekler. Simetrik iki konumda farklı harf ne demek?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol type="a">
+        <li>$R, X, S, T$</li>
+        <li>$a, b$</li>
+        <li>$R$ (ilk kuralın solu)</li>
+        <li>$ab$, $ba$, $aab$. Örneğin $R \Rightarrow S \Rightarrow aTb \Rightarrow aXb \Rightarrow aab$.</li>
+        <li>$a$, $b$, $\varepsilon$ (her string'de $S$'nin koyduğu iki harf var, en kısa string'in uzunluğu 2)</li>
+        <li>False: tek adımda $T$ sadece $XTX$, $X$ ya da $\varepsilon$ olur.</li>
+        <li>True: $T \Rightarrow XTX \Rightarrow aTX \Rightarrow aXX \Rightarrow abX \Rightarrow aba$.</li>
+        <li>False: $T \to T$ diye bir kural yok.</li>
+        <li>True: sıfır adım.</li>
+        <li>True: her $X$'i ayrı ayrı $a$, $b$, $a$ yap.</li>
+        <li>False: $X$ sadece tek harf üretir.</li>
+        <li>True: $T \Rightarrow XTX \Rightarrow XX$.</li>
+        <li>True: $T \Rightarrow XTX \Rightarrow XXX$.</li>
+        <li>False: $S$'nin iki kuralı da iki terminal koyar.</li>
+        <li>$L(G)$, $\{a,b\}$ üzerindeki palindrome <strong>olmayan</strong> string'lerdir. $S$ ortada bir yerde simetrik iki konuma farklı harf koyar, $R$ iki yana aynı uzunlukta herhangi bir şey ekler.</li>
+      </ol>
+      <p>Cevaplar Sipser'in seçili çözümleriyle aynı. (o) brute force ile kontrol edildi: uzunluğu 11'e kadar her string için "$G$ üretiyor" ile "palindrome değil" aynı sonucu veriyor.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.3 (PDF s.179) ve seçili çözümü (PDF s.184). Yıldızlı oklar (f hariç g–n) PDF düzeninden okundu; seçili çözümle tutarlı. -->
+  </div>
+  <div class="quiz" id="q-tanim">
+    <p class="quiz__q">$G_3$ ($S \to aSb \mid SS \mid \varepsilon$) için hangisi doğru?</p>
+    <button class="quiz__opt" data-correct>$aSb \Rightarrow aaSbb$<span class="why">Doğru. Tek bir adım: ortadaki $S$'nin yerine $aSb$ kondu ($u = a$, $v = b$).</span></button>
+    <button class="quiz__opt">$S \Rightarrow aabb$<span class="why">$\Rightarrow$ tek adım demek. Tek adımda $S$ sadece $aSb$, $SS$ ya da $\varepsilon$ olur. Doğrusu $S \overset{*}{\Rightarrow} aabb$.</span></button>
+    <button class="quiz__opt">$aSb \in L(G_3)$<span class="why">İçinde variable var. $L(G)$ sadece $\Sigma^*$'taki string'leri içerir.</span></button>
+    <button class="quiz__opt">$abba \in L(G_3)$<span class="why">Parantez gibi oku: "())(" ikinci sembolden sonra kapanan parantez fazla. Bu string üretilemez.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="leftmost" data-min="6">
+  <h2>Leftmost derivation ve parse tree</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · aynı tree, farklı sıra</span>
+    <p>Bir string'in genelde birden çok derivation'ı vardır, çünkü her adımda hangi variable'ı değiştireceğini sen seçersin. $G_3$'te $abab$:</p>
+    $$S \Rightarrow SS \Rightarrow aSbS \Rightarrow abS \Rightarrow abaSb \Rightarrow abab$$
+    $$S \Rightarrow SS \Rightarrow SaSb \Rightarrow Sab \Rightarrow aSbab \Rightarrow abab$$
+    <p>İkisi de aynı parse tree'yi çizer: kökte $S \to SS$, iki çocuk da $S \to aSb$, en içte $S \to \varepsilon$. Sadece hangi dalı önce açtığın farklı.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Leftmost derivation (Sipser)</span>
+    <p><strong>"A derivation of a string $w$ in a grammar $G$ is a leftmost derivation if at every step the leftmost remaining variable is the one replaced."</strong></p>
+    <p>Yukarıdaki ilk derivation leftmost, ikincisi değil (ikinci adımda sağdaki $S$ açıldı). Her parse tree'nin <strong>tam olarak bir</strong> leftmost derivation'ı vardır: tree'yi yukarıdan aşağı, her zaman en soldaki açılmamış variable'dan açarsın.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek 2.4 · $G_4$, aritmetik ifadeler</span>
+    <p>Sipser Exercise 2.1'deki kısa adlarla: $\;E \to E{+}T \mid T,\quad T \to T{\times}F \mid F,\quad F \to (E) \mid a$.</p>
+    <p>$a{+}a{\times}a$'nın parse tree'sinde $\times$ ve onun iki $a$'sı, $+$'nın tek bir operand'ı olarak gruplanır. Yani tree, "önce çarpma" kuralını taşır. $(a{+}a){\times}a$'da gruplama tersine döner. Grammar bu precedence'ı bilerek kodluyor.</p>
+  </div>
+  <h3>Türetme adım adım</h3>
+  <p>Bir grammar seç ya da kendin yaz (hocanın aracındaki yazımla: <code>S -&gt; a S b | eps</code>; boşluksuz sağ taraf harf harf okunur). String'i yaz ve "Türet"e bas. Sayfa grammar'ın bu uzunluktaki bütün türetmelerini gerçekten hesaplıyor, bir parse tree buluyor ve leftmost derivation'ı kare kare oynatıyor. String'in iki farklı parse tree'si varsa ikisini de seçebilirsin. Klavyede $\times$ yerine <code>*</code> yaz.</p>
+  <p class="w-cfg-guess"><b>Önce tahmin et:</b> $G_4$'te $a{+}a{\times}a$'nın leftmost derivation'ı kaç adım sürer? İlk adım $E \Rightarrow E{+}T$ mi, $E \Rightarrow T$ mi?</p>
+  <div class="w-cfg-ctl">
+    <label>Grammar: <select id="w-dv-preset" class="btn btn--sm"></select></label>
+  </div>
+  <textarea id="w-dv-g" class="w-cfg-ta" rows="4" spellcheck="false" aria-label="Grammar kuralları"></textarea>
+  <div class="w-cfg-ctl">
+    <label>w = <input id="w-dv-w" type="text" autocomplete="off" spellcheck="false" class="btn btn--sm" /></label>
+    <button class="btn btn--sm btn--accent" id="w-dv-go">Türet</button>
+  </div>
+  <div class="w-cfg-err" id="w-dv-err" aria-live="polite"></div>
+  <div class="w-cfg-pick" id="w-dv-pick"></div>
+  <div id="w-dv-st"></div>
+  <!-- Kaynak: hocanın sitesindeki grammar aracı (leftmost derivation araması, parse tree 1/2, "eps" yazımı) fikrinden. Bu sayfadaki motor türetmeleri sınırsız arama yerine uzunluk ≤ |w| için tam hesaplıyor; python karşılığıyla aynı sonuçları verdi. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Leftmost" her adımda en soldaki <em>variable</em>'ın değiştirilmesi demek; en soldaki terminal'in önce üretilmesi değil.</li>
+      <li>İki farklı derivation, iki farklı parse tree demek değil (yukarıdaki $abab$). Ambiguity'yi (Bölüm 8) parse tree'lerle ya da leftmost derivation'larla sayarız.</li>
+      <li>$\varepsilon$-kuralı parse tree'de bir $\varepsilon$ yaprağı olarak çizilir. Yaprakları okurken $\varepsilon$'ları atlarsın.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.1"><span class="box__label">Sipser Exercise 2.1 · kitap alıştırması</span>
+    <p>"Recall the CFG $G_4$ that we gave in Example 2.4. For convenience, let's rename its variables with single letters as follows. $E \to E{+}T \mid T$, $T \to T{\times}F \mid F$, $F \to (E) \mid a$. Give parse trees and derivations for each string. a. $a$ b. $a{+}a$ c. $a{+}a{+}a$ d. $((a))$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her $+$ bir $E \to E{+}T$ uygulamasından gelir. Kaç tane $+$ varsa o kadar kez bu kuralı kullanırsın.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her parantez çifti $F \to (E)$'den gelir. İçeride yeniden $E$'den başlarsın: $E \Rightarrow T \Rightarrow F$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Leftmost derivation'lar:</p>
+      <ol type="a">
+        <li>$E \Rightarrow T \Rightarrow F \Rightarrow a$</li>
+        <li>$E \Rightarrow E{+}T \Rightarrow T{+}T \Rightarrow F{+}T \Rightarrow a{+}T \Rightarrow a{+}F \Rightarrow a{+}a$</li>
+        <li>$E \Rightarrow E{+}T \Rightarrow E{+}T{+}T \Rightarrow T{+}T{+}T \Rightarrow F{+}T{+}T \Rightarrow a{+}T{+}T \Rightarrow a{+}F{+}T \Rightarrow a{+}a{+}T \Rightarrow a{+}a{+}F \Rightarrow a{+}a{+}a$</li>
+        <li>$E \Rightarrow T \Rightarrow F \Rightarrow (E) \Rightarrow (T) \Rightarrow (F) \Rightarrow ((E)) \Rightarrow ((T)) \Rightarrow ((F)) \Rightarrow ((a))$</li>
+      </ol>
+      <p>Parse tree'ler (sayfadaki motor çizdi; dördünün de tek parse tree'si var):</p>
+      <div class="w-cfg-figs">
+        <div><div class="w-cfg-fig" data-g="E -> E+T | T\nT -> T*F | F\nF -> (E) | a" data-w="a"></div><p class="w-cfg-figcap">(a) $a$</p></div>
+        <div><div class="w-cfg-fig" data-g="E -> E+T | T\nT -> T*F | F\nF -> (E) | a" data-w="a+a"></div><p class="w-cfg-figcap">(b) $a{+}a$</p></div>
+        <div><div class="w-cfg-fig" data-g="E -> E+T | T\nT -> T*F | F\nF -> (E) | a" data-w="a+a+a"></div><p class="w-cfg-figcap">(c) $a{+}a{+}a$</p></div>
+        <div><div class="w-cfg-fig" data-g="E -> E+T | T\nT -> T*F | F\nF -> (E) | a" data-w="((a))"></div><p class="w-cfg-figcap">(d) $((a))$</p></div>
+      </div>
+      <p>(c)'de ilk $E \to E{+}T$ en sağdaki $+$'yı üretir: tree sola doğru büyür, yani $(a{+}a){+}a$ diye gruplar.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.1 (PDF s.178), Example 2.4 ve Figure 2.5 (PDF s.129). Kitapta seçili çözüm yok; derivation'lar sayfadaki motorla üretildi. -->
+  </div>
+  <div class="quiz" id="q-leftmost">
+    <p class="quiz__q">$G_3$'te $S \Rightarrow SS \Rightarrow SaSb \Rightarrow \dots$ neden leftmost derivation değil?</p>
+    <button class="quiz__opt" data-correct>İkinci adımda sağdaki $S$ değişti, solda hâlâ bir $S$ vardı<span class="why">Doğru. Leftmost'ta her adımda en soldaki variable değişir; burada ikinci adım sağdakini açtı.</span></button>
+    <button class="quiz__opt">Leftmost derivation $S \to SS$ ile başlayamaz<span class="why">İlk adımda tek variable var, hangi kuralı uygularsan uygula o adım leftmost. Sorun kural seçiminde değil, hangi variable'ın değiştiğinde.</span></button>
+    <button class="quiz__opt">$S \to aSb$ sağ tarafta terminal ürettiği için leftmost olamaz<span class="why">Leftmost tanımı hangi variable'ın değiştiğine bakar, kuralın ne ürettiğine değil.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="sogan" data-min="6">
+  <h2>Soğan kuralı: dıştan içe eşleştir</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · hocanın soğanı</span>
+    <p>Hoca 26 Ekim'de CFG yazmayı şöyle anlattı: string'i bir soğan gibi oku; <strong>önce en dış katmanı eşleştir, sonra içeri gir</strong>. Stack gibi: en son açılan, ilk kapanır (last in, first out).</p>
+    <p>$\{0^n1^n\}$'da en dış katman ilk 0 ile son 1. Onları birlikte koy, içeride aynı dilden daha kısa bir string kalsın: $S \to 0S1 \mid \varepsilon$.</p>
+    <p>Sipser aynı fikri şöyle söyler: bir makinenin bir parçayı hatırlayıp öbürüyle karşılaştırması gerekiyorsa ("linked" parçalar), $R \to uRv$ biçiminde bir kural kullan. Bu kural $u$'ların bulunduğu kısmın $v$'lerin bulunduğu kısımla eşleştiği string'ler üretir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tarif</span>
+    <ol>
+      <li>String'in şeklini yaz ($0^n\,w\,w^R\,1^n$ gibi).</li>
+      <li>En dış katmanı bul: en soldaki ve en sağdaki semboller birbirine bağlı mı? Bağlıysa $S \to uSv$.</li>
+      <li>Katman bitince içerideki kısım için yeni bir variable'a geç: $S \to \dots \mid E$.</li>
+      <li>En içte ne kalıyor: $\varepsilon$ mu, tek bir orta sembol mü?</li>
+    </ol>
+    <div class="table-wrap"><table>
+      <tr><th>Dil</th><th>Grammar</th><th>En iç</th></tr>
+      <tr><td>$\{0^n1^n \mid n \ge 0\}$</td><td>$S \to 0S1 \mid \varepsilon$</td><td>$\varepsilon$</td></tr>
+      <tr><td>$\{ww^R\}$ (çift uzunluklu palindrome)</td><td>$S \to 0S0 \mid 1S1 \mid \varepsilon$</td><td>$\varepsilon$</td></tr>
+      <tr><td>Bütün palindrome'lar (Exercise 2.4e)</td><td>$S \to 0S0 \mid 1S1 \mid 0 \mid 1 \mid \varepsilon$</td><td>$\varepsilon$ ya da tek sembol</td></tr>
+      <tr><td>Tek uzunluk, ortası 0 (Exercise 2.4d)</td><td>$S \to 0 \mid 0S0 \mid 0S1 \mid 1S0 \mid 1S1$</td><td>$0$</td></tr>
+    </table></div>
+    <p>Son satırda dış katmanlar <em>bağlı değil</em>: solda ve sağda herhangi bir sembol olabilir, sadece sayıları eşit. Orta sembolün yerini bu eşitlik belirler.</p>
+  </div>
+  <!-- Kaynak: exams/README.md 26 Oct review "CFGs: read the string like an onion — match the outermost layer first, then go inward (stack = last in, first out)" · Sipser "Designing CFGs" üçüncü teknik (PDF s.131) · Exercise 2.4(d),(e) (seçili çözüm 2.4d, PDF s.184). Hepsi brute force ile kontrol edildi. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$S \to 0S0 \mid 1S1 \mid \varepsilon$ sadece <strong>çift</strong> uzunluklu palindrome üretir. Tek uzunluk için orta sembol kuralları ($\mid 0 \mid 1$) gerekir.</li>
+      <li>Katman bitince aynı variable'da kalmak. $\{0^nww^R1^n\}$ için $S \to 0S1 \mid 0S0 \mid 1S1 \mid \varepsilon$ yazarsan katmanlar karışır: $S \Rightarrow 1S1 \Rightarrow 10S11 \Rightarrow 1011$ çıkar, ama $1011$ dilde değil.</li>
+      <li>Uzunluğu 1 olan string'leri unutmak. "İlk, orta ve son sembol aynı" dilinde $0$ ve $1$ de var.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="2023-mid-P4a"><span class="box__label">2023 vizesi P4(a) · çıkmış soru</span>
+    <p>"[In the questions below, $w^R$ denotes the reverse of $w$, meaning $w$ written backwards.] P4 [15+15 points] Let $L = \{0^nww^R1^n \mid n \ge 0, w \in \{0,1\}^*\}$. For example, $0010000111 \in L$. (a) Write CFG for L (b) Draw a PDA for L" (burada sadece (a); PDA bir sonraki derste)</p>
+    <p class="src">Not: exams/README.md'deki tablo bu soruyu "(see paper)" diye bırakıyor. Kâğıttaki dil $\{0^nww^R1^n\}$.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>En dış katman: soldaki 0'lar ve sağdaki 1'ler, sayıları eşit. Bunlar bitince içeride ne kalıyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İçerideki $ww^R$ çift uzunluklu bir palindrome. Onun için ikinci bir variable kullan.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$S \to 0S1 \mid E$<br />$E \to 0E0 \mid 1E1 \mid \varepsilon$</p>
+      <p>$S$ dıştaki $0^n \dots 1^n$ katmanını üretir: her adımda soldan bir 0, sağdan bir 1. $E$ içteki $ww^R$'yi üretir: her adımda iki uca aynı sembolü koyar, $\varepsilon$ ile biter. Böylece $S \overset{*}{\Rightarrow} 0^n E 1^n \overset{*}{\Rightarrow} 0^n ww^R 1^n$.</p>
+      <p>Kontrol, örnekteki string ($n = 2$, $w = 100$):</p>
+      $$S \Rightarrow 0S1 \Rightarrow 00S11 \Rightarrow 00E11 \Rightarrow 001E111 \Rightarrow 0010E0111 \Rightarrow 00100E00111 \Rightarrow 0010000111$$
+      <p>Dilde olmayan $10$ üretilemez: $0$ ile başlamadığı için ilk kural $S \to E$ olmalı, $E$ ise sadece palindrome üretir.</p>
+      <p>Repodaki çözüm (bir öğrencinin cevabı) aynı grammar'ı veriyor ve doğru: uzunluk 12'ye kadar bütün string'lerde dil ile birebir aynı, ayrıca hiçbir string'in iki parse tree'si yok.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2023-midterm-solutions.pdf" target="_blank" rel="noopener">Orijinal soru ve öğrenci çözümü (s.2)</a></p>
+    <!-- Kaynak: exams/2023-midterm-solutions.pdf s.2 (el yazısı: S→0S1|E, E→0E0|1E1|ε). Brute force: uzunluk ≤ 12, fark yok, ambiguous string yok. -->
+  </div>
+  <div class="box box--exam" data-exam="2020-mid-P4a"><span class="box__label">2020 vizesi P4(a) · çıkmış soru</span>
+    <p>"P4 [25 points] For each of the languages below, decide whether they are context-free or not. If yes, give a context-free grammar and a pushdown automata for the following languages. Otherwise prove that it is not context-free. (Do not forget that PDAs can be non-deterministic.) (a) Binary strings of odd length where the first, middle and last symbols are the same." (burada sadece CFG kısmı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Uzunluk 1 ise tek sembol üçü birden. Uzunluk 3 ya da fazlaysa ilk ve son sembol aynı $c$; onları dış katman olarak koy. İçeride ne kalıyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İlk ve son sembolü silersen orta sembol yerinde kalır. İçerisi "tek uzunluklu ve ortası $c$" olan bir string: Exercise 2.4(d)'nin grammar'ı.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Dil context-free. Grammar:</p>
+      <p>$S \to 0P0 \mid 1Q1 \mid 0 \mid 1$<br />$P \to XPX \mid 0$<br />$Q \to XQX \mid 1$<br />$X \to 0 \mid 1$</p>
+      <p>$P$, ortası 0 olan tek uzunluklu string'leri üretir ($Q$ aynısını 1 için): her adımda iki uca herhangi birer sembol, sonunda ortaya 0. $S$ bunun etrafına aynı sembolü koyar: $0P0$ ilk, orta ve son sembolü 0 yapar. Uzunluk 1 için $S \to 0 \mid 1$.</p>
+      <p>Kontrol: $01000$ dilde (ilk 0, orta 0, son 0):</p>
+      $$S \Rightarrow 0P0 \Rightarrow 0XPX0 \Rightarrow 01PX0 \Rightarrow 010X0 \Rightarrow 01000$$
+      <p>$010$ dilde değil (ortası 1): $S \to 0P0$ ile başlamak gerekir, ama $P$ tek sembol olarak sadece $0$ verir.</p>
+      <p>Bu kâğıdın çözümü repoda yok. Grammar brute force ile uzunluk 11'e kadar kontrol edildi. (c) şıkkı ($m$ divides $n$) context-free değil; ona CFL pumping lemma dersinde döneceğiz.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2020-midterm.pdf" target="_blank" rel="noopener">Orijinal soru (2020 vizesi)</a></p>
+    <!-- Kaynak: exams/2020-midterm.pdf P4(a) (boş kâğıt, anahtar yok). Grammar bu ders için yazıldı; uzunluk ≤ 11 brute force. -->
+  </div>
+  <div class="quiz" id="q-sogan">
+    <p class="quiz__q">$\{a^nb^{2n} \mid n \ge 0\}$ için hangi grammar doğru?</p>
+    <button class="quiz__opt" data-correct>$S \to aSbb \mid \varepsilon$<span class="why">Doğru. Dış katman: bir $a$ solda, iki $b$ sağda. Her adım oranı korur.</span></button>
+    <button class="quiz__opt">$S \to aSb \mid bb \mid \varepsilon$<span class="why">$S \Rightarrow aSb \Rightarrow ab$ çıkar: bir $a$, bir $b$. Katman başına iki $b$ gerekirken bir $b$ koyuyorsun.</span></button>
+    <button class="quiz__opt">$S \to aS \mid Sbb \mid \varepsilon$<span class="why">$a$'lar ve $b$'ler ayrı ayrı ekleniyor, birbirine bağlı değil: $S \Rightarrow aS \Rightarrow a$ çıkar. Bağlı parçalar aynı kuralda üretilmeli.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="sayma" data-min="6">
+  <h2>Sayıyı katmanlara böl: aᵏbᵐcⁿ ailesi</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · 2024 P4(a), hocanın tahtası</span>
+    <p>P4'te sık gelen kalıp: $a^kb^mc^n$ biçiminde bir dil ve sayılar arasında doğrusal bir şart. Hoca 26 Ekim'de 2024 P4(a)'yı ($k \ge m + n$) şöyle çözdü: $k$'yı parçalara böl. $k \ge m + n$ demek, bir $e \ge 0$ için $k = n + m + e$ demek.</p>
+    $$\underbrace{a^n}_{c\text{'lerle}}\;\underbrace{a^m}_{b\text{'lerle}}\;\underbrace{a^e}_{\text{fazla}}\;b^m\;c^n$$
+    <p>Soğan gibi oku: en dış katman soldaki $a$'lar ile en sağdaki $c$'ler. Onun içinde $a$'lar ile $b$'ler. En içte fazladan $a$'lar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Hocanın grammar'ı (2024 P4a)</span>
+    <p>$S \to aSc \mid B \qquad$ her $c$ için bir $a$ (en dış katman)<br />$B \to aBb \mid A \qquad$ her $b$ için bir $a$<br />$A \to aA \mid \varepsilon \qquad$ fazladan $a$'lar ($k - m - n \ge 0$)</p>
+    <p>Tahtadaki kontrol: $S \overset{*}{\Rightarrow} aaa\,B\,ccc \overset{*}{\Rightarrow} aaa\,aa\,A\,bb\,ccc \Rightarrow aaaaabbccc$ ve $S \Rightarrow B \Rightarrow A \Rightarrow \varepsilon$, yani $\varepsilon \in L$ ($k = m = n = 0$).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Genel tarif</span>
+    <ul>
+      <li>Sayıyı bir toplam olarak yaz ($k = n + m + e$).</li>
+      <li>Her terim bir katman, her katman bir variable. Katmanların sırası string'deki konumlarla aynı: en dışta kalan harfler en dış katman.</li>
+      <li>Eşitsizlik ($\ge$, $\le$) bir "fazlalık" katmanı ister: sadece bir tarafı üreten kural ($A \to aA \mid \varepsilon$).</li>
+      <li>Bir oran aralığı ($m \le n \le 3m$) aynı katmanda birkaç seçenek demek ($aSb \mid aSbb \mid aSbbb$).</li>
+    </ul>
+  </div>
+  <!-- Kaynak: resources/2026-2027-fall/2026-10-26-midterm-2024-solved-board.pdf s.4 (S→aSc|B, B→aBb|A, A→aA|ε; "S → aaa B ccc", "aaa aa A bb ccc", "S→B→A→ε") · exams/README.md 26 Oct review · exams/2024-midterm-solutions.pdf P4(a). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>$S \to aSbc$</strong>: $b$'ler ve $c$'ler sırayla karışır, $aabcbc$ çıkar. Bir kural sadece string'in iki ucuna sembol eklemeli; ortaya iki farklı harf koymamalı.</li>
+      <li><strong>Fazlalık katmanını unutmak</strong>: $A$ olmadan ($B \to aBb \mid \varepsilon$) grammar sadece $k = m + n$'yi üretir. $aab$ ($k = 2$, $m = 1$, $n = 0$) dilde ama üretilmez.</li>
+      <li><strong>Katman sırasını ters kurmak</strong>: $S \to aSb \mid B$, $B \to aBc \mid A$ yazarsan $c$'ler $b$'lerin soluna düşer ve $aacb$ gibi string'ler çıkar. En sağdaki harf ($c$) en dış katmanda olmalı.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="2024-mid-P4a"><span class="box__label">2024 vizesi P4(a) · çıkmış soru</span>
+    <p>"P4 [30 points] Give the CFG and PDA for the following language: $\{a^kb^mc^n \mid k, m, n \ge 0, k \ge m + n\}$ CFG(15pts): PDA(15pts):" (burada sadece CFG kısmı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$k$'yı üç parçaya böl: $c$'lerle eşleşen $a$'lar, $b$'lerle eşleşen $a$'lar ve fazlası.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Hangi harf string'in en sağında? O harfle eşleşen $a$'lar en dış katman. Her katman için bir variable yaz.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Kâğıda yazılacak cevap:</p>
+      <p>$S \to aSc \mid B$ &nbsp;(one $a$ for every $c$)<br />$B \to aBb \mid A$ &nbsp;(one $a$ for every $b$)<br />$A \to aA \mid \varepsilon$ &nbsp;(extra $a$'s, $k - m - n \ge 0$)</p>
+      <p>$S$ generates $a^{n+m+e}b^mc^n$ with $e \ge 0$, which is exactly $L$.</p>
+      <p>Kontrol: $k = 5$, $m = 2$, $n = 3$ için leftmost derivation:</p>
+      $$S \Rightarrow aSc \Rightarrow aaScc \Rightarrow aaaSccc \Rightarrow aaaBccc \Rightarrow aaaaBbccc \Rightarrow aaaaaBbbccc \Rightarrow aaaaaAbbccc \Rightarrow aaaaabbccc$$
+      <p>$\varepsilon$: $S \Rightarrow B \Rightarrow A \Rightarrow \varepsilon$. Dilde olmayan $abbc$ ($k = 1 &lt; 3$) üretilemez: her $b$ ve her $c$ kendi $a$'sıyla birlikte gelir, bu yüzden $a$ sayısı en az $b$ ve $c$ sayılarının toplamı kadar olur.</p>
+      <p>Bu cevap hocanın tahta çözümü ve 2024 anahtarıyla aynı. Brute force ile uzunluk 9'a kadar dil ile birebir aynı ve unambiguous.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2024-midterm.pdf" target="_blank" rel="noopener">Orijinal soru (2024 vizesi)</a></p>
+    <!-- Kaynak: exams/2024-midterm.pdf P4 · board s.4 · exams/2024-midterm-solutions.pdf P4(a) (typed key, aynı grammar). -->
+  </div>
+  <div class="box box--exam" data-exam="2020-mid-P4b"><span class="box__label">2020 vizesi P4(b) · çıkmış soru</span>
+    <p>"P4 [25 points] For each of the languages below, decide whether they are context-free or not. If yes, give a context-free grammar and a pushdown automata for the following languages. Otherwise prove that it is not context-free. […] (b) $\{a^mb^n \mid m \le n \le 3m\}$." (burada sadece CFG kısmı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her $a$ kendine 1, 2 ya da 3 tane $b$ alıyor diye düşün. Toplam $b$ sayısı nereden nereye değişir?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Tek katman yeter, ama katmanda üç seçenek var: $a \dots b$, $a \dots bb$, $a \dots bbb$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Dil context-free:</p>
+      <p>$S \to aSb \mid aSbb \mid aSbbb \mid \varepsilon$</p>
+      <p>Neden doğru: derivation'da üç kural sırasıyla $x$, $y$, $z$ kez kullanılırsa $m = x + y + z$ ve $n = x + 2y + 3z$ olur, yani $m \le n \le 3m$. Tersine, $m \le n \le 3m$ verilsin ve $d = n - m$ olsun ($0 \le d \le 2m$). $z = \lfloor d/2 \rfloor$, $y = d \bmod 2$, $x = m - y - z$ seç. $d$ çiftse $z = d/2 \le m$; $d$ tekse $d \le 2m - 1$ olduğundan $y + z = (d+1)/2 \le m$. Her iki durumda $x \ge 0$.</p>
+      <p>Kontrol: $aabbbbb$ ($m = 2$, $n = 5$): $S \Rightarrow aSbb \Rightarrow aaSbbbbb \Rightarrow aabbbbb$ (içte $aSbbb$).</p>
+      <p>Bu grammar ambiguous: $aabbb$'nin iki parse tree'si var (Bölüm 8). Soru sadece bir CFG istiyor, bu bir hata değil. Brute force: uzunluk 12'ye kadar dil ile aynı.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2020-midterm.pdf" target="_blank" rel="noopener">Orijinal soru (2020 vizesi)</a></p>
+    <!-- Kaynak: exams/2020-midterm.pdf P4(b) (anahtar yok). x, y, z seçimi python ile m ≤ 30 için kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-sayma">
+    <p class="quiz__q">$\{a^ib^j \mid j \ge 2i\}$ için hangisi doğru?</p>
+    <button class="quiz__opt" data-correct>$S \to aSbb \mid B,\;\; B \to bB \mid \varepsilon$<span class="why">Doğru. $j = 2i + e$: dış katman her $a$'ya iki $b$, iç katman fazladan $b$'ler.</span></button>
+    <button class="quiz__opt">$S \to aSbb \mid \varepsilon$<span class="why">Fazlalık katmanı yok: sadece $j = 2i$ üretilir, $b$ gibi string'ler eksik kalır.</span></button>
+    <button class="quiz__opt">$S \to aSbb \mid bS \mid \varepsilon$<span class="why">$bS$ string'in <em>soluna</em> $b$ koyar: $S \Rightarrow bS \Rightarrow baSbb \Rightarrow babb$ çıkar, $a$ $b$'den sonra gelmiş. Fazlalık en içte olmalı.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="birlesim" data-min="5">
+  <h2>Union, DFA'dan CFG ve özyineli yapılar</h2>
+  <p>Sipser CFG tasarımı için dört teknik veriyor. Üçüncüsünü (bağlı parçalar, $R \to uRv$) gördün. Diğer üçü:</p>
+  <div class="box box--rule">
+    <span class="box__label">1 · Union: parçala, sonra birleştir</span>
+    <p>Birçok CFL daha basit CFL'lerin birleşimidir. Her parça için ayrı grammar yaz, kurallarını bir araya koy ve $S \to S_1 \mid S_2 \mid \dots \mid S_k$ ekle ($S_i$'ler parçaların start variable'ları).</p>
+    <p>Örnek: $\{0^n1^n \mid n \ge 0\} \cup \{1^n0^n \mid n \ge 0\}$</p>
+    $$S \to S_1 \mid S_2 \qquad S_1 \to 0S_11 \mid \varepsilon \qquad S_2 \to 1S_20 \mid \varepsilon$$
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">2 · Dil regular ise: DFA'dan CFG</span>
+    <p>DFA'nın her $q_i$ state'i için bir $R_i$ variable'ı yap. $\delta(q_i, a) = q_j$ ise $R_i \to aR_j$ kuralını ekle. $q_i$ accept state ise $R_i \to \varepsilon$ ekle. Start variable $R_0$ ($q_0$ start state).</p>
+    <p>Örnek: "çift sayıda 0" DFA'sı ($q_0$ start ve accept, 0 okuyunca state değişir):</p>
+    $$R_0 \to 0R_1 \mid 1R_0 \mid \varepsilon \qquad R_1 \to 0R_0 \mid 1R_1$$
+    <p>Derivation DFA'nın run'ını state state takip eder: $R_0 \Rightarrow 1R_0 \Rightarrow 10R_1 \Rightarrow 101R_1 \Rightarrow 1010R_0 \Rightarrow 1010$. Sonuç: <strong>her regular dil context-free'dir.</strong></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">4 · Özyineli yapılar</span>
+    <p>$G_4$'te $a$'nın durabildiği her yerde parantezli bütün bir ifade de durabilir: $F \to (E) \mid a$. Kural: yapıyı üreten variable'ı, yapının tekrar görünebileceği yere koy.</p>
+  </div>
+  <!-- Kaynak: Sipser "Designing context-free grammars" (PDF s.130–131) dört teknik, 0^n1^n ∪ 1^n0^n örneği, DFA → CFG dönüşümü. Çift-0 örneği bu ders için seçildi; uzunluk ≤ 11 brute force. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Union yaparken iki grammar'ın variable adları çakışmamalı. İkisinde de $S$ varsa kurallar birbirine karışır; önce yeniden adlandır ($S_1$, $S_2$).</li>
+      <li>DFA'dan CFG: $R_i \to \varepsilon$ sadece accept state'ler için. Kuralın yönü transition'ın yönüyle aynı: $q_0 \xrightarrow{1} q_2$ ise $R_0 \to 1R_2$.</li>
+      <li>Star için eldeki grammar'a sadece $S \to SS$ eklemek yetmez (Exercise 2.15, aşağıda).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.4"><span class="box__label">Sipser Exercise 2.4 · kitap alıştırması</span>
+    <p>"Give context-free grammars that generate the following languages. In all parts, the alphabet Σ is {0,1}. a. {w | w contains at least three 1s} b. {w | w starts and ends with the same symbol} c. {w | the length of w is odd} d. {w | the length of w is odd and its middle symbol is a 0} e. {w | w = w<sup>R</sup>, that is, w is a palindrome} f. The empty set"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a), (b), (c) regular diller: "her şey" parçası için $R \to 0R \mid 1R \mid \varepsilon$ gibi bir variable kullan, ya da DFA'dan dönüştür. (d), (e) soğan kuralı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(f): hiçbir terminal string üretmeyen bir grammar. Derivation'ı hiç bitmeyen bir kural düşün.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol type="a">
+        <li>$S \to R1R1R1R$, $\;R \to 0R \mid 1R \mid \varepsilon$ (üç 1 arasına ve iki yana herhangi bir şey)</li>
+        <li>$S \to 0A0 \mid 1A1 \mid 0 \mid 1$, $\;A \to 0A \mid 1A \mid \varepsilon$ ($\varepsilon$ bir sembolle başlamaz, o yüzden dilde değil; tek sembollü string'ler dilde)</li>
+        <li>$S \to XSX \mid X$, $\;X \to 0 \mid 1$</li>
+        <li>$S \to 0 \mid 0S0 \mid 0S1 \mid 1S0 \mid 1S1$</li>
+        <li>$S \to 0S0 \mid 1S1 \mid 0 \mid 1 \mid \varepsilon$</li>
+        <li>$S \to S$ (derivation hiç bitmez, $L = \emptyset$)</li>
+      </ol>
+      <p>(a) ve (d) Sipser'in seçili çözümleriyle aynı. Hepsi uzunluk 11'e kadar brute force ile kontrol edildi.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.4 (PDF s.179), seçili çözüm 2.4(a),(d) (PDF s.184). -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.16-2.17"><span class="box__label">Sipser Exercise 2.16 ve 2.17 · kitap alıştırması</span>
+    <p>"2.16 Show that the class of context-free languages is closed under the regular operations, union, concatenation, and star. 2.17 Use the results of Exercise 2.16 to give another proof that every regular language is context free, by showing how to convert a regular expression directly to an equivalent context-free grammar."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İki grammar al, variable adlarını ayır, yeni bir start variable ekle. Union için tasarım tekniği 1 zaten hazır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Star için yeni start $S$: "$S$ ya boş, ya da $S$'den sonra bir $A$-string'i".</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$G_1 = (V_1, \Sigma, R_1, S_1)$ ve $G_2 = (V_2, \Sigma, R_2, S_2)$, $V_1 \cap V_2 = \emptyset$ olsun (gerekirse yeniden adlandır), $S$ yeni bir variable.</p>
+      <ul>
+        <li>Union: $R_1 \cup R_2$ ve $S \to S_1 \mid S_2$.</li>
+        <li>Concatenation: $R_1 \cup R_2$ ve $S \to S_1S_2$.</li>
+        <li>Star: $R_1$ ve $S \to SS_1 \mid \varepsilon$. $S \overset{*}{\Rightarrow} S_1S_1\cdots S_1$ ($k \ge 0$ kopya).</li>
+      </ul>
+      <p>Variable'lar ayrık olduğu için $S_1$'in altındaki derivation sadece $R_1$ kurallarını kullanır; her kopya kendi dilinden bir string üretir.</p>
+      <p>2.17: regular expression üzerinde tümevarım. $a \in \Sigma$ için $S \to a$; $\varepsilon$ için $S \to \varepsilon$; $\emptyset$ için $S \to S$; $R_1 \cup R_2$, $R_1R_2$, $R_1^*$ için 2.16'daki kurallar.</p>
+      <p>Örnek, 2020 vizesinin P2(b) regex'i $1^*(001^+)^*$:</p>
+      <p>$S \to AB$, $\;A \to 1A \mid \varepsilon$, $\;B \to BC \mid \varepsilon$, $\;C \to 00D$, $\;D \to 1D \mid 1$</p>
+      <p>Uzunluk 12'ye kadar regex ile aynı dil (brute force).</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.16, 2.17 (PDF s.180). Kitapta seçili çözüm yok. 1*(001+)* regex'i exams/2020-midterm.pdf P2(b)'den; grammar Python re ile karşılaştırıldı. -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.15"><span class="box__label">Sipser Exercise 2.15 · kitap alıştırması</span>
+    <p>"Give a counterexample to show that the following construction fails to prove that the class of context-free languages is closed under star. Let A be a CFL that is generated by the CFG G = (V, Σ, R, S). Add the new rule S → SS and call the resulting grammar G′. This grammar is supposed to generate A*."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$A^*$ her zaman $\varepsilon$ içerir. $G'$ içerir mi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$S$ başka kuralların sağ tarafında da görünüyorsa, yeni $S \to SS$ string'in <em>içinde</em> de uygulanabilir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Karşı örnek 1:</strong> $A = \{a\}$, $G$: $S \to a$. $G'$: $S \to SS \mid a$, $L(G') = \{a, aa, aaa, \dots\}$. Ama $\varepsilon \in A^*$ ve $G'$ $\varepsilon$ üretmez.</p>
+      <p><strong>Karşı örnek 2</strong> ($\varepsilon$ sorunu olmasa bile bozulur): $A = \{a^nb^n \mid n \ge 1\}$, $G$: $S \to aSb \mid ab$. $G'$'de</p>
+      $$S \Rightarrow aSb \Rightarrow aSSb \Rightarrow aabSb \Rightarrow aababb$$
+      <p>$aababb \notin A^*$: $A$'nın string'lerini art arda koyarak elde edilemez. İlk blok $aa$ ile başladığı için en az iki $a$ içermeli. İki $a$ varsa blok $aabb$ olmalı, ama string $aaba$ ile başlıyor. Daha fazla $a$ da olamaz, çünkü üçüncü sembol $b$. Sorun, $S \to SS$'in iç içe geçmiş bir $S$'ye de uygulanması. Doğru yapı: <em>yeni</em> bir start variable $S'$ ve $S' \to S'S \mid \varepsilon$.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.15 (PDF s.180). Karşı örnekler motorla kontrol edildi (aababb ∈ L(G'), ε ∉ L(G')). -->
+  </div>
+  <div class="quiz" id="q-birlesim">
+    <p class="quiz__q">Bir DFA'da $\delta(q_0, 1) = q_2$. Grammar'a hangi kural eklenir?</p>
+    <button class="quiz__opt" data-correct>$R_0 \to 1R_2$<span class="why">Doğru. Soldaki variable şu anki state, okunan sembol yazılır ve sonraki state'in variable'ı sağa konur.</span></button>
+    <button class="quiz__opt">$R_2 \to 1R_0$<span class="why">Yön ters. Bu kural $q_2$'den $q_0$'a giden bir transition'ı anlatırdı.</span></button>
+    <button class="quiz__opt">$R_0 \to R_21$<span class="why">Sembol sağa yazılırsa string'ler ters sırada üretilir. Sipser'in yapısında terminal solda, variable sağda: DFA soldan sağa okur.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="dogrula" data-min="6">
+  <h2>Doğrula: üret, karşılaştır, hatayı bul</h2>
+  <p>Repodaki anahtarlardan ikisi hatalı grammar içeriyor. İkisi de "doğru gibi" duruyor. Sınavda grammar'ını kimse senin için kontrol etmeyecek; bu yüzden her grammar'ı bitirdikten sonra bir dakikalık bir kontrol yap.</p>
+  <div class="box box--rule">
+    <span class="box__label">Bir dakikalık kontrol</span>
+    <ol>
+      <li>Dilin en kısa 3–4 string'ini yaz ($\varepsilon$ dilde mi?). Her birini türet.</li>
+      <li>Grammar'ın ürettiği en kısa 3–4 string'i yaz. Hepsi dilde mi?</li>
+      <li>Kural kural sor: bu kural sırayı bozabilir mi (harfler karışıyor mu)? Sayıyı bozabilir mi?</li>
+      <li>Kâğıda: kurallar, her variable'ın ne ürettiğini anlatan bir cümle ve bir örnek derivation. 2024 anahtarı tam olarak böyle yazıyor.</li>
+    </ol>
+  </div>
+  <h3>Grammar tezgâhı</h3>
+  <p>Grammar'ı yaz, hedef dili seç. Sayfa grammar'ın uzunluğu $\le n$ olan <strong>bütün</strong> string'lerini hesaplıyor, aynı uzunluktaki bütün string'leri hedef dilin tanımıyla tek tek kontrol ediyor ve iki listeyi karşılaştırıyor: grammar'ın fazladan ürettiği ilk string'ler (kırmızı) ve kaçırdığı ilk string'ler (turuncu). Fazladan üretilen ilk string'in derivation'ını da gösteriyor. Hazır listede repodaki hatalı anahtarlar da var.</p>
+  <p class="w-cfg-guess"><b>Önce tahmin et:</b> 2019 P4(b) anahtarındaki grammar ($S \to ASB \mid \varepsilon$, $A \to a \mid b$, $B \to c \mid d$) kaç uzunlukta ilk kez dilde olmayan bir string üretir? Hangi string olabilir?</p>
+  <div class="w-cfg-ctl">
+    <label>Hazır: <select id="w-wb-preset" class="btn btn--sm"></select></label>
+  </div>
+  <textarea id="w-wb-g" class="w-cfg-ta" rows="5" spellcheck="false" aria-label="Grammar kuralları"></textarea>
+  <div class="w-cfg-ctl">
+    <label>Hedef dil: <select id="w-wb-target" class="btn btn--sm"></select></label>
+  </div>
+  <div class="w-cfg-ctl">
+    <label>$n$ = <input id="w-wb-n" type="number" min="1" max="12" value="8" class="btn btn--sm" /></label>
+    <button class="btn btn--sm btn--accent" id="w-wb-go">Üret ve karşılaştır</button>
+  </div>
+  <div class="w-cfg-err" id="w-wb-err" aria-live="polite"></div>
+  <div id="w-wb-out" aria-live="polite"></div>
+  <!-- Kaynak: lab planındaki "grammar enumerator/checker" fikri. Hedef dil fonksiyonları python karşılıklarıyla uzunluk ≤ 8–10 için birebir karşılaştırıldı. -->
+  <div class="box box--exam" data-exam="2019-mid-P4b"><span class="box__label">2019 vizesi P4(b) · çıkmış soru</span>
+    <p>"P4 [20+20 bonus points] Give CFG and pushdown automata for the following languages: […] (b) $\{a^ib^jc^kd^m \mid i + j = k + m\}$." (burada sadece CFG kısmı)</p>
+    <p>Repodaki el yazısı çözüm şu grammar'ı veriyor: $S \to ASB \mid \varepsilon$, $\;A \to a \mid b$, $\;B \to c \mid d$. <strong>Önce hatayı bul</strong>, sonra doğrusunu yaz.</p>
+    <p class="src">Not: Repodaki çözümdeki grammar yanlış. $S \Rightarrow ASB \Rightarrow bSB \Rightarrow bASBB \Rightarrow baSBB \Rightarrow baBB \Rightarrow bacB \Rightarrow bacd$ türetiliyor; $bacd$'de $b$, $a$'dan önce geliyor, yani dilde değil. Grammar sayıları doğru eşliyor ama harflerin sırasını korumuyor. Doğru grammar aşağıda.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Soğan: en dış katman soldaki $a$'lar ile sağdaki $d$'ler. Bunlardan biri bitince ne olur? İki durum var: önce $a$'lar biter ya da önce $d$'ler biter.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$a$'lar biterse (i ≤ m) geriye $b^jc^kd^{m-i}$ kalır: $b$'ler önce kalan $d$'lerle, sonra $c$'lerle eşleşir. $d$'ler biterse (i &gt; m) geriye $a^{i-m}b^jc^k$ kalır: kalan $a$'lar $c$'lerle, $b$'ler $c$'lerle eşleşir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$S \to aSd \mid T \mid U$<br />$T \to bTd \mid V$<br />$U \to aUc \mid aVc$<br />$V \to bVc \mid \varepsilon$</p>
+      <ul>
+        <li>$S$: dış katman, her $a$ için bir $d$ ($\min(i, m)$ çift).</li>
+        <li>$T$: $a$'lar bitti; her $b$ için bir $d$ (kalan $d$'ler).</li>
+        <li>$U$: $d$'ler bitti; her kalan $a$ için bir $c$. $aVc$ en az bir $a$ koyar, böylece $T$ ile $U$ aynı string'i üretmez.</li>
+        <li>$V$: en iç katman, her $b$ için bir $c$.</li>
+      </ul>
+      <p>Kontrol: $abcd$: $S \Rightarrow aSd \Rightarrow aTd \Rightarrow aVd \Rightarrow abVcd \Rightarrow abcd$. $\;aacd$ ($i = 2$, $k = m = 1$): $S \Rightarrow aSd \Rightarrow aUd \Rightarrow aaVcd \Rightarrow aacd$. $\;bacd$ üretilemez: $b$ ancak $T$ ya da $V$ içinde gelir ve onlardan sonra hiç $a$ gelmez.</p>
+      <p>Brute force: uzunluk 9'a kadar dil ile birebir aynı ve hiçbir string'in iki parse tree'si yok. Repodaki grammar uzunluk 8'e kadar dilde olmayan 286 string üretiyor.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2019-midterm-solutions.pdf" target="_blank" rel="noopener">Orijinal soru ve el yazısı çözüm (s.2)</a></p>
+    <!-- Kaynak: exams/2019-midterm-solutions.pdf s.2 (sınav "CSE 436" koduyla, 28/10/2019). Hatalı anahtar ve düzeltme motorla ve python ile kontrol edildi. -->
+  </div>
+  <div class="box box--exam" data-exam="2019-mid-P4a"><span class="box__label">2019 vizesi P4(a) · çıkmış soru</span>
+    <p>"(a) $L = \{w \mid w \in \{0,1\}^*$, $w$ has odd length, and when even positions are deleted from $w$, we obtain a palindrome.$\}$ For example, $1, 0011110 \in L$ but $\varepsilon, 10010, 1010, 110 \notin L$. CFG:" (burada sadece CFG kısmı)</p>
+    <p>Repodaki çözüm: $S \to 0TST0 \mid 1TST1 \mid T$, $\;T \to 0 \mid 1$. <strong>Önce hatayı bul.</strong></p>
+    <p class="src">Not: Repodaki çözümdeki grammar eksik. $0TST0$ her adımda uzunluğu 4 artırıyor ve tek temel durum $T$ (uzunluk 1); bu yüzden sadece uzunluğu 1, 5, 9, … olan string'ler üretiliyor. $000$, $010$ ve sorunun kendi örneği $0011110$ (uzunluk 7) türetilemiyor. Eksik olan iki temel durum: $0T0$ ve $1T1$.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Konumları say: 1, 3, 5, … tek konumlar palindrome olmalı, çift konumlar serbest. En dış katman soldan iki sembol (tek konum + serbest) ve sağdan iki sembol (serbest + tek konum) alır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İçeride kalan string yine tek uzunluklu ve yine tek konumda başlıyor. Katmanlar soyulunca en içte ne kalabilir: uzunluk 1 ya da uzunluk 3.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$S \to 0TST0 \mid 1TST1 \mid 0T0 \mid 1T1 \mid 0 \mid 1$<br />$T \to 0 \mid 1$</p>
+      <p>$S$'nin her katmanı dıştaki iki tek konuma aynı sembolü koyar ve yanlarındaki çift konumlara $T$ ile herhangi bir sembol koyar. İçeride uzunluk 1 ($0$, $1$) ya da uzunluk 3 ($0T0$, $1T1$) kalır.</p>
+      <p>Kontrol: $0011110$, tek konumlar $0,1,1,0$:</p>
+      $$S \Rightarrow 0TST0 \Rightarrow 00ST0 \Rightarrow 001T1T0 \Rightarrow 00111T0 \Rightarrow 0011110$$
+      <p>$110$ dilde değil (tek konumlar $1, 0$): ilk ve son sembol farklı olduğu için hiçbir kural ile başlanamaz.</p>
+      <p>Brute force: düzeltilmiş grammar uzunluk 11'e kadar dil ile aynı; repodaki grammar 3, 7 ve 11 uzunluğundaki bütün string'leri kaçırıyor.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2019-midterm-solutions.pdf" target="_blank" rel="noopener">Orijinal soru ve el yazısı çözüm (s.2)</a></p>
+    <!-- Kaynak: exams/2019-midterm-solutions.pdf s.2 (S→0TST0|1TST1|T, T→0|1). Örnekler (1, 0011110 ∈ L; ε, 10010, 1010, 110 ∉ L) python ile doğrulandı. -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.6"><span class="box__label">Sipser Exercise 2.6 · kitap alıştırması</span>
+    <p>"Give context-free grammars generating the following languages. a. The set of strings over the alphabet {a,b} with more a's than b's b. The complement of the language $\{a^nb^n \mid n \ge 0\}$ c. $\{w\#x \mid w^R$ is a substring of $x$ for $w, x \in \{0,1\}^*\}$ d. $\{x_1\#x_2\#\cdots\#x_k \mid k \ge 1$, each $x_i \in \{a,b\}^*$, and for some $i$ and $j$, $x_i = x_j^R\}$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) "en az o kadar $a$" üreten bir $T$ yaz, sonra fazladan bir $a$ zorla. (b) Union: ya $a^*b^*$ biçiminde ama sayılar farklı, ya da içinde $ba$ geçiyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c) $x = y\,w^R\,z$ diye yaz; $w \# y$ ile $w^R$ arasında bir soğan var. (d) $x_i$ ile $x_j$ arasındaki her şeyi ($\#\dots\#$) soğanın merkezi yap.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $S \to TaT$, $\;T \to TT \mid aTb \mid bTa \mid a \mid \varepsilon$. $T$ en az $b$ kadar $a$ içeren string'leri üretir, $S$ fazladan bir $a$ koyar (Sipser'in çözümü).</p>
+      <p><strong>(b)</strong> $S \to X \mid C$<br />$X \to aXb \mid aA \mid bB$, $\;A \to aA \mid \varepsilon$, $\;B \to bB \mid \varepsilon$ ($a^ib^j$, $i \ne j$)<br />$C \to DbaD$, $\;D \to aD \mid bD \mid \varepsilon$ (içinde $ba$ var, yani $a^*b^*$ değil)</p>
+      <p><strong>(c)</strong> $S \to TX$, $\;T \to 0T0 \mid 1T1 \mid \#X$, $\;X \to 0X \mid 1X \mid \varepsilon$. $T$, $w\#y\,w^R$ üretir (soğan, merkezde $\#y$), sonda $X$ geri kalanı (Sipser'in çözümü).</p>
+      <p><strong>(d)</strong> $S \to PMQ$<br />$P \to Z\# \mid \varepsilon$, $\;Q \to \#Z \mid \varepsilon$, $\;Z \to aZ \mid bZ \mid \#Z \mid \varepsilon$<br />$M \to aMa \mid bMb \mid C$, $\;C \to \varepsilon \mid a \mid b \mid \# \mid \#Z\#$<br />$M$ bir $x_i$'yi ve ters çevrilmiş halini soğan gibi üretir; merkez $C$ ya $i = j$ durumu (tek bloğun palindrome olması: $\varepsilon$, $a$, $b$) ya da aradaki blokların hepsi. $P$ ve $Q$ dıştaki blokları ekler.</p>
+      <p>Dördü de brute force ile kontrol edildi ((a), (b) uzunluk 10'a, (c), (d) uzunluk 8'e kadar). (a) ve (b) tezgâhın hedef listesinde.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.6 (PDF s.179), seçili çözüm 2.6(a),(c) (PDF s.184). (b) ve (d) bu ders için yazıldı. -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.13"><span class="box__label">Sipser Exercise 2.13 · kitap alıştırması</span>
+    <p>"Let G = (V, Σ, R, S) be the following grammar. V = {S, T, U}; Σ = {0, #}; and R is the set of rules: $S \to TT \mid U$, $T \to 0T \mid T0 \mid \#$, $U \to 0U00 \mid \#$. a. Describe L(G) in English. b. Prove that L(G) is not regular."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce $T$'nin ne ürettiğini bul: tek bir $\#$ ve iki yanında 0'lar. $TT$ o zaman ne?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b) için $L(G)$'yi $0^*\#0^*$ ile kesiştir: iki $\#$'li string'ler düşer.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $T$, $0^*\#0^*$'ı üretir. $TT$, içinde <em>tam iki</em> $\#$ olan bütün string'ler ($0^i\#0^j\#0^k$). $U$, $0^n\#0^{2n}$ üretir. Yani $L(G)$: tam iki $\#$ içeren string'ler ile $\{0^n\#0^{2n} \mid n \ge 0\}$'ın birleşimi.</p>
+      <p><strong>(b)</strong> $L(G) \cap 0^*\#0^* = \{0^n\#0^{2n} \mid n \ge 0\}$. $L(G)$ regular olsaydı bu kesişim de regular olurdu. Ama $s = 0^p\#0^{2p}$ için $|xy| \le p$ ile $y = 0^j$, $j \ge 1$, ilk blokta; $xy^2z = 0^{p+j}\#0^{2p}$ dilde değil. Çelişki.</p>
+      <p>(a) brute force ile uzunluk 10'a kadar kontrol edildi.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.13 (PDF s.180). Seçili çözüm yok. -->
+  </div>
+  <div class="quiz" id="q-dogrula">
+    <p class="quiz__q">Yazdığın grammar'la dilden üç string türettin. Grammar'ın doğru olduğunu söylemek için ne eksik?</p>
+    <button class="quiz__opt" data-correct>Hem dildeki her string'in üretilebildiğini hem de dil dışında string üretilmediğini göstermek<span class="why">Doğru. Üç örnek genel olarak iki yönden hiçbirini göstermez: sadece o üç string'in üretildiğini gösterir. 2019 P4(a) anahtarı dildeki bazı string'leri kaçırıyor ($000$, $0011110$), 2019 P4(b) anahtarı $bacd$ gibi fazlalıklar üretiyor. İki yönü de kontrol et.</span></button>
+    <button class="quiz__opt">Hiçbir şey; üç örnek yeter<span class="why">Üç örnek sadece o üç string'in üretildiğini gösterir. Dildeki başka bir string kaçırılıyor olabilir ya da dil dışı bir string üretiliyor olabilir. 2019 P4(b) anahtarı bu testi geçiyor ve yine yanlış.</span></button>
+    <button class="quiz__opt">Grammar'ın unambiguous olduğunu göstermek<span class="why">Soru sadece bir CFG istiyor. Ambiguous bir grammar da doğru cevap olabilir (2020 P4b). Eksik olan iki yönlü kontrol: dildeki her string üretiliyor mu, dil dışı bir string üretiliyor mu?</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="ambiguity" data-min="6">
+  <h2>Ambiguity: bir string, iki parse tree</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · $G_5$ ve $a{+}a{\times}a$</span>
+    <p>$G_5$: $\;\langle\text{EXPR}\rangle \to \langle\text{EXPR}\rangle{+}\langle\text{EXPR}\rangle \mid \langle\text{EXPR}\rangle{\times}\langle\text{EXPR}\rangle \mid (\langle\text{EXPR}\rangle) \mid a$ (aşağıda kısaca $E$)</p>
+    <p>Bu grammar $a{+}a{\times}a$'yı iki farklı şekilde üretir. Ağaçlar ifadenin <em>anlamı</em> konusunda anlaşamıyor: biri önce çarpıyor, öbürü önce topluyor. $a$ yerine $2, 3, 4$ koy: $2 + (3 \times 4) = 14$, $(2 + 3) \times 4 = 20$.</p>
+    <div class="w-cfg-two">
+      <div class="w-cfg-card"><h4>Parse tree 1: önce $\times$</h4><div class="w-cfg-fig" data-g="E -> E+E | E*E | (E) | a" data-w="a+a*a" data-tree="0" data-group></div></div>
+      <div class="w-cfg-card"><h4>Parse tree 2: önce $+$</h4><div class="w-cfg-fig" data-g="E -> E+E | E*E | (E) | a" data-w="a+a*a" data-tree="1" data-group></div></div>
+    </div>
+    <p>$G_4$ aynı dili üretir, ama her string'in tek bir parse tree'si vardır ve o tree her zaman "önce çarpma" der. Yani $G_5$ ambiguous, $G_4$ unambiguous.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Definition 2.7 (Sipser)</span>
+    <p><strong>"A string $w$ is derived ambiguously in context-free grammar $G$ if it has two or more different leftmost derivations. Grammar $G$ is ambiguous if it generates some string ambiguously."</strong></p>
+    <p>Neden leftmost? Sipser: ambiguity, iki farklı <em>parse tree</em> demek, iki farklı derivation değil. İki derivation sadece variable'ları değiştirme sırasında ayrılıp aynı yapıyı verebilir. Leftmost derivation sırayı sabitlediği için "farklı leftmost derivation" = "farklı parse tree".</p>
+    <p><strong>Inherently ambiguous</strong>: bazı context-free diller sadece ambiguous grammar'larla üretilebilir. Örnek: $\{a^ib^jc^k \mid i = j \text{ or } j = k\}$ (Problem 2.29).</p>
+  </div>
+  <p>Hocanın sitesindeki cümle: "Ambiguity is a property of the grammar, never of the language." Bir dile "ambiguous" demek ancak <em>inherently ambiguous</em> anlamında mümkün; bu çok daha güçlü ve nadir bir iddia.</p>
+  <!-- Kaynak: Sipser "Ambiguity" (PDF s.131–132): G5, Figure 2.6, Def 2.7, inherently ambiguous, Problem 2.29 · hocanın sitesi "Ambiguity, and what it is a property of" bölümü. -->
+  <h3>En kısa ambiguous string'i bul</h3>
+  <p>Sayfa her string'in parse tree sayısını (0, 1 ya da "2 ve fazlası") uzunluk $\le n$ için hesaplıyor, en kısa ambiguous string'i buluyor ve iki farklı parse tree'sini leftmost derivation'larıyla birlikte yan yana çiziyor.</p>
+  <p class="w-cfg-guess"><b>Önce tahmin et:</b> 2020 P4(b)'nin grammar'ı $S \to aSb \mid aSbb \mid aSbbb \mid \varepsilon$ ambiguous mu? En kısa ambiguous string kaç harfli olur?</p>
+  <div class="w-cfg-ctl">
+    <label>Grammar: <select id="w-am-preset" class="btn btn--sm"></select></label>
+  </div>
+  <textarea id="w-am-g" class="w-cfg-ta" rows="4" spellcheck="false" aria-label="Grammar kuralları"></textarea>
+  <div class="w-cfg-ctl">
+    <label>$n$ = <input id="w-am-n" type="number" min="1" max="10" value="7" class="btn btn--sm" /></label>
+    <button class="btn btn--sm btn--accent" id="w-am-go">Ara</button>
+  </div>
+  <div class="w-cfg-err" id="w-am-err" aria-live="polite"></div>
+  <div id="w-am-out" aria-live="polite"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"İki farklı derivation buldum, o hâlde ambiguous" yanlış. $G_3$'teki $abab$'ın iki derivation'ı aynı tree'yi çiziyordu. İki farklı <em>leftmost</em> derivation ya da iki farklı parse tree göstermelisin.</li>
+      <li>$G_5$ ambiguous diye $L(G_5)$ inherently ambiguous değil: $G_4$ aynı dili ambiguity olmadan üretiyor.</li>
+      <li>Aracın "uzunluk $\le n$'de ambiguous string yok" demesi bir ispat değil; daha uzun bir string ambiguous olabilir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.8"><span class="box__label">Sipser Exercise 2.8 · kitap alıştırması</span>
+    <p>"Show that the string the girl touches the boy with the flower has two different leftmost derivations in grammar $G_2$ on page 103. Describe in English the two different meanings of this sentence."</p>
+    <p>$G_2$'nin ilgili kuralları: $\langle\text{SENTENCE}\rangle \to \langle\text{NOUN-PHRASE}\rangle\langle\text{VERB-PHRASE}\rangle$; $\langle\text{NOUN-PHRASE}\rangle \to \langle\text{CMPLX-NOUN}\rangle \mid \langle\text{CMPLX-NOUN}\rangle\langle\text{PREP-PHRASE}\rangle$; $\langle\text{VERB-PHRASE}\rangle \to \langle\text{CMPLX-VERB}\rangle \mid \langle\text{CMPLX-VERB}\rangle\langle\text{PREP-PHRASE}\rangle$; $\langle\text{PREP-PHRASE}\rangle \to \langle\text{PREP}\rangle\langle\text{CMPLX-NOUN}\rangle$; $\langle\text{CMPLX-NOUN}\rangle \to \langle\text{ARTICLE}\rangle\langle\text{NOUN}\rangle$; $\langle\text{CMPLX-VERB}\rangle \to \langle\text{VERB}\rangle \mid \langle\text{VERB}\rangle\langle\text{NOUN-PHRASE}\rangle$; $\langle\text{ARTICLE}\rangle \to$ a $\mid$ the; $\langle\text{NOUN}\rangle \to$ boy $\mid$ girl $\mid$ flower; $\langle\text{VERB}\rangle \to$ touches $\mid$ likes $\mid$ sees; $\langle\text{PREP}\rangle \to$ with.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"with the flower" bir $\langle\text{PREP-PHRASE}\rangle$. Bu kural iki yerde kullanılabiliyor: $\langle\text{VERB-PHRASE}\rangle$'in sonunda ya da $\langle\text{NOUN-PHRASE}\rangle$'in sonunda.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İki derivation "The girl $\langle\text{VERB-PHRASE}\rangle$" adımına kadar aynı. Ayrıldıkları yer $\langle\text{VERB-PHRASE}\rangle$'in hangi kuralla açıldığı.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>İki leftmost derivation'ın ortak başı: $\langle\text{SENTENCE}\rangle \Rightarrow \langle\text{NOUN-PHRASE}\rangle\langle\text{VERB-PHRASE}\rangle \Rightarrow \langle\text{CMPLX-NOUN}\rangle\langle\text{VERB-PHRASE}\rangle \Rightarrow \langle\text{ARTICLE}\rangle\langle\text{NOUN}\rangle\langle\text{VERB-PHRASE}\rangle \Rightarrow$ the $\langle\text{NOUN}\rangle\langle\text{VERB-PHRASE}\rangle \Rightarrow$ the girl $\langle\text{VERB-PHRASE}\rangle$.</p>
+      <p><strong>Derivation 1:</strong> $\Rightarrow$ the girl $\langle\text{CMPLX-VERB}\rangle\langle\text{PREP-PHRASE}\rangle \Rightarrow$ the girl $\langle\text{VERB}\rangle\langle\text{NOUN-PHRASE}\rangle\langle\text{PREP-PHRASE}\rangle \Rightarrow$ the girl touches $\langle\text{NOUN-PHRASE}\rangle\langle\text{PREP-PHRASE}\rangle \Rightarrow$ the girl touches $\langle\text{CMPLX-NOUN}\rangle\langle\text{PREP-PHRASE}\rangle \Rightarrow \dots \Rightarrow$ the girl touches the boy $\langle\text{PREP-PHRASE}\rangle \Rightarrow \dots \Rightarrow$ the girl touches the boy with the flower.</p>
+      <p><strong>Derivation 2:</strong> $\Rightarrow$ the girl $\langle\text{CMPLX-VERB}\rangle \Rightarrow$ the girl $\langle\text{VERB}\rangle\langle\text{NOUN-PHRASE}\rangle \Rightarrow$ the girl touches $\langle\text{NOUN-PHRASE}\rangle \Rightarrow$ the girl touches $\langle\text{CMPLX-NOUN}\rangle\langle\text{PREP-PHRASE}\rangle \Rightarrow \dots \Rightarrow$ the girl touches the boy with the flower.</p>
+      <p>Anlamlar: (1) "with the flower" fiile bağlı: kız çocuğa <em>çiçekle</em> dokunuyor. (2) "with the flower" çocuğa bağlı: kız <em>çiçeği olan çocuğa</em> dokunuyor.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.8 (PDF s.179), G2 (PDF s.127), seçili çözüm 2.8 (PDF s.185). -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.9"><span class="box__label">Sipser Exercise 2.9 · kitap alıştırması</span>
+    <p>"Give a context-free grammar that generates the language $A = \{a^ib^jc^k \mid i = j \text{ or } j = k \text{ where } i, j, k \ge 0\}$. Is your grammar ambiguous? Why or why not?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"or": iki dilin union'ı. $i = j$ için soğan + sonda serbest $c$'ler; $j = k$ için başta serbest $a$'lar + soğan.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$i = j = k$ olan bir string iki parçaya da uyar. Kaç parse tree'si olur?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$S \to XC \mid AY$<br />$X \to aXb \mid \varepsilon$, $\;C \to cC \mid \varepsilon$ ($i = j$)<br />$A \to aA \mid \varepsilon$, $\;Y \to bYc \mid \varepsilon$ ($j = k$)</p>
+      <p>Grammar ambiguous. $i = j = k$ olan her string iki parçadan da üretilir. Örneğin $abc$:</p>
+      $$S \Rightarrow XC \Rightarrow aXbC \Rightarrow abC \Rightarrow abcC \Rightarrow abc$$
+      $$S \Rightarrow AY \Rightarrow aAY \Rightarrow aY \Rightarrow abYc \Rightarrow abc$$
+      <p>İki farklı leftmost derivation. Bu düzeltilebilecek bir eksiklik değil: dil inherently ambiguous (Problem 2.29), yani hiçbir grammar bu dili ambiguity olmadan üretemez. Sezgi: $a^nb^nc^n$ için grammar'ın "ilk eşitliği mi, ikincisini mi kontrol ediyorum" kararını vermesi gerekir ve iki yol da başarılı olur.</p>
+      <p>Brute force: uzunluk 9'a kadar dil ile aynı; ambiguous string'ler $\varepsilon$, $abc$, $aabbcc$, $aaabbbccc$.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.9 (PDF s.179), Problem 2.29 (PDF s.181). weeks/05 Practice listesinde de var. -->
+  </div>
+  <div class="quiz" id="q-ambiguity">
+    <p class="quiz__q">$G_4$ ve $G_5$ için hangisi doğru?</p>
+    <button class="quiz__opt" data-correct>Aynı dili üretirler; $G_5$ ambiguous, $G_4$ değil<span class="why">Doğru. Ambiguity grammar'ın özelliği. Aynı dil için ambiguous ve unambiguous grammar'lar olabilir.</span></button>
+    <button class="quiz__opt">$G_5$ ambiguous olduğu için $L(G_5)$ inherently ambiguous<span class="why">Inherently ambiguous, dilin <em>hiçbir</em> unambiguous grammar'ı olmaması demek. $G_4$ aynı dil için unambiguous bir grammar.</span></button>
+    <button class="quiz__opt">$G_4$, $a{+}a{\times}a$'yı üretemez<span class="why">Üretir, tek bir parse tree ile ve o tree önce çarpmayı yapar. Bölüm 3'teki araçla dene.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="cnf" data-min="5">
+  <h2>Chomsky normal form: tanım ve dört adım</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Neden normal form?</span>
+    <p>Grammar'larla çalışan algoritmalar için düzenli bir biçim işi kolaylaştırır. CNF'deki bir grammar'da her parse tree ikili bir tree'dir ve uzunluğu $n \ge 1$ olan bir string'in her derivation'ı tam $2n - 1$ adım sürer (Problem 2.26). Sipser bunu Bölüm 4 ve 7'deki algoritmalarda kullanır (örneğin $A_{CFG}$'nin decidable olması).</p>
+    <p>Sınav durumu: CNF vize kapsamında ama 2019–2024 vizelerinin hiçbirinde sorulmadı. Bir örneği baştan sona yapabilmen yeter.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Definition 2.8 ve Theorem 2.9 (Sipser)</span>
+    <p><strong>"A context-free grammar is in Chomsky normal form if every rule is of the form</strong></p>
+    $$A \to BC \qquad A \to a$$
+    <p><strong>where $a$ is any terminal and $A$, $B$, and $C$ are any variables, except that $B$ and $C$ may not be the start variable. In addition, we permit the rule $S \to \varepsilon$, where $S$ is the start variable."</strong></p>
+    <p><strong>Theorem 2.9:</strong> "Any context-free language is generated by a context-free grammar in Chomsky normal form."</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Dönüşüm, bu sırayla</span>
+    <ol>
+      <li><strong>Yeni start variable.</strong> $S_0$ ve $S_0 \to S$ ekle. Böylece start variable hiçbir sağ tarafta görünmez.</li>
+      <li><strong>ε-rule'ları sil.</strong> Start olmayan bir $A$ için $A \to \varepsilon$'u sil. Sağ tarafında $A$ geçen her kural için, $A$'nın bir geçişi silinmiş yeni bir kural ekle. Her geçiş için ayrı ayrı: $R \to uAvAw$ kuralı $R \to uvAw$, $R \to uAvw$ ve $R \to uvw$ doğurur. $R \to A$ varsa $R \to \varepsilon$ eklenir, ama $R \to \varepsilon$ zaten silinmiş bir kuralsa geri eklenmez. Start dışında ε-rule kalmayana kadar tekrarla.</li>
+      <li><strong>Unit rule'ları sil.</strong> $A \to B$'yi sil. Her $B \to u$ kuralı için $A \to u$ ekle; silinmiş bir unit rule'u geri ekleme. Unit rule kalmayana kadar tekrarla.</li>
+      <li><strong>Kalan kuralları düzelt.</strong> $k \ge 3$ için $A \to u_1u_2\cdots u_k$ yerine $A \to u_1A_1$, $A_1 \to u_2A_2$, …, $A_{k-2} \to u_{k-1}u_k$ koy ($A_i$'ler yeni variable). Sonra sağ tarafı en az iki sembollü olan bütün kurallarda terminal'leri yardımcı variable'larla değiştir: her terminal $u_i$ yerine yeni bir $U_i$ koy ve $U_i \to u_i$ ekle. Başlangıçtan beri uzunluğu iki olan kurallar da buna dahildir: $A \to aB$, $A \to UB$ ve $U \to a$ olur.</li>
+    </ol>
+  </div>
+  <!-- Kaynak: Sipser Def 2.8, Thm 2.9 ve ispatı (PDF s.132–134), Problem 2.26 (PDF s.181) · hocanın sitesindeki CNF paneli ("The four steps in order. Doing them out of order is the classic way to get a grammar that is nearly in CNF and not quite."). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Sıra önemli.</strong> Hocanın aracı: "Doing them out of order is the classic way to get a grammar that is nearly in CNF and not quite." ε-rule silmek yeni unit rule'lar doğurabilir: Example 2.10'da $S \to ASA$'dan $S \to S$ çıkıyor. Unit rule'ları önce silseydin iş bitmemiş olurdu.</li>
+      <li>$A \to aB$ CNF değil (terminal ile variable yan yana). $A \to B$ CNF değil (unit rule). $A \to \varepsilon$ sadece start variable için serbest.</li>
+      <li>Sağ tarafta start variable olamaz. 1. adım bu yüzden var.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-cnf">
+    <p class="quiz__q">Start variable $S_0$. Hangi grammar CNF'de?</p>
+    <button class="quiz__opt" data-correct>$S_0 \to AB \mid \varepsilon,\; A \to a,\; B \to b$<span class="why">Doğru. İki kural $A \to BC$ biçiminde ya da tek terminal; $\varepsilon$ sadece start'ta.</span></button>
+    <button class="quiz__opt">$S_0 \to AB,\; A \to aB \mid a,\; B \to b$<span class="why">$A \to aB$'de terminal ile variable yan yana. Önce $a$ için $U \to a$ yazıp $A \to UB$ yapmalısın.</span></button>
+    <button class="quiz__opt">$S_0 \to S_0A \mid a,\; A \to a$<span class="why">Start variable sağ tarafta görünüyor. Tanımda $B$ ve $C$ start variable olamaz.</span></button>
+    <button class="quiz__opt">$S_0 \to AB,\; A \to B \mid a,\; B \to b$<span class="why">$A \to B$ bir unit rule. 3. adımda silinmeli.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="cnf-ornek" data-min="6">
+  <h2>CNF adım adım: Example 2.10</h2>
+  <p>Sipser'in örneği: $G_6$: $\;S \to ASA \mid aB$, $\;A \to B \mid S$, $\;B \to b \mid \varepsilon$. Aşağıdaki stepper dönüşümü gerçekten yapıyor, her karede tek bir kural değişiyor. Yeşil kalın yeni eklenen kurallar, gri üstü çizili silinenler (kitaptaki bold ve gri gibi). Her karede yeni grammar'ın dili, uzunluk 6'ya kadar, başlangıçtaki grammar'ınkiyle karşılaştırılıyor.</p>
+  <p class="w-cfg-guess"><b>Önce tahmin et:</b> $B \to \varepsilon$ silinince $S \to aB$ kuralından hangi yeni kural doğar? Bundan sonra neden $A \to \varepsilon$ ortaya çıkar?</p>
+  <div class="w-cfg-ctl">
+    <label>Grammar: <select id="w-cnf-preset" class="btn btn--sm"></select></label>
+  </div>
+  <textarea id="w-cnf-g" class="w-cfg-ta" rows="4" spellcheck="false" aria-label="Grammar kuralları"></textarea>
+  <div class="w-cfg-ctl">
+    <button class="btn btn--sm btn--accent" id="w-cnf-go">Dönüştür</button>
+  </div>
+  <div class="w-cfg-err" id="w-cnf-err" aria-live="polite"></div>
+  <div id="w-cnf-st"></div>
+  <div class="box box--example">
+    <span class="box__label">Sipser'in sonucu</span>
+    <p>$S_0 \to AA_1 \mid UB \mid a \mid SA \mid AS$<br />$S \to AA_1 \mid UB \mid a \mid SA \mid AS$<br />$A \to b \mid AA_1 \mid UB \mid a \mid SA \mid AS$<br />$A_1 \to SA$, $\;U \to a$, $\;B \to b$</p>
+    <p>Sipser bir sadeleştirme yapıyor: prosedür her uzun kural için ayrı $A_i$'ler ve ayrı $U_i$'ler üretirdi; aynı kuyruğu ($SA$) ve aynı terminal'i ($a$) tek bir variable ile paylaştırıyor. Stepper da aynı sadeleştirmeyi yapıyor ve aynı grammar'a ulaşıyor.</p>
+  </div>
+  <!-- Kaynak: Sipser Example 2.10 (PDF s.134–135). Stepper'ın son grammar'ı kitaptaki son grammar ile kural kural aynı; ikisi de G6 ile uzunluk ≤ 8'de aynı dil (motor ile kontrol). -->
+  <div class="box box--exam" data-exam="sipser-2.14"><span class="box__label">Sipser Exercise 2.14 · kitap alıştırması</span>
+    <p>"Convert the following CFG into an equivalent CFG in Chomsky normal form, using the procedure given in Theorem 2.9. $A \to BAB \mid B \mid \varepsilon$, $B \to 00 \mid \varepsilon$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Start variable $A$. 1. adımda $S_0 \to A$ ekle. 2. adımda iki ε-rule var; ikisini de sırayla sil. $A \to BAB$'de iki $B$ var: hangi alt kümelerini silebilirsin?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>ε-rule'lar bitince $A \to A$ gibi bir kural kalabilir: kendine giden unit rule, sadece silinir. Sonunda $00$ da iki terminal: $U \to 0$ ile $UU$ olur.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>1.</strong> $S_0 \to A$, $\;A \to BAB \mid B \mid \varepsilon$, $\;B \to 00 \mid \varepsilon$</p>
+      <p><strong>2a.</strong> $A \to \varepsilon$'u sil. $S_0 \to A$'dan $S_0 \to \varepsilon$ (start'a izin var). $A \to BAB$'den $A \to BB$. $A \to B$'de $A$ yok.<br />$S_0 \to A \mid \varepsilon$, $\;A \to BAB \mid B \mid BB$, $\;B \to 00 \mid \varepsilon$</p>
+      <p><strong>2b.</strong> $B \to \varepsilon$'u sil. $A \to BAB$'den $AB$, $BA$, $A$; $A \to BB$'den $B$ (zaten var); $A \to B$'den $A \to \varepsilon$ eklenmez, çünkü $A \to \varepsilon$ zaten silindi.<br />$S_0 \to A \mid \varepsilon$, $\;A \to BAB \mid B \mid BB \mid AB \mid BA \mid A$, $\;B \to 00$</p>
+      <p><strong>3.</strong> $A \to A$'yı sil. $S_0 \to A$'yı sil ve $A$'nın kurallarını $S_0$'a kopyala. Sonra $S_0 \to B$ ve $A \to B$'yi sil, yerlerine $00$.<br />$S_0 \to \varepsilon \mid BAB \mid BB \mid AB \mid BA \mid 00$<br />$A \to BAB \mid BB \mid AB \mid BA \mid 00$, $\;B \to 00$</p>
+      <p><strong>4.</strong> $BAB \to BA_1$ ve $A_1 \to AB$; $00 \to UU$ ve $U \to 0$:</p>
+      <p>$S_0 \to BA_1 \mid BB \mid AB \mid BA \mid UU \mid \varepsilon$<br />$A \to BA_1 \mid BB \mid AB \mid BA \mid UU$<br />$A_1 \to AB$, $\;B \to UU$, $\;U \to 0$</p>
+      <p>ε-rule'ları ters sırayla silsen de ($B$ önce) aynı son grammar'a ulaşırsın. Kontrol: iki grammar da $(00)^*$'ı üretir; uzunluk 10'a kadar aynı. Stepper'da "Exercise 2.14" seçeneğiyle her adımı görebilirsin.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.14 (PDF s.180). Seçili çözüm yok; adımlar sayfadaki motorla üretildi, isCNF ve dil eşitliği kontrol edildi. B önce silinince de aynı son grammar çıktığı elle kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-cnf-ornek">
+    <p class="quiz__q">$B \to \varepsilon$ silinirken $A \to BAB$ kuralı için ne eklenir?</p>
+    <button class="quiz__opt" data-correct>$A \to AB$, $A \to BA$ ve $A \to A$<span class="why">Doğru. İki $B$ geçişinin her boş olmayan alt kümesi silinir: soldaki, sağdaki, ikisi birden. $A \to A$ 3. adımda silinecek.</span></button>
+    <button class="quiz__opt">Sadece $A \to A$<span class="why">Sadece "hepsini sil" seçeneğini almışsın. Sipser: $R \to uAvAw$, $R \to uvAw$, $R \to uAvw$ ve $R \to uvw$ doğurur.</span></button>
+    <button class="quiz__opt">$A \to AB$ ve $A \to BA$, ama $A \to A$ eklenmez<span class="why">Prosedür bu kuralı da ekler; işe yaramaz olduğu için 3. adımda unit rule olarak silinir. Atlamak çoğu zaman sorun çıkarmaz ama prosedür sorulduğunda adımı göster.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="son-kontrol" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle düşün, sonra seç. Sonra Definition 2.2'yi ve hocanın 2024 grammar'ını bir kez ezberden yaz.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Bir CFG kuralının sol tarafında ne olabilir?</p>
+    <button class="quiz__opt" data-correct>Tek bir variable<span class="why">Doğru. Definition 2.2: "each rule being a variable and a string of variables and terminals". "Context-free" adı da buradan.</span></button>
+    <button class="quiz__opt">Bir variable ve yanındaki terminal'ler ($aA \to \dots$)<span class="why">Bu, variable'ın etrafına (context'ine) bakan bir kural olurdu. CFG'de sol taraf tek bir variable.</span></button>
+    <button class="quiz__opt">Herhangi bir terminal string<span class="why">Terminal'ler değiştirilmez; derivation sadece variable'ları açar.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">$\{a^ib^jc^k \mid k \ge i + j\}$ için hangi grammar doğru?</p>
+    <button class="quiz__opt" data-correct>$S \to aSc \mid B,\; B \to bBc \mid C,\; C \to cC \mid \varepsilon$<span class="why">Doğru. $k = i + j + e$: dışta $a\dots c$, içte $b\dots c$, en içte fazladan $c$'ler.</span></button>
+    <button class="quiz__opt">$S \to aSc \mid B,\; B \to bBc \mid \varepsilon$<span class="why">Fazlalık katmanı yok: sadece $k = i + j$ üretilir, $c$ gibi string'ler eksik.</span></button>
+    <button class="quiz__opt">$S \to aSc \mid bSc \mid C,\; C \to cC \mid \varepsilon$<span class="why">Aynı variable'da kalınca $a$ ve $b$ karışır: $S \Rightarrow bSc \Rightarrow baScc \Rightarrow bacc$ çıkar.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Bir grammar'da $abab$'ın iki farklı derivation'ını buldun. Grammar ambiguous mu?</p>
+    <button class="quiz__opt">Evet, iki derivation ambiguity demek<span class="why">İki derivation aynı parse tree'yi farklı sırayla çiziyor olabilir ($G_3$'teki $abab$ gibi).</span></button>
+    <button class="quiz__opt" data-correct>Henüz bilmiyorsun: iki farklı leftmost derivation (ya da iki parse tree) gerekir<span class="why">Doğru. Definition 2.7 leftmost derivation'ları sayar.</span></button>
+    <button class="quiz__opt">Hayır, ambiguity sadece aritmetik ifadelerde olur<span class="why">Her grammar ambiguous olabilir: 2020 P4(b)'nin grammar'ı ve Exercise 2.9'un grammar'ı da ambiguous.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">CNF dönüşümünde unit rule'ları ε-rule'lardan <strong>önce</strong> silersen ne olur?</p>
+    <button class="quiz__opt" data-correct>ε-rule'ları silerken yeni unit rule'lar doğabilir ve grammar CNF'de olmaz<span class="why">Doğru. Example 2.10'da $A \to \varepsilon$ silinince $S \to ASA$'dan $S \to S$ çıkıyor.</span></button>
+    <button class="quiz__opt">Fark etmez, adımlar bağımsız<span class="why">Bağımsız değiller. Hocanın aracı da uyarıyor: sırayı bozmak "nearly in CNF and not quite" bir grammar verir.</span></button>
+    <button class="quiz__opt">Dil değişir<span class="why">Her adım dili korur. Sorun dilde değil biçimde: sonuç CNF olmaz.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">2019 P4(b) anahtarı ($S \to ASB \mid \varepsilon$, $A \to a \mid b$, $B \to c \mid d$) neden yanlış?</p>
+    <button class="quiz__opt">$i + j = k + m$ eşitliğini bozan string'ler üretiyor<span class="why">Sayılar tutuyor: her $ASB$ adımı sola bir, sağa bir harf koyar. Sorun sayılarda değil.</span></button>
+    <button class="quiz__opt" data-correct>Harflerin sırasını korumuyor: $bacd$ üretiyor<span class="why">Doğru. $A$ her katmanda $a$ ya da $b$ seçebiliyor, bu yüzden $b$'den sonra $a$ gelebiliyor.</span></button>
+    <button class="quiz__opt">$\varepsilon$'u üretmiyor<span class="why">$S \to \varepsilon$ var ve $\varepsilon$ dilde ($0 + 0 = 0 + 0$). Bu kısım doğru.</span></button>
+  </div>
+  <!-- Sıradaki konu: Pushdown automata ve CFG ↔ PDA. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/*ENGINE-START*/
+const CF = (() => {
+  const EPS = new Set(["", "eps", "ε", "_"]);
+  /* Grammar text, one or more rules per line: "S -> a S b | eps" (also →, ::=).
+     A symbol is a variable exactly when it is on some left-hand side.
+     A right-hand side with spaces is split on spaces; without spaces it is read
+     left to right, longest variable name first, otherwise one character. */
+  function parse(text) {
+    const g = { start: null, vars: [], rules: [], terms: [], errors: [], warnings: [] };
+    const raw = [];
+    String(text).split("\n").forEach((line, li) => {
+      const s = line.trim();
+      if (!s || /^(#|\/\/)/.test(s)) return; // whole-line comments only, since # is also a terminal (Sipser G1)
+      const m = /^(\S+?)\s*(?:->|→|::=)\s*(.*)$/.exec(s);
+      if (!m) { g.errors.push(`Satır ${li + 1}: "A -> …" biçiminde değil.`); return; }
+      if (/[|]/.test(m[1])) { g.errors.push(`Satır ${li + 1}: sol tarafta tek bir variable olmalı.`); return; }
+      raw.push({ lhs: m[1], rhs: m[2], li });
+    });
+    raw.forEach((r) => { if (!g.vars.includes(r.lhs)) g.vars.push(r.lhs); });
+    if (!g.vars.length) { if (!g.errors.length) g.errors.push("Henüz kural yok."); return g; }
+    g.start = g.vars[0];
+    const byLen = g.vars.slice().sort((a, b) => b.length - a.length);
+    raw.forEach((r) => {
+      r.rhs.split("|").forEach((alt) => {
+        alt = alt.trim();
+        let syms = [];
+        if (EPS.has(alt)) syms = [];
+        else if (/\s/.test(alt)) syms = alt.split(/\s+/).filter((x) => !EPS.has(x));
+        else {
+          let i = 0;
+          while (i < alt.length) {
+            const v = byLen.find((name) => name.length > 1 && alt.startsWith(name, i));
+            if (v) { syms.push(v); i += v.length; }
+            else { if (alt[i] !== "ε") syms.push(alt[i]); i++; }
+          }
+        }
+        if (!g.rules.some((x) => x.lhs === r.lhs && same(x.rhs, syms))) g.rules.push({ lhs: r.lhs, rhs: syms });
+      });
+    });
+    g.rules.forEach((r) => r.rhs.forEach((s) => { if (!g.vars.includes(s) && !g.terms.includes(s)) g.terms.push(s); }));
+    g.terms.sort();
+    g.terms.forEach((t) => { if (t.length > 1) g.warnings.push(`"${t}" tek bir terminal sayıldı; ayrı semboller istiyorsan boşlukla ayır.`); });
+    return g;
+  }
+  const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+  const isVar = (g, s) => g.vars.includes(s);
+
+  /* All terminal strings of length <= n derived from each variable, with the
+     number of parse trees capped at 2 ("2" means "two or more").
+     Least fixpoint; monotone, so it stops. */
+  function gen(g, n, limit) {
+    limit = limit || 400000;
+    let cnt = {};
+    g.vars.forEach((v) => { cnt[v] = new Map(); });
+    for (let round = 0; round < 500; round++) {
+      const next = {};
+      g.vars.forEach((v) => { next[v] = new Map(); });
+      let size = 0;
+      for (const r of g.rules) {
+        let partial = new Map([["", 1]]);
+        for (const X of r.rhs) {
+          const src = isVar(g, X) ? cnt[X] : new Map([[X, 1]]);
+          const byL = [];
+          src.forEach((c, s) => { (byL[s.length] = byL[s.length] || []).push([s, c]); });
+          const nx = new Map();
+          partial.forEach((c, p) => {
+            for (let l = 0; l + p.length <= n; l++) {
+              const arr = byL[l];
+              if (!arr) continue;
+              for (const [s, d] of arr) {
+                const w = p + s;
+                nx.set(w, Math.min(2, (nx.get(w) || 0) + c * d));
+              }
+            }
+          });
+          partial = nx;
+          if (!partial.size) break;
+        }
+        const tgt = next[r.lhs];
+        partial.forEach((c, w) => tgt.set(w, Math.min(2, (tgt.get(w) || 0) + c)));
+        size += partial.size;
+        if (size > limit) return { cnt: next, aborted: true };
+      }
+      let changed = false;
+      for (const v of g.vars) {
+        if (next[v].size !== cnt[v].size) { changed = true; break; }
+        for (const [w, c] of next[v]) if (cnt[v].get(w) !== c) { changed = true; break; }
+        if (changed) break;
+      }
+      cnt = next;
+      if (!changed) return { cnt, aborted: false };
+    }
+    return { cnt, aborted: true };
+  }
+
+  /* Variables that derive no terminal string at all, and variables the start never reaches. */
+  function health(g) {
+    const prod = new Set();
+    let ch = true;
+    while (ch) {
+      ch = false;
+      g.rules.forEach((r) => {
+        if (!prod.has(r.lhs) && r.rhs.every((s) => !isVar(g, s) || prod.has(s))) { prod.add(r.lhs); ch = true; }
+      });
+    }
+    const reach = new Set([g.start]), st = [g.start];
+    while (st.length) {
+      const A = st.pop();
+      g.rules.filter((r) => r.lhs === A).forEach((r) => r.rhs.forEach((s) => { if (isVar(g, s) && !reach.has(s)) { reach.add(s); st.push(s); } }));
+    }
+    return { unproductive: g.vars.filter((v) => !prod.has(v)), unreachable: g.vars.filter((v) => !reach.has(v)) };
+  }
+
+  /* Up to `max` different parse trees of w from A, using the gen table.
+     Trees that repeat the same (variable, substring) on one path are skipped, so cycles are never unrolled. */
+  function trees(g, cnt, A, w, max) {
+    max = max || 2;
+    const has = (X, s) => (isVar(g, X) ? (cnt[X].get(s) || 0) > 0 : X === s);
+    function* splits(rhs, s, k) {
+      if (k === rhs.length) { if (s === "") yield []; return; }
+      const left = rhs.length - k - 1;
+      for (let l = 0; l <= s.length; l++) {
+        const part = s.slice(0, l);
+        if (!has(rhs[k], part)) continue;
+        if (left === 0 && l !== s.length) continue;
+        for (const rest of splits(rhs, s.slice(l), k + 1)) yield [part].concat(rest);
+      }
+    }
+    function* build(X, s, path) {
+      if (!isVar(g, X)) { yield { sym: X, kids: null }; return; }
+      const key = X + "\u0001" + s;
+      if (path.has(key)) return;
+      path.add(key);
+      for (const r of g.rules) {
+        if (r.lhs !== X) continue;
+        if (!r.rhs.length) {
+          if (s === "") { path.delete(key); yield { sym: X, rule: r, kids: [{ sym: "ε", eps: true, kids: null }] }; path.add(key); }
+          continue;
+        }
+        for (const parts of splits(r.rhs, s, 0)) {
+          // only ancestors stay in `path`: drop the key while the tree is handed out
+          for (const t of combine(r, parts, 0, [], path, X)) { path.delete(key); yield t; path.add(key); }
+        }
+      }
+      path.delete(key);
+    }
+    function* combine(r, parts, k, acc, path, X) {
+      if (k === parts.length) { yield { sym: X, rule: r, kids: acc.slice() }; return; }
+      for (const t of build(r.rhs[k], parts[k], path)) {
+        acc.push(t);
+        yield* combine(r, parts, k + 1, acc, path, X);
+        acc.pop();
+      }
+    }
+    const out = [];
+    for (const t of build(A, w, new Set())) { out.push(t); if (out.length >= max) break; }
+    return out;
+  }
+
+  /* Leftmost derivation read off a parse tree: one frame per rule application. */
+  function leftmost(tree) {
+    let id = 0;
+    (function num(n) { n.id = id++; (n.kids || []).forEach(num); })(tree);
+    const frames = [];
+    let front = [tree];
+    const open = new Set();
+    frames.push({ form: front.map((x) => x), open: new Set(open), rule: null, at: -1 });
+    for (;;) {
+      const i = front.findIndex((x) => x.kids && !open.has(x.id));
+      if (i < 0) break;
+      const node = front[i];
+      open.add(node.id);
+      front = front.slice(0, i).concat(node.kids.filter((k) => !k.eps), front.slice(i + 1));
+      frames.push({ form: front.map((x) => x), open: new Set(open), rule: node.rule, at: i, node });
+    }
+    return frames;
+  }
+
+  /* ---- Chomsky normal form, Sipser Theorem 2.9, one change per frame ---- */
+  function clone(rules) { return rules.map((r) => ({ lhs: r.lhs, rhs: r.rhs.slice() })); }
+  function cnf(g0) {
+    let vars = g0.vars.slice(), start = g0.start;
+    let rules = clone(g0.rules);
+    const frames = [];
+    const has = (A, rhs) => rules.some((r) => r.lhs === A && same(r.rhs, rhs));
+    const isV = (s) => vars.includes(s);
+    function snap(step, caption, added, removed) {
+      frames.push({ step, caption, start, vars: vars.slice(), rules: clone(rules), added: added || [], removed: removed || [] });
+    }
+    // a new variable name must not clash with a variable or with a terminal of the input grammar
+    const taken = (nm) => vars.includes(nm) || g0.terms.includes(nm);
+    snap(0, "Başlangıç grammar'ı.");
+    // 1. new start variable
+    let s0 = "S0", k = 1;
+    while (taken(s0)) s0 = "S0" + "'".repeat(k++);
+    rules.unshift({ lhs: s0, rhs: [start] });
+    vars.unshift(s0);
+    const oldStart = start;
+    start = s0;
+    snap(1, `Yeni start variable $${tex(s0)}$ ve $${tex(s0)} \\to ${tex(oldStart)}$ eklendi. Artık start variable hiçbir kuralın sağ tarafında yok.`, [{ lhs: s0, rhs: [oldStart] }]);
+    // 2. remove ε-rules (A ≠ start), in the order they appear
+    const removedEps = new Set();
+    for (let guard = 0; guard < 100; guard++) {
+      const e = rules.find((r) => r.rhs.length === 0 && r.lhs !== start);
+      if (!e) break;
+      const A = e.lhs;
+      rules = rules.filter((r) => r !== e);
+      removedEps.add(A);
+      const added = [];
+      rules.slice().forEach((r) => {
+        const pos = [];
+        r.rhs.forEach((s, i) => { if (s === A) pos.push(i); });
+        for (let mask = 1; mask < 1 << pos.length; mask++) {
+          const drop = new Set(pos.filter((_, b) => mask & (1 << b)));
+          const nr = r.rhs.filter((_, i) => !drop.has(i));
+          if (nr.length === 0 && removedEps.has(r.lhs)) continue; // Sipser: R → ε is not added back once it was deleted
+          if (!has(r.lhs, nr)) { const x = { lhs: r.lhs, rhs: nr }; rules.push(x); added.push(x); }
+        }
+      });
+      sortRules();
+      snap(2, `ε-rule $${tex(A)} \\to \\varepsilon$ silindi. Sağ tarafında $${tex(A)}$ geçen her kurala, $${tex(A)}$'${gsuf(A)} bir ya da birkaç geçişi silinmiş kopyası eklendi.`, added, [{ lhs: A, rhs: [] }]);
+    }
+    // 3. remove unit rules A → B: self-loops first, then in order
+    const removedUnit = [];
+    for (let guard = 0; guard < 400; guard++) {
+      const units = rules.filter((r) => r.rhs.length === 1 && isV(r.rhs[0]));
+      if (!units.length) break;
+      const u = units.find((r) => r.lhs === r.rhs[0]) || units[0];
+      rules = rules.filter((r) => r !== u);
+      removedUnit.push(u.lhs + "\u0001" + u.rhs[0]);
+      const added = [];
+      if (u.lhs !== u.rhs[0]) {
+        rules.filter((r) => r.lhs === u.rhs[0]).forEach((r) => {
+          const isUnit = r.rhs.length === 1 && isV(r.rhs[0]);
+          if (isUnit && removedUnit.includes(u.lhs + "\u0001" + r.rhs[0])) return; // a unit rule that was deleted is not added back
+          if (isUnit && r.rhs[0] === u.lhs) return; // would be A → A
+          if (!has(u.lhs, r.rhs)) { const x = { lhs: u.lhs, rhs: r.rhs.slice() }; rules.push(x); added.push(x); }
+        });
+      }
+      sortRules();
+      snap(3, u.lhs === u.rhs[0]
+        ? `Unit rule $${tex(u.lhs)} \\to ${tex(u.lhs)}$ silindi; hiçbir şey eklemeye gerek yok.`
+        : `Unit rule $${tex(u.lhs)} \\to ${tex(u.rhs[0])}$ silindi. $${tex(u.rhs[0])}$'${gsuf(u.rhs[0])} her $${tex(u.rhs[0])} \\to u$ kuralı için $${tex(u.lhs)} \\to u$ eklendi.`, added, [u]);
+    }
+    // 4. long rules and terminals inside rules of length >= 2
+    const tails = new Map(), termVar = new Map();
+    const needT = new Set();
+    rules.forEach((r) => { if (r.rhs.length >= 2) r.rhs.forEach((s) => { if (!isV(s)) needT.add(s); }); });
+    const tlist = [...needT].sort();
+    let chainNo = 1;
+    function fresh(base) { let nm = base; let j = 2; while (taken(nm)) nm = base + j++; return nm; }
+    function tv(t, added) {
+      if (!termVar.has(t)) {
+        const nm = fresh(tlist.length === 1 ? "U" : "U" + (tlist.indexOf(t) + 1));
+        vars.push(nm); termVar.set(t, nm);
+        const x = { lhs: nm, rhs: [t] }; rules.push(x); added.push(x);
+      }
+      return termVar.get(t);
+    }
+    function chain(syms, added) {
+      if (syms.length === 2) return syms;
+      const key = syms.slice(1).join("\u0001");
+      let nm = tails.get(key);
+      if (!nm) {
+        do { nm = "A" + chainNo++; } while (taken(nm));
+        vars.push(nm); tails.set(key, nm);
+        const x = { lhs: nm, rhs: chain(syms.slice(1), added) };
+        rules.push(x); added.push(x);
+      }
+      return [syms[0], nm];
+    }
+    for (let guard = 0; guard < 400; guard++) {
+      const r = rules.find((x) => x.rhs.length >= 3 || (x.rhs.length === 2 && x.rhs.some((s) => !isV(s))));
+      if (!r) break;
+      const added = [];
+      const syms = r.rhs.map((s) => (isV(s) ? s : tv(s, added)));
+      const nr = { lhs: r.lhs, rhs: chain(syms, added) };
+      const at = rules.indexOf(r);
+      if (has(nr.lhs, nr.rhs)) rules.splice(at, 1);
+      else { rules.splice(at, 1, nr); added.unshift(nr); }
+      sortRules();
+      snap(4, r.rhs.length >= 3
+        ? `$${tex(r.lhs)} \\to ${texRhs(r.rhs)}$ uzun: ikili parçalara bölündü${r.rhs.some((s) => !isV(s)) ? ", terminaller variable'larla değiştirildi" : ""}.`
+        : `$${tex(r.lhs)} \\to ${texRhs(r.rhs)}$ içindeki terminal yeni bir variable ile değiştirildi.`, added, [r]);
+    }
+    return { frames, start, vars, rules };
+    function sortRules() {
+      const order = (v) => { const i = vars.indexOf(v); return i < 0 ? 999 : i; };
+      rules.sort((a, b) => order(a.lhs) - order(b.lhs));
+    }
+  }
+  function isCNF(start, vars, rules) {
+    const bad = [];
+    rules.forEach((r) => {
+      const isV = (s) => vars.includes(s);
+      const ok = (r.rhs.length === 2 && r.rhs.every((s) => isV(s) && s !== start)) ||
+        (r.rhs.length === 1 && !isV(r.rhs[0])) ||
+        (r.rhs.length === 0 && r.lhs === start);
+      if (!ok) bad.push(r);
+    });
+    return bad;
+  }
+  /* Turkish genitive suffix after a variable name, by how its last character is read (A: a, B: be, S0: es sıfır …) */
+  function gsuf(v) {
+    const c = v[v.length - 1];
+    const d = { 0: "ın", 1: "in", 2: "nin", 3: "ün", 4: "ün", 5: "in", 6: "nın", 7: "nin", 8: "in", 9: "un" };
+    if (c in d) return d[c];
+    if (c === "A" || c === "I") return "nın";
+    if (c === "O" || c === "U") return "nun";
+    return "nin";
+  }
+  function tex(v) {
+    const m = /^([A-Z])(\d+)('*)$/.exec(v);
+    if (m) return m[1] + "_{" + m[2] + "}" + m[3];
+    if (v === "ε") return "\\varepsilon";
+    if (v === "#") return "\\#";
+    if (v === "$") return "\\$";
+    if (/^[A-Za-z0-9]$/.test(v)) return v;
+    if (v === "*") return "\\times";
+    if (v === "(" || v === ")" || v === "+") return v;
+    return "\\text{" + v.replace(/[\\{}]/g, "") + "}";
+  }
+  function texRhs(rhs) { return rhs.length ? rhs.map(tex).join("") : "\\varepsilon"; }
+  function show(start, vars, rules) {
+    const order = vars.filter((v) => rules.some((r) => r.lhs === v));
+    return order.map((v) => v + " -> " + rules.filter((r) => r.lhs === v).map((r) => (r.rhs.length ? (r.rhs.some((s) => s.length > 1) ? r.rhs.join(" ") : r.rhs.join("")) : "ε")).join(" | ")).join("\n");
+  }
+  return { parse, gen, health, trees, leftmost, cnf, isCNF, tex, texRhs, show, same };
+})();
+/*ENGINE-END*/
+/*TARGETS-START*/
+/* Target languages for the grammar bench: alphabet + membership test (checked against the python versions). */
+const CF_TARGETS = (() => {
+  const rev = (s) => s.split("").reverse().join("");
+  const pal = (s) => s === rev(s);
+  const blocks = (re, w) => { const m = re.exec(w); return m ? m.slice(1).map((x) => x.length) : null; };
+  const cnt = (w, c) => w.split(c).length - 1;
+  return [
+    { id: "t2024", name: "2024 P4(a): aᵏbᵐcⁿ, k ≥ m+n", alpha: "abc", test: (w) => { const b = blocks(/^(a*)(b*)(c*)$/, w); return !!b && b[0] >= b[1] + b[2]; } },
+    { id: "t2023", name: "2023 P4(a): 0ⁿwwᴿ1ⁿ", alpha: "01", test: (w) => { for (let n = 0; 2 * n <= w.length; n++) { if (w.slice(0, n) !== "0".repeat(n) || w.slice(w.length - n) !== "1".repeat(n)) continue; const mid = w.slice(n, w.length - n); if (mid.length % 2 === 0 && pal(mid)) return true; } return false; } },
+    { id: "t2020a", name: "2020 P4(a): tek uzunluk, ilk = orta = son", alpha: "01", test: (w) => w.length % 2 === 1 && w[0] === w[(w.length - 1) / 2] && w[0] === w[w.length - 1] },
+    { id: "t2020b", name: "2020 P4(b): aᵐbⁿ, m ≤ n ≤ 3m", alpha: "ab", test: (w) => { const b = blocks(/^(a*)(b*)$/, w); return !!b && b[0] <= b[1] && b[1] <= 3 * b[0]; } },
+    { id: "t2019a", name: "2019 P4(a): tek uzunluk, tek konumlar palindrome", alpha: "01", test: (w) => w.length % 2 === 1 && pal(w.split("").filter((_, i) => i % 2 === 0).join("")) },
+    { id: "t2019b", name: "2019 P4(b): aⁱbʲcᵏdᵐ, i+j = k+m", alpha: "abcd", test: (w) => { const b = blocks(/^(a*)(b*)(c*)(d*)$/, w); return !!b && b[0] + b[1] === b[2] + b[3]; } },
+    { id: "anbn", name: "0ⁿ1ⁿ", alpha: "01", test: (w) => { const b = blocks(/^(0*)(1*)$/, w); return !!b && b[0] === b[1]; } },
+    { id: "g1", name: "0ⁿ#1ⁿ (G₁)", alpha: "01#", test: (w) => { const b = blocks(/^(0*)#(1*)$/, w); return !!b && b[0] === b[1]; } },
+    { id: "bal", name: "düzgün parantezler, a = ( ve b = ) (G₃)", alpha: "ab", test: (w) => { let d = 0; for (const c of w) { d += c === "a" ? 1 : -1; if (d < 0) return false; } return d === 0; } },
+    { id: "anb2n", name: "aⁿb²ⁿ", alpha: "ab", test: (w) => { const b = blocks(/^(a*)(b*)$/, w); return !!b && b[1] === 2 * b[0]; } },
+    { id: "j2i", name: "aⁱbʲ, j ≥ 2i", alpha: "ab", test: (w) => { const b = blocks(/^(a*)(b*)$/, w); return !!b && b[1] >= 2 * b[0]; } },
+    { id: "s24a", name: "Exercise 2.4(a): en az üç 1", alpha: "01", test: (w) => cnt(w, "1") >= 3 },
+    { id: "s24b", name: "Exercise 2.4(b): aynı sembolle başlar ve biter", alpha: "01", test: (w) => w.length >= 1 && w[0] === w[w.length - 1] },
+    { id: "s24c", name: "Exercise 2.4(c): tek uzunluk", alpha: "01", test: (w) => w.length % 2 === 1 },
+    { id: "s24d", name: "Exercise 2.4(d): tek uzunluk, ortası 0", alpha: "01", test: (w) => w.length % 2 === 1 && w[(w.length - 1) / 2] === "0" },
+    { id: "pal", name: "Exercise 2.4(e): palindrome", alpha: "01", test: pal },
+    { id: "s26a", name: "Exercise 2.6(a): a'lar b'lerden fazla", alpha: "ab", test: (w) => cnt(w, "a") > cnt(w, "b") },
+    { id: "s26b", name: "Exercise 2.6(b): aⁿbⁿ'nin complement'i", alpha: "ab", test: (w) => { const b = blocks(/^(a*)(b*)$/, w); return !(b && b[0] === b[1]); } },
+    { id: "s29", name: "Exercise 2.9: aⁱbʲcᵏ, i = j ya da j = k", alpha: "abc", test: (w) => { const b = blocks(/^(a*)(b*)(c*)$/, w); return !!b && (b[0] === b[1] || b[1] === b[2]); } },
+    { id: "even0", name: "çift sayıda 0", alpha: "01", test: (w) => cnt(w, "0") % 2 === 0 },
+    { id: "z00", name: "(00)* (Exercise 2.14)", alpha: "0", test: (w) => /^(00)*$/.test(w) }
+  ];
+})();
+/*TARGETS-END*/
+/* ---- Page widgets ---- */
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const math = (el) => { if (window.Lab && Lab.renderMath) Lab.renderMath(el); };
+  const shortlex = (a, b) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0);
+  const showW = (w) => (w === "" ? "ε" : w.replace(/\*/g, "×"));
+  const symHTML = (s) => {
+    const m = /^([A-Z])(\d+)('*)$/.exec(s);
+    if (m) return `${m[1]}<sub>${m[2]}</sub>${m[3]}`;
+    return esc(s === "*" ? "×" : s);
+  };
+  const rhsHTML = (rhs) => (rhs.length ? rhs.map(symHTML).join("") : "ε");
+  const TGT = {};
+  CF_TARGETS.forEach((t) => { TGT[t.id] = t; });
+
+  const PRESETS = {
+    g1: { label: "Sipser G₁", text: "A -> 0A1 | B\nB -> #", target: "g1", w: "000#111" },
+    g3: { label: "Sipser G₃", text: "S -> aSb | SS | ε", target: "bal", w: "abab" },
+    g4: { label: "Sipser G₄ (E, T, F)", text: "E -> E+T | T\nT -> T*F | F\nF -> (E) | a", w: "a+a*a" },
+    g5: { label: "Sipser G₅ (ambiguous)", text: "E -> E+E | E*E | (E) | a", w: "a+a*a" },
+    p2024: { label: "2024 P4(a): hocanın grammar'ı", text: "S -> aSc | B\nB -> aBb | A\nA -> aA | ε", target: "t2024", w: "aaaaabbccc" },
+    p2024x: { label: "Tuzak: S → aSbc", text: "S -> aSbc | A\nA -> aA | ε", target: "t2024", w: "aabcbc" },
+    p2024y: { label: "Tuzak: fazlalık katmanı yok", text: "S -> aSc | B\nB -> aBb | ε", target: "t2024", w: "aabc" },
+    p2024z: { label: "Tuzak: katman sırası ters", text: "S -> aSb | B\nB -> aBc | A\nA -> aA | ε", target: "t2024", w: "aacb" },
+    p2023: { label: "2023 P4(a)", text: "S -> 0S1 | E\nE -> 0E0 | 1E1 | ε", target: "t2023", w: "0010000111" },
+    p2023x: { label: "Tuzak: 2023 P4(a) tek variable ile", text: "S -> 0S1 | 0S0 | 1S1 | ε", target: "t2023", w: "1011" },
+    p2020a: { label: "2020 P4(a)", text: "S -> 0P0 | 1Q1 | 0 | 1\nP -> XPX | 0\nQ -> XQX | 1\nX -> 0 | 1", target: "t2020a", w: "01000" },
+    p2020b: { label: "2020 P4(b)", text: "S -> aSb | aSbb | aSbbb | ε", target: "t2020b", w: "aabbb" },
+    p2019ak: { label: "2019 P4(a): repodaki anahtar (hatalı)", text: "S -> 0TST0 | 1TST1 | T\nT -> 0 | 1", target: "t2019a", w: "01110" },
+    p2019af: { label: "2019 P4(a): düzeltilmiş", text: "S -> 0TST0 | 1TST1 | 0T0 | 1T1 | 0 | 1\nT -> 0 | 1", target: "t2019a", w: "0011110" },
+    p2019bk: { label: "2019 P4(b): repodaki anahtar (hatalı)", text: "S -> ASB | ε\nA -> a | b\nB -> c | d", target: "t2019b", w: "bacd" },
+    p2019bf: { label: "2019 P4(b): düzeltilmiş", text: "S -> aSd | T | U\nT -> bTd | V\nU -> aUc | aVc\nV -> bVc | ε", target: "t2019b", w: "abcd" },
+    s24a: { label: "Exercise 2.4(a)", text: "S -> R1R1R1R\nR -> 0R | 1R | ε", target: "s24a", w: "10101" },
+    s24b: { label: "Exercise 2.4(b)", text: "S -> 0A0 | 1A1 | 0 | 1\nA -> 0A | 1A | ε", target: "s24b", w: "0110" },
+    s24c: { label: "Exercise 2.4(c)", text: "S -> XSX | X\nX -> 0 | 1", target: "s24c", w: "011" },
+    s24d: { label: "Exercise 2.4(d)", text: "S -> 0 | 0S0 | 0S1 | 1S0 | 1S1", target: "s24d", w: "10011" },
+    s24e: { label: "Exercise 2.4(e)", text: "S -> 0S0 | 1S1 | 0 | 1 | ε", target: "pal", w: "01010" },
+    s26a: { label: "Exercise 2.6(a)", text: "S -> TaT\nT -> TT | aTb | bTa | a | ε", target: "s26a", w: "aba" },
+    s26b: { label: "Exercise 2.6(b)", text: "S -> X | C\nX -> aXb | aA | bB\nA -> aA | ε\nB -> bB | ε\nC -> DbaD\nD -> aD | bD | ε", target: "s26b", w: "aab" },
+    s29: { label: "Exercise 2.9", text: "S -> XC | AY\nX -> aXb | ε\nC -> cC | ε\nA -> aA | ε\nY -> bYc | ε", target: "s29", w: "abc" },
+    anb2n: { label: "aⁿb²ⁿ: S → aSbb | ε", text: "S -> aSbb | ε", target: "anb2n", w: "aabbbb" },
+    even0: { label: "DFA'dan: çift sayıda 0", text: "R0 -> 0 R1 | 1 R0 | ε\nR1 -> 0 R0 | 1 R1", target: "even0", w: "1010" },
+    union: { label: "Union: 0ⁿ1ⁿ ∪ 1ⁿ0ⁿ", text: "S -> S1 | S2\nS1 -> 0 S1 1 | ε\nS2 -> 1 S2 0 | ε", w: "1100" },
+    g6: { label: "Example 2.10: G₆", text: "S -> ASA | aB\nA -> B | S\nB -> b | ε", w: "ab" },
+    e214: { label: "Exercise 2.14", text: "A -> BAB | B | ε\nB -> 00 | ε", target: "z00", w: "0000" },
+    blank: { label: "(boş: kendin yaz)", text: "", w: "" }
+  };
+  function fillPresets(sel, ids) {
+    sel.innerHTML = ids.map((id) => `<option value="${id}">${esc(PRESETS[id].label)}</option>`).join("");
+  }
+
+  /* ---- parse tree as SVG; reveal = set of node ids whose children are drawn (null: all) ---- */
+  function treeSVG(tree, opts) {
+    opts = opts || {};
+    const reveal = opts.reveal || null, hi = opts.hi;
+    let id = 0, leaf = 0, depth = 0, wide = false;
+    (function num(n, d) {
+      if (n.id === undefined) n.id = "f" + id++;
+      if (String(n.sym).length > 1 && n.sym !== "ε") wide = true;
+      depth = Math.max(depth, d);
+      if (!n.kids || !n.kids.length) { n.lx = leaf++; n.ly = d; return; }
+      n.kids.forEach((k) => num(k, d + 1));
+      n.lx = (n.kids[0].lx + n.kids[n.kids.length - 1].lx) / 2;
+      n.ly = d;
+    })(tree, 0);
+    const gx = wide ? 34 : 26, gy = 42, pad = 16;
+    const W = Math.max(90, (leaf - 1) * gx + 2 * pad), H = depth * gy + 2 * pad + 6;
+    const X = (n) => pad + n.lx * gx, Y = (n) => pad + 6 + n.ly * gy;
+    const lines = [], labels = [];
+    (function draw(n) {
+      const isVarNode = !!n.kids;
+      const open = isVarNode && (!reveal || reveal.has(n.id));
+      if (n.id === hi) labels.push(`<circle class="w-cfg-hi" cx="${X(n)}" cy="${Y(n) - 5}" r="12"/>`);
+      else if (isVarNode && !open) labels.push(`<circle class="w-cfg-open" cx="${X(n)}" cy="${Y(n) - 5}" r="11"/>`);
+      const cls = n.eps ? "w-cfg-te" : isVarNode ? "w-cfg-tv" : "w-cfg-tt";
+      const m = /^([A-Z])(\d+)('*)$/.exec(n.sym);
+      const txt = m ? `${m[1]}<tspan font-size="10" dy="4">${m[2]}</tspan>` : esc(n.sym === "*" ? "×" : n.sym);
+      labels.push(`<text class="${cls}" x="${X(n)}" y="${Y(n)}" text-anchor="middle">${txt}</text>`);
+      if (open) n.kids.forEach((k) => {
+        lines.push(`<line class="w-cfg-edge" x1="${X(n)}" y1="${Y(n) + 5}" x2="${X(k)}" y2="${Y(k) - 15}"/>`);
+        draw(k);
+      });
+    })(tree);
+    const name = "Parse tree" + (opts.name ? " " + opts.name : "") + ": " + treeDesc(tree, reveal);
+    return `<div class="w-cfg-scroll"><svg class="w-cfg-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(name)}">${lines.join("")}${labels.join("")}</svg></div>`;
+  }
+  /* Text equivalent of a drawn tree for screen readers: every opened variable followed by its children in brackets, e.g. E[E[a] + E[a]]. */
+  function treeDesc(n, reveal) {
+    const sym = n.sym === "*" ? "×" : n.sym;
+    if (!n.kids || (reveal && !reveal.has(n.id))) return sym;
+    return sym + "[" + n.kids.map((k) => treeDesc(k, reveal)).join(" ") + "]";
+  }
+  /* The tree's yield with parentheses around every inner node that has several children: a+(a×a) or (a+a)×a. */
+  function grouping(n, root) {
+    if (!n.kids) return n.eps ? "" : n.sym === "*" ? "×" : n.sym;
+    const inner = n.kids.map((k) => grouping(k, false)).join("");
+    return n.kids.length > 1 && !root ? "(" + inner + ")" : inner;
+  }
+  function derivationText(tree) {
+    return CF.leftmost(tree).map((f) => f.form.map((x) => (x.sym === "*" ? "×" : x.sym)).join("") || "ε").join(" ⇒ ");
+  }
+  function readGrammar(text, errEl) {
+    const g = CF.parse(text);
+    if (g.errors.length) { errEl.textContent = g.errors.join(" "); return null; }
+    return g;
+  }
+
+  /* ---- static figures ---- */
+  document.querySelectorAll(".w-cfg-fig").forEach((el) => {
+    const g = CF.parse(el.dataset.g.replace(/\\n/g, "\n"));
+    const w = el.dataset.w;
+    const r = CF.gen(g, w.length);
+    const ts = CF.trees(g, r.cnt, g.start, w, 2);
+    const t = ts[+(el.dataset.tree || 0)];
+    el.innerHTML = t ? treeSVG(t, { name: el.hasAttribute("data-group") ? grouping(t, true) : "" }) : "";
+  });
+
+  /* ---- A: leftmost derivation stepper ---- */
+  (function () {
+    const sel = $("w-dv-preset"), ta = $("w-dv-g"), inp = $("w-dv-w"), err = $("w-dv-err"), pick = $("w-dv-pick"), st = $("w-dv-st");
+    fillPresets(sel, ["g4", "g5", "g1", "g3", "p2024", "p2023", "p2020a", "p2020b", "p2019af", "p2019bf", "even0", "union", "s29", "blank"]);
+    function load() { const p = PRESETS[sel.value]; ta.value = p.text; inp.value = p.w; run(); }
+    function show(tree, g) {
+      const frames = CF.leftmost(tree).map((f, i, all) => {
+        let cap;
+        if (i === 0) cap = `Başla: start variable $${CF.tex(g.start)}$.`;
+        else cap = `Adım ${i}: en soldaki variable $${CF.tex(f.node.sym)}$ açıldı, kural $${CF.tex(f.rule.lhs)} \\to ${CF.texRhs(f.rule.rhs)}$.`;
+        if (i === all.length - 1 && i > 0) cap += " Hiç variable kalmadı: string üretildi.";
+        return Object.assign({ caption: cap }, f);
+      });
+      Lab.stepper(st, {
+        title: `Leftmost derivation: ${showW(inp.value.trim())}`,
+        interval: 1300,
+        frames,
+        render(f, i, stage) {
+          const toks = f.form.map((x) => {
+            const isV = x.kids && !f.open.has(x.id);
+            const isNew = f.node && f.node.kids.includes(x);
+            return `<span class="${isV ? "w-cfg-v" : ""}${isNew ? " w-cfg-new" : ""}">${symHTML(x.sym)}</span>`;
+          }).join("");
+          stage.innerHTML = `<div class="w-cfg-form">${toks || "<span>ε</span>"}</div>` + treeSVG(tree, { reveal: f.open, hi: f.node ? f.node.id : undefined });
+        }
+      });
+    }
+    function run() {
+      err.textContent = ""; pick.innerHTML = ""; st.innerHTML = ""; st.className = "";
+      const g = readGrammar(ta.value, err);
+      if (!g) return;
+      const w = inp.value.replace(/\s+/g, "").replace(/×/g, "*").replace(/ε/g, "");
+      if (w.length > 12) { err.textContent = "En fazla 12 sembollük string'ler için."; return; }
+      const badc = [...w].find((c) => !g.terms.includes(c));
+      if (badc) { err.textContent = `"${badc}" bu grammar'ın bir terminal'i değil. Terminal'ler: ${g.terms.join(" ") || "(yok)"}.`; return; }
+      const r = CF.gen(g, w.length);
+      if (r.aborted) { err.textContent = "Grammar çok fazla string üretiyor; daha kısa bir string dene."; return; }
+      if (!r.cnt[g.start].get(w)) {
+        err.textContent = `Bu grammar "${showW(w)}" string'ini üretmiyor. (Uzunluğu ${w.length}'e kadar olan bütün türetmeler hesaplandı.)`;
+        return;
+      }
+      const ts = CF.trees(g, r.cnt, g.start, w, 2);
+      if (ts.length > 1) {
+        pick.innerHTML = `<button class="btn btn--sm is-on" data-t="0">Parse tree 1</button><button class="btn btn--sm" data-t="1">Parse tree 2</button><span class="w-cfg-bad">Bu string'in iki farklı parse tree'si var: ambiguous.</span>`;
+        pick.querySelectorAll("[data-t]").forEach((b) => b.addEventListener("click", () => {
+          pick.querySelectorAll("[data-t]").forEach((x) => x.classList.toggle("is-on", x === b));
+          show(ts[+b.dataset.t], g);
+        }));
+      } else if (r.cnt[g.start].get(w) > 1) {
+        pick.innerHTML = `<span class="w-cfg-note">Not: grammar'da bir döngü var (bir variable aynı string için kendine geri dönüyor), bu yüzden bu string'in sonsuz sayıda parse tree'si var. Döngüsüz olanı gösteriliyor.</span>`;
+      }
+      show(ts[0], g);
+    }
+    sel.addEventListener("change", load);
+    $("w-dv-go").addEventListener("click", run);
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") run(); });
+    load();
+  })();
+
+  /* ---- B: grammar bench ---- */
+  (function () {
+    const sel = $("w-wb-preset"), ta = $("w-wb-g"), tsel = $("w-wb-target"), nin = $("w-wb-n"), err = $("w-wb-err"), out = $("w-wb-out");
+    fillPresets(sel, ["p2019bk", "p2019bf", "p2019ak", "p2019af", "p2024", "p2024x", "p2024y", "p2024z", "p2023", "p2023x", "p2020a", "p2020b", "anb2n", "s24a", "s24b", "s24c", "s24d", "s24e", "s26a", "s26b", "s29", "g3", "even0", "e214", "blank"]);
+    tsel.innerHTML = `<option value="">(hedef yok: sadece üret)</option>` + CF_TARGETS.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("");
+    const nMax = (k) => (k <= 1 ? 14 : k === 2 ? 12 : k === 3 ? 9 : k === 4 ? 8 : 6);
+    const nDef = (k) => (k <= 1 ? 12 : k === 2 ? 10 : k === 3 ? 8 : 7);
+    function load() {
+      const p = PRESETS[sel.value];
+      ta.value = p.text; tsel.value = p.target || "";
+      const k = p.target ? TGT[p.target].alpha.length : 2;
+      nin.value = nDef(k);
+      out.innerHTML = ""; err.textContent = "";
+    }
+    function chips(list, cls, max) {
+      const shown = list.slice(0, max).map((w) => `<span class="w-cfg-chip ${cls}">${esc(showW(w))}</span>`).join("");
+      return `<div class="w-cfg-chips">${shown}${list.length > max ? `<span class="w-cfg-note">… (+${list.length - max})</span>` : ""}</div>`;
+    }
+    function run() {
+      err.textContent = ""; out.innerHTML = "";
+      const g = readGrammar(ta.value, err);
+      if (!g) return;
+      const t = tsel.value ? TGT[tsel.value] : null;
+      const k = t ? t.alpha.length : Math.max(1, g.terms.length);
+      let n = parseInt(nin.value, 10);
+      if (!Number.isInteger(n) || n < 1) { err.textContent = "n pozitif bir tam sayı olmalı."; return; }
+      if (n > nMax(k)) { n = nMax(k); nin.value = n; err.textContent = `Bu alfabe için n en fazla ${n}; ${n} ile çalıştırıldı.`; }
+      const r = CF.gen(g, n);
+      if (r.aborted) { err.textContent = "Grammar bu uzunlukta çok fazla string üretiyor; n'yi küçült."; return; }
+      const L = r.cnt[g.start];
+      const gen = [...L.keys()].sort(shortlex);
+      const h = CF.health(g);
+      let html = `<div class="w-cfg-chips"><span class="w-cfg-chip">start = ${symHTML(g.start)}</span><span class="w-cfg-chip">V = {${g.vars.map(symHTML).join(", ")}}</span><span class="w-cfg-chip">Σ = {${g.terms.map(symHTML).join(", ")}}</span><span class="w-cfg-chip">${g.rules.length} kural</span></div>`;
+      const warn = g.warnings.slice();
+      if (h.unproductive.length) warn.push(`${h.unproductive.join(", ")} hiçbir terminal string üretmiyor (derivation'ı bitmiyor).`);
+      if (h.unreachable.length) warn.push(`${h.unreachable.join(", ")} start variable'dan hiç ulaşılmıyor.`);
+      if (t) { const off = g.terms.filter((c) => !t.alpha.includes(c)); if (off.length) warn.push(`${off.join(" ")} hedef dilin alfabesinde ({${t.alpha.split("").join(", ")}}) yok.`); }
+      if (warn.length) html += `<p class="w-cfg-note">Uyarı: ${esc(warn.join(" "))}</p>`;
+      html += `<p>Grammar uzunluğu $\\le ${n}$ olan <b>${gen.length}</b> string üretiyor (kısadan uzuna):</p>` + chips(gen, "", 40);
+      if (t) {
+        const extra = gen.filter((w) => ![...w].every((c) => t.alpha.includes(c)) || !t.test(w));
+        const miss = [];
+        let cur = [""];
+        if (t.test("") && !L.has("")) miss.push("");
+        for (let l = 1; l <= n; l++) {
+          const nx = [];
+          for (const p of cur) for (const c of t.alpha) { const w = p + c; nx.push(w); if (t.test(w) && !L.has(w)) miss.push(w); }
+          cur = nx;
+        }
+        if (!extra.length && !miss.length) {
+          html += `<p><span class="w-cfg-badge is-ok">✓ aynı</span> Uzunluk $\\le ${n}$'de grammar tam olarak "${esc(t.name)}" dilini üretiyor. Bu bir ispat değil ama hataların çoğunu yakalar.</p>`;
+        } else {
+          html += `<p><span class="w-cfg-badge is-bad">✗ farklı</span></p>`;
+          if (extra.length) {
+            html += `<p><b>Fazladan üretilen</b> (dilde değil), ${extra.length} tane:</p>` + chips(extra, "is-bad", 12);
+            const w0 = extra[0];
+            const tr = CF.trees(g, r.cnt, g.start, w0, 1)[0];
+            if (tr) html += `<p class="w-cfg-der">İlk yanlış string'in derivation'ı: ${esc(derivationText(tr))}</p>`;
+          }
+          if (miss.length) html += `<p><b>Kaçırılan</b> (dilde ama üretilmiyor), ${miss.length} tane:</p>` + chips(miss, "is-miss", 12);
+        }
+      }
+      const amb = gen.filter((w) => L.get(w) > 1);
+      html += amb.length
+        ? `<p class="w-cfg-note">Ambiguous string'ler (iki ya da daha fazla parse tree): ${esc(amb.slice(0, 6).map(showW).join(", "))}${amb.length > 6 ? ", …" : ""}. Soru sadece bir CFG istiyorsa bu bir hata değil.</p>`
+        : `<p class="w-cfg-note">Uzunluk $\\le ${n}$'de her string'in tek parse tree'si var.</p>`;
+      out.innerHTML = html;
+      math(out);
+    }
+    sel.addEventListener("change", load);
+    $("w-wb-go").addEventListener("click", run);
+    load();
+  })();
+
+  /* ---- C: ambiguity finder ---- */
+  (function () {
+    const sel = $("w-am-preset"), ta = $("w-am-g"), nin = $("w-am-n"), err = $("w-am-err"), out = $("w-am-out");
+    fillPresets(sel, ["p2020b", "g5", "g4", "g3", "s29", "union", "p2024", "p2019bf", "blank"]);
+    function load() { ta.value = PRESETS[sel.value].text; out.innerHTML = ""; err.textContent = ""; }
+    function run() {
+      err.textContent = ""; out.innerHTML = "";
+      const g = readGrammar(ta.value, err);
+      if (!g) return;
+      let n = parseInt(nin.value, 10);
+      if (!Number.isInteger(n) || n < 0) { err.textContent = "n doğal sayı olmalı."; return; }
+      if (n > 10) { n = 10; nin.value = 10; }
+      const r = CF.gen(g, n);
+      if (r.aborted) { err.textContent = "Grammar bu uzunlukta çok fazla string üretiyor; n'yi küçült."; return; }
+      const L = r.cnt[g.start];
+      const amb = [...L.keys()].filter((w) => L.get(w) > 1).sort(shortlex);
+      if (!amb.length) {
+        out.innerHTML = `<p><span class="w-cfg-badge is-ok">tek tree</span> Uzunluk $\\le ${n}$'deki ${L.size} string'in her birinin tek parse tree'si var. Bu, grammar'ın unambiguous olduğunun ispatı değil; sadece kısa string'lerde ambiguity yok.</p>`;
+        math(out); return;
+      }
+      const w = amb[0];
+      const ts = CF.trees(g, r.cnt, g.start, w, 2);
+      let html = `<p><span class="w-cfg-badge is-bad">ambiguous</span> En kısa ambiguous string: <b class="w-cfg-mono">${esc(showW(w))}</b></p>`;
+      if (ts.length < 2) {
+        html += `<p class="w-cfg-note">Bu string'in sonsuz sayıda parse tree'si var: grammar'da aynı string için kendine geri dönen bir variable var (örneğin $S \\to S$ ya da $\\varepsilon$ üzerinden bir döngü). Döngüsüz tek tree aşağıda.</p>`;
+      }
+      html += `<div class="w-cfg-two">` + ts.map((t, i) => `<div class="w-cfg-card"><h4>Parse tree ${i + 1}</h4>${treeSVG(t, { name: String(i + 1) })}<p class="w-cfg-der">${esc(derivationText(t))}</p></div>`).join("") + `</div>`;
+      if (amb.length > 1) html += `<p class="w-cfg-note">Uzunluk $\\le ${n}$'deki diğer ambiguous string'ler: ${esc(amb.slice(1, 7).map(showW).join(", "))}${amb.length > 7 ? ", …" : ""}</p>`;
+      out.innerHTML = html;
+      math(out);
+    }
+    sel.addEventListener("change", () => { load(); run(); });
+    $("w-am-go").addEventListener("click", run);
+    load();
+  })();
+
+  /* ---- D: CNF stepper ---- */
+  (function () {
+    const sel = $("w-cnf-preset"), ta = $("w-cnf-g"), err = $("w-cnf-err"), st = $("w-cnf-st");
+    fillPresets(sel, ["g6", "e214", "g1", "p2024", "g3", "blank"]);
+    const STEP = ["Başlangıç", "1. Yeni start variable", "2. ε-rule'ları sil", "3. Unit rule'ları sil", "4. Uzun kurallar ve terminal'ler"];
+    const key = (r) => r.lhs + "\u0001" + r.rhs.join("\u0001");
+    function listing(f) {
+      const add = new Set(f.added.map(key));
+      const order = f.vars.filter((v) => f.rules.some((r) => r.lhs === v) || f.removed.some((r) => r.lhs === v));
+      return `<div class="w-cfg-gram">` + order.map((v) => {
+        const alts = f.rules.filter((r) => r.lhs === v).map((r) => `<span class="${add.has(key(r)) ? "w-cfg-add" : ""}">${rhsHTML(r.rhs)}</span>`);
+        const dels = f.removed.filter((r) => r.lhs === v).map((r) => `<span class="w-cfg-del">${rhsHTML(r.rhs)}</span>`);
+        return `<div>${symHTML(v)} → ${alts.concat(dels).join(" | ")}</div>`;
+      }).join("") + `</div>`;
+    }
+    function run() {
+      err.textContent = ""; st.innerHTML = ""; st.className = "";
+      const g = readGrammar(ta.value, err);
+      if (!g) return;
+      if (g.rules.length > 30 || g.rules.some((r) => r.rhs.length > 6)) { err.textContent = "Daha küçük bir grammar dene (en fazla 30 kural, sağ taraf en fazla 6 sembol)."; return; }
+      const c = CF.cnf(g);
+      if (c.frames.length > 160) { err.textContent = "Dönüşüm çok uzun sürüyor; daha küçük bir grammar dene."; return; }
+      const N = 6;
+      const base = CF.gen(g, N).cnt[g.start];
+      const baseSet = [...base.keys()].sort(shortlex);
+      c.frames.forEach((f) => {
+        const L = CF.gen({ vars: f.vars, rules: f.rules }, N).cnt[f.start];
+        const a = [...L.keys()].filter((w) => !base.has(w)), b = baseSet.filter((w) => !L.has(w));
+        f.eq = !a.length && !b.length;
+        f.diff = a.concat(b).slice(0, 4);
+      });
+      const bad = CF.isCNF(c.start, c.vars, c.rules);
+      const frames = c.frames.map((f, i) => {
+        let cap = `<b>${STEP[f.step]}</b> · ${f.caption}`;
+        if (i === c.frames.length - 1) cap += bad.length ? ` <span class="w-cfg-bad">CNF değil: ${bad.map((r) => esc(r.lhs + " → " + (r.rhs.join("") || "ε"))).join(", ")}</span>` : ` <span class="w-cfg-ok">Bitti: her kural $A \\to BC$ ya da $A \\to a$ biçiminde (start için $\\varepsilon$ serbest).</span>`;
+        return Object.assign({}, f, { caption: cap });
+      });
+      Lab.stepper(st, {
+        title: "CNF dönüşümü (Sipser Theorem 2.9)",
+        interval: 1600,
+        frames,
+        render(f, i, stage) {
+          const badge = f.eq ? `<span class="w-cfg-badge is-ok">✓ aynı dil (|w| ≤ ${N})</span>` : `<span class="w-cfg-badge is-bad">✗ dil değişti: ${esc(f.diff.map(showW).join(", "))}</span>`;
+          stage.innerHTML = listing(f) + badge;
+        }
+      });
+    }
+    sel.addEventListener("change", () => { ta.value = PRESETS[sel.value].text; run(); });
+    $("w-cnf-go").addEventListener("click", run);
+    ta.value = PRESETS[sel.value].text;
+    run();
+  })();
+})();
+</script>
+</body>
+</html>

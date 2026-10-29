@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 435: pushdown automata. Stack'li NFA, formal definition, a,b → c okuma, bottom marker, nondeterminism, hocanın faz faz PDA tasarımı ve saydığı hatalar, aᵏbᵐcⁿ ailesi, eski vize PDA'ları, CFG → PDA (Lemma 2.21) ve PDA → CFG fikri (Lemma 2.27)." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Pushdown automata ve CFG ↔ PDA · CSE 435 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-pda-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-pda-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-pda-ctl label { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; max-width: 100%; }
+    .w-pda-ctl select { max-width: 100%; min-width: 0; }
+    .w-pda-ctl input[type="text"] { min-width: 0; width: 180px; max-width: 100%; font-family: 'JetBrains Mono', monospace; }
+    .w-pda-src { display: block; width: 100%; box-sizing: border-box; min-height: 150px; font-family: 'JetBrains Mono', monospace; font-size: .84rem; line-height: 1.45; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); color: var(--fg); resize: vertical; }
+    .w-pda-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; white-space: pre-line; }
+    .w-pda-ok { color: #2b8a3e; font-weight: 600; }
+    .w-pda-bad { color: #c92a2a; font-weight: 600; }
+    .lesson code.w-pda-raw, code.w-pda-raw { display: block; background: none; padding: 0; border-radius: 0; font-family: inherit; font-size: inherit; color: inherit; white-space: normal; }
+    .w-pda-scroll { display: block; overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+    .w-pda-scroll svg { display: block; height: auto; max-width: none; }
+    .w-pda-vis { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; margin-top: 8px; }
+    .w-pda-vis > span { display: block; min-width: 0; }
+    .w-pda-cap { display: block; font-size: .78rem; color: var(--fg-muted); margin-bottom: 3px; font-family: 'Inter Tight', sans-serif; }
+    .w-pda-tape { display: flex; flex-wrap: wrap; gap: 2px; max-width: 100%; }
+    .w-pda-cell { display: inline-flex; min-width: 22px; height: 26px; padding: 0 3px; box-sizing: border-box; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 3px; background: var(--paper); font-family: 'JetBrains Mono', monospace; font-size: .86rem; }
+    .w-pda-cell.is-done { color: var(--fg-muted); background: transparent; }
+    .w-pda-cell.is-head { outline: 2px solid var(--blue-600); font-weight: 700; }
+    .w-pda-stack { display: flex; flex-direction: column; gap: 2px; min-width: 46px; min-height: 34px; padding: 4px; border: 2px solid var(--fg-muted); border-top: none; border-radius: 0 0 6px 6px; }
+    .w-pda-stack .w-pda-cell { width: 100%; }
+    .w-pda-stack .w-pda-cell.is-top { background: var(--orange-100); border-color: var(--accent); font-weight: 700; }
+    .w-pda-empty { font-size: .8rem; color: var(--fg-muted); text-align: center; }
+    .w-pda-form { display: block; font-family: 'JetBrains Mono', monospace; font-size: .86rem; margin-top: 6px; overflow-wrap: anywhere; }
+    .w-pda-tbl td, .w-pda-tbl th { font-size: .86rem; }
+    .w-pda-tbl td code { white-space: nowrap; }
+    .w-pda-list { display: block; font-family: 'JetBrains Mono', monospace; font-size: .8rem; line-height: 1.5; }
+    .w-pda-list > span { display: block; padding: 2px 0; border-bottom: 1px dashed var(--border); overflow-wrap: anywhere; }
+    .w-pda-sum { margin: 8px 0; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--paper); }
+    .w-pda-strs code { margin: 0 3px 3px 0; display: inline-block; }
+    .w-pda-fig { margin: 8px 0; }
+    .w-pda-rel { position: relative; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 435</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 435</a> / Pushdown automata ve CFG ↔ PDA</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">Wk 04</span><span class="chip">Sipser 2.2</span><span class="chip chip--exam">Her vizede P4</span><span class="src">~66 dk · 12 bölüm</span></div>
+          <h1>Pushdown automata: faz faz PDA tasarımı ve CFG ↔ PDA</h1>
+          <p class="lead">Vizenin dördüncü sorusu hep iki parçalı: "Give a CFG <em>and</em> a PDA for …". Grammar kısmı bir önceki derste. Bu derste ikinci yarıyı öğreneceksin: <em>pushdown automaton</em> (PDA) nedir, kenarlardaki <code>a,b→c</code> nasıl okunur, hoca bir PDA'yı nasıl "faz faz" çiziyor ve hangi hatalara puan kırıyor. Sonda grammar ile PDA'nın neden aynı gücü taşıdığını göreceksin.</p>
+          <p class="src">Not: PDA dersinin (Ekim ortası) tahta notu ya da slaytı repoda yok; konu Sipser 2.2, hocanın 26 Ekim tekrar dersindeki 2024 P4 tahta çözümü, hocanın sitesindeki PDA builder sayfası ve eski sınav çözümleri üzerinden anlatıldı.</p>
+          <!-- Kaynak: Sipser 3e §2.2 (PDF s.135–148: Def 2.13, Ex 2.14, Fig 2.15, Ex 2.16, Ex 2.18, Thm 2.20, Lemma 2.21, Fig 2.22–2.24, Ex 2.25, Lemma 2.27, Claim 2.30–2.31, Cor 2.32), alıştırmalar 2.5, 2.7, 2.10, 2.11, 2.12 (PDF s.179–180), seçili çözümler 2.3, 2.7 (PDF s.184) · exams/README.md "Instructor's midterm review — 26 Oct 2026" PDA / CFG maddeleri · resources/2026-2027-fall/2026-10-26-midterm-2024-solved-board.pdf s.4 (hocanın P4 PDA'sı) · exams/2024-midterm-solutions.pdf s.3 · exams/2023-midterm-solutions.pdf s.2 · exams/2019-midterm-solutions.pdf s.2 · exams/2020-midterm.pdf · muratakcs.github.io/cse435/pda.html (PDA builder: sözdizimi, "There is no peek", p4a/p4b/orlang örnekleri) · weeks/06-pushdown-automata.md. Bütün PDA'lar ve grammar'lar python3 ile uzunluk 6–10'a kadar bütün string'lerde brute force kontrol edildi. -->
+        </header>
+
+        <article class="lesson" data-course="cse-435" data-lesson="pda">
+
+<!-- 1 -->
+<section class="lsec" id="stack" data-min="4">
+  <h2>Neden stack? NFA'ya sınırsız bir hafıza eklemek</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · tabak yığını</span>
+    <p>Bir DFA'nın hafızası state'lerinden ibaret ve sonlu. Bu yüzden $\{0^n1^n \mid n \ge 0\}$ dilini tanıyamıyor: kaç tane 0 okuduğunu sınırsız hatırlaması gerekiyor (pumping lemma dersinde bunu ispatladın).</p>
+    <p>Şimdi makineye bir <strong>stack</strong> veriyoruz. Yemekhanedeki tabak yığınını düşün: yeni tabak en üste konur, alırken de en üstteki alınır. Üste bir sembol koymaya <strong>push</strong>, en üsttekini almaya <strong>pop</strong> denir. Son giren ilk çıkar: <em>last in, first out</em>.</p>
+    <p>Sipser'in $0^n1^n$ için verdiği tarif tam olarak şu: her 0'ı stack'e push et. 1'ler başlayınca her 1 için bir 0 pop et. Input bittiği anda stack'teki 0'lar da bittiyse accept et. 1'ler bitmeden stack boşalırsa, 1'ler bittiğinde stack'te hâlâ 0 varsa ya da 1'lerden sonra bir 0 gelirse reject et.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · PDA = NFA + stack</span>
+    <ul>
+      <li>Bir <strong>pushdown automaton</strong> (PDA), bir NFA'ya stack eklenmiş halidir. State'ler ve transition'lar yine var; ek olarak her adımda stack'in tepesine bakabilir, pop edebilir, push edebilir.</li>
+      <li>Stack <strong>sınırsız</strong> uzayabilir. Sınırsız sayma gücü buradan geliyor.</li>
+      <li>Stack'e sadece <strong>tepeden</strong> erişilir. Alttaki bir sembolü görmek için üstündekileri pop etmen gerekir. Hocanın sitesindeki cümleyle: "There is no peek." Tepeye bakmak da pop etmek demektir.</li>
+      <li>Bu derste PDA her zaman <strong>nondeterministic</strong>tir (Sipser de öyle tanımlar). Deterministic PDA'lar (Sipser 2.4) vize kapsamında değil.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Sipser §2.2 giriş (PDF s.135–136, Figure 2.11–2.12, 0^n1^n informal description) · hocanın PDA builder sayfası ("There is no peek.", "It is nondeterministic by definition") · exams/README.md kapsam: Part 1, 2.4 hariç. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Stack bir array değil. "Stack'te kaç eleman var?" diye soramazsın, ortadaki bir sembolü okuyamazsın. Saymanın tek yolu: bir sembol push et, sonra tek tek pop et.</li>
+      <li>"PDA ile her şey tanınır" sanma. Stack tek bir sayacı rahat taşır ama iki bağımsız sayıyı aynı anda karşılaştıramaz. $\{a^nb^nc^n\}$ gibi diller context-free değil; bunu bir sonraki derste (CFL pumping lemma) ispatlayacaksın.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-stack">
+    <p class="quiz__q">Stack'te (tepeden aşağı) <code>b a a</code> var. Makine alttaki <code>a</code>'yı görmek istiyor. Ne yapmalı?</p>
+    <button class="quiz__opt">Doğrudan üçüncü sembole bakar<span class="why">Stack'e rastgele erişim yok. Sadece en üstteki sembol okunabilir, o da pop edilerek.</span></button>
+    <button class="quiz__opt" data-correct>Önce <code>b</code>'yi, sonra ilk <code>a</code>'yı pop eder; o zaman alttaki <code>a</code> tepeye çıkar<span class="why">Doğru. Last in, first out: alttakine ulaşmak için üstündekileri kaldırman gerekir.</span></button>
+    <button class="quiz__opt">Stack'in uzunluğuna bakar, 3 olduğunu görür<span class="why">PDA stack'in uzunluğunu bilemez; boş olup olmadığını bile doğrudan test edemez. Bunun için birazdan bir işaret sembolü kullanacağız.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="tanim" data-min="6">
+  <h2>Formal definition ve a,b → c okuma</h2>
+  <p>Sınavda formal tanımı yazmanı istemedi ama kenar etiketlerini doğru okumak için bilmen gerekiyor. Önce iki kısaltma: $\Sigma_\varepsilon = \Sigma \cup \{\varepsilon\}$ ve $\Gamma_\varepsilon = \Gamma \cup \{\varepsilon\}$. $\Sigma$ input alphabet, $\Gamma$ (gamma) <strong>stack alphabet</strong>. İkisi farklı olabilir: input'ta <code>a</code> okuyup stack'e <code>X</code> koyabilirsin.</p>
+  <div class="box box--rule">
+    <span class="box__label">Definition 2.13 (Sipser)</span>
+    <p><strong>A pushdown automaton is a 6-tuple $(Q, \Sigma, \Gamma, \delta, q_0, F)$, where $Q$, $\Sigma$, $\Gamma$, and $F$ are all finite sets, and</strong></p>
+    <ol>
+      <li><strong>$Q$ is the set of states,</strong></li>
+      <li><strong>$\Sigma$ is the input alphabet,</strong></li>
+      <li><strong>$\Gamma$ is the stack alphabet,</strong></li>
+      <li><strong>$\delta : Q \times \Sigma_\varepsilon \times \Gamma_\varepsilon \longrightarrow \mathcal{P}(Q \times \Gamma_\varepsilon)$ is the transition function,</strong></li>
+      <li><strong>$q_0 \in Q$ is the start state, and</strong></li>
+      <li><strong>$F \subseteq Q$ is the set of accept states.</strong></li>
+    </ol>
+    <p>$\delta$'yı şöyle oku: (şu anki state, okunan input sembolü ya da ε, stack'in tepesi ya da ε) üçlüsü verilince, gidilebilecek (yeni state, push edilecek sembol ya da ε) çiftlerinin <strong>kümesi</strong>. Küme olması nondeterminism demek: birden fazla hamle mümkün olabilir, hiç hamle olmayabilir (∅).</p>
+  </div>
+  <h3>Kenar etiketi: <code>a,b→c</code></h3>
+  <p>State diagram'larda her kenarın üstünde <code>a,b→c</code> yazar: <strong>input'tan a oku, stack'ten b pop et, stack'e c push et</strong>. Hoca da tahtada ve sitesinde aynı sırayı kullanıyor: "read, pop → push". Üç yerden her biri ε olabilir:</p>
+  <div class="table-wrap w-pda-rel"><table class="w-pda-tbl">
+    <tr><th>Etiket</th><th>Okur</th><th>Pop eder</th><th>Push eder</th><th>Ne zaman kullanılır</th></tr>
+    <tr><td><code>0,ε→0</code></td><td>0</td><td>hiçbir şey</td><td>0</td><td>sayılacak sembolü biriktirmek</td></tr>
+    <tr><td><code>1,0→ε</code></td><td>1</td><td>tepedeki 0</td><td>hiçbir şey</td><td>bir 1'i bir 0 ile eşlemek</td></tr>
+    <tr><td><code>ε,ε→$</code></td><td>hiçbir şey</td><td>hiçbir şey</td><td><code>$</code></td><td>başta dip işaretini koymak</td></tr>
+    <tr><td><code>ε,$→ε</code></td><td>hiçbir şey</td><td>tepedeki <code>$</code></td><td>hiçbir şey</td><td>stack boş mu testi, sonra accept</td></tr>
+    <tr><td><code>ε,ε→ε</code></td><td>hiçbir şey</td><td>hiçbir şey</td><td>hiçbir şey</td><td>bir fazdan ötekine geçmek</td></tr>
+    <tr><td><code>a,X→Y</code></td><td>a</td><td>tepedeki X</td><td>Y</td><td>tepedeki sembolü değiştirmek</td></tr>
+  </table></div>
+  <p>Pop yerinde bir sembol yazıyorsa o kenar <strong>sadece</strong> tepede o sembol varken kullanılabilir. Tepede başka bir şey varsa ya da stack boşsa o kenar yok sayılır.</p>
+  <div class="box box--rule">
+    <span class="box__label">Hesaplama ve accept (Sipser)</span>
+    <p>$M$, $w$'yu şu durumda accept eder: $w = w_1w_2\cdots w_m$ diye yazılabilir (her $w_i \in \Sigma_\varepsilon$), ve state'ler $r_0, \dots, r_m$ ile stack içerikleri $s_0, \dots, s_m \in \Gamma^*$ öyle seçilebilir ki</p>
+    <ol>
+      <li>$r_0 = q_0$ ve $s_0 = \varepsilon$: başlangıç state'inde, <strong>boş stack</strong> ile başlar;</li>
+      <li>her adımda $(r_{i+1}, b) \in \delta(r_i, w_{i+1}, a)$, burada $s_i = at$ ve $s_{i+1} = bt$: tepedeki $a$ yerine $b$ konur, alttaki $t$ değişmez;</li>
+      <li>$r_m \in F$: input bittiğinde bir accept state'tedir.</li>
+    </ol>
+    <p>Yani accept, <strong>final state</strong> ile olur. Input bittiği anda accept state'teysen, stack'te ne kaldığı önemli değil. $w_i$'ler ε olabildiği için makine input okumadan da adım atabilir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Sipser Example 2.14: $0^n1^n$ için $M_1$'in formal description'ı</span>
+    <p>$Q = \{q_1, q_2, q_3, q_4\}$, $\Sigma = \{0, 1\}$, $\Gamma = \{0, \$\}$, $F = \{q_1, q_4\}$. $\delta$ tablosu (boş hücre = ∅):</p>
+    <div class="table-wrap w-pda-rel"><table class="w-pda-tbl">
+      <tr><th>Input:</th><th colspan="3">0</th><th colspan="3">1</th><th colspan="3">ε</th></tr>
+      <tr><th>Stack:</th><th>0</th><th><code>$</code></th><th>ε</th><th>0</th><th><code>$</code></th><th>ε</th><th>0</th><th><code>$</code></th><th>ε</th></tr>
+      <tr><td>$q_1$</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td>$\{(q_2, \$)\}$</td></tr>
+      <tr><td>$q_2$</td><td></td><td></td><td>$\{(q_2, 0)\}$</td><td>$\{(q_3, \varepsilon)\}$</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>$q_3$</td><td></td><td></td><td></td><td>$\{(q_3, \varepsilon)\}$</td><td></td><td></td><td></td><td>$\{(q_4, \varepsilon)\}$</td><td></td></tr>
+      <tr><td>$q_4$</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    </table></div>
+    <p>Örnek: $\delta(q_2, 1, 0) = \{(q_3, \varepsilon)\}$ satırı, diagram'daki $q_2 \to q_3$ kenarının <code>1,0→ε</code> etiketi.</p>
+  </div>
+  <!-- Kaynak: Sipser Def 2.13 ve formal computation (PDF s.137–138), Example 2.14 tablosu ve "a,b → c" açıklaması (PDF s.138) · hocanın PDA builder sayfası: 'Arrow labels read "read, pop → push."' -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><code>a,b→c</code>'deki <code>b</code>'yi "push" sanmak. Ortadaki her zaman <strong>pop</strong> edilen, oktan sonraki <strong>push</strong> edilen.</li>
+      <li><code>1,0→ε</code> kenarı "1 oku, stack'e dokunma" demek değil: tepede 0 olmasını <strong>ister</strong> ve onu siler. Stack'e dokunmamak <code>1,ε→ε</code> olur.</li>
+      <li>Formal tanımda bir adımda en fazla bir sembol push edilir ($\Gamma_\varepsilon$). <code>ε,ε→S$</code> gibi bir string push etmek kısaltmadır; Bölüm 10'da nasıl açıldığını göreceksin.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-tanim-1">
+    <p class="quiz__q">State $q$'dasın, sıradaki input <code>b</code>, stack'in tepesi <code>a</code>. Hangi kenar kullanılabilir?</p>
+    <button class="quiz__opt">$q \xrightarrow{\ b,\,X\to\varepsilon\ } r$<span class="why">Bu kenar tepede X ister. Tepede a var, X yok; kenar kullanılamaz.</span></button>
+    <button class="quiz__opt" data-correct>$q \xrightarrow{\ b,\,a\to\varepsilon\ } r$<span class="why">Doğru. b okunur, tepedeki a pop edilir. Hoca'nın 2024 PDA'sındaki "pop an a for each b" kenarı bu.</span></button>
+    <button class="quiz__opt">$q \xrightarrow{\ a,\,b\to\varepsilon\ } r$<span class="why">Sırayı karıştırdın: ilk yer input, ikinci yer stack. Bu kenar input'ta a ister, stack'te b.</span></button>
+  </div>
+  <div class="quiz" id="q-tanim-2">
+    <p class="quiz__q">Input bitti, makine bir accept state'te, ama stack'te hâlâ iki sembol var. Sipser'in tanımına göre ne olur?</p>
+    <button class="quiz__opt" data-correct>Accept<span class="why">Doğru. Sipser'de accept final state ile: $r_m \in F$ yeterli, stack içeriği şart değil. Stack'in boş olmasını istiyorsan bunu kendin test etmelisin (<code>ε,$→ε</code>).</span></button>
+    <button class="quiz__opt">Reject, çünkü stack boş değil<span class="why">Bu "empty stack ile accept" denen başka bir tanım; Sipser ve bu ders onu kullanmıyor.</span></button>
+    <button class="quiz__opt">Makine stack boşalana kadar beklemek zorunda<span class="why">Beklemek diye bir şey yok. Input bittiği anda (ε-adımlarından sonra) bir accept state'e varan bir branch varsa string kabul edilir.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="ilk-pda" data-min="6">
+  <h2>İlk PDA: 0ⁿ1ⁿ ve dip işareti</h2>
+  <p>Formal tanımda "stack boş mu?" diye soran bir mekanizma yok. Sipser'in çözümü: en başta stack'e özel bir sembol, <code>$</code>, koy. İleride <code>$</code>'ı tepede görürsen stack'in geri kalanı boş demektir. Bu sembole <strong>bottom marker</strong> diyoruz.</p>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Sipser Figure 2.15, $M_1$</span>
+    <div class="w-pda-fig" data-fig="M1"></div>
+    <ul>
+      <li>$q_1 \to q_2$, <code>ε,ε→$</code>: hiçbir şey okumadan dibe <code>$</code> koy.</li>
+      <li>$q_2$ döngüsü <code>0,ε→0</code>: her 0'ı push et.</li>
+      <li>$q_2 \to q_3$ ve $q_3$ döngüsü <code>1,0→ε</code>: her 1 için bir 0 pop et.</li>
+      <li>$q_3 \to q_4$, <code>ε,$→ε</code>: tepede <code>$</code> göründüyse bütün 0'lar eşlendi; accept state'e geç.</li>
+      <li>$q_1$ de accept state: $n = 0$ için ε kabul edilsin diye.</li>
+    </ul>
+    <p>Input'un bittiğini test etmek için de ayrı bir mekanizma yok. Gerek de yok: accept state sadece input bittiği anda sayılır. $q_4$'te input kalmışsa o branch ölür, çünkü $q_4$'ten çıkan kenar yok.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · bir konfigürasyon üç şeydir</span>
+    <p>Bir PDA'nın herhangi bir andaki durumu: <strong>(state, okunmamış input, stack içeriği)</strong>. Buna <em>configuration</em> denir. Bir trace yazarken her satıra bu üçünü yaz. $M_1$, <code>0011</code> üzerinde:</p>
+    <div class="table-wrap w-pda-rel"><table class="w-pda-tbl">
+      <tr><th>Adım</th><th>Kenar</th><th>State</th><th>Kalan input</th><th>Stack (tepe solda)</th></tr>
+      <tr><td>0</td><td></td><td>$q_1$</td><td>0011</td><td>boş</td></tr>
+      <tr><td>1</td><td><code>ε,ε→$</code></td><td>$q_2$</td><td>0011</td><td><code>$</code></td></tr>
+      <tr><td>2</td><td><code>0,ε→0</code></td><td>$q_2$</td><td>011</td><td><code>0$</code></td></tr>
+      <tr><td>3</td><td><code>0,ε→0</code></td><td>$q_2$</td><td>11</td><td><code>00$</code></td></tr>
+      <tr><td>4</td><td><code>1,0→ε</code></td><td>$q_3$</td><td>1</td><td><code>0$</code></td></tr>
+      <tr><td>5</td><td><code>1,0→ε</code></td><td>$q_3$</td><td>ε</td><td><code>$</code></td></tr>
+      <tr><td>6</td><td><code>ε,$→ε</code></td><td>$q_4$</td><td>ε</td><td>boş · accept</td></tr>
+    </table></div>
+  </div>
+  <!-- Kaynak: Sipser Figure 2.15 ve sonrasındaki iki paragraf ($ işareti, input sonu testi) (PDF s.139). Trace simülatör ve python ile aynı çıktı. -->
+  <h3>PDA simülatörü</h3>
+  <p>Aşağıya bir PDA yaz ya da hazır birini seç. Biçim hocanın PDA builder sayfasındakiyle aynı: her satıra bir transition, <code>q1, a, eps -&gt; q2, X</code> = "q1'den q2'ye: a oku, hiçbir şey pop etme, X push et". <code>eps</code> ya da <code>ε</code> boş demek. <code>start:</code> ve <code>accept:</code> satırları state'leri işaretler. Push yerine birden fazla sembol yazarsan (<code>S$</code>) ilk sembol en üste gelir. Sayfa bütün nondeterministic branch'leri genişlik öncelikli (BFS) arıyor; kabul eden bir branch bulursa onu adım adım oynatıyor, bulamazsa en uzağa giden branch'i gösteriyor.</p>
+  <p class="w-pda-guess"><b>Önce tahmin et:</b> $M_1$ <code>00111</code> üzerinde hangi adımda takılır? Stack'te o anda ne vardır? Sonra <code>0101</code>'i dene: hangi kenar eksik kalıyor?</p>
+  <div id="w-sim-a"></div>
+  <!-- Kaynak: simülatör hocanın PDA builder'ının sözdizimini ve "bütün branch'leri ara" fikrini kullanıyor; arama motoru python sürümüyle aynı sonuçları veriyor (bütün hazır PDA'lar için brute force karşılaştırıldı). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><code>$</code>'ı unutmak. O zaman "0'lar tam bitti mi?" sorusunu soramazsın; <code>0001</code> gibi fazla 0'lı string'leri ayıramazsın.</li>
+      <li>ε'yi kabul etmesi gereken bir dilde start state'i accept yapmayı ya da ε-yolunu unutmak. $M_1$'de $q_1$'in çift daire olması bu yüzden.</li>
+      <li>Accept state'ten çıkan kenarlar varsa, input bittiği an orada olmak yeter; "accept state'e girince durur" diye bir kural yok.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ilk">
+    <p class="quiz__q">$M_1$'de <code>ε,$→ε</code> kenarını silip $q_3$'ü accept state yaparsan hangi string yanlışlıkla kabul edilir?</p>
+    <button class="quiz__opt">01<span class="why">01 zaten dilde. Soru, dilde olmayıp kabul edilen string'i soruyor.</span></button>
+    <button class="quiz__opt" data-correct>001<span class="why">Doğru. İki 0 push edilir, bir 1 bir 0 pop eder, input biter; $q_3$ accept olduğu için stack'te 0 kalmasına rağmen kabul edilir. <code>$</code> testi tam bu durumu yakalıyordu.</span></button>
+    <button class="quiz__opt">011<span class="why">İkinci 1 geldiğinde tepede <code>$</code> var, <code>1,0→ε</code> kullanılamaz; branch ölür. Fazla 1'ler yine reddedilir.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="nondet" data-min="6">
+  <h2>Nondeterminism: ortayı tahmin etmek</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · $ww^\mathcal{R}$</span>
+    <p>$\{ww^\mathcal{R} \mid w \in \{0,1\}^*\}$: bir string ve hemen ardından tersi, örneğin <code>0110</code>. İlk yarıyı push edip ikinci yarıyı pop ederek karşılaştırmak kolay. Sorun: makine ortanın nerede olduğunu bilmiyor.</p>
+    <p>Çözüm nondeterminism. Her adımda makine "belki orta burası" diye <strong>tahmin eder</strong> ve ikiye bölünür: bir kopya push etmeye devam eder, diğeri pop etmeye geçer. Doğru yerde tahmin eden kopya accept ederse string kabul edilir. Yanlış yerde tahmin eden kopyalar ölür, sonucu etkilemez.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Sipser Example 2.18, $M_3$</span>
+    <div class="w-pda-fig" data-fig="M3"></div>
+    <p>$q_2$'de okunanları push eder. <code>ε,ε→ε</code> kenarı "orta burası" tahmini. $q_3$'te her sembol, tepedeki aynı sembolle eşleşirse pop edilir. <code>$</code> göründüğünde input da bitmişse accept.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Sipser Example 2.16, $M_2$: $\{a^ib^jc^k \mid i, j, k \ge 0$ and $i = j$ or $i = k\}$</span>
+    <div class="w-pda-fig" data-fig="M2"></div>
+    <p>a'lar push edilir. Sonra makine iki branch'e ayrılır: üst branch a'ları b'lerle eşler (c'leri okuyup geçer), alt branch b'leri okuyup geçer ve a'ları c'lerle eşler. Hangisi tutarsa string kabul edilir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · nondeterminism PDA'da gerçekten güç katar</span>
+    <ul>
+      <li>Accept: <strong>en az bir</strong> branch, input bittiğinde bir accept state'teyse.</li>
+      <li>DFA ile NFA aynı dilleri tanır. PDA'da öyle değil: nondeterministic PDA'ların tanıdığı ama hiçbir deterministic PDA'nın tanıyamadığı diller var. $ww^\mathcal{R}$ (Problem 2.58) ve $M_2$'nin dili (Problem 2.57) bunlardan.</li>
+      <li>Nondeterministic PDA'lar tam olarak context-free grammar'larla aynı güçte (Bölüm 10–11). Deterministic PDA'lar (Sipser 2.4) vize kapsamında değil.</li>
+    </ul>
+  </div>
+  <p>Aşağıdaki ikinci simülatörde "Branch'leri listele" düğmesi, kısa bir input için <strong>bütün</strong> branch'leri tek tek sayıyor: her satır bir tahmin dizisi ve sonucu.</p>
+  <p class="w-pda-guess"><b>Önce tahmin et:</b> $M_3$ <code>0110</code> üzerinde kaç branch'e ayrılır? Kaç tanesi accept eder?</p>
+  <div id="w-sim-b"></div>
+  <!-- Kaynak: Sipser Example 2.16 (Figure 2.17) ve Example 2.18 (Figure 2.19) (PDF s.139–140), DPDA ≠ NPDA paragrafı (PDF s.136–137), Problem 2.57–2.58 · hocanın sitesi: "no deterministic PDA exists for that language". -->
+  <div class="box box--exam" data-exam="2020-mid-P4a-pda"><span class="box__label">2020 vizesi P4(a), PDA kısmı · çıkmış soru</span>
+    <p>"P4 [25 points] For each of the languages below, decide whether they are context-free or not. If yes, give a context-free grammar and a pushdown automata for the following languages. Otherwise prove that it is not context-free. (Do not forget that PDAs can be non-deterministic.) (a) Binary strings of odd length where the first, middle and last symbols are the same." (sorunun (a) şıkkı; grammar kısmı CFG dersinde)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>String $c\,u\,c\,v\,c$ biçiminde: $c$ aynı sembol, $|u| = |v|$. Uzunluk 1 ise ilk, orta ve son aynı karakter.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İlk sembolü stack'te değil, <strong>state'te</strong> hatırla: 0 ile başlayanlar için bir kol, 1 ile başlayanlar için bir kol. Ortayı tahmin etmek için $M_3$'teki hileyi kullan; $u$'nun uzunluğunu X'lerle say.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Context-free: yes.</strong> Informal description: push <code>$</code>. Read the first symbol $c$ and remember it in the state (two branches, $c = 0$ and $c = 1$). Push an X for every symbol until you nondeterministically guess the middle; the middle symbol must be $c$. Then pop one X for every symbol. The last symbol must be $c$ and must be read exactly when <code>$</code> is on top. A string of length 1 is accepted by a direct edge.</p>
+      <div class="w-pda-fig" data-fig="P20a"></div>
+      <div class="table-wrap w-pda-rel"><table class="w-pda-tbl">
+        <tr><th>from</th><th>transition</th><th>to</th><th>anlamı</th></tr>
+        <tr><td>⇒ q0</td><td><code>ε,ε→$</code></td><td>q1</td><td>dip işareti</td></tr>
+        <tr><td>q1</td><td><code>0,$→ε</code> · <code>1,$→ε</code></td><td>* f</td><td>uzunluk 1</td></tr>
+        <tr><td>q1</td><td><code>0,ε→ε</code></td><td>a1</td><td>ilk sembol 0</td></tr>
+        <tr><td>a1</td><td><code>0,ε→X</code> · <code>1,ε→X</code></td><td>a1</td><td>$u$'yu say</td></tr>
+        <tr><td>a1</td><td><code>0,ε→ε</code></td><td>a2</td><td>orta 0 (tahmin)</td></tr>
+        <tr><td>a2</td><td><code>0,X→ε</code> · <code>1,X→ε</code></td><td>a2</td><td>$v$'yi $u$ ile eşle</td></tr>
+        <tr><td>a2</td><td><code>0,$→ε</code></td><td>* f</td><td>son 0, stack boş</td></tr>
+        <tr><td>q1</td><td><code>1,ε→ε</code></td><td>b1</td><td>ilk sembol 1; b1, b2 aynı yapı, 0 yerine 1</td></tr>
+      </table></div>
+      <p>$f$'den çıkan kenar yok: <code>$</code> pop edildikten sonra input kalmışsa branch ölür. "Do not forget that PDAs can be non-deterministic" notunun sebebi ortayı tahmin eden a1 → a2 kenarı.</p>
+      <p>Kontrol: bu PDA uzunluk 10'a kadar bütün binary string'lerde dille aynı kararı veriyor (python brute force). <button class="btn btn--sm" data-pda-load="P20a">Simülatöre yükle</button></p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2020-midterm.pdf">Orijinal soru (2020 vizesi)</a></p>
+    <!-- Kaynak: exams/2020-midterm.pdf P4(a). Repoda bu sorunun anahtarı yok; çözüm bu ders için yazıldı ve brute force ile doğrulandı. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Nondeterminism "rastgele seçer" demek değil. Bütün seçenekler aynı anda denenir; biri tutarsa accept.</li>
+      <li>"Ortayı bulmak için önce uzunluğu sayayım" diye düşünme. PDA input'u bir kez soldan sağa okur, geri dönemez. Ortayı ancak tahmin edebilir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-nondet">
+    <p class="quiz__q">$M_3$ <code>0110</code>'u okurken <code>ε,ε→ε</code> tahminini ilk 0'dan hemen sonra yapan branch'e ne olur?</p>
+    <button class="quiz__opt">String reddedilir<span class="why">Tek bir branch'in ölmesi string'i reddetmez. Ortayı doğru (iki sembolden sonra) tahmin eden branch accept eder.</span></button>
+    <button class="quiz__opt" data-correct>O branch ölür, sonucu etkilemez<span class="why">Doğru. Tepede 0 varken sıradaki sembol 1; <code>1,1→ε</code> kullanılamaz. Accept için bir branch yeter.</span></button>
+    <button class="quiz__opt">Makine geri dönüp tahmini düzeltir<span class="why">Geri dönüş yok; her tahmin ayrı bir branch'tir ve hepsi baştan paralel ilerler.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="fazlar" data-min="6">
+  <h2>Hocanın kuralı: her faza bir state</h2>
+  <p>26 Ekim tekrar dersinde hoca P4'ün PDA kısmı için üç şey söyledi. Bunlar sınavda nasıl çizeceğinin tarifi.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · 26 Ekim, PDA tasarımı</span>
+    <ul>
+      <li><strong>State sayısı önemli değil.</strong> P2'deki NFA sorusunda en az state istenir ve fazla state'e ceza var (kâğıtlarda "every extra state halves your point"; 26 Ekim'de −2/−3 puan da konuşuldu, karar verilmedi). P4'te böyle bir ceza yok.</li>
+      <li>PDA'yı "<strong>so simple that it's obviously correct</strong>" çiz: okuyan biri bakınca doğruluğunu hemen görsün.</li>
+      <li><strong>Her faza bir state</strong>, fazlar arasında <code>ε,ε→ε</code> geçişleri.</li>
+    </ul>
+    <p>Bundan çıkan tarif:</p>
+    <ol>
+      <li>Başta <code>ε,ε→$</code> ile dip işaretini koy.</li>
+      <li>String'i bloklara ayır ($a$'lar, $b$'ler, $c$'ler …). Her blok için bir state; o state'in self-loop'u o bloğun sembolünü okur ve ya push eder ya pop eder.</li>
+      <li>Bloklar arası geçişi <code>ε,ε→ε</code> ile yap; geçiş kenarı hiçbir şey okumasın.</li>
+      <li>Stack'te artan semboller dile uygunsa ayrı bir "artanları boşalt" fazı ekle (<code>ε,a→ε</code> self-loop).</li>
+      <li>Son kenar <code>ε,$→ε</code>, accept state'e.</li>
+    </ol>
+  </div>
+  <div class="box box--exam" data-exam="2024-mid-P4b"><span class="box__label">2024 vizesi P4, PDA kısmı · çıkmış soru</span>
+    <p>"P4 [30 points] Give the CFG and PDA for the following language: $\{a^kb^mc^n \mid k, m, n \ge 0, k \ge m + n\}$" (PDA kısmı 15 puan; CFG kısmı CFG dersinde)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kaç faz var? a'ları biriktir, b'lerle harca, c'lerle harca, sonra ne kalırsa.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bir b ya da c geldiğinde stack'te a kalmadıysa ne olmalı? $k &lt; m+n$ durumunu ayrıca test etmen gerekir mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Hocanın tahtadaki çözümü, altı state'li bir zincir. Informal description: push every a; pop one a for every b, then one a for every c; then pop the leftover a's; accept when the bottom marker <code>$</code> is reached.</p>
+      <div class="w-pda-fig" data-fig="P24"></div>
+      <div class="table-wrap w-pda-rel"><table class="w-pda-tbl">
+        <tr><th>from</th><th>transition</th><th>to</th><th>anlamı</th></tr>
+        <tr><td>⇒ q1</td><td><code>ε,ε→$</code></td><td>q2</td><td>mark stack bottom</td></tr>
+        <tr><td>q2</td><td><code>a,ε→a</code></td><td>q2</td><td>push a's</td></tr>
+        <tr><td>q2</td><td><code>ε,ε→ε</code></td><td>q3</td><td></td></tr>
+        <tr><td>q3</td><td><code>b,a→ε</code></td><td>q3</td><td>pop an a for each b</td></tr>
+        <tr><td>q3</td><td><code>ε,ε→ε</code></td><td>q4</td><td></td></tr>
+        <tr><td>q4</td><td><code>c,a→ε</code></td><td>q4</td><td>pop an a for each c</td></tr>
+        <tr><td>q4</td><td><code>ε,ε→ε</code></td><td>q5</td><td></td></tr>
+        <tr><td>q5</td><td><code>ε,a→ε</code></td><td>q5</td><td>pop extra a's</td></tr>
+        <tr><td>q5</td><td><code>ε,$→ε</code></td><td>* q6</td><td>accept</td></tr>
+      </table></div>
+      <p>$k &lt; m+n$ için ayrı bir test gerekmez: a kalmadığında bir b ya da c gelirse tepede <code>$</code> vardır, <code>b,a→ε</code> ve <code>c,a→ε</code> kullanılamaz, branch ölür. Örnek: <code>aaabc</code> için stack <code>$</code> → <code>aaa$</code> → <code>aa$</code> → <code>a$</code> → (artan a pop) <code>$</code> → accept. <code>abcc</code>'de ilk c geldiğinde tepede <code>$</code> var, reject.</p>
+      <p><strong>Başka bir doğru cevap.</strong> Hocanın sitesindeki PDA builder'da aynı dil üç state'le çözülmüş ve yanına "no bottom marker needed: leftover X is fine when we accept by final state" notu düşülmüş: <code>q1</code>'de <code>a,ε→X</code>, <code>ε,ε→ε</code> ile <code>q2</code>'ye, <code>q2</code>'de <code>b,X→ε</code>, <code>ε,ε→ε</code> ile <code>q3</code>'e, <code>q3</code>'te <code>c,X→ε</code>; accept state <code>q3</code>. Artan X'ler sorun değil çünkü accept final state ile. İkisi de brute force'ta doğru çıkıyor. Sınavda tahtadaki altı state'li sürümü yaz: her fazı açıkça gösteriyor, hocanın "obviously correct" dediği bu.</p>
+      <p>Kontrol: iki PDA da uzunluk 8'e kadar bütün $\{a,b,c\}$ string'lerinde dille aynı kararı veriyor. <button class="btn btn--sm" data-pda-load="P24">Simülatöre yükle</button> <button class="btn btn--sm" data-pda-load="P24site">3 state'li sürümü yükle</button></p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2024-midterm.pdf">Orijinal soru (2024 vizesi)</a></p>
+    <!-- Kaynak: exams/2024-midterm.pdf P4 · board pdf s.4 (6 state'li zincir: ε,ε→$ / a,ε→a / ε,ε→ε / b,a→ε / ε,ε→ε / c,a→ε / ε,ε→ε / ε,a→ε / ε,$→ε) · exams/2024-midterm-solutions.pdf s.3 tablo q1..q6 · hocanın sitesi p4a preset'i. İkisi de python ile uzunluk 8'e kadar doğrulandı. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>State tasarrufu yapmaya çalışmak. P4'te kimse state saymıyor; birleştirdiğin her faz yeni bir hata kapısı açıyor (sonraki bölüm).</li>
+      <li>Fazlar arası geçişi bir sembol okuyan kenarla yapmak. Geçiş <code>ε,ε→ε</code> olmalı; aksi halde o bloğun boş olduğu durum (0 tane b gibi) kaçar.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-fazlar">
+    <p class="quiz__q">2024 PDA'sında $q_3 \to q_4$ geçişi neden <code>ε,ε→ε</code> ve hiçbir şey okumuyor?</p>
+    <button class="quiz__opt">Böylece state sayısı azalır<span class="why">State sayısı aynı kalır; konu state sayısı değil. Geçişin bir şey okumaması, sıfır uzunluklu blokları mümkün kılmak için.</span></button>
+    <button class="quiz__opt" data-correct>Hiç b ya da hiç c olmasa da makine sonraki faza geçebilsin diye<span class="why">Doğru. $m$ ve $n$ sıfır olabilir. <code>aa</code> gibi bir string'de makine b ve c okumadan q5'e ulaşmalı.</span></button>
+    <button class="quiz__opt">PDA'lar fazlar arasında sembol okuyamaz<span class="why">Okuyabilir; formal tanım buna izin veriyor. Ama ilk c'yi geçiş kenarında okumak, c'siz string'leri kaybettirir.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="hatalar" data-min="6">
+  <h2>Hocanın saydığı üç hata</h2>
+  <p>26 Ekim'de hoca 2024 P4'ü çözerken öğrencilerin yaptığı üç hatayı tek tek söyledi. Her biri, bir fazı başka bir fazla birleştirmenin bedeli.</p>
+  <div class="box box--rule">
+    <span class="box__label">Üç hata (26 Ekim) ve brute force sonucu</span>
+    <ol>
+      <li><strong>b ve c için aynı state'te pop etmek</strong> (q3'te hem <code>b,a→ε</code> hem <code>c,a→ε</code>). b'lerle c'lerin sırası artık kontrol edilmiyor. Hocanın örneği: <code>aaaabcbc</code> kabul edilir ama dilde değil. Brute force'un bulduğu en kısa karşı örnek <code>aacb</code>.</li>
+      <li><strong>c fazına <code>c,a→ε</code> kenarıyla girmek</strong> (q3 → q4 geçişi ilk c'yi okuyor). Hiç c olmayan string'ler q4'e ulaşamaz: <code>a</code>, <code>ab</code>, hatta ε reddedilir.</li>
+      <li><strong>Sonu tek bir "<code>ε,a→ε</code> ya da <code>ε,$→ε</code>" kenarıyla bitirmek</strong>, artanları boşaltan state'i ve ardından <code>ε,$→ε</code>'yi yazmak yerine. Tek başına <code>ε,a→ε</code> sadece <strong>bir</strong> a pop eder ve tam eşitlikte (<code>ab</code>, ε) tepede <code>$</code> olduğu için hiç kullanılamaz. Tek başına <code>ε,$→ε</code> ise artan a varken kullanılamaz (<code>a</code>, <code>aab</code> reddedilir).</li>
+    </ol>
+  </div>
+  <p class="src">Not: Aynı kenarın üstüne iki etiketi birden (<code>ε,a→ε</code> ve <code>ε,$→ε</code>) yazarsan brute force doğru dili buluyor; accept final state ile olduğundan stack'te kalan a'lar sorun çıkarmıyor. Yine de hoca bu yazımı hata olarak saydı ve tahtada ayrı bir "pop leftovers" state'i ile <code>ε,$→ε</code> çizdi. Sınavda onun biçimini kullan.</p>
+  <!-- Kaynak: exams/README.md 26 Oct review "Mistakes he named" · board pdf s.4. Hatalı PDA'lar bu ders için yeniden kuruldu; karşı örnekler python brute force (uzunluk ≤ 8) ile bulundu: hata 1 → 28 yanlış kabul (en kısa aacb, aaaabcbc dahil), hata 2 → 25 yanlış red (ε, a, aa, ab, …), hata 3 tek ε,a→ε → 15 yanlış red (ε, ab, ac, …), tek ε,$→ε → 40 yanlış red (a, aa, aab, …), iki etiket birlikte → 0 hata. -->
+  <h3>Hata avı</h3>
+  <p>Aşağıda hatalı PDA'lar var. Her biri için dilde olup kabul edilmeyen ya da dilde olmayıp kabul edilen bir string bul ve "Kontrol et"e bas. Bulamazsan "Karşı örnekleri göster" sayfanın bütün kısa string'leri denemesini sağlar.</p>
+  <p class="w-pda-guess"><b>Önce tahmin et:</b> Hata 1'i kıran en kısa string kaç sembol? Hata 2 ε'yi kabul eder mi?</p>
+  <div id="w-sim-hunt"></div>
+  <div class="box box--exam" data-exam="2019-mid-P4b-pda"><span class="box__label">2019 vizesi P4(b), PDA kısmı · çıkmış soru</span>
+    <p>"P4 [20+20 bonus points] Give CFG and pushdown automata for the following languages: … (b) $\{a^ib^jc^kd^m \mid i + j = k + m\}$." (sadece (b) şıkkı, PDA kısmı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Dört faz: a'lar ve b'ler aynı şeyi push etsin, c'ler ve d'ler onu pop etsin.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Son kenar ne olmalı? $i + j &gt; k + m$ olduğunda stack'te ne kalır, makine bunu nasıl fark eder?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Informal description: push <code>$</code>; push an x for every a, then for every b; pop an x for every c, then for every d; accept only when <code>$</code> is on top again.</p>
+      <div class="w-pda-fig" data-fig="K19b_fix"></div>
+      <p>Faz state'leri q2 (a'lar, <code>a,ε→x</code>), q3 (b'ler, <code>b,ε→x</code>), q4 (c'ler, <code>c,x→ε</code>), q5 (d'ler, <code>d,x→ε</code>), aralarında <code>ε,ε→ε</code>. Son kenar q5 → q6 <strong><code>ε,$→ε</code></strong>.</p>
+      <p class="src">Not: Repodaki 2019 anahtarı bu PDA'yı aynen çiziyor ama son kenara <code>ε,ε→ε</code> yazmış. O zaman stack'te x kalmışken de accept edilir: anahtarın PDA'sı $i + j \ge k + m$ dilini tanıyor. <code>a</code> ve <code>abc</code> kabul ediliyor ama dilde değil. Doğrusu <code>ε,$→ε</code> (hocanın üçüncü hatasının akrabası). Aynı anahtarın CFG'si de yanlış (<code>bacd</code> türetiyor); o kısım CFG dersinde.</p>
+      <p>Kontrol: düzeltilmiş PDA uzunluk 7'ye kadar bütün $\{a,b,c,d\}$ string'lerinde doğru; anahtarınki uzunluk 6'ya kadar 90 string'i yanlışlıkla kabul ediyor. <button class="btn btn--sm" data-pda-load="K19b_fix">Simülatöre yükle</button></p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2019-midterm-solutions.pdf">Orijinal soru ve anahtar (2019 vizesi, s.2)</a></p>
+    <!-- Kaynak: exams/2019-midterm-solutions.pdf s.2 P4(b) el yazısı PDA (6 state, son kenar ε,ε→ε) ve CFG (S→ASB|ε, A→a|b, B→c|d). Python: anahtar PDA'sı K19b 'a', 'b', 'abc', 'abcd' kabul ediyor; düzeltilmiş hali 0 hata (N=7). -->
+  </div>
+  <div class="quiz" id="q-hatalar">
+    <p class="quiz__q">Bir öğrenci 2024 PDA'sında q3'e hem <code>b,a→ε</code> hem <code>c,a→ε</code> self-loop'u koydu, q4'ü sildi. Hangisi kabul edilir ama dilde değil?</p>
+    <button class="quiz__opt">aabc<span class="why">$k = 2 &lt; m + n = 2$? Hayır, $2 \ge 2$, yani aabc dilde. Dilde olmayan bir string arıyoruz.</span></button>
+    <button class="quiz__opt" data-correct>aacb<span class="why">Doğru. İki a push edilir, c ve b birer a pop eder, stack <code>$</code>'a iner, accept. Ama c, b'den önce geldiği için string $a^kb^mc^n$ biçiminde değil.</span></button>
+    <button class="quiz__opt">abb<span class="why">İkinci b geldiğinde tepede <code>$</code> var, pop edemez; reddedilir. Bu doğru bir karar, çünkü $1 &lt; 2$.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="lineer" data-min="5">
+  <h2>Lineer kısıtlar: aᵏbᵐcⁿ ailesi ve 1–3 push</h2>
+  <p>P4 çoğunlukla bloklu bir dil sorar: $a^kb^mc^n$ ya da $a^mb^n$, sayılar arasında doğrusal bir şart ile. Hepsi aynı fikirle çözülür: bir sembol "birim" olarak push edilir, karşı taraftaki sembol onu pop eder. Fark, hangi bloğun push, hangisinin pop yaptığıdır.</p>
+  <div class="table-wrap w-pda-rel"><table class="w-pda-tbl">
+    <tr><th>Dil</th><th>Push eden</th><th>Pop eden</th><th>Son</th></tr>
+    <tr><td>$k \ge m+n$ (2024)</td><td>a</td><td>b, sonra c</td><td>artan a'ları pop et, <code>ε,$→ε</code></td></tr>
+    <tr><td>$n \ge k+m$ (hocanın sitesi)</td><td>a, sonra b</td><td>c</td><td><code>ε,$→ε</code>, sonra fazla c'leri oku</td></tr>
+    <tr><td>$i+j = k+m$ (2019, dört blok)</td><td>a, sonra b</td><td>c, sonra d</td><td>tam eşitlik: <code>ε,$→ε</code></td></tr>
+    <tr><td>$m \le n \le 3m$ (2020, $a^mb^n$)</td><td>a başına 1, 2 ya da 3 X</td><td>b başına bir X</td><td><code>ε,$→ε</code></td></tr>
+  </table></div>
+  <p>İkinci satırdaki dil hocanın PDA builder sayfasında hazır örnek olarak var. Oradaki not: "here the marker IS needed: the extra c's come after the stack empties". Fazla c'leri okuyan state, <code>$</code> pop edildikten <strong>sonra</strong> gelir; <code>$</code> olmasaydı makine stack'in boşaldığını bilemezdi.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · bir adımda birden fazla push (shorthand)</span>
+    <p>Formal tanımda bir adım en fazla bir sembol push eder. Sipser kısaltmaya izin verir: <code>a,ε→XX</code> "a oku, XX push et" demektir ve arka planda ara state'lerle açılır (Figure 2.23):</p>
+    <p>$q \xrightarrow{\ a,\,\varepsilon\to X\ } r_1 \xrightarrow{\ \varepsilon,\,\varepsilon\to X\ } q$</p>
+    <p>Bir string push edilirken <strong>soldaki sembol en üste</strong> gelir: <code>ε,ε→S$</code> önce <code>$</code>'ı, sonra S'yi koyar, tepede S olur. Nondeterminism ile "1, 2 ya da 3 tane" demek için aynı yerden üç kenar çizersin.</p>
+  </div>
+  <div class="box box--exam" data-exam="2020-mid-P4b-pda"><span class="box__label">2020 vizesi P4(b), PDA kısmı · çıkmış soru</span>
+    <p>"For each of the languages below, decide whether they are context-free or not. If yes, give a context-free grammar and a pushdown automata … (Do not forget that PDAs can be non-deterministic.) (b) $\{a^mb^n \mid m \le n \le 3m\}$." (sadece (b) şıkkı, PDA kısmı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her a için kaç b gelebilir? En az 1, en fazla 3. Bu "1 ile 3 arası" seçimini makineye bırak.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her a okunduğunda nondeterministic olarak 1, 2 ya da 3 X push et. Sonra her b bir X pop etsin.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Context-free: yes.</strong> Informal description: push <code>$</code>. For every a, nondeterministically push one, two or three X's. Then pop one X for every b. Accept when <code>$</code> is on top and the input is finished. If $m$ a's push $t$ X's in total, then $m \le t \le 3m$, and the branch accepts exactly when $n = t$; so some branch accepts iff $m \le n \le 3m$.</p>
+      <div class="w-pda-fig" data-fig="P20b"></div>
+      <p>Shorthand açılmış hali (ara state'ler r1, r2): <code>q2 —a,ε→X→ q2</code>; <code>q2 —a,ε→X→ r1 —ε,ε→X→ q2</code>; <code>q2 —a,ε→X→ r2 —ε,ε→X→ r1</code>. Sınavda shorthand'i kullanabilirsin; Sipser'in kendisi de kullanıyor.</p>
+      <p>Başka bir doğru yol: her a için bir X push et, sonra bir X'i 1, 2 ya da 3 b okuyarak pop et. Aynı fikir, nondeterminism pop tarafında.</p>
+      <p>Kontrol: hem shorthand'li hem açılmış sürüm uzunluk 10'a kadar bütün $\{a,b\}$ string'lerinde doğru. <button class="btn btn--sm" data-pda-load="P20b">Simülatöre yükle</button> <button class="btn btn--sm" data-pda-load="P20b_full">Açılmış sürümü yükle</button></p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2020-midterm.pdf">Orijinal soru (2020 vizesi)</a></p>
+    <!-- Kaynak: exams/2020-midterm.pdf P4(b). Anahtar yok; çözüm bu ders için yazıldı, python ile N=10 doğrulandı. (c) şıkkı {a^m b^n | m divides n} context-free değil; CFL pumping lemma dersinde. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Push eden" ile "pop eden" bloğu karıştırmak. Hangi blok ötekinden <em>büyük ya da eşit</em> olmak zorundaysa, birimleri genellikle o push eder ve fazlası sonda boşaltılır.</li>
+      <li>$n \ge k + m$ gibi dillerde fazla sembolleri <code>$</code>'dan önce okumaya çalışmak. Stack boşken pop eden kenar çalışmaz; fazlalık için <code>$</code>'dan sonra ayrı bir state gerekir.</li>
+      <li>2020 P4(c) $\{a^mb^n \mid m$ divides $n\}$ context-free <strong>değil</strong>; "decide" diyen sorularda önce buna karar ver. İspatı bir sonraki derste.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-lineer">
+    <p class="quiz__q">$\{a^mb^n \mid m \le n \le 3m\}$ PDA'sında a başına "tam 2 X push et" dersen hangi dili tanırsın?</p>
+    <button class="quiz__opt">Aynı dili<span class="why">Seçim ortadan kalkınca her a tam 2 b ile eşleşir; $m \le n \le 3m$ aralığının tamamı kapsanmaz.</span></button>
+    <button class="quiz__opt" data-correct>$\{a^mb^{2m}\}$<span class="why">Doğru. Stack'te $2m$ X olur ve <code>$</code>'a ulaşmak için tam $2m$ b gerekir. Aralığı kapsamak için 1, 2 ve 3 arasında nondeterministic seçim gerekiyor.</span></button>
+    <button class="quiz__opt">$\{a^mb^n \mid n \le 2m\}$<span class="why">Stack'te X kalırsa <code>ε,$→ε</code> kullanılamaz; daha az b ile accept edilmez. Tanınan dil tam eşitlik.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="isaret" data-min="6">
+  <h2>Ayrı stack sembolleri, palindrome ve sembol atlama</h2>
+  <p>Bazı P4 dilleri sayma ile ayna eşlemesini birleştirir. İki araç işe yarar: (1) farklı amaçlar için farklı stack sembolleri, (2) bir sembolü push etmeden okuyup geçmek (<code>0,ε→ε</code>).</p>
+  <div class="box box--exam" data-exam="2023-mid-P4b"><span class="box__label">2023 vizesi P4(b) · çıkmış soru</span>
+    <p>"[In the questions below, $w^R$ denotes the reverse of $w$, meaning $w$ written backwards.] P4 [15+15 points] Let $L = \{0^nww^R1^n \mid n \ge 0, w \in \{0,1\}^*\}$ For example, $0010000111 \in L$. (a) Write CFG for $L$ (b) Draw a PDA for $L$" (PDA şıkkı; CFG kısmı CFG dersinde)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Üç iç içe katman: dışta $0^n \dots 1^n$, içte $ww^\mathcal{R}$. Stack'te dış katman en altta kalır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Baştaki 0'lar için ayrı bir sembol (x) push et. $ww^\mathcal{R}$ için $M_3$'ü aynen kullan. Sonda her 1 bir x pop etsin.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Informal description: push <code>$</code>; push an x for every leading 0; nondeterministically switch to pushing the symbols of $w$; guess the middle and pop-match $w^\mathcal{R}$; then pop an x for every 1; accept when <code>$</code> is on top.</p>
+      <div class="w-pda-fig" data-fig="K23"></div>
+      <div class="table-wrap w-pda-rel"><table class="w-pda-tbl">
+        <tr><th>from</th><th>transition</th><th>to</th><th>faz</th></tr>
+        <tr><td>⇒ q1</td><td><code>ε,ε→$</code></td><td>q2</td><td></td></tr>
+        <tr><td>q2</td><td><code>0,ε→x</code></td><td>q2</td><td>$0^n$</td></tr>
+        <tr><td>q3</td><td><code>0,ε→0</code> · <code>1,ε→1</code></td><td>q3</td><td>$w$</td></tr>
+        <tr><td>q4</td><td><code>0,0→ε</code> · <code>1,1→ε</code></td><td>q4</td><td>$w^\mathcal{R}$</td></tr>
+        <tr><td>q5</td><td><code>1,x→ε</code></td><td>q5</td><td>$1^n$</td></tr>
+        <tr><td>q5</td><td><code>ε,$→ε</code></td><td>* q6</td><td>accept</td></tr>
+      </table></div>
+      <p>q2 → q3 → q4 → q5 geçişleri <code>ε,ε→ε</code>. Baştaki 0'ların hangisinin $0^n$'e, hangisinin $w$'ye ait olduğunu makine bilmez; q2 → q3 geçişi bunu tahmin eder.</p>
+      <p class="src">Not: Repodaki 2023 çözümü bir öğrencinin cevabı, resmi anahtar değil. PDA'sı tam olarak bu ve brute force'ta doğru çıkıyor (uzunluk 10'a kadar). Yalnız son state çift daire çizilmemiş; sınavda accept state'i mutlaka işaretle.</p>
+      <p>x yerine 0 push etsen de bu dil için brute force hata bulmuyor, ama ayrı sembol okuyana her fazın neyi saydığını hemen gösteriyor. Hocanın "obviously correct" ölçüsü bu. <button class="btn btn--sm" data-pda-load="K23">Simülatöre yükle</button></p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2023-midterm-solutions.pdf">Orijinal soru ve öğrenci çözümü (2023 vizesi, s.2)</a></p>
+    <!-- Kaynak: exams/2023-midterm-solutions.pdf s.2 P4(b) el yazısı PDA (6 state: ε,ε→$ / 0,ε→x / 1,ε→1 0,ε→0 / 1,1→ε 0,0→ε / 1,x→ε / ε,$→ε; accept state işaretsiz). exams/README.md bu soruyu "see paper" diye bırakıyor. Python N=10 0 hata; x yerine 0 kullanan varyant da N=8 0 hata. -->
+  </div>
+  <div class="box box--exam" data-exam="2019-mid-P4a-pda"><span class="box__label">2019 vizesi P4(a), PDA kısmı · çıkmış soru</span>
+    <p>"P4 [20+20 bonus points] Give CFG and pushdown automata for the following languages: (a) $L = \{w \mid w \in \{0,1\}^*$, $w$ has odd length, and when even positions are deleted from $w$, we obtain a palindrome.$\}$ For example, $1, 0011110 \in L$ but $\varepsilon, 10010, 1010, 110 \notin L$." (sadece (a) şıkkı, PDA kısmı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Tek pozisyonlar (1., 3., 5., …) push edilecek ya da eşlenecek; çift pozisyonlar sadece okunup geçilecek. Bu ikili ritmi iki state ile kur.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Tek pozisyonlardan oluşan palindrome'un uzunluğu tek de olabilir, çift de. <code>0011110</code>'da tek pozisyonlar <code>0110</code>: çift uzunluk, ortada tek bir sembol yok. PDA'n iki durumu da karşılıyor mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Informal description: push <code>$</code>. Alternate: push a symbol at an odd position, skip the symbol at the next even position. Nondeterministically guess the middle of the odd-position subsequence: either read one middle symbol without pushing, or switch directly. Then alternate: skip an even-position symbol, pop-match an odd-position symbol. Accept when <code>$</code> is on top.</p>
+      <div class="w-pda-fig" data-fig="K19a_fix"></div>
+      <ul>
+        <li>q2 → u2 <code>0,ε→0</code> · <code>1,ε→1</code> (tek pozisyon, push); u2 → q2 <code>0,ε→ε</code> · <code>1,ε→ε</code> (çift pozisyon, atla).</li>
+        <li>q2 → q3 <code>0,ε→ε</code> · <code>1,ε→ε</code>: tek uzunluklu alt dizinin orta sembolü.</li>
+        <li>q2 → u3 <code>ε,ε→ε</code>: çift uzunluklu alt dizi, orta sembol yok.</li>
+        <li>q3 → u3 <code>0,ε→ε</code> · <code>1,ε→ε</code> (çift pozisyon, atla); u3 → q3 <code>0,0→ε</code> · <code>1,1→ε</code> (tek pozisyon, eşle).</li>
+        <li>q3 → q4 <code>ε,$→ε</code>, q4 accept.</li>
+      </ul>
+      <p class="src">Not: Repodaki 2019 anahtarının PDA'sında q2 → u3 <code>ε,ε→ε</code> kenarı yok. Bu yüzden sadece uzunluğu 1, 5, 9, … olan string'leri tanıyor; uzunluğu 3, 7, 11, … olanları kaçırıyor. Sorunun kendi örneği <code>0011110</code> (uzunluk 7) ve <code>101</code> bile reddediliyor. Anahtarın CFG'si (S → 0TST0 | 1TST1 | T, T → 0 | 1) aynı boşluğa sahip; S → 0T0 | 1T1 kuralları eklenince düzeliyor.</p>
+      <p>Kontrol: düzeltilmiş PDA ve düzeltilmiş CFG uzunluk 10–11'e kadar dille aynı; anahtarın PDA'sı uzunluk 9'a kadar 36 string'i yanlışlıkla reddediyor. <button class="btn btn--sm" data-pda-load="K19a_fix">Simülatöre yükle</button> <button class="btn btn--sm" data-pda-load="K19a">Anahtarın PDA'sını yükle</button></p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-435-Formal-Languages-and-Automata-/blob/main/exams/2019-midterm-solutions.pdf">Orijinal soru ve anahtar (2019 vizesi, s.2)</a></p>
+    <!-- Kaynak: exams/2019-midterm-solutions.pdf s.2 P4(a): el yazısı PDA (q2 ↔ üst state: 0,ε→0 1,ε→1 / 0,ε→ε 1,ε→ε; q2→q3: 0,ε→ε 1,ε→ε; q3 ↔ üst state: 0,ε→ε 1,ε→ε / 0,0→ε 1,1→ε; q3→q4: ε,$→ε) ve CFG. Python: anahtar PDA 0011110, 101 reddediyor; düzeltme N=10, CFG düzeltmesi N=11 doğrulandı. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Palindrome'da sadece çift uzunluğu (ya da sadece tek uzunluğu) düşünmek. "Orta sembol var mı?" sorusunun iki cevabı için iki ayrı kenar gerekir.</li>
+      <li>Aynı stack sembolünü iki farklı sayaç için kullanıp hangi fazın neyi pop ettiğini karıştırmak. Şüphedeysen ayrı sembol kullan.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-isaret">
+    <p class="quiz__q">Tek uzunluklu palindrome'ları da tanımak için $M_3$'e hangi kenarı eklersin?</p>
+    <button class="quiz__opt">$q_2 \to q_3$, <code>0,0→ε</code> ve <code>1,1→ε</code><span class="why">Bu kenar orta sembolü tepedekiyle eşlemeye çalışır; ama orta sembolün eşi yok. <code>010</code>'da tepede 1 varken sıradaki 0 olduğu için çalışmaz bile.</span></button>
+    <button class="quiz__opt" data-correct>$q_2 \to q_3$, <code>0,ε→ε</code> ve <code>1,ε→ε</code><span class="why">Doğru. Orta sembol okunur ama ne push ne pop edilir. Sipser Exercise 2.5(e)'nin çözümü bu.</span></button>
+    <button class="quiz__opt">$q_3 \to q_3$, <code>0,ε→ε</code> ve <code>1,ε→ε</code><span class="why">Bu kenar eşleme fazında istediğin kadar sembol atlatır; <code>0110</code> dışında <code>0100</code> gibi palindrome olmayanları da kabul ettirir.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="kitap" data-min="5">
+  <h2>Kitap alıştırmaları: informal description</h2>
+  <p>Hoca 26 Ekim'de "end-of-chapter exercises can be asked" dedi. Sipser'in PDA alıştırmaları çoğunlukla bir <strong>informal description</strong> ister: $0^n1^n$ için Bölüm 1'de okuduğun gibi, makinenin ne push ettiğini, neyi tahmin ettiğini ve ne zaman accept ettiğini anlatan birkaç cümle. Diagram istenirse yanına ekle.</p>
+  <div class="box box--exam" data-exam="sipser-2.5"><span class="box__label">Sipser Exercise 2.5 (d), (e) · kitap alıştırması</span>
+    <p>"2.5 Give informal descriptions and state diagrams of pushdown automata for the languages in Exercise 2.4." Exercise 2.4, $\Sigma = \{0,1\}$: "(d) $\{w \mid$ the length of $w$ is odd and its middle symbol is a 0$\}$ (e) $\{w \mid w = w^\mathcal{R}$, that is, $w$ is a palindrome$\}$" (2.4'ün altı şıkkından ikisi)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(d): sembollerin ne olduğu önemli değil, sadece sayıları. Her sembol için aynı X'i push et.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(e): $M_3$ çift uzunluklu palindrome'ları tanıyor. Tek uzunluk için orta sembolü atlayan bir kenar yeter.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(d)</strong> Push <code>$</code>. Push an X for every symbol read. Nondeterministically guess that the next symbol is the middle; it must be a 0 and is read without pushing. Then pop an X for every symbol read. Accept when <code>$</code> is on top and the input is finished.</p>
+      <div class="w-pda-fig" data-fig="S25d"></div>
+      <p><strong>(e)</strong> Push <code>$</code>. Push every symbol read. Nondeterministically guess the middle: either switch directly (even length) or read one middle symbol without pushing (odd length). Then pop and compare: each input symbol must equal the popped one. Accept when <code>$</code> is on top and the input is finished.</p>
+      <div class="w-pda-fig" data-fig="S25e"></div>
+      <p>Diğer şıklar ((a) at least three 1s, (b) starts and ends with the same symbol, (c) odd length, (f) the empty set) regular. Onlar için stack'i hiç kullanmayan bir PDA yeter: DFA'yı çiz, her kenara <code>0,ε→ε</code> gibi stack'e dokunmayan etiketler yaz. (f) için accept state'i olmayan tek state'li bir PDA.</p>
+      <p>Kontrol: (d) uzunluk 9'a, (e) uzunluk 10'a kadar brute force ile doğrulandı. <button class="btn btn--sm" data-pda-load="S25d">(d)'yi yükle</button> <button class="btn btn--sm" data-pda-load="S25e">(e)'yi yükle</button></p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.4 ve 2.5 (PDF s.179). Seçili çözüm yalnız 2.4(a),(d) CFG'leri için var; PDA'lar bu ders için yazıldı ve doğrulandı. -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.7"><span class="box__label">Sipser Exercise 2.7 (a), (c) · kitap alıştırması</span>
+    <p>"2.7 Give informal English descriptions of PDAs for the languages in Exercise 2.6." Exercise 2.6: "(a) The set of strings over the alphabet $\{a,b\}$ with more a's than b's … (c) $\{w\#x \mid w^\mathcal{R}$ is a substring of $x$ for $w, x \in \{0,1\}^*\}$" (kitapta çözümü verilen iki şık)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a): stack'te "a sayısı − b sayısı"nı tut. Fark pozitifken stack'te a'lar, negatifken b'ler olsun.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c): $w$'yu push edersen pop sırası $w^\mathcal{R}$ olur. $x$'in içinde $w^\mathcal{R}$'nin nerede başladığını tahmin et.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Sipser'in seçili çözümleri:</p>
+      <p><strong>(a)</strong> "The PDA uses its stack to count the number of a's minus the number of b's. It enters an accepting state whenever this count is positive. In more detail, it operates as follows. The PDA scans across the input. If it sees a b and its top stack symbol is an a, it pops the stack. Similarly, if it scans an a and its top stack symbol is a b, it pops the stack. In all other cases, it pushes the input symbol onto the stack. After the PDA finishes the input, if a is on top of the stack, it accepts. Otherwise it rejects."</p>
+      <div class="w-pda-fig" data-fig="S27a"></div>
+      <p>Diagram'da "input bitince tepede a varsa accept" kısmı q2 → q4 <code>ε,a→a</code> kenarıyla yapılıyor: tepedeki a pop edilip geri push ediliyor, yani stack değişmeden q4'e geçiliyor. q4'ten çıkan kenar yok, o yüzden bu branch sadece input bittiyse accept eder.</p>
+      <p><strong>(c)</strong> "The PDA scans across the input string and pushes every symbol it reads until it reads a #. If a # is never encountered, it rejects. Then, the PDA skips over part of the input, nondeterministically deciding when to stop skipping. At that point, it compares the next input symbols with the symbols it pops off the stack. At any disagreement, or if the input finishes while the stack is nonempty, this branch of the computation rejects. If the stack becomes empty, the machine reads the rest of the input and accepts."</p>
+      <div class="w-pda-fig" data-fig="S27c"></div>
+      <p>Kontrol: (a) uzunluk 10'a, (c) uzunluk 7'ye kadar brute force ile doğrulandı. <button class="btn btn--sm" data-pda-load="S27a">(a)'yı yükle</button> <button class="btn btn--sm" data-pda-load="S27c">(c)'yi yükle</button></p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.6–2.7 (PDF s.179) ve seçili çözüm 2.7(a),(c) (PDF s.184), metin aynen alıntı. Diagram'lar bu ders için kuruldu. -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.10"><span class="box__label">Sipser Exercise 2.10 · kitap alıştırması</span>
+    <p>"2.10 Give an informal description of a pushdown automaton that recognizes the language A in Exercise 2.9." Exercise 2.9: "$A = \{a^ib^jc^k \mid i = j$ or $j = k$ where $i, j, k \ge 0\}$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$M_2$'ye benziyor ama ikinci eşitlik $j = k$: a'lar yerine b'ler c'lerle eşlenecek.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Hangi eşitliği kontrol edeceğine makine <strong>en başta</strong> karar vermeli: $i = j$ kolunda a'lar push edilir, $j = k$ kolunda a'lar okunup geçilir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Informal description: nondeterministically choose one of two branches at the start. Branch 1 ($i = j$): push <code>$</code>, push every a, pop an a for every b, require <code>$</code> on top, then read any number of c's and accept. Branch 2 ($j = k$): push <code>$</code>, read the a's without pushing, push every b, pop a b for every c, accept when <code>$</code> is on top.</p>
+      <div class="w-pda-fig" data-fig="S210"></div>
+      <p>Bu PDA hocanın sitesinde hazır örnek olarak var; notu: "the machine must COMMIT at the start to which equality it will check". Örneğin <code>aabbc</code> sadece üst kolda ($i = j$), <code>abbcc</code> sadece alt kolda ($j = k$) kabul edilir; makine hangi kola gireceğini ilk hamlede seçiyor.</p>
+      <p>Kontrol: uzunluk 8'e kadar brute force ile doğru. <button class="btn btn--sm" data-pda-load="S210">Simülatöre yükle</button></p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.9–2.10 (PDF s.179) · hocanın PDA builder sayfasındaki "orlang" preset'i (aynen alındı, python N=8 doğrulandı). -->
+  </div>
+  <div class="quiz" id="q-kitap">
+    <p class="quiz__q">Exercise 2.7(a)'daki PDA, <code>abba</code> okuduktan sonra stack'te (dip işareti hariç) ne tutar?</p>
+    <button class="quiz__opt">a b b a<span class="why">Her sembolü push etmiyor. a ile b karşılaşınca birbirini götürür: stack sadece farkı tutar.</span></button>
+    <button class="quiz__opt" data-correct>Hiçbir şey<span class="why">Doğru. a push edilir, b onu pop eder, sonraki b push edilir, a onu pop eder. Fark 0, stack boş; tepede a olmadığı için reject. a sayısı b sayısından fazla değil, doğru karar.</span></button>
+    <button class="quiz__opt">b<span class="why">Sondaki a, tepedeki b'yi pop eder. a ve b sayıları eşit olduğu için hiçbir şey kalmaz.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="cfg-pda" data-min="6">
+  <h2>CFG → PDA: Lemma 2.21</h2>
+  <p>P4 hem grammar hem PDA istiyor. Bu iki model aynı güçte; Sipser bunu iki yönlü bir teoremle gösteriyor.</p>
+  <div class="box box--rule">
+    <span class="box__label">Theorem 2.20 ve Lemma 2.21 (Sipser)</span>
+    <p><strong>Theorem 2.20.</strong> <strong>A language is context free if and only if some pushdown automaton recognizes it.</strong></p>
+    <p><strong>Lemma 2.21.</strong> <strong>If a language is context free, then some pushdown automaton recognizes it.</strong></p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · PDA derivation'ı taklit eder</span>
+    <p>Grammar'ın $w$'yu türettiğini göstermek, $S$'den $w$'ya giden bir derivation bulmak demek. PDA bu derivation'ı nondeterminism ile <strong>tahmin eder</strong>: her adımda bir variable için hangi rule'u uygulayacağını seçer.</p>
+    <p>Sorun şu: ara string (sentential form) stack'te dursa, PDA sadece tepeyi görebildiği için içerideki variable'lara ulaşamaz. Çözüm: stack'te ara string'in sadece <strong>ilk variable'dan başlayan</strong> kısmı durur. İlk variable'dan önceki terminal'ler hemen input ile eşlenip atılır. Sipser'in Figure 2.22'sindeki örnek: ara string <code>01A1A0</code> iken <code>01</code> input'ta okunmuş, stack'te <code>A1A0$</code> var. Bu, <strong>leftmost derivation</strong> demek.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Sipser'in informal description'ı</span>
+    <ol>
+      <li>Place the marker symbol <code>$</code> and the start variable on the stack.</li>
+      <li>Repeat the following steps forever.
+        <ol type="a">
+          <li>If the top of stack is a variable symbol $A$, nondeterministically select one of the rules for $A$ and substitute $A$ by the string on the right-hand side of the rule.</li>
+          <li>If the top of stack is a terminal symbol $a$, read the next symbol from the input and compare it to $a$. If they match, repeat. If they do not match, reject on this branch of the nondeterminism.</li>
+          <li>If the top of stack is the symbol <code>$</code>, enter the accept state. Doing so accepts the input if it has all been read.</li>
+        </ol>
+      </li>
+    </ol>
+    <p>Formal hali üç ana state: $q_\text{start}$, $q_\text{loop}$, $q_\text{accept}$ (Figure 2.24).</p>
+    <ul>
+      <li>$q_\text{start} \to q_\text{loop}$: <code>ε,ε→S$</code></li>
+      <li>$q_\text{loop}$ döngüsü, her rule $A \to w$ için: <code>ε,A→w</code></li>
+      <li>$q_\text{loop}$ döngüsü, her terminal $a$ için: <code>a,a→ε</code></li>
+      <li>$q_\text{loop} \to q_\text{accept}$: <code>ε,$→ε</code></li>
+    </ul>
+    <p>Bir string push eden kenarlar kısaltma: $(r, u) \in \delta(q, a, s)$ "a oku, s pop et, $u$'yu push et, $r$'ye git" demek. $u = u_1 \cdots u_l$ ara state'lerle sondan başa tek tek push edilir ($u_l$ önce, $u_1$ en son; böylece $u_1$ tepede olur). Figure 2.23 bunu gösteriyor.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Sipser Example 2.25</span>
+    <p>$G$: $S \to aTb \mid b$, $T \to Ta \mid \varepsilon$. PDA $P_1$'in $q_\text{loop}$ kenarları: <code>ε,S→aTb</code>, <code>ε,S→b</code>, <code>ε,T→Ta</code>, <code>ε,T→ε</code>, <code>a,a→ε</code>, <code>b,b→ε</code>. Sipser'in Figure 2.26'sında <code>aTb</code> ve <code>Ta</code>'yı push eden kenarlar ara state'lerle açık çizilmiş: önce <code>b</code>, sonra <code>T</code>, sonra <code>a</code>.</p>
+  </div>
+  <h3>Dönüştürücü</h3>
+  <p>Bir grammar yaz: her satıra bir variable, <code>S -&gt; aTb | b</code> biçiminde. Variable'lar tek büyük harf, terminal'ler diğer tek karakterler, ε için <code>ε</code>, <code>eps</code> ya da boş seçenek. Sayfa Lemma 2.21'in PDA'sını kuruyor, input'u bu PDA üzerinde gerçekten çalıştırıyor ve kabul eden branch'i adım adım gösteriyor. Her adımda "okunan input + stack" birleşimi, simüle edilen leftmost derivation'ın o anki sentential form'u.</p>
+  <p class="w-pda-guess"><b>Önce tahmin et:</b> Example 2.25'in PDA'sı <code>aab</code>'yi kabul ederken <code>ε,T→Ta</code> kenarını kaç kez kullanır? Derivation'ın ilk iki adımı ne olur?</p>
+  <div id="w-conv"></div>
+  <!-- Kaynak: Sipser Theorem 2.20, Lemma 2.21 proof idea, informal description, proof (shorthand, Figure 2.23, transitions, Figure 2.24) ve Example 2.25 / Figure 2.26 (PDF s.141–144). Dönüştürücünün ürettiği PDA'lar python'daki cfg2pda ile aynı; 2.25, 2.11, 2.12 için grammar ile PDA'nın dilleri brute force karşılaştırıldı. -->
+  <div class="box box--exam" data-exam="sipser-2.12"><span class="box__label">Sipser Exercise 2.12 · kitap alıştırması</span>
+    <p>"2.12 Convert the CFG G given in Exercise 2.3 to an equivalent PDA, using the procedure given in Theorem 2.20." Exercise 2.3'teki $G$: $R \to XRX \mid S$, $S \to aTb \mid bTa$, $T \to XTX \mid X \mid \varepsilon$, $X \to a \mid b$.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Üç state yeter (shorthand ile): start, loop, accept. Start variable $R$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her rule bir <code>ε,A→w</code> kenarı, her terminal bir <code>a,a→ε</code> kenarı. Kaç rule var? (ε-rule'u unutma.)</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$q_\text{start} \xrightarrow{\varepsilon,\,\varepsilon\to R\$} q_\text{loop} \xrightarrow{\varepsilon,\,\$\to\varepsilon} q_\text{accept}$, ve $q_\text{loop}$'ta self-loop'lar:</p>
+      <ul>
+        <li><code>ε,R→XRX</code>, <code>ε,R→S</code></li>
+        <li><code>ε,S→aTb</code>, <code>ε,S→bTa</code></li>
+        <li><code>ε,T→XTX</code>, <code>ε,T→X</code>, <code>ε,T→ε</code></li>
+        <li><code>ε,X→a</code>, <code>ε,X→b</code></li>
+        <li><code>a,a→ε</code>, <code>b,b→ε</code></li>
+      </ul>
+      <p>Birden fazla sembol push eden kenarlar (<code>R$</code>, <code>XRX</code>, <code>aTb</code>, <code>bTa</code>, <code>XTX</code>) formal olarak ara state'lerle açılır.</p>
+      <p>Sipser'in 2.3(o) seçili çözümüne göre $L(G)$ = palindrome olmayan bütün $\{a,b\}$ string'leri. Kontrol: bu PDA, $G$ ve "palindrome değil" dili uzunluk 8'e kadar birebir aynı. Dönüştürücüde "Exercise 2.3'teki G" grammar'ını seçip <code>aab</code> ya da <code>abab</code> ile dene.</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.3 ve 2.12 (PDF s.179–180), seçili çözüm 2.3(o) (PDF s.184). Python: PDA == G == non-palindromes, N=8. -->
+  </div>
+  <div class="box box--exam" data-exam="sipser-2.11"><span class="box__label">Sipser Exercise 2.11 · kitap alıştırması</span>
+    <p>"2.11 Convert the CFG $G_4$ given in Exercise 2.1 to an equivalent PDA, using the procedure given in Theorem 2.20." $G_4$: $E \to E{+}T \mid T$, $T \to T\mathrm{x}F \mid F$, $F \to (E) \mid \mathrm{a}$.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Terminal'ler: <code>+</code>, <code>x</code>, <code>(</code>, <code>)</code>, <code>a</code>. Her biri için bir eşleme kenarı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Rule sayısı 6. Start variable $E$, yani ilk kenar <code>ε,ε→E$</code>.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$q_\text{start} \xrightarrow{\varepsilon,\,\varepsilon\to E\$} q_\text{loop} \xrightarrow{\varepsilon,\,\$\to\varepsilon} q_\text{accept}$, $q_\text{loop}$'ta: <code>ε,E→E+T</code>, <code>ε,E→T</code>, <code>ε,T→TxF</code>, <code>ε,T→F</code>, <code>ε,F→(E)</code>, <code>ε,F→a</code>, <code>+,+→ε</code>, <code>x,x→ε</code>, <code>(,(→ε</code>, <code>),)→ε</code>, <code>a,a→ε</code>.</p>
+      <p>Grammar left-recursive ($E \to E{+}T$) olduğu için bazı branch'ler stack'i sonsuza kadar büyütmeye çalışır; nondeterminism'de bu sorun değil, doğru branch'in var olması yeter. Kontrol: PDA ile $G_4$ uzunluk 5'e kadar aynı string'leri kabul ediyor (a, a+a, (a), axa, …).</p>
+    </div></details>
+    <!-- Kaynak: Sipser Exercise 2.1 ve 2.11 (PDF s.178–179). Python: PDA == G4, N=5. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Push sırasını ters yazmak. <code>ε,ε→S$</code>'da tepede S, altında <code>$</code>. Formal açılışta önce <code>$</code>, sonra S push edilir.</li>
+      <li>Tepede bir terminal varken bir rule uygulamaya çalışmak. Kural (b): tepede terminal varsa o terminal input ile eşlenmeli; eşleşmezse o branch ölür.</li>
+      <li>Bu yapıyı P4'ün PDA kısmı için kullanmak yasak değil ama hoca faz faz bir PDA bekliyor. Dönüşüm doğru bir PDA verir, okuması zordur.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-cfg-pda">
+    <p class="quiz__q">Lemma 2.21'in PDA'sında stack'in tepesinde <code>a</code> (bir terminal), sıradaki input <code>b</code>. Ne olur?</p>
+    <button class="quiz__opt">Bir rule uygulanır<span class="why">Rule'lar sadece tepede bir variable varken uygulanır (<code>ε,A→w</code>). Tepede terminal var.</span></button>
+    <button class="quiz__opt" data-correct>Bu branch ölür<span class="why">Doğru. Tek kenar <code>a,a→ε</code>, input'ta a ister. Tahmin edilen derivation yanlış; başka branch'ler denenmeye devam eder.</span></button>
+    <button class="quiz__opt"><code>a</code> pop edilir, <code>b</code> okunur<span class="why">Terminal'ler sadece aynı sembolle eşlenir. a'yı b ile eşlemek, grammar'ın türetmediği string'leri kabul ettirirdi.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="pda-cfg" data-min="5">
+  <h2>PDA → CFG: Lemma 2.27'nin fikri</h2>
+  <p>Ters yön daha zor ve 2019–2024 kâğıtlarında hiç sorulmadı. Fikrini bilmen yeterli.</p>
+  <div class="box box--rule">
+    <span class="box__label">Lemma 2.27 (Sipser)</span>
+    <p><strong>If a pushdown automaton recognizes some language, then it is context free.</strong></p>
+    <p>Fikir: PDA'nın her state çifti $p, q$ için bir variable $A_{pq}$. $A_{pq}$, PDA'yı <strong>$p$'den boş stack ile $q$'ya boş stack ile</strong> götüren bütün string'leri türetir. Start variable $A_{q_0,q_\text{accept}}$.</p>
+    <p>Önce PDA'yı biraz düzenle:</p>
+    <ol>
+      <li>It has a single accept state, $q_\text{accept}$.</li>
+      <li>It empties its stack before accepting.</li>
+      <li>Each transition either pushes a symbol onto the stack (a push move) or pops one off the stack (a pop move), but it does not do both at the same time.</li>
+    </ol>
+    <p>Rule'lar:</p>
+    <ol>
+      <li>For each $p, q, r, s \in Q$, $u \in \Gamma$, and $a, b \in \Sigma_\varepsilon$, if $\delta(p, a, \varepsilon)$ contains $(r, u)$ and $\delta(s, b, u)$ contains $(q, \varepsilon)$, put the rule $A_{pq} \to aA_{rs}b$ in $G$.</li>
+      <li>For each $p, q, r \in Q$, put the rule $A_{pq} \to A_{pr}A_{rq}$ in $G$.</li>
+      <li>Finally, for each $p \in Q$, put the rule $A_{pp} \to \varepsilon$ in $G$.</li>
+    </ol>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · iki durum</span>
+    <p>$p$'den boş stack ile $q$'ya boş stack ile giden bir hesaplamada ilk hamle bir push (boş stack pop edilemez), son hamle bir pop (stack boş bitiyor). İki ihtimal var:</p>
+    <ul>
+      <li>İlk hamlede push edilen <strong>stack öğesinin kendisi</strong> son hamlede pop ediliyor: stack arada hiç boşalmamış. Bu, rule 1: $A_{pq} \to aA_{rs}b$ ($a$ ilk hamlede okunan, $b$ son hamlede okunan). Figure 2.29.</li>
+      <li>İlk push edilen öğe son hamleden önce pop edilmişse: arada bir $r$ state'inde stack boşalmış. Hesaplama ikiye bölünür: rule 2, $A_{pq} \to A_{pr}A_{rq}$. Figure 2.28.</li>
+    </ul>
+    <p>Doğruluk iki claim ile ispatlanır: Claim 2.30 (türetme adım sayısı üzerine induction) ve Claim 2.31 (hesaplama adım sayısı üzerine induction).</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · $M_1$'den grammar (bu ders için)</span>
+    <p>$M_1$'i (Bölüm 3) tek accept state'i $q_4$ olacak şekilde al; o zaman $\{0^n1^n \mid n \ge 1\}$'i tanır. Üç özellik zaten sağlanıyor: her kenar ya bir push ya bir pop. Push hamleleri: $q_1 \xrightarrow{\varepsilon,\,\varepsilon\to\$} q_2$ ve $q_2 \xrightarrow{0,\,\varepsilon\to 0} q_2$. Pop hamleleri: $q_2 \xrightarrow{1,\,0\to\varepsilon} q_3$, $q_3 \xrightarrow{1,\,0\to\varepsilon} q_3$, $q_3 \xrightarrow{\varepsilon,\,\$\to\varepsilon} q_4$.</p>
+    <p>Rule 1'in ürettikleri (aynı sembolü push eden ve pop eden hamle çiftleri):</p>
+    <ul>
+      <li><code>$</code>: $q_1 \to q_2$ push, $q_3 \to q_4$ pop ⇒ $A_{14} \to A_{23}$ ($a = b = \varepsilon$)</li>
+      <li>0: $q_2 \to q_2$ push, $q_2 \to q_3$ pop ⇒ $A_{23} \to 0A_{22}1$</li>
+      <li>0: $q_2 \to q_2$ push, $q_3 \to q_3$ pop ⇒ $A_{23} \to 0A_{23}1$</li>
+    </ul>
+    <p>Rule 3'ten $A_{22} \to \varepsilon$. Rule 2'nin 64 rule'u bu PDA'da yeni bir string eklemiyor. Sonuç: $A_{14} \Rightarrow A_{23} \Rightarrow 0A_{23}1 \Rightarrow \dots$, yani $A_{14}$ tam olarak $\{01, 0011, 000111, \dots\}$'i türetiyor.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Corollary 2.32</span>
+    <p><strong>Every regular language is context free.</strong></p>
+    <p>Sebebi: her DFA, stack'ini hiç kullanmayan bir PDA'dır. Theorem 2.20 ile PDA'nın tanıdığı her dil context-free. Sipser'in Figure 2.33'ü: regular diller, context-free dillerin içinde bir alt küme.</p>
+  </div>
+  <!-- Kaynak: Sipser Lemma 2.27 proof idea ve proof (rule 1–3), Figure 2.28–2.29, Claim 2.30–2.31 (PDF s.145–148), Corollary 2.32 ve Figure 2.33 (PDF s.148–149). M1 örneği bu ders için kuruldu: python ile bütün A_pq rule'ları üretildi, A14'ün dili uzunluk 10'a kadar {0^n1^n | n ≥ 1}. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$A_{pq}$'yu "p'den q'ya giden string'ler" diye okumak. Eksik: <strong>boş stack ile başlayıp boş stack ile biten</strong> string'ler. Arada stack ne kadar uzarsa uzasın.</li>
+      <li>Corollary 2.32'yi ters okumak: her context-free dil regular değil ($0^n1^n$).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-pda-cfg">
+    <p class="quiz__q">Rule 1 ($A_{pq} \to aA_{rs}b$) hangi durumu taklit eder?</p>
+    <button class="quiz__opt">Stack'in arada bir yerde boşaldığı hesaplamayı<span class="why">O durum rule 2: hesaplama boşaldığı yerden ikiye bölünür, $A_{pr}A_{rq}$.</span></button>
+    <button class="quiz__opt" data-correct>İlk hamlede push edilen stack öğesinin tam son hamlede pop edildiği hesaplamayı<span class="why">Doğru. Arada stack hiç boşalmaz; ortadaki kısım $r$'den $s$'ye kendi başına boş stack ile gider, o da $A_{rs}$.</span></button>
+    <button class="quiz__opt">Hiç input okunmayan hesaplamayı<span class="why">O rule 3: $A_{pp} \to \varepsilon$, sıfır adımlık hesaplama.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="son-kontrol" data-min="5">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle düşün, sonra seç. Sonra 2024 P4'ün PDA'sını bakmadan bir kez çiz.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">PDA'nın transition function'ının tipi hangisi?</p>
+    <button class="quiz__opt">$\delta : Q \times \Sigma \times \Gamma \to Q \times \Gamma$<span class="why">Bu deterministic ve ε'suz bir makine olurdu. Sipser'in PDA'sında hem input hem stack yeri ε olabilir ve sonuç bir küme.</span></button>
+    <button class="quiz__opt" data-correct>$\delta : Q \times \Sigma_\varepsilon \times \Gamma_\varepsilon \to \mathcal{P}(Q \times \Gamma_\varepsilon)$<span class="why">Doğru. (state, okunan ya da ε, pop edilen ya da ε) → mümkün (yeni state, push edilen ya da ε) çiftlerinin kümesi.</span></button>
+    <button class="quiz__opt">$\delta : Q \times \Sigma_\varepsilon \to \mathcal{P}(Q)$<span class="why">Bu NFA'nın transition function'ı. Stack yok.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Bir PDA'da <code>$</code> neden kullanılır?</p>
+    <button class="quiz__opt">Input'un bittiğini anlamak için<span class="why">Input sonu için ayrı bir test gerekmez: accept state sadece input bittiğinde sayılır.</span></button>
+    <button class="quiz__opt" data-correct>Stack'in boşaldığını anlamak için<span class="why">Doğru. Formal tanımda "stack boş mu" testi yok; en başta push edilen <code>$</code> tekrar tepeye çıkınca stack'in geri kalanı boş demektir.</span></button>
+    <button class="quiz__opt">Accept state'i işaretlemek için<span class="why">Accept state'ler $F$ kümesinde; diagram'da çift daire. <code>$</code> bir stack sembolü.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">2024 P4 PDA'sında q3 → q4 geçişini <code>c,a→ε</code> yaptın. Hangi string yanlışlıkla reddedilir?</p>
+    <button class="quiz__opt">aabcc<span class="why">$2 \ge 1 + 2$ değil; bu string zaten dilde değil, reddedilmesi doğru.</span></button>
+    <button class="quiz__opt" data-correct>aab<span class="why">Doğru. Hiç c yok, makine c fazına giremiyor ve sonraki fazlara ulaşamıyor. Hocanın ikinci hatası.</span></button>
+    <button class="quiz__opt">aaabc<span class="why">Bu string'de bir c var; geçiş kenarı onu okur ve makine devam eder. Bu hata sadece c'siz string'leri vurur.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">$\{ww^\mathcal{R}\}$ için deterministic bir PDA var mı?</p>
+    <button class="quiz__opt">Var, DFA ve NFA gibi PDA'larda da iki model eşit<span class="why">PDA'larda eşit değil. Nondeterministic PDA'lar daha güçlü.</span></button>
+    <button class="quiz__opt" data-correct>Yok; makine ortayı tahmin etmek zorunda<span class="why">Doğru. Sipser Problem 2.58 bunu ispatlattırıyor. O yüzden P4'te nondeterminism'i kullanmaktan çekinme; 2020 kâğıdı da hatırlatıyor.</span></button>
+    <button class="quiz__opt">Var, ama sadece $w$ tek uzunluktaysa<span class="why">$w$'nun uzunluğu sorunu çözmez; makine ortaya ne zaman geldiğini okurken bilemez.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Lemma 2.21'in PDA'sı kaç ana state kullanır (shorthand açılmadan)?</p>
+    <button class="quiz__opt">Grammar'daki variable sayısı kadar<span class="why">Variable'lar stack'te tutulur, state'lerde değil. Bütün rule'lar tek bir $q_\text{loop}$'ta self-loop.</span></button>
+    <button class="quiz__opt" data-correct>Üç: $q_\text{start}$, $q_\text{loop}$, $q_\text{accept}$<span class="why">Doğru. Ek state'ler sadece string push eden kısaltmaları açmak için (Figure 2.23).</span></button>
+    <button class="quiz__opt">İki: start ve accept<span class="why">Rule'ların ve eşlemelerin döndüğü $q_\text{loop}$ da var; <code>$</code> testinden sonra $q_\text{accept}$'e geçilir.</span></button>
+  </div>
+  <!-- Sıradaki konu: CFL pumping lemma ile 'context-free değildir' ispatı. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/*CORE-START*/
+/* PDA engine: parser for the instructor's PDA builder syntax, BFS over configurations, branch listing, brute-force checker */
+const PDA = (function () {
+  const EPS = (t) => (t === "eps" || t === "ε" ? "" : t);
+  function parse(src) {
+    const P = { start: null, acc: new Set(), states: [], rules: [], errors: [] };
+    const seen = new Set();
+    const touch = (s) => { if (!seen.has(s)) { seen.add(s); P.states.push(s); } };
+    String(src).split("\n").forEach((raw, li) => {
+      const s = raw.trim();
+      if (!s || s.startsWith("#") || s.startsWith("//")) return;
+      let m = /^(start|accept)\s*:\s*(.*)$/i.exec(s);
+      if (m) {
+        const names = m[2].split(/[\s,]+/).filter(Boolean);
+        if (/^start$/i.test(m[1])) {
+          if (names.length !== 1) P.errors.push(`Satır ${li + 1}: "start:" tam olarak bir state ister.`);
+          else { P.start = names[0]; touch(names[0]); }
+        } else names.forEach((n) => { P.acc.add(n); touch(n); });
+        return;
+      }
+      m = /^([^\s,]+)\s*,\s*([^\s,]+)\s*,\s*([^\s,]+)\s*(?:->|→)\s*([^\s,]+)\s*,\s*([^\s,]+)$/.exec(s);
+      if (!m) { P.errors.push(`Satır ${li + 1}: "${s}" okunamadı. Biçim: q1, a, eps -> q2, X`); return; }
+      const a = EPS(m[2]), b = EPS(m[3]), c = EPS(m[5]);
+      if ([...a].length > 1) { P.errors.push(`Satır ${li + 1}: okunan yer tek bir input sembolü ya da eps olmalı ("${m[2]}" yazılmış).`); return; }
+      if ([...b].length > 1) { P.errors.push(`Satır ${li + 1}: pop yeri tek bir stack sembolü ya da eps olmalı; bir adımda tek sembol pop edilir ("${m[3]}" yazılmış).`); return; }
+      if (c.length > 8) { P.errors.push(`Satır ${li + 1}: push edilen string çok uzun (en fazla 8 sembol).`); return; }
+      touch(m[1]); touch(m[4]);
+      P.rules.push({ q: m[1], a, b, r: m[4], c });
+    });
+    if (P.start === null && P.states.length) P.start = P.states[0];
+    if (P.start === null && !P.errors.length) P.errors.push("Makine tanımı boş: en az bir start state yaz (start: q1).");
+    return P;
+  }
+  const key = (c) => c.st + "|" + c.pos + "|" + c.stk;
+  function step(R, c, w) {
+    if (R.q !== c.st) return null;
+    if (R.a && w[c.pos] !== R.a) return null;
+    if (R.b && c.stk[0] !== R.b) return null;
+    return { st: R.r, pos: c.pos + (R.a ? 1 : 0), stk: R.c + (R.b ? c.stk.slice(1) : c.stk), rule: R };
+  }
+  function run(P, w, opt) {
+    opt = opt || {};
+    const maxDepth = opt.maxDepth || 3 * w.length + 16, maxConf = opt.maxConf || 60000;
+    const nodes = [{ st: P.start, pos: 0, stk: "", prev: -1, rule: null }];
+    const seen = new Set([key(nodes[0])]);
+    let goal = -1, truncated = false;
+    outer: for (let i = 0; i < nodes.length; i++) {
+      const c = nodes[i];
+      if (c.pos === w.length && P.acc.has(c.st)) { goal = i; break; }
+      for (const R of P.rules) {
+        const n = step(R, c, w);
+        if (!n) continue;
+        if (n.stk.length > maxDepth) { truncated = true; continue; }
+        const k = key(n);
+        if (seen.has(k)) continue;
+        seen.add(k); n.prev = i; nodes.push(n);
+        if (nodes.length > maxConf) { truncated = true; break outer; }
+      }
+    }
+    const pathTo = (i) => { const p = []; while (i >= 0) { p.push(nodes[i]); i = nodes[i].prev; } return p.reverse(); };
+    let far = 0;
+    if (goal < 0) nodes.forEach((n, i) => { if (n.pos > nodes[far].pos) far = i; });
+    return { ok: goal >= 0, path: pathTo(goal >= 0 ? goal : far), explored: nodes.length, truncated };
+  }
+  function branches(P, w, cap) {
+    const out = [], path = [], onPath = new Set(), maxDepth = w.length + 8;
+    let truncated = false, pruned = false;
+    function dfs(c) {
+      if (out.length >= cap) { truncated = true; return; }
+      const k = key(c);
+      path.push(c); onPath.add(k);
+      if (c.pos === w.length && P.acc.has(c.st)) out.push({ path: path.slice(), end: "acc" });
+      else {
+        let moved = false, cut = false;
+        for (const R of P.rules) {
+          const n = step(R, c, w);
+          if (!n) continue;
+          /* a continuation that would exceed the stack bound or revisit a configuration on this branch is cut, not ignored */
+          if (n.stk.length > maxDepth || onPath.has(key(n))) { cut = true; pruned = true; continue; }
+          moved = true; dfs(n);
+          if (out.length >= cap) { truncated = true; break; }
+        }
+        if (!moved) out.push({ path: path.slice(), end: cut ? "cut" : c.pos < w.length ? "stuck" : "noacc" });
+      }
+      path.pop(); onPath.delete(k);
+    }
+    dfs({ st: P.start, pos: 0, stk: "", rule: null });
+    return { list: out, truncated, pruned, maxDepth };
+  }
+  function* strings(sigma, N) {
+    let layer = [""];
+    for (let n = 0; n <= N; n++) {
+      for (const s of layer) yield s;
+      if (n < N) { const nx = []; for (const s of layer) for (const ch of sigma) nx.push(s + ch); layer = nx; }
+    }
+  }
+  function checkAll(P, lang, N) {
+    const fa = [], fr = []; let total = 0, trunc = false;
+    for (const w of strings(lang.sigma, N)) {
+      total++;
+      const r = run(P, w, { maxConf: 20000 });
+      if (r.truncated && !r.ok) trunc = true;
+      const inL = lang.f(w);
+      if (r.ok && !inL) fa.push(w);
+      if (!r.ok && inL) fr.push(w);
+    }
+    return { fa, fr, total, trunc };
+  }
+  const blocks = (w, letters) => { const m = new RegExp("^" + [...letters].map((c) => "(" + c + "*)").join("") + "$").exec(w); return m ? m.slice(1).map((g) => g.length) : null; };
+  const rev = (s) => [...s].reverse().join("");
+  const LANGS = {
+    anbn: { name: "0ⁿ1ⁿ, n ≥ 0 (Sipser M1)", sigma: "01", N: 10, f: (w) => { const b = blocks(w, "01"); return !!b && b[0] === b[1]; } },
+    ijik: { name: "aⁱbʲcᵏ, i = j veya i = k (Sipser M2)", sigma: "abc", N: 7, f: (w) => { const b = blocks(w, "abc"); return !!b && (b[0] === b[1] || b[0] === b[2]); } },
+    wwr: { name: "wwᴿ (Sipser M3)", sigma: "01", N: 10, f: (w) => w.length % 2 === 0 && w === rev(w) },
+    p24: { name: "aᵏbᵐcⁿ, k ≥ m+n (2024 P4)", sigma: "abc", N: 7, f: (w) => { const b = blocks(w, "abc"); return !!b && b[0] >= b[1] + b[2]; } },
+    nkm: { name: "aᵏbᵐcⁿ, n ≥ k+m (hocanın sitesi)", sigma: "abc", N: 7, f: (w) => { const b = blocks(w, "abc"); return !!b && b[2] >= b[0] + b[1]; } },
+    p20a: { name: "2020 P4(a): tek uzunluk, ilk = orta = son", sigma: "01", N: 10, f: (w) => w.length % 2 === 1 && w[0] === w[(w.length - 1) / 2] && w[0] === w[w.length - 1] },
+    p20b: { name: "2020 P4(b): aᵐbⁿ, m ≤ n ≤ 3m", sigma: "ab", N: 10, f: (w) => { const b = blocks(w, "ab"); return !!b && b[0] <= b[1] && b[1] <= 3 * b[0]; } },
+    p19a: { name: "2019 P4(a): çift pozisyonlar silinince palindrome", sigma: "01", N: 9, f: (w) => { if (w.length % 2 !== 1) return false; let o = ""; for (let i = 0; i < w.length; i += 2) o += w[i]; return o === rev(o); } },
+    p19b: { name: "2019 P4(b): aⁱbʲcᵏdᵐ, i+j = k+m", sigma: "abcd", N: 6, f: (w) => { const b = blocks(w, "abcd"); return !!b && b[0] + b[1] === b[2] + b[3]; } },
+    p23: { name: "2023 P4: 0ⁿwwᴿ1ⁿ", sigma: "01", N: 10, f: (w) => { for (let n = 0; 2 * n <= w.length; n++) { if (w.slice(0, n) !== "0".repeat(n) || w.slice(w.length - n) !== "1".repeat(n)) continue; const mid = w.slice(n, w.length - n); if (mid.length % 2 === 0 && mid === rev(mid)) return true; } return false; } },
+    ijjk: { name: "aⁱbʲcᵏ, i = j veya j = k (Ex 2.9)", sigma: "abc", N: 7, f: (w) => { const b = blocks(w, "abc"); return !!b && (b[0] === b[1] || b[1] === b[2]); } },
+    pal: { name: "palindrome (Ex 2.4e)", sigma: "01", N: 9, f: (w) => w === rev(w) },
+    mid0: { name: "tek uzunluk, ortası 0 (Ex 2.4d)", sigma: "01", N: 9, f: (w) => w.length % 2 === 1 && w[(w.length - 1) / 2] === "0" },
+    morea: { name: "a sayısı > b sayısı (Ex 2.6a)", sigma: "ab", N: 10, f: (w) => [...w].filter((c) => c === "a").length > [...w].filter((c) => c === "b").length },
+    wx: { name: "w#x, wᴿ x'in substring'i (Ex 2.6c)", sigma: "01#", N: 6, f: (w) => { const p = w.split("#"); return p.length === 2 && p[1].includes(rev(p[0])); } }
+  };
+  const L = (lines) => lines.join("\n");
+  const P24BASE = ["start: q1", "accept: q6", "q1, eps, eps -> q2, $", "q2, a, eps -> q2, a", "q2, eps, eps -> q3, eps", "q3, b, a -> q3, eps", "q3, eps, eps -> q4, eps", "q4, c, a -> q4, eps"];
+  const K19A = ["start: q1", "accept: q4", "q1, eps, eps -> q2, $", "q2, 0, eps -> u2, 0", "q2, 1, eps -> u2, 1", "u2, 0, eps -> q2, eps", "u2, 1, eps -> q2, eps", "q2, 0, eps -> q3, eps", "q2, 1, eps -> q3, eps", "q3, 0, eps -> u3, eps", "q3, 1, eps -> u3, eps", "u3, 0, 0 -> q3, eps", "u3, 1, 1 -> q3, eps", "q3, eps, $ -> q4, eps"];
+  const K19B = ["start: q1", "accept: q6", "q1, eps, eps -> q2, $", "q2, a, eps -> q2, x", "q2, eps, eps -> q3, eps", "q3, b, eps -> q3, x", "q3, eps, eps -> q4, eps", "q4, c, x -> q4, eps", "q4, eps, eps -> q5, eps", "q5, d, x -> q5, eps"];
+  const M3 = ["start: q1", "accept: q4", "q1, eps, eps -> q2, $", "q2, 0, eps -> q2, 0", "q2, 1, eps -> q2, 1", "q2, eps, eps -> q3, eps", "q3, 0, 0 -> q3, eps", "q3, 1, 1 -> q3, eps", "q3, eps, $ -> q4, eps"];
+  const MACH = {
+    M1: { name: "Sipser M1: 0ⁿ1ⁿ", lang: "anbn", w: "0011", src: L(["# Sipser Example 2.14 / Figure 2.15", "start: q1", "accept: q1 q4", "q1, eps, eps -> q2, $", "q2, 0, eps -> q2, 0", "q2, 1, 0 -> q3, eps", "q3, 1, 0 -> q3, eps", "q3, eps, $ -> q4, eps"]) },
+    M2: { name: "Sipser M2: i = j veya i = k", lang: "ijik", w: "aabcc", pos: { q1: [0, 0], q2: [1, 1], q3: [2, 0], q4: [3, 0], q5: [2, 1], q6: [3, 1], q7: [4, 1] }, src: L(["# Sipser Example 2.16 / Figure 2.17", "start: q1", "accept: q4 q7", "q1, eps, eps -> q2, $", "q2, a, eps -> q2, a", "q2, eps, eps -> q3, eps", "q2, eps, eps -> q5, eps", "q3, b, a -> q3, eps", "q3, eps, $ -> q4, eps", "q4, c, eps -> q4, eps", "q5, b, eps -> q5, eps", "q5, eps, eps -> q6, eps", "q6, c, a -> q6, eps", "q6, eps, $ -> q7, eps"]) },
+    M3: { name: "Sipser M3: wwᴿ", lang: "wwr", w: "0110", src: L(["# Sipser Example 2.18 / Figure 2.19", ...M3]) },
+    P24: { name: "2024 P4: hocanın tahtadaki 6 state'i", lang: "p24", w: "aaabc", src: L(["# 2024 P4, k >= m+n: one state per phase", ...P24BASE, "q4, eps, eps -> q5, eps", "q5, eps, a -> q5, eps", "q5, eps, $ -> q6, eps"]) },
+    P24site: { name: "2024 P4: hocanın sitesindeki 3 state", lang: "p24", w: "aaabc", src: L(["# hocanın PDA builder'ı: leftover X is fine when we accept by final state", "start: q1", "accept: q3", "q1, a, eps -> q1, X", "q1, eps, eps -> q2, eps", "q2, b, X -> q2, eps", "q2, eps, eps -> q3, eps", "q3, c, X -> q3, eps"]) },
+    nkm: { name: "n ≥ k+m (hocanın sitesi)", lang: "nkm", w: "abccc", src: L(["# hocanın PDA builder'ı: here the marker IS needed", "start: q0", "accept: q4", "q0, eps, eps -> q1, $", "q1, a, eps -> q1, X", "q1, eps, eps -> q2, eps", "q2, b, eps -> q2, X", "q2, eps, eps -> q3, eps", "q3, c, X -> q3, eps", "q3, eps, $ -> q4, eps", "q4, c, eps -> q4, eps"]) },
+    blank: { name: "Boş: kendin yaz", lang: "p24", w: "", src: L(["# her satıra bir transition: from, read, pop -> to, push", "start: q1", "accept: q2", "q1, eps, eps -> q2, $"]) },
+    mis1: { name: "Hata 1: b ve c aynı state'te", lang: "p24", w: "aaaabcbc", src: L(["# Hata 1: b'ler ve c'ler q3'te birlikte pop ediliyor", "start: q1", "accept: q5", "q1, eps, eps -> q2, $", "q2, a, eps -> q2, a", "q2, eps, eps -> q3, eps", "q3, b, a -> q3, eps", "q3, c, a -> q3, eps", "q3, eps, eps -> q4, eps", "q4, eps, a -> q4, eps", "q4, eps, $ -> q5, eps"]) },
+    mis2: { name: "Hata 2: c fazına c,a→ε ile giriş", lang: "p24", w: "aab", src: L(["# Hata 2: q3 -> q4 geçişi ilk c'yi okuyor", "start: q1", "accept: q6", "q1, eps, eps -> q2, $", "q2, a, eps -> q2, a", "q2, eps, eps -> q3, eps", "q3, b, a -> q3, eps", "q3, c, a -> q4, eps", "q4, c, a -> q4, eps", "q4, eps, eps -> q5, eps", "q5, eps, a -> q5, eps", "q5, eps, $ -> q6, eps"]) },
+    mis3a: { name: "Hata 3a: sonda tek ε,a→ε", lang: "p24", w: "ab", src: L(["# Hata 3a: artanlar için tek bir ε,a→ε kenarı", ...P24BASE, "q4, eps, a -> q6, eps"]) },
+    mis3b: { name: "Hata 3b: sonda tek ε,$→ε", lang: "p24", w: "aab", src: L(["# Hata 3b: artan a'lar boşaltılmadan ε,$→ε", ...P24BASE, "q4, eps, $ -> q6, eps"]) },
+    K19b: { name: "2019 P4(b) anahtarının PDA'sı", lang: "p19b", w: "abc", src: L(["# 2019 anahtarı: son kenar ε,ε→ε", ...K19B, "q5, eps, eps -> q6, eps"]) },
+    K19a: { name: "2019 P4(a) anahtarının PDA'sı", lang: "p19a", w: "0011110", pos: { q1: [0, 1], q2: [1, 1], u2: [1, 0], q3: [2, 1], u3: [2, 0], q4: [3, 1] }, src: L(["# 2019 anahtarı (P4a)", ...K19A]) },
+    K19a_fix: { name: "2019 P4(a) düzeltilmiş", lang: "p19a", w: "0011110", pos: { q1: [0, 1], q2: [1, 1], u2: [1, 0], q3: [3, 1], u3: [3, 0], q4: [4, 1] }, src: L(["# 2019 P4(a), düzeltilmiş: q2 -> u3 eklendi", ...K19A, "q2, eps, eps -> u3, eps"]) },
+    K19b_fix: { name: "2019 P4(b) düzeltilmiş", lang: "p19b", w: "abcd", src: L(["# 2019 P4(b), düzeltilmiş: son kenar ε,$→ε", ...K19B, "q5, eps, $ -> q6, eps"]) },
+    K23: { name: "2023 P4(b)", lang: "p23", w: "0010000111", src: L(["# 2023 P4(b): 0^n w w^R 1^n", "start: q1", "accept: q6", "q1, eps, eps -> q2, $", "q2, 0, eps -> q2, x", "q2, eps, eps -> q3, eps", "q3, 1, eps -> q3, 1", "q3, 0, eps -> q3, 0", "q3, eps, eps -> q4, eps", "q4, 1, 1 -> q4, eps", "q4, 0, 0 -> q4, eps", "q4, eps, eps -> q5, eps", "q5, 1, x -> q5, eps", "q5, eps, $ -> q6, eps"]) },
+    P20a: { name: "2020 P4(a)", lang: "p20a", w: "01000", pos: { q0: [0, 0.5], q1: [1, 0.5], a1: [2, 0], a2: [3, 0], b1: [2, 1], b2: [3, 1], f: [4, 0.5] }, src: L(["# 2020 P4(a): ilk = orta = son", "start: q0", "accept: f", "q0, eps, eps -> q1, $", "q1, 0, $ -> f, eps", "q1, 1, $ -> f, eps", "q1, 0, eps -> a1, eps", "a1, 0, eps -> a1, X", "a1, 1, eps -> a1, X", "a1, 0, eps -> a2, eps", "a2, 0, X -> a2, eps", "a2, 1, X -> a2, eps", "a2, 0, $ -> f, eps", "q1, 1, eps -> b1, eps", "b1, 0, eps -> b1, X", "b1, 1, eps -> b1, X", "b1, 1, eps -> b2, eps", "b2, 0, X -> b2, eps", "b2, 1, X -> b2, eps", "b2, 1, $ -> f, eps"]) },
+    P20b: { name: "2020 P4(b) (shorthand)", lang: "p20b", w: "aabbbbb", src: L(["# 2020 P4(b): a başına 1, 2 ya da 3 X", "start: q1", "accept: q4", "q1, eps, eps -> q2, $", "q2, a, eps -> q2, X", "q2, a, eps -> q2, XX", "q2, a, eps -> q2, XXX", "q2, eps, eps -> q3, eps", "q3, b, X -> q3, eps", "q3, eps, $ -> q4, eps"]) },
+    P20b_full: { name: "2020 P4(b) (açılmış)", lang: "p20b", w: "aabbbbb", pos: { q1: [0, 0], q2: [1, 0], r1: [1, 1], r2: [2, 1], q3: [2, 0], q4: [3, 0] }, src: L(["# 2020 P4(b): shorthand ara state'lerle açıldı", "start: q1", "accept: q4", "q1, eps, eps -> q2, $", "q2, a, eps -> q2, X", "q2, a, eps -> r1, X", "r1, eps, eps -> q2, X", "q2, a, eps -> r2, X", "r2, eps, eps -> r1, X", "q2, eps, eps -> q3, eps", "q3, b, X -> q3, eps", "q3, eps, $ -> q4, eps"]) },
+    S25d: { name: "Ex 2.5(d)", lang: "mid0", w: "10011", src: L(["# Exercise 2.5(d): odd length, middle 0", "start: q1", "accept: q4", "q1, eps, eps -> q2, $", "q2, 0, eps -> q2, X", "q2, 1, eps -> q2, X", "q2, 0, eps -> q3, eps", "q3, 0, X -> q3, eps", "q3, 1, X -> q3, eps", "q3, eps, $ -> q4, eps"]) },
+    S25e: { name: "Ex 2.5(e)", lang: "pal", w: "01010", src: L(["# Exercise 2.5(e): palindromes", ...M3, "q2, 0, eps -> q3, eps", "q2, 1, eps -> q3, eps"]) },
+    S27a: { name: "Ex 2.7(a)", lang: "morea", w: "abaab", src: L(["# Exercise 2.7(a): more a's than b's", "start: q1", "accept: q4", "q1, eps, eps -> q2, $", "q2, a, a -> q2, aa", "q2, a, $ -> q2, a$", "q2, a, b -> q2, eps", "q2, b, b -> q2, bb", "q2, b, $ -> q2, b$", "q2, b, a -> q2, eps", "q2, eps, a -> q4, a"]) },
+    S27c: { name: "Ex 2.7(c)", lang: "wx", w: "01#1100", src: L(["# Exercise 2.7(c): w#x, w^R substring of x", "start: q1", "accept: q5", "q1, eps, eps -> q2, $", "q2, 0, eps -> q2, 0", "q2, 1, eps -> q2, 1", "q2, #, eps -> q3, eps", "q3, 0, eps -> q3, eps", "q3, 1, eps -> q3, eps", "q3, eps, eps -> q4, eps", "q4, 0, 0 -> q4, eps", "q4, 1, 1 -> q4, eps", "q4, eps, $ -> q5, eps", "q5, 0, eps -> q5, eps", "q5, 1, eps -> q5, eps"]) },
+    S210: { name: "Ex 2.10 (hocanın sitesi)", lang: "ijjk", w: "abbcc", pos: { s: [0, 0.5], A1: [1, 0], A2: [2, 0], A3: [3, 0], f1: [4, 0], B1: [1, 1], B2: [2, 1], B3: [3, 1], f2: [4, 1] }, src: L(["# hocanın PDA builder'ı: { a^i b^j c^k | i = j or j = k }", "start: s", "accept: f1 f2", "s, eps, eps -> A1, $", "s, eps, eps -> B1, $", "A1, a, eps -> A1, X", "A1, eps, eps -> A2, eps", "A2, b, X -> A2, eps", "A2, eps, $ -> A3, eps", "A3, c, eps -> A3, eps", "A3, eps, eps -> f1, eps", "B1, a, eps -> B1, eps", "B1, eps, eps -> B2, eps", "B2, b, eps -> B2, X", "B2, eps, eps -> B3, eps", "B3, c, X -> B3, eps", "B3, eps, $ -> f2, eps"]) }
+  };
+  /* Lemma 2.21: CFG -> PDA */
+  function parseCFG(src) {
+    const G = { start: null, rules: {}, order: [], terms: new Set(), errors: [] };
+    const lines = String(src).split("\n");
+    lines.forEach((raw, li) => {
+      const s = raw.trim();
+      if (!s || s.startsWith("#")) return;
+      const m = /^([A-Z])\s*(?:->|→)\s*(.*)$/.exec(s);
+      if (!m) { G.errors.push(`Satır ${li + 1}: "${s}" okunamadı. Biçim: S -> aTb | b (sol tarafta tek büyük harf).`); return; }
+      const A = m[1];
+      if (!G.rules[A]) { G.rules[A] = []; G.order.push(A); }
+      if (G.start === null) G.start = A;
+      m[2].split("|").forEach((alt) => {
+        let t = alt.replace(/\s+/g, "");
+        if (t === "ε" || t === "eps") t = "";
+        if (t.includes("$")) { G.errors.push(`Satır ${li + 1}: $ dip işareti için ayrılmış; grammar'da kullanma.`); return; }
+        if (t.includes("ε")) { G.errors.push(`Satır ${li + 1}: ε tek başına bir seçenek olmalı ("${alt.trim()}").`); return; }
+        G.rules[A].push(t);
+      });
+    });
+    if (!G.order.length && !G.errors.length) G.errors.push("Hiç rule yok.");
+    G.order.forEach((A) => G.rules[A].forEach((r) => [...r].forEach((ch) => {
+      if (/[A-Z]/.test(ch)) { if (!G.rules[ch]) G.errors.push(`${ch} bir variable gibi görünüyor ama rule'u yok.`); }
+      else G.terms.add(ch);
+    })));
+    G.errors = [...new Set(G.errors)];
+    return G;
+  }
+  function cfgToPDA(G) {
+    const lines = ["start: qstart", "accept: qaccept", `qstart, eps, eps -> qloop, ${G.start}$`];
+    G.order.forEach((A) => G.rules[A].forEach((r) => lines.push(`qloop, eps, ${A} -> qloop, ${r || "eps"}`)));
+    [...G.terms].sort().forEach((t) => lines.push(`qloop, ${t}, ${t} -> qloop, eps`));
+    lines.push("qloop, eps, $ -> qaccept, eps");
+    return lines.join("\n");
+  }
+  return { parse, run, branches, checkAll, LANGS, MACH, parseCFG, cfgToPDA };
+})();
+/*CORE-END*/
+
+/* UI helpers */
+const PU = {
+  $: (id) => document.getElementById(id),
+  esc: (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])),
+  math(el) { if (window.Lab && Lab.renderMath) Lab.renderMath(el); },
+  lbl: (R) => `${R.a || "ε"},${R.b || "ε"}→${R.c || "ε"}`,
+  vis: (s) => (s === "" ? "ε" : s),
+  uid: 0
+};
+
+/* State diagram: states on a grid (opt.pos or a single row), loops, straight or curved edges */
+PU.diagram = function (P, opt) {
+  opt = opt || {};
+  const pos = opt.pos || {}, DX = 140, DY = 132, R = 18, LH = 13;
+  const id = "w-pda-arr-" + (++PU.uid), idh = id + "h";
+  const C = {};
+  /* layout order: breadth-first from the start state along the rules, then the rest */
+  const order = [P.start], inOrder = new Set([P.start]);
+  for (let i = 0; i < order.length; i++) P.rules.forEach((Rl) => { if (Rl.q === order[i] && !inOrder.has(Rl.r)) { inOrder.add(Rl.r); order.push(Rl.r); } });
+  P.states.forEach((s) => { if (!inOrder.has(s)) { inOrder.add(s); order.push(s); } });
+  order.forEach((s, i) => { C[s] = pos[s] ? pos[s].slice() : [i, 0]; });
+  const rows = P.states.map((s) => C[s][1]), minRow = Math.min(...rows), maxRow = Math.max(...rows);
+  const groups = [];
+  const gmap = new Map();
+  P.rules.forEach((Rl) => {
+    const k = Rl.q + "\u0001" + Rl.r;
+    if (!gmap.has(k)) { const g = { q: Rl.q, r: Rl.r, labels: [], rules: [] }; gmap.set(k, g); groups.push(g); }
+    const g = gmap.get(k); g.labels.push(PU.lbl(Rl)); g.rules.push(Rl);
+  });
+  let topLines = 0, botLines = 0;
+  groups.forEach((g) => { if (g.q === g.r) { if (C[g.q][1] === minRow) topLines = Math.max(topLines, g.labels.length); else botLines = Math.max(botLines, g.labels.length); } });
+  const maxCol = Math.max(...P.states.map((s) => C[s][0]));
+  const top = 40 + topLines * LH + (topLines ? 26 : 0);
+  const X = (c) => 46 + c * DX, Y = (r) => top + (r - minRow) * DY;
+  const width = X(maxCol) + 70;
+  let height = Y(maxRow) + 60 + botLines * LH + (botLines ? 26 : 0);
+  const usedR = opt.rule || null;
+  const txt = (x, y, s, hot) => `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" style="fill:${hot ? "var(--accent)" : "var(--fg)"};font-size:11px;font-weight:${hot ? 700 : 400};font-family:'JetBrains Mono',monospace">${PU.esc(s)}</text>`;
+  let edges = "", labels = "";
+  let maxY = height;
+  groups.forEach((g) => {
+    const hot = usedR && g.rules.includes(usedR);
+    const stroke = hot ? "var(--accent)" : "var(--fg-muted)", sw = hot ? 2.2 : 1.3, mk = hot ? idh : id;
+    const [cx, cy] = [X(C[g.q][0]), Y(C[g.q][1])];
+    if (g.q === g.r) {
+      const up = C[g.q][1] === minRow ? -1 : 1;
+      const y0 = cy + up * (R - 3), y1 = cy + up * (R + 30);
+      edges += `<path d="M${cx - 9},${y0} C${cx - 26},${y1} ${cx + 26},${y1} ${cx + 9},${y0 + up * 1}" style="fill:none;stroke:${stroke};stroke-width:${sw}" marker-end="url(#${mk})"/>`;
+      g.labels.forEach((t, i) => { const ly = up < 0 ? y1 - 6 - (g.labels.length - 1 - i) * LH : y1 + 14 + i * LH; labels += txt(cx, ly, t, hot && g.rules[i] === usedR); });
+      return;
+    }
+    const [tx, ty] = [X(C[g.r][0]), Y(C[g.r][1])];
+    const dx = tx - cx, dy = ty - cy, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
+    const nx = -uy, ny = ux;
+    const reverse = gmap.has(g.r + "\u0001" + g.q);
+    let blocked = false;
+    P.states.forEach((s) => {
+      if (s === g.q || s === g.r) return;
+      const px = X(C[s][0]) - cx, py = Y(C[s][1]) - cy, t = (px * ux + py * uy);
+      if (t > 0 && t < len && Math.abs(px * nx + py * ny) < R + 6) blocked = true;
+    });
+    let bend = 0;
+    if (reverse) bend = 22;
+    if (blocked) bend = Math.max(bend, 34 + len * 0.08);
+    const sx = cx + ux * R, sy = cy + uy * R, ex = tx - ux * (R + 2), ey = ty - uy * (R + 2);
+    let mx, my;
+    if (bend) {
+      const qx = (cx + tx) / 2 + nx * bend * 2, qy = (cy + ty) / 2 + ny * bend * 2;
+      const a1 = Math.atan2(qy - cy, qx - cx), a2 = Math.atan2(qy - ty, qx - tx);
+      const s2x = cx + Math.cos(a1) * R, s2y = cy + Math.sin(a1) * R, e2x = tx + Math.cos(a2) * (R + 2), e2y = ty + Math.sin(a2) * (R + 2);
+      edges += `<path d="M${s2x.toFixed(1)},${s2y.toFixed(1)} Q${qx.toFixed(1)},${qy.toFixed(1)} ${e2x.toFixed(1)},${e2y.toFixed(1)}" style="fill:none;stroke:${stroke};stroke-width:${sw}" marker-end="url(#${mk})"/>`;
+      mx = 0.25 * s2x + 0.5 * qx + 0.25 * e2x; my = 0.25 * s2y + 0.5 * qy + 0.25 * e2y;
+    } else {
+      edges += `<line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" style="stroke:${stroke};stroke-width:${sw}" marker-end="url(#${mk})"/>`;
+      mx = (cx + tx) / 2; my = (cy + ty) / 2;
+    }
+    const n = g.labels.length;
+    let lx, ly0, dir;
+    if (!bend && Math.abs(uy) < 0.2) { lx = mx; ly0 = my - 7 - (n - 1) * LH; dir = 1; }
+    else if (!bend && Math.abs(ux) < 0.2) { lx = mx + 36; ly0 = my - ((n - 1) * LH) / 2 + 4; dir = 1; }
+    else {
+      const midY = (Y(minRow) + Y(maxRow)) / 2;
+      const sg = bend ? 1 : ((my < midY - 1 ? -1 : 1) * (ny < 0 ? -1 : 1));
+      const sx2 = nx * sg * (bend ? 10 : 14), sy2 = ny * sg * (bend ? 10 : 14);
+      lx = mx + sx2 + (Math.abs(nx) > 0.5 ? 24 * Math.sign(nx * sg) : 0);
+      if (sy2 >= 0) { ly0 = my + sy2 + 10; dir = 1; } else { ly0 = my + sy2 - (n - 1) * LH; dir = 1; }
+    }
+    g.labels.forEach((t, i) => {
+      const ly = ly0 + dir * i * LH;
+      maxY = Math.max(maxY, ly + 8);
+      labels += txt(lx, ly, t, hot && g.rules[i] === usedR);
+    });
+  });
+  height = Math.max(height, maxY + 6);
+  let nodes = `<line x1="${X(C[P.start][0]) - 46}" y1="${Y(C[P.start][1])}" x2="${X(C[P.start][0]) - R - 2}" y2="${Y(C[P.start][1])}" style="stroke:var(--fg);stroke-width:1.5" marker-end="url(#${id})"/>`;
+  P.states.forEach((s) => {
+    const x = X(C[s][0]), y = Y(C[s][1]), on = s === opt.cur;
+    const fill = on ? "var(--blue-050)" : "var(--paper)", st = on ? "var(--blue-600)" : "var(--fg-muted)";
+    nodes += `<circle cx="${x}" cy="${y}" r="${R}" style="fill:${fill};stroke:${st};stroke-width:${on ? 2.6 : 1.4}"/>`;
+    if (P.acc.has(s)) nodes += `<circle cx="${x}" cy="${y}" r="${R - 4}" style="fill:none;stroke:${st};stroke-width:1.2"/>`;
+    nodes += `<text x="${x}" y="${y + 4}" text-anchor="middle" style="fill:var(--fg);font-size:${s.length > 4 ? 9 : 11}px;font-weight:700;font-family:'JetBrains Mono',monospace">${PU.esc(s)}</text>`;
+  });
+  const defs = `<defs><marker id="${id}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--fg-muted)"/></marker><marker id="${idh}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"/></marker></defs>`;
+  return `<span class="w-pda-scroll"><svg width="${width}" height="${Math.ceil(height)}" viewBox="0 0 ${width} ${Math.ceil(height)}" role="img" aria-label="PDA state diagram">${defs}${edges}${nodes}${labels}</svg></span>`;
+};
+
+PU.tape = function (w, pos) {
+  if (!w.length) return `<span class="w-pda-tape"><span class="w-pda-cell is-head">ε</span></span>`;
+  let h = `<span class="w-pda-tape">`;
+  [...w].forEach((ch, i) => { h += `<span class="w-pda-cell${i < pos ? " is-done" : ""}${i === pos ? " is-head" : ""}">${PU.esc(ch)}</span>`; });
+  if (pos >= w.length) h += `<span class="w-pda-cell is-head">⊣</span>`;
+  return h + `</span>`;
+};
+PU.stack = function (stk) {
+  if (!stk.length) return `<span class="w-pda-stack"><span class="w-pda-empty">boş</span></span>`;
+  let h = `<span class="w-pda-stack">`;
+  [...stk].forEach((ch, i) => { h += `<span class="w-pda-cell${i === 0 ? " is-top" : ""}">${PU.esc(ch)}</span>`; });
+  return h + `</span>`;
+};
+PU.say = function (R) {
+  const rd = R.a ? `input'tan <code>${PU.esc(R.a)}</code> okundu` : "input okunmadı";
+  const pp = R.b ? `tepedeki <code>${PU.esc(R.b)}</code> pop edildi` : "pop yok";
+  const pu = R.c ? `<code>${PU.esc(R.c)}</code> push edildi${R.c.length > 1 ? ` (<code>${PU.esc(R.c[0])}</code> en üstte)` : ""}` : "push yok";
+  return `<code>${PU.esc(R.q)}, ${PU.esc(R.a || "eps")}, ${PU.esc(R.b || "eps")} -&gt; ${PU.esc(R.r)}, ${PU.esc(R.c || "eps")}</code>: ${rd}, ${pp}, ${pu}.`;
+};
+PU.strList = (arr, max) => arr.length ? `<span class="w-pda-strs">${arr.slice(0, max).map((s) => `<code>${PU.esc(PU.vis(s))}</code>`).join("")}${arr.length > max ? ` … (+${arr.length - max})` : ""}</span>` : "yok";
+
+/* PDA simulator widget */
+PU.sims = {};
+PU.makeSim = function (rootId, cfg) {
+  const root = PU.$(rootId);
+  if (!root) return null;
+  const opts = cfg.presets.map((k) => `<option value="${k}">${PU.esc(PDA.MACH[k].name)}</option>`).join("");
+  const langOpts = Object.keys(PDA.LANGS).map((k) => `<option value="${k}">${PU.esc(PDA.LANGS[k].name)}</option>`).join("");
+  root.innerHTML =
+    `<div class="w-pda-ctl"><label>${cfg.hunt ? "Hatalı PDA" : "Hazır PDA"}: <select class="btn btn--sm" data-r="preset">${opts}</select></label></div>` +
+    `<textarea class="w-pda-src" data-r="src" rows="9" spellcheck="false" autocomplete="off" aria-label="PDA tanımı"></textarea>` +
+    `<div class="w-pda-ctl"><label>input = <input type="text" class="btn btn--sm" data-r="w" autocomplete="off" spellcheck="false" aria-label="input string" placeholder="boş = ε" /></label>` +
+    `<button class="btn btn--sm btn--accent" data-r="go">Çalıştır</button><button class="btn btn--sm" data-r="br">Branch'leri listele</button></div>` +
+    (cfg.hunt ? `<div class="w-pda-ctl"><label>Kıran string: <input type="text" class="btn btn--sm" data-r="hw" autocomplete="off" spellcheck="false" aria-label="karşı örnek adayı" placeholder="ε için boş bırak" /></label><button class="btn btn--sm btn--accent" data-r="hgo">Kontrol et</button></div>` : "") +
+    `<div class="w-pda-ctl"><label>Hedef dil: <select class="btn btn--sm" data-r="lang">${langOpts}</select></label><button class="btn btn--sm" data-r="chk">${cfg.hunt ? "Karşı örnekleri göster" : "Bütün kısa string'leri dene"}</button></div>` +
+    `<div class="w-pda-err" data-r="err" aria-live="polite"></div><div data-r="step"></div><div data-r="out" aria-live="polite"></div>`;
+  const q = (r) => root.querySelector(`[data-r="${r}"]`);
+  const sel = q("preset"), src = q("src"), win = q("w"), langSel = q("lang"), err = q("err"), stepEl = q("step"), out = q("out");
+  let posMap = null;
+  function load(k) {
+    const M = PDA.MACH[k];
+    if (!cfg.presets.includes(k)) {
+      if (!sel.querySelector(`option[value="${k}"]`)) sel.insertAdjacentHTML("beforeend", `<option value="${k}">${PU.esc(M.name)}</option>`);
+    }
+    sel.value = k; src.value = M.src; win.value = M.w; langSel.value = M.lang; posMap = M.pos || null;
+    out.innerHTML = ""; if (cfg.hunt) q("hw").value = "";
+    go();
+  }
+  function machine() {
+    const P = PDA.parse(src.value);
+    if (P.errors.length) { err.textContent = P.errors.slice(0, 4).join("\n"); return null; }
+    return P;
+  }
+  function readW(inp) {
+    const w = inp.value.trim();
+    if (w === "ε" || w === "eps") return "";
+    if (/\s/.test(w)) { err.textContent = "Input'ta boşluk olmasın; ε için kutuyu boş bırak."; return null; }
+    if ([...w].length > 16) { err.textContent = "En fazla 16 sembol: arama ve ekran için yeter."; return null; }
+    return w;
+  }
+  function animate(P, w, res) {
+    const path = res.path, frames = [];
+    path.forEach((c, i) => {
+      let cap;
+      if (i === 0) cap = `Başlangıç: state <code>${PU.esc(c.st)}</code>, stack boş, input <code>${PU.esc(PU.vis(w))}</code>.`;
+      else cap = `Adım ${i}: ` + PU.say(c.rule);
+      if (i === path.length - 1) {
+        if (res.ok) cap += ` <b class="w-pda-ok">Input bitti ve <code>${PU.esc(c.st)}</code> accept state: accept.</b>`;
+        else if (c.pos < w.length) cap += ` <b class="w-pda-bad">Hiçbir branch daha ileri gidemiyor: ${c.pos} sembol okundu, sıradaki <code>${PU.esc(w[c.pos])}</code> için uygun kenar yok. Reject.</b>`;
+        else cap += ` <b class="w-pda-bad">Input bitti ama hiçbir branch bir accept state'e ulaşamıyor. Reject.</b>`;
+      }
+      frames.push({ c, caption: cap });
+    });
+    Lab.stepper(stepEl, {
+      title: res.ok ? "Kabul eden branch" : "En uzağa giden branch",
+      interval: 1000, frames,
+      render(f, idx, el) {
+        el.innerHTML = `<code class="w-pda-raw">${PU.diagram(P, { pos: posMap, cur: f.c.st, rule: f.c.rule })}<span class="w-pda-vis"><span><span class="w-pda-cap">input</span>${PU.tape(w, f.c.pos)}</span><span><span class="w-pda-cap">stack (tepe üstte)</span>${PU.stack(f.c.stk)}</span></span></code>`;
+      }
+    });
+  }
+  function go() {
+    err.textContent = "";
+    const P = machine(); if (!P) return;
+    const w = readW(win); if (w === null) return;
+    const res = PDA.run(P, w);
+    animate(P, w, res);
+    const L = PDA.LANGS[langSel.value];
+    let h = `<div class="w-pda-sum">${res.ok ? `<b class="w-pda-ok">Accept.</b>` : `<b class="w-pda-bad">Reject.</b>`} ${res.explored} konfigürasyon incelendi.`;
+    if (res.truncated && !res.ok) h += ` Arama sınırına (stack derinliği ya da konfigürasyon sayısı) takıldı; kesin bir "hayır" değil.`;
+    if (L && [...w].every((ch) => L.sigma.includes(ch))) h += ` Hedef dile göre <code>${PU.esc(PU.vis(w))}</code> ${L.f(w) ? "dilde" : "dilde değil"}${L.f(w) === res.ok ? "; karar doğru." : `; <b class="w-pda-bad">karar yanlış</b>.`}`;
+    out.innerHTML = h + `</div>`;
+  }
+  function listBranches() {
+    err.textContent = "";
+    const P = machine(); if (!P) return;
+    const w = readW(win); if (w === null) return;
+    if ([...w].length > 8) { err.textContent = "Branch listesi en fazla 8 sembollük input için: branch sayısı hızla artar."; return; }
+    const B = PDA.branches(P, w, 40);
+    const acc = B.list.filter((b) => b.end === "acc").length;
+    let h = `<div class="w-pda-sum">Sınırlı listeleme: stack en fazla ${B.maxDepth} sembol, bir branch aynı konfigürasyona ikinci kez dönmez, accept'e ulaşan branch orada durur. <code>${PU.esc(PU.vis(w))}</code> için bu sınırlar içinde ${B.list.length}${B.truncated ? "+" : ""} branch bulundu, ${acc} tanesi accept. Her satır bir branch: state'ler sırayla, sonda ne olduğu.`;
+    if (B.pruned) h += `<br>Bazı devamlar sınır yüzünden kesildi. Gerçek branch sayısı daha fazla, hatta sonsuz olabilir; liste hepsini göstermiyor.`;
+    h += `</div><code class="w-pda-raw"><span class="w-pda-list">`;
+    B.list.forEach((b, i) => {
+      const last = b.path[b.path.length - 1];
+      const states = b.path.map((c) => c.st).join("→");
+      const end = b.end === "acc" ? `<b class="w-pda-ok">accept</b>` : b.end === "cut" ? `kesildi: bütün devamları sınırı aşıyor ya da bu branch'te görülmüş bir konfigürasyona dönüyor (${last.pos}/${w.length} okundu, stack ${PU.esc(PU.vis(last.stk))})` : b.end === "stuck" ? `takıldı (${last.pos}/${w.length} okundu, stack ${PU.esc(PU.vis(last.stk))})` : `input bitti, ${PU.esc(last.st)} accept değil (stack ${PU.esc(PU.vis(last.stk))})`;
+      h += `<span>${i + 1}. ${PU.esc(states)} · ${end}</span>`;
+    });
+    if (B.truncated) h += `<span>… ilk 40 branch gösterildi.</span>`;
+    out.innerHTML = h + `</span></code>`;
+  }
+  function checkAll() {
+    err.textContent = "";
+    const P = machine(); if (!P) return;
+    const L = PDA.LANGS[langSel.value];
+    const r = PDA.checkAll(P, L, L.N);
+    let h = `<div class="w-pda-sum">Hedef dil: ${PU.esc(L.name)}. Alphabet {${[...L.sigma].join(", ")}} üzerinde uzunluğu en fazla ${L.N} olan ${r.total} string denendi.<br>`;
+    if (!r.fa.length && !r.fr.length) h += `<b class="w-pda-ok">Hiç hata yok.</b> Bu uzunluğa kadar PDA dille aynı kararı veriyor. (Bu bir ispat değil, ama sınavdaki PDA'lar için çok güçlü bir kontrol.)`;
+    else h += `<b class="w-pda-bad">Yanlış kabul (dilde değil ama accept): ${r.fa.length}</b> ${PU.strList(r.fa, 10)}<br><b class="w-pda-bad">Yanlış red (dilde ama reject): ${r.fr.length}</b> ${PU.strList(r.fr, 10)}`;
+    if (r.trunc) h += `<br>Not: bazı string'lerde arama sınırına takıldı.`;
+    out.innerHTML = h + `</div>`;
+  }
+  function hunt() {
+    err.textContent = "";
+    const P = machine(); if (!P) return;
+    const w = readW(q("hw")); if (w === null) return;
+    const L = PDA.LANGS[langSel.value];
+    const bad = [...w].filter((ch) => !L.sigma.includes(ch));
+    if (bad.length) { err.textContent = `"${bad[0]}" bu dilin alphabet'inde yok: {${[...L.sigma].join(", ")}}.`; return; }
+    const res = PDA.run(P, w), inL = L.f(w);
+    win.value = w; animate(P, w, res);
+    const W = `<code>${PU.esc(PU.vis(w))}</code>`;
+    out.innerHTML = `<div class="w-pda-sum">` + (res.ok !== inL
+      ? `<b class="w-pda-ok">Buldun.</b> ${W} ${inL ? "dilde ama PDA reject ediyor" : "dilde değil ama PDA accept ediyor"}. Stepper'da nerede saptığını izle.`
+      : `${W} ${inL ? "dilde ve PDA accept ediyor" : "dilde değil ve PDA reject ediyor"}: bu string için karar doğru. Başka bir string dene.`) + `</div>`;
+  }
+  sel.addEventListener("change", () => load(sel.value));
+  q("go").addEventListener("click", go);
+  q("br").addEventListener("click", listBranches);
+  q("chk").addEventListener("click", checkAll);
+  win.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  if (cfg.hunt) { q("hgo").addEventListener("click", hunt); q("hw").addEventListener("keydown", (e) => { if (e.key === "Enter") hunt(); }); }
+  load(cfg.first || cfg.presets[0]);
+  const api = { load, root };
+  PU.sims[rootId] = api;
+  return api;
+};
+
+PU.makeSim("w-sim-a", { presets: ["M1", "M2", "M3", "P24", "P24site", "nkm", "blank"], first: "M1" });
+PU.makeSim("w-sim-b", { presets: ["M3", "M2", "M1"], first: "M3" });
+PU.makeSim("w-sim-hunt", { presets: ["mis1", "mis2", "mis3a", "mis3b", "K19b", "K19a"], first: "mis1", hunt: true });
+
+/* Static diagrams in the lesson text and "load into simulator" buttons */
+document.querySelectorAll(".w-pda-fig[data-fig]").forEach((el) => {
+  const M = PDA.MACH[el.dataset.fig];
+  if (!M) return;
+  el.innerHTML = `<code class="w-pda-raw">${PU.diagram(PDA.parse(M.src), { pos: M.pos })}</code>`;
+});
+document.querySelectorAll("[data-pda-load]").forEach((b) => b.addEventListener("click", () => {
+  const s = PU.sims["w-sim-a"];
+  if (!s) return;
+  s.load(b.dataset.pdaLoad);
+  s.root.scrollIntoView({ behavior: "smooth", block: "start" });
+}));
+
+/* Lemma 2.21 converter */
+(function () {
+  const root = PU.$("w-conv");
+  if (!root) return;
+  const GR = {
+    g225: { name: "Example 2.25", src: "S -> aTb | b\nT -> Ta | ε", w: "aab" },
+    g23: { name: "Exercise 2.3'teki G (Ex 2.12)", src: "R -> XRX | S\nS -> aTb | bTa\nT -> XTX | X | ε\nX -> a | b", w: "aab" },
+    g4: { name: "G4 (Ex 2.1 / 2.11)", src: "E -> E+T | T\nT -> TxF | F\nF -> (E) | a", w: "a+a" },
+    g24: { name: "2024 P4(a) grammar'ı", src: "S -> aSc | B\nB -> aBb | A\nA -> aA | ε", w: "aaabc" }
+  };
+  root.innerHTML =
+    `<div class="w-pda-ctl"><label>Hazır grammar: <select class="btn btn--sm" data-r="g">${Object.keys(GR).map((k) => `<option value="${k}">${PU.esc(GR[k].name)}</option>`).join("")}</select></label></div>` +
+    `<textarea class="w-pda-src" data-r="src" rows="4" spellcheck="false" autocomplete="off" aria-label="grammar" style="min-height:90px"></textarea>` +
+    `<div class="w-pda-ctl"><label>input = <input type="text" class="btn btn--sm" data-r="w" autocomplete="off" spellcheck="false" aria-label="input string" placeholder="boş = ε" /></label><button class="btn btn--sm btn--accent" data-r="go">PDA'yı kur ve çalıştır</button></div>` +
+    `<div class="w-pda-err" data-r="err" aria-live="polite"></div><div data-r="pda"></div><div data-r="step"></div><div data-r="out" aria-live="polite"></div>`;
+  const q = (r) => root.querySelector(`[data-r="${r}"]`);
+  const gsel = q("g"), src = q("src"), win = q("w"), err = q("err"), pdaEl = q("pda"), stepEl = q("step"), out = q("out");
+  function go() {
+    err.textContent = ""; out.innerHTML = "";
+    const G = PDA.parseCFG(src.value);
+    if (G.errors.length) { err.textContent = G.errors.slice(0, 4).join("\n"); return; }
+    let w = win.value.trim();
+    if (w === "ε" || w === "eps") w = "";
+    if ([...w].length > 12) { err.textContent = "En fazla 12 sembol."; return; }
+    const badCh = [...w].find((ch) => !G.terms.has(ch));
+    if (badCh !== undefined) { err.textContent = `"${badCh}" grammar'ın terminal'lerinden biri değil: {${[...G.terms].join(", ")}}.`; return; }
+    const text = PDA.cfgToPDA(G), P = PDA.parse(text);
+    pdaEl.innerHTML = `<p class="src">Kurulan PDA (Sipser'in kısaltmasıyla; birden fazla sembol push eden kenarlar formal olarak ara state'lerle açılır):</p><pre class="w-pda-src" style="min-height:0;white-space:pre-wrap">${PU.esc(text)}</pre>`;
+    if (P.errors.length) { err.textContent = "Kurulan PDA simülatörde çalıştırılamıyor:\n" + P.errors.slice(0, 4).join("\n"); stepEl.innerHTML = ""; return; }
+    const res = PDA.run(P, w, { maxDepth: w.length + 12, maxConf: 80000 });
+    if (!res.ok && res.truncated) {
+      Lab.stepper(stepEl, { title: "Sonuç belirlenemedi", frames: [{ caption: `Arama sınırına ulaşıldı (stack en fazla ${w.length + 12} sembol, en fazla 80000 konfigürasyon) ve bu sınır içinde kabul eden branch bulunmadı. Üyelik sonucu belirlenemedi: <code>${PU.esc(PU.vis(w))}</code> bu grammar'dan türetilebilir de, türetilemez de.` }], render(f, i, el) { el.innerHTML = ""; } });
+      out.innerHTML = `<div class="w-pda-sum"><b>Arama sınırına ulaşıldı; üyelik sonucu belirlenemedi.</b> ${res.explored} konfigürasyon incelendi.</div>`;
+      return;
+    }
+    if (!res.ok) {
+      Lab.stepper(stepEl, { title: "Kabul eden branch yok", frames: [{ caption: `Erişilebilen bütün konfigürasyonlar sınıra takılmadan incelendi ve hiçbiri accept etmedi: <code>${PU.esc(PU.vis(w))}</code> bu grammar'dan türetilemiyor.` }], render(f, i, el) { el.innerHTML = ""; } });
+      out.innerHTML = `<div class="w-pda-sum"><b class="w-pda-bad">Reject.</b> ${res.explored} konfigürasyon incelendi.</div>`;
+      return;
+    }
+    const isVar = (ch) => !!G.rules[ch];
+    const form = (c) => { const s = w.slice(0, c.pos) + c.stk.replace(/\$$/, ""); return s === "" ? "ε" : s; };
+    const deriv = [];
+    const frames = res.path.map((c, i) => {
+      let cap;
+      if (i === 0) cap = "Başlangıç: $q_\\text{start}$, stack boş.";
+      else {
+        const R = c.rule;
+        if (R.q === "qstart") { cap = `Adım 1 (informal description, adım 1): <code>${PU.esc(G.start)}</code> ve <code>$</code> push edildi, <code>${PU.esc(G.start)}</code> en üstte.`; deriv.push(form(c)); }
+        else if (R.r === "qaccept") cap = `Adım 2(c): tepede <code>$</code> var ve input bitti; accept.`;
+        else if (R.b && isVar(R.b)) { cap = `Adım 2(a): tepede variable <code>${PU.esc(R.b)}</code>; rule <code>${PU.esc(R.b)} → ${PU.esc(R.c || "ε")}</code> nondeterministic olarak seçildi.`; deriv.push(form(c)); }
+        else cap = `Adım 2(b): tepede terminal <code>${PU.esc(R.b)}</code>, input'taki sembolle eşleşti; ikisi de atıldı.`;
+      }
+      return { c, caption: cap, d: deriv.slice() };
+    });
+    Lab.stepper(stepEl, {
+      title: `Lemma 2.21 PDA'sı · ${PU.vis(w)}`, interval: 1100, frames,
+      render(f, idx, el) {
+        el.innerHTML = `<code class="w-pda-raw"><span class="w-pda-vis"><span><span class="w-pda-cap">input</span>${PU.tape(w, f.c.pos)}</span><span><span class="w-pda-cap">stack (tepe üstte)</span>${PU.stack(f.c.stk)}</span></span><span class="w-pda-form">okunan + stack = ${PU.esc(form(f.c))}</span><span class="w-pda-form">leftmost derivation: ${PU.esc(f.d.join(" ⇒ ") || "—")}</span></code>`;
+      }
+    });
+    const subs = res.path.filter((c) => c.rule && c.rule.b && isVar(c.rule.b)).length;
+    out.innerHTML = `<div class="w-pda-sum"><b class="w-pda-ok">Accept.</b> ${res.explored} konfigürasyon incelendi. Kabul eden branch ${subs} kez bir rule uyguladı; bu, derivation'ın adım sayısı.</div>`;
+  }
+  function loadG(k) { src.value = GR[k].src; win.value = GR[k].w; go(); }
+  gsel.addEventListener("change", () => loadG(gsel.value));
+  q("go").addEventListener("click", go);
+  win.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  loadG("g225");
+})();
+</script>
+</body>
+</html>
