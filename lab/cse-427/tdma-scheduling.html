@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 427: scheduled access, TDMA, timeslot ve slotframe, dedicated ve shared cell, spatial reuse, guard time ve clock drift, duty cycle ve waiting delay, multi-hop cell sırası, conflict graph, graph coloring ve schedule'ı kimin kurduğu." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>TDMA, slotframe ve graph coloring · CSE 427 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-tdma-scheduling-guess { margin: 12px 0 6px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-tdma-scheduling-box { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; margin: 12px 0; background: var(--bg-elevated); min-width: 0; }
+    .w-tdma-scheduling-ctl { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 6px 0; }
+    .w-tdma-scheduling-ctl label { font-size: .9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+    .w-tdma-scheduling-ctl input[type="number"] { width: 72px; font: inherit; padding: 2px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+    .w-tdma-scheduling-ctl input[type="text"] { width: 100%; max-width: 420px; font-family: 'JetBrains Mono', monospace; font-size: .9rem; padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+    .w-tdma-scheduling-wide { flex: 1 1 260px; min-width: 0; }
+    .w-tdma-scheduling-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-tdma-scheduling-out { font-size: .97rem; margin: 6px 0; }
+    .w-tdma-scheduling-svg { display: block; width: 100%; height: auto; max-width: 560px; }
+    .w-tdma-scheduling-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+    .w-tdma-scheduling-two > div { min-width: 0; }
+    .w-tdma-scheduling-cap { font-size: .82rem; font-weight: 700; color: var(--fg-brand); margin: 2px 0; }
+    .w-tdma-scheduling-grid { border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: .78rem; }
+    .w-tdma-scheduling-grid td, .w-tdma-scheduling-grid th { border: 1px solid var(--border); padding: 2px 4px; text-align: center; min-width: 34px; height: 26px; }
+    .w-tdma-scheduling-grid th { background: var(--stone-050); font-weight: 700; }
+    .w-tdma-scheduling-grid td.is-cell { background: var(--blue-100); color: var(--blue-800); font-weight: 700; }
+    .w-tdma-scheduling-grid td.is-past { opacity: .45; }
+    .w-tdma-scheduling-grid td.is-now { outline: 3px solid var(--accent); outline-offset: -3px; }
+    .w-tdma-scheduling-grid td.is-moved { background: #d3f9d8; color: #2b8a3e; }
+    .w-tdma-scheduling-path { display: flex; align-items: center; gap: 0; margin: 6px 0 10px; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+    .w-tdma-scheduling-path span.n { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--blue-600); display: inline-flex; align-items: center; justify-content: center; background: var(--paper); position: relative; }
+    .w-tdma-scheduling-path span.n.has { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .w-tdma-scheduling-path span.l { flex: 0 1 40px; height: 2px; background: var(--stone-300); }
+    .w-tdma-scheduling-tbl { border-collapse: collapse; font-size: .88rem; }
+    .w-tdma-scheduling-tbl td, .w-tdma-scheduling-tbl th { border: 1px solid var(--border); padding: 3px 8px; text-align: right; }
+    .w-tdma-scheduling-tbl th { background: var(--stone-050); }
+    .w-tdma-scheduling-tbl tr.is-me { background: var(--blue-050); font-weight: 700; }
+    .w-tdma-scheduling-dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+    .w-tdma-scheduling-ok { color: #2b8a3e; font-weight: 700; }
+    .w-tdma-scheduling-bad { color: var(--orange-700); font-weight: 700; }
+    .w-tdma-scheduling-slot rect.s-tx { fill: var(--blue-600); }
+    .w-tdma-scheduling-slot rect.s-rx { fill: #2b8a3e; }
+    .w-tdma-scheduling-slot rect.s-guard { fill: var(--orange-100); stroke: var(--accent); stroke-dasharray: 3 2; }
+    .w-tdma-scheduling-slot rect.s-off { fill: var(--stone-200); }
+    .w-tdma-scheduling-slot rect.s-turn { fill: var(--stone-500); }
+    .w-tdma-scheduling-slot text { font-family: 'JetBrains Mono', monospace; font-size: 10px; fill: var(--fg); }
+    .w-tdma-scheduling-slot text.w { fill: #fff; font-weight: 700; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 427</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 427</a> / TDMA, slotframe ve graph coloring</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L8</span><span class="chip">W5 · 12 Eki</span><span class="chip chip--exam">Vize kapsamı (varsayım)</span><span class="src">~58 dk · 12 bölüm</span></div>
+          <h1>Scheduled MAC: TDMA, slotframe ve graph coloring</h1>
+          <p class="lead">Contention-based MAC'te node'lar kanal için yarışır. <em>Scheduled access</em>'te ise her node hangi slot'ta göndereceğini, dinleyeceğini ya da uyuyacağını baştan bilir. Bu derste TDMA'nın parçalarını (timeslot, slotframe, cell), guard time'ın enerji maliyetini, cell sırasının multi-hop delay'i nasıl değiştirdiğini ve bir schedule'ın conflict graph ile graph coloring kullanılarak nasıl kurulduğunu göreceksin.</p>
+          <p class="src">Not: W5 slaytları repoda yok. Ders, hocanın 60 slaytlık W5 sunumunun Efe'deki kopyasına (slayt 2–27, 54, 58, 59) ve K&amp;W ile D&amp;P'deki ilgili bölümlere dayanıyor. "Self-check" kutuları o kopyaya sonradan eklenen self-study sayfalarından geliyor; hocanın yazdığı sorular değil.</p>
+          <!-- Kaynak: Week_5_WSN_MAC_II_Self_Study.pptx (yalnızca Downloads'ta), hoca slaytları xml 1–60 = orijinal numara; bu ders Part 1–3 (slayt 2–27) + 54, 58, 59. Slayt 61–78 (primer, cheat sheet 74, self-check 75–78) ve "In plain words" kartları self-study baskısının eki. K&W §5.4–5.5 (s.133–143) · D&P §6.1.1, §6.3.4, §6.4, §6.6, alıştırmalar 6.2, 6.13, 6.17, 6.20–6.21 · W3 slayt 24 ve 26 (akımlar, synchronous duty cycling). -->
+        </header>
+
+        <article class="lesson" data-course="cse-427" data-lesson="tdma-scheduling">
+
+<!-- 1 -->
+<section class="lsec" id="why-schedule" data-min="4">
+  <h2>Neden scheduled access?</h2>
+  <div class="quiz" id="q-why-1">
+    <p class="quiz__q">Contention-based bir MAC'te (sense → backoff → transmit → ACK) bir packet'in ne zaman gönderileceğini baştan söyleyebilir misin?</p>
+    <button class="quiz__opt">Evet, backoff süresi sabit olduğu için<span class="why">Backoff <strong>random</strong>'dur. Amacı iki node'un aynı anda başlamasını önlemek, bu yüzden her denemede farklı çıkar.</span></button>
+    <button class="quiz__opt" data-correct>Hayır: random backoff, meşgul kanal ve retry yüzünden zaman baştan bilinmez<span class="why">Doğru. Contention adaptive'dir ama deterministic değildir. Scheduled access tam bu belirsizliği kaldırmak için var.</span></button>
+    <button class="quiz__opt">Evet, CCA kanalın boş olduğunu garanti ettiği için<span class="why">CCA yalnızca sender'ın kendi çevresini ölçer. Hidden terminal'de kanal sender'a boş görünür, receiver'da collision olur. Bu da ne zaman başarılı olacağını belirsiz yapar.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · sıra numarası ile randevu</span>
+    <p>Contention bir bankadaki kalabalık gibidir: boşluk görünce öne atılırsın, biri seninle aynı anda atılırsa ikiniz de geri çekilip rastgele bekler, sonra yeniden denersiniz. Scheduled access ise randevu sistemidir: saatin baştan bellidir, o saate kadar başka işine bakarsın (radio'yu kapatırsın). Bedeli de bellidir: herkesin saati aynı göstermeli ve birinin randevu defterini tutması gerekir.</p>
+  </div>
+  <p>Hoca geçen haftanın contention-based MAC'ini şu adımlarla özetliyor: <strong>carrier sense, random backoff, transmit, wait for ACK, retry if necessary</strong>. Artıları: flexible, bursty traffic için basit, joining kolay, hassas bir global clock gerektirmiyor. Eksileri: collision'lar, sınırsız contention delay, hidden terminal'ler ve baştan bilinmeyen enerji maliyeti. Slaytın cümlesi: <em>"Contention is adaptive, but not deterministic."</em></p>
+  <p>Scheduled MAC'e geçmenin dört nedeni var: random backoff değişken delay üretir; hidden terminal'ler ve aynı anda başlayan sender'lar yine collision yapar; retransmission'lar ekstra radio enerjisi harcar; traffic arttıkça performans hızla düşer. <em>"Scheduling trades spontaneity for predictability."</em></p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · üç erişim biçimi</span>
+    <div class="table-wrap"><table>
+      <tr><th>Biçim</th><th>Tanım (slayt)</th><th>Ne kazandırır</th><th>Bedeli</th></tr>
+      <tr><td><strong>Contention-based</strong></td><td>Node kanalı dinler, gerekirse bekler, izin olunca gönderir, başarısız olursa yeniden dener.</td><td>Esneklik, kolay joining, global clock yok</td><td>Collision, sınırsız delay, belirsiz enerji</td></tr>
+      <tr><td><strong>Scheduled access</strong></td><td>"Assigns communication opportunities before transmission, so each node knows when to transmit, receive, contend or sleep."</td><td>Dedicated resource'larda contention yok; radio, cell'lerin dışında uyuyabildiği için enerji öngörülebilir</td><td>Synchronization, schedule construction, schedule maintenance</td></tr>
+      <tr><td><strong>Hybrid</strong></td><td>Aynı network'te scheduled resource'lar ile contention fırsatlarını birleştirir.</td><td>Dedicated cell'ler düzenli traffic'i, shared cell'ler joining, route repair, negotiation ve burst'leri taşır; atanmamış zamanda uyku</td><td>İki dünyanın yönetimi birden</td></tr>
+    </table></div>
+    <p><em>"A schedule is an operational plan for the radio."</em> · <em>"Real low-power networks rarely need only one access style."</em></p>
+  </div>
+  <p>Bu ayrımı W3'te bir kez görmüştün. Hoca uyuyan node'ların buluşmasını iki yolla anlatmıştı: <strong>synchronous</strong> (node'lar wake/sleep schedule'ını koordine eder; öngörülebilir fırsatlar, bedeli synchronization overhead ve clock drift) ve <strong>asynchronous</strong> (herkes kendi başına uyanır; esnek ama sender bekler ya da tekrarlar). Önceki dersteki B-MAC, X-MAC ve ContikiMAC asynchronous taraftı. Bu hafta synchronous tarafa geçiyoruz.</p>
+  <!-- Kaynak: W5 slayt 3 (motivation), 4 (contention review), 5 (scheduled access), 6 (hybrid) · W3 slayt 26 (synchronous vs asynchronous duty cycling). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Scheduled ⇒ collision yok" diye yazma. Slayt "can <em>reduce or eliminate</em> scheduled contention" diyor. D&amp;P de contention-free protokollerin collision'sız olmasının mükemmel bir ortam varsaydığını (başka network yok, jamming yok) açıkça söylüyor.</li>
+      <li>"Scheduled ⇒ daha düşük latency" de yanlış. Boş bir network'te contention MAC hemen gönderebilir; scheduled MAC ise sırasının gelmesini bekler. Bunu 5. bölümde hesaplayacağız.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="DP-ex6.2">
+    <span class="box__label">D&amp;P Exercise 6.2 · kitap alıştırması</span>
+    <p>"What are the advantages and disadvantages of contention-free and contention-based medium access strategies? Can you think of scenarios where one would be preferable over the other?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Dört ekseni ayrı ayrı düşün: collision, enerji (idle listening), delay'in tahmin edilebilirliği, topology ya da traffic değiştiğinde uyum.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Biri için "yük düzenli ve topology sabit", diğeri için "seyrek, bursty ya da node'lar sık giriyor/çıkıyor" senaryosu ara.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Contention-free (TDMA gibi):</strong> resource'lar gönderimden önce atandığı için atanmış slot'larda collision olmaz; node atanmamış slot'larda uyur, idle listening azalır; delay'in üst sınırı kolay hesaplanır. Eksileri: schedule kurmak ve korumak signaling ister; slot sınırlarında buluşmak için time synchronization gerekir; topology ya da load değişince slot'ları yeniden dağıtmak zordur; kullanılmayan slot boşa gider; ortalama delay frame uzunluğu yüzünden büyük olabilir.</li>
+        <li><strong>Contention-based (CSMA gibi):</strong> esnektir, global clock istemez, yeni node kolay katılır, hafif yükte hemen gönderir. Eksileri: collision ve retransmission, hidden terminal, yük arttıkça hızla bozulan performans, üst sınırı belirsiz delay.</li>
+        <li><strong>Senaryo:</strong> sabit node'ların periyodik ölçüm gönderdiği bir fabrika izleme network'ü ya da yoğun bir collection tree için contention-free; seyrek olay raporlayan, node'ların sık eklendiği ya da hareket ettiği bir deployment için contention-based. İkisini birleştiren hybrid (dedicated + shared cell) pratikte en yaygın çözüm.</li>
+      </ol>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/dargie-poellabauer-fundamentals-of-wireless-sensor-networks.pdf" target="_blank" rel="noopener">Orijinal kitap (D&amp;P, s. 157)</a></p>
+    <!-- Kaynak: D&P Chapter 6 Exercises, 6.2 (s.157) · cevap §6.1.1, §6.3.4, §6.4.1 ve §6.7'den derlendi; kitapta cevap anahtarı yok. -->
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="slotframe" data-min="4">
+  <h2>TDMA, timeslot ve slotframe</h2>
+  <div class="quiz" id="q-slot-1">
+    <p class="quiz__q">5 slot'luk bir slotframe'de B'nin tablosu: slot 0 = TX (B→C), slot 1 = RX (A→B), slot 2 = shared, slot 3 ve 4 = sleep. Slot 0'da B'nin kuyruğunda hiç packet yoksa ne olur?</p>
+    <button class="quiz__opt" data-correct>B göndermez; slot bir fırsat olarak boşa gider<span class="why">Doğru. Slayt: "A slot is not automatically a packet; it is a communication opportunity." Reserve edilmiş fırsat kullanılmazsa kaybolur.</span></button>
+    <button class="quiz__opt">B boş bir packet gönderir, çünkü TX slot'unda göndermek zorunludur<span class="why">Schedule bir fırsat verir, zorunluluk getirmez. Gönderecek bir şey yoksa B sessiz kalır.</span></button>
+    <button class="quiz__opt">Slot otomatik olarak başka bir node'a geçer<span class="why">Klasik TDMA'da bir slot'u komşuya devretmek zordur; K&amp;W bunu TDMA'nın bir dezavantajı olarak sayıyor. Bunun için ayrı bir mekanizma (örneğin kitaptaki TRAMA ya da Z-MAC) gerekir.</span></button>
+  </div>
+  <p><strong>TDMA (Time-Division Multiple Access)</strong> zamanı sabit uzunlukta <strong>timeslot</strong>'lara böler ve bu slot'lara işlemler atar. Tekrar eden slot dizisine <strong>frame</strong> ya da <strong>slotframe</strong> denir. Bir node, rolü olmayan slot'larda uyur; enerji kazancı buradan gelir. Hoca bunu "simple as a concept; hard as a distributed scheduling problem" diye özetliyor: "herkes sırayla" demek kolay, yüzlerce node'luk multi-hop bir network'te bu sırayı adil ve güvenli kurmak zor.</p>
+  <div class="box box--rule">
+    <span class="box__label">Tanımlar (slayt 7–8)</span>
+    <ul>
+      <li><strong>Timeslot:</strong> temel zaman birimi. İçinde gönderme, alma, ACK, contention ya da uyku için tek bir fırsat vardır.</li>
+      <li><strong>Slotframe:</strong> tekrar eden slot topluluğu. <strong>Slotframe length</strong> = bir döngüdeki slot sayısı.</li>
+      <li><strong>Slot offset:</strong> bir cell'in slotframe içindeki yeri. "Slot offset 3", her tekrarın 4. slot'u demek (numaralama 0'dan).</li>
+      <li>Uzun slotframe daha çok cell yeri verir ama delay'i artırabilir.</li>
+    </ul>
+    <p><em>"TDMA creates time resources; scheduling decides who uses them."</em> · <em>"A slotframe is a periodic calendar for radios."</em></p>
+  </div>
+  <p>Bir slot'a ne atanabilir (slayt 9)? Bir <strong>unicast</strong>, bir <strong>broadcast</strong>, <strong>shared contention</strong> fırsatı, bir <strong>synchronization</strong> olayı, bir <strong>retransmission</strong> ya da hiçbir şey. Tek bir transmitter–receiver çifti bir slot'u kullanabilir; birbirini bozmayan birden çok link de aynı slot'u paylaşabilir (spatial reuse). Shared slot'larda slotted contention çalışabilir. Kullanılmayan slot'larda node uyur.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Slot rolü</th><th>Anlamı</th></tr>
+    <tr><td>TX cell</td><td>komşuya gönder</td></tr>
+    <tr><td>RX cell</td><td>komşuyu dinle</td></tr>
+    <tr><td>Shared</td><td>gerekirse contention yap</td></tr>
+    <tr><td>Sleep</td><td>radio kapalı</td></tr>
+  </table></div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · bir node'un takvimi</span>
+    <p>Slot süresi 10 ms, slotframe length 5. Bir döngü 50 ms sürer ve sonsuza kadar tekrar eder. Yukarıdaki quiz'deki B'nin tablosu her 50 ms'de aynı sırayla döner: TX, RX, shared, sleep, sleep. B her döngünün en fazla 3 slot'unda radio'yu açar, 2 slot'unda kesin uyur.</p>
+  </div>
+  <!-- Kaynak: W5 slayt 7 (TDMA), 8 (timeslot, slotframe, slot offset), 9 (slot operations, tablo) · K&W §5.4 s.133 (slot'u komşuya devretmenin zorluğu). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Slot ≠ packet. Boş geçen bir TX cell'de sender bir şey göndermez, ama karşıdaki receiver o RX cell'de yine uyanıp kısa bir süre dinler. Fazla cell ayırmak bu yüzden enerji yakar.</li>
+      <li>"Frame" kelimesi iki anlamda kullanılıyor: MAC frame (gönderilen veri birimi) ve TDMA frame (slot döngüsü). Karışmasın diye bu derste döngüye slotframe diyoruz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-slot-2">
+    <p class="quiz__q">Slotframe length'i 10'dan 100'e çıkarırsan (slot süresi aynı) ne olur?</p>
+    <button class="quiz__opt">Hem delay azalır hem de daha çok cell yeri açılır<span class="why">Cell yeri artar, ama bir link'in fırsatları arasındaki süre de uzar. Her link'in döngü başına bir cell'i varsa delay artar, azalmaz.</span></button>
+    <button class="quiz__opt" data-correct>Daha çok cell yeri açılır, ama döngü başına bir cell'i olan bir link daha uzun bekler<span class="why">Doğru. Slayt 8'in son maddesi: "Longer slotframes give more possible cell positions but can increase delay."</span></button>
+    <button class="quiz__opt">Hiçbir şey değişmez, çünkü slot süresi aynı<span class="why">Slot süresi aynı olsa da döngü 10 kat uzar. Bir cell döngüde bir kez geliyorsa iki fırsat arası 10 kat açılır.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="cells-reuse" data-min="5">
+  <h2>Dedicated cell, shared cell ve spatial reuse</h2>
+  <div class="quiz" id="q-cells-1">
+    <p class="quiz__q">Network'e yeni katılan bir node'un henüz kendine ait hiçbir dedicated cell'i yok. İlk mesajlarını nerede gönderir?</p>
+    <button class="quiz__opt">Herhangi bir dedicated cell'de, çünkü boş olabilir<span class="why">Dedicated cell başka bir çifte ayrılmış. Orada göndermek, schedule'ın collision'sız sandığı bir cell'de collision demek.</span></button>
+    <button class="quiz__opt" data-correct>Bir shared cell'de, contention ile<span class="why">Doğru. Shared cell'ler joining, Enhanced Beacon, routing control, schedule negotiation ve burst'ler için var.</span></button>
+    <button class="quiz__opt">Hiçbir yerde; önce merkezi bir manager'ın ona cell vermesini bekler<span class="why">Manager'a ulaşmak için de bir mesaj göndermesi gerekir. Bu ilk mesajlar shared cell'lerden gider.</span></button>
+  </div>
+  <p>Schedule'daki bir <strong>cell</strong>, belli bir slot offset'te (ve channel kullanılıyorsa belli bir channel offset'te) yapılacak işi söyler. İki türü var.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · dedicated ve shared</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Dedicated cell (slayt 10)</th><th>Shared cell (slayt 11)</th></tr>
+      <tr><td>Kime ait</td><td>Belli bir iletişim ilişkisine, genelde tek bir transmitter–receiver çiftine</td><td>Birden çok node'a; node'lar cell'in içinde contention yapabilir</td></tr>
+      <tr><td>Artısı</td><td>Düşük collision olasılığı, öngörülebilir servis, stabil latency, contention backoff yok</td><td>Esneklik: joining, Enhanced Beacon (EB), routing control, schedule negotiation, burst</td></tr>
+      <tr><td>Bedeli</td><td>Kuyrukta packet yoksa resource boşa gider; schedule yönetimi ister; topology değişince geçersizleşebilir</td><td>Collision, random backoff ve retry geri gelir</td></tr>
+      <tr><td>Slayt cümlesi</td><td>"Dedicated cells reserve capacity even when no data exists."</td><td>"Shared cells are scheduled opportunities, not collision-free guarantees."</td></tr>
+    </table></div>
+  </div>
+  <p><strong>Spatial reuse</strong> (slayt 12, başlığı "TDMA does not mean one transmitter only"): birbirini bozmayan link'ler aynı timeslot'u kullanabilir. Birbirinden uzak iki link aynı anda gönderebilir; birden çok channel ise reuse imkânını artırır. Bu yüzden scheduler hem zamanı hem frekansı dağıtır. Gereğinden temkinli bir schedule capacity'yi boşa harcar. <em>"The scheduling goal is to separate conflicts, not silence the whole network."</em></p>
+  <div class="box box--example">
+    <span class="box__label">Örnek · zaman × channel ızgarası</span>
+    <p>Satırlar channel, sütunlar slot olsun. Her kutu bir cell, yani bir (slot, channel) çifti:</p>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>t0</th><th>t1</th><th>t2</th></tr>
+      <tr><th>Ch 11</th><td>P→Q</td><td></td><td>X→Y</td></tr>
+      <tr><th>Ch 15</th><td>R→S</td><td>Q→T</td><td></td></tr>
+    </table></div>
+    <p>t0'da iki link birden çalışıyor (P→Q ve R→S). Ortak node'ları yok ve farklı channel'dalar, bu yüzden birbirlerine yakın olsalar da çakışmazlar. Tek channel olsaydı ve R'nin sinyali Q'ya ulaşsaydı bu iki link'e iki ayrı slot gerekirdi.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Kitaptan · IEEE 802.15.4 beacon-enabled superframe</span>
+    <p>K&amp;W'nin anlattığı 802.15.4 beaconed mode'u, standardın içine gömülmüş bir hybrid MAC'tir. Coordinator her superframe'i bir <strong>beacon</strong> ile başlatır. Superframe'in <strong>active period</strong>'u 16 slot'tur: ilk slot beacon, sonra <strong>CAP</strong> (Contention Access Period, slotted CSMA-CA ile shared erişim), en sonda en fazla 7 adet <strong>GTS</strong> (Guaranteed Time Slot, belli bir device'a ayrılmış slot). Ardından gelen <strong>inactive period</strong>'da herkes, coordinator dahil, uyuyabilir.</p>
+    <ul>
+      <li>GTS = dedicated cell. Device GTS'i CAP'te bir request ile ister; coordinator onu beacon'daki bir GTS descriptor ile verir. Belli sayıda superframe boyunca kullanılmayan GTS geri alınır.</li>
+      <li>CAP = shared cell. Device'ın GTS'i yoksa ya da işlem slot'a sığmıyorsa CAP'te contention ile gönderir.</li>
+      <li>Protokol asimetrik: coordinator bütün active period boyunca uyanık, device'lar sadece kendi slot'larında.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W5 slayt 10 (dedicated), 11 (shared), 12 (spatial reuse; ızgara örneği özgün) · K&W §5.5.2–5.5.4 s.140–142 (superframe, CAP, GTS, deallocation). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"TDMA'da aynı anda tek bir node gönderir" yanlış. Hoca bunu exam trap listesine koydu: spatial reuse var. D&amp;P'deki klasik TDMA tanımı ("each slot is assigned to at most one node") tek bir collision domain'i anlatır; multi-hop bir WSN'de uzak link'ler slot'u paylaşır.</li>
+      <li>"Dedicated cell ⇒ başarı garantili" yanlış. Collision olasılığı <em>düşük</em>, sıfır değil: dış interference (Wi-Fi), fading, senkronunu kaybetmiş bir node ya da yanlış kurulmuş bir conflict modeli dedicated cell'i de bozar.</li>
+      <li>"Shared cell schedule'da olduğu için güvenli" yanlış. Zaman planlanmıştır; o zamanı kimin kullanacağı planlanmamıştır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-cells-2">
+    <p class="quiz__q">Bir link'e her slotframe'de 3 dedicated cell verilmiş, ama sensor ortalama 10 slotframe'de bir packet üretiyor. Asıl sorun ne?</p>
+    <button class="quiz__opt">Collision'lar artar<span class="why">Dedicated cell'ler başka kimseye verilmediği için fazla cell collision artırmaz. Sorun başka yerde.</span></button>
+    <button class="quiz__opt" data-correct>Cell'lerin çoğu boş geçer; receiver her birinde boşuna uyanıp dinler<span class="why">Doğru. Dedicated cell, veri olmasa da capacity ayırır. Receiver o RX cell'lerde idle listening yapar ve bu enerji yakar.</span></button>
+    <button class="quiz__opt">Packet'ler daha uzun bekler<span class="why">Tersine: fırsat çok olduğu için bekleme kısalır. Bedel delay değil, boşa giden cell ve enerji.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="guard" data-min="5">
+  <h2>Timeslot'un içi: guard time ve clock drift</h2>
+  <div class="quiz" id="q-guard-1">
+    <p class="quiz__q">İki node'un clock'u son synchronization'dan beri kayıyor. Receiver packet'in tam ne zaman geleceğinden emin değilse ne yapmak zorunda?</p>
+    <button class="quiz__opt">Hiçbir şey; TDMA'da slot sınırları her zaman tam hizalıdır<span class="why">Slot sınırını her node kendi clock'uyla ölçer. Clock'lar ayrıldıkça sınırlar da ayrılır.</span></button>
+    <button class="quiz__opt" data-correct>Beklenen anın biraz öncesinde uyanıp biraz sonrasına kadar dinlemek<span class="why">Doğru. Bu dinleme payı guard time'dır. Bedeli receiver'ın fazladan açık kalan radio'su.</span></button>
+    <button class="quiz__opt">Sender'dan packet'i iki kez göndermesini istemek<span class="why">Bu enerjiyi sender'a taşır ve yine bir zaman penceresi gerektirir. TDMA'nın cevabı receiver tarafında kısa bir dinleme penceresidir.</span></button>
+  </div>
+  <p>Bir timeslot, hazırlık, gönderim, ACK ve zaman belirsizliği için yeterince uzun olmalı (slayt 13). Sender uyanır, frame'i hazırlar, slot içinde sabit bir anda (<strong>TX offset</strong>) gönderir, receive moduna geçer (<strong>turnaround</strong>) ve ACK'i bekler. Receiver beklenen varıştan önce uyanır, <strong>guard time</strong> içinde dinler, frame'i alır ve ACK gönderir. İki uç da radio'yu slot'un tamamında açık tutmaz. <em>"The slot is a container; radio activity occupies only part of it."</em></p>
+  <svg class="w-tdma-scheduling-svg w-tdma-scheduling-slot" viewBox="0 0 340 92" role="img" aria-label="Bir slot içinde sender ve receiver'ın radio etkinliği">
+    <text x="2" y="24">TX</text><text x="2" y="62">RX</text>
+    <rect x="24" y="12" width="300" height="18" class="s-off" />
+    <rect x="24" y="12" width="20" height="18" class="s-turn" />
+    <rect x="80" y="12" width="110" height="18" class="s-tx" /><text x="110" y="25" class="w">DATA</text>
+    <rect x="190" y="12" width="12" height="18" class="s-turn" />
+    <rect x="202" y="12" width="44" height="18" class="s-rx" /><text x="206" y="25" class="w">ACK?</text>
+    <rect x="24" y="50" width="300" height="18" class="s-off" />
+    <rect x="62" y="50" width="36" height="18" class="s-guard" />
+    <rect x="80" y="50" width="110" height="18" class="s-rx" /><text x="114" y="63" class="w">RX</text>
+    <rect x="190" y="50" width="12" height="18" class="s-turn" />
+    <rect x="202" y="50" width="44" height="18" class="s-tx" /><text x="210" y="63" class="w">ACK</text>
+    <text x="24" y="86">slot başı</text><text x="62" y="86">guard</text><text x="270" y="86">slot sonu</text>
+    <line x1="80" y1="6" x2="80" y2="72" stroke="var(--accent)" stroke-dasharray="2 2" />
+    <text x="84" y="8">TX offset</text>
+  </svg>
+  <p class="src">Gri = radio kapalı, koyu gri = hazırlık ya da turnaround, mavi = gönderme, yeşil = alma, turuncu kesikli = guard penceresi. Ölçek temsili.</p>
+  <p><strong>Neden guard?</strong> Her node'un clock'u bir crystal'den gelir ve crystal'in küçük bir frekans hatası vardır. Bu hata <strong>ppm</strong> (parts per million) ile verilir: 1 ppm, her saniyede 1 µs kayma demektir. İki clock zıt yönlerde hatalıysa birbirlerinden iki hatanın toplamı kadar uzaklaşırlar. Son synchronization'dan beri geçen süre uzadıkça aradaki fark da büyür.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · guard time (slayt 14)</span>
+    $$\delta_{\max} = (\text{ppm}_A + \text{ppm}_B)\times 10^{-6}\times T_{\text{sync}}$$
+    <p>$T_{\text{sync}}$ son synchronization'dan beri geçen süre. Receiver kendi clock'una göre $t$ anını bekliyorsa, frame $t-\delta$ ile $t+\delta$ arasında herhangi bir anda gelebilir. Receiver bu aralığın tamamını dinler: <strong>guard window</strong> $\approx 2\delta$. Bu pencere, hiçbir şey gelmeyen her RX cell'de de boşuna dinlenir.</p>
+    <ul>
+      <li>Uzun guard time → reception daha güvenilir, ama listening enerjisi artar.</li>
+      <li>Sık synchronization → clock hatası küçülür, ama sync mesajları da iletişim ve enerji harcar.</li>
+    </ul>
+    <p><em>"Scheduled MAC converts time error into energy cost."</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · iki 30 ppm crystal</span>
+    <p>A ve B'nin crystal'leri ±30 ppm. En kötü durumda biri hızlı, öbürü yavaş: relative drift 60 ppm = 60 µs/s. Her 10 s'de bir sync oluyorsa $\delta = 60 \times 10^{-6} \times 10 = 0.6$ ms ve guard window 1.2 ms. Sync aralığı 30 s olsaydı window 3.6 ms olurdu: üç kat uzun sync aralığı, üç kat geniş pencere.</p>
+  </div>
+  <p>K&amp;W de aynı noktaya varıyor: ucuz sensor node'larının ucuz oscillator'ları hızlı kayar, bu yüzden sık resynchronization gerekir ve bu ek signaling demektir. Synchronization'ın kendisini 10. haftada (time synchronization) göreceğiz.</p>
+  <div class="w-tdma-scheduling-box" id="w-guard">
+    <p class="w-tdma-scheduling-guess"><b>Önce tahmin et:</b> İki 30 ppm clock ve 10 s sync aralığıyla guard window kaç ms? Sync aralığını 3 katına çıkarırsan saniyedeki fazladan radio-on süresi kaç katına çıkar?</p>
+    <div class="w-tdma-scheduling-ctl">
+      <label>Clock A (ppm) <input type="number" id="tg-pa" value="30" min="0" max="500" step="1" /></label>
+      <label>Clock B (ppm) <input type="number" id="tg-pb" value="30" min="0" max="500" step="1" /></label>
+      <label>$T_{\text{sync}}$ (s) <input type="number" id="tg-t" value="10" min="0.1" max="600" step="0.1" /></label>
+      <label>Saniyede boş RX cell <input type="number" id="tg-n" value="4" min="0" max="100" step="1" /></label>
+      <label>$I_{RX}$ (mA) <input type="number" id="tg-i" value="19" min="0.1" max="100" step="0.1" /></label>
+    </div>
+    <div class="w-tdma-scheduling-err" id="tg-err"></div>
+    <div class="w-tdma-scheduling-out" id="tg-out"></div>
+    <svg class="w-tdma-scheduling-svg" id="tg-svg" viewBox="0 0 340 70" aria-label="10 ms'lik bir slot içinde guard penceresi"></svg>
+    <div class="table-wrap" id="tg-tbl"></div>
+    <p class="src">$I_{RX}$ varsayılanı W3 slaytındaki radio listen akımı (19 mA). Çizimde frame'in slot başından 3 ms sonra gelmesi bekleniyor; bu bir varsayım.</p>
+  </div>
+  <!-- Kaynak: W5 slayt 13 (timeslot structure: prep, TX offset, DATA, turnaround, ACK, guard; slot şeması özgün çizim), 14 (guard time and synchronization) · K&W §5.4 s.133 (ucuz oscillator, sık resync) · W3 slayt 24 (19 mA) · sayılar python ile doğrulandı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Relative drift tek bir clock'un hatası değil. İki clock zıt yönde hatalıysa hatalar <strong>toplanır</strong>.</li>
+      <li>Birim: ppm × saniye = µs. 40 ppm × 30 s = 1200 µs = 1.2 ms. "1200 ms" ya da "1.2 s" yazmak klasik birim hatası.</li>
+      <li>Guard enerjisi sadece başarılı alımlarda harcanmaz. Hiçbir şey gelmeyen her RX cell'de de pencerenin tamamı dinlenir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-guard-2">
+    <p class="quiz__q">İki clock'un hatası ±25 ppm, son sync'ten beri 20 s geçti. En kötü clock offset'i $\delta$ nedir?</p>
+    <button class="quiz__opt">0.5 ms<span class="why">Bu tek bir clock'un hatası: 25 ppm × 20 s. Zıt yönlerde kayan iki clock arasındaki fark iki hatanın toplamıdır.</span></button>
+    <button class="quiz__opt" data-correct>1 ms<span class="why">Doğru: (25 + 25) × 10⁻⁶ × 20 s = 1 ms. Receiver'ın guard penceresi bunun iki katı, yaklaşık 2 ms olur.</span></button>
+    <button class="quiz__opt">2 ms<span class="why">Bu offset değil, guard window: $t-\delta$'dan $t+\delta$'ya kadar dinlemek $2\delta$ eder. Soru $\delta$'yı soruyor.</span></button>
+    <button class="quiz__opt">1 s<span class="why">50 × 20 = 1000, ama birim µs. 1000 µs = 1 ms.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="duty-delay" data-min="6">
+  <h2>Duty cycle ve waiting delay</h2>
+  <div class="quiz" id="q-duty-1">
+    <p class="quiz__q">20 slot'luk bir slotframe'de bir node'un 3 TX ve 2 RX cell'i var. İlk yaklaşımla (rough) duty cycle kaçtır?</p>
+    <button class="quiz__opt">%15<span class="why">Bu sadece TX'leri sayar (3/20). RX cell'lerde de radio açıktır.</span></button>
+    <button class="quiz__opt" data-correct>%25<span class="why">Doğru: aktif slot / toplam slot = 5/20 = %25. Gerçek değer bundan düşük çıkar, çünkü radio aktif slot'un sadece bir kısmında açıktır.</span></button>
+    <button class="quiz__opt">%100, çünkü TDMA'da node her slot'ta senkron kalmak için uyanık<span class="why">TDMA'nın bütün amacı atanmamış slot'larda uyumak. Synchronization periyodiktir, her slot'ta uyanık kalmayı gerektirmez.</span></button>
+  </div>
+  <p><strong>Duty cycle</strong> (slayt 15), bir frame'in ne kadarında node'un radio'sunun açık olduğudur. İlk yaklaşım aktif slot'ları toplam slot'a böler. Daha doğru model ise slot'un tamamını değil, gerçek TX/RX/listen sürelerini sayar. Node atanmamış bütün slot'larda uyuyabilir. Duty cycle hem schedule yoğunluğuna hem de slot içindeki zamanlamaya bağlıdır.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki duty cycle</span>
+    $$D_{\text{rough}} = \frac{\text{aktif slot sayısı}}{\text{slotframe length}} \qquad D_{\text{refined}} = \frac{\text{bir frame'deki radio-on süresi}}{\text{frame süresi}}$$
+    <p>Slayttaki tablo: frame 10 slot, aktif 2 TX + 1 RX, $D_{\text{rough}} = 3/10 = \%30$; refined için aktif süreleri kullan. Ortalama akım W3'teki formülle: $I_{\text{avg}} = \sum_i D_i I_i$.</p>
+    <p><em>"Scheduling makes energy easier to budget, not automatically minimal."</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · rough ve refined</span>
+    <p>Slotframe 20 slot × 10 ms = 200 ms. Node'un 2 TX ve 2 RX cell'i var; RX cell'lerden biri genelde boş geçiyor. Varsayımlar: bir TX cell'de radio ~5 ms açık (DATA + ACK bekleme), dolu bir RX cell'de ~5 ms, boş bir RX cell'de sadece guard kadar, ~2 ms.</p>
+    <ul>
+      <li>Rough: $4/20 = \%20$.</li>
+      <li>Refined: $(5 + 5 + 5 + 2)\,\text{ms} / 200\,\text{ms} = 17/200 = \%8.5$.</li>
+      <li>Radio açıkken ~19 mA, uykuda 0.002 mA (W3 slayt 24 değerleri) alırsak: $I_{\text{avg}} \approx 0.085 \times 19 + 0.915 \times 0.002 \approx 1.62$ mA. Rough değerle hesaplasaydık $\approx 3.80$ mA çıkardı, yani lifetime'ı iki kattan fazla küçük tahmin ederdik.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="W5-selfcheck-Q1">
+    <span class="box__label">W5 self-check S1 · self-study alıştırması</span>
+    <p>"A slotframe has 10 slots; a node has 2 TX cells and 1 RX cell. What is its rough duty cycle, and why is the real value lower?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Rough cevap için sadece slot say. Sonra bir slot'un içinde radio'nun ne zaman açık olduğunu düşün (yukarıdaki slot şeması).</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Hiçbir şey gelmeyen bir RX cell'de receiver ne kadar dinler?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>Rough duty cycle = aktif slot / toplam slot = 3/10 = <strong>%30</strong>.</li>
+        <li>Gerçek değer daha düşük, çünkü slot bir container'dır: sender hazırlanır, TX offset'te gönderir, ACK'i bekler, sonra uyur; radio slot'un sadece bir kısmında açıktır. RX cell'de frame gelmezse receiver guard penceresinin sonunda radio'yu kapatır.</li>
+        <li>Sayıyla göstermek için süre varsaymak gerekir. Örneğin 10 ms slot'ta TX ≈ 5 ms ve dolu RX ≈ 5 ms ise refined değer (5 + 5 + 5)/100 = %15 olur; RX cell boşsa daha da düşer.</li>
+      </ol>
+    </div></details>
+    <p class="src">Not: Bu soru ve cevap kartı, W5 sunumuna sonradan eklenen self-study sayfasından (slayt 75, 77). Hocanın sorusu değil; slayt 15'teki tablonun sayılarını kullanıyor.</p>
+    <!-- Kaynak: Self-study slayt 75 S1, cevap slayt 77 · hoca slaytı 15 · 15 ms varsayımı self-study notlarından, burada varsayım olarak işaretli. -->
+  </div>
+  <p><strong>Capacity ve waiting delay</strong> (slayt 16). Scheduled capacity, overhead ve başarısızlıklar düştükten sonra bir link'in slotframe başına taşıyabildiği faydalı veridir. Frame başına tek cell, frame başına tek servis fırsatı demektir. Cell'inin hemen ardından gelen bir packet neredeyse bütün bir frame bekler. Varışlar zamana düzgün (uniform) dağılmışsa ortalama bekleme, iki fırsat arasındaki sürenin yaklaşık yarısıdır. Daha çok cell delay'i azaltır ama resource ve enerji harcar.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · bir hop'taki bekleme</span>
+    <p>Frame süresi $F$, link'in frame içinde eşit aralıklı $k$ cell'i var. İki fırsat arası $F/k$:</p>
+    $$W_{\text{worst}} \approx \frac{F}{k} \qquad W_{\text{avg}} \approx \frac{F}{2k}$$
+    <p><em>"Lower contention does not always mean lower latency."</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · 50 slot × 10 ms</span>
+    <p>$F = 0.5$ s. Tek cell: en kötü ≈ 0.5 s, ortalama ≈ 0.25 s. Eşit aralıklı 2 cell: en kötü ≈ 0.25 s, ortalama ≈ 0.125 s. Üç hop'luk bir yolda her hop bağımsız olarak ortalama 0.25 s bekletirse uçtan uca ortalama ≈ 0.75 s; cell'ler sıralı dizilirse bu çok küçülür (6. bölüm).</p>
+    <p>Önceki derste X-MAC için gördüğün "beklenen bekleme ≈ $T_w/2$" ile aynı mantık: fırsatlar periyodikse ve varış rastgeleyse ortalama bekleme periyodun yarısıdır.</p>
+  </div>
+  <p>D&amp;P bu farkı şöyle koyuyor: contention-free protokollerde ortalama latency büyük olsa bile maksimum latency'yi belirlemek kolaydır; contention-based protokollerde ortalama daha küçük olabilir ama kesin bir üst sınır vermek zordur, hatta starvation teorik olarak mümkündür.</p>
+  <div class="box box--exam" data-exam="W5-selfcheck-Q2">
+    <span class="box__label">W5 self-check S2 · self-study alıştırması</span>
+    <p>"Slotframe = 100 slots of 10 ms, one cell per frame on a link. What are the worst-case and average waiting times at that hop?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce frame süresini bul. İki fırsat arası ne kadar?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Packet cell'i tam kaçırırsa ne kadar bekler? Varış anı frame'in içinde düzgün dağılmışsa ortalama?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>Frame süresi $F = 100 \times 10\,\text{ms} = 1$ s; frame başına bir cell olduğundan iki fırsat arası 1 s.</li>
+        <li>En kötü: packet cell'in hemen ardından gelir ve bir sonraki cell'e kadar bekler: <strong>≈ 1 s</strong>.</li>
+        <li>Ortalama (uniform varış): fırsatlar arası sürenin yarısı: <strong>≈ 0.5 s</strong>.</li>
+        <li>Eşit aralıklı 2 cell olsaydı ikisi de yarıya inerdi: ≈ 0.5 s ve ≈ 0.25 s.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: Self-study slayt 75 S2, cevap slayt 77 (≈1 s, ≈0.5 s; doğru) · hoca slaytı 16 · ortalamanın F/2 olduğu python Monte Carlo ile doğrulandı. -->
+  </div>
+  <!-- Kaynak: W5 slayt 15 (duty), 16 (capacity and waiting delay) · D&P §6.3.4 s.135 · W3 slayt 24 (I_avg = Σ D_i I_i, 19 mA, 0.002 mA) · örnek sayılar özgün, python ile doğrulandı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$k$ cell eşit aralıklı değilse en kötü bekleme $F/k$ değil, <strong>en büyük boşluk</strong>tur.</li>
+      <li>Refined duty'yi rough'tan büyük bulursan bir yerde hata var: radio aktif slot'larda bile slot'un tamamında açık değildir.</li>
+      <li>Fazla cell eklemek delay'i düşürür ama hem sender'ın hem receiver'ın uyanma sayısını artırır. İki uç da öder.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-duty-2">
+    <p class="quiz__q">Frame 0.8 s, link'in frame içinde eşit aralıklı 4 cell'i var. Rastgele gelen bir packet bu hop'ta ortalama ne kadar bekler?</p>
+    <button class="quiz__opt">0.4 s<span class="why">Bu tek cell'li durumun ortalaması ($F/2$). 4 cell fırsatlar arasını 0.2 s'ye indirir.</span></button>
+    <button class="quiz__opt">0.2 s<span class="why">Bu en kötü bekleme ($F/k$). Ortalama bunun yarısı.</span></button>
+    <button class="quiz__opt" data-correct>0.1 s<span class="why">Doğru: $F/(2k) = 0.8/8 = 0.1$ s.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="pipeline" data-min="5">
+  <h2>Multi-hop: cell sırası delay'i belirler</h2>
+  <div class="quiz" id="q-pipe-1">
+    <p class="quiz__q">A→B→C→D yolunda her link'in slotframe'de bir cell'i var. Hangi sıralama packet'i en hızlı taşır?</p>
+    <button class="quiz__opt" data-correct>A→B, sonra B→C, sonra C→D (aynı frame içinde, bu sırayla)<span class="why">Doğru. Her hop'un cell'i bir önceki hop'tan hemen sonra gelir; packet üç hop'u üç slot'ta geçer. Yeşil dalga gibi.</span></button>
+    <button class="quiz__opt">C→D, sonra B→C, sonra A→B<span class="why">Bu ters sıra. Packet B'ye vardığında B→C cell'i bu frame'de çoktan geçmiştir; her hop'ta bir sonraki frame'i bekler.</span></button>
+    <button class="quiz__opt">Sıra fark etmez; cell sayısı aynı olduğu için delay aynıdır<span class="why">Slaytın asıl mesajı tam bunun tersi: "Same number of cells can produce very different end-to-end delays."</span></button>
+  </div>
+  <p>Scheduled bir multi-hop yolda uçtan uca delay, forwarding cell'lerinin <strong>pipeline sırasında</strong> olup olmamasına bağlıdır (slayt 17). İyi sıra: aynı frame'de A→B, sonra B→C, sonra C→D. Kötü sıra: downstream cell'ler, upstream'den veri gelmeden önce gelir. Hoca bunu tek cümleyle bağlıyor: <em>"Scheduling is temporal routing support."</em> Routing yolu uzayda seçer; schedule o yol boyunca zamanlamayı belirler.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · hop hop bekleme</span>
+    <p>Slotframe length $L$, hop'ların slot offset'leri $o_1, o_2, \dots, o_H$, packet A'da $a$ slot'unun başında hazır. Her slot'ta en fazla bir hop ilerlenir.</p>
+    $$\text{delay (slot)} = \big[(o_1 - a) \bmod L\big] + 1 \;+\; \sum_{h=2}^{H} \Big( \big[(o_h - o_{h-1} - 1) \bmod L\big] + 1 \Big)$$
+    <p>Her köşeli parantez bir bekleme, her "+1" bir iletim slot'u. $o_h = o_{h-1} + 1$ ise o hop'ta bekleme sıfırdır: pipeline. $o_h &lt; o_{h-1}$ ise o hop neredeyse bütün bir frame ekler.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · 1 s'lik frame (100 slot × 10 ms)</span>
+    <p>İyi sıra $(0, 1, 2)$: $1 + 1 + 1 = 3$ slot = <strong>30 ms</strong>. Ters sıra $(2, 1, 0)$: $3 + 99 + 99 = 201$ slot = <strong>2.01 s</strong>. Aynı üç cell, yaklaşık 67 kat delay.</p>
+  </div>
+  <div class="w-tdma-scheduling-box" id="w-pipe">
+    <p class="w-tdma-scheduling-guess"><b>Önce tahmin et:</b> $L = 10$ ve offset'ler $(0, 1, 0)$ olsun (A→B ile C→D aynı slot'u paylaşıyor). Packet slot 0'ın başında A'da. D'ye kaç slot'ta varır?</p>
+    <div class="w-tdma-scheduling-ctl">
+      <label>$L$ <input type="number" id="tp-l" value="10" min="3" max="20" step="1" /></label>
+      <label>A→B <input type="number" id="tp-ab" value="2" min="0" max="19" step="1" /></label>
+      <label>B→C <input type="number" id="tp-bc" value="1" min="0" max="19" step="1" /></label>
+      <label>C→D <input type="number" id="tp-cd" value="0" min="0" max="19" step="1" /></label>
+      <label>Varış slot'u $a$ <input type="number" id="tp-a" value="0" min="0" max="19" step="1" /></label>
+      <button class="btn btn--sm btn--accent" id="tp-go">Kur ve oynat</button>
+    </div>
+    <div class="w-tdma-scheduling-ctl">
+      <button class="btn btn--sm" data-tp="0,1,2">İyi sıra (0, 1, 2)</button>
+      <button class="btn btn--sm" data-tp="2,1,0">Ters sıra (2, 1, 0)</button>
+      <button class="btn btn--sm" data-tp="0,1,0">En az renk (0, 1, 0)</button>
+    </div>
+    <div class="w-tdma-scheduling-err" id="tp-err"></div>
+    <div id="tp-stepper"></div>
+  </div>
+  <p>Slayt 54 aynı fikri genişletiyor: collision'sız bir schedule bile bir deadline'ı kaçırabilir; packet'ler kuyrukta bekler, forwarding cell'leri eksik ya da kötü sıralı olabilir, retransmission ve route değişimi delay ekler. <em>"Deadline guarantees are path properties, not single-cell properties."</em> Bunun TSCH tarafını sonraki derste göreceksin.</p>
+  <!-- Kaynak: W5 slayt 17 (multi-hop delay, pipeline), 54 (determinism beyond collision freedom; yalnızca takeaway) · formül özgün, python simülasyonuyla 5 farklı offset seti için eşleşti (30 ms / 2.01 s dahil). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Delay'i "hop sayısı × slot süresi" diye yazmak sadece pipeline sırası için doğru. Sıra bozuksa her ters adım bir frame'e yakın ekler.</li>
+      <li>A→B ve B→C aynı slot'ta olamaz: B aynı anda hem alıp hem gönderemez (half-duplex). Widget bunu reddeder.</li>
+      <li>En az slot kullanan schedule en düşük delay'i vermeyebilir. $(0, 1, 0)$ iki renkle yetinir ama packet C'de bir frame bekler.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-pipe-2">
+    <p class="quiz__q">$L = 20$ slot × 10 ms. Offset'ler: A→B = 5, B→C = 3, C→D = 9. Packet slot 0'ın başında A'da. Uçtan uca delay?</p>
+    <button class="quiz__opt">30 ms<span class="why">Bu, cell'ler pipeline sırasında olsaydı geçerdi. Burada B→C (3), A→B'den (5) önce geliyor.</span></button>
+    <button class="quiz__opt">100 ms<span class="why">Bu C→D'nin offset'i + 1 (10 slot): üç hop'un aynı frame'de bittiğini varsayıyor. B→C'nin slot 3'ü o frame'de çoktan geçmişti.</span></button>
+    <button class="quiz__opt" data-correct>300 ms<span class="why">Doğru: A→B slot 5'te (6 slot), B→C bir sonraki frame'in slot 3'ünde (mutlak slot 23, +18), C→D slot 29'da (+6). Toplam 30 slot = 300 ms.</span></button>
+    <button class="quiz__opt">500 ms<span class="why">Her hop'un ayrı bir frame beklediğini varsayıyor. C→D (9), B→C'den (3) sonra geldiği için aynı frame'de yakalanıyor.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="conflict-graph" data-min="5">
+  <h2>Communication graph ve conflict graph</h2>
+  <div class="quiz" id="q-conf-1">
+    <p class="quiz__q">A, B'ye gönderiyor; C de B'ye gönderiyor. A ile C birbirini duymuyor. Bu iki transmission aynı slot'u kullanabilir mi?</p>
+    <button class="quiz__opt">Evet, A ve C birbirini duymadığı için çakışmazlar<span class="why">Çakışma sender'larda değil receiver'da olur. Bu, geçen haftanın hidden terminal durumu.</span></button>
+    <button class="quiz__opt" data-correct>Hayır: ikisinin receiver'ı aynı (B)<span class="why">Doğru. Shared receiver bir conflict nedenidir: B aynı anda tek bir frame çözebilir.</span></button>
+    <button class="quiz__opt">Sadece farklı channel'larda olurlarsa<span class="why">B'nin tek radio'su bir slot'ta tek bir channel'a ayarlıdır. Farklı channel'lar, receiver aynı node olduğunda işe yaramaz.</span></button>
+  </div>
+  <p><strong>Scheduling problemi</strong> (slayt 18): transmission'lara, conflict'lerden kaçınarak ve traffic ihtiyacını karşılayarak zaman–frekans resource'ları atamak. Girdiler: topology, link quality, interference, traffic demand, deadline'lar ve enerji. Çıktı: slot offset ve channel offset'leri olan bir cell kümesi. Slaytın dikkat çektiği nokta: <strong>bir schedule collision-free olup yine de sunulan traffic'i taşıyamayabilir</strong>. <em>"A schedule must satisfy both interference constraints and load constraints."</em> Load tarafına 10. bölümde döneceğiz.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki farklı graph</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Communication graph (slayt 19)</th><th>Conflict graph (slayt 20)</th></tr>
+      <tr><td>Vertex</td><td>Node</td><td>Transmission (yönlü link, ör. A→B)</td></tr>
+      <tr><td>Edge</td><td>İki node, seçilen bir link-quality kriterine göre haberleşebiliyor</td><td>İki transmission aynı resource'u güvenle paylaşamıyor</td></tr>
+      <tr><td>Ne için</td><td>Topology ve routing</td><td>Scheduling: edge'in iki ucu ayrı cell'e konmalı</td></tr>
+      <tr><td>Neyi söylemez</td><td>Hangi transmission'ların aynı anda olabileceğini</td><td>Load'u: kaç cell gerektiğini</td></tr>
+    </table></div>
+    <p><em>"Communication graph ≠ scheduling conflict graph."</em> · <em>"Conflict edges define scheduling separation requirements."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Conflict nedenleri (slayt 20)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Neden</th><th>Örnek</th><th>Neden çakışır</th></tr>
+      <tr><td>Shared transmitter</td><td>A→B ve A→C</td><td>A tek radio ile aynı anda tek frame gönderir</td></tr>
+      <tr><td>Shared receiver</td><td>A→B ve C→B</td><td>B aynı anda tek frame çözer</td></tr>
+      <tr><td>Half-duplex</td><td>A→B ve B→C</td><td>B aynı anda hem RX hem TX yapamaz</td></tr>
+      <tr><td>Interference</td><td>C→D, A→B'yi bozar</td><td>C'nin sinyali B'de güçlü, B ile C haberleşemese bile</td></tr>
+      <tr><td>ACK overlap</td><td>ACK'ler çakışır</td><td>Data frame'ler çakışmasa da geri dönen ACK'ler çakışabilir</td></tr>
+    </table></div>
+    <p>Conflict graph seçilen <strong>interference model</strong>'ine bağlıdır. Model yanlışsa schedule da yanlış olur.</p>
+  </div>
+  <p>Communication graph'taki "edge" bir eşiğe göre çizilir; örneğin PRR %80'in üstüyse link var sayılır (link metrics dersindeki PRR). Eşik değişirse graph değişir. Daha önemlisi, <strong>interference range çoğunlukla communication range'den büyüktür</strong>: C'nin sinyali B'de çözülemeyecek kadar zayıf olup yine de A→B'yi bozacak kadar güçlü olabilir. Bu yüzden communication graph'ta edge yokken conflict graph'ta edge olabilir.</p>
+  <div class="box box--example">
+    <span class="box__label">Örnek · zincir A–B–C–D (slayt 22'nin linkleri)</span>
+    <p>Transmission'lar: $e_1$ = A→B, $e_2$ = B→C, $e_3$ = C→D.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Çift</th><th>Conflict?</th><th>Neden</th></tr>
+      <tr><td>$e_1, e_2$</td><td>Evet</td><td>Half-duplex: B, A'dan alırken C'ye gönderemez</td></tr>
+      <tr><td>$e_2, e_3$</td><td>Evet</td><td>Half-duplex: C</td></tr>
+      <tr><td>$e_1, e_3$</td><td>Modele bağlı</td><td>Ortak node yok. Ama C, B'nin komşusu: C'nin sinyali B'de güçlüyse interference conflict'i var</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--exam" data-exam="W5-selfcheck-Q4">
+    <span class="box__label">W5 self-check S4 · self-study alıştırması</span>
+    <p>"Why can't A→B and C→B use the same slot, even on different channels?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İki transmission'ın ortak node'u hangisi ve o node'un rolü ne?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>B'nin kaç radio'su var, bir slot'ta kaç channel'ı dinleyebilir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>İki transmission'ın receiver'ı aynı: <strong>shared receiver</strong> conflict'i (slayt 20 tablosu: "A→B and C→B"). B'nin tek bir radio'su var ve bu radio bir slot'ta tek bir channel'a ayarlanır, aynı anda tek bir frame çözer. A ve C farklı channel'da gönderse bile B bunlardan en fazla birini dinleyebilir; diğeri kaybolur. Channel ayrımı, <em>farklı</em> receiver'lara giden link'leri ayırmaya yarar; aynı receiver'a gidenleri ayıramaz. Bu yüzden iki transmission farklı slot'lara konmalı.</p>
+    </div></details>
+    <p class="src">Not: Self-study cevap kartı (slayt 77) bunu "B is half-duplex" diye açıklıyor. Doğru ad <strong>shared receiver</strong>; half-duplex, B'nin aynı slot'ta hem alıp hem gönderememesidir (A→B ve B→C). Kartın notlar kısmı da "Shared receiver" diyor.</p>
+    <!-- Kaynak: Self-study slayt 75 S4, cevap slayt 77 + notlar · hoca slaytı 20 tablosu. -->
+  </div>
+  <div class="box box--exam" data-exam="W5-s58-traps">
+    <span class="box__label">W5 slayt 58 · hocanın EXAM TRAPS listesi</span>
+    <p>"Many mistakes come from treating scheduled communication as automatically collision-free, deterministic or interoperable." Listeden bu derse düşenler:</p>
+    <ul>
+      <li>"TDMA does not mean only one node transmits in the whole network."</li>
+      <li>"The communication graph is not the conflict graph."</li>
+      <li>"Dedicated cells can still fail."</li>
+      <li>Tablo satırı: "shared cell safe → contention remains".</li>
+    </ul>
+    <p>(Listenin TSCH, channel offset ve WirelessHART/ISA100.11a maddeleri sonraki derste.) Her yanlış inanış için bir cümlelik düzeltme ve bir neden yaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her maddeyi "mechanism" ve "guarantee" diye ikiye ayır. Slaytın son cümlesi: "Most wrong answers confuse mechanism with guarantee."</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her biri için bu dersteki bir slaytı hatırla: spatial reuse (12), conflict nedenleri (19–20), dedicated cell'in "low" collision'ı (10), shared cell'in contention'ı (11).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>"TDMA'da tek node gönderir."</strong> Yanlış: spatial reuse var. Çakışmayan link'ler aynı slot'u kullanır; birden çok channel daha fazla yer açar. Herkesi susturan bir schedule capacity'yi boşa harcar.</li>
+        <li><strong>"Communication graph = conflict graph."</strong> Yanlış: interference communication range'in ötesine uzanır; half-duplex ve shared receiver da conflict üretir. Conflict graph'ın vertex'leri node değil transmission'dır.</li>
+        <li><strong>"Dedicated cell başarı garantisidir."</strong> Yanlış: dedicated cell sadece schedule <em>içi</em> contention'ı kaldırır. Dış interference, fading, senkronunu kaybetmiş bir node ya da yanlış conflict modeli onu yine bozar.</li>
+        <li><strong>"Shared cell güvenlidir."</strong> Yanlış: shared cell'de contention sürer; collision, backoff ve retry geri gelir.</li>
+      </ol>
+      <p>Ortak ders: zaman slot'ları, dedicated cell ve conflict-free coloring birer mechanism'dir. İyi sonucu mümkün kılarlar, garanti etmezler.</p>
+    </div></details>
+    <!-- Kaynak: W5 slayt 58 (hoca; madde ve tablo metni aynen) · çözüm slayt 10, 11, 12, 19, 20'den. -->
+  </div>
+  <!-- Kaynak: W5 slayt 18 (scheduling problem), 19 (communication graph), 20 (conflict graph, tablo; shared transmitter ve ACK overlap maddeden) · interference range > communication range: mac-contention dersi ve W5 slayt 20 interference satırı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Conflict graph'ın vertex'leri yönlüdür: A→B ve B→A iki ayrı transmission'dır (ve aralarında conflict vardır: ikisi de A ile B'yi kullanır).</li>
+      <li>"A ile C komşu değil, o halde çakışmazlar" demek communication graph ile conflict graph'ı karıştırmaktır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-conf-2">
+    <p class="quiz__q">A→B, B→C, C→D, D→E zincirinde, sadece ortak node'dan doğan conflict'leri sayan (interference'sız) modelde hangi çift çakışmaz?</p>
+    <button class="quiz__opt">A→B ve B→C<span class="why">B ortak: half-duplex conflict'i.</span></button>
+    <button class="quiz__opt" data-correct>A→B ve C→D<span class="why">Doğru. Ortak node yok. Interference modeli açılırsa (C, B'nin komşusu) bu çift de çakışır.</span></button>
+    <button class="quiz__opt">C→D ve D→E<span class="why">D ortak: half-duplex conflict'i.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="coloring" data-min="6">
+  <h2>Graph coloring: kaç slot gerekir?</h2>
+  <div class="quiz" id="q-color-1">
+    <p class="quiz__q">Dört transmission'ın hepsi aynı receiver R'ye gidiyor. Bu dört transmission'a en az kaç slot gerekir?</p>
+    <button class="quiz__opt">1<span class="why">Dördü aynı slot'ta olursa R'de collision olur. Shared receiver conflict'i her çifti ayırır.</span></button>
+    <button class="quiz__opt">2<span class="why">İkişerli gruplar da R'yi paylaşıyor. Hiçbir iki transmission aynı slot'a giremez.</span></button>
+    <button class="quiz__opt" data-correct>4<span class="why">Doğru. Dördü de birbiriyle çakışıyor (conflict graph'ta bir clique); her biri ayrı renk ister.</span></button>
+  </div>
+  <p><strong>Graph coloring</strong> (slayt 21): conflict graph'ın her vertex'ine bir renk ver, komşu vertex'ler farklı renk alsın. Scheduling'de renk = timeslot (ya da zaman–frekans resource'u). Çakışan transmission'lar farklı renk almak zorunda. <strong>Daha az renk</strong> = daha kısa frame, daha düşük delay ve daha çok reuse. Genel graph'larda optimal coloring zordur, bu yüzden heuristic'ler yaygındır.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · coloring = slot ataması</span>
+    <ul>
+      <li>Vertex = transmission, renk = slot. Edge'in iki ucu aynı renk alamaz.</li>
+      <li>Gereken en az renk sayısına <strong>chromatic number</strong> denir. Genel graph'larda bunu bulmak NP-hard.</li>
+      <li><strong>Lower bound:</strong> hepsi birbiriyle çakışan $k$ transmission'lık bir grup (bir <strong>clique</strong>) varsa en az $k$ slot gerekir.</li>
+      <li><strong>Heuristic:</strong> greedy coloring vertex'leri sırayla gezer, her birine komşularının kullanmadığı en küçük rengi verir. Hiçbir zaman (en büyük degree + 1)'den fazla renk kullanmaz. Aşağıdaki lab DSatur adlı greedy sürümünü kullanıyor: her adımda komşuları en çok farklı renk kullanmış vertex'i seçer.</li>
+    </ul>
+    <p><em>"Coloring is useful only with a valid conflict model."</em> Yanlış bir graph'ı kusursuz renklendirmek yanlış bir schedule verir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · slayt 21 ve 22</span>
+    <p>Slayt 21'in tablosu: $e_1 \to 0$, $e_2 \to 1$, $e_3 \to 0$, $e_4 \to 2$. $e_1$ ile $e_3$ aynı renkte, demek ki aralarında edge yok.</p>
+    <p>Slayt 22: $e_1$, $e_2$ ile çakışıyor; $e_2$, $e_1$ ve $e_3$ ile çakışıyor; $e_1$ ile $e_3$ çakışmıyor. O halde slot 0 = $e_1$ ve $e_3$, slot 1 = $e_2$. Üç link, iki slot. Ek interference varsa conflict graph değişir ve daha çok slot gerekir. <em>"Reuse is safe only under the assumed interference relationships."</em></p>
+  </div>
+  <div class="w-tdma-scheduling-box" id="w-color">
+    <p class="w-tdma-scheduling-guess"><b>Önce tahmin et:</b> Zincir preset'inde interference kuralını açınca slot sayısı kaç olur? "Slayt 59" preset'inde B→D iki kez yazılı; bu beş transmission'a kaç slot gerekir ve en büyük clique hangisi?</p>
+    <div class="w-tdma-scheduling-ctl">
+      <button class="btn btn--sm" data-tc="chain">Zincir A–B–C–D</button>
+      <button class="btn btn--sm" data-tc="star">Tek receiver'a 3 link</button>
+      <button class="btn btn--sm" data-tc="s59">Slayt 59</button>
+      <button class="btn btn--sm" data-tc="far">Uzak iki çift</button>
+    </div>
+    <div class="w-tdma-scheduling-ctl">
+      <label class="w-tdma-scheduling-wide">Communication edge'leri <input type="text" id="tc-edges" value="A-B, B-C, C-D" spellcheck="false" /></label>
+    </div>
+    <div class="w-tdma-scheduling-ctl">
+      <label class="w-tdma-scheduling-wide">Transmission'lar (X&gt;Y, tekrar = ikinci cell) <input type="text" id="tc-links" value="A>B, B>C, C>D" spellcheck="false" /></label>
+    </div>
+    <div class="w-tdma-scheduling-ctl">
+      <label><input type="checkbox" id="tc-r1" checked /> Ortak node: shared TX / RX</label>
+      <label><input type="checkbox" id="tc-r2" checked /> Half-duplex</label>
+      <label><input type="checkbox" id="tc-r3" /> Interference: bir sender, öbür link'in receiver'ının komşusu</label>
+      <button class="btn btn--sm btn--accent" id="tc-go">Hesapla</button>
+    </div>
+    <div class="w-tdma-scheduling-err" id="tc-err"></div>
+    <div class="w-tdma-scheduling-out" id="tc-out"></div>
+    <div id="tc-stepper"></div>
+  </div>
+  <div class="box box--exam" data-exam="W5-s22-selfcheck-Q5">
+    <span class="box__label">W5 slayt 22 + self-check S5 · self-study alıştırması</span>
+    <p>"On the chain A→B→C→D, how many slots does colouring need, and when would it need one more?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Üç transmission'ı vertex olarak yaz ve her çift için slayt 20'deki nedenlerden birinin geçerli olup olmadığına bak.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$e_1$ ile $e_3$ arasında hangi koşulda edge olur? O zaman graph'ın şekli ne olur?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>$e_1$ = A→B, $e_2$ = B→C, $e_3$ = C→D. Conflict'ler: $e_1$–$e_2$ (half-duplex, B), $e_2$–$e_3$ (half-duplex, C). $e_1$ ile $e_3$ arasında ortak node yok.</li>
+        <li>Conflict graph bir yol: $e_1 - e_2 - e_3$. İki renk yeter: slot 0 = $\{e_1, e_3\}$, slot 1 = $\{e_2\}$. <strong>2 slot.</strong> En büyük clique 2 olduğu için daha azı olmaz.</li>
+        <li>C'nin gönderimi B'de A→B'yi bozacak kadar güçlüyse $e_1$–$e_3$ edge'i eklenir; graph üçgen olur ve <strong>3 slot</strong> gerekir.</li>
+        <li>Zincirde C zaten B'nin komşusu, yani bu durum gerçekte olasıdır. İki channel varsa $e_1$ ve $e_3$ aynı slot'u farklı channel'larda paylaşabilir (time–frequency coloring): yine 2 slot.</li>
+      </ol>
+      <p>Lab'da "Zincir" preset'ini interference kuralı kapalı ve açık çalıştırıp ikisini karşılaştır.</p>
+    </div></details>
+    <!-- Kaynak: W5 slayt 22 (hoca) · self-study slayt 75 S5, cevap slayt 77 ("2 slots; 3 if C's signal interferes with A→B at B", doğru) · python ile chromatic number 2 / 3 doğrulandı. -->
+  </div>
+  <!-- Kaynak: W5 slayt 21 (graph coloring, tablo), 22 (simple coloring example) · NP-hard, greedy ≤ Δ+1, clique lower bound: standart graph teorisi; cheat sheet (slayt 74, self-study) "minimum slots ≥ largest group of mutually conflicting links" ile tutarlı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Clique sadece <strong>lower bound</strong> verir. Beş transmission'lık bir çember (her biri sadece iki komşusuyla çakışıyor) clique'i 2 olduğu halde 3 renk ister.</li>
+      <li>Greedy'nin bulduğu renk sayısı optimum olmayabilir; vertex sırası değişince sonuç değişebilir.</li>
+      <li>Renk sayısını küçültmek ile delay'i küçültmek aynı hedef değil. Zincirde $(0, 1, 0)$ iki renk kullanır ama 6. bölümde gördüğün gibi packet C'de bir frame bekler.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-color-2">
+    <p class="quiz__q">Bir conflict graph'ta hepsi birbiriyle çakışan en büyük grup 3 transmission. Greedy coloring 4 renk buldu. Hangisi kesin doğru?</p>
+    <button class="quiz__opt">Optimum 4'tür, çünkü greedy buldu<span class="why">Greedy bir heuristic; optimumu garanti etmez. Başka bir sırayla 3 renk bulunabilir.</span></button>
+    <button class="quiz__opt">Optimum 3'tür, çünkü clique 3<span class="why">Clique bir lower bound. Optimum 3 de olabilir 4 de; tek bir clique'e bakarak "tam 3" diyemezsin.</span></button>
+    <button class="quiz__opt" data-correct>Optimum 3 ile 4 arasında<span class="why">Doğru. Clique "en az 3", greedy'nin bulduğu geçerli coloring "en fazla 4" der.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="builders" data-min="5">
+  <h2>Neyi renklendiriyoruz, schedule'ı kim kuruyor?</h2>
+  <div class="quiz" id="q-build-1">
+    <p class="quiz__q">Her node'a kendi gönderim slot'unu veriyorsun (node coloring). B'nin iki farklı komşuya gidecek packet'i var. Ne olur?</p>
+    <button class="quiz__opt">B iki slot alır, her komşuya bir tane<span class="why">Node coloring'de renk node'a verilir, link'e değil. Link başına slot isteyen yöntem link coloring.</span></button>
+    <button class="quiz__opt" data-correct>B tek slot'unu iki link arasında paylaşmak zorunda; yöntem basit ama temkinli<span class="why">Doğru. Slayt 23: "Node coloring is simple but conservative."</span></button>
+    <button class="quiz__opt">B'nin packet'lerinden biri sonsuza kadar bekler<span class="why">Packet'ler sırayla, sonraki frame'lerde gider. Sorun sonsuz bekleme değil, düşük capacity ve gereksiz yere engellenen reuse.</span></button>
+  </div>
+  <p><strong>Scheduling granularity</strong> (slayt 23): scheduler transmitter'ları, link'leri, two-hop komşulukları ya da zaman–frekans cell'lerinin tamamını renklendirebilir.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Ne renkleniyor</th><th>Artısı</th><th>Eksisi</th></tr>
+    <tr><td>Node coloring</td><td>Basit</td><td>Temkinli: güvenli olan birçok birleşimi engeller</td></tr>
+    <tr><td>Link coloring</td><td>Tek tek yönlü transmission'ları daha doğru temsil eder</td><td>Daha büyük problem</td></tr>
+    <tr><td>Two-hop coloring</td><td>Hidden terminal'leri azaltır</td><td>Güvenli reuse'u da engelleyebilir</td></tr>
+    <tr><td>Time–frequency coloring</td><td>Channel boyutunu ekler: ortak node'u bulunmayan ve yalnızca co-channel interference nedeniyle çakışan iki link, farklı channel'larda aynı slot'u kullanabilir</td><td>Arama uzayı büyür</td></tr>
+  </table></div>
+  <p><em>"More accurate models usually produce larger scheduling problems."</em></p>
+  <div class="box box--exam" data-exam="DP-ex6.13">
+    <span class="box__label">D&amp;P Exercise 6.13 · kitap alıştırması</span>
+    <p>"Consider the network topology in Figure 6.18, where the lines indicate which nodes can communicate and interfere with each other. Assume a TDMA protocol with a frame size of 5 slots and that each node can only be sender or receiver during any time slot. (a) Generate a schedule such that every node has an opportunity to communicate to all of its neighbors. (b) For your schedule, how many slots in a frame could each node sleep to preserve energy? What is your insight with respect to node density and energy preservation? (c) Assume that node A sends a message to node E; how long (in number of time slots) does it take for E to receive the message using your schedule?"</p>
+    <p>Figure 6.18'in edge'leri: A–B, B–C, C–D, C–E, C–F.</p>
+    <svg class="w-tdma-scheduling-svg" viewBox="0 0 300 120" style="max-width:300px" role="img" aria-label="A-B, B-C, C-D, C-E, C-F topolojisi">
+      <g stroke="var(--stone-500)" stroke-width="2"><line x1="30" y1="60" x2="100" y2="60" /><line x1="100" y1="60" x2="170" y2="60" /><line x1="170" y1="60" x2="240" y2="60" /><line x1="170" y1="60" x2="170" y2="18" /><line x1="170" y1="60" x2="170" y2="102" /></g>
+      <g fill="var(--paper)" stroke="var(--blue-600)" stroke-width="2"><circle cx="30" cy="60" r="13" /><circle cx="100" cy="60" r="13" /><circle cx="170" cy="60" r="13" /><circle cx="240" cy="60" r="13" /><circle cx="170" cy="18" r="13" /><circle cx="170" cy="102" r="13" /></g>
+      <g font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" text-anchor="middle" fill="var(--fg)"><text x="30" y="65">A</text><text x="100" y="65">B</text><text x="170" y="65">C</text><text x="240" y="65">E</text><text x="170" y="23">D</text><text x="170" y="107">F</text></g>
+    </svg>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her link'e ayrı slot vermeyi dene: C'ye dokunan kaç yönlü link var? 5 slot'a sığar mı? Sığmıyorsa her node'a bir gönderim slot'u ver; node o slot'ta gönderir, bütün komşuları dinler.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İki node aynı slot'u ne zaman paylaşamaz? Komşularsa (biri gönderirken öbürü alıcı olmalı) ve ortak bir komşuları varsa (o komşu iki gönderimi birden duyar). Yani two-hop coloring. Hepsi birbirine en fazla 2 hop uzaklıkta olan en büyük grup hangisi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Model seçimi.</strong> Link başına slot vermek işe yaramaz: C'nin 4 komşusu var, C'ye dokunan 8 yönlü link'in hepsi C'yi paylaşır ve 8'li bir clique oluşturur; 5 slot yetmez. Bu yüzden her node'a bir gönderim slot'u veriyoruz: node o slot'ta gönderir (komşusunu hedef alabilir ya da broadcast yapar), komşuları dinler.</li>
+        <li><strong>Conflict.</strong> İki node aynı slot'u paylaşamaz, eğer komşularsa ya da ortak komşuları varsa. B, C, D, E, F'nin her çifti ya komşu ya da C üzerinden ortak komşulu: 5'li clique. En az 5 slot gerekir, frame 5 slot olduğu için tam sığıyor. A yalnızca B ve C ile çakışır; D, E ya da F ile slot paylaşabilir.</li>
+        <li><strong>(a) Schedule:</strong> slot 0 = A ve D, slot 1 = B, slot 2 = C, slot 3 = E, slot 4 = F. Kontrol: A ile D komşu değil ve ortak komşuları yok.</li>
+        <li><strong>(b) Uyku:</strong> bir node kendi slot'unda gönderir, komşularının slot'larında dinler, kalanında uyur.
+          <div class="table-wrap"><table>
+            <tr><th>Node</th><th>Aktif slot'lar</th><th>Uyku</th></tr>
+            <tr><td>A</td><td>0 (TX), 1 (B'yi dinler)</td><td>3</td></tr>
+            <tr><td>B</td><td>0 (A), 1 (TX), 2 (C)</td><td>2</td></tr>
+            <tr><td>C</td><td>0 (D), 1 (B), 2 (TX), 3 (E), 4 (F)</td><td>0</td></tr>
+            <tr><td>D</td><td>0 (TX), 2 (C)</td><td>3</td></tr>
+            <tr><td>E</td><td>2 (C), 3 (TX)</td><td>3</td></tr>
+            <tr><td>F</td><td>2 (C), 4 (TX)</td><td>3</td></tr>
+          </table></div>
+          Çıkarım: bir node'un uyuyabileceği slot sayısı komşu sayısıyla azalır. Yoğun bölgedeki node'lar (burada C, 4 komşu) hiç uyuyamaz; density arttıkça enerji tasarrufu düşer.</li>
+        <li><strong>(c) A → E:</strong> yol A → B → C → E. Mesaj slot 0'ın başında hazırsa A slot 0'da, B slot 1'de, C slot 2'de gönderir: E mesajı <strong>3 slot</strong> sonra alır. Bu schedule'da offset'ler yol boyunca artıyor (0, 1, 2), yani pipeline sırası. Mesaj slot 0'ı kaçırırsa (slot 1'in başında hazırsa) bir sonraki frame'i bekler ve 7 slot sürer. Sıralama ters olsaydı her hop'ta bir frame'e yakın beklerdi.</li>
+      </ol>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/dargie-poellabauer-fundamentals-of-wireless-sensor-networks.pdf" target="_blank" rel="noopener">Orijinal kitap (D&amp;P, s. 158–159)</a></p>
+    <!-- Kaynak: D&P Exercise 6.13, Figure 6.18 (s.158–159, figür render edilip okundu) · kitapta cevap yok · python: two-hop node coloring chromatic number 5, 5'li clique {B,C,D,E,F}, uyku sayıları, A→E 3 slot (varış slot 1'de ise 7). -->
+  </div>
+  <p><strong>Schedule'ı kim kuruyor?</strong> (slayt 24–27). Dört yol var:</p>
+  <div class="table-wrap"><table>
+    <tr><th>Yaklaşım</th><th>Nasıl</th><th>Güçlü yanı</th><th>Riski</th></tr>
+    <tr><td><strong>Centralized</strong></td><td>Bir controller ağ bilgisini toplar, schedule'ı hesaplar, node'lara dağıtır</td><td>Global view, optimizasyon, deterministic garantiler, traffic önceliği</td><td>Stale state; toplama ve dağıtma overhead'i, controller'a bağımlılık, yerel değişikliklere yavaş tepki</td></tr>
+    <tr><td><strong>Distributed negotiation</strong></td><td>Komşular yerel transaction'larla cell ekler, siler, taşır: request → candidate → response → install</td><td>Local adaptation</td><td>Negotiation traffic; iki uç tutarlı state kurmalı; yerel anlaşma, komşuluğun ötesinde tutarsızlık yaratabilir</td></tr>
+    <tr><td><strong>Autonomous</strong></td><td>Node'lar cell'leri deterministic kurallarla (node ID, komşular, routing parent, traffic class) kendileri hesaplar; iki uç aynı kuralı uygularsa negotiation gerekmez</td><td>Düşük overhead, dinamik IoT</td><td>Rule/hash collision; traffic'i bilmez</td></tr>
+    <tr><td><strong>Static</strong></td><td>Schedule deployment'tan önce sabitlenir</td><td>Basit işletim; topology ve traffic sabit, periyodik bir network'te iyi</td><td>Zayıf adaptasyon</td></tr>
+  </table></div>
+  <p>Slayt cümleleri: <em>"Centralization is attractive when the deployment is managed and requirements are explicit."</em> (endüstriyel sistemler büyük ölçüde centralized management kullanır; bir Network/System Manager route'ları, cell'leri ve channel'ları atar) · <em>"Local agreement does not guarantee global optimality."</em> · <em>"Low control overhead often means less traffic awareness."</em> · <em>"The schedule algorithm is a design choice above TSCH."</em> Hangi sistemin hangisini kullandığını (Orchestra, 6TiSCH/MSF, WirelessHART) sonraki derste göreceksin.</p>
+  <!-- Kaynak: W5 slayt 23 (granularity), 24 (construction approaches tablosu), 25 (centralized), 26 (distributed negotiation: request, candidate, response, install), 27 (autonomous and static, tablo). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Two-hop coloring hidden terminal'i önler ama "her zaman en iyi" değildir; güvenli olan reuse'u da yasaklayıp frame'i uzatabilir.</li>
+      <li>Autonomous ≠ akıllı. Kural traffic'ten habersizdir: çok yüklü bir node ile boş bir node aynı cell'leri alır.</li>
+      <li>Negotiation'da cevap mesajı kaybolursa bir taraf cell'i kurmuş, öbürü kurmamış olabilir. "İki komşu anlaştı, iş bitti" deme.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-build-2">
+    <p class="quiz__q">Bir rafineride 200 sensor sabit yerlerde, her 1 s'de bir ölçüm gönderiyor; tesisin bir network manager'ı ve sıkı deadline'ları var. En uygun schedule kurma yolu?</p>
+    <button class="quiz__opt">Autonomous, çünkü hiç mesaj gerektirmez<span class="why">Düşük overhead burada öncelik değil. Autonomous kural traffic'i ve deadline'ları bilmez, hash collision riski de var.</span></button>
+    <button class="quiz__opt" data-correct>Centralized (manager hesaplar ve dağıtır)<span class="why">Doğru. Yönetilen bir deployment, açık gereksinimler, deadline ve öncelikler: global view tam burada işe yarar.</span></button>
+    <button class="quiz__opt">Distributed negotiation, çünkü her zaman en iyi sonucu verir<span class="why">Yerel anlaşma global optimumu garanti etmez ve negotiation traffic'i üretir. Sabit ve yönetilen bir tesiste merkezi plan daha uygun.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="not-enough" data-min="4">
+  <h2>Conflict-free yetmez: load ve queue</h2>
+  <div class="quiz" id="q-queue-1">
+    <p class="quiz__q">Bir relay node'a her frame'de 2 packet geliyor ve parent'ına giden tek bir forwarding cell'i var (her deneme başarılı). Bütün cell'ler collision'sız. Ne olur?</p>
+    <button class="quiz__opt">Hiçbir sorun olmaz, schedule conflict-free<span class="why">Conflict-free olmak interference şartını sağlar, load şartını değil. Gelen 2, giden 1.</span></button>
+    <button class="quiz__opt" data-correct>Kuyruk her frame 1 packet büyür, sınırsız<span class="why">Doğru. Slayt 59'un ana fikri bu: her slot collision'sız, network yine başarısız.</span></button>
+    <button class="quiz__opt">Packet'lerin yarısı collision'da kaybolur<span class="why">Collision yok; packet'ler kaybolmuyor, kuyrukta birikiyor. Kuyruk dolunca drop başlar, ama sebep collision değil capacity.</span></button>
+  </div>
+  <p>Hocanın worked example'ı (slayt 59). Topology: A→B→D, C→B, E→D. A ve C her frame birer packet'i B üzerinden D'ye gönderiyor; E doğrudan D'ye gönderiyor. Conflict coloring A→B ile E→D'yi aynı slot'a koyabilir (ortak node yok, uzak oldukları varsayılıyor). Ama B'nin tek bir B→D forwarding cell'i varsa kuyruğu büyür. Daha iyi schedule B'ye iki forwarding cell verir:</p>
+  <div class="table-wrap"><table>
+    <tr><th>Slot</th><th>Transmission</th></tr>
+    <tr><td>0</td><td>A→B ve E→D (spatial reuse)</td></tr>
+    <tr><td>1</td><td>B→D (A'nın packet'i)</td></tr>
+    <tr><td>2</td><td>C→B</td></tr>
+    <tr><td>3</td><td>B→D (C'nin packet'i)</td></tr>
+    <tr><td>4</td><td>shared/control</td></tr>
+  </table></div>
+  <p>Her forwarding cell, ilgili gelen cell'in hemen ardından geliyor: aynı zamanda pipeline. <em>"Scheduling must account for both interference and offered load."</em></p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · queue stability</span>
+    <p>Frame başına varış $a$ = node'un kendi packet'leri + çocuklarından gelenler. $k$ TX cell'in her biri $s$ olasılıkla başarılı. Traffic varsa ($a &gt; 0$) ve servis rastgeleyse ($s &lt; 1$), kuyruğun sınırlı kalması için servis kapasitesi varıştan büyük olmalı:</p>
+    $$k \cdot s \;&gt;\; a \qquad\Rightarrow\qquad k_{\min} = \left\lfloor \frac{a}{s} \right\rfloor + 1$$
+    <p>Eşitlik ($k \cdot s = a$) stability'yi garanti etmez. Kuyruğun boş kaldığı frame'lerde cell'ler boşa gider ve bu kayıp sonradan geri alınmaz; kritik yükte backlog zamanla büyüyebilir. Örnek: $a = 1$, $k = 2$, $s = 0.5$ için ortalama backlog 50 frame sonunda yaklaşık 3, 800 frame sonunda yaklaşık 16 packet. Deterministic durumda ($s = 1$) eşitlik yeter: $k = a$ cell, her frame gelen $a$ packet'i aynı frame'de gönderir. Pratikte bunların üstüne burst, retry ve control için pay (headroom) bırakılır. Root'a yakın node'lar bütün alt ağacın traffic'ini taşıdığı için en çok cell'e onlar ihtiyaç duyar (slayt 55; ayrıntısı sonraki derste).</p>
+  </div>
+  <div class="w-tdma-scheduling-box" id="w-queue">
+    <p class="w-tdma-scheduling-guess"><b>Önce tahmin et:</b> $a = 2$, $k = 2$, $s = 0.9$. 50 frame sonunda kuyruk yaklaşık kaç packet olur? $k = 3$ yapınca?</p>
+    <div class="w-tdma-scheduling-ctl">
+      <label>Varış $a$ /frame <input type="number" id="tq-a" value="2" min="0" max="10" step="1" /></label>
+      <label>TX cell $k$ <input type="number" id="tq-k" value="2" min="0" max="12" step="1" /></label>
+      <label>Başarı $s$ <input type="number" id="tq-s" value="0.9" min="0.05" max="1" step="0.05" /></label>
+      <button class="btn btn--sm btn--accent" id="tq-go">Çalıştır</button>
+      <button class="btn btn--sm" id="tq-seed">Yeni seed</button>
+    </div>
+    <div class="w-tdma-scheduling-err" id="tq-err"></div>
+    <div class="w-tdma-scheduling-out" id="tq-out"></div>
+    <svg class="w-tdma-scheduling-svg" id="tq-svg" viewBox="0 0 500 170" aria-label="50 frame boyunca kuyruk uzunluğu"></svg>
+  </div>
+  <div class="box box--exam" data-exam="W5-s59-worked">
+    <span class="box__label">W5 slayt 59 · hocanın worked example'ı</span>
+    <p>"A schedule can avoid conflicts but still fail because forwarding capacity is insufficient. Topology: A→B→D, C→B, E→D. A and C each send one packet per frame through B to D; E sends directly to D. Conflict coloring may assign A→B and E→D to the same slot. If B has only one B→D forwarding cell, its queue grows. A better schedule gives B two forwarding cells." Conflict'leri listele, tek forwarding cell'de kuyruğun ne hızla büyüdüğünü söyle ve 5 slot'luk daha iyi bir schedule yaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Beş transmission yaz: A→B, C→B, B→D (×2), E→D. Her çift için ortak node'a bak.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>B'ye frame başına kaç packet giriyor, kaç tane çıkabiliyor? Farkı frame sayısıyla çarp.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Conflict'ler:</strong> A→B ve C→B (shared receiver B); B→D ve E→D (shared receiver D); A→B ve B→D, C→B ve B→D (half-duplex, B); iki B→D cell'i (shared transmitter B). A→B ile E→D arasında ortak node yok ve uzak oldukları varsayılıyor: aynı slot'u paylaşabilirler.</li>
+        <li><strong>Lower bound:</strong> A→B, C→B ve iki B→D'nin hepsi B'yi kullanıyor: 4'lü clique, en az 4 veri slot'u.</li>
+        <li><strong>Tek forwarding cell:</strong> B'ye frame başına 2 packet giriyor, 1 çıkıyor. Kuyruk her frame 1 packet büyür, sınırsız. Her slot collision'sız, network yine başarısız.</li>
+        <li><strong>Daha iyi schedule:</strong> slot 0 = A→B ve E→D, slot 1 = B→D, slot 2 = C→B, slot 3 = B→D, slot 4 = shared/control. B'nin 2 gelen packet'ine 2 forwarding cell; her forwarding cell ilgili gelen cell'in hemen ardından geliyor.</li>
+      </ol>
+      <p>Lab'da "Slayt 59" preset'i aynı conflict graph'ı kurar ve 4 renk bulur; beşinci slot shared/control için.</p>
+    </div></details>
+    <!-- Kaynak: W5 slayt 59 (hoca; tanım, maddeler ve tablo aynen) · python: chromatic number 4, clique {A→B, C→B, B→D, B→D}. -->
+  </div>
+  <div class="box box--exam" data-exam="W5-selfcheck-Q9">
+    <span class="box__label">W5 self-check S9 · self-study alıştırması</span>
+    <p>"Node B forwards for 4 children (1 packet/frame each) plus 1 of its own; its link succeeds 90% of the time. Minimum TX cells per frame?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Varışları topla: çocuklar + kendisi.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her cell ortalama kaç packet taşır? Gerekli cell sayısını yukarı yuvarla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>Varış: $a = 4 + 1 = 5$ packet/frame.</li>
+        <li>Bir cell ortalama $s = 0.9$ packet taşır. Stability: $k \cdot 0.9 &gt; 5 \Rightarrow k &gt; 5/0.9 \approx 5.56$.</li>
+        <li>Cell sayısı tam sayı: <strong>en az 6 TX cell</strong>; burst, retry ve control için daha fazlası.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: Self-study slayt 76 S9, cevap slayt 78 (5/0.9 ≈ 5.6 → 6, doğru) · hoca slaytı 55 (queue stability) · python ile doğrulandı. -->
+  </div>
+  <!-- Kaynak: W5 slayt 59 (worked example), 55 (yalnızca kural ve root bottleneck cümlesi; ayrıntı tsch-6tisch-industrial dersinde) · kuyruk simülasyonu: python ile 2000 seed ortalaması (a=2,k=2,s=0.9 → ~10 packet/50 frame; k=3 → ~0; a=1,k=2,s=0.5 → ~3.4/50 frame, ~15.7/800 frame: kritik yükte büyür). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$a/s$'yi yuvarlamadan bırakma: 5.56 cell olmaz, 6 gerekir.</li>
+      <li>Relay'in kendi packet'lerini ve bütün çocuklarınınkini topla. Sadece kendi traffic'ine cell veren bir schedule, root'a yakın node'larda tıkanır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-queue-2">
+    <p class="quiz__q">Bir node 2 çocuğu için (her biri 1 packet/frame) ve kendisi için (1 packet/frame) forward ediyor. Link başarısı %80. En az kaç TX cell?</p>
+    <button class="quiz__opt">3<span class="why">Bu $s = 1$ varsayar. %80 başarıyla 3 cell ortalama 2.4 packet taşır; 3 gelen packet'e yetmez.</span></button>
+    <button class="quiz__opt" data-correct>4<span class="why">Doğru: $a = 3$, $3/0.8 = 3.75$, yukarı yuvarlayınca 4.</span></button>
+    <button class="quiz__opt">2<span class="why">Sadece çocukların traffic'ini saymışsın; node'un kendi packet'i de var. Ayrıca başarı oranı da hesaba girmeli.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="textbook" data-min="5">
+  <h2>Kitaptaki schedule-based MAC'ler</h2>
+  <div class="quiz" id="q-book-1">
+    <p class="quiz__q">K&amp;W'ye göre schedule-based protokollerin idle listening'i nasıl azalttığı en iyi hangisiyle anlatılır?</p>
+    <button class="quiz__opt" data-correct>Gönderme ve alma fırsatlarını açıkça atar, node'u geri kalan zamanda uyutur<span class="why">Doğru. K&amp;W: TDMA şemaları idle listening'i "implicitly" önler, çünkü node atanmamış her anda uyuyabilir.</span></button>
+    <button class="quiz__opt">Uzun bir preamble ile receiver'ı uyandırır<span class="why">Bu B-MAC'in yolu (low-power listening). Schedule-based protokollerde buluşma zamanı baştan bellidir, preamble'a gerek yoktur.</span></button>
+    <button class="quiz__opt">RTS/CTS ile kanalı ayırır<span class="why">RTS/CTS contention tarafının aracı; schedule-based protokollerde slot zaten ayrılmıştır.</span></button>
+  </div>
+  <p>Bu bölüm slaytlarda yok; hafta okumasında var (K&amp;W §5.4–5.5, D&amp;P Bölüm 6). Slayttaki fikirlerin kitaptaki somut protokollerde nasıl göründüğünü gösteriyor.</p>
+  <div class="box box--rule">
+    <span class="box__label">K&amp;W §5.4 · schedule-based protokollerin artıları ve eksileri</span>
+    <p><strong>Artılar:</strong> idle listening dolaylı olarak önlenir (atanmamış zamanda uyku); schedule receiver'larda collision olmayacak şekilde hesaplanabildiği için hidden terminal için özel bir mekanizma gerekmez.</p>
+    <p><strong>Eksiler:</strong></p>
+    <ol>
+      <li>Schedule'ı kurmak ve korumak signaling traffic'i ister, özellikle topology değişkense.</li>
+      <li>Küçük slot'larda iki uç slot sınırlarında anlaşmalı: time synchronization gerekir; ucuz oscillator'lar hızlı kayar, sık resync gerekir.</li>
+      <li>Kısa zaman ölçeğinde değişen yüke uyum zor: bir node kullanmadığı slot'u komşusuna kolayca devredemez.</li>
+      <li>Node'un (ve komşularının) schedule'ı hafıza ister; birçok sensor node'da hafıza kıt.</li>
+      <li>Conflict-free TDMA schedule'ını dağıtık olarak atamak başlı başına zor bir problem.</li>
+    </ol>
+  </div>
+  <p>D&amp;P önce eski üç yolu sayar: <strong>FDMA</strong> (frekans bandını böl), <strong>TDMA</strong> (zamanı frame ve slot'a böl) ve <strong>CDMA</strong> (aynı bandı farklı code'larla paylaş). Sabit atama esnek olmadığı için dinamik yollar da var: <strong>polling</strong> (controller sırayla sorar), <strong>token passing</strong> (token'ı tutan gönderir) ve <strong>reservation</strong> (node, sabit slot'lar üzerinden ileriki erişim için yer ayırtır).</p>
+  <div class="table-wrap"><table>
+    <tr><th>Protokol (kitap)</th><th>Slot'lar nasıl dağıtılıyor</th><th>Slayttaki karşılığı</th><th>Zayıf yanı</th></tr>
+    <tr><td><strong>LEACH</strong> (K&amp;W §5.4.1, D&amp;P §6.4.5)</td><td>Node'lar cluster'lara ayrılır; clusterhead kendi üyelerine TDMA slot'u dağıtır. Clusterhead rolü round round döner; her cluster farklı bir CDMA/DSSS code kullanır, cluster'lar arası interference azalır.</td><td>Centralized (cluster içinde), static frame</td><td>Clusterhead sürekli uyanık; clusterhead'ler ile base station arası hâlâ CSMA</td></tr>
+    <tr><td><strong>SMACS</strong> (K&amp;W §5.4.2)</td><td>Komşu keşfi ile link kurma birleşik; iki node TYPE1–TYPE4 mesajlarıyla bir link için iki slot ve rastgele bir frekans/code seçer. Superframe fazları komşular arasında farklı olabilir.</td><td>Distributed negotiation</td><td>Superframe, en yüksek node degree'ye yetecek kadar uzun olmalı; yoğun ama az yüklü ağda node'lar boşuna sık uyanır</td></tr>
+    <tr><td><strong>TRAMA</strong> (K&amp;W §5.4.3, D&amp;P §6.4.2)</td><td>Zaman random-access ve scheduled-access periyotlarına bölünür. Her node her slot $t$ için $\text{prio}(x, t) = h(x \oplus t)$ hesaplar; two-hop komşuluğunda en yüksek önceliğe sahip olduğu slot'lar onun "winning slot"larıdır. Son winning slot bir sonraki schedule'ı yayınlamak için kullanılır.</td><td>Autonomous (hash) + two-hop bilgi</td><td>Yoğun ağda two-hop komşuluk büyük: hesap ve hafıza maliyeti</td></tr>
+    <tr><td><strong>LMAC / MLMAC</strong> (D&amp;P §6.4.6)</td><td>Her slot'un tek sahibi var; slot sahibi 12 byte'lık bir control mesajı ve data gönderir. Slot seçimi gateway'den başlayıp hop hop yayılır; two-hop komşulukta kullanılmayan bir slot rastgele seçilir. MLMAC, hareket eden node'lar için collision'ı fark edip seçimi yeniden başlatır.</td><td>Distributed, two-hop coloring</td><td>Sabit slot boyu ve sabit atama: bant genişliği israfı</td></tr>
+    <tr><td><strong>DESYNC-TDMA</strong> (D&amp;P §6.4.4)</td><td>Global clock yok. Node'lar periyodik "firing" mesajı atar; her node faz komşularının ortasına kayar ve zamanla eşit aralıklara yerleşir. Slot sınırı, komşularla ortadaki noktalar.</td><td>Autonomous</td><td>Eşit slot boyu: kullanılmayan kısım boşa gider</td></tr>
+    <tr><td><strong>Y-MAC</strong> (D&amp;P §6.4.3)</td><td>Frame = broadcast period + unicast period. Unicast slot'ları <em>alıcıya</em> atanır (receiver-driven); yük artınca alıcı başka channel'lara atlar.</td><td>Time–frequency kullanımı</td><td>TDMA'nın esneklik sorunu; birden çok channel isteyen radio</td></tr>
+    <tr><td><strong>Z-MAC</strong> (D&amp;P §6.6.1)</td><td>Hybrid. Two-hop'ta tekrar etmeyen slot ataması; ama başkasının slot'u da CSMA ile kullanılabilir. Slot sahibi backoff'u $[0, T_o]$'dan, diğerleri $[T_o, T_{no}]$'dan seçer. Az yükte CSMA gibi, çok yükte TDMA gibi davranır.</td><td>Hybrid</td><td>Setup fazı zaman ve enerji ister</td></tr>
+    <tr><td><strong>MH-MAC</strong> (D&amp;P §6.6.2)</td><td>Sabit node'lar için schedule'lı static slot'lar (LMAC benzeri), hareketli node'lar için contention'lı mobile slot'lar; oranları gözlenen mobility'ye göre ayarlanır.</td><td>Hybrid</td><td>Mobility tahmini ek mesaj ister</td></tr>
+  </table></div>
+  <div class="box box--exam" data-exam="DP-ex6.17">
+    <span class="box__label">D&amp;P Exercise 6.17 · kitap alıştırması</span>
+    <p>"The TRAMA protocol is an example of a contention-free MAC scheme. (a) What are the advantages and disadvantages of the TRAMA protocol (compared to contention-based protocols)? (b) What is the difference between transmission slots and signaling slots? (c) What is the purpose of the NP component?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>TRAMA'nın zamanı ikiye böldüğünü hatırla: hangi kısımda contention var, hangisinde yok?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bir node "bu slot'ta en yüksek öncelik bende mi?" sorusunu cevaplamak için kimin ID'lerini bilmeli?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>(a)</strong> Artılar: scheduled-access kısmında collision olasılığı düşer; node TX/RX/SL durumunu baştan bildiği için uyku süresi artar; slot'lar traffic'e göre (kuyrukta packet'i olan node'a) verilir, kullanılmayan winning slot'lar bırakılabilir. Eksiler: zaman senkronizasyonu gerekir; random-access kısmında herkes uyanık olmak zorunda; her node two-hop komşularının önceliklerini hesaplar, yoğun ağda hesap ve hafıza maliyeti yüksek; contention-free protokollerin genel özelliği olarak delay daha yüksek olabilir.</li>
+        <li><strong>(b)</strong> Signaling slot'ları random-access aralığındadır: node'lar küçük control packet'lerini carrier sense yapmadan rastgele seçtikleri slot'larda gönderir (komşuluk bilgisi, keep-alive). Transmission slot'ları scheduled-access aralığındadır: hash önceliğiyle seçilmiş, collision'sız veri gönderimi için.</li>
+        <li><strong>(c)</strong> NP (Neighbor Protocol), random-access aralığında one-hop komşu bilgisini (eklenen ve silinen komşular) yayar; böylece her node tutarlı bir two-hop topology bilgisi edinir. Bu bilgi olmadan node bir slot'ta öncelik kimde, hesaplayamaz.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: D&P Exercise 6.17 (s.159) · cevap D&P §6.4.2 ve K&W §5.4.3'ten · kitapta cevap anahtarı yok. -->
+  </div>
+  <div class="box box--exam" data-exam="DP-ex6.20-21">
+    <span class="box__label">D&amp;P Exercise 6.20 ve 6.21 · kitap alıştırması</span>
+    <p>"Discuss the cluster head election policy in the LEACH protocol and explain how LEACH can consider the available energy on each node in this election process. What is the problem with this energy-aware election policy? Further, LEACH uses TDMA within a cluster; explain the advantages and disadvantages of this approach." · "Why does LEACH use the direct sequence spread spectrum technique?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Clusterhead neden sürekli aynı node olmamalı? Rol dönmezse ne olur?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Energy-aware olasılık formülünde payda ne? O değeri her node nereden bilecek?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Seçim:</strong> her round'un başında node $i$ kendini $P_i(t)$ olasılıkla clusterhead seçer, toplam beklenen clusterhead sayısı $k$ olacak şekilde: $\sum_i P_i(t) = k$. İlk yaklaşım son $r \bmod (N/k)$ round'da clusterhead olmuş node'ları dışlar; rol böylece herkese döner ve enerji yükü yayılır.</li>
+        <li><strong>Energy-aware:</strong> $P_i(t) = \min\!\left(\frac{E_i(t)}{E_{\text{total}}(t)}\,k,\; 1\right)$. Enerjisi çok olan node daha sık clusterhead olur. Sorun: her node $E_{\text{total}}(t)$'yi, yani bütün node'ların toplam enerjisini bilmeli ya da tahmin etmeli.</li>
+        <li><strong>Cluster içi TDMA:</strong> artıları, üyeler sadece kendi slot'unda uyanık (idle listening yok), cluster içinde collision yok, üye en düşük gerekli TX gücüyle gönderir. Eksileri, clusterhead sürekli uyanık olmalı; schedule her round yeniden kurulmalı (setup overhead); cluster üyeleri kendi clusterhead'lerinin TDMA frame ve slot zamanlamasıyla senkronize olmalı (K&amp;W ayrıca round'ların herkes için aynı anda başlaması için LEACH'in global time synchronization varsaydığını yazar); kullanılmayan slot boşa gider.</li>
+        <li><strong>DSSS (6.21):</strong> cluster içi iletişim collision'sız olsa da bir cluster'daki gönderim komşu cluster'ı bozabilir. Her cluster farklı bir spreading code kullanınca cluster'lar arası interference sınırlanır. Clusterhead–base station iletişimi ayrı, sabit bir code ve CSMA kullanır.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: D&P Exercises 6.20, 6.21 (s.160) · cevap D&P §6.4.5 (formüller 6.4–6.6) ve K&W §5.4.1'den · kitapta cevap anahtarı yok. -->
+  </div>
+  <!-- Kaynak: K&W §5.4 (s.133–139: giriş, LEACH, SMACS, TRAMA, further solutions) · D&P §6.1.1 (s.127–128), §6.4 (s.135–144), §6.6 (s.154–157). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>TRAMA'nın hash'i ile slaytlardaki autonomous kural aynı fikirdir: herkes aynı fonksiyonu hesaplar, slot önceliği için ayrı bir election mesajı gerekmez. Yine de TRAMA mesajsız çalışmaz: Neighbor Protocol (NP) ile komşuluk bilgisini, Schedule Exchange Protocol (SEP) ile schedule'ları değiş tokuş eder. Fark, TRAMA'nın two-hop komşuluğu ve kuyruk bilgisini de kullanması.</li>
+      <li>Z-MAC'i "TDMA" diye sınıflandırma: kitap onu hybrid bölümüne koyuyor, çünkü sahibi olmayan slot'lar da CSMA ile kullanılabilir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-book-2">
+    <p class="quiz__q">Z-MAC'te bir slot'un sahibi olmayan bir node da o slot'ta gönderebilir mi?</p>
+    <button class="quiz__opt">Hayır, Z-MAC saf TDMA'dır<span class="why">Z-MAC'in farkı tam burada: sahibi olmayan node'lar da CSMA ile deneyebilir. Bu yüzden hybrid.</span></button>
+    <button class="quiz__opt" data-correct>Evet, CSMA ile; ama sahibin backoff aralığı daha kısa olduğu için öncelik sahibindedir<span class="why">Doğru: sahip $[0, T_o]$, diğerleri $[T_o, T_{no}]$. Az yükte CSMA gibi, çok yükte TDMA gibi davranır.</span></button>
+    <button class="quiz__opt">Evet, ve herkes eşit önceliklidir<span class="why">Eşit öncelik olsaydı yoğun yükte saf CSMA'nın collision sorunları geri gelirdi. Sahibin kısa backoff'u bunu önler.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="son-kontrol" data-min="4">
+  <h2>Son kontrol</h2>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">8 slot'luk bir slotframe'de B'nin tablosunda "slot 3: RX (A→B)" ve "slot 3: TX (B→C)" yazıyor. Sorun ne?</p>
+    <button class="quiz__opt">Sorun yok, farklı komşularla konuşuyor<span class="why">Komşuların farklı olması yetmez: B'nin tek half-duplex radio'su var.</span></button>
+    <button class="quiz__opt" data-correct>Half-duplex conflict'i: B aynı slot'ta hem alıp hem gönderemez<span class="why">Doğru. Bu iki transmission conflict graph'ta komşu; farklı renk (slot) almalılar.</span></button>
+    <button class="quiz__opt">Shared receiver conflict'i<span class="why">Receiver'lar farklı (B ve C). Ortak node B, ama bir transmission'da receiver, öbüründe transmitter: bu half-duplex.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">A→R, B→R, C→R, D→R ve R→S transmission'ları için en az kaç slot gerekir?</p>
+    <button class="quiz__opt">4<span class="why">R→S'yi unuttun: R, dört gelen transmission'ın her biriyle half-duplex conflict'inde.</span></button>
+    <button class="quiz__opt" data-correct>5<span class="why">Doğru. Beşi de R'yi kullanıyor: 5'li clique, her biri ayrı slot.</span></button>
+    <button class="quiz__opt">2<span class="why">Gelen dört transmission aynı receiver'ı paylaşıyor; aralarında reuse yok.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Clock'ların sync aralığını 5 s'den 20 s'ye çıkarıyorsun. Boş RX cell'lerdeki guard dinlemesi ne olur?</p>
+    <button class="quiz__opt">Değişmez; guard sabit bir sayıdır<span class="why">Guard, beklenen maksimum clock hatasına göre seçilir ve o hata son sync'ten beri geçen süreyle büyür.</span></button>
+    <button class="quiz__opt" data-correct>Yaklaşık 4 katına çıkar; sync mesajları ise 4 kat seyrekleşir<span class="why">Doğru. $\delta$, $T_{\text{sync}}$ ile doğru orantılı. Bu, hocanın "time error into energy cost" takası.</span></button>
+    <button class="quiz__opt">Yarıya iner, çünkü daha az sync mesajı gönderilir<span class="why">Sync mesajı azalır, ama clock'lar daha uzun süre kayar ve pencere genişler.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Bir schedule'ın conflict graph'ı doğru renklendirilmiş ve hiçbir cell'de collision yok. Hangisi hâlâ olabilir?</p>
+    <button class="quiz__opt">Hiçbir sorun olamaz; collision-free schedule her şeyi çözer<span class="why">Slayt 18 ve 59 tam tersini söylüyor: collision-free olup offered traffic'i taşıyamamak mümkün.</span></button>
+    <button class="quiz__opt" data-correct>Bir relay'in kuyruğu sınırsız büyüyebilir ve uçtan uca delay çok uzun olabilir<span class="why">Doğru. Load şartı ($k \cdot s &gt; a$) ve cell sırası (pipeline) coloring'den ayrı iki koşul.</span></button>
+    <button class="quiz__opt">Sadece hidden terminal collision'ı olabilir<span class="why">Doğru bir conflict model hidden terminal'i zaten bir conflict edge'i olarak içerir. Asıl risk capacity ve sıralama.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Her link'e frame başına 1 cell verilen 4 hop'luk bir yolda frame 0.5 s. Cell'ler bağımsız ve rastgele sıralıysa uçtan uca beklemenin kabaca ortalaması?</p>
+    <button class="quiz__opt">≈ 0.25 s<span class="why">Bu tek bir hop'un ortalama beklemesi. Dört hop'un her biri ayrı bekletir.</span></button>
+    <button class="quiz__opt" data-correct>≈ 1 s<span class="why">Doğru: hop başına ≈ $F/2$ = 0.25 s, dört hop ≈ 1 s. Pipeline sırası bunu birkaç slot'a indirir.</span></button>
+    <button class="quiz__opt">≈ 2 s<span class="why">Bu, her hop'un en kötü durumu ($F$) ile hesaplanmış. Soru ortalamayı istiyor.</span></button>
+  </div>
+  <!-- Sıradaki konu: TSCH, ASN ve channel hopping. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+/* Shared helpers */
+const TS = {
+  pal: ["#1c7ed6", "#e8590c", "#2b8a3e", "#ae3ec9", "#c92a2a", "#0c8599", "#f08c00", "#5c7cfa", "#495057", "#d6336c", "#0ca678", "#845ef7"],
+  esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); },
+  num(v, d) {
+    const r = Number(v.toFixed(d === undefined ? 3 : d));
+    return String(Object.is(r, -0) ? 0 : r);
+  },
+  read(el, lo, hi, name, integer) {
+    const raw = el.value.trim();
+    const v = Number(raw);
+    if (raw === "" || !Number.isFinite(v)) throw `${name}: bir sayı yaz.`;
+    if (integer && !Number.isInteger(v)) throw `${name}: tam sayı olmalı.`;
+    if (v < lo || v > hi) throw `${name}: ${lo} ile ${hi} arasında olmalı.`;
+    return v;
+  },
+  rng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+};
+
+/* 1. Guard time and duty calculator */
+(function () {
+  const $ = id => document.getElementById(id);
+  const ia = $("tg-pa"), ib = $("tg-pb"), it = $("tg-t"), inn = $("tg-n"), ii = $("tg-i");
+  const out = $("tg-out"), err = $("tg-err"), svg = $("tg-svg"), tbl = $("tg-tbl");
+  const SLOT = 10, EXPECT = 3; /* ms: drawing only */
+  function upd() {
+    let pa, pb, T, n, I;
+    try {
+      pa = TS.read(ia, 0, 500, "Clock A ppm");
+      pb = TS.read(ib, 0, 500, "Clock B ppm");
+      T = TS.read(it, 0.1, 600, "Sync aralığı");
+      n = TS.read(inn, 0, 100, "Boş RX cell sayısı", true);
+      I = TS.read(ii, 0.1, 100, "I_RX");
+    } catch (m) { err.textContent = m; return; }
+    err.textContent = "";
+    const rel = pa + pb;
+    const d = rel * 1e-6 * T;          /* s */
+    const w = 2 * d;                   /* s */
+    const extra = n * w;               /* s of radio-on per second */
+    out.innerHTML = `Relative drift en fazla ${rel} ppm = ${rel} µs/s. ${TS.num(T, 2)} s sonra offset $\\delta \\le$ <b>${TS.num(d * 1e3)} ms</b>. Receiver $t-\\delta$'dan $t+\\delta$'ya dinler: guard window <b>${TS.num(w * 1e3)} ms</b>. Saniyede ${n} boş RX cell ⇒ saniyede fazladan ${TS.num(extra * 1e3)} ms radio-on: duty cycle'a <b>+%${TS.num(extra * 100, 3)}</b>, ortalama akıma <b>+${TS.num(extra * I * 1000, 1)} µA</b> (${TS.num(I, 1)} mA ile).`;
+    /* slot drawing, 10 ms = 300 px */
+    const X = ms => 20 + ms * 30;
+    const lo = EXPECT - d * 1e3, hi = EXPECT + d * 1e3;
+    let s = `<rect x="20" y="22" width="300" height="20" style="fill:var(--stone-200)" />`;
+    const a = Math.max(0, lo), b = Math.min(SLOT, hi);
+    if (b > a) s += `<rect x="${X(a)}" y="22" width="${Math.max(1, X(b) - X(a))}" height="20" style="fill:var(--orange-100);stroke:var(--accent);stroke-dasharray:3 2" />`;
+    s += `<line x1="${X(EXPECT)}" y1="14" x2="${X(EXPECT)}" y2="50" style="stroke:var(--blue-600);stroke-width:2" />`;
+    s += `<text x="${X(EXPECT) + 4}" y="12" style="font:10px 'JetBrains Mono',monospace;fill:var(--fg)">beklenen varış</text>`;
+    s += `<text x="20" y="62" style="font:10px 'JetBrains Mono',monospace;fill:var(--fg)">0 ms</text><text x="292" y="62" style="font:10px 'JetBrains Mono',monospace;fill:var(--fg)">10 ms</text>`;
+    svg.innerHTML = s;
+    if (lo < 0 || hi > SLOT) err.textContent = "Pencere 10 ms'lik slot'a sığmıyor: daha sık sync gerekir ya da slot uzatılmalı.";
+    /* table over sync intervals */
+    const Ts = [1, 5, 10, 30, 60];
+    if (!Ts.includes(T)) { Ts.push(T); Ts.sort((x, y) => x - y); }
+    let h = `<table class="w-tdma-scheduling-tbl"><tr><th>$T_{\\text{sync}}$ (s)</th><th>$\\delta$ (ms)</th><th>window (ms)</th><th>+duty</th><th>+$I_{\\text{avg}}$ (µA)</th></tr>`;
+    Ts.forEach(t => {
+      const dd = rel * 1e-6 * t, ex = n * 2 * dd;
+      h += `<tr class="${t === T ? "is-me" : ""}"><td>${TS.num(t, 2)}</td><td>${TS.num(dd * 1e3)}</td><td>${TS.num(2 * dd * 1e3)}</td><td>%${TS.num(ex * 100, 3)}</td><td>${TS.num(ex * I * 1000, 1)}</td></tr>`;
+    });
+    tbl.innerHTML = h + `</table>`;
+    Lab.renderMath(out); Lab.renderMath(tbl);
+  }
+  [ia, ib, it, inn, ii].forEach(el => el.addEventListener("input", upd));
+  upd();
+})();
+
+/* 2. Slot pipeline along A→B→C→D */
+(function () {
+  const $ = id => document.getElementById(id);
+  const iL = $("tp-l"), iab = $("tp-ab"), ibc = $("tp-bc"), icd = $("tp-cd"), ia = $("tp-a"), err = $("tp-err"), box = $("tp-stepper");
+  const HOPS = ["A→B", "B→C", "C→D"], NODES = ["A", "B", "C", "D"];
+  function delayFormula(offs, L, a) {
+    let tot = ((offs[0] - a) % L + L) % L + 1;
+    for (let h = 1; h < offs.length; h++) tot += (((offs[h] - offs[h - 1] - 1) % L) + L) % L + 1;
+    return tot;
+  }
+  function build() {
+    let L, offs, a;
+    try {
+      L = TS.read(iL, 3, 20, "L", true);
+      offs = [TS.read(iab, 0, L - 1, "A→B offset", true), TS.read(ibc, 0, L - 1, "B→C offset", true), TS.read(icd, 0, L - 1, "C→D offset", true)];
+      a = TS.read(ia, 0, L - 1, "Varış slot'u", true);
+      if (offs[0] === offs[1]) throw "A→B ve B→C aynı slot'ta olamaz: B aynı anda hem alıp hem gönderemez (half-duplex).";
+      if (offs[1] === offs[2]) throw "B→C ve C→D aynı slot'ta olamaz: C aynı anda hem alıp hem gönderemez (half-duplex).";
+    } catch (m) { err.textContent = m; box.innerHTML = ""; return; }
+    err.textContent = "";
+    /* real slot-by-slot run */
+    const frames = [{ t: null, hop: 0, moves: [], caption: `Packet A'da, slot ${a}'ın başında hazır. Mavi kutular cell'ler; packet sadece bulunduğu node'un cell'i gelince bir hop ilerler.` }];
+    let hop = 0, t = a;
+    const moves = [];
+    while (hop < 3) {
+      const o = t % L, f = Math.floor(t / L);
+      let cap;
+      if (o === offs[hop]) {
+        moves.push(t);
+        cap = `Slot ${t} (frame ${f}, offset ${o}): ${HOPS[hop]} cell'i geldi, packet ${NODES[hop + 1]}'ye geçti.`;
+        hop++;
+      } else {
+        const here = offs.map((x, i) => x === o ? HOPS[i] : null).filter(Boolean);
+        cap = here.length
+          ? `Slot ${t} (frame ${f}, offset ${o}): ${here.join(" ve ")} cell'i var ama packet ${NODES[hop]}'de; cell boş geçer.`
+          : `Slot ${t} (frame ${f}, offset ${o}): cell yok, packet ${NODES[hop]}'de bekliyor.`;
+      }
+      frames.push({ t, hop, moves: moves.slice(), caption: cap });
+      t++;
+    }
+    const slots = t - a, chk = delayFormula(offs, L, a), big = delayFormula(offs, 100, a % 100);
+    frames.push({ t: t - 1, hop: 3, moves: moves.slice(), final: true, caption: `Packet D'de. Uçtan uca <b>${slots} slot = ${slots * 10} ms</b> (10 ms slot). Formül: ${chk} slot ${chk === slots ? "✓" : "✗"}. Aynı offset'ler $L = 100$ (1 s frame) ile: ${big} slot = ${TS.num(big * 10 / 1000, 2)} s.` });
+    const nF = Math.floor((t - 1) / L) + 1;
+    Lab.stepper(box, {
+      title: `A→B→C→D · L = ${L} · offset'ler (${offs.join(", ")})`,
+      interval: 650,
+      frames,
+      render(fr, idx, el) {
+        let p = `<div class="w-tdma-scheduling-path">`;
+        NODES.forEach((n, i) => { p += (i ? `<span class="l"></span>` : "") + `<span class="n${fr.hop === i ? " has" : ""}">${n}</span>`; });
+        p += `</div>`;
+        let h = `<div class="table-wrap"><table class="w-tdma-scheduling-grid"><tr><th>frame</th>`;
+        for (let o = 0; o < L; o++) h += `<th>${o}</th>`;
+        h += `</tr>`;
+        for (let f = 0; f < nF; f++) {
+          h += `<tr><th>${f}</th>`;
+          for (let o = 0; o < L; o++) {
+            const abs = f * L + o;
+            const lab = offs.map((x, i) => x === o ? HOPS[i] : null).filter(Boolean);
+            const cls = [];
+            if (lab.length) cls.push("is-cell");
+            if (fr.moves.includes(abs)) cls.push("is-moved");
+            if (fr.t !== null && abs < fr.t && !fr.moves.includes(abs)) cls.push("is-past");
+            if (fr.t === abs) cls.push("is-now");
+            if (abs < a) cls.push("is-past");
+            h += `<td class="${cls.join(" ")}">${lab.join("<br>")}${fr.moves.includes(abs) ? " ✓" : ""}</td>`;
+          }
+          h += `</tr>`;
+        }
+        el.innerHTML = p + h + `</table></div>`;
+      }
+    });
+  }
+  $("tp-go").addEventListener("click", build);
+  document.querySelectorAll("[data-tp]").forEach(b => b.addEventListener("click", () => {
+    const [x, y, z] = b.dataset.tp.split(",");
+    iL.value = 10; iab.value = x; ibc.value = y; icd.value = z; ia.value = 0;
+    build();
+  }));
+  build();
+})();
+
+/* 3. Conflict graph builder, exact colouring, max clique, DSatur steps */
+(function () {
+  const $ = id => document.getElementById(id);
+  const ie = $("tc-edges"), il = $("tc-links"), r1 = $("tc-r1"), r2 = $("tc-r2"), r3 = $("tc-r3");
+  const err = $("tc-err"), out = $("tc-out"), box = $("tc-stepper");
+  const PRESETS = {
+    chain: { e: "A-B, B-C, C-D", l: "A>B, B>C, C>D", pos: { A: [40, 70], B: [127, 70], C: [213, 70], D: [300, 70] } },
+    star: { e: "A-R, B-R, C-R", l: "A>R, B>R, C>R", pos: { R: [180, 70], A: [60, 25], B: [60, 115], C: [300, 70] } },
+    s59: { e: "A-B, C-B, B-D, E-D", l: "A>B, C>B, B>D, B>D, E>D", pos: { A: [40, 25], C: [40, 115], B: [130, 70], D: [220, 70], E: [310, 70] } },
+    far: { e: "A-B, B-X, X-Y, Y-C, C-D", l: "A>B, C>D", pos: { A: [25, 70], B: [87, 70], X: [149, 70], Y: [211, 70], C: [273, 70], D: [325, 70] } }
+  };
+  let pos = PRESETS.chain.pos;
+  const NAME = /^[A-Za-z0-9]{1,3}$/;
+  function parse() {
+    const adj = new Map(), nodes = [];
+    const addN = n => { if (!adj.has(n)) { adj.set(n, new Set()); nodes.push(n); } };
+    const et = ie.value.split(/[,;\s]+/).filter(Boolean);
+    if (!et.length) throw "En az bir communication edge yaz (ör. A-B).";
+    et.forEach(tok => {
+      const m = tok.split("-");
+      if (m.length !== 2 || !NAME.test(m[0]) || !NAME.test(m[1])) throw `"${tok}" okunamadı: edge'i X-Y biçiminde yaz.`;
+      if (m[0] === m[1]) throw `"${tok}": bir node kendisiyle edge kuramaz.`;
+      addN(m[0]); addN(m[1]); adj.get(m[0]).add(m[1]); adj.get(m[1]).add(m[0]);
+    });
+    if (nodes.length > 10) throw "En fazla 10 node.";
+    const lt = il.value.split(/[,;\s]+/).filter(Boolean);
+    if (!lt.length) throw "En az bir transmission yaz (ör. A>B).";
+    if (lt.length > 12) throw "En fazla 12 transmission (tam arama için).";
+    const links = lt.map(tok => {
+      const m = tok.split(">");
+      if (m.length !== 2 || !NAME.test(m[0]) || !NAME.test(m[1])) throw `"${tok}" okunamadı: transmission'ı X>Y biçiminde yaz.`;
+      if (!adj.has(m[0]) || !adj.get(m[0]).has(m[1])) throw `${m[0]}>${m[1]}: ${m[0]} ile ${m[1]} arasında communication edge yok.`;
+      return { u: m[0], v: m[1] };
+    });
+    const seen = {};
+    links.forEach(L => { const k = L.u + ">" + L.v; seen[k] = (seen[k] || 0) + 1; L.name = `${L.u}→${L.v}` + (seen[k] > 1 ? `#${seen[k]}` : ""); });
+    return { adj, nodes, links };
+  }
+  function conflictEdges(G) {
+    const n = G.links.length, E = [], why = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const { u: a, v: b } = G.links[i], { u: c, v: d } = G.links[j];
+      let r = null;
+      if (r1.checked && a === c) r = "shared TX";
+      else if (r1.checked && b === d) r = "shared RX";
+      else if (r2.checked && (b === c || a === d)) r = "half-duplex";
+      else if (r3.checked && ((G.adj.get(b).has(c)) || (G.adj.get(d).has(a)))) r = "interference";
+      if (r) { E.push([i, j]); why.push(r); }
+    }
+    return { E, why };
+  }
+  function nbrs(n, E) { const N = Array.from({ length: n }, () => new Set()); E.forEach(([i, j]) => { N[i].add(j); N[j].add(i); }); return N; }
+  function exact(n, N) {
+    for (let k = 1; k <= n; k++) {
+      const col = new Array(n).fill(-1);
+      const order = [...Array(n).keys()].sort((x, y) => N[y].size - N[x].size);
+      const bt = p => {
+        if (p === n) return true;
+        const v = order[p];
+        for (let c = 0; c < k; c++) {
+          let ok = true;
+          N[v].forEach(u => { if (col[u] === c) ok = false; });
+          if (ok) { col[v] = c; if (bt(p + 1)) return true; col[v] = -1; }
+        }
+        return false;
+      };
+      if (bt(0)) return { k, col };
+    }
+    return { k: 0, col: [] };
+  }
+  function maxClique(n, N) {
+    let best = [];
+    for (let m = 1; m < (1 << n); m++) {
+      const S = [];
+      for (let i = 0; i < n; i++) if (m & (1 << i)) S.push(i);
+      if (S.length <= best.length) continue;
+      if (S.every((x, ii) => S.every((y, jj) => jj <= ii || N[x].has(y)))) best = S;
+    }
+    return best;
+  }
+  function dsatur(n, N) {
+    const col = new Array(n).fill(-1), steps = [];
+    for (let s = 0; s < n; s++) {
+      let pick = -1, bs = -1, bd = -1;
+      for (let v = 0; v < n; v++) {
+        if (col[v] >= 0) continue;
+        const sat = new Set([...N[v]].map(u => col[u]).filter(c => c >= 0)).size;
+        const deg = [...N[v]].filter(u => col[u] < 0).length;
+        if (sat > bs || (sat === bs && deg > bd)) { pick = v; bs = sat; bd = deg; }
+      }
+      const used = new Set([...N[pick]].map(u => col[u]).filter(c => c >= 0));
+      let c = 0; while (used.has(c)) c++;
+      col[pick] = c;
+      steps.push({ v: pick, c, sat: bs, col: col.slice() });
+    }
+    return steps;
+  }
+  function layout(G) {
+    const P = {};
+    const missing = G.nodes.filter(n => !pos || !pos[n]);
+    if (!missing.length && pos) { G.nodes.forEach(n => P[n] = pos[n]); return P; }
+    G.nodes.forEach((n, i) => { const t = -Math.PI / 2 + 2 * Math.PI * i / G.nodes.length; P[n] = [175 + 120 * Math.cos(t), 70 + 52 * Math.sin(t)]; });
+    return P;
+  }
+  function commSvg(G, P, col) {
+    let s = `<svg class="w-tdma-scheduling-svg" viewBox="0 0 350 140" role="img" aria-label="Communication graph">`;
+    s += `<defs><marker id="tc-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--fg)" /></marker></defs>`;
+    G.adj.forEach((set, a) => set.forEach(b => { if (a < b) s += `<line x1="${P[a][0]}" y1="${P[a][1]}" x2="${P[b][0]}" y2="${P[b][1]}" style="stroke:var(--stone-300);stroke-width:2" />`; }));
+    const grp = {};
+    G.links.forEach((L, i) => { const k = L.u + ">" + L.v; (grp[k] = grp[k] || []).push(i); });
+    Object.values(grp).forEach(ids => {
+      const L = G.links[ids[0]], [x1, y1] = P[L.u], [x2, y2] = P[L.v];
+      const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+      const ox = -uy * 6, oy = ux * 6;
+      const c = col[ids[0]] >= 0 ? TS.pal[col[ids[0]] % TS.pal.length] : "var(--fg-subtle)";
+      s += `<line x1="${x1 + ux * 14 + ox}" y1="${y1 + uy * 14 + oy}" x2="${x2 - ux * 15 + ox}" y2="${y2 - uy * 15 + oy}" style="stroke:${c};stroke-width:2.5" marker-end="url(#tc-arr)" />`;
+      const lab = ids.map(i => col[i] >= 0 ? col[i] : "?").join(",");
+      s += `<text x="${(x1 + x2) / 2 + ox * 2.2}" y="${(y1 + y2) / 2 + oy * 2.2 + 4}" text-anchor="middle" style="font:700 11px 'JetBrains Mono',monospace;fill:${c}">${lab}</text>`;
+    });
+    G.nodes.forEach(n => {
+      s += `<circle cx="${P[n][0]}" cy="${P[n][1]}" r="13" style="fill:var(--paper);stroke:var(--blue-600);stroke-width:2" />`;
+      s += `<text x="${P[n][0]}" y="${P[n][1] + 4}" text-anchor="middle" style="font:700 12px 'JetBrains Mono',monospace;fill:var(--fg)">${TS.esc(n)}</text>`;
+    });
+    return s + `</svg>`;
+  }
+  function conflictSvg(G, CE, col, hi, clique) {
+    const n = G.links.length, P = [];
+    for (let i = 0; i < n; i++) { const t = -Math.PI / 2 + 2 * Math.PI * i / n; P.push(n === 1 ? [175, 70] : [175 + 125 * Math.cos(t), 70 + 50 * Math.sin(t)]); }
+    const inC = new Set(clique);
+    let s = `<svg class="w-tdma-scheduling-svg" viewBox="0 0 350 140" role="img" aria-label="Conflict graph">`;
+    CE.E.forEach(([i, j], k) => {
+      const cl = inC.has(i) && inC.has(j);
+      s += `<line x1="${P[i][0]}" y1="${P[i][1]}" x2="${P[j][0]}" y2="${P[j][1]}" style="stroke:${cl ? "var(--accent)" : "var(--stone-500)"};stroke-width:${cl ? 2.5 : 1.5}${CE.why[k] === "interference" ? ";stroke-dasharray:4 3" : ""}" />`;
+    });
+    G.links.forEach((L, i) => {
+      const c = col[i] >= 0 ? TS.pal[col[i] % TS.pal.length] : "var(--paper)";
+      s += `<rect x="${P[i][0] - 25}" y="${P[i][1] - 11}" width="50" height="22" rx="6" style="fill:${c};stroke:${i === hi ? "var(--fg)" : "var(--blue-600)"};stroke-width:${i === hi ? 3 : 1.5}" />`;
+      s += `<text x="${P[i][0]}" y="${P[i][1] + 4}" text-anchor="middle" style="font:700 10px 'JetBrains Mono',monospace;fill:${col[i] >= 0 ? "#fff" : "var(--fg)"}">${TS.esc(L.name)}</text>`;
+    });
+    return s + `</svg>`;
+  }
+  function run() {
+    let G;
+    try { G = parse(); } catch (m) { err.textContent = m; out.innerHTML = ""; box.innerHTML = ""; return; }
+    err.textContent = "";
+    const P = layout(G), n = G.links.length;
+    const CE = conflictEdges(G), N = nbrs(n, CE.E);
+    const opt = exact(n, N), cl = maxClique(n, N), steps = dsatur(n, N);
+    const kD = Math.max(...steps.map(s => s.c)) + 1;
+    let h = `<p><b>Conflict edge'leri (${CE.E.length}):</b> ` + (CE.E.length ? CE.E.map(([i, j], k) => `${TS.esc(G.links[i].name)}–${TS.esc(G.links[j].name)} <span class="src">(${CE.why[k]})</span>`).join(", ") : "yok") + `.</p>`;
+    h += `<p>En büyük clique: <b>{${cl.map(i => TS.esc(G.links[i].name)).join(", ")}}</b> ⇒ en az <b>${cl.length}</b> slot. Tam arama (optimum): <b>${opt.k}</b> slot. DSatur: ${kD} slot ${kD === opt.k ? '<span class="w-tdma-scheduling-ok">(optimum)</span>' : '<span class="w-tdma-scheduling-bad">(optimumdan fazla)</span>'}.${opt.k > cl.length ? " Optimum clique'ten büyük: clique sadece lower bound." : ""}</p>`;
+    h += `<div class="table-wrap"><table class="w-tdma-scheduling-tbl"><tr><th>Slot</th><th style="text-align:left">Transmission'lar (optimum coloring)</th></tr>`;
+    for (let c = 0; c < opt.k; c++) h += `<tr><td><span class="w-tdma-scheduling-dot" style="background:${TS.pal[c % TS.pal.length]}"></span>${c}</td><td style="text-align:left">${G.links.map((L, i) => opt.col[i] === c ? TS.esc(L.name) : null).filter(Boolean).join(", ")}</td></tr>`;
+    out.innerHTML = h + `</table></div>`;
+    const frames = [{ col: new Array(n).fill(-1), hi: -1, caption: `Başlangıç: ${n} transmission, hiçbiri renkli değil. Sağdaki conflict graph'ta turuncu edge'ler en büyük clique'i, kesikli edge'ler interference conflict'lerini gösteriyor. DSatur her adımda komşuları en çok farklı renk kullanmış (saturation) vertex'i seçer, eşitlikte renksiz komşusu çok olanı.` }];
+    steps.forEach((s, k) => frames.push({ col: s.col, hi: s.v, caption: `Adım ${k + 1}: <b>${TS.esc(G.links[s.v].name)}</b> seçildi (saturation ${s.sat}). Komşularının kullanmadığı en küçük renk: <b>slot ${s.c}</b>.` }));
+    frames.push({ col: steps[steps.length - 1].col, hi: -1, caption: `Bitti: DSatur ${kD} slot kullandı; optimum ${opt.k}, en büyük clique ${cl.length}.` });
+    Lab.stepper(box, {
+      title: "DSatur ile coloring, adım adım",
+      interval: 1100,
+      frames,
+      render(fr, idx, el) {
+        el.innerHTML = `<div class="w-tdma-scheduling-two"><div><div class="w-tdma-scheduling-cap">Communication graph (ok etiketi = slot)</div>${commSvg(G, P, fr.col)}</div><div><div class="w-tdma-scheduling-cap">Conflict graph</div>${conflictSvg(G, CE, fr.col, fr.hi, cl)}</div></div>`;
+      }
+    });
+  }
+  document.querySelectorAll("[data-tc]").forEach(b => b.addEventListener("click", () => {
+    const p = PRESETS[b.dataset.tc];
+    ie.value = p.e; il.value = p.l; pos = p.pos;
+    run();
+  }));
+  ie.addEventListener("input", () => { pos = null; });
+  $("tc-go").addEventListener("click", run);
+  [r1, r2, r3].forEach(x => x.addEventListener("change", run));
+  run();
+})();
+
+/* 4. Queue stability over 50 frames */
+(function () {
+  const $ = id => document.getElementById(id);
+  const ia = $("tq-a"), ik = $("tq-k"), is = $("tq-s"), err = $("tq-err"), out = $("tq-out"), svg = $("tq-svg");
+  let seed = 7;
+  const F = 50;
+  function run() {
+    let a, k, s;
+    try {
+      a = TS.read(ia, 0, 10, "Varış", true);
+      k = TS.read(ik, 0, 12, "TX cell", true);
+      s = TS.read(is, 0.05, 1, "Başarı oranı");
+    } catch (m) { err.textContent = m; return; }
+    err.textContent = "";
+    const rnd = TS.rng(seed);
+    let q = 0, sent = 0;
+    const hist = [];
+    for (let f = 0; f < F; f++) {
+      q += a;
+      for (let c = 0; c < k; c++) if (q > 0 && rnd() < s) { q--; sent++; }
+      hist.push(q);
+    }
+    const cap = k * s, eps = 1e-9, equal = Math.abs(cap - a) < eps;
+    const stable = a === 0 || cap > a + eps || (s === 1 && equal);
+    const verdict = a === 0 ? `<span class="w-tdma-scheduling-ok">Varış yok: kuyruk boş kalır.</span>`
+      : cap > a + eps ? `<span class="w-tdma-scheduling-ok">$k \\cdot s = ${TS.num(cap, 2)} &gt; ${a}$: kuyruk sınırlı kalır.</span>`
+      : equal && s === 1 ? `<span class="w-tdma-scheduling-ok">$s = 1$, $k = a = ${a}$: deterministic servis. Her frame gelen packet'ler aynı frame'de gider; kuyruk 0 kalır, ama headroom yok.</span>`
+      : equal ? `<span class="w-tdma-scheduling-bad">$k \\cdot s = ${TS.num(cap, 2)} = ${a}$: stability garanti edilmez; kritik yükte backlog büyüyebilir.</span>`
+      : `<span class="w-tdma-scheduling-bad">$k \\cdot s = ${TS.num(cap, 2)} &lt; ${a}$: kuyruk frame başına ortalama ${TS.num(a - cap, 2)} packet büyür.</span>`;
+    const need = a === 0 ? "Varış yok, cell gerekmez."
+      : s === 1 ? `Gereken en az cell: $s = 1$ için $k = a = ${a}$.`
+      : `Gereken en az cell: $\\lfloor ${a}/${TS.num(s, 2)} \\rfloor + 1 = ${Math.floor(a / s + eps) + 1}$.`;
+    out.innerHTML = `${verdict} ${need} Bu çalıştırmada (seed ${seed}) 50 frame sonunda kuyrukta <b>${hist[F - 1]}</b> packet var; ${sent} packet gönderildi.`;
+    const mx = Math.max(10, ...hist), W = 500, H = 170, x0 = 34, y0 = 145, bw = (W - x0 - 6) / F;
+    let g = `<line x1="${x0}" y1="${y0}" x2="${W - 4}" y2="${y0}" style="stroke:var(--stone-500)" /><line x1="${x0}" y1="10" x2="${x0}" y2="${y0}" style="stroke:var(--stone-500)" />`;
+    g += `<text x="${x0 - 4}" y="${y0 + 4}" text-anchor="end" style="font:10px 'JetBrains Mono',monospace;fill:var(--fg)">0</text><text x="${x0 - 4}" y="16" text-anchor="end" style="font:10px 'JetBrains Mono',monospace;fill:var(--fg)">${mx}</text>`;
+    g += `<text x="${W - 6}" y="${y0 + 18}" text-anchor="end" style="font:10px 'JetBrains Mono',monospace;fill:var(--fg)">frame 50</text><text x="${x0}" y="${y0 + 18}" style="font:10px 'JetBrains Mono',monospace;fill:var(--fg)">frame 1</text>`;
+    hist.forEach((v, i) => {
+      const hh = (y0 - 10) * v / mx;
+      g += `<rect x="${x0 + 1 + i * bw}" y="${y0 - hh}" width="${Math.max(1, bw - 1.5)}" height="${hh}" style="fill:${stable ? "#2b8a3e" : "var(--accent)"}" />`;
+    });
+    svg.innerHTML = g;
+    Lab.renderMath(out);
+  }
+  $("tq-go").addEventListener("click", run);
+  $("tq-seed").addEventListener("click", () => { seed = (seed * 48271 + 11) % 2147483647; run(); });
+  [ia, ik, is].forEach(el => el.addEventListener("input", run));
+  run();
+})();
+</script>
+</body>
+</html>

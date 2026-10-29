@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 427: name, address ve identifier türleri, uniqueness ve address overhead, locally unique address dağıtımı, data-centric ve geographic addressing, 6LoWPAN'ın IPv6'yı 802.15.4'e uyarlaması, interface ID, IPHC header compression, mesh-under ve route-over, fragmentation, CoAP ve MQTT-SN." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Addressing ve 6LoWPAN · CSE 427 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-naming-6lowpan-box { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; margin: 12px 0; background: var(--bg-elevated); min-width: 0; }
+    .w-naming-6lowpan-guess { margin: 0 0 8px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-naming-6lowpan-ctl { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 6px 0; }
+    .w-naming-6lowpan-ctl label { font-size: .9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .w-naming-6lowpan-ctl input[type="number"] { width: 78px; font: inherit; padding: 2px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+    .w-naming-6lowpan-ctl input[type="text"] { width: 100%; max-width: 300px; font-family: 'JetBrains Mono', monospace; font-size: .9rem; padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+    .w-naming-6lowpan-ctl select { font: inherit; font-size: .88rem; max-width: 100%; padding: 2px 4px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--paper); }
+    .w-naming-6lowpan-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-naming-6lowpan-out { font-size: .97rem; margin: 6px 0; overflow-wrap: anywhere; }
+    .w-naming-6lowpan-mono { font-family: 'JetBrains Mono', monospace; font-size: .86rem; overflow-wrap: anywhere; }
+    .w-naming-6lowpan-ok { color: #2b8a3e; font-weight: 700; }
+    .w-naming-6lowpan-bad { color: var(--orange-700); font-weight: 700; }
+    .w-naming-6lowpan-tbl { border-collapse: collapse; font-size: .86rem; }
+    .w-naming-6lowpan-tbl td, .w-naming-6lowpan-tbl th { border: 1px solid var(--border); padding: 3px 7px; text-align: left; vertical-align: top; }
+    .w-naming-6lowpan-tbl th { background: var(--stone-050); }
+    .w-naming-6lowpan-tbl td.r { text-align: right; font-family: 'JetBrains Mono', monospace; }
+    .w-naming-6lowpan-tbl tr.is-on { background: var(--blue-050); }
+    .w-naming-6lowpan-tbl tr.is-lost { background: var(--orange-100); }
+    .w-naming-6lowpan-bar { display: flex; width: 100%; height: 30px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-strong); background: var(--stone-100); }
+    .w-naming-6lowpan-bar > span { display: flex; align-items: center; justify-content: center; font-size: .72rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; min-width: 0; }
+    .w-naming-6lowpan-leg { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .8rem; margin: 6px 0; }
+    .w-naming-6lowpan-leg i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+    .w-naming-6lowpan-bits { display: flex; flex-wrap: wrap; gap: 3px; margin: 6px 0; }
+    .w-naming-6lowpan-bits > span { display: inline-flex; flex-direction: column; align-items: center; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 2px 5px; background: var(--paper); }
+    .w-naming-6lowpan-bits b { font-family: 'JetBrains Mono', monospace; font-size: .9rem; }
+    .w-naming-6lowpan-bits small { font-size: .68rem; color: var(--fg-subtle); }
+    .w-naming-6lowpan-buf { display: flex; flex-wrap: wrap; gap: 2px; margin: 8px 0; }
+    .w-naming-6lowpan-buf > span { flex: 1 1 40px; min-width: 34px; height: 34px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: .72rem; font-weight: 700; border: 1px solid var(--border-strong); background: var(--stone-100); color: var(--fg-subtle); }
+    .w-naming-6lowpan-buf > span.got { background: var(--blue-600); color: #fff; border-color: var(--blue-600); }
+    .w-naming-6lowpan-buf > span.now { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .w-naming-6lowpan-buf > span.lost { background: var(--orange-100); color: var(--orange-700); border-style: dashed; }
+    .w-naming-6lowpan-svg { display: block; width: 100%; height: auto; }
+    .w-naming-6lowpan-svg text { font-family: 'JetBrains Mono', monospace; font-size: 11px; fill: var(--fg); }
+    .w-naming-6lowpan-svg text.h { font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 11px; fill: var(--fg-brand); }
+    .w-naming-6lowpan-scroll { overflow-x: auto; max-width: 100%; }
+    .w-naming-6lowpan-cap { font-size: .86rem; color: var(--fg-brand); margin: 8px 0 2px; }
+    .w-naming-6lowpan-wide { flex: 1 1 240px; min-width: 0; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 427</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 427</a> / Addressing ve 6LoWPAN</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L10</span><span class="chip">W6 · 19 Eki</span><span class="chip chip--exam">Vize kapsamı (varsayım)</span><span class="src">~64 dk · 12 bölüm</span></div>
+          <h1>Naming, addressing ve 6LoWPAN</h1>
+          <p class="lead">Bir sensor node'unu nasıl adlandırırsın, ona nasıl ulaşırsın ve 40 byte'lık bir IPv6 header'ını 127 byte'lık bir IEEE 802.15.4 frame'ine nasıl sığdırırsın? Bu derste önce K&amp;W'nin addressing anlatımını göreceksin: identifier türleri, uniqueness, address overhead ve data-centric naming. Sonra 6LoWPAN'ın işlerine geçeceğiz: interface ID'yi MAC address'ten türetmek, header compression ve fragmentation. En üstte de iki uygulama protokolü var: CoAP ve MQTT-SN.</p>
+          <p class="src">Not: Bu haftanın slaytları repoda yok. Naming ve addressing kısmı K&amp;W Bölüm 7 ve §3.3.4 üzerinden anlatıldı. 6LoWPAN, CoAP ve MQTT-SN kısmı ise standartların kendi metinlerine dayanıyor: <a href="https://www.rfc-editor.org/rfc/rfc4944" target="_blank" rel="noopener">RFC 4944</a>, <a href="https://www.rfc-editor.org/rfc/rfc6282" target="_blank" rel="noopener">RFC 6282</a>, <a href="https://www.rfc-editor.org/rfc/rfc7252" target="_blank" rel="noopener">RFC 7252</a>, <a href="https://www.rfc-editor.org/rfc/rfc7641" target="_blank" rel="noopener">RFC 7641</a> ve MQTT-SN v1.2 spesifikasyonu. Bu belgeler repoda değil, iki kitap da bu konulara girmiyor. Hocanın derste vurguladığı yerler farklı olabilir.</p>
+          <!-- Kaynak: weeks/06-naming-addressing-and-6lowpan.md (slayt yok, Practice listesi yok) · W1 xml slayt 3 (syllabus: "Data names, IPv6 adaptation, compression, fragmentation, CoAP/MQTT-SN"), xml 31 (RAM: "Routing, fragmentation, and security all consume state"), xml 53 (6LoWPAN "Adapts IPv6 to small IEEE 802.15.4 frames") · W2 slayt 46 (overhead), 49 (PPDU) · W4 slayt 7 (frame/packet/payload), 12 (overhearing) · W5 xml 43 (6TiSCH stack; "In plain words" kutusu self-study eki, kullanılmadı) · K&W Ch.7 s.181–199, §3.3.4 s.70–73, §5.5.1 s.140, §13.5.3 s.397–398 · D&P §7.1, §7.4, Exercise 7.3 · RFC 4944, RFC 6282, RFC 7252, RFC 7641, MQTT-SN v1.2 (rfc-editor.org ve OASIS'ten okundu) · Efe'nin W3 lab dosyaları (scenario-a.txt boot satırları, energy-client.c; origin/main'de değil, link yok). Bütün sayılar python ile doğrulandı. -->
+        </header>
+
+        <article class="lesson" data-course="cse-427" data-lesson="naming-6lowpan">
+
+<!-- 1 -->
+<section class="lsec" id="names" data-min="5">
+  <h2>Name, address ve identifier</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · bir mote, dört kimlik</span>
+    <p>K&amp;W'ye göre <strong>name</strong> bir şeyi gösterir, <strong>address</strong> ise onu bulmak için gereken bilgiyi verir. Kitap bu ayrımın keskin olmadığını hemen ekliyor: bir IP address'in network kısmı node'u bulmaya, host kısmı da o subnet içindeki bir network interface'i tanımaya yarar.</p>
+    <p>W3 lab'ındaki Cooja log'unda tek bir Sky mote'u açılışta dört ayrı kimlik yazıyor:</p>
+<pre><code>Node id is set to 2.
+Rime started with address 0.18.116.2.0.2.2.2
+MAC 00:12:74:02:00:02:02:02
+Tentative link-local IPv6 address fe80:0000:0000:0000:0212:7402:0002:0202</code></pre>
+    <p>İlk satır Cooja'nın verdiği numara. İkinci ve üçüncü satır aynı 8 byte'tır: Rime onları decimal yazıyor (0x12 = 18, 0x74 = 116). Dördüncüsü bu 8 byte'tan türetilmiş bir IPv6 address. Nasıl türetildiğini 6. bölümde göreceksin.</p>
+  </div>
+  <!-- Kaynak: assignments/2026-2027-fall-efe/week3/scenario-a.txt satır 2–5 (ID:2 boot mesajları). -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · beş tür isim ve adres (K&amp;W §7.1.1)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Tür</th><th>Ne işe yarar</th><th>Örnek</th></tr>
+      <tr><td><strong>Unique node identifier (UID)</strong></td><td>Her node için kalıcı ve unique bir değer. Protocol stack'te bir görevi olabilir de olmayabilir de.</td><td>Üretimde verilen vendor + product + serial number</td></tr>
+      <tr><td><strong>MAC address</strong></td><td>Bir node'un one-hop komşularını birbirinden ayırır. Unicast frame'de destination address olduğu için node "bu benim değil" deyip frame sürerken uyuyabilir: <em>overhearing avoidance</em>.</td><td>802.15.4'te 64-bit extended ya da 16-bit short address</td></tr>
+      <tr><td><strong>Network address</strong></td><td>Bir node'u multi-hop üzerinden bulur ve gösterir; bu yüzden routing'e bağlıdır.</td><td>IPv6 address</td></tr>
+      <tr><td><strong>Network identifier</strong></td><td>Aynı bölgede, aynı frequency band'inde çalışan aynı türden network'leri ayırır.</td><td>Aynı odadaki hastaların body area sensor network'leri</td></tr>
+      <tr><td><strong>Resource identifier</strong> (name)</td><td>Kullanıcının anladığı biçimde yazılır; node'ları, node gruplarını ya da data item'ları gösterebilir.</td><td><code>www.xemacs.org</code> ile <code>199.184.165.136</code> arasındaki fark</td></tr>
+    </table></div>
+    <p>Bir isimden adrese eşlemeye <strong>binding</strong> ya da <strong>name resolution</strong> denir. İnternette DNS name'i IP address'e, ARP de IP address'i MAC address'e eşler.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · address management görevleri (K&amp;W §7.1.2)</span>
+    <ul>
+      <li><strong>Address allocation:</strong> bir address pool'dan bir entity'ye address vermek.</li>
+      <li><strong>Address deallocation:</strong> node ölür, taşınır ya da yenisi eklenir; boşalan address'ler pool'a geri dönmezse pool sonunda tükenir. <em>Graceful</em> deallocation'da node control packet'leriyle address'ini bırakır. <em>Abrupt</em> deallocation'da node çöker ya da kaybolur; bunu fark edip address'i geri almak network'ün işidir. 48 bit gibi çok büyük address space'lerde deallocation sorun olmaz.</li>
+      <li><strong>Address representation:</strong> address'in biçimi üzerinde anlaşmak ve onu uygulamak.</li>
+      <li><strong>Conflict detection/resolution:</strong> on-demand address'lerin dağıtık verildiği network'lerde ya da iki network birleştiğinde aynı address iki kez çıkabilir.</li>
+      <li><strong>Binding:</strong> birden fazla addressing katmanı varsa aralarındaki eşleme.</li>
+    </ul>
+    <p><strong>Partition ve merge.</strong> Tek bir <em>critical node</em>'un enerjisi biterse network iki parçaya ayrılır. İki taraf da artık ulaşılamayan node'ların address'lerini geri almalı, ama bunu çok hızlı yapmamalı: network yeniden birleşirse eski dağılım hâlâ geçerli olur ve çözülecek bir conflict çıkmaz.</p>
+  </div>
+  <p>W4'te overhearing'i görmüştün: C, kendisine gelmeyen bir frame'i "bu benim değil" diyene kadar dinler ve enerji harcar. Slaytın notu: <em>"Address filtering helps, but only after some listening has already happened."</em> MAC address'in WSN'deki asıl görevi bu filtrelemeyi mümkün kılmaktır.</p>
+  <!-- Kaynak: K&W §7.1.1–7.1.2 s.182–183, Figure 7.1 · W4 slayt 12 (overhearing). -->
+  <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/karl-willig-protocols-and-architectures-for-wireless-sensor-networks.pdf#page=208" target="_blank" rel="noopener">Orijinal kitap (K&amp;W, Bölüm 7, s. 181)</a></p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>MAC address'i "cihazın dünya çapındaki donanım kimliği" diye tanımlama. WSN'deki işi one-hop komşuları ayırmaktır ve bunun için globally unique olması gerekmez (sonraki bölüm).</li>
+      <li>Binding'i allocation ile karıştırma. ARP address dağıtmaz, iki katmandaki address'leri birbirine eşler.</li>
+      <li>Abrupt deallocation'da node "gidiyorum" demez. Address'i geri almak network'e kalır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-names-1">
+    <p class="quiz__q">Aynı odada yatan iki hastanın body area sensor network'leri aynı frequency band'ini kullanıyor. Verilerin karışmaması için hangi tür identifier gerekir?</p>
+    <button class="quiz__opt" data-correct>Network identifier<span class="why">Doğru. Aynı bölgede ve aynı band'de çalışan aynı türden network'leri ayırmak network identifier'ın işi; K&amp;W örneği tam bu.</span></button>
+    <button class="quiz__opt">MAC address<span class="why">MAC address bir network içinde one-hop komşuları ayırır. İki ayrı network'te aynı MAC address bulunabilir; hangi hastaya ait olduğunu söylemez.</span></button>
+    <button class="quiz__opt">Unique node identifier (UID)<span class="why">UID tek bir node'u tanır, node'un hangi network'e ait olduğunu değil. Her paketin hangi hastanın network'üne ait olduğunu söyleyen ayrı bir alan gerekir.</span></button>
+    <button class="quiz__opt">Resource identifier<span class="why">Resource identifier kullanıcıya anlam ifade eden bir isimdir (bir data item ya da servis). Radyo üzerinde iki network'ü ayırmak için kullanılmaz.</span></button>
+  </div>
+  <div class="quiz" id="q-names-2">
+    <p class="quiz__q">Bir node'un pili bitiyor ve node sessizce ölüyor. Bu, address management'ta hangi durumdur?</p>
+    <button class="quiz__opt">Graceful deallocation<span class="why">Graceful'da node control packet'leriyle address'ini kendisi bırakır. Ölen node hiçbir şey gönderemez.</span></button>
+    <button class="quiz__opt" data-correct>Abrupt deallocation<span class="why">Doğru. Node kaybolur, address'i fark edip geri almak network'ün sorumluluğundadır.</span></button>
+    <button class="quiz__opt">Binding<span class="why">Binding iki addressing katmanı arasındaki eşlemedir (ARP gibi). Bir node'un ayrılmasıyla ilgisi yok.</span></button>
+    <button class="quiz__opt">Conflict resolution<span class="why">Conflict, aynı address iki node'da olduğunda çıkar. Burada çakışma yok, kullanılmayan bir address var.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="uniqueness" data-min="6">
+  <h2>Uniqueness ve address overhead</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · address data'dan büyük olunca</span>
+    <p>Bir sensor packet'i çoğu zaman birkaç byte'lık bir ölçüm taşır. Ethernet'teki gibi 48 bit'lik bir address koyarsan, K&amp;W'nin cümlesiyle, <em>"a single 48-bit address can be larger than the data!"</em> Address'i kısaltmanın yolu uniqueness şartını gevşetmektir. Bedeli de address'i dağıtacak bir protokoldür.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · üç uniqueness düzeyi (K&amp;W §7.1.3)</span>
+    <ul>
+      <li><strong>Globally unique:</strong> dünyada en fazla bir kez geçer. Örnek: 48-bit IEEE MAC address. Bütün cihazlara yetecek kadar uzun olmalı.</li>
+      <li><strong>Networkwide unique:</strong> bir network içinde unique. Birbiriyle hiç haberleşemeyen iki network aynı address'i kullanabilir.</li>
+      <li><strong>Locally unique:</strong> network içinde birkaç kez geçebilir ama tanımlı bir komşulukta unique. MAC address için bu komşuluk <strong>two-hop</strong> neighborhood'dur: A, B ve C bir zincirse ve A ile C aynı address'i taşıyorsa, B gelen frame'in kimden geldiğini anlayamaz, kendi frame'ini de tek bir alıcıya yönlendiremez. Başka bir örnek: iki temperature sensor aynı address'i almasın, ama bir temperature ve bir humidity sensor alabilir.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · address nasıl verilir (K&amp;W §7.1.4)</span>
+    <ul>
+      <li><strong>A priori</strong> (üretimde ya da deployment'tan önce) ya da <strong>on demand</strong> (bir address assignment protocol ile). On-demand protokol <strong>centralized</strong> (tek bir authority) ya da <strong>distributed</strong> (bütün node'lar aynı rolde) olabilir.</li>
+      <li>Distributed assignment'ta conflict'lerle ya yaşanır ya da bunlar bulunur. Vaidya'nın ayrımı: <strong>strong DAD</strong> (Duplicate Address Detection), $t_1$'de ikinci kez verilen bir address'in en geç $t_1 + T$'de fark edilmesini ister. <strong>Weak DAD</strong>, devam eden session'ları bozmadıkça duplicate'lere göz yumar.</li>
+      <li>Centralized örnek DHCP. WSN'de üç sorunu var: bütün trafik birkaç address server'a gider ve çevreleri hot spot olur (clusterhead'lere address space'in ayrık parçalarını vermek bunu biraz hafifletir); network bölünmüşse server'a ulaşılamaz; DHCP abrupt deallocation'ı fark etmek için periyodik yenileme ister.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · addressing overhead (K&amp;W §7.1.5)</span>
+    <p>Overhead iki şeye bağlıdır: address'in <strong>ne sıklıkla</strong> gönderildiği ve <strong>kaç bit</strong> olduğu.</p>
+    <ul>
+      <li>TRAMA ya da SMACS gibi dedicated link kuran (conflict-free slot ya da frequency atayan) MAC'lerde data packet'inde address gerekmez; source ve destination link'ten bellidir. Contention-based MAC'te ise herkes herkese gönderebilir, address şarttır.</li>
+      <li>Globally unique 48 bit: Ethernet'in yüzlerce byte'lık frame'lerinde önemsiz, WSN'in küçük packet'lerinde data'dan büyük olabilir.</li>
+      <li>Networkwide unique: 10,000 node için 14 bit yeter ($2^{14} = 16384$). Ama network'ün boyutunu baştan bilmek ve sonradan eklenecek node'lar için pay bırakmak gerekir.</li>
+      <li>Locally unique: two-hop neighborhood birkaç düzine node olduğundan daha az bit yeter, ama topology baştan bilinmediği için bir assignment protocol gerekir.</li>
+    </ul>
+    <p>Trade-off: node'lar çoğunlukla sabitse kısa local address'lerin her packet'te kazandırdığı bit'ler protokolün maliyetini çıkarır. Node'lar çok hareketliyse protokol çok sık çalışır ve kazanç kaybolur.</p>
+  </div>
+  <h3>Rastgele address seçmek: birthday problem</h3>
+  <p>En basit yol: her node $0 \dots 2^m - 1$ aralığından uniform ve bağımsız olarak bir address seçsin ve unique olmasını umsun. $n = 2^m$ address ve $k$ node için hiç conflict olmama olasılığı:</p>
+  $$P(n,k) = 1\cdot\frac{n-1}{n}\cdots\frac{n-k+1}{n} = \frac{n!}{(n-k)!\,n^k}$$
+  <p>K&amp;W'nin örneği: $m = 14$ bit ($n = 16384$). $k = 275$ node'da conflict olasılığı %90'ı geçiyor, oysa address space'in yalnızca ≈%1.7'si kullanılmış. Bu yüzden ya bir conflict-resolution protocol gerekir ya da daha akıllı bir assignment.</p>
+  <div class="w-naming-6lowpan-box" id="w-bday">
+    <p class="w-naming-6lowpan-guess"><b>Önce tahmin et:</b> 8 bit'lik address ($n = 256$) ve 20 node. Conflict olmama olasılığı sence %90'ın üstünde mi, altında mı?</p>
+    <div class="w-naming-6lowpan-ctl">
+      <label>Address bit'i $m$ <input type="number" id="bd-m" value="8" min="1" max="32" step="1" /></label>
+      <label>Node sayısı $k$ <input type="number" id="bd-k" value="20" min="1" max="100000" step="1" /></label>
+      <button class="btn btn--sm" data-bd="14,275">K&amp;W örneği (14 bit, 275 node)</button>
+      <button class="btn btn--sm" data-bd="16,300">16 bit, 300 node</button>
+    </div>
+    <div class="w-naming-6lowpan-err" id="bd-err" role="alert"></div>
+    <div class="w-naming-6lowpan-out" id="bd-out" role="status" aria-live="polite"></div>
+  </div>
+  <p>Conflict'lerle ne yapılır? Kabul edip bir şey yapmamak bir seçenek. Node yakınındaki packet'leri dinleyip kullanılan address'lerden kaçınabilir. MANET'ler için önerilen çözümler de var: Perkins'in protokolünde node geçici bir address ve önerdiği kalıcı address ile bir address request gönderir; cevap gelmezse address'i alır (MAC address'e uygulanınca bu request'ler flood edilmek zorunda). Nesargi ve Prakash bunu bir distributed agreement problemi olarak görür: two-phase commit'e benzer, WSN için fazla overhead. Hierarchical IPv6 autoconfiguration'da leader node'lar rastgele subnet ID seçer ve aralarında DAD çalıştırır, diğerleri address'ini leader'ın subnet ID'si ve kendi MAC address'inden kurar. K&amp;W'nin sonucu: networkwide uniqueness bir <strong>distributed consensus</strong> problemine dönüşür ve bunun iletişim maliyeti kaçınılmazdır.</p>
+  <!-- Kaynak: K&W §7.1.3–7.1.5 s.184–186, Figure 7.2 · §7.2 s.186 · §7.3, Example 7.1, Figure 7.3 s.186–189 · sayılar python ile: k=275 → 1−P = 0.901, 275/16384 = 0.0168. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Address space'in %2'sini bile kullanmadım, çakışma olmaz" demek. Conflict olasılığı $k/n$ ile değil, yaklaşık $k^2/(2n)$ ile büyür; birthday problem'in dersi bu.</li>
+      <li>Locally unique'i "one-hop'ta unique" sanmak. MAC için şart two-hop: ortadaki B iki uçtaki komşusunu ayırabilmeli.</li>
+      <li>Networkwide unique ile globally unique aynı şey değil. Biri tek network içinde, diğeri bütün dünyada unique.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-uniq-1">
+    <p class="quiz__q">A – B – C bir zincir: A ile C birbirini duymuyor, B ikisini de duyuyor. A ile C aynı MAC address'i alırsa ne bozulur?</p>
+    <button class="quiz__opt">Hiçbir şey, çünkü A ile C birbirini duymuyor<span class="why">Sorun A ile C arasında değil, ortadaki B'de. Uniqueness şartının two-hop olmasının nedeni bu.</span></button>
+    <button class="quiz__opt" data-correct>B gelen bir frame'in A'dan mı C'den mi geldiğini ayıramaz, kendi frame'ini de tek bir alıcıya yönlendiremez<span class="why">Doğru. MAC address'in işi one-hop komşuları ayırmak; B'nin iki komşusu aynı address'i taşırsa bu iş yapılamaz.</span></button>
+    <button class="quiz__opt">A ile C'nin frame'leri her zaman collision yapar<span class="why">Collision address'ten değil, aynı anda göndermekten çıkar (hidden terminal). Farklı address'li node'lar da çarpışabilir.</span></button>
+  </div>
+  <div class="quiz" id="q-uniq-2">
+    <p class="quiz__q">8 bit'lik address space ($n = 256$) ve rastgele address seçen 20 node. Conflict olmama olasılığı yaklaşık kaçtır?</p>
+    <button class="quiz__opt">≈ 0.92<span class="why">Bu $1 - 20/256$, yani tek bir node'un çakışma ihtimalini düşünmek. Oysa her node çifti çakışabilir; çift sayısı $\binom{20}{2} = 190$.</span></button>
+    <button class="quiz__opt" data-correct>≈ 0.47<span class="why">Doğru: $P(256, 20) = \prod_{i=0}^{19} (256-i)/256 \approx 0.467$. Address space'in sadece %8'i kullanılmışken yarıdan fazla ihtimalle conflict var.</span></button>
+    <button class="quiz__opt">≈ 0.08<span class="why">0.08, kullanılan address oranı ($20/256$). Olasılık değil.</span></button>
+    <button class="quiz__opt">≈ 0.99<span class="why">256 address 20 node'a göre çok gibi görünür, ama birthday problem tam bu sezgiyi yanlışlar.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="local-assign" data-min="5">
+  <h2>Locally unique address dağıtmak</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · iki fikir: reuse ve greediness</span>
+    <p>Schurgers ve arkadaşlarının protokolü MAC address'leri sadece komşularla konuşarak dağıtır. İlk fikir <strong>reuse</strong>: birbirinden uzak node'lar aynı address'i kullanabilir. İkinci fikir <strong>greediness</strong>: her node kullanılmayan <em>en küçük</em> address'i alır. Böylece küçük address'ler network'te çok daha sık görülür ve sık görülen bir address kısa bir code ile yazılabilir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · hangi address'ler farklı olmalı (K&amp;W §7.4.1)</span>
+    <p>Asymmetric link'ler gerçek, bu yüzden üç tür komşu var. A'nın <strong>bidirectional</strong> komşusuyla iki yönde de haberleşir. <strong>Inbound</strong> komşusunu A duyar ama o A'yı duymaz. <strong>Outbound</strong> komşusu A'yı duyar ama A onu duymaz.</p>
+    <p>Node'lar sadece bidirectional komşularından gelen packet'leri kabul ederse şart şudur: <strong>her node A için, A'nın bütün bidirectional komşuları farklı address taşımalı; ayrıca A'nın her inbound komşusunun address'i, A'nın bütün bidirectional komşularınınkinden farklı olmalı.</strong></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · protokolün adımları</span>
+    <ol>
+      <li>Önce neighborhood discovery: A, komşularını bidirectional ve inbound olarak sınıflar. Link'ler zamanla değiştiği için bu arada bir tekrarlanır.</li>
+      <li>A bir <strong>HELLO</strong> broadcast eder.</li>
+      <li>Address'i olan bidirectional ve outbound komşular, collision'ı azaltmak için rastgele bir gecikmeden sonra <strong>INFO</strong> ile cevap verir. INFO üç şey taşır: gönderenin unique node identifier'ı, kendi MAC address'i ve <em>kendi bidirectional komşularının MAC address'leri</em>.</li>
+      <li>A sınırlı bir süre INFO dinler. Sonunda one-hop ve two-hop neighborhood'unu bilir.</li>
+      <li>A'nın one-hop komşularının address'leri birbirinden farklıysa A, two-hop neighborhood'unda kullanılmayan <strong>en küçük</strong> address'i seçer. İki komşusu aynı address'i taşıyorsa A bir <strong>CONFLICT</strong> mesajı gönderir ve o node'lar yeniden seçer.</li>
+    </ol>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · A hangi address'i alır?</span>
+    <p>A'nın iki bidirectional komşusu var: B (address 0) ve C (address 2). B'nin INFO'su, B'nin diğer bidirectional komşularının 1 ve 3 kullandığını söylüyor. C'ninki 0 ve 4 diyor. Kullanılan küme $\{0, 2\} \cup \{1, 3\} \cup \{0, 4\} = \{0, 1, 2, 3, 4\}$. A'nın alabileceği en küçük address <strong>5</strong>.</p>
+    <p>Neden B'nin komşularına bakıyoruz? A da B'nin bidirectional komşusu olacak ve B'nin bütün bidirectional komşuları farklı olmalı. INFO'nun komşu listesini taşımasının nedeni bu.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · representation: Huffman ile kısaltmak (K&amp;W §7.4.2)</span>
+    <ul>
+      <li>Greedy seçim address'lerin dağılımını düzgün olmaktan çıkarır. Node density (bir node'un beklenen komşu sayısı) düşükse ağırlık küçük address'lerde toplanır; density arttıkça dağılım uniform'a yaklaşır.</li>
+      <li>Bir dağılımı kodlamak için gereken ortalama minimum bit sayısı onun <strong>entropy</strong>'sidir. Uniform dağılımın entropy'si en yüksektir; çarpık bir dağılım daha az bit ister.</li>
+      <li>Address'ler packet'e doğrudan değil, <strong>Huffman</strong> codeword'leri olarak yazılır. Codebook deployment'tan önce bütün node'lara verilir. Huffman optimaldir, ortalama uzunluğu entropy'ye bir bit yakındır ve prefix-free olduğu için kolay decode edilir. Receiver'ın variable-length address'i ayrıştırması küçük bir ek iştir.</li>
+      <li><strong>Range-based</strong> değişiklik: en küçük address'in codeword'ü $m$ bit ise, $m$ bit uzunluğundaki $M$ codeword'den biri rastgele seçilir. Collision olasılığı ve CONFLICT mesajları azalır.</li>
+    </ul>
+    <p><strong>Sonuçlar</strong> (N = 500 node, λ = 10 komşu, 2.4 kb/s radio; variable-length address'i decode etmek ortalama 50 instruction, 1 bit göndermek ≈ 120 instruction'a denk): variable-length scheme, fixed-length'ten tipik olarak ≈ 1 bit daha kısa. Ortalama address boyu node density'ye bağlı, node sayısından neredeyse bağımsız; networkwide unique address'in boyu ise $\log N$ ile büyür. Kazanç, a priori 14-bit address'e göre birkaç düzine data packet'inden sonra HELLO, INFO ve CONFLICT'in maliyetini çıkarıyor.</p>
+    <p>Başka yollar da var: address'i node'lara değil link'lere vermek, ya da bir clusterhead'in kendi üyelerine conflict-free address dağıttığı cluster yaklaşımı.</p>
+  </div>
+  <!-- Kaynak: K&W §7.4 s.189–194, Figure 7.4–7.7. K&W'nin "A guide to the book" bölümü kısa bir derste 7.3 ve 7.4'ün atlanabileceğini söylüyor; slayt olmadığı için burada kısa tutuldu. Örnek özgün. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Greedy "en küçük address" kuralının amacı fairness değil, dağılımı çarpıtıp Huffman ile kısa code elde etmek.</li>
+      <li>Sadece kendi one-hop komşularına bakıp en küçük boş address'i seçmek yanlış. Komşularının komşularını da hesaba katmalısın.</li>
+      <li>Codebook, varsayılan density'ye göre kurulur. Gerçek density farklıysa kazanç azalır (fark Kullback–Leibler distance kadar).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-local-1">
+    <p class="quiz__q">Yukarıdaki örnekte A sadece kendi one-hop komşularına (B = 0, C = 2) bakıp en küçük boş address'i seçseydi hangisini alırdı ve neden yanlış olurdu?</p>
+    <button class="quiz__opt" data-correct>1; ama B'nin bir başka bidirectional komşusu zaten 1 kullanıyor, B o ikisini ayıramaz<span class="why">Doğru. {0, 2} dışındaki en küçük değer 1. Şart two-hop olduğu için B'nin diğer komşularının 1 ve 3'ü de yasak.</span></button>
+    <button class="quiz__opt">5; çünkü one-hop'a bakmak yeterli<span class="why">5'e ancak two-hop kümesine bakınca varırsın. One-hop kümesi {0, 2} olduğunda en küçük boş değer 1'dir.</span></button>
+    <button class="quiz__opt">0; greedy her zaman 0'ı seçer<span class="why">0, B'nin address'i. Greedy kullanılmayan en küçük değeri seçer, kullanılanı değil.</span></button>
+  </div>
+  <div class="quiz" id="q-local-2">
+    <p class="quiz__q">Locally unique, variable-length address'lerde ortalama address boyu en çok neye bağlıdır?</p>
+    <button class="quiz__opt">Network'teki toplam node sayısına, $\log_2 N$ gibi<span class="why">Bu networkwide unique address'in davranışı. Local address'ler uzaktaki node'larda yeniden kullanıldığı için toplam sayı belirleyici değil.</span></button>
+    <button class="quiz__opt" data-correct>Node density'ye, yani bir node'un ortalama komşu sayısına<span class="why">Doğru. K&amp;W: "the address representation size of locally unique addresses depends only on the network density but not on the absolute number of nodes".</span></button>
+    <button class="quiz__opt">Radio'nun data rate'ine<span class="why">Data rate bir bit'i göndermenin süresini ve enerjisini değiştirir, address'in kaç bit olduğunu değil.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="data-centric" data-min="6">
+  <h2>Data-centric ve geographic addressing</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · node'ları değil, veriyi adresle</span>
+    <p>Kullanıcı "13, 47, 2225, 14592 ve 14593 numaralı sensor'ların temperature değerlerini al ve ortalamasını ver" demek istemez. Şunu der: <em>"Give me the mean temperature in room C-1.3 in the HPI building."</em> Node'lar çoğu zaman yedekli yerleştirilir ve bir olayı birkaç node birden görür; hangisinin raporladığının önemi yoktur. K&amp;W'nin başlığı: <strong>"Address data, not nodes."</strong></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · data-centric networking (K&amp;W §3.3.4)</span>
+    <p>Network, uygulamaya node'ların değil <strong>data'nın</strong> adreslendiği bir interface sunar. Bir isteğe katılan node kümesi açıkça yazılmaz; o isteğe veri katkısı yapabilen node'lar kümeyi kendiliğinden oluşturur. Fil izleme örneğinde uygulama sadece "presence of elephant" tipindeki olaylarla ilgilendiğini söyler; elephant detector'ı olan node'lar bunu kendiliğinden üstlenir.</p>
+    <ul>
+      <li>In-network processing'in (data fusion, aggregation) asıl gerekçesidir.</li>
+      <li>One-to-one, one-to-many, many-to-one, many-to-many ayrımı gereksizleşir.</li>
+      <li>Identity'den ve zamandan bağımsızlık: istek, cevabın ne zaman geleceğini belirtmek zorunda değil (event detection için uygun).</li>
+    </ul>
+    <p><strong>Üç uygulama biçimi:</strong></p>
+    <ul>
+      <li><strong>Overlay network ve DHT:</strong> peer-to-peer'deki gibi bir key ile kaynağı $O(\log n)$ adımda bulur. Ama DHT'ler hop count'u hesaba katmaz; WSN'de her hop pahalı olduğu için bu kabul edilemez.</li>
+      <li><strong>Publish/subscribe:</strong> ilgilenen node bir veri türüne subscribe olur, herhangi bir node veriyi türüyle birlikte publish eder. Subject-based (baştan tanımlı anahtar kelimeler, hiyerarşik subject ağacı) ya da content-based (içerik üzerinde predicate) olabilir. Merkezi bir eşleştirici WSN'e uymaz; dağıtık çözüm daha zordur.</li>
+      <li><strong>Database:</strong> sensor'lar bir sanal tablo gibi sorgulanır, örneğin <code>SELECT AVG(temperature) FROM sensors WHERE location = "Room 123"</code>. Zor olan, iletişim maliyetini hesaba katan dağıtık bir execution plan kurmak.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: K&W §3.3.4 s.70–73 (elephant, DHT, pub/sub, Listing 3.1) · §7.5 s.194 (room C-1.3). -->
+  <h3>AVO tuple'ları ve one-way match</h3>
+  <p>K&amp;W'nin Example 7.2'si content-based addressing'i directed diffusion routing ile birleştirir. Sink bir <strong>interest</strong> mesajı yayar; eşleşen veriyi üretebilen node'lar <strong>source</strong> olur; aradaki node'lar interest'i ve olası upstream komşuları bir <em>interest cache</em>'te tutar ve gelen data packet'ini eşleşen interest'in komşusuna iletir. Hem interest hem data, <strong>Attribute Value Operation (AVO)</strong> tuple'larından oluşan kümelerdir.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · operator'lar ve eşleme</span>
+    <div class="table-wrap"><table>
+      <tr><th>Operator</th><th>Eşleşir, eğer…</th></tr>
+      <tr><td>EQ / NE</td><td>actual value, value'ya eşit / eşit değil</td></tr>
+      <tr><td>LT / GT</td><td>actual value daha küçük / daha büyük</td></tr>
+      <tr><td>LE / GE</td><td>actual value küçük-eşit / büyük-eşit</td></tr>
+      <tr><td>EQ_ANY</td><td>her şeyle (value anlamsız)</td></tr>
+      <tr><td>IS</td><td>eşleştirme yapmaz, literal bir değer bildirir (<em>actual</em> operator)</td></tr>
+    </table></div>
+    <p>IS dışındaki operator'lar <em>formal</em>'dır. <strong>One-way match:</strong> interest'teki her formal attribute $a$ için data'da aynı key'e sahip, IS ile verilmiş ve koşulu sağlayan bir $b$ bulunmalı. Biri bile bulunamazsa eşleşme yoktur. Koşullar sadece AND ile birleşir, bu yüzden iş formal attribute sayısıyla doğrusal kalır. Genel Boolean ifadelere izin vermek çok daha fazla hesap isterdi.</p>
+<pre><code>interest (Listing 7.2)              sensor (Listing 7.3)
+&lt;type, temperature, EQ&gt;            &lt;type, temperature, IS&gt;
+&lt;threshold-from-below, 20, IS&gt;     &lt;x-coordinate, 10, IS&gt;
+&lt;x-coordinate, 20, LE&gt;             &lt;y-coordinate, 10, IS&gt;
+&lt;x-coordinate, 0, GE&gt;
+&lt;y-coordinate, 20, LE&gt;
+&lt;y-coordinate, 0, GE&gt;
+&lt;interval, 0.05, IS&gt;
+&lt;duration, 10, IS&gt;
+&lt;class, interest, IS&gt;</code></pre>
+    <p>Anlamı: (0,0)–(20,20) metrelik karede temperature 20 °C'yi aşağıdan geçerse, eşleşen sensor 10 s boyunca her 0.05 s'de bir rapor versin.</p>
+  </div>
+  <div class="w-naming-6lowpan-box" id="w-avo">
+    <p class="w-naming-6lowpan-guess"><b>Önce tahmin et:</b> (25, 10) noktasındaki bir temperature sensor'u bu interest ile eşleşir mi? Hangi satır karar verir?</p>
+    <div class="w-naming-6lowpan-ctl">
+      <label>type <select id="avo-type"><option>temperature</option><option>humidity</option><option>light</option></select></label>
+      <label>x-coordinate <input type="number" id="avo-x" value="10" step="any" /></label>
+      <label>y-coordinate <input type="number" id="avo-y" value="10" step="any" /></label>
+      <label><input type="checkbox" id="avo-noy" /> y attribute'u yok</label>
+    </div>
+    <div class="w-naming-6lowpan-err" id="avo-err" role="alert"></div>
+    <div class="table-wrap" id="avo-out"></div>
+    <p class="w-naming-6lowpan-out" id="avo-sum" role="status" aria-live="polite"></p>
+  </div>
+  <p><strong>Expressiveness ve hesap.</strong> Bir naming system'in iki özelliği önemlidir: ne kadar şeyi ne kadar kısa adlandırabildiği ve bir şeyin bir isimle eşleşip eşleşmediğini kontrol etmenin maliyeti. Bu sistem filter'larla birlikte in-network aggregation ve nested query'ler için kullanıldı. Nested query bir <em>composite event</em> yakalar: bir olayın gerçekleşmesi başka bir olaya ilgi doğurur. Hesap olay kaynağına yaklaşır, bandwidth azalır.</p>
+  <p><strong>SPIN</strong> veriyi <em>metadata</em> ile adlandırır. Metadata gerçek veriden kısa olmalı (D&amp;P: $x$, $X$'i tanımlıyorsa boyu $X$'ten küçük; aynı veri aynı metadata'yı, farklı veri farklı metadata'yı almalı). Kaynak önce bir <strong>ADV</strong> gönderir, ilgilenen komşu <strong>REQ</strong> ile ister, kaynak <strong>DATA</strong> ile asıl veriyi yollar. Bir kamera için metadata $(x, y, \varphi)$ olabilir.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · geographic addressing (K&amp;W §7.5.2)</span>
+    <p>Content-based addressing'in özel bir hali: attribute'lardan bazıları uzaydaki konumdur. Her node, üzerinde anlaşılmış bir koordinat sistemine göre kendi yerini bilmeli (localization). Bölge şöyle verilebilir: tek bir nokta; merkez ve yarıçapla bir circle ya da sphere; iki ya da üç köşe ile bir rectangle ya da parallelepiped; nokta listesiyle bir polygon ya da polytope. Node, konumunun bölgenin içinde olup olmadığını test etmeli. Genel polygon'larda bu point-in-polygon testi pahalılaşır ve daha çok nokta daha çok bit demektir. Geographic address routing'e de yardım eder (directed diffusion'da interest'i bölgeye doğru yönlendirmek gibi).</p>
+    <p>Content-based ve geographic addressing <strong>MAC address'in yerini tutmaz</strong>. Network katmanında, routing kararlarında kullanılır.</p>
+  </div>
+  <!-- Kaynak: K&W §7.5.1 Example 7.2, Table 7.1, Listing 7.1–7.4 s.194–198 · §7.5.2 s.198 · §7.6 · D&P §7.4 ve §7.4.1 (SPIN) s.170. Widget'taki interest Listing 7.2'nin aynısı; mantık Listing 7.1. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Data-centric ⇒ address yok" değil. Komşular arasında frame'i kime gönderdiğini söylemek için MAC address hâlâ gerekli; değişen, network katmanında node'u değil veriyi adreslemek.</li>
+      <li>IS bir karşılaştırma değil. Interest'teki <code>&lt;interval, 0.05, IS&gt;</code> eşleşmeye katılmaz, sadece bir parametre bildirir.</li>
+      <li>One-way match simetrik değil: interest'in formal attribute'ları data'nın actual attribute'larına uygulanır. Data'da interest'in sorduğu bir attribute hiç yoksa eşleşme başarısız olur.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="DP-ex7.3">
+    <span class="box__label">D&amp;P Exercise 7.3 · kitap alıştırması</span>
+    <p>"What is data-centric routing? Why is data-centric routing feasible (or even necessary) compared to routing based on identities (addresses)?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce tanım: alıcılar nasıl belirleniyor? Açık bir address ile mi, attribute'larla mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Feasible" için: uygulama neyle ilgileniyor, node'lar yedekli mi? "Necessary" için: global addressing'in WSN'deki maliyetini ve mümkün olup olmadığını düşün (bu derste 2. bölüm).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Tanım:</strong> Data-centric routing'de node'lar açıkça adreslenmez. Alıcılar ya da kaynaklar istenen verinin attribute'larıyla, dolaylı olarak tanımlanır. Örnek: gateway "temperature readings" ister ve sadece bu ölçümü yapabilen sensor'lar cevap verir. Directed diffusion'da interest AVO tuple'ları ile yayılır, SPIN'de veri metadata ile duyurulur.</li>
+        <li><strong>Neden mümkün:</strong> WSN'de uygulama tek tek node'larla değil ürettikleri bilgiyle ilgilenir. Node'lar yedekli yerleştirildiği için bir olayı hangi node'un raporladığı önemsizdir; veriyi tanımlamak yeterlidir.</li>
+        <li><strong>Neden gerekli olabilir:</strong> global ya da networkwide unique address vermek WSN'de pahalı, bazen imkânsızdır. Address'i her packet'te taşımak küçük packet'lerde büyük overhead'dir; networkwide uniqueness distributed consensus ister; heterogeneous ve hareketli node'larda global addressing uygulanamayabilir.</li>
+        <li><strong>Ek kazanç:</strong> veri isimlendirildiği için ara node'lar aggregation ve in-network processing yapabilir. Gereksiz iletimler azalır, enerji kazanılır.</li>
+      </ol>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/dargie-poellabauer-fundamentals-of-wireless-sensor-networks.pdf" target="_blank" rel="noopener">Orijinal kitap (D&amp;P, s. 198)</a></p>
+    <!-- Kaynak: D&P Chapter 7 Exercises, 7.3 (s.198) · cevap D&P §7.1 (s.165–166), §7.2 (global addressing), §7.4 ve K&W §7.2, §7.5'ten derlendi; kitapta cevap anahtarı yok. -->
+  </div>
+  <div class="quiz" id="q-dc-1">
+    <p class="quiz__q">Bir temperature sensor'u $(25, 10)$ noktasında. Listing 7.2'deki interest ile eşleşir mi?</p>
+    <button class="quiz__opt">Evet, çünkü type temperature ve y-coordinate aralıkta<span class="why">One-way match bütün formal attribute'ları AND ile birleştirir. Birinin tutmaması yeter.</span></button>
+    <button class="quiz__opt" data-correct>Hayır, <code>&lt;x-coordinate, 20, LE&gt;</code> tutmuyor (25 &gt; 20)<span class="why">Doğru. Tek bir başarısız formal attribute eşleşmeyi bozar. Sensor interest'i yine de interest cache'ine koyar.</span></button>
+    <button class="quiz__opt">Hayır, çünkü sensor <code>threshold-from-below</code> attribute'unu taşımıyor<span class="why">O attribute interest'te IS ile verilmiş, yani formal değil; eşleşmeye katılmaz.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="why-6lowpan" data-min="5">
+  <h2>IPv6 neden 802.15.4 frame'ine sığmıyor?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · iki görüş</span>
+    <p>K&amp;W (2005) WSN ile TCP/IP arasında bir <em>impedance mismatch</em> görür: TCP globally ya da networkwide unique address'li istasyonlara dayanır, WSN ise data-centric'tir; her segment'in en az 20 byte'lık TCP header'ı ve 20 byte'lık IP header'ı vardır, oysa sensor packet'leri birkaç bit'lik veri taşır. Kitap ROHC gibi header compression'ı anar ama bunun node'lar arasında baştan kurulmuş context istediğini de söyler.</p>
+    <p>IETF'in cevabı farklı: IPv6'yı uçtan uca koru, ama karşı tarafın zaten bildiği ya da hesaplayabileceği hiçbir şeyi radyoya koyma. Bunu yapan katman <strong>6LoWPAN</strong>'dır (<em>IPv6 over Low-power Wireless Personal Area Networks</em>). W1'deki tanım: <em>"Adapts IPv6 to small IEEE 802.15.4 frames."</em> W5'teki 6TiSCH stack'inde de yerini görmüştün. Bir data packet'i yukarıdan aşağı şu katmanlardan geçer: Application / CoAP, UDP, IPv6, <strong>6LoWPAN</strong>, 6top, TSCH MAC, 802.15.4 PHY. Slayttaki sütunda RPL de 6LoWPAN ile 6top arasında bir kutu olarak duruyor, ama data packet'i RPL'den geçmez. RPL, IPv6'nın yanında çalışan routing control protocol'üdür: mesajları ICMPv6 ile gider ve IPv6'nın packet'i hangi next hop'a vereceğini belirleyen route'ları kurar (RFC 9030 §3.7).</p>
+    <p>W3 lab'ını <code>examples/udp-ipv6</code> üzerinden ve <code>CONTIKI_WITH_IPV6 = 1</code> ile kurdun. Yani client ile server arasındaki her "Hello" zaten bir 6LoWPAN frame'iydi.</p>
+  </div>
+  <!-- Kaynak: K&W §13.5.3 s.397–398 · W1 xml 53 (printed 56) · W5 xml 43 (6TiSCH architecture, stack diyagramı; RPL'i 6LoWPAN ile 6top arasına çiziyor) · RFC 9030 §3.7 Figure 3 (RPL, ICMPv6 üstünde, CoAP/UDP'nin yanında) · W1 xml 53 Contiki bileşenleri: uIP/uIPv6, 6LoWPAN, RPL · assignments/2026-2027-fall-efe/week3/energy-lab-week3/Makefile. -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · sayılar</span>
+    <ul>
+      <li><strong>PHY (W2 slayt 49):</strong> Preamble 4 B, SFD 1 B, PHR 1 B, ardından <strong>PSDU 0–127 B</strong>. PSDU, MAC frame'inin kendisidir: MAC header ve FCS de bu 127 byte'ın içindedir. <em>"Maximum application payload is smaller than 127 bytes after MAC/security overhead."</em></li>
+      <li><strong>MAC header:</strong> Frame Control 2 B, Sequence Number 1 B, Destination PAN ID 2 B, Destination Address 2 ya da 8 B, Source PAN ID 2 B (iki taraf aynı PAN'deyse <em>PAN ID compression</em> ile 0), Source Address 2 ya da 8 B, sonra FCS 2 B. Link-layer security açıksa Auxiliary Security Header ve bir MIC eklenir: AES-CCM-32, -64, -128 için toplam 9, 13, 21 B (RFC 4944).</li>
+      <li><strong>IPv6:</strong> header 40 B, UDP header 8 B. IPv6 her link'ten en az <strong>1280 B</strong> MTU ister. RFC 4944, 802.15.4 üzerindeki IPv6 MTU'sunu 1280 B olarak koyar; o halde IP'nin altında bir fragmentation katmanı şart.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · bir frame'de uygulamaya kaç byte kalır?</span>
+    <p>İki taraf da 16-bit short address kullanıyor, aynı PAN'deler (PAN ID compression), security yok: MAC overhead $2 + 1 + 2 + 2 + 2 + 2 = 11$ B, 6LoWPAN'a $127 - 11 = 116$ B kalır. Sıkıştırılmamış IPv6 ve UDP: 1 B dispatch + 40 + 8 = 49 B. Uygulamaya $116 - 49 = 67$ B kalır. 128-bit address'ler tek başına 32 B tutuyor.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · 6LoWPAN'ın işleri</span>
+    <ol>
+      <li><strong>Stateless address autoconfiguration:</strong> IPv6 address'in interface ID'sini 802.15.4 address'ten türetir (sonraki bölüm).</li>
+      <li><strong>Header compression:</strong> IPv6 ve UDP header'larını birkaç byte'a indirir (7. bölüm).</li>
+      <li><strong>Fragmentation ve reassembly:</strong> 1280 B'lik datagram'ları 127 B'lik frame'lere böler (9. bölüm).</li>
+      <li><strong>Mesh addressing</strong> (isteğe bağlı): link-layer'da çok hop'lu forwarding için bir mesh header (8. bölüm).</li>
+    </ol>
+    <p>Her 6LoWPAN header'ı ilk byte'ındaki <strong>dispatch</strong> değeriyle tanınır:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Bit pattern</th><th>Header</th></tr>
+      <tr><td><code>00xxxxxx</code></td><td>NALP: LoWPAN frame'i değil, atılır</td></tr>
+      <tr><td><code>01000001</code> (0x41)</td><td>Sıkıştırılmamış IPv6 header izliyor</td></tr>
+      <tr><td><code>011xxxxx</code></td><td>LOWPAN_IPHC (RFC 6282)</td></tr>
+      <tr><td><code>01010000</code> (0x50)</td><td>LOWPAN_BC0 (mesh broadcast)</td></tr>
+      <tr><td><code>10xxxxxx</code></td><td>Mesh header</td></tr>
+      <tr><td><code>11000xxx</code></td><td>FRAG1 (ilk fragment)</td></tr>
+      <tr><td><code>11100xxx</code></td><td>FRAGN (sonraki fragment'lar)</td></tr>
+    </table></div>
+  </div>
+  <p><strong>Border router.</strong> W1'de sink'i "sink, gateway, or border router" diye tanımlamıştık. 6LoWPAN'da border router LoWPAN'ı IPv6 internet'ine bağlar: dışarıya giden packet'i decompress edip birleştirir, içeri geleni sıkıştırıp böler. Bir application gateway değildir; IPv6 packet'i uçtan uca aynı kalır, sadece biçimi değişir.</p>
+  <!-- Kaynak: W2 slayt 49 (PPDU), 46 (throughput < PHY rate) · RFC 4944 §4 (MTU, security overhead 9/13/21), §5.1 Figure 2 (dispatch) · RFC 6282 §3 (011xxxxx) · W1 xml 7 (printed 10; sink/gateway/border router) · örnek sayılar python ile. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"127 B uygulamanın" deme. 127 B PSDU'dur; MAC header ve FCS bunun içinde, preamble/SFD/PHR dışında.</li>
+      <li>6LoWPAN routing protocol değil (o RPL, sonraki ders) ve MAC de değil. MAC ile IPv6 arasında bir adaptation layer.</li>
+      <li>6LoWPAN fragmentation'ı IPv6 fragmentation değildir. IP'nin altında, link-layer'da çalışır; IP katmanı 1280 B'lik bir link görür.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-why-1">
+    <p class="quiz__q">Her iki taraf 64-bit extended address kullanıyor, PAN ID compression açık, security yok. Sıkıştırılmamış IPv6 + UDP ile uygulamaya kaç byte kalır?</p>
+    <button class="quiz__opt" data-correct>55<span class="why">Doğru. MAC: 2 + 1 + 2 + 8 + 8 + 2 = 23 B, kalan 104 B. Dispatch + IPv6 + UDP = 49 B, uygulamaya 55 B.</span></button>
+    <button class="quiz__opt">78<span class="why">78 = 127 − 49. MAC header'ı ve FCS'yi unuttun; onlar da 127 B'lik PSDU'nun içinde.</span></button>
+    <button class="quiz__opt">67<span class="why">Bu short address'lerle çıkan değer. 8 byte'lık iki address MAC overhead'ini 12 B artırır.</span></button>
+    <button class="quiz__opt">104<span class="why">104 B 6LoWPAN'a kalan alan. IPv6 ve UDP header'ları da bu alandan düşmeli.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="iid" data-min="5">
+  <h2>IPv6 address'i MAC address'ten türetmek</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · address'i taşımak yerine hesaplamak</span>
+    <p>IPv6 address'in ikinci yarısı (64 bit) interface ID'dir (IID). Bu yarıyı node'un 802.15.4 address'inden belirli bir kuralla türetirsen üç şey kazanırsın: address dağıtacak bir protokole gerek kalmaz, karşı taraf IID'yi frame'in MAC address'inden hesaplayabildiği için IID radyoya hiç konmayabilir, ve IPv6 address'ten MAC address'e eşleme (binding) neredeyse bedava olur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · 802.15.4 address'leri (K&amp;W §5.5.1)</span>
+    <ul>
+      <li>Her 802.15.4 cihazının 64-bit bir device address'i vardır (EUI-64, <em>extended address</em>).</li>
+      <li>Bir device coordinator'a associate olurken 16-bit bir <em>short address</em> isteyebilir; coordinator onu association response'ta verir ve sonraki bütün iletişimde kullanılır.</li>
+      <li>PAN, 16-bit bir PAN identifier ile tanınır.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · IID nasıl kurulur</span>
+    <p>IPv6 address = 64-bit prefix + 64-bit IID. 802.15.4 üzerinde autoconfiguration için prefix uzunluğu 64 olmalı.</p>
+    <ul>
+      <li><strong>EUI-64'ten:</strong> 8 byte aynen alınır, sadece ilk byte'taki <strong>Universal/Local (U/L) bit</strong> ters çevrilir (0x02 ile XOR).</li>
+      <li><strong>16-bit short address'ten:</strong> IID = <code>0000:00ff:fe00:XXXX</code>, burada XXXX short address. U/L bit 0 kalır, çünkü bu address local scope'tadır.</li>
+      <li><strong>Prefix:</strong> link-local için <code>fe80::/64</code>. Global prefix bir router advertisement'tan öğrenilir ya da koda yazılır.</li>
+    </ul>
+    <p>Yazarken her 16 bit'lik gruptaki baştaki sıfırlar atılır ve en uzun sıfır grubu dizisi <code>::</code> olur: <code>fe80:0:0:0:212:7402:2:202</code> → <code>fe80::212:7402:2:202</code>.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · W3 lab'ındaki iki mote</span>
+    <p>Mote 2'nin MAC'i <code>00:12:74:02:00:02:02:02</code>. İlk byte <code>00000000</code>; U/L bit'ini çevirince <code>00000010</code> = 0x02. IID: <code>0212:7402:0002:0202</code>. Link-local address: <code>fe80::212:7402:2:202</code>. Log'daki "Tentative link-local IPv6 address" satırıyla birebir aynı.</p>
+    <p>Lab'daki <code>energy-client.c</code> global address'i şöyle kuruyor: <code>uip_ip6addr(&amp;ipaddr, 0xaaaa, 0, 0, 0, 0, 0, 0, 0)</code> ile prefix'i <code>aaaa::/64</code> yapıyor, sonra <code>uip_ds6_set_addr_iid(&amp;ipaddr, &amp;uip_lladdr)</code> ile IID'yi link-layer address'ten dolduruyor. Server'ın varsayılan address'i <code>aaaa:0:0:0:0212:7404:0004:0404</code>: mote 4'ün MAC'i <code>00:12:74:04:00:04:04:04</code> ve aynı kural.</p>
+    <p>Aynı lab'da Contiki 3.0'ın Sky platformunda IPv6 neighbour discovery'nin kapalı olduğunu, bu yüzden iki programın birbirini neighbour table'a elle eklediğini yazmıştın. Bu bir <strong>binding</strong> işiydi: IPv6 address'ten link-layer address'e eşleme, IPv4'teki ARP'nin IPv6'daki karşılığı.</p>
+  </div>
+  <!-- Kaynak: K&W §5.5.1 s.140 · RFC 4944 §6 (EUI-64 → IID, prefix 64) · RFC 6282 §3.2.2 (short → 0000:00ff:fe00:XXXX, U/L invert) · scenario-a.txt · energy-client.c satır 113–132 · week3/video-script.md (neighbour table). RFC 4944 §6 short address için PAN ID'yi de katan bir biçim tanımlar; IPHC (RFC 6282) 0000:00ff:fe00:XXXX biçimini kullanır, ders bunu esas aldı. -->
+  <div class="w-naming-6lowpan-box" id="w-iid">
+    <p class="w-naming-6lowpan-guess"><b>Önce tahmin et:</b> MAC <code>02:12:4b:00:06:15:a8:9c</code> olan bir node'un link-local address'i ne olur? İlk grup <code>0212</code> mi, <code>12</code> mi?</p>
+    <div class="w-naming-6lowpan-ctl">
+      <label class="w-naming-6lowpan-wide">802.15.4 address <input type="text" id="iid-mac" value="00:12:74:02:00:02:02:02" autocomplete="off" spellcheck="false" /></label>
+      <label>Prefix <select id="iid-pre"><option value="fe80">fe80::/64 (link-local)</option><option value="aaaa">aaaa::/64 (W3 lab)</option></select></label>
+      <button class="btn btn--sm btn--accent" id="iid-go">Türet</button>
+    </div>
+    <div class="w-naming-6lowpan-ctl">
+      <button class="btn btn--sm" data-iid="00:12:74:04:00:04:04:04">Mote 4</button>
+      <button class="btn btn--sm" data-iid="02:12:4b:00:06:15:a8:9c">02:12:4b:…</button>
+      <button class="btn btn--sm" data-iid="0x1a2b">Short 0x1a2b</button>
+    </div>
+    <p class="src">8 byte'lık EUI-64'ü iki nokta ya da tire ile yaz, 16-bit short address'i <code>0x1a2b</code> ya da <code>1a2b</code> diye yaz.</p>
+    <div class="w-naming-6lowpan-err" id="iid-err" role="alert"></div>
+    <div class="w-naming-6lowpan-out" id="iid-out" role="status" aria-live="polite"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>U/L bit'ini "1 yap" diye hatırlama, <strong>ters çevir</strong>. <code>02</code> ile başlayan bir EUI-64 <code>00</code> olur.</li>
+      <li>Ethernet'in 48-bit MAC'inden IID kurarken ortaya <code>fffe</code> eklenir. 802.15.4'ün EUI-64'ü zaten 64 bit; araya hiçbir şey eklenmez. <code>ff:fe00</code> sadece 16-bit short address'te çıkar.</li>
+      <li>MAC'ten türetilen IID global uniqueness'i otomatik garanti etmez. Short address coordinator'ın verdiği local bir değerdir; U/L = 0 bunu söyler.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-iid-1">
+    <p class="quiz__q">MAC address'i <code>02:12:4b:00:06:15:a8:9c</code> (EUI-64) olan node'un link-local IPv6 address'i hangisi?</p>
+    <button class="quiz__opt" data-correct><code>fe80::12:4b00:615:a89c</code><span class="why">Doğru. U/L bit ters çevrilince 0x02 → 0x00 olur, ilk grup <code>0012</code>, yazılışı <code>12</code>.</span></button>
+    <button class="quiz__opt"><code>fe80::212:4b00:615:a89c</code><span class="why">U/L bit'ini "1 yap" diye uyguladın. Kural tersine çevirmek: zaten 1 olan bit 0 olur.</span></button>
+    <button class="quiz__opt"><code>fe80::12:4bff:fe00:615</code><span class="why">Bu, 48-bit Ethernet MAC'ine <code>fffe</code> ekleme kuralı. EUI-64 zaten 64 bit, olduğu gibi kullanılır.</span></button>
+    <button class="quiz__opt"><code>fe80::ff:fe00:a89c</code><span class="why">Bu biçim sadece 16-bit short address içindir. Burada 64-bit extended address var.</span></button>
+  </div>
+  <div class="quiz" id="q-iid-2">
+    <p class="quiz__q">Coordinator bir node'a short address <code>0x0007</code> verdi. Bu address'ten kurulan link-local IPv6 address hangisi?</p>
+    <button class="quiz__opt"><code>fe80::7</code><span class="why">Short address doğrudan IID olmaz; <code>0000:00ff:fe00:XXXX</code> kalıbına konur.</span></button>
+    <button class="quiz__opt" data-correct><code>fe80::ff:fe00:7</code><span class="why">Doğru. IID <code>0000:00ff:fe00:0007</code>; baştaki sıfırlar atılınca <code>::ff:fe00:7</code>.</span></button>
+    <button class="quiz__opt"><code>fe80::200:ff:fe00:7</code><span class="why">U/L bit'ini ters çevirme kuralını short address'e de uyguladın. Short address'te U/L 0 kalır.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="iphc" data-min="6">
+  <h2>Header compression: IPHC ve NHC</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · karşı tarafın bildiğini gönderme</span>
+    <p>40 byte'lık IPv6 header'ının çoğu bir WSN'de ya hep aynıdır ya da başka bir yerden zaten bellidir. Version hep 6'dır. Payload Length, frame'in boyundan hesaplanır. Address'ler MAC address'ten türetilebilir. Hop Limit çoğu zaman 64 gibi yaygın bir değerdir. RFC 6282'deki <strong>LOWPAN_IPHC</strong>, her alan için 1–2 bit'lik bir kodla "bu alan şu kaynaktan bulunur" der; sadece bulunamayan kısım <em>inline</em> taşınır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · IPv6 alanları nereden bulunur</span>
+    <div class="table-wrap"><table>
+      <tr><th>IPv6 alanı (boy)</th><th>IPHC'de</th></tr>
+      <tr><td>Version (4 bit)</td><td>Hep 6, hiç taşınmaz</td></tr>
+      <tr><td>Traffic Class (8) + Flow Label (20)</td><td><strong>TF</strong> (2 bit): 00 → 4 B inline, 01 → 3 B, 10 → 1 B, 11 → ikisi de elided (0 B)</td></tr>
+      <tr><td>Payload Length (16)</td><td><strong>Her zaman elided</strong>: 802.15.4 frame boyundan ya da fragment header'ındaki datagram_size'dan hesaplanır</td></tr>
+      <tr><td>Next Header (8)</td><td><strong>NH</strong>: 0 → 1 B inline, 1 → bir sonraki header LOWPAN_NHC ile sıkıştırılmış</td></tr>
+      <tr><td>Hop Limit (8)</td><td><strong>HLIM</strong>: 00 → 1 B inline, 01 → 1, 10 → 64, 11 → 255</td></tr>
+      <tr><td>Source Address (128)</td><td><strong>SAC</strong> + <strong>SAM</strong> (aşağıda)</td></tr>
+      <tr><td>Destination Address (128)</td><td><strong>M</strong> + <strong>DAC</strong> + <strong>DAM</strong> (aşağıda)</td></tr>
+    </table></div>
+<pre><code>  0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
+| 0 | 1 | 1 |  TF   |NH | HLIM  |CID|SAC|  SAM  | M |DAC|  DAM  |</code></pre>
+    <p>Base encoding 2 byte. CID = 1 ise bir byte'lık context identifier eklenir (en fazla 16 context).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · address mode'ları (SAM; unicast DAM, 00 istisnasıyla aynı)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Mode</th><th>SAC = 0 (stateless, link-local)</th><th>SAC = 1 (context'ten prefix)</th></tr>
+      <tr><td>00</td><td>128 bit inline (16 B)</td><td>Source: unspecified address <code>::</code>. Destination (M = 0, DAC = 1, DAM = 00): Reserved; kullanılmaz.</td></tr>
+      <tr><td>01</td><td><code>fe80::/64</code> elided, IID inline (8 B)</td><td>Prefix context'ten, IID inline (8 B)</td></tr>
+      <tr><td>10</td><td><code>fe80::ff:fe00:XXXX</code>, 16 bit inline (2 B)</td><td>Prefix context'ten, 16 bit inline (2 B)</td></tr>
+      <tr><td>11</td><td>Tamamen elided: IID, frame'in MAC address'inden (0 B)</td><td>Prefix context'ten, IID MAC address'ten (0 B)</td></tr>
+    </table></div>
+    <p>Multicast destination (M = 1, DAC = 0): 00 → 16 B, 01 → 6 B (<code>ffXX::00XX:XXXX:XXXX</code>), 10 → 4 B (<code>ffXX::00XX:XXXX</code>), 11 → 1 B (<code>ff02::00XX</code>).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · UDP için LOWPAN_NHC</span>
+<pre><code>| 1 | 1 | 1 | 1 | 0 | C |   P   |</code></pre>
+    <ul>
+      <li><strong>Length her zaman elided</strong> (yine alt katmandan hesaplanır).</li>
+      <li><strong>P</strong> (port'lar): 00 → iki port 16'şar bit (4 B); 01 → source 16 bit, destination'ın ilk 8 bit'i 0xf0 (3 B); 10 → tersi (3 B); 11 → iki port da 0xf0b0–0xf0bf aralığında, 4'er bit (1 B).</li>
+      <li><strong>C</strong> = 1: checksum elided (2 B kazanç). Bunu sadece üst katman izin verirse yapabilirsin (örneğin bütünlüğü başka bir mekanizma koruyorsa); compressor checksum'ı elide etmeden önce doğrulamak zorunda.</li>
+    </ul>
+    <p><strong>En iyi durum:</strong> IPHC 2 B + NHC 1 B + port'lar 1 B + checksum 2 B = <strong>6 B</strong>. Sıkıştırılmamış hali 48 B. Checksum da elide edilirse 4 B.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · tek hop ile multi-hop</span>
+    <p><strong>Tek hop, link-local:</strong> TF = 11, NH = 1, HLIM = 10 (64), SAM = DAM = 11. Address'lerin ikisi de frame'deki MAC address'lerden çıkar. IPv6 + UDP = 6 B.</p>
+    <p><strong>Route-over multi-hop, global prefix context 0'da, 16-bit short address'ten türetilmiş IID'ler:</strong> Bir router packet'i ilettiğinde frame'in MAC source'u artık router'dır, originator değil; IP source'un IID'si frame'den çıkarılamaz, 2 B inline gider. Destination da son hop'a kadar MAC destination ile aynı değildir, o da 2 B. Hop Limit her hop'ta azaldığı için (64, 63, …) 1 B inline. Port'lar 0xf0bX aralığında değilse 4 B, checksum 2 B. Toplam: $2 + 1 + 2 + 2$ (IPHC) $+ 1 + 4 + 2$ (NHC) $= 14$ B. IID'ler EUI-64'ten gelseydi her biri 8 B olurdu: 26 B.</p>
+  </div>
+  <!-- Kaynak: RFC 6282 §3.1.1 (base format, TF/NH/HLIM/CID/SAC/SAM/M/DAC/DAM), §3.1.2 (16 context), §3.1.1 (M = 0, DAC = 1, DAM = 00 Reserved), §3.2.2 (IID from encapsulating header), §4.3.3 (UDP NHC 11110CPP, length elided), §4.3.2 (checksum yetkisi) · RFC 4944 §5.1 · sayılar python ile: 6, 4, 14, 26. -->
+  <div class="w-naming-6lowpan-box" id="w-stack">
+    <p class="w-naming-6lowpan-guess"><b>Önce tahmin et:</b> Varsayılan ayarda (short address'ler, PAN ID compression, security yok, sıkıştırılmamış IPv6 + UDP) uygulamaya 67 B kalıyor. "IPHC en iyi durum"a geçince kaç byte kalır? AES-CCM-128 açınca kaç byte kaybedersin?</p>
+    <div class="w-naming-6lowpan-ctl">
+      <button class="btn btn--sm" data-stk="raw">Sıkıştırılmamış</button>
+      <button class="btn btn--sm" data-stk="best">IPHC en iyi durum (tek hop)</button>
+      <button class="btn btn--sm" data-stk="multi">IPHC multi-hop (context, EUI-64 IID)</button>
+    </div>
+    <div class="w-naming-6lowpan-ctl">
+      <label>Dst address <select id="sk-dst"><option value="2">16-bit short</option><option value="8">64-bit extended</option></select></label>
+      <label>Src address <select id="sk-src"><option value="2">16-bit short</option><option value="8">64-bit extended</option></select></label>
+      <label><input type="checkbox" id="sk-pan" checked /> PAN ID compression</label>
+      <label>Security <select id="sk-sec"><option value="0">yok</option><option value="9">AES-CCM-32 (9 B)</option><option value="13">AES-CCM-64 (13 B)</option><option value="21">AES-CCM-128 (21 B)</option></select></label>
+    </div>
+    <div class="w-naming-6lowpan-ctl">
+      <label>IPv6 header <select id="sk-ip"><option value="raw">sıkıştırılmamış (0x41 + 40 B)</option><option value="iphc">IPHC</option></select></label>
+      <label>Fragment header <select id="sk-frag"><option value="0">yok</option><option value="4">FRAG1 (4 B)</option><option value="5">FRAGN (5 B)</option></select></label>
+    </div>
+    <div class="w-naming-6lowpan-ctl" id="sk-iphc">
+      <label>TF <select id="sk-tf"><option value="0">00 · 4 B</option><option value="1">01 · 3 B</option><option value="2">10 · 1 B</option><option value="3" selected>11 · 0 B</option></select></label>
+      <label>HLIM <select id="sk-hl"><option value="0">00 · inline 1 B</option><option value="1">01 · 1</option><option value="2" selected>10 · 64</option><option value="3">11 · 255</option></select></label>
+      <label>Source <select id="sk-sam">
+        <option value="0,0">SAC 0 · SAM 00 · 16 B</option><option value="0,1">SAC 0 · SAM 01 · fe80 + IID 8 B</option><option value="0,2">SAC 0 · SAM 10 · fe80 + 16 bit 2 B</option><option value="0,3" selected>SAC 0 · SAM 11 · MAC'ten 0 B</option>
+        <option value="1,1">SAC 1 · SAM 01 · context + IID 8 B</option><option value="1,2">SAC 1 · SAM 10 · context + 16 bit 2 B</option><option value="1,3">SAC 1 · SAM 11 · context + MAC 0 B</option></select></label>
+      <label>Destination <select id="sk-dam">
+        <option value="0,0,0">DAC 0 · DAM 00 · 16 B</option><option value="0,0,1">DAC 0 · DAM 01 · fe80 + IID 8 B</option><option value="0,0,2">DAC 0 · DAM 10 · fe80 + 16 bit 2 B</option><option value="0,0,3" selected>DAC 0 · DAM 11 · MAC'ten 0 B</option>
+        <option value="0,1,1">DAC 1 · DAM 01 · context + IID 8 B</option><option value="0,1,2">DAC 1 · DAM 10 · context + 16 bit 2 B</option><option value="0,1,3">DAC 1 · DAM 11 · context + MAC 0 B</option>
+        <option value="1,0,3">M 1 · DAM 11 · ff02::00XX 1 B</option></select></label>
+      <label>UDP <select id="sk-nh"><option value="nhc" selected>NHC (NH = 1)</option><option value="raw">sıkıştırılmamış 8 B (NH = 0)</option></select></label>
+      <label>Port'lar <select id="sk-p"><option value="0">00 · 4 B</option><option value="1">01 · 3 B</option><option value="2">10 · 3 B</option><option value="3" selected>11 · 0xf0bX 1 B</option></select></label>
+      <label><input type="checkbox" id="sk-cs" /> checksum elided</label>
+    </div>
+    <div class="w-naming-6lowpan-out" id="sk-out" role="status" aria-live="polite"></div>
+    <div class="w-naming-6lowpan-bar" id="sk-bar"></div>
+    <div class="w-naming-6lowpan-leg" id="sk-leg"></div>
+    <div id="sk-bits"></div>
+    <p class="src">PHY'nin 6 B'si (preamble, SFD, PHR) 127 B'nin dışında; çubuk sadece PSDU'yu gösteriyor. Security alanı RFC 4944'teki toplam değerler (Auxiliary Security Header + MIC). Context ID her zaman 0 alındı (CID = 0).</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Elided" kaybolmuş demek değil. Alan radyoda yok ama alıcı onu tam olarak yeniden kurar. Kuramayacağı bir alanı elide edemezsin.</li>
+      <li>SAM = 11 (0 B) sadece IP source frame'in MAC source'u olduğunda çalışır: ilk hop'ta ya da mesh-under'da. Route-over'da iletilen bir packet'in source IID'si inline gitmek zorunda.</li>
+      <li>Hop Limit'i "hep 64, hep elided" sanma. Router her hop'ta azaltır; 63 ne 1 ne 64 ne 255, inline gider.</li>
+      <li>Payload Length IPHC'nin <em>her zaman</em> elide ettiği alandır, TF ya da HLIM gibi bir seçenek değil.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-iphc-1">
+    <p class="quiz__q">IPHC'de hangi IPv6 alanı <em>her durumda</em> elided olur?</p>
+    <button class="quiz__opt" data-correct>Payload Length<span class="why">Doğru. 802.15.4 frame boyundan ya da fragment header'ından hesaplanır, IPHC'de onun için bir seçenek bile yok.</span></button>
+    <button class="quiz__opt">Hop Limit<span class="why">Sadece değeri 1, 64 ya da 255 ise elided. Başka bir değerde (örneğin bir hop sonra 63) inline taşınır.</span></button>
+    <button class="quiz__opt">Source Address<span class="why">Sadece MAC address'ten ya da context'ten bulunabiliyorsa elided. SAM = 00'da 16 byte'ın hepsi gider.</span></button>
+    <button class="quiz__opt">Next Header<span class="why">NH = 1 ise sonraki header NHC ile sıkıştırılır; NH = 0 ise 1 byte inline. Seçime bağlı.</span></button>
+  </div>
+  <div class="quiz" id="q-iphc-2">
+    <p class="quiz__q">Route-over bir network'te bir router, başka bir node'dan gelen packet'i bir sonraki hop'a iletiyor. Source address'in IID'sini neden 0 bit'e (SAM = 11) indiremez?</p>
+    <button class="quiz__opt">Çünkü IPHC route-over'da kullanılamaz<span class="why">IPHC her hop'ta kullanılır; sadece bazı alanlar elide edilemez.</span></button>
+    <button class="quiz__opt" data-correct>Frame'in MAC source address'i artık router'ın kendisi; alıcı originator'ın IID'sini frame'den çıkaramaz<span class="why">Doğru. SAM = 11, IID'yi "encapsulating header"dan türetir. İletilen packet'te o header router'a ait.</span></button>
+    <button class="quiz__opt">Çünkü Hop Limit değişti<span class="why">Hop Limit'in değişmesi HLIM'i etkiler, address mode'unu değil. İki ayrı alan.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="mesh-route" data-min="4">
+  <h2>Mesh-under ve route-over</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · forwarding kararını kim verir?</span>
+    <p>Bir packet birkaç radyo hop'u geçecek. İki yol var. Birinde 6LoWPAN katmanı, MAC address'lere bakarak packet'i kendi içinde taşır ve IP bütün LoWPAN'ı tek bir link olarak görür (<strong>mesh-under</strong>). Diğerinde her radyo hop'u bir IP hop'udur ve kararı IPv6 routing verir (<strong>route-over</strong>). RPL route-over'dır; onu sonraki derste göreceksin.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · header sırası ve mesh header (RFC 4944)</span>
+    <p>Birden fazla LoWPAN header'ı varsa sıra şöyle olmalı: <strong>Mesh Addressing Header → Broadcast Header → Fragmentation Header</strong>, ardından IPHC (ya da 0x41 ile sıkıştırılmamış IPv6).</p>
+<pre><code>| 1 0 | V | F | HopsLft (4) | originator address | final destination address |</code></pre>
+    <p>V ve F, originator ve final destination address'inin 64-bit (0) mi 16-bit (1) mi olduğunu söyler. Her forwarding node Hops Left'i bir azaltır; sıfıra inen packet iletilmez (0xF ise ardından 8 bit'lik bir Deep Hops Left gelir). Boyu: 1 + (2 ya da 8) + (2 ya da 8) = 5 ile 17 B.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th></th><th>Mesh-under</th><th>Route-over</th></tr>
+    <tr><td>Forwarding'i yapan katman</td><td>6LoWPAN adaptation layer, link-layer address'lerle</td><td>IPv6 katmanı, IPv6 address'lerle</td></tr>
+    <tr><td>IP'nin gördüğü</td><td>Bütün LoWPAN tek bir link, tek bir IP hop'u</td><td>Her radyo hop'u bir IP hop'u</td></tr>
+    <tr><td>Hop sınırı</td><td>Mesh header'daki Hops Left</td><td>IPv6 Hop Limit</td></tr>
+    <tr><td>Routing</td><td>IP'nin altında, link-layer'da</td><td>IP routing (örneğin RPL)</td></tr>
+    <tr><td>Fragment'lar</td><td>Tek tek iletilir, reassembly final destination'da</td><td>Router'ın IPv6 header'ına ihtiyacı var ve o sadece ilk fragment'ta. En basit uygulama her hop'ta datagram'ı birleştirip yeniden böler: her hop'ta buffer ve gecikme.</td></tr>
+  </table></div>
+  <p>W1'deki uyarı burada somutlaşıyor: <em>"Routing, fragmentation, and security all consume state."</em> Route-over'da her router, birleştirmekte olduğu her datagram için 1280 B'ye kadar bir reassembly buffer'ı tutmak zorunda kalabilir. 10 kB RAM'li bir Sky mote'u için bu küçük bir sayı değil.</p>
+  <!-- Kaynak: RFC 4944 §5 (header sırası), §5.2 Figure 3 (mesh header, V/F, Hops Left, 0xF Deep Hops Left), §11 · RFC 6282 §1 (route-over, mesh-under adları) · W1 xml 31 (printed 34) · Sky RAM 10 kB: MSP430F1611 datasheet bilgisi, slaytta yok (intro-hardware dersindeki not). Reassembly-per-hop açıklaması RFC 4944'ün çerçevesinden çıkarım; fragment forwarding teknikleri bu dersin dışında. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Hops Left ile Hop Limit'i karıştırma. Biri 6LoWPAN mesh header'ında (mesh-under), diğeri IPv6 header'ında (route-over).</li>
+      <li>Route-over'da da her hop'ta 6LoWPAN vardır: her link'te header sıkıştırılır ve açılır. "Route-over = 6LoWPAN'sız" değil.</li>
+      <li>Header sırası keyfi değil: mesh header en dışta, çünkü forwarder sadece onu okuyup packet'i iletebilmeli.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-mesh-1">
+    <p class="quiz__q">Route-over bir router'a bir datagram'ın ortadaki bir fragment'ı (FRAGN) ilk önce geliyor. Router onu neden hemen iletemez?</p>
+    <button class="quiz__opt" data-correct>IPv6 destination address'i sadece ilk fragment'ta; router bu fragment'ın nereye gideceğini bilemez<span class="why">Doğru. FRAGN sadece size, tag ve offset taşır. Routing kararı için gereken IPv6 header'ı FRAG1'de.</span></button>
+    <button class="quiz__opt">FRAGN'de datagram_size yok<span class="why">datagram_size her fragment'ta var; RFC 4944 bunu reassembly buffer'ını hemen ayırabilmek için böyle tasarladı.</span></button>
+    <button class="quiz__opt">Route-over'da fragmentation yasaktır<span class="why">Yasak değil; maliyeti fazla. 1280 B'lik datagram'lar her iki modda da bölünmek zorunda.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="fragmentation" data-min="6">
+  <h2>Fragmentation ve reassembly</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · numaralı zarflar</span>
+    <p>Uzun bir mektubu birkaç zarfa bölüyorsun. Her zarfa "bu mektup toplam şu kadar, mektubun kimliği şu, bu parça şu noktadan başlıyor" yazarsın. Alıcı parçaları hangi sırayla gelirse gelsin doğru yere koyar. Tek bir zarf kaybolursa mektup okunamaz.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki fragment header'ı (RFC 4944 §5.3)</span>
+<pre><code>FRAG1 (4 B): | 1 1 0 0 0 | datagram_size (11) | datagram_tag (16) |
+FRAGN (5 B): | 1 1 1 0 0 | datagram_size (11) | datagram_tag (16) | datagram_offset (8) |</code></pre>
+    <ul>
+      <li><strong>datagram_size:</strong> bütün IP packet'inin link-layer fragmentation'dan önceki boyu, <em>sıkıştırılmamış</em> haliyle (IPv6 Payload Length + 40). Her fragment'ta aynı. 11 bit, en fazla 2047; 1280'e yeter.</li>
+      <li><strong>datagram_tag:</strong> aynı datagram'ın bütün fragment'larında aynı; her yeni datagram'da bir artar, 65535'ten sonra 0'a döner.</li>
+      <li><strong>datagram_offset:</strong> sadece FRAGN'de, <strong>8 byte'lık birimlerle</strong>. FRAG1'in offset'i örtük olarak 0.</li>
+      <li>Offset 8'in katlarını gösterebildiği için <strong>sonuncusu hariç bütün fragment'lar 8 byte'ın katı kadar veri taşır.</strong></li>
+      <li>Alıcı fragment'ları dört şeyle gruplar: sender'ın MAC address'i (mesh varsa originator), destination'ın MAC address'i (mesh varsa final destination), datagram_size ve datagram_tag.</li>
+      <li>İlk fragment geldiğinde bir reassembly timer başlar, en fazla <strong>60 s</strong>. Süre dolarsa elde ne varsa atılır. Farklı boy ya da offset ile çakışan bir fragment gelirse buffer atılır ve baştan başlanır.</li>
+    </ul>
+    <p>IPHC ile birlikte: offset'ler yine sıkıştırılmamış datagram üzerinden sayılır. Sıkıştırılmış header'lar ilk fragment'a sığmalıdır; ilk fragment'a sığmayan bir header sıkıştırılamaz (RFC 6282 §2).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · kaç fragment, ve hepsinin varma olasılığı</span>
+    <p>Frame başına 6LoWPAN'a kalan alan $S$, sıkıştırılmamış datagram boyu $D$. Önce sıkıştırmasız durum (FRAG1'in ardından 1 B'lik 0x41 dispatch'i geliyor):</p>
+    $$p_1 = 8\left\lfloor\frac{S-4-1}{8}\right\rfloor,\qquad p_n = 8\left\lfloor\frac{S-5}{8}\right\rfloor$$
+    <p>$p_1$ ve $p_n$ 8'in katı, çünkü arkasından başka fragment gelen her parça 8'in katı olmalı. Son FRAGN bu kurala bağlı değil: $S - 5$ byte'ın hepsini kullanabilir. Datagram bölünmek zorundaysa fragment sayısı:</p>
+    $$N = 2 + \max\left(0,\ \left\lceil\frac{D-p_1-(S-5)}{p_n}\right\rceil\right)$$
+    <p>Yani FRAG1'den sonra kalan $D - p_1$ byte $S - 5$'e sığıyorsa tek bir FRAGN yeter. Sığmıyorsa aradaki FRAGN'ler $p_n$'er byte taşır, sonuncusu en fazla $S - 5$.</p>
+    <p>IPHC ile ilk fragment $c$ byte'lık sıkıştırılmış header'ı taşır ama 48 byte'lık sıkıştırılmamış header'ın yerini tutar: $p_1 = 8\lfloor (S - 4 - c + 48)/8 \rfloor$ sıkıştırılmamış byte.</p>
+    <p>Link başına packet reception ratio PRR, kayıplar bağımsız ve link-layer retry yoksa, datagram'ın tek hop'u geçme olasılığı $\text{PRR}^N$. Her fragment'a $r$ retry hakkı varsa $\left(1-(1-\text{PRR})^{r+1}\right)^N$.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · 250 B'lik datagram, S = 116 B</span>
+    <ol>
+      <li>Sıkıştırmasız: $p_1 = 8\lfloor 111/8\rfloor = 104$. $p_n = 8\lfloor 111/8\rfloor = 104$. Kalan $250 - 104 = 146$ → iki FRAGN daha: 104 ve 42. $N = 3$. Offset'ler (8 B birimiyle) 0, 13, 26. Kontrol: $104 + 104 + 42 = 250$.</li>
+      <li>IPHC en iyi durumla ($c = 6$): $p_1 = 8\lfloor (116 - 4 - 6 + 48)/8 \rfloor = 152$ sıkıştırılmamış byte. Kalan 98 → tek FRAGN. $N = 2$. Header compression bir frame'i tamamen kurtardı.</li>
+      <li>1280 B'lik bir datagram aynı link'te sıkıştırmasız 13, IPHC ile 12 fragment eder. PRR = 0.9 ise 13 fragment'ın hepsinin varma olasılığı $0.9^{13} \approx 0.25$. Her fragment'a bir retry verilirse $(1 - 0.1^2)^{13} \approx 0.88$.</li>
+    </ol>
+    <p>Enerji açısı: tek bir fragment kaybolursa alıcı timer dolunca bütün datagram'ı atar. Kurtarmak üst katmana kalır ve bütün fragment'lar yeniden gönderilir. Büyük datagram yerine küçük packet'ler göndermek bu yüzden WSN'de bir tasarım kuralıdır.</p>
+  </div>
+  <!-- Kaynak: RFC 4944 §5.3 (Figure 4–5, datagram_size/tag/offset, multiples of eight, reassembly 60 s, overlap) · RFC 6282 §2 (offset uncompressed, first fragment) · örnek ve formüller özgün, python ile doğrulandı (250/116 → 3 ve 2; 1280/116 → 13 ve 12; 215/116 → 104 + 111, 2 fragment; N formülü S = 16…127, D = 48…2047 için döngüyle aynı; 0.9^13 = 0.254; 1 retry 0.878). -->
+  <div class="w-naming-6lowpan-box" id="w-frag">
+    <p class="w-naming-6lowpan-guess"><b>Önce tahmin et:</b> 1280 B'lik datagram, S = 116 B, PRR = 0.95, retry yok. Datagram'ın tek hop'u geçme olasılığı %50'nin üstünde mi?</p>
+    <div class="w-naming-6lowpan-ctl">
+      <label>datagram_size $D$ (B) <input type="number" id="fr-d" value="1280" min="1" max="2047" step="1" /></label>
+      <label>Frame başına alan $S$ (B) <input type="number" id="fr-s" value="116" min="16" max="127" step="1" /></label>
+      <label>Header <select id="fr-h"><option value="raw">sıkıştırmasız (0x41 + 40 B IPv6)</option><option value="iphc">IPHC (IPv6 + UDP = 48 B yerine c B)</option></select></label>
+      <label>$c$ (B) <input type="number" id="fr-c" value="6" min="2" max="47" step="1" /></label>
+    </div>
+    <div class="w-naming-6lowpan-ctl">
+      <label>PRR <input type="number" id="fr-p" value="0.95" min="0" max="1" step="0.01" /></label>
+      <label>Fragment başına retry $r$ <input type="number" id="fr-r" value="0" min="0" max="7" step="1" /></label>
+      <label>Kaybolan fragment <select id="fr-lost"><option value="-1">hiçbiri</option></select></label>
+      <button class="btn btn--sm btn--accent" id="fr-go">Böl ve oynat</button>
+    </div>
+    <div class="w-naming-6lowpan-ctl">
+      <button class="btn btn--sm" data-fr="250,116">250 B, S = 116</button>
+      <button class="btn btn--sm" data-fr="1280,95">1280 B, short address + AES-CCM-128 (S = 95)</button>
+    </div>
+    <div class="w-naming-6lowpan-err" id="fr-err" role="alert"></div>
+    <div class="w-naming-6lowpan-out" id="fr-out" role="status" aria-live="polite"></div>
+    <div class="table-wrap" id="fr-tbl"></div>
+    <div id="fr-step"></div>
+    <p class="src">FRAG1 = 4 B ve FRAGN = 5 B, RFC 4944'teki sabit boylar. datagram_tag örnek olarak 0x002a. Olasılık tek bir hop için; kayıpların bağımsız olduğu varsayılıyor.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Offset'i byte cinsinden yazma. 104 byte'tan başlayan fragment'ın datagram_offset alanında 13 yazar.</li>
+      <li>İlk fragment'a "kalan alanın hepsini" koyma: $S - 5 = 111$ byte 8'in katı değil. Sonuncusu hariç her fragment'ın verisi 8'in katı olmalı.</li>
+      <li>Tersini de yapma: son FRAGN'i de 8'in katına yuvarlama. $D = 215$, $S = 116$ ise FRAG1 104 B taşır, kalan 111 B tek bir FRAGN'e sığar: 2 fragment, 3 değil.</li>
+      <li>datagram_size sıkıştırılmış boy değil. IPHC kullanılsa da sıkıştırılmamış IPv6 datagram'ının boyu yazılır.</li>
+      <li>Kaybolan bir fragment sadece kendi parçasını değil, bütün datagram'ı kaybettirir. 6LoWPAN fragment'ları tek tek yeniden göndermez.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-frag-1">
+    <p class="quiz__q">$D = 200$ B, $S = 80$ B, sıkıştırmasız (FRAG1'den sonra 1 B dispatch). Kaç fragment olur ve FRAGN'lerin datagram_offset değerleri nedir?</p>
+    <button class="quiz__opt" data-correct>3 fragment; offset'ler 9 ve 18<span class="why">Doğru. $p_1 = 8\lfloor 75/8\rfloor = 72$, $p_n = 8\lfloor 75/8 \rfloor = 72$. 72 + 72 + 56 = 200. Offset'ler 72/8 = 9 ve 144/8 = 18.</span></button>
+    <button class="quiz__opt">3 fragment; offset'ler 72 ve 144<span class="why">Fragment sayısı doğru ama offset'leri byte yazdın. Alan 8 byte'lık birimle sayar.</span></button>
+    <button class="quiz__opt">3 fragment; ilk fragment 75 B, offset'ler 75 ve 150 byte<span class="why">75, 8'in katı değil. Sonuncusu hariç her fragment 8'in katı kadar veri taşımalı; offset zaten başka türlü yazılamaz.</span></button>
+    <button class="quiz__opt">2 fragment<span class="why">İki fragment en fazla 72 + 75 = 147 byte taşır, 200'e yetmez.</span></button>
+  </div>
+  <div class="quiz" id="q-frag-2">
+    <p class="quiz__q">Bir datagram 8 fragment'a bölünüyor, PRR = 0.9, retry yok. Datagram'ın tek hop'u geçme olasılığı yaklaşık?</p>
+    <button class="quiz__opt">0.9<span class="why">Bu tek bir fragment'ın olasılığı. Datagram'ın varması için 8 fragment'ın hepsi varmalı.</span></button>
+    <button class="quiz__opt" data-correct>0.43<span class="why">Doğru: $0.9^8 \approx 0.430$.</span></button>
+    <button class="quiz__opt">0.2<span class="why">Bu "her fragment %10 kaybettirir, 8 × %10 = %80 kayıp" hesabı. Olasılıklar toplanmaz, çarpılır.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="coap" data-min="6">
+  <h2>CoAP: küçük cihazlar için REST</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · web'in UDP üzerindeki küçük kardeşi</span>
+    <p>Bir sensor'un sıcaklığını okumak için uygulama <code>GET coap://[aaaa::212:7404:4:404]/temp</code> der, node da <code>2.05 Content</code> ve "23.4" ile cevap verir. Model HTTP'ninkiyle aynı: client bir resource'u URI ile ister, server cevap verir. Fark şurada: CoAP UDP üzerinde çalışır, binary'dir ve header'ı 4 byte'tır. Burada adreslenen şey bir node değil, node'un üzerindeki bir <strong>resource</strong>.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · mesaj biçimi (RFC 7252 §3)</span>
+<pre><code>| Ver (2) | T (2) | TKL (4) | Code (8) | Message ID (16) |
+| Token (0–8 B) … | Options … | 0xFF | Payload … |</code></pre>
+    <ul>
+      <li><strong>Ver</strong> = 1. <strong>T</strong> (type): Confirmable <strong>CON</strong> (0), Non-confirmable <strong>NON</strong> (1), Acknowledgement <strong>ACK</strong> (2), Reset <strong>RST</strong> (3).</li>
+      <li><strong>Code</strong> <code>c.dd</code> biçiminde: 3 bit class, 5 bit detail. Request'ler 0.xx: 0.01 GET, 0.02 POST, 0.03 PUT, 0.04 DELETE. Response'lar 2.xx (success: 2.01 Created, 2.04 Changed, 2.05 Content), 4.xx (client error: 4.04 Not Found), 5.xx (server error). 0.00 Empty mesajdır.</li>
+      <li><strong>Message ID</strong> (16 bit): duplicate'leri yakalar ve ACK/RST'yi CON/NON ile eşler. <strong>Token</strong> (0–8 B): response'u request ile eşler. İkisi ayrı işler.</li>
+      <li><strong>Options</strong> TLV biçiminde, numara farkı (delta) ile yazılır: Observe 6, Uri-Path 11, Content-Format 12. Payload varsa önüne tek byte'lık payload marker <code>0xFF</code> gelir.</li>
+      <li>Varsayılan port 5683, DTLS ile <code>coaps</code> için 5684.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · güvenilirlik (RFC 7252 §4)</span>
+    <ul>
+      <li><strong>CON</strong> bir ACK bekler. İlk timeout $[\texttt{ACK\_TIMEOUT},\ \texttt{ACK\_TIMEOUT} \times \texttt{ACK\_RANDOM\_FACTOR}] = [2, 3]$ s aralığından rastgele seçilir; her yeniden gönderimde iki katına çıkar. <code>MAX_RETRANSMIT</code> = 4: en fazla 5 gönderim. Bütün gönderimler <code>MAX_TRANSMIT_SPAN</code> = $2 \times (2^4 - 1) \times 1.5 = 45$ s içinde kalmalı.</li>
+      <li>Response doğrudan ACK'in içine konabilir: <strong>piggybacked response</strong>. Server hemen cevap veremiyorsa önce boş bir ACK gönderir, sonra cevabı ayrı bir CON olarak yollar (<strong>separate response</strong>); client onu ACK'ler ve Token ile request'e eşler.</li>
+      <li><strong>NON</strong> ACK beklemez. <strong>RST</strong>, alıcının mesajı işleyemediğini söyler.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · bir GET ve piggybacked cevabı, byte byte</span>
+<pre><code>GET  (11 B): 42 01 12 34 5a 01 b4 74 65 6d 70
+ACK  (12 B): 62 45 12 34 5a 01 c0 ff 32 33 2e 34</code></pre>
+    <ul>
+      <li><code>42</code> = <code>01 00 0010</code>: Ver 1, T = CON, TKL = 2. <code>01</code> = 0.01 GET. <code>12 34</code> Message ID. <code>5a 01</code> Token.</li>
+      <li><code>b4</code>: delta 11 (Uri-Path), length 4, ardından "temp".</li>
+      <li><code>62</code> = <code>01 10 0010</code>: T = ACK. <code>45</code> = <code>010 00101</code> = 2.05 Content. Message ID ve Token aynı.</li>
+      <li><code>c0</code>: delta 12 (Content-Format), length 0. Değer 0 (text/plain) sıfır uzunlukla yazılır. <code>ff</code> payload marker, sonra "23.4".</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · cevap hiç gelmezse</span>
+    <p>İlk timeout 2.4 s seçildi diyelim. Gönderimler 0, 2.4, 7.2, 16.8 ve 36.0 s'de. Beşincisinden sonra 38.4 s beklenir; 74.4 s'de client vazgeçer ve uygulamaya hata bildirir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Observe ve discovery</span>
+    <ul>
+      <li><strong>Observe</strong> (RFC 7641): client, Observe option'ı 0 olan bir GET ile resource'a kaydolur. Server, resource'un durumu değişince client'a ek response'lar gönderir: <strong>notification</strong>. Notification'lar aynı Token'ı ve sıralama için bir Observe sıra numarası taşır; CON ya da NON olabilir. Client Observe = 1 olan bir GET ile ya da bir notification'a RST ile cevap vererek kaydını siler. Sonuç: Observe polling ihtiyacını azaltır, ama her değişikliğin ayrı bir notification'ı olacağını garanti etmez. Değer sık değişiyorsa server ara değişiklikleri birleştirebilir veya atlayabilir; tek garanti, değişiklikler durunca client'ın son durumu eninde sonunda görmesi. Tersi de olur: her notification bir Max-Age taşır ve server, client'ın elindeki değer bayatlamasın diye değer değişmese de Max-Age dolmadan yeni bir notification gönderebilir.</li>
+      <li><strong>Resource discovery:</strong> <code>GET /.well-known/core</code> node'daki resource'ların listesini döner.</li>
+      <li>CoAP, HTTP'ye bir proxy ile kolayca çevrilir; NON ile multicast request de gönderilebilir.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: RFC 7252 §3 (Figure 7, Ver/T/TKL/Code/Message ID/Token/0xFF), §3.1 (option delta), §4.2 (retransmission), §4.8 (ACK_TIMEOUT 2 s, ACK_RANDOM_FACTOR 1.5, MAX_RETRANSMIT 4, MAX_TRANSMIT_SPAN), §5.2 (piggybacked/separate), §5.10 (option numbers), §6.1 ve §12.8 (5683/5684) · RFC 7641 §1.2, §3.6, §4.3.1 (Max-Age, değişmeyen değerle yenileme), §4.5 (ara notification'ları atlamak, eventual consistency) · byte'lar python ile kodlandı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Message ID ile Token'ı karıştırma. Separate response'ta CON'un Message ID'si request'inkinden farklıdır; eşleşme Token ile yapılır.</li>
+      <li>ACK her zaman cevap değildir. Boş bir ACK (Code 0.00, 4 B) sadece "mesajın geldi" der.</li>
+      <li>CoAP'ın güvenilirliği TCP gibi bir connection değil; her CON mesajı tek başına stop-and-wait ile korunur. NON hiç korunmaz.</li>
+      <li>CoAP payload'unu küçük tut. 6LoWPAN frame'ine sığmayan bir mesaj fragment olur ve önceki bölümdeki $\text{PRR}^N$ cezası başlar.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-coap-1">
+    <p class="quiz__q">Client bir CON GET gönderdi ve boş bir ACK aldı. 3 s sonra Message ID'si farklı, 2.05 Content taşıyan bir CON geliyor. Client ne yapmalı?</p>
+    <button class="quiz__opt" data-correct>Gelen CON'u bir ACK ile onaylamalı ve cevabı Token ile kendi GET'ine eşlemeli<span class="why">Doğru. Bu bir separate response. CON olduğu için ACK ister; request ile eşleşmeyi Token yapar.</span></button>
+    <button class="quiz__opt">Mesajı atmalı, çünkü Message ID GET'inkiyle aynı değil<span class="why">Message ID sadece ACK/RST'yi CON/NON ile eşler. Request ile response'u Token eşler.</span></button>
+    <button class="quiz__opt">GET'i yeniden göndermeli, çünkü ilk ACK boştu<span class="why">Boş ACK, GET'in vardığını söyledi; retransmission durdu. Yeniden göndermek gereksiz trafik.</span></button>
+  </div>
+  <div class="quiz" id="q-coap-2">
+    <p class="quiz__q">İlk timeout 2.4 s, hiç ACK gelmiyor. Dördüncü ve son retransmission kaçıncı saniyede gider?</p>
+    <button class="quiz__opt">9.6 s<span class="why">9.6 = 4 × 2.4, timeout'u sabit saymak. Timeout her seferinde iki katına çıkar.</span></button>
+    <button class="quiz__opt">16.8 s<span class="why">Bu üçüncü retransmission. Sırayla: 0 (ilk gönderim), 2.4, 7.2, 16.8, 36.0.</span></button>
+    <button class="quiz__opt" data-correct>36.0 s<span class="why">Doğru: $2.4 + 4.8 + 9.6 + 19.2 = 36.0$ s. Client 38.4 s daha bekleyip 74.4 s'de vazgeçer.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="mqttsn" data-min="6">
+  <h2>MQTT-SN ve CoAP ile karşılaştırma</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · veri isimle yayınlanır</span>
+    <p>4. bölümdeki publish/subscribe fikrinin gerçek bir protokolü. MQTT-SN spesifikasyonu kendi gerekçesini K&amp;W'ye çok yakın yazıyor: bir asset tracking uygulaması GPS alıcısının network address'iyle değil, asset'in o anki konumuyla ilgilenir; üstelik TCP/IP'deki bir uygulama ZigBee üzerindeki bir sensor'u nasıl adresleyecek? Çözüm data-centric iletişim: veri, alıcıların address'ine göre değil <strong>içeriğine</strong> (topic'ine) göre dağıtılır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · mimari</span>
+    <ul>
+      <li>MQTT-SN client'ları (sensor node'lar) bir <strong>MQTT-SN gateway</strong>'e bağlanır. Gateway, internet tarafındaki <strong>MQTT broker</strong> (server) ile TCP/IP üzerinden MQTT konuşur. Subscriber'lar broker'a bağlıdır.</li>
+      <li><strong>Transparent gateway</strong> her client için broker'a ayrı bir MQTT connection açar. <strong>Aggregating gateway</strong> hepsi için tek bir connection kullanır; daha karmaşıktır ama çok node'lu WSN'de işe yarar.</li>
+      <li>Altındaki network'ten tek beklentisi, node ile gateway arasında iki yönlü bir datagram servisi. UDP olabilir, IP olmayan bir ağ da olabilir (ilk olarak ZigBee APS katmanı için tasarlandı). Broadcast sadece gateway discovery için gerekir.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · MQTT'den farkları (MQTT-SN v1.2 §3)</span>
+    <ol>
+      <li><strong>Topic ID:</strong> PUBLISH'teki topic name yerine 2 byte'lık bir topic ID gider. Client topic name'ini <strong>REGISTER</strong> ile kaydeder, ID'yi <strong>REGACK</strong> ile alır.</li>
+      <li><strong>Pre-defined topic ID</strong> (eşlemesi iki tarafta baştan bilinir) ve 2 karakterlik <strong>short topic name</strong> registration istemez.</li>
+      <li><strong>Gateway discovery:</strong> gateway periyodik <strong>ADVERTISE</strong> yayar; client <strong>SEARCHGW</strong> ile arar, <strong>GWINFO</strong> ile cevap alır.</li>
+      <li>CONNECT üçe bölünmüştür (Will topic ve Will message ayrı, isteğe bağlı mesajlarla).</li>
+      <li><strong>Sleeping clients:</strong> client süre (Duration) içeren bir DISCONNECT ile <em>asleep</em> durumuna geçer; gateway ona gelen mesajları buffer'lar. Client uyanınca ClientId'li bir <strong>PINGREQ</strong> gönderir, gateway buffer'daki mesajları yollar ve bitirdiğini <strong>PINGRESP</strong> ile söyler; client yeniden uyur.</li>
+      <li><strong>QoS</strong> 0, 1, 2 ve <strong>QoS −1</strong>: connection yok, registration yok, subscription yok. Client, address'ini baştan bildiği bir gateway'e PUBLISH'i gönderir ve unutur. Sadece pre-defined topic ID ya da short topic name ile çalışır.</li>
+    </ol>
+    <p>Her mesaj 1 (ya da 3) byte'lık Length ve 1 byte'lık MsgType ile başlar. <strong>PUBLISH:</strong> Length, MsgType (0x0C), Flags, TopicId (2 B), MsgId (2 B), Data: <strong>7 B + veri</strong>. QoS 1'de gateway <strong>PUBACK</strong> (7 B) ile onaylar.</p>
+  </div>
+  <!-- Kaynak: MQTT-SN v1.2 (Stanford-Clark & Truong, 2013) §2 (motivasyon), §3 (MQTT farkları), §4 (transparent/aggregating gateway), §5.2 (Length, MsgType tablosu), §5.3.4 (Flags), §5.4.10–5.4.13 (REGISTER, REGACK, PUBLISH, PUBACK), §6.8 (QoS −1), §6.14 (sleeping clients) · K&W §3.3.4 (pub/sub). -->
+  <div class="table-wrap"><table>
+    <tr><th></th><th>CoAP</th><th>MQTT-SN</th></tr>
+    <tr><td>Model</td><td>Request/response, REST; node server olur</td><td>Publish/subscribe; broker ve gateway üzerinden</td></tr>
+    <tr><td>Ne adreslenir</td><td>Bir node'daki resource (URI)</td><td>Bir topic (name ya da 2 B ID); node'un address'i yayıncıyı ilgilendirmez</td></tr>
+    <tr><td>Transport</td><td>UDP/IPv6, uçtan uca (6LoWPAN ile)</td><td>Gateway'e kadar herhangi bir datagram servisi; gateway'den sonra MQTT/TCP</td></tr>
+    <tr><td>Aracı</td><td>Gerekmez (proxy isteğe bağlı)</td><td>Gateway ve broker şart</td></tr>
+    <tr><td>Güvenilirlik</td><td>CON/ACK, exponential backoff</td><td>QoS −1, 0, 1, 2</td></tr>
+    <tr><td>Uyuyan node</td><td>Server cevap verecekse uyanık olmalı; Observe polling'i azaltır ama notification'ları node'un kendisi gönderir (ara değişiklikler atlanabilir, Max-Age yenilemesi için değer değişmese de gönderilebilir)</td><td>Gateway, uyuyan client'ın mesajlarını buffer'lar</td></tr>
+    <tr><td>Bir okuma için en küçük başlık</td><td>4 B header + Token + option'lar</td><td>PUBLISH 7 B</td></tr>
+  </table></div>
+  <div class="w-naming-6lowpan-box" id="w-msc">
+    <p class="w-naming-6lowpan-guess"><b>Önce tahmin et:</b> Tek bir sıcaklık okuması için, ilk kez bağlanan bir MQTT-SN client'ı (QoS 1, topic ID'si yok) radyoda kaç mesaj kullanır? CoAP'ta bir GET ve piggybacked ACK kaç mesaj?</p>
+    <div class="w-naming-6lowpan-ctl">
+      <label>Senaryo <select id="ms-sc">
+        <option value="get">CoAP · CON GET + piggybacked ACK</option>
+        <option value="lost">CoAP · ilk CON kayboluyor</option>
+        <option value="obs">CoAP · Observe, iki notification</option>
+        <option value="q1">MQTT-SN · ilk bağlantı, QoS 1</option>
+        <option value="qm1">MQTT-SN · QoS −1, pre-defined topic</option>
+      </select></label>
+      <label>Değer <input type="text" id="ms-val" value="23.4" maxlength="12" style="max-width:90px" /></label>
+      <button class="btn btn--sm btn--accent" id="ms-go">Kur ve oynat</button>
+    </div>
+    <div class="w-naming-6lowpan-err" id="ms-err" role="alert"></div>
+    <div id="ms-step"></div>
+    <p class="src">Byte'lar sadece CoAP ya da MQTT-SN mesajının kendisi; altındaki UDP, IPv6/6LoWPAN ve MAC header'ları dahil değil. "Radyo" sütunu LoWPAN içinden geçen mesajları sayar: CoAP'ta node ile border router arası, MQTT-SN'de client ile gateway arası. Gateway–broker MQTT/TCP trafiği sayılmadı.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>MQTT-SN node'da TCP istemez. TCP sadece gateway ile broker arasında, MQTT için.</li>
+      <li>Topic ID ile MsgId farklıdır: biri verinin adı, diğeri bir PUBLISH'i onun PUBACK'i ile eşleyen numara.</li>
+      <li>QoS −1, "ACK'siz QoS 0" demek değildir. QoS 0'da yine bir connection vardır; QoS −1'de connection, registration ve subscription hiç yoktur.</li>
+      <li>CoAP'ta border router bir protocol translator değildir; CoAP mesajı internete aynen çıkar. MQTT-SN gateway'i ise MQTT-SN'i MQTT'ye çevirir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-mqtt-1">
+    <p class="quiz__q">Pili kısıtlı bir node günde birkaç kez uyanıyor; ölçümünü beş farklı uygulama izliyor ve hangi uygulamaların izlediğini bilmesi istenmiyor. Hangisi daha uygun ve neden?</p>
+    <button class="quiz__opt" data-correct>MQTT-SN: node topic'e bir kez publish eder, broker beş subscriber'a dağıtır; gateway uyurken gelenleri buffer'lar<span class="why">Doğru. Pub/sub identity'den ve zamandan bağımsızlık sağlar; çoğaltma işini node değil broker yapar.</span></button>
+    <button class="quiz__opt">CoAP: her uygulama node'a ayrı ayrı GET gönderir<span class="why">Node beş request'i ayrı ayrı cevaplamak için uyanık olmalı ve her birine ayrı mesaj gönderir. Observe ile bile her kayıtlı client'a ayrı notification gider.</span></button>
+    <button class="quiz__opt">İkisi aynı, çünkü ikisi de UDP kullanır<span class="why">Transport aynı olabilir, model farklı: request/response ile publish/subscribe enerji ve çoğaltma açısından çok farklı davranır.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="son-kontrol" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak. Bu sorular bölümleri karıştırıyor.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Bir 6LoWPAN frame'inin 6LoWPAN kısmı <code>c0 ...</code> byte'ıyla başlıyor. Bu ne?</p>
+    <button class="quiz__opt" data-correct>FRAG1 header'ı (11000xxx)<span class="why">Doğru. 0xc0 = 11000000: ilk beş bit 11000 FRAG1'i, kalan üç bit datagram_size'ın başını gösterir.</span></button>
+    <button class="quiz__opt">FRAGN header'ı<span class="why">FRAGN 11100xxx ile başlar (0xe0–0xe7).</span></button>
+    <button class="quiz__opt">IPHC<span class="why">IPHC 011xxxxx ile başlar (0x60–0x7f).</span></button>
+    <button class="quiz__opt">Mesh header<span class="why">Mesh header 10xxxxxx ile başlar (0x80–0xbf).</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Short address'ler, PAN ID compression, security yok ($S = 116$ B). Tek hop'luk link-local bir UDP mesajı IPHC'nin en iyi durumuyla (6 B) gidiyor. Uygulamaya en fazla kaç byte kalır ve fragmentation gerekir mi?</p>
+    <button class="quiz__opt">67 B; gerekmez<span class="why">67 B sıkıştırılmamış IPv6 + UDP ile kalan alan. IPHC 49 B yerine 6 B kullanır.</span></button>
+    <button class="quiz__opt" data-correct>110 B; bu kadar veri tek frame'e sığar, fragmentation gerekmez<span class="why">Doğru: $116 - 6 = 110$. Daha büyük bir payload için FRAG1/FRAGN gerekir.</span></button>
+    <button class="quiz__opt">121 B; gerekmez<span class="why">121 = 127 − 6. MAC header ve FCS'nin 11 B'sini unuttun.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">K&amp;W'ye göre MAC address'ler için hangi uniqueness yeterlidir ve bunun bedeli nedir?</p>
+    <button class="quiz__opt">Globally unique; bedeli yok, çünkü üretimde verilir<span class="why">Globally unique address (48 bit ya da 64 bit) küçük WSN packet'lerinde büyük overhead'dir. Yeterli olan şart çok daha gevşek.</span></button>
+    <button class="quiz__opt" data-correct>Two-hop neighborhood'da locally unique; bedeli bir address assignment protocol'ü<span class="why">Doğru. Kısa address her packet'te bit kazandırır, ama dağıtmak HELLO, INFO, CONFLICT gibi mesajlar ister. Sabit node'larda bu hızla amorti olur.</span></button>
+    <button class="quiz__opt">Networkwide unique; bedeli $\log_2 N$ bit<span class="why">Networkwide uniqueness MAC katmanında gerekmez ve dağıtık olarak sağlamak bir consensus problemidir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Bir CoAP Observe notification'ı ile MQTT-SN PUBLISH'i arasındaki temel fark hangisi?</p>
+    <button class="quiz__opt">Notification TCP ile, PUBLISH UDP ile gider<span class="why">İkisi de node tarafında datagram kullanır. TCP sadece MQTT-SN gateway'i ile broker arasında.</span></button>
+    <button class="quiz__opt" data-correct>Notification, kaydolmuş her client'a node'un kendisinden gider; PUBLISH bir kez gateway'e gider ve broker subscriber'lara dağıtır<span class="why">Doğru. CoAP'ta çoğaltmayı server (node) yapar, MQTT-SN'de broker.</span></button>
+    <button class="quiz__opt">Notification'ın içinde topic ID, PUBLISH'in içinde URI vardır<span class="why">Tersi: CoAP resource'u URI ile, MQTT-SN veriyi topic ID ile adresler.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Bir datagram'ın 5 fragment'ından üçüncüsü yolda kayboldu. Alıcı ne yapar?</p>
+    <button class="quiz__opt">Sadece üçüncü fragment'ı yeniden ister<span class="why">RFC 4944 fragmentation'ında fragment başına geri bildirim yok. Kayıp bir parçayı tek başına isteyecek bir mekanizma bulunmuyor.</span></button>
+    <button class="quiz__opt" data-correct>Reassembly timer'ı (en fazla 60 s) dolunca elindeki fragment'ları atar<span class="why">Doğru. Datagram tamamlanamaz; varsa üst katman bütün datagram'ı yeniden gönderir.</span></button>
+    <button class="quiz__opt">Eksik kısmı sıfırla doldurup datagram'ı üst katmana verir<span class="why">Eksik bir IP datagram'ı teslim edilmez. Buffer atılır.</span></button>
+  </div>
+  <!-- Sıradaki konu: Collection tree, ETX ve RPL. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+/* Shared helpers for the naming-6lowpan widgets */
+const N6 = {
+  $(id) { return document.getElementById(id); },
+  esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); },
+  hex(bytes) { return bytes.map(b => b.toString(16).padStart(2, "0")).join(" "); },
+  r(v, d) { const f = 10 ** d; return String(Math.round(v * f) / f); },
+  pct(v) { return "%" + N6.r(100 * v, v < 0.001 ? 4 : 2); },
+  bits(v, n) { return v.toString(2).padStart(n, "0"); },
+  int(el, lo, hi) {
+    const s = String(el.value).trim();
+    if (!/^-?\d+$/.test(s)) return null;
+    const v = Number(s);
+    return v >= lo && v <= hi ? v : null;
+  },
+  num(el, lo, hi) {
+    const s = String(el.value).trim();
+    if (s === "" || !isFinite(Number(s))) return null;
+    const v = Number(s);
+    return v >= lo && v <= hi ? v : null;
+  }
+};
+
+/* 1. Random address assignment: birthday probability P(n, k) */
+(function () {
+  const m = N6.$("bd-m"), k = N6.$("bd-k"), err = N6.$("bd-err"), out = N6.$("bd-out");
+  function run() {
+    const M = N6.int(m, 1, 32), K = N6.int(k, 1, 100000);
+    if (M === null) { err.textContent = "m, 1 ile 32 arasında bir tam sayı olmalı."; out.innerHTML = ""; return; }
+    if (K === null) { err.textContent = "k, 1 ile 100000 arasında bir tam sayı olmalı."; out.innerHTML = ""; return; }
+    err.textContent = "";
+    const n = 2 ** M;
+    let lp = 0;
+    for (let i = 0; i < K && i < n; i++) lp += Math.log1p(-i / n);
+    const P = K > n ? 0 : Math.exp(lp);
+    let k50 = null, acc = 0;
+    for (let i = 1; i <= Math.min(n, 2000000); i++) { acc += Math.log1p(-(i - 1) / n); if (1 - Math.exp(acc) > 0.5) { k50 = i; break; } }
+    const need = Math.max(1, Math.ceil(Math.log2(K)));
+    let h = `<p>$n = 2^{${M}} = ${n.toLocaleString("en-US")}$ address, $k = ${K}$ node. Kullanılan pay: ${N6.pct(Math.min(1, K / n))}.</p>`;
+    if (K > n) h += `<p class="w-naming-6lowpan-bad">Node sayısı address sayısından büyük: en az bir conflict kesin.</p>`;
+    h += `<p>Hiç conflict olmama olasılığı $P(n,k) =$ <b>${N6.r(P, 4)}</b> · en az bir conflict: <b class="${1 - P > 0.5 ? "w-naming-6lowpan-bad" : "w-naming-6lowpan-ok"}">${N6.pct(1 - P)}</b></p>`;
+    if (k50) h += `<p>Bu address space'te conflict olasılığı ilk kez %50'yi ${k50} node'da geçiyor; o anda kullanılan pay ${N6.pct(k50 / n)}.</p>`;
+    h += `<p class="src">Karşılaştırma: ${K} node'u networkwide unique adreslemek için en az ${need} bit yeter, ama o zaman address'leri çakışmasız dağıtacak bir protokol gerekir.</p>`;
+    out.innerHTML = h;
+    Lab.renderMath(out);
+  }
+  [m, k].forEach(e => e.addEventListener("input", run));
+  document.querySelectorAll("[data-bd]").forEach(b => b.addEventListener("click", () => { const [a, c] = b.dataset.bd.split(","); m.value = a; k.value = c; run(); }));
+  run();
+})();
+
+/* 2. One-way match of K&W Listing 7.1 against the interest of Listing 7.2 */
+(function () {
+  const INTEREST = [
+    ["type", "temperature", "EQ"], ["threshold-from-below", 20, "IS"],
+    ["x-coordinate", 20, "LE"], ["x-coordinate", 0, "GE"],
+    ["y-coordinate", 20, "LE"], ["y-coordinate", 0, "GE"],
+    ["interval", 0.05, "IS"], ["duration", 10, "IS"], ["class", "interest", "IS"]
+  ];
+  const OPS = {
+    EQ: (b, a) => b === a, NE: (b, a) => b !== a, LT: (b, a) => b < a, GT: (b, a) => b > a,
+    LE: (b, a) => b <= a, GE: (b, a) => b >= a, EQ_ANY: () => true
+  };
+  const SYM = { EQ: "=", NE: "≠", LT: "&lt;", GT: "&gt;", LE: "≤", GE: "≥", EQ_ANY: "any" };
+  const ty = N6.$("avo-type"), x = N6.$("avo-x"), y = N6.$("avo-y"), noy = N6.$("avo-noy"), err = N6.$("avo-err"), out = N6.$("avo-out"), sum = N6.$("avo-sum");
+  function run() {
+    const X = N6.num(x, -1e6, 1e6), Y = N6.num(y, -1e6, 1e6);
+    if (X === null || (!noy.checked && Y === null)) { err.textContent = "Koordinatlar sayı olmalı."; out.innerHTML = sum.innerHTML = ""; return; }
+    err.textContent = "";
+    const data = [["type", ty.value, "IS"], ["x-coordinate", X, "IS"]];
+    if (!noy.checked) data.push(["y-coordinate", Y, "IS"]);
+    y.disabled = noy.checked;
+    let ok = true, rows = "";
+    for (const [key, val, op] of INTEREST) {
+      if (op === "IS") { rows += `<tr><td class="r">&lt;${key}, ${val}, IS&gt;</td><td colspan="2" class="src">actual, eşleşmeye katılmaz</td></tr>`; continue; }
+      let matched = false, seen = [];
+      for (const [k2, v2, op2] of data) {
+        if (k2 === key && op2 === "IS") { seen.push(v2); if (OPS[op](v2, val)) matched = true; }
+      }
+      if (!matched) ok = false;
+      const what = seen.length ? seen.map(v => `${v} ${SYM[op]} ${val}`).join(", ") : "data'da bu key yok";
+      rows += `<tr class="${matched ? "" : "is-lost"}"><td class="r">&lt;${key}, ${val}, ${op}&gt;</td><td>${N6.esc(what)}</td><td class="${matched ? "w-naming-6lowpan-ok" : "w-naming-6lowpan-bad"}">${matched ? "tutuyor" : "tutmuyor"}</td></tr>`;
+    }
+    out.innerHTML = `<table class="w-naming-6lowpan-tbl"><tr><th>Interest attribute'u</th><th>Data'daki actual değer</th><th>Sonuç</th></tr>${rows}</table>`;
+    sum.innerHTML = `One-way match: <b class="${ok ? "w-naming-6lowpan-ok" : "w-naming-6lowpan-bad"}">${ok ? "eşleşti, sensor bu interest'e source olur" : "eşleşmedi, sensor interest'i sadece interest cache'ine koyar"}</b>. Bütün formal attribute'lar AND ile birleşir; ${INTEREST.filter(a => a[2] !== "IS").length} kontrol yapıldı.`;
+  }
+  [ty, x, y, noy].forEach(e => e.addEventListener("input", run));
+  run();
+})();
+
+/* 3. IPv6 interface identifier from an IEEE 802.15.4 address */
+(function () {
+  const inp = N6.$("iid-mac"), pre = N6.$("iid-pre"), err = N6.$("iid-err"), out = N6.$("iid-out");
+  function compress(groups) {
+    let best = -1, bestLen = 0;
+    for (let i = 0; i < 8;) {
+      if (groups[i] !== 0) { i++; continue; }
+      let j = i; while (j < 8 && groups[j] === 0) j++;
+      if (j - i > bestLen) { best = i; bestLen = j - i; }
+      i = j;
+    }
+    const h = groups.map(g => g.toString(16));
+    if (bestLen < 2) return h.join(":");
+    return h.slice(0, best).join(":") + "::" + h.slice(best + bestLen).join(":");
+  }
+  function parse(s) {
+    s = s.trim().toLowerCase();
+    if (/^(0x)?[0-9a-f]{1,4}$/.test(s)) return { short: parseInt(s.replace(/^0x/, ""), 16) };
+    const parts = s.split(/[:\-]/);
+    if (parts.length === 8 && parts.every(p => /^[0-9a-f]{1,2}$/.test(p))) return { eui: parts.map(p => parseInt(p, 16)) };
+    return null;
+  }
+  function run() {
+    const p = parse(inp.value);
+    if (!p) { err.textContent = "Ya 8 byte'lık bir EUI-64 (00:12:74:02:00:02:02:02) ya da 16-bit bir short address (0x1a2b) yaz."; out.innerHTML = ""; return; }
+    err.textContent = "";
+    const prefix = pre.value === "fe80" ? [0xfe80, 0, 0, 0] : [0xaaaa, 0, 0, 0];
+    let iid, h;
+    if (p.eui) {
+      const b = p.eui.slice(), b0 = b[0];
+      if (b.every(v => v === 0)) { err.textContent = "Bütün bit'leri sıfır olan bir address kullanılamaz (RFC 4944 §6)."; out.innerHTML = ""; return; }
+      b[0] ^= 0x02;
+      iid = [0, 2, 4, 6].map(i => (b[i] << 8) | b[i + 1]);
+      h = `<p>1. EUI-64: <span class="w-naming-6lowpan-mono">${N6.hex(p.eui).replace(/ /g, ":")}</span> (Rime'ın decimal yazımıyla <span class="w-naming-6lowpan-mono">${p.eui.join(".")}</span>).</p>`;
+      h += `<p>2. İlk byte'ta U/L bit'ini ters çevir: <span class="w-naming-6lowpan-mono">${N6.bits(b0, 8)}</span> → <span class="w-naming-6lowpan-mono">${N6.bits(b[0], 8)}</span>, yani 0x${b0.toString(16).padStart(2, "0")} → 0x${b[0].toString(16).padStart(2, "0")}. U/L bit ${b0 & 2 ? "1'di, 0 oldu" : "0'dı, 1 oldu"}.</p>`;
+    } else {
+      iid = [0x0000, 0x00ff, 0xfe00, p.short];
+      if (p.short === 0) { err.textContent = "Short address 0x0000 kullanılamaz (RFC 4944 §6)."; out.innerHTML = ""; return; }
+      h = `<p>1. 16-bit short address: <span class="w-naming-6lowpan-mono">0x${p.short.toString(16).padStart(4, "0")}</span>${p.short === 0xffff ? " (bu 802.15.4 broadcast address'i; bir node'a verilmez)" : ""}.</p>`;
+      h += `<p>2. Kalıba koy: <span class="w-naming-6lowpan-mono">0000:00ff:fe00:XXXX</span>. U/L bit 0 kalır, çünkü short address local'dir.</p>`;
+    }
+    const full = prefix.concat(iid);
+    h += `<p>3. IID: <span class="w-naming-6lowpan-mono">${iid.map(g => g.toString(16).padStart(4, "0")).join(":")}</span></p>`;
+    h += `<p>4. Prefix ile birleştir ve kısalt: <span class="w-naming-6lowpan-mono">${full.map(g => g.toString(16).padStart(4, "0")).join(":")}</span> → <b class="w-naming-6lowpan-mono">${compress(full)}</b></p>`;
+    h += `<p class="src">IPHC: Bu node kendi gönderdiği frame'de source olduğunda IID 0 B ile (SAM = 11) gider${pre.value === "fe80" ? "" : "; global prefix bir context'te ise SAC = 1"}. ${p.short !== undefined ? "Router üzerinden iletilen packet'lerde 16 bit inline yeter (SAM = 10, 2 B)." : "Router üzerinden iletilen packet'lerde 64-bit IID inline gider (SAM = 01, 8 B)."}</p>`;
+    out.innerHTML = h;
+  }
+  N6.$("iid-go").addEventListener("click", run);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") run(); });
+  pre.addEventListener("change", run);
+  document.querySelectorAll("[data-iid]").forEach(b => b.addEventListener("click", () => { inp.value = b.dataset.iid; run(); }));
+  run();
+})();
+
+/* 4. Header-size stack builder for one 127-byte 802.15.4 PSDU */
+(function () {
+  const ids = ["sk-dst", "sk-src", "sk-pan", "sk-sec", "sk-ip", "sk-frag", "sk-tf", "sk-hl", "sk-sam", "sk-dam", "sk-nh", "sk-p", "sk-cs"];
+  const E = {}; ids.forEach(i => E[i.slice(3)] = N6.$(i));
+  const out = N6.$("sk-out"), bar = N6.$("sk-bar"), leg = N6.$("sk-leg"), bitsEl = N6.$("sk-bits"), iphcBox = N6.$("sk-iphc");
+  const TFB = [4, 3, 1, 0], HLB = [1, 0, 0, 0], PB = [4, 3, 3, 1], HLV = ["inline", "1", "64", "255"];
+  const COL = { mac: "var(--blue-800)", sec: "var(--stone-600)", fcs: "var(--blue-500)", frag: "var(--orange-700)", ip: "var(--blue-600)", udp: "#2b8a3e", app: "var(--accent)" };
+  function addrBytes(sac, mode) { return sac === 1 && mode === 0 ? 0 : [16, 8, 2, 0][mode]; }
+  function run() {
+    const dst = +E.dst.value, src = +E.src.value, pan = E.pan.checked, sec = +E.sec.value, frag = +E.frag.value;
+    const macH = 2 + 1 + 2 + dst + (pan ? 0 : 2) + src;
+    const iphc = E.ip.value === "iphc", cont = frag === 5;
+    E.ip.disabled = cont;
+    iphcBox.querySelectorAll("select, input").forEach(el => el.disabled = !iphc || cont);
+    E.p.disabled = E.cs.disabled = !iphc || cont || E.nh.value !== "nhc";
+    let ipB, udpB, ipLabel, notes = [], bitsHtml = "";
+    if (cont) { ipB = 0; udpB = 0; ipLabel = "IPv6"; }
+    else if (!iphc) { ipB = 1 + 40; udpB = 8; ipLabel = "0x41 + IPv6"; }
+    else {
+      const tf = +E.tf.value, hl = +E.hl.value, nhc = E.nh.value === "nhc";
+      const [sac, sam] = E.sam.value.split(",").map(Number);
+      const [mm, dac, dam] = E.dam.value.split(",").map(Number);
+      const samB = addrBytes(sac, sam), damB = mm ? 1 : [16, 8, 2, 0][dam];
+      ipB = 2 + TFB[tf] + (nhc ? 0 : 1) + HLB[hl] + samB + damB;
+      udpB = nhc ? 1 + PB[+E.p.value] + (E.cs.checked ? 0 : 2) : 8;
+      ipLabel = "IPHC";
+      const word = (0b011 << 13) | (tf << 11) | ((nhc ? 1 : 0) << 10) | (hl << 8) | (0 << 7) | (sac << 6) | (sam << 4) | (mm << 3) | (dac << 2) | dam;
+      const F = [["011", "dispatch"], [N6.bits(tf, 2), "TF"], [nhc ? "1" : "0", "NH"], [N6.bits(hl, 2), "HLIM"], ["0", "CID"], [String(sac), "SAC"], [N6.bits(sam, 2), "SAM"], [String(mm), "M"], [String(dac), "DAC"], [N6.bits(dam, 2), "DAM"]];
+      bitsHtml = `<p class="w-naming-6lowpan-cap"><b>IPHC base encoding</b> = 0x${word.toString(16).padStart(4, "0")}</p><div class="w-naming-6lowpan-bits">${F.map(([b, n]) => `<span><b>${b}</b><small>${n}</small></span>`).join("")}</div>`;
+      if (nhc) {
+        const nb = 0b11110000 | ((E.cs.checked ? 1 : 0) << 2) | +E.p.value;
+        bitsHtml += `<p class="w-naming-6lowpan-cap"><b>UDP NHC</b> = 0x${nb.toString(16)} = <span class="w-naming-6lowpan-mono">11110 ${E.cs.checked ? 1 : 0} ${N6.bits(+E.p.value, 2)}</span> (C, P)</p>`;
+      }
+      if (sam === 3) notes.push("Source 0 B: sadece IP source bu frame'in MAC source'u ise (ilk hop ya da mesh-under).");
+      if (!mm && dam === 3) notes.push("Destination 0 B: sadece IP destination bu frame'in MAC destination'ı ise (son hop).");
+      if (hl !== 0) notes.push(`Hop Limit ${HLV[hl]} kabul edildi; bir router'dan geçince değer değişir ve inline gider.`);
+      if (E.cs.checked && nhc) notes.push("Checksum'ı elide etmek üst katmanın iznini ister.");
+    }
+    const segs = [["mac", "MAC header", macH], ["sec", "Security", sec], ["fcs", "FCS", 2], ["frag", "Fragment header", frag], ["ip", ipLabel, ipB], ["udp", "UDP", udpB]];
+    const used = segs.reduce((s, x) => s + x[2], 0), app = 127 - used;
+    const space = 127 - macH - sec - 2;
+    const appName = cont ? "Datagram continuation" : "Uygulama";
+    let h = `<p>MAC overhead (header + security + FCS): <b>${macH + sec + 2} B</b> → 6LoWPAN'a <b>${space} B</b>. ${cont ? "FRAGN header 5 B. IPv6/IPHC ve UDP header'ı FRAGN'de yok: onlar FRAG1'de gitti, bu frame datagram'ın devamını taşır." : `${iphc ? "IPHC" : "Sıkıştırılmamış IPv6"}: ${ipB} B, UDP: ${udpB} B${frag ? `, fragment header ${frag} B` : ""}.`}</p>`;
+    if (app < 0) h += `<p class="w-naming-6lowpan-bad">Header'lar 127 B'yi ${-app} B aşıyor; bu frame kurulamaz.</p>`;
+    else if (cont) h += `<p>Datagram continuation için kalan: <b>${app} B</b>. Bu son fragment değilse ancak 8'in katı olan ${8 * Math.floor(app / 8)} B'si kullanılır; son fragment ${app} B'nin hepsini kullanabilir.</p>`;
+    else h += `<p>Uygulamaya kalan: <b class="${app >= 60 ? "w-naming-6lowpan-ok" : "w-naming-6lowpan-bad"}">${app} B</b>, PSDU içindeki payı ${N6.pct(app / 127)}.${iphc ? ` Sıkıştırmasız haline göre ${1 + 40 + 8 - ipB - udpB} B kazanç.` : ""}</p>`;
+    if (notes.length) h += `<ul class="src">${notes.map(n => `<li>${n}</li>`).join("")}</ul>`;
+    out.innerHTML = h;
+    const all = segs.concat([["app", appName, Math.max(0, app)]]).filter(s => s[2] > 0);
+    const tot = Math.max(127, used);
+    bar.innerHTML = all.map(([k, n, b]) => `<span style="flex:0 0 ${100 * b / tot}%;background:${COL[k]}" title="${n}: ${b} B">${100 * b / tot > 9 ? b : ""}</span>`).join("");
+    leg.innerHTML = all.map(([k, n, b]) => `<span><i style="background:${COL[k]}"></i>${n} ${b} B</span>`).join("");
+    bitsEl.innerHTML = bitsHtml;
+  }
+  const PRE = {
+    raw: { ip: "raw" },
+    best: { ip: "iphc", tf: "3", hl: "2", sam: "0,3", dam: "0,0,3", nh: "nhc", p: "3", cs: false },
+    multi: { ip: "iphc", tf: "3", hl: "0", sam: "1,1", dam: "0,1,1", nh: "nhc", p: "0", cs: false }
+  };
+  document.querySelectorAll("[data-stk]").forEach(b => b.addEventListener("click", () => {
+    const p = PRE[b.dataset.stk];
+    Object.keys(p).forEach(k => { if (k === "cs") E.cs.checked = p.cs; else E[k].value = p[k]; });
+    run();
+  }));
+  Object.values(E).forEach(e => e.addEventListener("input", run));
+  run();
+})();
+
+/* 5. RFC 4944 fragmentation calculator and reassembly animation */
+(function () {
+  const d = N6.$("fr-d"), s = N6.$("fr-s"), hm = N6.$("fr-h"), c = N6.$("fr-c"), pr = N6.$("fr-p"), rr = N6.$("fr-r"), lost = N6.$("fr-lost");
+  const err = N6.$("fr-err"), out = N6.$("fr-out"), tbl = N6.$("fr-tbl"), box = N6.$("fr-step");
+  const TAG = 0x002a;
+  function split(D, S, iphc, cb) {
+    const ce = iphc ? cb : 1, u = iphc ? 48 : 0;
+    if (ce + (D - u) <= S) return { single: true, wire: ce + (D - u), frags: [{ type: "—", off: 0, len: D, wire: ce + (D - u) }] };
+    const p1 = 8 * Math.floor((S - 4 - ce + u) / 8), pn = 8 * Math.floor((S - 5) / 8);
+    if (pn < 8) return { e: "S çok küçük: FRAGN'den sonra 8 byte'lık bir parça bile sığmıyor." };
+    if (p1 < Math.max(8, u)) return { e: "Sıkıştırılmış header ilk fragment'a sığmıyor; RFC 6282'ye göre sığmayan header sıkıştırılamaz." };
+    const frags = [{ type: "FRAG1", off: 0, len: p1, wire: 4 + ce + (p1 - u) }];
+    let off = p1;
+    while (off < D) { const len = D - off <= S - 5 ? D - off : pn; frags.push({ type: "FRAGN", off, len, wire: 5 + len }); off += len; }
+    return { frags, p1, pn };
+  }
+  function hdr(f, D) {
+    if (f.type === "FRAG1") { const w = (0b11000 << 11) | D; return [w >> 8, w & 255, TAG >> 8, TAG & 255]; }
+    if (f.type === "FRAGN") { const w = (0b11100 << 11) | D; return [w >> 8, w & 255, TAG >> 8, TAG & 255, f.off / 8]; }
+    return [];
+  }
+  function run(keepLost) {
+    const D = N6.int(d, 1, 2047), S = N6.int(s, 16, 127), C = N6.int(c, 2, 47), P = N6.num(pr, 0, 1), R = N6.int(rr, 0, 7);
+    const iphc = hm.value === "iphc";
+    c.disabled = !iphc;
+    const bad = m => { err.textContent = m; out.innerHTML = tbl.innerHTML = box.innerHTML = ""; };
+    if (D === null) return bad("datagram_size 1 ile 2047 arasında bir tam sayı olmalı (alan 11 bit).");
+    if (S === null) return bad("S, 16 ile 127 arasında bir tam sayı olmalı.");
+    if (iphc && C === null) return bad("c, 2 ile 47 arasında bir tam sayı olmalı (IPHC base encoding en az 2 B).");
+    if (P === null) return bad("PRR 0 ile 1 arasında olmalı.");
+    if (R === null) return bad("Retry sayısı 0 ile 7 arasında bir tam sayı olmalı.");
+    if (D < (iphc ? 48 : 40)) return bad(`datagram_size sıkıştırılmamış IPv6 datagram'ının boyu; ${iphc ? "IPv6 + UDP header'ı 48" : "IPv6 header'ı 40"} B olduğu için daha küçük olamaz.`);
+    const res = split(D, S, iphc, C);
+    if (res.e) return bad(res.e);
+    err.textContent = "";
+    const F = res.frags, N = F.length;
+    const q = 1 - (1 - P) ** (R + 1), Pd = q ** N;
+    const prevLost = lost.value;
+    lost.innerHTML = `<option value="-1">hiçbiri</option>` + F.map((f, i) => `<option value="${i}">${i + 1}. fragment</option>`).join("");
+    if (keepLost && +prevLost < N) lost.value = prevLost;
+    const L = +lost.value;
+    const wire = F.reduce((a, f) => a + f.wire, 0), mac = 127 - S;
+    let h = "";
+    if (D > 1280) h += `<p class="w-naming-6lowpan-bad">Uyarı: 802.15.4 üzerindeki IPv6 MTU'su 1280 B. Daha büyük bir datagram'ı IPv6 katmanının kendisi önce bölmeliydi.</p>`;
+    if (res.single) h += `<p><b>Fragmentation gerekmez:</b> ${iphc ? `IPHC (${C} B) + ${D - 48} B veri` : `0x41 + ${D} B`} = ${res.wire} B ≤ ${S} B.</p>`;
+    else h += `<p><b>${N} fragment.</b> FRAG1 ${res.p1} B (sıkıştırılmamış) taşıyor, ${N > 2 ? `aradaki her FRAGN ${res.pn} B, ` : ""}son FRAGN en fazla ${S - 5} B (8'in katı olmak zorunda değil). 6LoWPAN byte'ları toplamı ${wire} B; MAC header ve FCS ile PSDU toplamı ${wire + N * mac} B.</p>`;
+    h += `<p>Fragment başına başarı $q = 1-(1-${P})^{${R + 1}} = ${N6.r(q, 4)}$ · datagram'ın tek hop'u geçme olasılığı $q^{${N}} =$ <b class="${Pd >= 0.5 ? "w-naming-6lowpan-ok" : "w-naming-6lowpan-bad"}">${N6.r(Pd, 4)}</b></p>`;
+    out.innerHTML = h;
+    Lab.renderMath(out);
+    tbl.innerHTML = `<table class="w-naming-6lowpan-tbl"><tr><th>#</th><th>Header</th><th>Başlangıç (B)</th><th>datagram_offset</th><th>Veri (B)</th><th>6LoWPAN byte'ı</th><th>Fragment header (hex)</th></tr>` +
+      F.map((f, i) => `<tr class="${i === L ? "is-lost" : ""}"><td class="r">${i + 1}</td><td>${f.type}</td><td class="r">${f.off}</td><td class="r">${f.type === "FRAGN" ? f.off / 8 : f.type === "FRAG1" ? "(0, yazılmaz)" : "—"}</td><td class="r">${f.len}</td><td class="r">${f.wire}</td><td class="w-naming-6lowpan-mono">${N6.hex(hdr(f, D)) || "—"}</td></tr>`).join("") + `</table>`;
+    const frames = [];
+    F.forEach((f, i) => {
+      const got = F.slice(0, i + 1).filter((g, j) => j !== L).reduce((a, g) => a + g.len, 0);
+      let cap = res.single ? `Tek frame: ${f.wire} B, fragment header yok.` :
+        `${i + 1}. fragment (${f.type}): datagram'ın ${f.off}–${f.off + f.len - 1}. byte'ları${f.type === "FRAGN" ? `, datagram_offset = ${f.off}/8 = ${f.off / 8}` : ""}. Header: <span class="w-naming-6lowpan-mono">${N6.hex(hdr(f, D))}</span>.`;
+      cap += i === L ? ` <b class="w-naming-6lowpan-bad">Bu fragment kayboldu.</b>` : ` Buffer: ${got} / ${D} B.`;
+      frames.push({ upto: i, caption: cap });
+    });
+    frames.push({ upto: N - 1, final: true, caption: L >= 0 ?
+      `Reassembly timer (en fazla 60 s) doldu ve elde ${D - F[L].len} / ${D} B vardı. Buffer atıldı, datagram kayboldu. Üst katman yeniden gönderirse ${N} fragment'ın hepsi yeniden gider.` :
+      `${D} B = datagram_size. Datagram birleşti${iphc ? " (IPHC açılıp 48 B'lik header'lar yeniden kuruldu)" : ""} ve IPv6 katmanına verildi.` });
+    Lab.stepper(box, {
+      title: `Reassembly buffer · D = ${D} B, tag 0x${TAG.toString(16).padStart(4, "0")}`,
+      interval: 1200,
+      frames,
+      render(fr, idx, el) {
+        el.innerHTML = `<div class="w-naming-6lowpan-buf">` + F.map((f, j) => {
+          let cls = "";
+          if (j <= fr.upto) cls = j === L ? "lost" : (j === fr.upto && !fr.final ? "now" : "got");
+          if (fr.final && L >= 0 && j !== L) cls = "lost";
+          return `<span class="${cls}" style="flex-grow:${f.len}" title="${f.off}–${f.off + f.len - 1}">${j + 1}</span>`;
+        }).join("") + `</div>`;
+      }
+    });
+  }
+  N6.$("fr-go").addEventListener("click", () => run(true));
+  lost.addEventListener("change", () => run(true));
+  [d, s, hm, c, pr, rr].forEach(e => e.addEventListener("change", () => run(false)));
+  document.querySelectorAll("[data-fr]").forEach(b => b.addEventListener("click", () => { const [a, x] = b.dataset.fr.split(","); d.value = a; s.value = x; run(false); }));
+  run(false);
+})();
+
+/* 6. CoAP and MQTT-SN message sequences with real encodings */
+(function () {
+  const sc = N6.$("ms-sc"), val = N6.$("ms-val"), err = N6.$("ms-err"), box = N6.$("ms-step");
+  const ascii = t => Array.from(t).map(ch => ch.charCodeAt(0));
+  function coap(t, code, mid, token, opts, payload) {
+    const b = [(1 << 6) | (t << 4) | token.length, code, mid >> 8, mid & 255].concat(token);
+    let last = 0;
+    opts.slice().sort((a, z) => a[0] - z[0]).forEach(([num, v]) => {
+      const dl = num - last, l = v.length; last = num;
+      const nib = x => x < 13 ? [x, []] : x < 269 ? [13, [x - 13]] : [14, [(x - 269) >> 8, (x - 269) & 255]];
+      const [dn, de] = nib(dl), [ln, le] = nib(l);
+      b.push((dn << 4) | ln, ...de, ...le, ...v);
+    });
+    if (payload && payload.length) b.push(0xff, ...payload);
+    return b;
+  }
+  const TYPES = ["CON", "NON", "ACK", "RST"];
+  const code = c => `${c >> 5}.${String(c & 31).padStart(2, "0")}`;
+  function bump(v, dlt) { const x = Number(v); return isFinite(x) && v.trim() !== "" ? String(Math.round((x + dlt) * 100) / 100) : v; }
+  function build(kind, v) {
+    const pay = ascii(v);
+    const TOK = [0x5a, 0x01], TOK2 = [0x5a, 0x02];
+    if (["get", "lost", "obs"].includes(kind)) {
+      const lanes = ["Uygulama (client)", "Border router", "Node (server)"];
+      const M = [];
+      if (kind === "obs") {
+        const reg = coap(0, 0x01, 0x1235, TOK2, [[6, []], [11, ascii("temp")]]);
+        M.push({ a: 0, b: 2, t: "0 s", lab: "CON GET /temp, Observe: 0", bytes: reg, info: "Observe option'ı (6) değeri 0, sıfır uzunlukla: kayıt isteği." });
+        M.push({ a: 2, b: 0, t: "", lab: "ACK 2.05, Observe: 5", bytes: coap(2, 0x45, 0x1235, TOK2, [[6, [5]], [12, []]], pay), info: "Piggybacked ilk değer; Observe sıra numarası 5." });
+        const v2 = bump(v, 0.5), v3 = bump(v, 1.1);
+        M.push({ a: 2, b: 0, t: "değer değişti", lab: "NON 2.05, Observe: 6", bytes: coap(1, 0x45, 0x7a10, TOK2, [[6, [6]], [12, []]], ascii(v2)), info: `Notification: aynı Token, yeni Message ID, değer "${N6.esc(v2)}". Client sormadı; node değişince kendisi gönderdi.` });
+        M.push({ a: 2, b: 0, t: "değer değişti", lab: "NON 2.05, Observe: 7", bytes: coap(1, 0x45, 0x7a11, TOK2, [[6, [7]], [12, []]], ascii(v3)), info: `İkinci notification, değer "${N6.esc(v3)}". NON olduğu için ACK yok.` });
+        return { lanes, M };
+      }
+      const get = coap(0, 0x01, 0x1234, TOK, [[11, ascii("temp")]]);
+      if (kind === "lost") {
+        M.push({ a: 0, b: 2, t: "0 s", lab: "CON GET /temp", bytes: get, lost: true, info: "İlk gönderim LoWPAN içinde kayboldu. Client timer'ı kuruyor: ilk timeout [2, 3] s'den, örnekte 2.4 s." });
+        M.push({ a: 0, b: 2, t: "2.4 s", lab: "CON GET /temp (retransmission)", bytes: get, info: "Aynı Message ID (0x1234) ve aynı Token ile yeniden gönderim. Gelmeseydi sıradaki 4.8 s sonra (7.2 s'de) olurdu." });
+      } else M.push({ a: 0, b: 2, t: "0 s", lab: "CON GET /temp", bytes: get, info: "Confirmable request; Uri-Path option'ı (11) 'temp'." });
+      M.push({ a: 2, b: 0, t: "", lab: "ACK 2.05 Content", bytes: coap(2, 0x45, 0x1234, TOK, [[12, []]], pay), info: "Piggybacked response: cevap ACK'in içinde. Message ID ACK'i CON'a, Token cevabı request'e eşler." });
+      return { lanes, M };
+    }
+    const lanes = ["Node (client)", "MQTT-SN gateway", "MQTT broker", "Subscriber"];
+    const M = [];
+    if (kind === "q1") {
+      const cid = ascii("n2"), topic = ascii("farm/n2/temp");
+      M.push({ a: 0, b: 1, lab: "CONNECT", bytes: [6 + cid.length, 0x04, 0x04, 0x01, 0x00, 0x3c, ...cid], info: "Flags 0x04 = CleanSession, ProtocolId 0x01, Duration 60 s (keep-alive), ClientId 'n2'." });
+      M.push({ a: 1, b: 0, lab: "CONNACK", bytes: [3, 0x05, 0x00], info: "ReturnCode 0: accepted." });
+      M.push({ a: 0, b: 1, lab: "REGISTER farm/n2/temp", bytes: [6 + topic.length, 0x0a, 0x00, 0x00, 0x00, 0x01, ...topic], info: "Client topic name'ini kaydettiriyor; TopicId 0x0000 (client gönderirken anlamsız), MsgId 1." });
+      M.push({ a: 1, b: 0, lab: "REGACK TopicId 0x0011", bytes: [7, 0x0b, 0x00, 0x11, 0x00, 0x01, 0x00], info: "Gateway 2 byte'lık topic ID'yi verdi. Bundan sonra topic name hiç gönderilmez." });
+      M.push({ a: 0, b: 1, lab: "PUBLISH QoS 1", bytes: [7 + pay.length, 0x0c, 0x20, 0x00, 0x11, 0x00, 0x02, ...pay], info: "Flags 0x20: QoS 1, TopicIdType 00 (normal). TopicId 0x0011, MsgId 2, sonra veri." });
+      M.push({ a: 1, b: 0, lab: "PUBACK", bytes: [7, 0x0d, 0x00, 0x11, 0x00, 0x02, 0x00], info: "Aynı TopicId ve MsgId, ReturnCode 0. QoS 1 tamam." });
+    } else {
+      M.push({ a: 0, b: 1, lab: "PUBLISH QoS −1, pre-defined 0x0005", bytes: [7 + pay.length, 0x0c, 0x61, 0x00, 0x05, 0x00, 0x00, ...pay], info: "Flags 0x61: QoS bit'leri 11 (−1), TopicIdType 01 (pre-defined). Connection, registration, ACK yok: gönder ve unut." });
+    }
+    M.push({ a: 1, b: 2, lab: "MQTT PUBLISH (TCP)", bytes: null, info: "Gateway mesajı MQTT'ye çevirip broker'a TCP/IP üzerinden iletiyor. LoWPAN dışında." });
+    M.push({ a: 2, b: 3, lab: "MQTT PUBLISH", bytes: null, info: "Broker topic'e subscribe olan herkese dağıtıyor. Node subscriber'ları bilmiyor." });
+    return { lanes, M };
+  }
+  function decode(m, kind) {
+    if (!m.bytes) return "";
+    if (["get", "lost", "obs"].includes(kind)) {
+      const b = m.bytes;
+      return ` Header: Ver ${b[0] >> 6}, ${TYPES[(b[0] >> 4) & 3]}, TKL ${b[0] & 15}, Code ${code(b[1])}, Message ID 0x${((b[2] << 8) | b[3]).toString(16).padStart(4, "0")}.`;
+    }
+    return ` Length ${m.bytes[0]}, MsgType 0x${m.bytes[1].toString(16).padStart(2, "0")}.`;
+  }
+  function svg(lanes, M, upto) {
+    const W = 480, X = lanes.map((_, i) => 40 + i * (W - 80) / (lanes.length - 1)), H = 48 + M.length * 36;
+    let g = lanes.map((l, i) => `<text class="h" x="${X[i]}" y="14" text-anchor="middle">${N6.esc(l)}</text><line x1="${X[i]}" y1="22" x2="${X[i]}" y2="${H - 6}" stroke="var(--border-strong)" stroke-width="2"/>`).join("");
+    M.forEach((m, i) => {
+      if (i > upto) return;
+      const y = 44 + i * 36, x1 = X[m.a], x2 = m.lost ? X[m.a] + 0.62 * (X[m.b] - X[m.a]) : X[m.b];
+      const col = i === upto ? "var(--accent)" : m.bytes ? "var(--blue-600)" : "var(--stone-500)";
+      const dir = Math.sign(x2 - x1) || 1;
+      g += `<line x1="${x1}" y1="${y}" x2="${x2 - dir * 6}" y2="${y}" stroke="${col}" stroke-width="2.5"${m.bytes ? "" : ' stroke-dasharray="5 3"'}/>`;
+      g += m.lost ? `<text x="${x2}" y="${y + 4}" text-anchor="middle" style="fill:var(--orange-700);font-weight:700;font-size:15px">✕</text>` : `<path d="M${x2} ${y} l${-dir * 8} -5 v10 z" fill="${col}"/>`;
+      g += `<text x="${(x1 + X[m.b]) / 2}" y="${y - 6}" text-anchor="middle">${N6.esc(m.lab)}${m.bytes ? ` · ${m.bytes.length} B` : ""}</text>`;
+      if (m.t) g += `<text x="2" y="${y + 4}" style="font-size:9px;fill:var(--fg-subtle)">${N6.esc(m.t)}</text>`;
+    });
+    return `<div class="w-naming-6lowpan-scroll"><svg class="w-naming-6lowpan-svg" style="min-width:440px" viewBox="0 0 ${W} ${H}" role="img" aria-label="Message sequence chart">${g}</svg></div>`;
+  }
+  function run() {
+    const v = val.value;
+    if (!/^[\x20-\x7e]{1,12}$/.test(v)) { err.textContent = "Değer 1–12 karakterlik düz ASCII metin olmalı (örneğin 23.4)."; box.innerHTML = ""; return; }
+    err.textContent = "";
+    const kind = sc.value, { lanes, M } = build(kind, v);
+    let radioN = 0, radioB = 0;
+    const frames = M.map((m, i) => {
+      if (m.bytes) { radioN++; radioB += m.bytes.length; }
+      return { upto: i, caption: `<b>${N6.esc(m.lab)}</b>${m.bytes ? ` (${m.bytes.length} B): <span class="w-naming-6lowpan-mono">${N6.hex(m.bytes)}</span>.` + decode(m, kind) : "."} ${m.info} <span class="src">Radyo şimdiye kadar: ${radioN} mesaj, ${radioB} B.</span>` };
+    });
+    const radio = M.filter(m => m.bytes);
+    const tot = radio.reduce((a, m) => a + m.bytes.length, 0);
+    frames.push({ upto: M.length - 1, caption: `<b>Özet:</b> radyoda ${radio.length} mesaj, ${tot} B (sadece ${kind === "q1" || kind === "qm1" ? "MQTT-SN" : "CoAP"} byte'ları). En büyük mesaj ${Math.max(...radio.map(m => m.bytes.length))} B; hepsi tek bir 802.15.4 frame'ine sığar.` });
+    Lab.stepper(box, {
+      title: sc.options[sc.selectedIndex].text,
+      interval: 1500,
+      frames,
+      render(f, idx, el) { el.innerHTML = svg(lanes, M, f.upto); }
+    });
+  }
+  N6.$("ms-go").addEventListener("click", run);
+  sc.addEventListener("change", run);
+  val.addEventListener("keydown", e => { if (e.key === "Enter") run(); });
+  run();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 427: dBm ve dB farkı, link budget, receiver sensitivity, noise floor ve SNR, free-space ve log-distance path loss, log-normal shadowing, multipath ve fading, birleşik received-power modeli." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>dBm, link budget ve propagation · CSE 427 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-radio-propagation-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-radio-propagation-box { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; margin: 10px 0; background: var(--paper); min-width: 0; }
+    .w-radio-propagation-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-radio-propagation-ctl input[type="text"] { width: 96px; }
+    .w-radio-propagation-ctl select { max-width: 100%; }
+    .w-radio-propagation-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-radio-propagation-ok { color: #2b8a3e; font-weight: 600; }
+    .w-radio-propagation-row { display: grid; grid-template-columns: minmax(64px, 92px) minmax(0, 1fr) 76px; gap: 8px; align-items: center; margin: 5px 0; }
+    .w-radio-propagation-row label { font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: .85rem; }
+    .w-radio-propagation-row input[type="range"] { width: 100%; accent-color: var(--blue-600); }
+    .w-radio-propagation-row input[type="text"] { width: 100%; box-sizing: border-box; }
+    .w-radio-propagation-out { font-family: 'JetBrains Mono', monospace; font-size: .9rem; line-height: 1.6; }
+    .w-radio-propagation-out b { color: var(--fg-brand); }
+    .w-radio-propagation-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; align-items: start; }
+    .w-radio-propagation-svg { display: block; width: 100%; height: auto; max-width: 560px; }
+    .w-radio-propagation-svg text { font-family: 'JetBrains Mono', monospace; }
+    .w-radio-propagation-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+    .w-radio-propagation-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; font-size: .88rem; background: var(--stone-050); }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 427</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 427</a> / dBm, link budget ve propagation</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W2 Part A</span><span class="chip chip--exam">Vize kapsamı</span><span class="src">~56 dk · 12 bölüm</span></div>
+          <h1>dBm, link budget ve propagation</h1>
+          <p class="lead">Bir mote'un gönderdiği gücün çok küçük bir kısmı karşı tarafa ulaşır. Bu derste bu gücü <strong>dBm</strong> ile yazmayı, <strong>link budget</strong> ile hesaplamayı ve yolda neden kaybolduğunu öğreneceksin: <em>path loss</em>, <em>shadowing</em> ve <em>fading</em>. Sonunda şu cümlenin neden doğru olduğunu açıklayabilmelisin: "Received power, distance'ın deterministic bir fonksiyonu değildir."</p>
+          <!-- Kaynak: Week_2_WSN_Radio_PHY_60slides_Contiki3.pptx slayt 2-4 (akış, plan, learning outcomes), 6-24 (Part A) · weeks/02-radio-and-physical-layer.md (Key concepts, Practice, Notes — Efe / Exam-worthy, lab sonuçları) · Karl & Willig Ch. 4.2.3-4.2.4 (s. 91-98) · Dargie & Poellabauer §5.5 (s. 117-119) · Hidden & Exposed Terminals in Real WSNs.pptx slayt 15 (W4 okuması, wheat path-loss exponent). -->
+        </header>
+
+        <article class="lesson" data-course="cse-427" data-lesson="radio-propagation">
+
+<!-- 1 -->
+<section class="lsec" id="link" data-min="3">
+  <h2>Link bir kablo değil</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Kablolu bir ağda iki makine arasındaki bağlantı ya vardır ya yoktur. WSN'de iletişim ortamı <strong>çevrenin kendisidir</strong>. Packet'ler bir ok gibi gitmez, electromagnetic wave olarak yayılır. Duvarlar, insanlar, mobilya, metal ve interference bu ortamı sürekli değiştirir.</p>
+    <p>Bu yüzden iki yakın node arasındaki link kötü olabilir, daha uzaktaki iki node ise bazen çalışabilir. Hoca dersi şu cümleyle açıyor: <em>"A wireless link is not a cable. It is a probability distribution with packets attached."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · bu dersin bakış açısı</span>
+    <ul>
+      <li>Bir link, <strong>başarılı packet delivery olasılığı</strong> olarak modellenir, ikili (var/yok) bir edge olarak değil.</li>
+      <li>Link quality = <strong>zamanla değişen kanıt</strong> (time-varying evidence). Bugün ölçtüğün değer yarın aynı olmayabilir.</li>
+      <li>Transmitter enerjiyi her yöne yayar; receiver bunun <strong>çok küçük bir kesrini</strong> yakalar. Received power, transmit power'dan milyonlarca, hatta milyarlarca kat küçüktür. Bu yüzden güçleri logaritmik bir ölçekle (dBm) yazarız.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak</span>
+    <ul>
+      <li>Her node'un etrafına bir daire çizip "dairenin içi bağlı, dışı kopuk" demek. Hoca learning outcome'larda bunu açıkça istemiyor: <em>"reason about links, not just draw circles."</em> Cooja'nın UDGM modeli tam olarak bu daireyi kullanır; gerçek link'ler öyle davranmaz (sonraki derste lab ile göreceksin).</li>
+      <li>Physical layer varsayımları fazla temiz olursa routing, MAC scheduling ve energy modelleri de yanlış çıkar. Bu ders sonraki her haftanın temeli.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W2 slayt 2 (anchor cümlesi, "why it matters"), 4 (LO'lar), 6 (radio is not just networking), 7 (Tx radiates, Rx captures tiny fraction). -->
+  <div class="quiz" id="q-link-1">
+    <p class="quiz__q">A ve B node'ları 3 m arayla duruyor, C ve D 8 m arayla. Ölçümde A–B link'i C–D'den daha kötü çıkıyor. Bu derse göre en doğru yorum hangisi?</p>
+    <button class="quiz__opt">Ölçüm hatalı olmalı, çünkü yakın node'lar her zaman daha iyi link verir.<span class="why">Distance'ı tek belirleyici sanmak. Ortamdaki duvar, metal ve insanlar yakın bir link'i de bozabilir; bu ölçüm hatası değil.</span></button>
+    <button class="quiz__opt" data-correct>Normal: link quality distance'tan değil ortamdan da etkilenir ve bir delivery olasılığı olarak düşünülmeli.<span class="why">Doğru. Slayt 6: "Two close nodes may have a poor link; two farther nodes may sometimes work."</span></button>
+    <button class="quiz__opt">A–B link'i yok sayılmalı, çünkü link ya vardır ya yoktur.<span class="why">Link'i binary edge olarak görmek. Kötü bir link'in de belli bir PRR'ı vardır; dersin ana fikri tam olarak bunun tersi.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="dbm" data-min="5">
+  <h2>dBm: mutlak güç</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · sıfır saymak</span>
+    <p>Bir mote 1 mW ile gönderir, karşıdaki mote $0.000000001$ mW alır. Bu kadar sıfırla hesap yapmak zor. Logaritma, "kaç kere 10 ile çarptım ya da böldüm" sorusunu bir toplama çevirir: 1 mW'dan $10^{-9}$ mW'a inmek dokuz kere 10'a bölmek demek, yani $9 \times (-10) = -90$ dBm.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · dBm</span>
+    $$P_{\text{dBm}} = 10 \log_{10}\!\left(\frac{P_{\text{mW}}}{1\ \text{mW}}\right) \qquad\Longleftrightarrow\qquad P_{\text{mW}} = 10^{P_{\text{dBm}}/10}$$
+    <ul>
+      <li><strong>dBm, 1 mW'a göre mutlak güçtür</strong> (absolute power relative to 1 mW). $0$ dBm $= 1$ mW.</li>
+      <li>Negatif dBm normaldir: 1 mW'dan küçük demektir. Received power neredeyse hep negatiftir.</li>
+      <li>$-80$ dBm, $-90$ dBm'den <strong>güçlüdür</strong>. dBm'de "büyük" demek "daha az negatif" demek.</li>
+    </ul>
+    <div class="table-wrap"><table>
+      <tr><th>Power</th><th>dBm</th><th>Nasıl</th></tr>
+      <tr><td>100 mW</td><td>20 dBm</td><td>iki kere ×10</td></tr>
+      <tr><td>10 mW</td><td>10 dBm</td><td>bir kere ×10</td></tr>
+      <tr><td>1 mW</td><td>0 dBm</td><td>referans</td></tr>
+      <tr><td>0.1 mW</td><td>−10 dBm</td><td>bir kere ÷10</td></tr>
+      <tr><td>0.001 mW</td><td>−30 dBm</td><td>üç kere ÷10</td></tr>
+      <tr><td>10⁻⁹ mW</td><td>−90 dBm</td><td>dokuz kere ÷10</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Hesap makinesiz tarif</span>
+    <ol>
+      <li>Sayıyı $10^k \times$ (1, 2, 4, 5 ya da 1/2…) biçiminde yaz.</li>
+      <li>Her ×10 için $+10$ dB, her ×2 için $+3$ dB, her ÷2 için $-3$ dB ekle.</li>
+      <li>Örnekler: $20$ mW $= 10 \times 2$ ⇒ $10 + 3 = 13$ dBm. $0.5$ mW $= 1 / 2$ ⇒ $-3$ dBm. $50$ mW $= 100 / 2$ ⇒ $20 - 3 = 17$ dBm. $4$ mW $= 2 \times 2$ ⇒ $6$ dBm.</li>
+    </ol>
+    <p>$+3$ dB tam olarak ×2 değil, $\times 1.995$. Sınavda "≈" yazman yeterli: $10\log_{10} 2 = 3.01$.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 7 (formül, 0 dBm = 1 mW, negatif dBm, −80 > −90), slayt 8 (dBm reference table), slayt 9 (+3 dB ≈ ×2, +10 dB = ×10). Ara değerler python ile kontrol edildi. -->
+
+  <h3>Kendin dene: dBm ↔ mW</h3>
+  <p class="w-radio-propagation-guess"><b>Önce tahmin et:</b> $0.25$ mW kaç dBm? Kafandan bul, sonra aşağıya yaz ve kontrol et.</p>
+  <div class="w-radio-propagation-box" id="w1">
+    <div class="w-radio-propagation-ctl">
+      <label>mW: <input id="w1-mw" type="text" inputmode="decimal" value="10" class="btn btn--sm" aria-label="milliwatt" /></label>
+      <span>⇄</span>
+      <label>dBm: <input id="w1-dbm" type="text" inputmode="decimal" value="" class="btn btn--sm" aria-label="dBm" /></label>
+    </div>
+    <div class="w-radio-propagation-err" id="w1-err" aria-live="polite"></div>
+    <div class="w-radio-propagation-out" id="w1-out"></div>
+    <p class="src">mW kutusuna <code>1e-9</code> ya da <code>10^-9</code> da yazabilirsin. Hangi kutuya yazarsan öteki hesaplanır.</p>
+    <h4 style="margin:10px 0 4px">Hesap makinesiz alıştırma</h4>
+    <div class="w-radio-propagation-ctl">
+      <span id="w1-q" style="font-weight:700"></span>
+      <input id="w1-a" type="text" inputmode="decimal" class="btn btn--sm" aria-label="cevap" />
+      <button class="btn btn--sm btn--accent" id="w1-check">Kontrol</button>
+      <button class="btn btn--sm" id="w1-next">Yeni soru</button>
+    </div>
+    <div id="w1-fb" aria-live="polite"></div>
+  </div>
+
+  <div class="box box--exam" data-exam="W2-practice-1"><span class="box__label">weeks/02 Practice S1 · alıştırma listesi</span>
+    <p>"Convert 10 mW, 0.1 mW, 10⁻⁹ mW to dBm without a calculator"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her sayı 10'un bir kuvveti. 1 mW'dan kaç kere ×10 ya da ÷10 yaptığını say.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$10\log_{10}(10^k) = 10k$. Yani exponent'i 10 ile çarp.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$P_{\text{dBm}} = 10\log_{10}(P_{\text{mW}})$ ve $10\log_{10}(10^k) = 10k$:</p>
+      <ul>
+        <li>$10$ mW $= 10^{1}$ mW ⇒ $10 \cdot 1 = \boxed{10\ \text{dBm}}$</li>
+        <li>$0.1$ mW $= 10^{-1}$ mW ⇒ $10 \cdot (-1) = \boxed{-10\ \text{dBm}}$</li>
+        <li>$10^{-9}$ mW ⇒ $10 \cdot (-9) = \boxed{-90\ \text{dBm}}$</li>
+      </ul>
+      <p>Son değer, WSN receiver'larında görülen tipik zayıf bir sinyal seviyesidir; slayt 8'deki tablonun son satırı.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/weeks/02-radio-and-physical-layer.md#practice">Orijinal liste (weeks/02, Practice)</a></p>
+    <!-- Kaynak: weeks/02-radio-and-physical-layer.md, ## Practice madde 1. Cevap anahtarı yok; değerler python ile kontrol edildi. -->
+  </div>
+
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Eksi işaretini düşürmek. $-90$ dBm ile $90$ dBm arasında $10^{18}$ kat fark var.</li>
+      <li>"90, 80'den büyük, o hâlde $-90$ dBm daha güçlü" demek. Tersi: $-80$ dBm, $-90$ dBm'in 10 katı.</li>
+      <li>0 mW'ı dBm'e çevirmeye çalışmak: $\log_{10} 0$ tanımsız. Sıfır güç dBm'de "$-\infty$" olur; dBm'de 0 yazan şey 1 mW'tır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-dbm-1">
+    <p class="quiz__q">Üç packet'in received power'ı: $-62$ dBm, $-85$ dBm, $-71$ dBm. En güçlü olanı hangisi?</p>
+    <button class="quiz__opt">$-85$ dBm<span class="why">Mutlak değeri en büyük olanı seçmek. dBm'de büyük olan daha az negatif olandır.</span></button>
+    <button class="quiz__opt" data-correct>$-62$ dBm<span class="why">Doğru. $-62$, $-71$'den 9 dB, $-85$'ten 23 dB büyük, yani yaklaşık 200 kat daha fazla güç.</span></button>
+    <button class="quiz__opt">Karşılaştırılamaz, önce mW'a çevirmek gerekir.<span class="why">İkisi de aynı referansa (1 mW) göre olduğu için dBm değerleri doğrudan sıralanabilir. Logaritma sıralamayı korur.</span></button>
+  </div>
+  <div class="quiz" id="q-dbm-2">
+    <p class="quiz__q">$0.01$ mW kaç dBm?</p>
+    <button class="quiz__opt">$-2$ dBm<span class="why">Exponent'i 10 ile çarpmayı unutmak: $\log_{10} 0.01 = -2$, ama dBm $10 \times (-2)$.</span></button>
+    <button class="quiz__opt" data-correct>$-20$ dBm<span class="why">Doğru: $0.01 = 10^{-2}$ ⇒ $10 \cdot (-2) = -20$ dBm.</span></button>
+    <button class="quiz__opt">$20$ dBm<span class="why">İşareti çevirmek. $20$ dBm $= 100$ mW, 1 mW'dan büyük bir güç.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="db" data-min="4">
+  <h2>dB ve dBm: aynı harfler, farklı anlam</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · slayt 9</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Ne anlatır</th><th>Slayttaki örnek</th></tr>
+      <tr><td><strong>dBm</strong></td><td>Mutlak güç seviyesi, 1 mW'a göre</td><td>received signal $= -85$ dBm</td></tr>
+      <tr><td><strong>dB</strong></td><td>Oran: gain ya da loss</td><td>path loss $= 70$ dB; antenna gain $= 2$ dB</td></tr>
+    </table></div>
+    <p>$+3$ dB ≈ ×2 güç · $+10$ dB $=$ ×10 güç · $-10$ dB $=$ ÷10 güç.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Birim cebiri</span>
+    <ul>
+      <li><strong>dBm ± dB = dBm.</strong> Bir güce gain eklersin ya da loss çıkarırsın, sonuç yine bir güçtür: $-85$ dBm $- 3$ dB $= -88$ dBm.</li>
+      <li><strong>dBm − dBm = dB.</strong> İki gücün farkı bir orandır: $P_t - P_r$ path loss'u verir, $P_{\text{signal}} - P_{\text{noise}}$ SNR'ı verir.</li>
+      <li><strong>dBm + dBm anlamsızdır.</strong> İki gücü logaritmik ölçekte toplamak, mW'ları çarpmak demektir. İki sinyalin gücünü toplamak için önce mW'a çevir: iki tane $0$ dBm sinyal $1 + 1 = 2$ mW eder, yani $\approx 3$ dBm, $0$ dBm değil.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W2 slayt 9 ("Same letters, different meaning — classic exam trap"). Birim cebiri slayt 10 (link budget birimleri), slayt 12 (SNR) ve slayt 14'teki (PL_dB = P_t,dBm − P_r,dBm) formüllerden çıkarıldı. -->
+  <div class="box box--exam" data-exam="W2-s9-trap"><span class="box__label">W2 slayt 9 · hocanın "classic exam trap" uyarısı</span>
+    <p>"dB versus dBm — Same letters, different meaning — classic exam trap." Slayttaki iki örnek: "received signal = −85 dBm" ve "path loss = 70 dB; antenna gain = 2 dB".</p>
+    <p>Uyarıyı soru olarak çalış: aşağıdaki büyüklüklerin her biri hangi birimle yazılır, dB mi dBm mi? (a) transmit power, (b) path loss, (c) antenna gain, (d) noise floor, (e) SNR, (f) link budget sonucundaki $P_r$.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kendine sor: bu bir "seviye" mi (bir yerde ölçülen güç), yoksa iki şeyin "oranı" mı (ne kadar arttı ya da azaldı)?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Noise floor, receiver'ın duyduğu gürültünün gücüdür. SNR ise iki gücün farkıdır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ul>
+        <li>(a) transmit power: <strong>dBm</strong> (ör. $0$ dBm $= 1$ mW).</li>
+        <li>(b) path loss: <strong>dB</strong>. $P_t$ ile $P_r$'nin oranı. "70 dBm path loss" yazmak hatadır.</li>
+        <li>(c) antenna gain: <strong>dB</strong>. Bir çarpan.</li>
+        <li>(d) noise floor: <strong>dBm</strong>. Gürültünün mutlak gücü (ör. $-100$ dBm).</li>
+        <li>(e) SNR: <strong>dB</strong>. $P_{\text{signal,dBm}} - P_{\text{noise,dBm}}$, iki dBm'in farkı.</li>
+        <li>(f) $P_r$: <strong>dBm</strong>. $P_t$ (dBm) ile başlayıp dB'ler ekleyip çıkarınca sonuç dBm kalır.</li>
+      </ul>
+      <p>Kısa kural: <strong>güç seviyesi → dBm, oran / gain / loss → dB.</strong></p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/2026-2027-fall/Week_2_WSN_Radio_PHY_60slides_Contiki3.pptx">Orijinal slaytlar (W2, slayt 9)</a></p>
+    <!-- Kaynak: W2 slayt 9. Soru biçimi slayttaki uyarıdan kuruldu; slaytın kendisi soru değil. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Path loss $= 70$ dBm" ya da "$P_r = -77$ dB". Birim yanlışsa sınavda cevap yanlış sayılabilir.</li>
+      <li>$+3$ dB'yi "+3 mW" sanmak. dB bir çarpandır, güce eklenen bir miktar değil.</li>
+      <li>Antenna gain'i dB'de verip lineer çarpan gibi kullanmak: $2$ dB gain ×2 değil, ×1.58'dir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-db-1">
+    <p class="quiz__q">Aynı anda iki interferer duyuluyor, her biri $-90$ dBm. Toplam interference gücü yaklaşık kaç?</p>
+    <button class="quiz__opt">$-180$ dBm<span class="why">dBm'leri doğrudan toplamak. Bu, mW değerlerini çarpmak demek; güçler çarpılmaz, toplanır.</span></button>
+    <button class="quiz__opt">$-90$ dBm<span class="why">İkinci kaynağın hiçbir şey eklemediğini varsaymak. Güç iki katına çıkar.</span></button>
+    <button class="quiz__opt" data-correct>$-87$ dBm<span class="why">Doğru: güç iki katına çıkar ve ×2 ≈ $+3$ dB. mW'da: $2 \times 10^{-9}$ mW $\approx -87$ dBm.</span></button>
+  </div>
+  <div class="quiz" id="q-db-2">
+    <p class="quiz__q">Bir sinyal $-60$ dBm. Arada $20$ dB ek kayıp olursa yeni değer ve güç oranı nedir?</p>
+    <button class="quiz__opt" data-correct>$-80$ dBm, güç 100'de birine iner<span class="why">Doğru: dBm − dB = dBm. $-20$ dB iki kere ÷10 demek.</span></button>
+    <button class="quiz__opt">$-80$ dBm, güç 20'de birine iner<span class="why">dB'yi lineer sanmak. $-20$ dB = $10^{-2}$, yani ÷100.</span></button>
+    <button class="quiz__opt">$-40$ dBm<span class="why">Kaybı eklemek. Loss güçten çıkarılır; sinyal zayıflar, güçlenmez.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="budget" data-min="5">
+  <h2>Link budget</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · bir hesap defteri</span>
+    <p>Transmit power ile başla. Antenler bir miktar kazandırır, yol ve devreler bir miktar kaybettirir. Her şey dB olduğu için hepsi toplama ve çıkarmaya dönüşür. Sonuç, receiver'a ulaşan güçtür. Hoca buna "first-order accounting of gains and losses" diyor.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · link budget (slayt 10)</span>
+    $$P_r = P_t + G_t + G_r - PL - L_s$$
+    <div class="table-wrap"><table>
+      <tr><th>Sembol</th><th>Anlamı</th><th>Birim</th></tr>
+      <tr><td>$P_r$</td><td>received power</td><td>dBm</td></tr>
+      <tr><td>$P_t$</td><td>transmit power</td><td>dBm</td></tr>
+      <tr><td>$G_t,\ G_r$</td><td>transmitter ve receiver antenna gain</td><td>dB</td></tr>
+      <tr><td>$PL$</td><td>propagation path loss</td><td>dB</td></tr>
+      <tr><td>$L_s$</td><td>ek system losses (konnektör, devre…)</td><td>dB</td></tr>
+    </table></div>
+    <p>Hesaptan sonra iki soru daha sor: <strong>$P_r$ receiver sensitivity'nin üstünde mi?</strong> ve <strong>noise floor nerede?</strong> İkisini bir sonraki bölümde açıyoruz.</p>
+  </div>
+  <div class="box box--exam" data-exam="W2-s10-budget"><span class="box__label">W2 slayt 10 · hocanın çözümlü örneği</span>
+    <p>"If P_t = 0 dBm, antennas are 0 dB, path loss is 75 dB and system losses are 2 dB: P_r = ? Now ask: is that above sensitivity, and what is the noise floor?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Formüle sırayla koy. Antenler 0 dB ise hiçbir şey eklemezler.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İkinci soru için sensitivity ($S$) ve noise floor ($N$) değerleri gerekir. Soru bunları vermiyor; cevabın, "hangi değer olsaydı ne derdim" biçiminde olmalı.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      $$P_r = 0 + 0 + 0 - 75 - 2 = \boxed{-77\ \text{dBm}}$$
+      <p><strong>Sensitivity:</strong> receiver'ın datasheet'indeki $S$ ile karşılaştır. Margin $= P_r - S$. Örneğin $S = -92$ dBm olsaydı margin $-77 - (-92) = 15$ dB olurdu. Bu, shadowing ve fading için bir tampon demektir; margin küçüldükçe delivery olasılığı yavaşça düşer.</p>
+      <p><strong>Noise floor:</strong> $P_r$ tek başına yetmez. Noise floor $-100$ dBm ise $\text{SNR} = -77 - (-100) = 23$ dB, rahat. Ortamda Wi-Fi varsa ve noise $-80$ dBm'e çıkarsa SNR sadece $3$ dB olur ve link zorlanır.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/2026-2027-fall/Week_2_WSN_Radio_PHY_60slides_Contiki3.pptx">Orijinal slaytlar (W2, slayt 10)</a></p>
+    <!-- Kaynak: W2 slayt 10 (worked intuition, sonuç −77 dBm slaytta). weeks/02 Key concepts aynı örneği tekrar ediyor. S = −92 ve N = −100 / −80 açıklama için seçilmiş örnek değerler. -->
+  </div>
+
+  <h3>Kendin dene: link budget merdiveni</h3>
+  <p class="w-radio-propagation-guess"><b>Önce tahmin et:</b> Hazır değerlerle ($P_t = -5$, iki anten $+2$, $PL = 80$, $L_s = 3$) $P_r$ kaç dBm? Sensitivity $-92$ dBm ise margin kaç dB kalır?</p>
+  <div class="w-radio-propagation-box" id="w2">
+    <div class="w-radio-propagation-two">
+      <div>
+        <div id="w2-rows"></div>
+        <div class="w-radio-propagation-err" id="w2-err" aria-live="polite"></div>
+        <div class="w-radio-propagation-out" id="w2-out"></div>
+      </div>
+      <div><svg class="w-radio-propagation-svg" id="w2-svg" viewBox="0 0 300 380" role="img" aria-label="dBm merdiveni"></svg></div>
+    </div>
+    <div id="w2-stepper"></div>
+  </div>
+
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>PL'yi eklemek. Path loss pozitif bir sayı olarak verilir ve <strong>çıkarılır</strong>.</li>
+      <li>Antenna gain'leri unutmak ya da sadece birini eklemek: formülde hem $G_t$ hem $G_r$ var.</li>
+      <li>Aynı toplamın içinde mW ve dBm karıştırmak. Link budget sadece dB dünyasında toplama ile çalışır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-budget-1">
+    <p class="quiz__q">$P_t = -3$ dBm, $G_t = G_r = 1$ dB, $PL = 82$ dB, $L_s = 1$ dB. $P_r$ nedir?</p>
+    <button class="quiz__opt">$-87$ dBm<span class="why">Gain'leri de çıkarmak. Antenna gain'ler eklenir: $-3 + 1 + 1 - 82 - 1$.</span></button>
+    <button class="quiz__opt" data-correct>$-84$ dBm<span class="why">Doğru: $-3 + 1 + 1 - 82 - 1 = -84$ dBm.</span></button>
+    <button class="quiz__opt">$-84$ dB<span class="why">Sayı doğru, birim yanlış. $P_r$ bir güç seviyesidir: dBm.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="snr" data-min="5">
+  <h2>Sensitivity, noise floor ve SNR</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · receiver sensitivity is not a cliff (slayt 11)</span>
+    <p><strong>Sensitivity</strong>, belirli bir performans hedefi (ör. belli bir bit ya da packet error rate) için gereken <strong>minimum sinyal seviyesidir</strong>. Üstünde link'in mükemmel, altında imkânsız olduğu sihirli bir sınır değildir. Sinyal zayıfladıkça delivery olasılığı <strong>yavaş yavaş</strong> düşer.</p>
+    <svg class="w-radio-propagation-svg" id="w-sens-svg" viewBox="0 0 320 170" role="img" aria-label="Packet delivery ile sinyal seviyesi ilişkisi: yumuşak bir geçiş; sensitivity, performans hedefinin tutturulduğu seviyede"></svg>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · noise floor ve SNR (slayt 12)</span>
+    $$\text{SNR}_{\text{dB}} = P_{\text{signal,dBm}} - P_{\text{noise,dBm}}$$
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Signal</th><th>Noise</th><th>SNR</th><th>Yorum</th></tr>
+      <tr><td>Case 1</td><td>$-80$ dBm</td><td>$-100$ dBm</td><td>$20$ dB</td><td>likely better</td></tr>
+      <tr><td>Case 2</td><td>$-80$ dBm</td><td>$-82$ dBm</td><td>$2$ dB</td><td>likely poor</td></tr>
+    </table></div>
+    <p><strong>Aynı RSSI farklı davranabilir.</strong> Receiver sadece sinyali değil, noise ve interference'ı da duyar. Bu yüzden RSSI tek başına eksiktir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Kitaptan ek · thermal noise ve SINR</span>
+    <p>Karl &amp; Willig, noise'un kaynağını elektronların ısıl hareketi olarak açıklar (thermal noise). Bu gürültü sinyale eklenir: $r(t) = s(t) + n(t)$, Gaussian ve "white" olduğu için AWGN (Additive White Gaussian Noise) adını alır. Başka transmitter'lar da duyuluyorsa paydaya onların gücü de girer ve <strong>SINR</strong> (Signal to Interference and Noise Ratio) kullanılır:</p>
+    $$\text{SINR} = 10\log_{10}\frac{P_{\text{rcvd}}}{N_0 + \sum_i I_i}$$
+    <p>Belli bir bit error rate'e ulaşmak için gereken minimum SNR, modulation'a bağlıdır. Noise sabitken received power'ı artırmak SNR'ı artırır. Daha uygun bir modulation ise aynı BER için gereken minimum SNR'ı düşürebilir.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 11 (sensitivity is not a cliff; slayttaki eğri hocanın şekli, burada kendi çizimimiz), slayt 12 (iki case). K&W §4.2.3 "Noise and interference", "Symbols and bit errors" (s. 94-95): AWGN, SNR, SINR. -->
+  <div class="box box--exam" data-exam="W2-s12-snr"><span class="box__label">W2 slayt 12 · hocanın iki case'i</span>
+    <p>"Noise floor and SNR. RSSI alone is incomplete because receivers also hear noise and interference. Case 1: Signal −80 dBm, Noise −100 dBm. Case 2: Signal −80 dBm, Noise −82 dBm. Same RSSI can behave differently."</p>
+    <p>İki case için SNR'ı hesapla ve hangisinin daha iyi link olacağını açıkla.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İki dBm değerinin farkı dB verir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sinyal aynı. Fark nereden geliyor? Receiver sinyali neye karşı ayırt etmek zorunda?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Case 1: $\text{SNR} = -80 - (-100) = \boxed{20\ \text{dB}}$: sinyal noise'un 100 katı, decode kolay, link büyük ihtimalle iyi.</p>
+      <p>Case 2: $\text{SNR} = -80 - (-82) = \boxed{2\ \text{dB}}$: sinyal noise'un sadece yaklaşık 1.6 katı, bit error'lar sık, link büyük ihtimalle kötü.</p>
+      <p>İki case'te RSSI aynı ($-80$ dBm). Fark noise floor'da: Case 2'de ortamda güçlü bir interference ya da yüksek noise var. Bu yüzden link'i RSSI'dan değil, SNR'dan ve sonuçta PRR'dan yargılarız.</p>
+    </div></details>
+    <!-- Kaynak: W2 slayt 12; SNR değerleri slaytta da yazıyor. 10^(2/10) = 1.585 python ile kontrol edildi. -->
+  </div>
+  <div class="box box--exam" data-exam="W2-s3-minibreak"><span class="box__label">W2 slayt 3 · hocanın derste sorduğu soru</span>
+    <p>"Mini-break: ask “what does RSSI NOT tell us?”"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>RSSI hangi packet'ler için ölçülür? Hiç gelmeyen bir packet'in RSSI'ı olur mu?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>RSSI "ne kadar güç geldi" der. Bu gücün ne kadarı istenen sinyal, ne kadarı noise ve interference?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>RSSI, <strong>alınan</strong> bir packet'teki güçtür. Şunları söylemez:</p>
+      <ul>
+        <li><strong>Noise floor'u ve SNR'ı:</strong> aynı RSSI düşük noise'ta iyi, yüksek noise'ta kötü bir link olabilir (slayt 12).</li>
+        <li><strong>Kaybolan packet'leri:</strong> gelmeyen packet'in RSSI'ı yoktur. Kaç packet kaybolduğunu sadece PRR görür.</li>
+        <li><strong>Decode kalitesini:</strong> güç yüksek olsa da collision ya da interference varsa packet bozulabilir.</li>
+        <li><strong>Geleceği:</strong> shadowing ve fading yüzünden link zamanla değişir; tek bir RSSI örneği bir anlık kanıttır.</li>
+      </ul>
+      <p>Bu sorunun devamı (RSSI, LQI ve PRR'ın neyi ölçtüğü) bir sonraki dersin konusu.</p>
+    </div></details>
+    <!-- Kaynak: W2 slayt 3 (teaching plan, mini-break). Cevap slayt 12 ve slayt 26 (metric stack) ile weeks/02 Exam-worthy notlarından. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"$P_r$ sensitivity'nin 1 dB üstünde, link mükemmel çalışır." Sensitivity bir uçurum değil; sınırın yakınında delivery kısmidir.</li>
+      <li>SNR'ı dBm ile yazmak. İki dBm'in farkı dB'dir.</li>
+      <li>"RSSI yüksek, demek ki link iyi." Noise ya da interference da yüksekse SNR düşük olabilir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-snr-1">
+    <p class="quiz__q">Received power $-74$ dBm, noise floor $-95$ dBm. SNR nedir?</p>
+    <button class="quiz__opt">$-169$ dB<span class="why">İki değeri toplamak. SNR bir farktır: $P_{\text{signal}} - P_{\text{noise}}$.</span></button>
+    <button class="quiz__opt" data-correct>$21$ dB<span class="why">Doğru: $-74 - (-95) = 21$ dB.</span></button>
+    <button class="quiz__opt">$21$ dBm<span class="why">Birim hatası. İki dBm'in farkı bir orandır, yani dB.</span></button>
+  </div>
+  <div class="quiz" id="q-snr-2">
+    <p class="quiz__q">"Receiver sensitivity $-92$ dBm" ne anlama gelir?</p>
+    <button class="quiz__opt">$-92$ dBm'in altındaki hiçbir packet alınamaz, üstündekilerin hepsi alınır.<span class="why">Sensitivity'yi bir uçurum sanmak. Slayt 11 tam bunu yanlışlıyor: delivery yavaş yavaş düşer.</span></button>
+    <button class="quiz__opt" data-correct>Belirli bir performans hedefine ulaşmak için gereken minimum sinyal seviyesi; bu değerin çevresinde delivery kademeli değişir.<span class="why">Doğru. Sensitivity bir hedefe bağlı tanımdır, bir sınır duvarı değil.</span></button>
+    <button class="quiz__opt">Receiver'ın noise floor'u $-92$ dBm'dir.<span class="why">Sensitivity ile noise floor'u karıştırmak. Noise floor ortamdaki gürültünün seviyesidir; sensitivity ise decode için gereken sinyal seviyesi.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="effects" data-min="4">
+  <h2>Üç etki ve path loss</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · üç etkiyi ayrı tut (slayt 13)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Etki</th><th>Ne</th><th>Neden</th><th>Zaman ölçeği</th></tr>
+      <tr><td><strong>Path loss</strong></td><td>Distance arttıkça ortalama sinyal kaybı</td><td>Enerjinin yayılması ve ortamla etkileşimi</td><td>Sadece distance değişince</td></tr>
+      <tr><td><strong>Shadowing</strong></td><td>Ortalama etrafında yavaş sapma</td><td>Engeller ve ortamın yapısı</td><td>Yavaş (saniyeler, dakikalar)</td></tr>
+      <tr><td><strong>Fading</strong></td><td>Kısa süreli dalgalanma</td><td>Multipath bileşenlerinin toplanması</td><td>Hızlı (onlarca, yüzlerce ms)</td></tr>
+    </table></div>
+    <p>Received power = ortalama distance trend'i + engel kaynaklı sapma + multipath kaynaklı sapma.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · path loss (slayt 14)</span>
+    <p>Enerji yayıldıkça ve ortamla etkileştikçe sinyal gücü azalır. Katkı yapan mekanizmalar: <strong>geometric spreading</strong>, <strong>absorption</strong>, <strong>reflection</strong>, <strong>diffraction</strong>, <strong>scattering</strong>, malzemelerin içinden geçiş (<strong>penetration</strong>), anten ve <strong>polarization</strong> etkileri. Distance uzadıkça ortalama path loss genellikle artar.</p>
+    $$PL_{\text{dB}} = P_{t,\text{dBm}} - P_{r,\text{dBm}}$$
+    <p>Örnek: $P_t = -5$ dBm, ölçülen $P_r = -71$ dBm, anten gain'leri ve ek kayıplar 0 dB ⇒ $PL = -5 - (-71) = 66$ dB.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 13, 14. Zaman ölçekleri K&W §4.2.3 (s. 92-94): fast fading "tens to hundreds of milliseconds", slow fading "(tens of) seconds to minutes". -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Üçünü tek bir "sinyal zayıfladı" kavramına karıştırmak. Hoca açıkça uyarıyor: "Students often blend these; keep them distinct."</li>
+      <li>$PL = P_t - P_r$ formülünü anten gain'leri sıfır değilken kullanmak. O zaman fark, gain'leri ve kayıpları da içerir.</li>
+      <li>Path loss'u negatif yazmak. Kayıp pozitif bir dB değeridir; $P_r$ negatiftir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-effects-1">
+    <p class="quiz__q">$P_t = 0$ dBm ile gönderilen bir packet $-58$ dBm ile alınıyor (anten gain'leri ve kayıplar 0 dB). Path loss nedir?</p>
+    <button class="quiz__opt" data-correct>$58$ dB<span class="why">Doğru: $PL = P_t - P_r = 0 - (-58) = 58$ dB.</span></button>
+    <button class="quiz__opt">$-58$ dB<span class="why">İşaret hatası. Kayıp pozitif bir sayıdır; $P_r = P_t - PL$.</span></button>
+    <button class="quiz__opt">$58$ dBm<span class="why">Birim hatası, slayt 9'un "classic exam trap"i. Path loss bir orandır.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="free-space" data-min="5">
+  <h2>Free-space model</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · free space (slayt 15)</span>
+    $$PL_{FS}(d) = 20\log_{10}\!\left(\frac{4\pi d}{\lambda}\right), \qquad \lambda = \frac{c}{f}$$
+    <ul>
+      <li>2.4 GHz'te $\lambda = \dfrac{3 \times 10^8}{2.4 \times 10^9} \approx 0.125$ m.</li>
+      <li>1 m'de: $20\log_{10}(4\pi / 0.125) = 20\log_{10}(100.5) \approx 40$ dB.</li>
+      <li>10 m'de: $\approx 60$ dB. <strong>Distance ×10 ⇒ $+20$ dB</strong>. Distance ×2 ⇒ $+6$ dB.</li>
+      <li>Path loss distance ile <strong>logaritmik</strong> büyür: ilk metre 40 dB "yer", sonraki 9 metre sadece 20 dB.</li>
+    </ul>
+    <p>Kullanışlı bir referans, ama indoor WSN'ler için fazla temiz.</p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Nereden geliyor · Friis equation</span>
+    <p>Karl &amp; Willig lineer biçimi verir (reflection'lar yok sayılır):</p>
+    $$P_{\text{rcvd}}(d) = \frac{P_{tx}\, G_t\, G_r\, \lambda^2}{(4\pi)^2\, d^2\, L}$$
+    <p>Her iki tarafın $10\log_{10}$'unu al: $P_r = P_t + G_t + G_r - 20\log_{10}(4\pi d/\lambda) - L$. Bu, link budget'ın ta kendisi, $PL$ yerine free-space path loss konmuş hâli. Önündeki 20, $d^2$'den gelir: $10\log_{10} d^2 = 20\log_{10} d$. Dargie &amp; Poellabauer, $20\log(4\pi\rho/\lambda)$ terimine <em>basic transmission loss</em> der, çünkü antenlerden bağımsızdır.</p>
+    <p>Frekans arttıkça $\lambda$ küçülür ve kayıp artar. Aynı 1 m, 868 MHz'te yaklaşık 31 dB, 2.4 GHz'te 40 dB. Karl &amp; Willig: "the higher the frequency, the lower the received power".</p>
+  </div>
+  <!-- Kaynak: W2 slayt 15. K&W eq. 4.1 (s. 93), D&P eq. 5.46-5.48 (s. 119). 868 MHz değeri python ile hesaplandı (31.2 dB). -->
+  <div class="box box--exam" data-exam="W2-s15-free-space"><span class="box__label">W2 slayt 15 · hocanın sayıları</span>
+    <p>"Free-space model: PL_FS(d) = 20 log10(4πd / λ), λ = c / f. At 2.4 GHz λ ≈ 0.125 m. At 1 m: PL ≈ 40 dB. At 10 m: PL ≈ 60 dB. ×10 distance → +20 dB loss in free space."</p>
+    <p>Bu üç sayıyı kendin türet ve "×10 distance → +20 dB" kuralının neden her distance için geçerli olduğunu göster.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$4\pi \approx 12.57$ ve $12.57 / 0.125 \approx 100.5$. $\log_{10} 100 = 2$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$PL_{FS}(10d) - PL_{FS}(d)$ farkını yaz. $\log(ab) = \log a + \log b$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$\lambda = c/f = 3\times10^8 / 2.4\times10^9 = 0.125$ m.</p>
+      <p>$PL_{FS}(1) = 20\log_{10}(4\pi \cdot 1 / 0.125) = 20\log_{10}(100.53) = 20 \times 2.002 \approx \boxed{40\ \text{dB}}$.</p>
+      <p>$PL_{FS}(10) = 20\log_{10}(1005.3) = 20 \times 3.002 \approx \boxed{60\ \text{dB}}$.</p>
+      <p>Genel olarak $PL_{FS}(10d) - PL_{FS}(d) = 20\log_{10}\dfrac{4\pi\cdot 10d/\lambda}{4\pi d/\lambda} = 20\log_{10} 10 = \boxed{20\ \text{dB}}$, $d$'den bağımsız. Aynı hesapla ×2 distance $20\log_{10} 2 \approx 6$ dB ekler.</p>
+    </div></details>
+    <!-- Kaynak: W2 slayt 15. Ara değerler python ile kontrol edildi: 40.05 dB ve 60.05 dB. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Önündeki katsayıyı 10 almak. Free space'te güç $d^2$ ile düşer, dB'de bu $20\log_{10} d$ olur.</li>
+      <li>Distance ×2 için "+3 dB" demek. +3 dB güç ×2 demektir; distance ×2 ise free space'te güç ÷4, yani +6 dB loss.</li>
+      <li>$d$ ile $\lambda$'yı farklı birimlerle koymak (biri cm, öteki m). Oran birimsiz olmalı.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-fs-1">
+    <p class="quiz__q">2.4 GHz'te free-space path loss 100 m'de yaklaşık kaç dB?</p>
+    <button class="quiz__opt">$70$ dB<span class="why">×10 başına 10 dB eklemek. Free space'te ×10 distance $+20$ dB.</span></button>
+    <button class="quiz__opt" data-correct>$80$ dB<span class="why">Doğru: 1 m'de 40, 10 m'de 60, 100 m'de 80 dB.</span></button>
+    <button class="quiz__opt">$400$ dB<span class="why">Path loss'u distance ile lineer büyütmek. Büyüme logaritmik.</span></button>
+  </div>
+  <div class="quiz" id="q-fs-2">
+    <p class="quiz__q">Diğer her şey aynıyken frekansı 868 MHz'ten 2.4 GHz'e çıkarırsan free-space path loss ne olur?</p>
+    <button class="quiz__opt">Değişmez; path loss sadece distance'a bağlıdır.<span class="why">Formülde $\lambda = c/f$ var. Frekans değişince $\lambda$ ve dolayısıyla kayıp değişir.</span></button>
+    <button class="quiz__opt">Azalır, çünkü yüksek frekans daha fazla enerji taşır.<span class="why">Ters yön. $\lambda$ küçülür, $4\pi d/\lambda$ büyür, kayıp artar.</span></button>
+    <button class="quiz__opt" data-correct>Artar, yaklaşık 9 dB.<span class="why">Doğru: $20\log_{10}(2400/868) \approx 8.8$ dB. Yüksek frekans, aynı distance'ta daha az received power.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="log-distance" data-min="6">
+  <h2>Log-distance path loss</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · log-distance (slayt 16)</span>
+    $$PL(d) = PL(d_0) + 10\,n\,\log_{10}\!\left(\frac{d}{d_0}\right)$$
+    <ul>
+      <li>$n$: <strong>path-loss exponent</strong>. İdeal free space'te $n = 2$; indoor ortamlarda ve engellerin çevresinde daha büyük.</li>
+      <li>$d_0$: reference distance (kısa menzilli sistemlerde genelde 1 m). $PL(d_0)$ bu noktada bilinen ya da ölçülen kayıp.</li>
+      <li>$n$'yi mümkünse <strong>ölçerek</strong> tahmin et.</li>
+      <li>Distance ×10 ⇒ $+10n$ dB. Distance ×2 ⇒ $\approx +3n$ dB.</li>
+    </ul>
+    <p>Free space bunun özel hâli: $d_0 = 1$ m, $PL(d_0) = 40$ dB, $n = 2$ alırsan slayt 15'teki 40 / 60 dB çıkar.</p>
+  </div>
+  <div class="box box--exam" data-exam="W2-s16-log-distance"><span class="box__label">W2 slayt 16 · hocanın çözümlü örneği</span>
+    <p>"Example: PL(1 m) = 40 dB, n = 3. At 10 m: PL = 40 + 30 log10(10), PL = ? So the same distance can cost ? dB more than free space."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$d/d_0 = 10/1 = 10$ ve $\log_{10} 10 = 1$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Free space'te 10 m'de kayıp neydi? (Bir önceki bölüm.)</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      $$PL(10) = 40 + 10 \cdot 3 \cdot \log_{10}(10) = 40 + 30 = \boxed{70\ \text{dB}}$$
+      <p>Free space'te 10 m'de kayıp $\approx 60$ dB. Yani $n = 3$ olan bir odada aynı 10 m <strong>10 dB daha pahalı</strong>: received power 10 kat daha az.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/2026-2027-fall/Week_2_WSN_Radio_PHY_60slides_Contiki3.pptx">Orijinal slaytlar (W2, slayt 16)</a></p>
+    <!-- Kaynak: W2 slayt 16 (sonuç 70 dB ve "10 dB more than free space" slaytta). -->
+  </div>
+  <div class="box box--exam" data-exam="W2-practice-2"><span class="box__label">weeks/02 Practice S2 · alıştırma listesi</span>
+    <p>"Link budget: P_t = 0 dBm, n = 3, PL(1 m) = 40 dB — P_r at 10 m?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce log-distance ile $PL(10\ \text{m})$'yi bul. Bu, hemen yukarıdaki slayt örneği.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sonra link budget: gain ve ek kayıp verilmediyse 0 dB al. $P_r = P_t - PL$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$PL(10) = 40 + 10 \cdot 3 \cdot \log_{10}(10/1) = 70$ dB.</p>
+      <p>$P_r = P_t + G_t + G_r - PL - L_s = 0 + 0 + 0 - 70 - 0 = \boxed{-70\ \text{dBm}}$.</p>
+      <p>Varsayımı yaz: anten gain'leri ve system losses verilmediği için 0 dB alındı. Birim: $P_r$ dBm, $PL$ dB.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/weeks/02-radio-and-physical-layer.md#practice">Orijinal liste (weeks/02, Practice)</a></p>
+    <!-- Kaynak: weeks/02-radio-and-physical-layer.md, ## Practice madde 2. Cevap anahtarı yok; python ile kontrol edildi. -->
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Ölçümler · n gerçekte ne kadar?</span>
+    <p>Karl &amp; Willig, yere yakın ölçümlerden (800–1000 MHz, 1–30 m) ortalama path-loss exponent'lerini verir: mühendislik binasında 1.9, apartman koridorunda 2.0, otoparkta 3.0, bitki çitinde 4.9, sık bambuda 5.0. Genel aralık 2 ile 5–6 arası. $n &lt; 2$ de mümkün; kitap bunu constructive interference ile açıklar ve tablodaki iki ortamda ortalama 1.9 ölçülmüş. Aynı ölçümlerde 1 m'de bile 30–50 dB kayıp var.</p>
+    <p>W4 okuma destesindeki tarla örneği: bir buğday tarlasında kurulumda path-loss exponent 1.85 varsayılmış, olgun buğdayda 5.93 ölçülmüş. $-75$ dBm'de link menzili free space'te yaklaşık 48 m iken olgun buğdayda yaklaşık 8 m. Node'lar yerinden oynamadı; değişen, aradaki bitki örtüsü ve onunla birlikte $n$. Destenin cümlesiyle: "A link budget measured at sowing is a promise the crop will break."</p>
+  </div>
+  <!-- Kaynak: K&W §4.2.3 "Path loss and attenuation" ve Table 4.2 (s. 93, 97-98). Hidden & Exposed Terminals in Real WSNs.pptx slayt 15 ve notları (Pal et al., Sci. Rep. 11, 2021); deste W4 okuması, yazarı belirsiz (lab-plans gaps). -->
+  <div class="box box--rule">
+    <span class="box__label">Tarif · maksimum menzil</span>
+    <p>Link'in çalışması için $P_r \ge S$ olmalı, yani $PL(d) \le P_t + G_t + G_r - L_s - S$. Bu izin verilen kaybı log-distance'a eşitleyip $d$'yi çek:</p>
+    $$d_{\max} = d_0 \cdot 10^{\,\frac{P_t + G_t + G_r - L_s - S - PL(d_0)}{10\,n}}$$
+    <p>Örnek: $P_t = -3$ dBm, $S = -92$ dBm, gain ve kayıp 0, $PL(1\ \text{m}) = 45$ dB. İzin verilen kayıp $89$ dB. $n = 2.5$ ⇒ $d_{\max} = 10^{44/25} \approx 57.5$ m. $n = 3.5$ ⇒ $10^{44/35} \approx 18.1$ m. Exponent'teki 1'lik artış menzili üçte birine indirdi. Bu menzil sadece <strong>ortalama</strong> için geçerli; shadowing ve fading'i sonraki bölümlerde ekliyoruz.</p>
+  </div>
+
+  <h3>Kendin dene: path-loss explorer</h3>
+  <p class="w-radio-propagation-guess"><b>Önce tahmin et:</b> x ekseni logaritmik olduğunda log-distance eğrisi nasıl görünür? $n$'yi büyütünce $d_{\max}$ nasıl değişir?</p>
+  <div class="w-radio-propagation-box" id="w3">
+    <div id="w3-rows"></div>
+    <div class="w-radio-propagation-ctl">
+      <label><input type="checkbox" id="w3-log" checked /> x ekseni log</label>
+      <label>Distance (m): <input id="w3-d" type="text" inputmode="decimal" value="15" class="btn btn--sm" /></label>
+    </div>
+    <div class="w-radio-propagation-err" id="w3-err" aria-live="polite"></div>
+    <svg class="w-radio-propagation-svg" id="w3-svg" viewBox="0 0 520 300" role="img" aria-label="Path loss eğrileri"></svg>
+    <div class="w-radio-propagation-out" id="w3-out"></div>
+  </div>
+
+  <div class="box box--example">
+    <span class="box__label">Kendi lab verin · UDGM log-distance mı?</span>
+    <p>W2 lab'ında (UDGM, range 20 m) gerçek RSSI'lar şuydu: ≈ 4 m'de $-26$ dBm, ≈ 10 m'de $-53$ dBm, ≈ 15 m'de $-72$ dBm. Log-distance doğru olsaydı aynı <strong>oran</strong>daki distance artışı aynı dB kaybını verirdi. 4 → 10 m (×2.5) $27$ dB düşürdü. Bu durumda 10 → 15 m (×1.5) sadece $27 \cdot \log_{10}1.5 / \log_{10}2.5 \approx 12$ dB düşürmeliydi; ölçülen $19$ dB. Neden: UDGM, RSSI'ı distance ile <strong>lineer</strong> düşürür (sender'da $-10$ dBm, range sınırında $-95$ dBm, yani metre başına sabit dB). Simülasyon sonucu = code + topology + radio model.</p>
+  </div>
+  <!-- Kaynak: weeks/02 "Notes — Efe" lab tablosu (RSSI real sütunu) ve UDGM formülü; assignments/2026-2027-fall-efe/week2/video-script.md Part 6. 11.95 dB python ile kontrol edildi. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$n$'yi "metre başına dB" sanmak. $n$, $\log_{10}(d/d_0)$'ı çarpar; ×10 distance başına $10n$ dB.</li>
+      <li>$d/d_0$ yerine sadece $d$ yazmak. $d_0 = 1$ m iken fark yok, ama $d_0$ farklıysa sonuç yanlış çıkar.</li>
+      <li>Modeli $d &lt; d_0$ için kullanmak. Formül $d \ge d_0$ için tanımlı.</li>
+      <li>$d_{\max}$'ı "link burada kesin kopar" diye okumak. O, <strong>ortalama</strong> received power'ın sensitivity'ye eşit olduğu yer. Sinyal orada da bir uçurumdan düşmez; bir sonraki bölümdeki shadowing modelinde orada $P_r \ge S$ olasılığı %50 çıkar.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ld-1">
+    <p class="quiz__q">$PL(1\ \text{m}) = 42$ dB ve $n = 2.5$. 100 m'de path loss nedir?</p>
+    <button class="quiz__opt">$67$ dB<span class="why">$\log_{10} 100 = 2$'yi unutmak: $10 \cdot 2.5 \cdot 2 = 50$, 25 değil.</span></button>
+    <button class="quiz__opt" data-correct>$92$ dB<span class="why">Doğru: $42 + 10 \cdot 2.5 \cdot \log_{10}(100) = 42 + 50 = 92$ dB.</span></button>
+    <button class="quiz__opt">$292$ dB<span class="why">$n \cdot d$ gibi lineer bir terim kullanmak. Distance logaritmanın içinde.</span></button>
+  </div>
+  <div class="quiz" id="q-ld-2">
+    <p class="quiz__q">Bir ortamda $n = 4$. Distance'ı iki katına çıkarırsan ortalama path loss yaklaşık ne kadar artar?</p>
+    <button class="quiz__opt">$6$ dB<span class="why">Bu free space ($n = 2$) değeri. $n = 4$'te etki iki katı.</span></button>
+    <button class="quiz__opt" data-correct>$12$ dB<span class="why">Doğru: $10 \cdot 4 \cdot \log_{10} 2 \approx 12$ dB, yani güç yaklaşık 16'da birine iner.</span></button>
+    <button class="quiz__opt">$40$ dB<span class="why">Bu ×10 distance için geçerli ($10n$). ×2 için $\log_{10} 2 \approx 0.3$ ile çarpmak gerekir.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="shadowing" data-min="5">
+  <h2>Shadowing ve log-normal model</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Log-distance bir <strong>ortalama</strong> verir. Aynı distance'taki iki link'ten birinin arasında beton duvar, ötekinin arasında boş hava olabilir. Engeller ortalamadan sapmalar yaratır. Slaytta sayılan engeller: concrete wall, metal cabinet, human body, dense vegetation, industrial machinery, vehicle or moving object.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · log-normal shadowing (slayt 17–18)</span>
+    $$PL(d) = PL(d_0) + 10\,n\,\log_{10}\!\left(\frac{d}{d_0}\right) + X_\sigma$$
+    <ul>
+      <li>Deterministic kısım ortalamayı verir. $X_\sigma$, ortamın yapısından gelen sapmaları temsil eden <strong>random term</strong>.</li>
+      <li>$X_\sigma$: <strong>zero-mean Gaussian</strong>, dB cinsinden, standard deviation $\sigma$ (dB).</li>
+      <li><strong>Büyük $\sigma$ = daha güçlü değişkenlik</strong>: aynı distance'ta received power'lar daha geniş bir aralığa yayılır.</li>
+      <li>Shadowing, ortalama path-loss trend'i etrafındaki <strong>large-scale</strong> (büyük ölçekli) bir değişimdir.</li>
+    </ul>
+    <p>Neden "log-normal": dB'de Gaussian olan bir sapma, mW'da çarpımsal ve log-normal dağılımlıdır. Karl &amp; Willig bunun için "multiplicative lognormal random variable" der ve bu yavaş değişime <em>slow fading</em> adını da verir (saniyeler, dakikalar ölçeğinde).</p>
+  </div>
+  <!-- Kaynak: W2 slayt 17 (engel listesi, PL(d) = average path loss + Xσ), slayt 18 (formül ve yorum). K&W eq. 4.4 ve çevresi (s. 93-94). -->
+  <p class="src">Not: Aşağıdaki "link'in çalışma olasılığı" hesabı W2 slaytlarında yok; Gaussian dağılımın doğrudan bir uzantısı olarak eklendi. Hoca derste işlemediyse sınavda beklenmeyebilir.</p>
+  <div class="box box--rule">
+    <span class="box__label">Uzantı · fade margin ve olasılık</span>
+    <p>Ortalama received power $\bar P_r(d)$ ise gerçek değer $\bar P_r - X_\sigma$. Link'in sensitivity'nin üstünde kalma olasılığı:</p>
+    $$\Pr[P_r \ge S] = \Phi\!\left(\frac{\bar P_r(d) - S}{\sigma}\right)$$
+    <p>$\Phi$, standart normal CDF. Margin $= \bar P_r - S$. Margin $= 0$ ⇒ %50. Margin $= \sigma$ ⇒ %84. Margin $= 2\sigma$ ⇒ %97.7. %95 için margin $\approx 1.645\,\sigma$ gerekir; $\sigma = 6$ dB'de bu yaklaşık 9.9 dB'lik bir <strong>fade margin</strong> demek.</p>
+    <p>Bu olasılık, $P_r$'nin sensitivity'ye <strong>ulaşma</strong> olasılığıdır; packet'in decode edilme olasılığı (PRR) değildir. $P_r \ge S$ olan bir packet de noise, interference ya da fading yüzünden kaybolabilir.</p>
+  </div>
+
+  <h3>Kendin dene: aynı distance, farklı received power</h3>
+  <p class="w-radio-propagation-guess"><b>Önce tahmin et:</b> Margin $5$ dB, $\sigma = 6$ dB. 400 link'ten yaklaşık kaçı sensitivity'nin altında kalır?</p>
+  <div class="w-radio-propagation-box" id="w4">
+    <div id="w4-rows"></div>
+    <div class="w-radio-propagation-ctl"><button class="btn btn--sm" id="w4-seed">Yeni 400 örnek</button></div>
+    <div class="w-radio-propagation-err" id="w4-err" aria-live="polite"></div>
+    <svg class="w-radio-propagation-svg" id="w4-svg" viewBox="0 0 520 220" role="img" aria-label="Received power histogramı"></svg>
+    <div class="w-radio-propagation-out" id="w4-out"></div>
+  </div>
+
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$X_\sigma$'yı thermal noise sanmak. Noise receiver'da sinyale eklenen gürültüdür; $X_\sigma$ ise sinyalin <strong>kendisinin</strong> ortalamadan sapmasıdır.</li>
+      <li>$X_\sigma$'yı hızlı dalgalanma sanmak. Shadowing yavaştır ve engellere bağlıdır; hızlı olan multipath fading.</li>
+      <li>İşaret: slayt 18'de $X_\sigma$ path loss'a <strong>eklenir</strong>, slayt 23'te $P_r$'den <strong>çıkarılır</strong>. İkisi aynı şey, çünkü $P_r = P_t - PL$.</li>
+      <li>Aynı distance'ta farklı RSSI görünce "ölçüm hatası" demek. Model tam olarak bunu bekliyor.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sh-1">
+    <p class="quiz__q">İki binada aynı $n$ ölçülüyor, ama A binasında $\sigma = 3$ dB, B binasında $\sigma = 9$ dB. Hangisi doğru?</p>
+    <button class="quiz__opt">B binasında ortalama path loss daha yüksek.<span class="why">$\sigma$ ortalamayı değil yayılımı anlatır; $X_\sigma$ zero-mean. Aynı $n$ ve $PL(d_0)$ ile ortalamalar aynı.</span></button>
+    <button class="quiz__opt" data-correct>B binasında aynı distance'taki link'ler birbirinden çok daha farklı davranır.<span class="why">Doğru. Slayt 18: "Larger σ means stronger variability."</span></button>
+    <button class="quiz__opt">B binasında received power saniyeler içinde daha hızlı dalgalanır.<span class="why">Shadowing'i fast fading ile karıştırmak. $\sigma$ yer yer değişimin büyüklüğünü anlatır, hızını değil.</span></button>
+  </div>
+  <div class="quiz" id="q-sh-2">
+    <p class="quiz__q">Bir link'in ortalama received power'ı tam sensitivity'ye eşit. Shadowing modeline göre bu link'in sensitivity'nin üstünde olma olasılığı yaklaşık kaç?</p>
+    <button class="quiz__opt">%100<span class="why">Sensitivity'yi uçurum, $P_r$'yi sabit sanmak. Ortalamanın etrafında simetrik bir dağılım var.</span></button>
+    <button class="quiz__opt" data-correct>%50<span class="why">Doğru: $X_\sigma$ zero-mean ve simetrik, $\Phi(0) = 0.5$.</span></button>
+    <button class="quiz__opt">$\sigma$'ya bağlı; büyük $\sigma$'da %50'den çok daha düşük.<span class="why">Margin sıfırken $\sigma$ ne olursa olsun $\Phi(0/\sigma) = 0.5$. $\sigma$ sadece margin sıfır değilken önemli.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="multipath" data-min="6">
+  <h2>Multipath ve fading</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · multipath (slayt 19–20)</span>
+    <p>Sinyal receiver'a birden çok yoldan, farklı gecikmelerle ulaşır: bir <strong>direct path</strong> (LOS) ve <strong>reflected path</strong>'ler (NLOS). Mekanizmalar (Karl &amp; Willig tanımlarıyla):</p>
+    <ul>
+      <li><strong>Reflection:</strong> dalga pürüzsüz bir sınıra çarpar; bir kısmı geri yansır, bir kısmı geçer, kalanı emilir.</li>
+      <li><strong>Diffraction:</strong> keskin bir kenara çarpan dalga, gölgede kalan bölgeye de yayılır.</li>
+      <li><strong>Scattering:</strong> pürüzlü bir yüzey dalgayı birçok yöne dağıtır.</li>
+    </ul>
+    <p>Sonuç: <strong>amplitude, phase, delay ve direction</strong>'ı farklı birçok kopya. Kopyalar benzer phase ile gelirse toplanır (<strong>constructive</strong>, sinyal güçlenir); zıt phase ile gelirse kısmen birbirini götürür (<strong>destructive</strong>, sinyal zayıflar).</p>
+    <p>2.4 GHz'te $\lambda \approx 12.5$ cm. İki yolun uzunluk farkı $\lambda/2 = 6.25$ cm değişirse constructive'den destructive'e geçilir. <strong>Bir mote'u birkaç cm oynatmak fark eder.</strong></p>
+  </div>
+  <!-- Kaynak: W2 slayt 19, 20. K&W §4.2.3 (s. 91-92) mekanizma tanımları ve dipnot 7 (6.25 cm). -->
+
+  <h3>Kendin dene: iki yolun toplamı</h3>
+  <p class="w-radio-propagation-guess"><b>Önce tahmin et:</b> Reflected path direct path'ten 6.25 cm uzunsa ve gücünün %49'unu taşıyorsa (amplitude 0.7) toplam, sadece direct path'e göre kaç dB olur: daha güçlü mü daha zayıf mı?</p>
+  <div class="w-radio-propagation-box" id="w5">
+    <div id="w5-rows"></div>
+    <div class="w-radio-propagation-err" id="w5-err" aria-live="polite"></div>
+    <div class="w-radio-propagation-two">
+      <svg class="w-radio-propagation-svg" id="w5-svg" viewBox="0 0 260 260" role="img" aria-label="Phasor toplamı"></svg>
+      <div class="w-radio-propagation-out" id="w5-out"></div>
+    </div>
+    <p style="margin-top:10px">Receiver'ı adım adım $\lambda/8$ ($\approx 1.56$ cm) uzaklaştır; her adımda yol farkı bu kadar artıyor:</p>
+    <div id="w5-stepper"></div>
+  </div>
+
+  <div class="box box--rule">
+    <span class="box__label">Kural · fading (slayt 21–22)</span>
+    <ul>
+      <li><strong>Slow fading:</strong> kanal, packet iletim süresine göre yavaş değişir.</li>
+      <li><strong>Fast fading:</strong> kanal kısa sürede belirgin biçimde değişir.</li>
+      <li><strong>Static nodes still fade:</strong> node'lar sabit olsa da insanlar, kapılar, araçlar, makineler ve yansıtan nesneler hareket eder.</li>
+      <li><strong>Flat fading:</strong> bütün frekans bileşenleri yaklaşık eşit etkilenir; amplitude değişir, sinyalin şekli çoğunlukla korunur.</li>
+      <li><strong>Frequency-selective fading:</strong> farklı frekans bileşenleri farklı attenuation ve phase shift görür; waveform bozulabilir.</li>
+      <li>Fading'in flat olup olmadığı <strong>bandwidth</strong> ile <strong>multipath delay spread</strong>'in karşılaştırmasına bağlıdır.</li>
+    </ul>
+    <p>Hoca burada sezgiyle yetiniyor: "deeper math belongs to wireless comms".</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Kitaptan ek · WSN'de fading</span>
+    <ul>
+      <li>Hareket varken received power kısa sürede <strong>30–40 dB</strong> dalgalanabilir (fast fading / multipath fading), onlarca ile yüzlerce ms ölçeğinde.</li>
+      <li>Sinyal fast fading yüzünden receiver'ın ihtiyacı olan seviyenin altına düşerse buna <strong>deep fade</strong> denir. Bu yüzden fading kanallarında hatalar <strong>bursty</strong> gelir: hatalı symbol'ler kümelenir, aralarında hatasız dönemler olur.</li>
+      <li>WSN'lerde menzil kısa olduğu için RMS delay spread nanosaniyeler mertebesinde; symbol süreleri mikro ya da milisaniyeler düzeyindedir. Bu yüzden kanalı <strong>flat fading</strong> kabul etmek makul ve intersymbol interference (ISI) önemsizdir. Resmî ölçüt: sinyal bandwidth'i coherence bandwidth'ten küçükse kanal flat'tir.</li>
+      <li>Modeller: LOS yolu yoksa <strong>Rayleigh</strong>, güçlü bir LOS bileşeni varsa <strong>Rice</strong> fading.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W2 slayt 21 (slow/fast, static nodes still fade), slayt 22 (flat vs frequency-selective). K&W §4.2.3 (s. 92-93: 30–40 dB, deep fade, bursty errors, ISI), §4.2.4 (s. 96-97: Rayleigh/Rice, WSN-specific channel models). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Node'lar sabit, o hâlde fading olmaz." Ortam hareket eder; kapı açılması bile multipath'i değiştirir.</li>
+      <li>Slow/fast'i mutlak süre sanmak. Slaytın tanımı packet süresine görelidir.</li>
+      <li>Constructive interference'ı "free space'ten daha iyi sinyal olamaz" diye reddetmek. İki kopya aynı phase'te gelirse toplam, direct path'ten güçlü olur; bu yüzden ölçülen $n$ bazen 2'nin altına iner.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-mp-1">
+    <p class="quiz__q">2.4 GHz'te bir mote receiver'dan 10 m uzakta. Mote masada 5 cm kaydırılıyor ve RSSI 8 dB değişiyor. Path loss exponent $n = 2$, aradaki engeller değişmiyor. En olası açıklama?</p>
+    <button class="quiz__opt">Path loss: distance 5 cm değişti.<span class="why">10 m'den 10.05 m'ye geçiş $20\log_{10}(10.05/10) \approx 0.043$ dB eder. Path loss 8 dB'yi açıklayamaz.</span></button>
+    <button class="quiz__opt" data-correct>Multipath: yol farkı yarım wavelength mertebesinde değişti, kopyaların phase ilişkisi değişti.<span class="why">Doğru. $\lambda/2 = 6.25$ cm; birkaç cm constructive ile destructive arasında geçiş için yeter.</span></button>
+    <button class="quiz__opt">Shadowing: araya yeni bir engel girdi.<span class="why">Araya engel girmedi, sadece mote birkaç cm oynadı. Bu ölçekteki değişim multipath'in imzası.</span></button>
+  </div>
+  <div class="quiz" id="q-mp-2">
+    <p class="quiz__q">Bir kanal ne zaman <em>flat fading</em> sayılır?</p>
+    <button class="quiz__opt">Node'lar hareket etmediğinde.<span class="why">Flat/frequency-selective ayrımı hareketle ilgili değil; bandwidth ile delay spread'in karşılaştırmasıyla ilgili.</span></button>
+    <button class="quiz__opt" data-correct>Sinyalin bandwidth'i, multipath delay spread'in belirlediği coherence bandwidth'e göre küçükse; bütün frekans bileşenleri yaklaşık eşit etkilenir.<span class="why">Doğru. Slayt 22: "depends on bandwidth and multipath delay spread".</span></button>
+    <button class="quiz__opt">Received power hiç dalgalanmadığında.<span class="why">Flat fading'de de amplitude değişir; sadece sinyalin şekli korunur.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="combined" data-min="4">
+  <h2>Birleşik model: distance bir metric değil</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · combined received-power model (slayt 23)</span>
+    $$P_r(d,t) = P_r(d_0) - 10\,n\,\log_{10}\!\left(\frac{d}{d_0}\right) - X_\sigma + F(t)$$
+    <div class="table-wrap"><table>
+      <tr><th>Terim</th><th>Ne</th></tr>
+      <tr><td>$P_r(d_0) - 10n\log_{10}(d/d_0)$</td><td><strong>Distance trend</strong>: ortalama kayıp $d$ ile artar</td></tr>
+      <tr><td>$X_\sigma$</td><td><strong>Shadowing</strong>: engele bağlı sapma</td></tr>
+      <tr><td>$F(t)$</td><td><strong>Fading</strong>: kısa süreli multipath değişimi</td></tr>
+    </table></div>
+    <p><strong>Sonuç: received power, distance'ın deterministic bir fonksiyonu değildir.</strong></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · distance is not a reliable link-quality metric (slayt 24)</span>
+    <p>Aynı uzunluktaki iki link farklı davranabilir: Link A açık bir yol, Link B aynı distance'ta duvar + metal + insan vücudu. Etkileyen faktörler: wall material, antenna orientation, node height, metal objects, human movement, interference, multipath propagation.</p>
+    <p><strong>Use measurement, not geometry alone.</strong> Link'i ölçerek değerlendir; bir sonraki derste RSSI, LQI ve PRR ile bunu nasıl yaptığımızı göreceksin.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 23, 24. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzak</span>
+    <p>Routing ya da neighbor seçiminde "en yakın node en iyi link'tir" varsaymak. Distance sadece ilk terimi belirler; diğer iki terim aynı distance'ta onlarca dB fark yaratabilir.</p>
+  </div>
+  <h3>Hangi etki?</h3>
+  <p>Her senaryoda received power değişiyor. Hangi terim değişti: distance trend mi, $X_\sigma$ mı, $F(t)$ mi?</p>
+  <div class="quiz" id="q-cls-1">
+    <p class="quiz__q">Node'lar sabit. Odanın kapısı açılıp kapandıkça RSSI birkaç dB inip çıkıyor. Kapı doğrudan yolu kesmiyor; yalnızca reflected path'i değiştiriyor.</p>
+    <button class="quiz__opt">Path loss<span class="why">Distance değişmedi; ortalama trend aynı.</span></button>
+    <button class="quiz__opt">Shadowing<span class="why">Kapı doğrudan yolu kesmiyor, sadece yansıtan bir yüzey olarak hareket ediyor. Kısa süreli, ileri geri değişim fading'in imzası.</span></button>
+    <button class="quiz__opt" data-correct>Fading<span class="why">Doğru. Slayt 21: "Static nodes still fade: people, doors… move." Yansıyan yolun uzunluğu değişti, phase ilişkisi değişti.</span></button>
+  </div>
+  <div class="quiz" id="q-cls-2">
+    <p class="quiz__q">İki node arasına metal bir dolap konuyor ve RSSI kalıcı olarak 12 dB düşüyor.</p>
+    <button class="quiz__opt">Path loss<span class="why">Distance aynı. Path loss modeli bu düşüşü açıklamaz.</span></button>
+    <button class="quiz__opt" data-correct>Shadowing<span class="why">Doğru. Engel kaynaklı, yavaş (burada kalıcı) bir sapma: $X_\sigma$. Slayt 17'de "metal cabinet" örneği var.</span></button>
+    <button class="quiz__opt">Fading<span class="why">Fading kısa süreli dalgalanmadır. Kalıcı bir 12 dB düşüş engelin etkisi.</span></button>
+  </div>
+  <div class="quiz" id="q-cls-3">
+    <p class="quiz__q">Açık bir sahada receiver 5 m'den 50 m'ye taşınıyor ve ortalama RSSI yaklaşık 25 dB düşüyor.</p>
+    <button class="quiz__opt" data-correct>Path loss<span class="why">Doğru. Distance ×10 ve ortalama kayıp $10n$ dB arttı; $n \approx 2.5$.</span></button>
+    <button class="quiz__opt">Shadowing<span class="why">Açık sahada araya engel girmedi. Değişen şey distance.</span></button>
+    <button class="quiz__opt">Fading<span class="why">Fading ortalamayı değil, ortalama etrafındaki kısa süreli dalgalanmayı anlatır.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="final" data-min="4">
+  <h2>Son kontrol</h2>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">$P_t = 2$ dBm, $G_t = G_r = 0$ dB, $L_s = 2$ dB. $PL(1\ \text{m}) = 40$ dB, $n = 2$. 100 m'de $P_r$ nedir?</p>
+    <button class="quiz__opt">$-38$ dBm<span class="why">Sadece $PL(d_0)$'ı çıkarmak. 100 m için $10 \cdot 2 \cdot \log_{10} 100 = 40$ dB daha eklenmeli.</span></button>
+    <button class="quiz__opt" data-correct>$-80$ dBm<span class="why">Doğru: $PL = 40 + 40 = 80$ dB, $P_r = 2 - 80 - 2 = -80$ dBm.</span></button>
+    <button class="quiz__opt">$-76$ dBm<span class="why">$L_s$'yi eklemek. Ek kayıplar da çıkarılır: $2 - 80 - 2$.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">"Bu link'in path loss'u $-68$ dBm." Bu cümlede kaç hata var?</p>
+    <button class="quiz__opt">Hiç; path loss received power ile aynı şey.<span class="why">Path loss bir oran (kayıp), received power bir seviye. Biri dB, öteki dBm.</span></button>
+    <button class="quiz__opt" data-correct>İki: path loss pozitif bir dB değeridir, dBm değil.<span class="why">Doğru. Birim dB olmalı ve kayıp negatif yazılmaz. $-68$ dBm muhtemelen $P_r$.</span></button>
+    <button class="quiz__opt">Bir: sadece işaret yanlış, "$68$ dBm" doğru olurdu.<span class="why">Slayt 9'un tuzağı. dBm mutlak güçtür; path loss bir oran olduğu için dB.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Aynı odada, aynı 6 m distance'ta iki link var. Biri %98, öteki %40 PRR veriyor. Bu durumu modelde hangi terim(ler) açıklar?</p>
+    <button class="quiz__opt">Sadece $10n\log_{10}(d/d_0)$<span class="why">Bu terim distance'a bağlı ve iki link'te aynı. Fark buradan gelemez.</span></button>
+    <button class="quiz__opt" data-correct>$X_\sigma$ ve $F(t)$<span class="why">Doğru. Engel ve multipath farkları aynı distance'ta farklı received power ve farklı delivery üretir.</span></button>
+    <button class="quiz__opt">Hiçbiri; model aynı distance için aynı sonucu verir.<span class="why">Slayt 23'ün sonucunun tersi: model, received power'ın distance'ın deterministic fonksiyonu olmadığını söyler.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Noise floor $-97$ dBm, received power $-90$ dBm. Ortamda bir Wi-Fi access point çalışmaya başlıyor ve noise floor $-88$ dBm'e çıkıyor. SNR ne olur?</p>
+    <button class="quiz__opt">$7$ dB'den $7$ dB'ye; RSSI değişmediği için SNR de değişmez.<span class="why">SNR iki terime bağlı; noise arttıysa SNR düşer.</span></button>
+    <button class="quiz__opt" data-correct>$7$ dB'den $-2$ dB'ye düşer.<span class="why">Doğru: $-90 - (-97) = 7$, $-90 - (-88) = -2$ dB. Sinyal artık noise'tan zayıf.</span></button>
+    <button class="quiz__opt">$7$ dB'den $16$ dB'ye çıkar.<span class="why">Noise floor'un yükselmesini iyi bir şey sanmak. Payda büyüdü, oran küçüldü.</span></button>
+  </div>
+  <!-- Sıradaki konu: RSSI, LQI, PRR ve IEEE 802.15.4 PHY. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+/* Shared helpers */
+const RP = {
+  log10: x => Math.log(x) / Math.LN10,
+  r: (v, k) => { const p = 10 ** (k === undefined ? 2 : k); const x = Math.round(v * p) / p; return Object.is(x, -0) ? 0 : x; },
+  num(v, k) { return String(RP.r(v, k)); },
+  /* parse "0.25", "-3,5", "1e-9", "10^-9", "10⁻⁹" */
+  parse(raw) {
+    let s = String(raw).trim().replace(/\s+/g, "").replace(",", ".").replace(/−/g, "-");
+    const sup = { "⁻": "-", "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9" };
+    s = s.replace(/[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, m => "^" + m.split("").map(c => sup[c]).join(""));
+    let m = s.match(/^([-+]?\d*\.?\d+)?(?:[x×*]?10\^([-+]?\d+))$/);
+    if (m) return (m[1] === undefined ? 1 : Number(m[1])) * 10 ** Number(m[2]);
+    if (!/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s)) return NaN;
+    return Number(s);
+  },
+  /* Abramowitz–Stegun 7.1.26 */
+  erf(x) {
+    const s = Math.sign(x); x = Math.abs(x);
+    const t = 1 / (1 + 0.3275911 * x);
+    const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+    return s * y;
+  },
+  Phi: z => 0.5 * (1 + RP.erf(z / Math.SQRT2)),
+  rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; },
+  gauss(rand) { let u = 0; while (u === 0) u = rand(); const v = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); },
+  C: 299792458,
+  /* slider + typed box rows; returns getter */
+  rows(host, defs, onChange) {
+    host.innerHTML = defs.map(d => `<div class="w-radio-propagation-row"><label for="${d.id}">${d.label}</label><input type="range" id="${d.id}-r" min="${d.min}" max="${d.max}" step="${d.step}" value="${d.val}" aria-label="${d.label}" /><input type="text" inputmode="decimal" id="${d.id}" value="${d.val}" class="btn btn--sm" /></div>`).join("");
+    defs.forEach(d => {
+      const r = document.getElementById(d.id + "-r"), t = document.getElementById(d.id);
+      r.addEventListener("input", () => { t.value = r.value; onChange(); });
+      t.addEventListener("input", () => { const v = RP.parse(t.value); if (Number.isFinite(v)) r.value = v; onChange(); });
+    });
+    return () => {
+      const out = {}, errs = [];
+      defs.forEach(d => {
+        const v = RP.parse(document.getElementById(d.id).value);
+        if (!Number.isFinite(v)) errs.push(`${d.label}: sayı değil.`);
+        else if (v < d.lo || v > d.hi) errs.push(`${d.label}: ${d.lo} ile ${d.hi} arasında olmalı.`);
+        out[d.key] = v;
+      });
+      return { v: out, errs };
+    };
+  }
+};
+
+/* W1: dBm <-> mW trainer */
+(function () {
+  const mwIn = document.getElementById("w1-mw"), dbIn = document.getElementById("w1-dbm");
+  const err = document.getElementById("w1-err"), out = document.getElementById("w1-out");
+  /* mW = 10^k * f with f in a small set of "nice" factors; the dB is 10k + 10log10(f) */
+  const fmtMw = v => v >= 0.001 && v < 1e5 ? RP.num(v, 6) : v.toExponential(0).replace("e", "\\times 10^{") + "}";
+  const NICE = [[1, 0, "1"], [2, 3, "×2"], [4, 6, "×2×2"], [5, 7, "÷2 ×10"], [0.5, -3, "÷2"], [0.25, -6, "÷2÷2"], [8, 9, "×2×2×2"]];
+  function decompose(mw) {
+    const k = Math.floor(RP.log10(mw) + 1e-9);
+    for (const [f, db, txt] of NICE) {
+      for (const kk of [k, k + 1, k - 1]) {
+        if (Math.abs(mw / (10 ** kk) - f) < 1e-9 * f) {
+          if (f === 5) return `$${fmtMw(mw)}$ mW $= 10^{${kk + 1}} \\div 2$ ⇒ $${(kk + 1) * 10} - 3 = ${RP.num((kk + 1) * 10 - 3)}$ dBm (yaklaşık)`;
+          if (f === 1) return `$${fmtMw(mw)}$ mW $= 10^{${kk}}$ ⇒ $10 \\times ${kk} = ${RP.num(kk * 10)}$ dBm (tam)`;
+          return `$${fmtMw(mw)}$ mW $= 10^{${kk}}$ ${txt} ⇒ $${kk * 10} ${db >= 0 ? "+" : "-"} ${Math.abs(db)} = ${RP.num(kk * 10 + db)}$ dBm (yaklaşık)`;
+        }
+      }
+    }
+    return "";
+  }
+  function fromMw() {
+    const v = RP.parse(mwIn.value);
+    if (!Number.isFinite(v)) { err.textContent = "mW bir sayı olmalı (ör. 0.25, 1e-9, 10^-9)."; out.innerHTML = ""; return; }
+    if (v <= 0) { err.innerHTML = "Güç sıfırdan büyük olmalı: $\\log_{10} 0$ tanımsız, 0 mW dBm'de $-\\infty$."; Lab.renderMath(err); out.innerHTML = ""; return; }
+    err.textContent = "";
+    const d = 10 * RP.log10(v);
+    dbIn.value = RP.num(d, 2);
+    show(v, d);
+  }
+  function fromDb() {
+    const d = RP.parse(dbIn.value);
+    if (!Number.isFinite(d)) { err.textContent = "dBm bir sayı olmalı (ör. -30)."; out.innerHTML = ""; return; }
+    if (d < -200 || d > 60) { err.textContent = "WSN'de anlamlı aralık yaklaşık −200 ile 60 dBm arası."; out.innerHTML = ""; return; }
+    err.textContent = "";
+    const v = 10 ** (d / 10);
+    mwIn.value = v >= 0.01 && v < 1e5 ? String(RP.r(v, 4)) : v.toExponential(3);
+    show(v, d);
+  }
+  function show(v, d) {
+    const dec = decompose(v);
+    out.innerHTML = `$10\\log_{10}(${v >= 0.01 && v < 1e5 ? RP.num(v, 6) : v.toExponential(3).replace("e", "\\times 10^{") + "}"})$ $=$ <b>${RP.num(d, 2)}</b> dBm` + (dec ? `<br>Hesap makinesiz: ${dec}` : "") + `<br>1 mW'a göre: ${d >= 0 ? RP.num(v, 4) + " kat büyük" : "1/" + RP.num(1 / v, v > 1e-4 ? 2 : 0).replace("−", "") + " kadar"}.`;
+    Lab.renderMath(out);
+  }
+  mwIn.addEventListener("input", fromMw);
+  dbIn.addEventListener("input", fromDb);
+  fromMw();
+
+  /* drill: mW -> dBm and dBm -> mW, checked within 0.5 dB */
+  const POOL = [
+    { mw: 10 }, { mw: 0.1 }, { mw: 1e-9 }, { mw: 2 }, { mw: 0.5 }, { mw: 20 }, { mw: 50 }, { mw: 5 },
+    { mw: 0.25 }, { mw: 1000 }, { mw: 200 }, { mw: 0.02 }, { mw: 4 }, { mw: 1e-6 }, { mw: 0.001 },
+    { db: -20 }, { db: 13 }, { db: -3 }, { db: 17 }, { db: -50 }, { db: -97 }, { db: 6 }, { db: -63 }
+  ];
+  const q = document.getElementById("w1-q"), a = document.getElementById("w1-a"), fb = document.getElementById("w1-fb");
+  let cur = 0, order = POOL.map((_, i) => i).sort(() => Math.random() - 0.5), pos = 0;
+  function ask() {
+    cur = order[pos % order.length]; pos++;
+    const it = POOL[cur];
+    q.innerHTML = it.mw !== undefined ? `$${fmtMw(it.mw)}$ mW = ? dBm` : `$${RP.num(it.db)}$ dBm = ? mW`;
+    a.value = ""; fb.innerHTML = "";
+    Lab.renderMath(q);
+  }
+  function check() {
+    const it = POOL[cur], g = RP.parse(a.value);
+    if (!Number.isFinite(g)) { fb.innerHTML = `<span class="w-radio-propagation-err">Bir sayı yaz${it.db !== undefined ? " (mW için 1e-9 ya da 10^-9 biçimi de olur)" : ""}.</span>`; return; }
+    let okDb, truthTxt;
+    if (it.mw !== undefined) {
+      const t = 10 * RP.log10(it.mw);
+      okDb = Math.abs(g - t) <= 0.5;
+      truthTxt = `Doğru değer $${RP.num(t, 2)}$ dBm. ` + decompose(it.mw);
+    } else {
+      if (g <= 0) { fb.innerHTML = `<span class="w-radio-propagation-err">mW sıfırdan büyük olmalı.</span>`; return; }
+      const t = 10 ** (it.db / 10);
+      okDb = Math.abs(10 * RP.log10(g) - it.db) <= 0.5;
+      truthTxt = `Doğru değer $\\approx ${fmtMw(t)}$ mW. ` + decompose(Number(t.toPrecision(1)));
+    }
+    fb.innerHTML = (okDb ? `<span class="w-radio-propagation-ok">✓ Doğru (±0.5 dB içinde).</span> ` : `<span class="w-radio-propagation-err">✗ Tekrar dene ya da çözüme bak.</span> `) + `<span class="src">${truthTxt}</span>`;
+    Lab.renderMath(fb);
+  }
+  document.getElementById("w1-check").addEventListener("click", check);
+  a.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+  document.getElementById("w1-next").addEventListener("click", ask);
+  ask();
+})();
+
+/* W2: link budget ladder + step-by-step stepper */
+(function () {
+  const DEFS = [
+    { id: "w2-pt", key: "pt", label: "P_t dBm", min: -25, max: 5, step: 1, val: -5, lo: -40, hi: 30 },
+    { id: "w2-gt", key: "gt", label: "G_t dB", min: -3, max: 9, step: 0.5, val: 2, lo: -10, hi: 30 },
+    { id: "w2-gr", key: "gr", label: "G_r dB", min: -3, max: 9, step: 0.5, val: 2, lo: -10, hi: 30 },
+    { id: "w2-pl", key: "pl", label: "PL dB", min: 30, max: 120, step: 1, val: 80, lo: 0, hi: 160 },
+    { id: "w2-ls", key: "ls", label: "L_s dB", min: 0, max: 10, step: 0.5, val: 3, lo: 0, hi: 30 },
+    { id: "w2-s", key: "s", label: "S dBm", min: -105, max: -80, step: 1, val: -92, lo: -130, hi: -40 },
+    { id: "w2-n", key: "n", label: "noise dBm", min: -110, max: -70, step: 1, val: -98, lo: -130, hi: -40 }
+  ];
+  const err = document.getElementById("w2-err"), out = document.getElementById("w2-out");
+  const svg = document.getElementById("w2-svg"), box = document.getElementById("w2-stepper");
+  let timer = null;
+  const get = RP.rows(document.getElementById("w2-rows"), DEFS, () => { update(); clearTimeout(timer); timer = setTimeout(buildStepper, 350); });
+  const TOP = 30, BOT = -120, Y = v => 20 + (TOP - Math.max(BOT, Math.min(TOP, v))) / (TOP - BOT) * 340;
+  function ladder(marks) {
+    let s = "";
+    for (let v = TOP; v >= BOT; v -= 10) {
+      s += `<line x1="58" x2="70" y1="${Y(v)}" y2="${Y(v)}" style="stroke:var(--stone-300)" /><text x="52" y="${Y(v) + 4}" text-anchor="end" style="font-size:10px;fill:var(--fg-subtle)">${String(v).replace("-", "−")}</text>`;
+    }
+    s += `<line x1="70" x2="70" y1="${Y(TOP)}" y2="${Y(BOT)}" style="stroke:var(--stone-500);stroke-width:2" />`;
+    s += `<text x="70" y="12" text-anchor="middle" style="font-size:10px;fill:var(--fg-subtle)">dBm</text>`;
+    const placed = [];
+    marks.forEach(m => {
+      const y = Y(m.v);
+      let ty = y + 4;
+      while (placed.some(p => Math.abs(p - ty) < 13)) ty += 13;
+      placed.push(ty);
+      s += `<line x1="64" x2="150" y1="${y}" y2="${y}" style="stroke:${m.c};stroke-width:${m.w || 2}${m.dash ? ";stroke-dasharray:4 3" : ""}" />`;
+      s += `<text x="156" y="${ty}" style="font-size:11px;font-weight:700;fill:${m.c}">${m.t}</text>`;
+    });
+    return s;
+  }
+  function calc() {
+    const g = get();
+    if (g.errs.length) return g;
+    const v = g.v;
+    v.pr = v.pt + v.gt + v.gr - v.pl - v.ls;
+    v.margin = v.pr - v.s;
+    v.snr = v.pr - v.n;
+    return g;
+  }
+  function update() {
+    const g = calc();
+    if (g.errs.length) { err.textContent = g.errs.join(" "); return; }
+    err.textContent = "";
+    const v = g.v;
+    out.innerHTML = `$P_r = ${RP.num(v.pt)} + ${RP.num(v.gt)} + ${RP.num(v.gr)} - ${RP.num(v.pl)} - ${RP.num(v.ls)} = $ <b>${RP.num(v.pr)} dBm</b><br>Margin $= P_r - S = $ <b>${RP.num(v.margin)} dB</b> ${v.margin >= 10 ? "(rahat)" : v.margin >= 0 ? "(ince; shadowing ve fading bunu yiyebilir)" : "(ortalama bile sensitivity'nin altında)"}<br>SNR $= P_r - N = $ <b>${RP.num(v.snr)} dB</b>${v.n > v.s ? "<br><span class=\"src\">Noise floor sensitivity'nin üstünde: bu ortamda sensitivity'ye kadar inmek zaten mümkün değil.</span>" : ""}`;
+    Lab.renderMath(out);
+    svg.innerHTML = ladder([
+      { v: v.pt, t: `P_t ${RP.num(v.pt)}`, c: "var(--blue-600)" },
+      { v: v.pr, t: `P_r ${RP.num(v.pr)}`, c: "var(--accent)", w: 3 },
+      { v: v.s, t: `S ${RP.num(v.s)}`, c: "#2b8a3e", dash: 1 },
+      { v: v.n, t: `noise ${RP.num(v.n)}`, c: "var(--stone-600)", dash: 1 }
+    ]);
+  }
+  function buildStepper() {
+    const g = calc();
+    if (g.errs.length) return;
+    const v = g.v;
+    const steps = [
+      { lab: "P_t", d: v.pt, txt: `Başla: transmit power $P_t = ${RP.num(v.pt)}$ dBm.` },
+      { lab: "+G_t", d: v.gt, txt: `Transmit antenna gain: $+${RP.num(v.gt)}$ dB.` },
+      { lab: "+G_r", d: v.gr, txt: `Receive antenna gain: $+${RP.num(v.gr)}$ dB.` },
+      { lab: "−PL", d: -v.pl, txt: `Path loss: $-${RP.num(v.pl)}$ dB. En büyük kalem hep bu.` },
+      { lab: "−L_s", d: -v.ls, txt: `System losses: $-${RP.num(v.ls)}$ dB.` }
+    ];
+    let run = 0;
+    const frames = steps.map((st, i) => {
+      run = i === 0 ? st.d : run + st.d;
+      return { k: i, run, caption: st.txt + ` Ara toplam: <b>${RP.num(run)} dBm</b>.` };
+    });
+    frames.push({ k: 5, run, caption: `Sonuç $P_r = ${RP.num(run)}$ dBm. Sensitivity $${RP.num(v.s)}$ dBm ⇒ margin $${RP.num(run - v.s)}$ dB. Noise floor $${RP.num(v.n)}$ dBm ⇒ SNR $${RP.num(run - v.n)}$ dB.` });
+    Lab.stepper(box, {
+      title: "Link budget adım adım",
+      interval: 1200,
+      frames,
+      render(f, idx, el) {
+        let h = `<div class="table-wrap"><table><tr><th>adım</th><th>dB</th><th>ara toplam (dBm)</th></tr>`;
+        steps.slice(0, Math.min(f.k, 4) + 1).forEach((st, i) => {
+          const sub = steps.slice(0, i + 1).reduce((a, b, j) => j === 0 ? b.d : a + b.d, 0);
+          const on = i === f.k;
+          h += `<tr style="${on ? "background:var(--blue-050)" : ""}"><td>${st.lab}</td><td>${i === 0 ? "" : (st.d >= 0 ? "+" : "−") + RP.num(Math.abs(st.d))}</td><td><b>${RP.num(sub)}</b></td></tr>`;
+        });
+        if (f.k === 5) h += `<tr style="background:var(--blue-050)"><td>margin / SNR</td><td></td><td><b>${RP.num(f.run - v.s)} dB / ${RP.num(f.run - v.n)} dB</b></td></tr>`;
+        el.innerHTML = h + `</table></div>`;
+      }
+    });
+  }
+  update(); buildStepper();
+
+  /* sensitivity sketch: a smooth delivery curve, not a step. Sensitivity sits where the curve meets an
+     unnamed performance target (slide 11 ties it to a target, not to a fixed delivery percentage). */
+  const ss = document.getElementById("w-sens-svg");
+  const X = p => 40 + (p + 105) / 30 * 260, Yc = q => 140 - q * 110;
+  const curve = p => RP.Phi((p + 95) / 3), TARGET = 0.9;
+  let path = "", pSens = -105;
+  for (let p = -105; p <= -75; p += 0.5) { const q = curve(p); path += (path ? "L" : "M") + X(p).toFixed(1) + " " + Yc(q).toFixed(1); }
+  while (curve(pSens) < TARGET && pSens < -75) pSens += 0.05;
+  let s = `<line x1="40" y1="140" x2="300" y2="140" style="stroke:var(--stone-500)" /><line x1="40" y1="30" x2="40" y2="140" style="stroke:var(--stone-500)" />`;
+  s += `<text x="34" y="34" text-anchor="end" style="font-size:10px;fill:var(--fg-subtle)">100%</text><text x="34" y="143" text-anchor="end" style="font-size:10px;fill:var(--fg-subtle)">0</text>`;
+  s += `<path d="${path}" style="fill:none;stroke:var(--blue-600);stroke-width:2.5" />`;
+  s += `<line x1="40" y1="${Yc(TARGET).toFixed(1)}" x2="300" y2="${Yc(TARGET).toFixed(1)}" style="stroke:var(--stone-500);stroke-dasharray:2 3" /><text x="298" y="${(Yc(TARGET) + 12).toFixed(1)}" text-anchor="end" style="font-size:10px;fill:var(--fg-subtle)">performans hedefi</text>`;
+  s += `<line x1="${X(pSens).toFixed(1)}" y1="26" x2="${X(pSens).toFixed(1)}" y2="140" style="stroke:#2b8a3e;stroke-dasharray:4 3" /><text x="${(X(pSens) - 4).toFixed(1)}" y="128" text-anchor="end" style="font-size:10px;fill:#2b8a3e">sensitivity</text>`;
+  s += `<text x="170" y="160" text-anchor="middle" style="font-size:10px;fill:var(--fg-subtle)">← sinyal zayıflıyor · received power (dBm) · güçleniyor →</text>`;
+  s += `<text x="44" y="22" style="font-size:10px;fill:var(--fg-subtle)">packet delivery</text>`;
+  ss.innerHTML = s;
+})();
+
+/* W3: path-loss explorer */
+(function () {
+  const DEFS = [
+    { id: "w3-f", key: "f", label: "f MHz", min: 800, max: 2500, step: 5, val: 2405, lo: 100, hi: 6000 },
+    { id: "w3-pl0", key: "pl0", label: "PL(1m) dB", min: 25, max: 60, step: 0.5, val: 45, lo: 0, hi: 100 },
+    { id: "w3-n", key: "n", label: "n", min: 1.5, max: 6, step: 0.05, val: 2.8, lo: 1, hi: 8 },
+    { id: "w3-pt", key: "pt", label: "P_t dBm", min: -25, max: 5, step: 1, val: -3, lo: -40, hi: 30 },
+    { id: "w3-s", key: "s", label: "S dBm", min: -105, max: -80, step: 1, val: -92, lo: -130, hi: -40 }
+  ];
+  const err = document.getElementById("w3-err"), out = document.getElementById("w3-out"), svg = document.getElementById("w3-svg");
+  const logBox = document.getElementById("w3-log"), dIn = document.getElementById("w3-d");
+  const get = RP.rows(document.getElementById("w3-rows"), DEFS, draw);
+  logBox.addEventListener("change", draw); dIn.addEventListener("input", draw);
+  const DMIN = 1, DMAX = 200, PMIN = 20, PMAX = 140;
+  const L = 52, R = 505, T = 12, B = 262;
+  function draw() {
+    const g = get(), d = RP.parse(dIn.value);
+    const errs = g.errs.slice();
+    if (!Number.isFinite(d)) errs.push("Distance bir sayı olmalı.");
+    else if (d < 1 || d > 200) errs.push("Distance 1 ile 200 m arasında olmalı (model d ≥ d₀ = 1 m için).");
+    if (errs.length) { err.textContent = errs.join(" "); return; }
+    err.textContent = "";
+    const v = g.v, lam = RP.C / (v.f * 1e6);
+    const fs = x => 20 * RP.log10(4 * Math.PI * x / lam);
+    const ld = x => v.pl0 + 10 * v.n * RP.log10(x);
+    const allow = v.pt - v.s;
+    const lg = logBox.checked;
+    const X = x => lg ? L + (RP.log10(x) - RP.log10(DMIN)) / (RP.log10(DMAX) - RP.log10(DMIN)) * (R - L) : L + (x - DMIN) / (DMAX - DMIN) * (R - L);
+    const Yp = p => T + (PMAX - Math.max(PMIN, Math.min(PMAX, p))) / (PMAX - PMIN) * (B - T);
+    let s = "";
+    for (let p = PMIN; p <= PMAX; p += 20) s += `<line x1="${L}" x2="${R}" y1="${Yp(p)}" y2="${Yp(p)}" style="stroke:var(--stone-200)" /><text x="${L - 6}" y="${Yp(p) + 4}" text-anchor="end" style="font-size:10px;fill:var(--fg-subtle)">${p}</text>`;
+    const ticks = lg ? [1, 2, 5, 10, 20, 50, 100, 200] : [1, 25, 50, 75, 100, 125, 150, 175, 200];
+    ticks.forEach(t => { s += `<line x1="${X(t)}" x2="${X(t)}" y1="${T}" y2="${B}" style="stroke:var(--stone-200)" /><text x="${X(t)}" y="${B + 14}" text-anchor="middle" style="font-size:10px;fill:var(--fg-subtle)">${t}</text>`; });
+    s += `<text x="${(L + R) / 2}" y="${B + 30}" text-anchor="middle" style="font-size:10px;fill:var(--fg-subtle)">distance (m)${lg ? ", log ölçek" : ""}</text>`;
+    s += `<text x="12" y="${(T + B) / 2}" transform="rotate(-90 12 ${(T + B) / 2})" text-anchor="middle" style="font-size:10px;fill:var(--fg-subtle)">path loss (dB)</text>`;
+    const curve = (fn, col) => {
+      let p = "";
+      for (let i = 0; i <= 200; i++) {
+        const x = lg ? 10 ** (RP.log10(DMIN) + i / 200 * (RP.log10(DMAX) - RP.log10(DMIN))) : DMIN + i / 200 * (DMAX - DMIN);
+        p += (p ? "L" : "M") + X(x).toFixed(1) + " " + Yp(fn(x)).toFixed(1);
+      }
+      return `<path d="${p}" style="fill:none;stroke:${col};stroke-width:2.5" />`;
+    };
+    s += curve(fs, "var(--stone-500)") + curve(ld, "var(--blue-600)");
+    s += `<line x1="${L}" x2="${R}" y1="${Yp(allow)}" y2="${Yp(allow)}" style="stroke:#2b8a3e;stroke-dasharray:5 4;stroke-width:2" /><text x="${R - 4}" y="${Yp(allow) - 5}" text-anchor="end" style="font-size:10px;font-weight:700;fill:#2b8a3e">izin verilen kayıp P_t − S = ${RP.num(allow)} dB</text>`;
+    const dmaxFs = 10 ** ((allow - fs(1)) / 20), dmaxLd = 10 ** ((allow - v.pl0) / (10 * v.n));
+    [[dmaxFs, "var(--stone-600)"], [dmaxLd, "var(--blue-600)"]].forEach(([dm, c]) => {
+      if (dm >= DMIN && dm <= DMAX) s += `<circle cx="${X(dm)}" cy="${Yp(allow)}" r="5" style="fill:${c}" />`;
+    });
+    s += `<line x1="${X(d)}" x2="${X(d)}" y1="${T}" y2="${B}" style="stroke:var(--accent);stroke-width:1.5" />`;
+    s += `<rect x="${L + 6}" y="${T + 4}" width="12" height="4" style="fill:var(--stone-500)" /><text x="${L + 22}" y="${T + 10}" style="font-size:10px;fill:var(--fg)">free space</text>`;
+    s += `<rect x="${L + 6}" y="${T + 18}" width="12" height="4" style="fill:var(--blue-600)" /><text x="${L + 22}" y="${T + 24}" style="font-size:10px;fill:var(--fg)">log-distance, n = ${RP.num(v.n)}</text>`;
+    svg.innerHTML = s;
+    const fmtD = dm => dm > 1e4 ? "&gt; 10 km" : RP.num(dm, 1) + " m";
+    out.innerHTML = `$\\lambda = c/f = ${RP.num(lam, 4)}$ m · free space $PL(1\\ \\text{m}) = ${RP.num(fs(1))}$ dB<br>` +
+      `$d = ${RP.num(d)}$ m: free space <b>${RP.num(fs(d), 1)} dB</b>, log-distance <b>${RP.num(ld(d), 1)} dB</b> ⇒ $P_r = ${RP.num(v.pt - ld(d), 1)}$ dBm (log-distance)<br>` +
+      `$d_{\\max}$ (ortalama $P_r = S$): free space <b>${fmtD(dmaxFs)}</b>, log-distance <b>${fmtD(dmaxLd)}</b>` +
+      (dmaxLd < 1 ? `<br><span class="src">İzin verilen kayıp $PL(1\\ \\text{m})$'den bile küçük: link 1 m'de bile ortalamada sensitivity'nin altında.</span>` : "");
+    Lab.renderMath(out);
+  }
+  draw();
+})();
+
+/* W4: shadowing sampler */
+(function () {
+  const DEFS = [
+    { id: "w4-pt", key: "pt", label: "P_t dBm", min: -25, max: 5, step: 1, val: -3, lo: -40, hi: 30 },
+    { id: "w4-pl0", key: "pl0", label: "PL(1m) dB", min: 25, max: 60, step: 0.5, val: 45, lo: 0, hi: 100 },
+    { id: "w4-n", key: "n", label: "n", min: 1.5, max: 6, step: 0.05, val: 2.8, lo: 1, hi: 8 },
+    { id: "w4-d", key: "d", label: "d m", min: 1, max: 100, step: 1, val: 25, lo: 1, hi: 500 },
+    { id: "w4-sg", key: "sg", label: "σ dB", min: 0, max: 14, step: 0.5, val: 6, lo: 0, hi: 30 },
+    { id: "w4-s", key: "s", label: "S dBm", min: -105, max: -80, step: 1, val: -92, lo: -130, hi: -40 }
+  ];
+  const err = document.getElementById("w4-err"), out = document.getElementById("w4-out"), svg = document.getElementById("w4-svg");
+  let seed = 427;
+  const get = RP.rows(document.getElementById("w4-rows"), DEFS, draw);
+  document.getElementById("w4-seed").addEventListener("click", () => { seed = (seed * 7919 + 13) % 1000003; draw(); });
+  const N = 400;
+  function draw() {
+    const g = get();
+    if (g.errs.length) { err.textContent = g.errs.join(" "); return; }
+    err.textContent = "";
+    const v = g.v;
+    const mean = v.pt - (v.pl0 + 10 * v.n * RP.log10(v.d));
+    const rand = RP.rng(seed);
+    const xs = Array.from({ length: N }, () => mean - v.sg * RP.gauss(rand));
+    const above = xs.filter(x => x >= v.s).length;
+    const theo = v.sg === 0 ? (mean >= v.s ? 1 : 0) : RP.Phi((mean - v.s) / v.sg);
+    const lo = Math.min(mean - 4 * Math.max(v.sg, 1), v.s - 3), hi = Math.max(mean + 4 * Math.max(v.sg, 1), v.s + 3);
+    const BW = 1, nb = Math.ceil((hi - lo) / BW), bins = new Array(nb).fill(0);
+    xs.forEach(x => { const i = Math.floor((x - lo) / BW); if (i >= 0 && i < nb) bins[i]++; });
+    const mx = Math.max(...bins, 1);
+    const L = 40, R = 505, T = 14, B = 182, X = p => L + (p - lo) / (hi - lo) * (R - L);
+    let s = `<line x1="${L}" x2="${R}" y1="${B}" y2="${B}" style="stroke:var(--stone-500)" />`;
+    bins.forEach((c, i) => {
+      if (!c) return;
+      const x0 = lo + i * BW, h = c / mx * (B - T - 10);
+      s += `<rect x="${X(x0) + 0.5}" y="${B - h}" width="${Math.max(1, X(x0 + BW) - X(x0) - 1)}" height="${h}" style="fill:${x0 + BW / 2 >= v.s ? "var(--blue-600)" : "var(--accent)"}" />`;
+    });
+    const step = (hi - lo) > 60 ? 20 : 10;
+    for (let p = Math.ceil(lo / step) * step; p <= hi; p += step) s += `<text x="${X(p)}" y="${B + 14}" text-anchor="middle" style="font-size:10px;fill:var(--fg-subtle)">${String(p).replace("-", "−")}</text>`;
+    s += `<line x1="${X(v.s)}" x2="${X(v.s)}" y1="${T}" y2="${B}" style="stroke:#2b8a3e;stroke-width:2;stroke-dasharray:5 4" /><text x="${X(v.s) + 4}" y="${T + 10}" style="font-size:10px;font-weight:700;fill:#2b8a3e">S</text>`;
+    s += `<line x1="${X(mean)}" x2="${X(mean)}" y1="${T}" y2="${B}" style="stroke:var(--fg);stroke-width:1.5" /><text x="${X(mean) + 4}" y="${T + 24}" style="font-size:10px;fill:var(--fg)">ortalama</text>`;
+    s += `<text x="${(L + R) / 2}" y="${B + 30}" text-anchor="middle" style="font-size:10px;fill:var(--fg-subtle)">received power (dBm), ${N} link aynı distance'ta</text>`;
+    svg.innerHTML = s;
+    const margin = mean - v.s;
+    out.innerHTML = `Ortalama $\\bar P_r = ${RP.num(mean, 1)}$ dBm, margin $= ${RP.num(margin, 1)}$ dB.<br>` +
+      `Örneklerde $S$'nin üstünde: <b>${above} / ${N}</b> (%${RP.num(100 * above / N, 1)})<br>` +
+      (v.sg > 0 ? `Model: $\\Phi(${RP.num(margin, 1)} / ${RP.num(v.sg)}) = $ <b>%${RP.num(100 * theo, 1)}</b>` : `Model: <b>%${RP.num(100 * theo, 1)}</b>`) +
+      (v.sg > 0 ? `<br>%95 için gereken margin $1.645\\,\\sigma = ${RP.num(1.645 * v.sg, 1)}$ dB${margin >= 1.645 * v.sg ? " · bu link sağlıyor" : " · bu link sağlamıyor"}.` : "<br>$\\sigma = 0$: shadowing yok, model bir uçuruma dönüşüyor.");
+    Lab.renderMath(out);
+  }
+  draw();
+})();
+
+/* W5: two-path phasor sum */
+(function () {
+  const DEFS = [
+    { id: "w5-dd", key: "dd", label: "Δd cm", min: 0, max: 25, step: 0.05, val: 0, lo: 0, hi: 1000 },
+    { id: "w5-rho", key: "rho", label: "ρ", min: 0, max: 1, step: 0.05, val: 0.7, lo: 0, hi: 1 },
+    { id: "w5-f", key: "f", label: "f MHz", min: 2405, max: 2480, step: 5, val: 2405, lo: 2400, hi: 2500 }
+  ];
+  const err = document.getElementById("w5-err"), out = document.getElementById("w5-out"), svg = document.getElementById("w5-svg");
+  const get = RP.rows(document.getElementById("w5-rows"), DEFS, draw);
+  /* direct path amplitude 1, reflected amplitude rho, extra length dd -> phase lag 2*pi*dd/lambda */
+  function sum(ddM, rho, fHz) {
+    const ph = -2 * Math.PI * ddM / (RP.C / fHz);
+    const re = 1 + rho * Math.cos(ph), im = rho * Math.sin(ph);
+    const a = Math.hypot(re, im);
+    return { ph, re, im, a, db: a > 0 ? 20 * RP.log10(a) : -Infinity };
+  }
+  function pic(z, rho) {
+    const c = 130, k = 60;
+    const P = (x, y) => `${(c - 60 + x * k).toFixed(1)} ${(c - y * k).toFixed(1)}`;
+    const arrow = (x1, y1, x2, y2, col, w) => `<path d="M${P(x1, y1)} L${P(x2, y2)}" style="stroke:${col};stroke-width:${w};fill:none" /><circle cx="${(c - 60 + x2 * k).toFixed(1)}" cy="${(c - y2 * k).toFixed(1)}" r="3.5" style="fill:${col}" />`;
+    let s = `<circle cx="${c - 60 + k}" cy="${c}" r="${(rho * k).toFixed(1)}" style="fill:none;stroke:var(--stone-200);stroke-dasharray:3 3" />`;
+    s += `<line x1="0" x2="260" y1="${c}" y2="${c}" style="stroke:var(--stone-200)" />`;
+    s += arrow(0, 0, 1, 0, "var(--stone-600)", 3);
+    s += arrow(1, 0, z.re, z.im, "var(--accent)", 3);
+    s += arrow(0, 0, z.re, z.im, "var(--blue-600)", 2.5);
+    s += `<text x="8" y="16" style="font-size:10px;fill:var(--stone-600)">gri: direct</text><text x="8" y="30" style="font-size:10px;fill:var(--accent)">turuncu: reflected</text><text x="8" y="44" style="font-size:10px;fill:var(--blue-600)">mavi: toplam</text>`;
+    return s;
+  }
+  function draw() {
+    const g = get();
+    if (g.errs.length) { err.textContent = g.errs.join(" "); return; }
+    err.textContent = "";
+    const v = g.v, lam = RP.C / (v.f * 1e6);
+    const z = sum(v.dd / 100, v.rho, v.f * 1e6);
+    svg.innerHTML = pic(z, v.rho);
+    const z11 = sum(v.dd / 100, v.rho, 2405e6), z26 = sum(v.dd / 100, v.rho, 2480e6);
+    const fmt = x => Number.isFinite(x) ? RP.num(x, 1) : "−∞";
+    out.innerHTML = `$\\lambda = ${RP.num(lam * 100, 2)}$ cm · yol farkı $= ${RP.num(v.dd / lam / 100, 3)}\\,\\lambda$<br>` +
+      `Phase farkı $= ${RP.num(((-z.ph * 180 / Math.PI) % 360), 0)}^\\circ$<br>` +
+      `Toplam amplitude <b>${RP.num(z.a, 3)}</b> ⇒ sadece direct path'e göre <b>${fmt(z.db)} dB</b> ` + (z.db > 0.5 ? "(constructive)" : z.db < -0.5 ? "(destructive)" : "") + `<br>` +
+      `Sınırlar: en iyi $20\\log_{10}(1+\\rho) = ${fmt(20 * RP.log10(1 + v.rho))}$ dB, en kötü $20\\log_{10}(1-\\rho) = ${fmt(v.rho < 1 ? 20 * RP.log10(1 - v.rho) : -Infinity)}$ dB<br>` +
+      `<span class="src">Aynı Δd, farklı kanal: 2405 MHz (ch 11) ${fmt(z11.db)} dB, 2480 MHz (ch 26) ${fmt(z26.db)} dB. Δd'yi 200 cm yap ve farka bak.</span>`;
+    Lab.renderMath(out);
+  }
+  draw();
+
+  /* stepper: receiver moved in lambda/8 steps, rho = 0.7, 2405 MHz */
+  const rho = 0.7, f = 2405e6, lam = RP.C / f;
+  const frames = [];
+  for (let k = 0; k <= 8; k++) {
+    const dd = k * lam / 8, z = sum(dd, rho, f);
+    frames.push({ k, z, dd, caption: `Yol farkı $${RP.num(dd * 100, 2)}$ cm $= ${k}/8\\,\\lambda$: toplam ${z.db > 0.5 ? "<b>constructive</b>" : z.db < -0.5 ? "<b>destructive</b>" : "nötr"}, $${RP.num(z.db, 2)}$ dB.` + (k === 4 ? " Yarım wavelength: en derin nokta." : k === 8 ? " Tam bir wavelength: başa döndük." : "") });
+  }
+  Lab.stepper(document.getElementById("w5-stepper"), {
+    title: "ρ = 0.7, 2405 MHz, Δd 0 → λ",
+    interval: 1100,
+    frames,
+    render(fr, idx, el) {
+      let h = `<div style="display:flex;gap:4px;align-items:flex-end;height:110px">`;
+      frames.forEach((g2, i) => {
+        const hgt = 10 + (g2.z.db + 11) / 16 * 90;
+        h += `<div style="flex:1;min-width:0;text-align:center;font-size:.7rem"><div style="height:${hgt.toFixed(0)}px;background:${i === idx ? "var(--accent)" : i < idx ? "var(--blue-600)" : "var(--stone-200)"};border-radius:3px"></div>${RP.num(g2.z.db, 1)}</div>`;
+      });
+      el.innerHTML = h + `</div><div class="src" style="margin-top:4px">bar yüksekliği: dB (direct path'e göre)</div>`;
+    }
+  });
+})();
+</script>
+</body>
+</html>

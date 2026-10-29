@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 427: RSSI, LQI ve PRR neyi ölçer, ne zaman çelişir; transitional region, hysteresis, link asymmetry ve ACK; IEEE 802.15.4 2.4 GHz PHY (channel, symbol, chip, PPDU, ED/CCA) ve Cooja radio lab'ı." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>RSSI, LQI, PRR ve 802.15.4 PHY · CSE 427 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-link-metrics-802154-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-link-metrics-802154-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-link-metrics-802154-ctl input[type="text"] { width: 70px; }
+    .w-link-metrics-802154-ctl input.w-link-metrics-802154-wide { width: 100%; max-width: 340px; }
+    .w-link-metrics-802154-ctl label { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .w-link-metrics-802154-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-link-metrics-802154-box { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px; background: var(--paper); margin: 8px 0; min-width: 0; }
+    .w-link-metrics-802154-box svg { display: block; width: 100%; height: auto; }
+    .w-link-metrics-802154-out { margin-top: 8px; padding: 8px 12px; background: var(--stone-050); border-radius: var(--radius-md); font-size: .97rem; }
+    .w-link-metrics-802154-row { display: grid; grid-template-columns: 74px minmax(0, 1fr) 70px; gap: 8px; align-items: center; margin: 6px 0; }
+    .w-link-metrics-802154-row input[type="range"] { width: 100%; accent-color: var(--blue-600); }
+    .w-link-metrics-802154-row label { font-weight: 700; font-size: .9rem; }
+    .w-link-metrics-802154-bar { height: 14px; background: var(--stone-200); border-radius: 4px; overflow: hidden; }
+    .w-link-metrics-802154-bar > i { display: block; height: 100%; background: var(--blue-600); transition: width .3s; }
+    .w-link-metrics-802154-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: .85rem; margin-top: 4px; }
+    .w-link-metrics-802154-legend span::before { content: ""; display: inline-block; width: 12px; height: 4px; margin-right: 5px; vertical-align: middle; background: var(--c); }
+    .w-link-metrics-802154-seg { display: flex; width: 100%; height: 34px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-strong); }
+    .w-link-metrics-802154-seg > div { display: grid; place-items: center; font-size: .75rem; font-weight: 700; color: #fff; min-width: 0; overflow: hidden; white-space: nowrap; }
+    .w-link-metrics-802154-kv { font-family: 'JetBrains Mono', monospace; font-size: .88rem; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 427</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 427</a> / RSSI, LQI, PRR ve 802.15.4 PHY</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W2 Part B–E</span><span class="chip">W2 Cooja lab</span><span class="chip chip--exam">Vize kapsamı</span><span class="src">~60 dk · 12 bölüm</span></div>
+          <h1>RSSI, LQI, PRR ve IEEE 802.15.4 PHY</h1>
+          <p class="lead">Bir link'in ne kadar iyi olduğunu üç ayrı sayıyla ölçeriz: RSSI, LQI ve PRR. Üçü aynı şeyi söylemez. Bu derste her birinin neyi ölçtüğünü ve neyi göremediğini, transitional region'ı, link asymmetry'yi, IEEE 802.15.4'ün 2.4 GHz PHY'ını ve Cooja'da yaptığın radio lab'ını göreceksin.</p>
+          <!-- Kaynak: resources/2026-2027-fall/Week_2_WSN_Radio_PHY_60slides_Contiki3.pptx slayt 3, 25–60 (Part B: metrics, Part C: transitional/asymmetry, Part D: IEEE 802.15.4 PHY, Part E: Cooja lab) · resources/2026-2027-fall/week2_cooja_radio_lab_contiki3.pptx (xml slayt 1–40; deck'in üstünde yazan numara xml numarasından bir fazla, slayt 8'den itibaren) · weeks/02-radio-and-physical-layer.md (Key concepts, Lab pitfalls, Practice, Notes — Efe) · assignments/2026-2027-fall-efe/week2/ (README, sender.c, receiver.c, Makefile, Week2-Radio.csc, video-script.md) · Karl & Willig Bölüm 2.1 (Table 2.1, 802.15.4 PHY'ları), 4.3 ve 6.4 (link quality). Bütün sayılar python3 ile kontrol edildi. -->
+        </header>
+
+        <article class="lesson" data-course="cse-427" data-lesson="link-metrics-802154">
+
+<!-- 1 -->
+<section class="lsec" id="rssi" data-min="5">
+  <h2>Metric stack ve RSSI</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · üç ayrı soru</span>
+    <p>Bir mote komşusundan paket aldığında üç ayrı soru sorabilirsin. Sinyal ne kadar güçlü geldi? Gelen frame ne kadar temiz çözüldü? Gönderilenlerin kaçı gerçekten geldi? W2 slaytları bu üç soruya üç metric karşılık getiriyor:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Metric</th><th>Cevapladığı soru (slayt 26)</th></tr>
+      <tr><td><strong>RSSI</strong></td><td>How strong was the received signal power?</td></tr>
+      <tr><td><strong>LQI</strong></td><td>How good was the successfully received frame?</td></tr>
+      <tr><td><strong>PRR</strong></td><td>How often did packets actually arrive?</td></tr>
+    </table></div>
+    <p>Slaytın özeti: <em>hardware evidence + empirical delivery evidence = better link reasoning</em>. RSSI ve LQI, radio chip'inin tek bir paket için verdiği kanıttır. PRR ise birçok paketi sayarak elde ettiğin delivery kanıtıdır. Üçü birbiriyle ilişkilidir ama birbirinin yerine geçmez.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 25–26. -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · RSSI (Received Signal Strength Indicator)</span>
+    <ul>
+      <li>RSSI ≈ paket alınırken ölçülen received power. dBm ile ya da platform'a özel bir integer scale ile raporlanır.</li>
+      <li>Birçok radio chip'i verir. Localization, topology control ve link selection için kullanılabilir.</li>
+      <li>Sadece bir şey alındığında ölçülür. Hiç gelmeyen paketin RSSI'ı yoktur.</li>
+      <li>Mesafe arttıkça RSSI genelde düşer, ama düzgün bir eğriyle değil.</li>
+      <li><strong>RSSI is received power evidence, not delivery probability.</strong></li>
+    </ul>
+    <div class="table-wrap"><table>
+      <tr><th>RSSI</th><th>Kaba yorum (slayt 28)</th></tr>
+      <tr><td>−50 dBm</td><td>Very strong</td></tr>
+      <tr><td>−70 dBm</td><td>Moderate</td></tr>
+      <tr><td>−85 dBm</td><td>Weak</td></tr>
+      <tr><td>−95 dBm</td><td>Very weak</td></tr>
+    </table></div>
+    <p>Bu etiketler kaba bir rehberdir. Gerçek eşik şunlara bağlıdır: receiver sensitivity, noise floor, interference, radio implementation, packet length, hardware calibration.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 27–28; lab deck xml slayt 13 aynı tabloyu verir ve notunda "Do not oversell the exact numbers" der. -->
+  <div class="box box--example">
+    <span class="box__label">Örnek · slayt 29'un iki klasik durumu</span>
+    <ul>
+      <li><strong>Strong RSSI + collision → bad PRR.</strong> İki sender aynı anda gönderir. Receiver'a gelen toplam enerji yüksektir, RSSI güçlü görünür. Ama iki frame üst üste bindiği için hiçbiri çözülemez.</li>
+      <li><strong>Moderate RSSI + low noise → good PRR.</strong> Sinyal orta güçtedir ama noise floor çok düşüktür. SNR yeterli olduğu için paketler gelir. Bir önceki dersteki $\text{SNR}_\text{dB} = P_\text{signal,dBm} - P_\text{noise,dBm}$ hesabı burada devreye girer: aynı −80 dBm RSSI, −100 dBm noise ile 20 dB SNR verir, −82 dBm noise ile sadece 2 dB.</li>
+    </ul>
+    <p>Slaytın vardığı yer: RSSI tek başına bir kanıttır. Yanında noise floor, LQI, PRR, retransmission sayısı ve application delivery davranışı da olmalı.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 29 · SNR örneği weeks/02 Key concepts (radio-propagation dersinin konusu). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Daha az negatif = daha güçlü: −80 dBm, −90 dBm'den güçlüdür.</li>
+      <li>Bir platformda bulduğun RSSI eşiğini başka bir platforma körü körüne kopyalama (slayt 28: <em>Do not copy an RSSI threshold blindly between platforms</em>).</li>
+      <li>RSSI, interference ve noise enerjisini de içerir. Yüksek RSSI "temiz sinyal" demek değildir.</li>
+      <li>Ortalama RSSI sadece gelen paketlerin ortalamasıdır. Kaybolan paketler bu ortalamaya hiç girmez.</li>
+      <li>RSSI zamanla değişir ve hardware'den hardware'e farklıdır. Decoding quality'yi tam olarak göstermez.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-rssi-1">
+    <p class="quiz__q">Bir receiver'da son 50 paketin ortalama RSSI'ı −62 dBm. Bu bilgiden hangisi çıkar?</p>
+    <button class="quiz__opt" data-correct>Gelen paketler güçlü bir sinyalle geldi; kaç paketin kaybolduğu hakkında bir şey söylemez.<span class="why">Doğru. RSSI sadece alınan paketler için ölçülür. 50 paket gelmiş ama 500 paket gönderilmiş olabilir.</span></button>
+    <button class="quiz__opt">Link'in PRR'ı yüksektir.<span class="why">RSSI delivery probability değildir. Güçlü RSSI'ın yanında collision ya da interference varsa PRR düşük olabilir (slayt 29).</span></button>
+    <button class="quiz__opt">Bu link başka bir radio platformunda da −62 dBm ile ölçülür ve güçlü sayılır.<span class="why">RSSI'ın scale'i ve eşikleri platform'a bağlıdır. Aynı sayı başka bir radio'da başka bir anlama gelebilir.</span></button>
+    <button class="quiz__opt">Noise floor düşüktür.<span class="why">RSSI noise ve interference enerjisini de içerir. Noise floor'u ayrıca ölçmeden SNR'ı bilemezsin.</span></button>
+  </div>
+  <div class="quiz" id="q-rssi-2">
+    <p class="quiz__q">Hangisi daha güçlü bir received signal'dir?</p>
+    <button class="quiz__opt">−95 dBm<span class="why">Daha negatif değer daha zayıf sinyal demektir. Slayt 28'de −95 dBm "very weak".</span></button>
+    <button class="quiz__opt" data-correct>−70 dBm<span class="why">Doğru. −70 dBm, −95 dBm'den 25 dB yüksektir. Slayt 28'de "moderate".</span></button>
+    <button class="quiz__opt">İkisi aynı, işaret önemli değil<span class="why">dBm absolute power'dır ve işaret anlamlıdır. Negatif değer sadece "1 mW'tan küçük" demektir.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="lqi" data-min="4">
+  <h2>LQI: frame ne kadar temiz çözüldü?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · yüksek sesle mi, anlaşılır mı?</span>
+    <p>RSSI telefondaki sesin ne kadar yüksek geldiğidir. LQI ise söylenenin ne kadar net anlaşıldığıdır. Gürültülü bir odada biri bağırabilir (RSSI yüksek) ama söyledikleri anlaşılmaz (LQI düşük).</p>
+    <p>802.15.4 radio'su her symbol'ü 32 chip'lik bir sequence olarak gönderir (Bölüm 8). Receiver gelen chip'leri bilinen sequence'larla karşılaştırır. Chip hatası ne kadar azsa correlation o kadar yüksek çıkar. CC2420'nin LQI'ı bu correlation'dan gelir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · LQI (Link Quality Indicator)</span>
+    <ul>
+      <li>LQI = <strong>implementation-dependent frame-quality indication</strong>. Correlation, SNR, signal strength, estimated chip errors ya da bunların birleşimini kullanabilir.</li>
+      <li>Başarıyla detect edilmiş bir paketle birlikte gelir.</li>
+      <li>Metre, watt ya da dBm gibi evrensel bir birim değildir. Farklı radio ailelerinin LQI değerlerini körü körüne karşılaştırma.</li>
+      <li><strong>CC2420</strong> her frame için üç şey raporlar: RSSI value, <strong>7-bit average correlation value</strong>, CRC validity indication. Correlation chip hatalarıyla ilgilidir, başka bir power ölçümü değildir. 7 bit olduğu için değer 0 ile 127 arasındadır.</li>
+      <li>Slaytın öğretme cümlesi: <em>RSSI concerns power. LQI concerns decoding quality evidence.</em></li>
+    </ul>
+    <p>Neden CC2420? Eski WSN literatürü ve Cooja örnekleri CC2420 benzeri radio'ları varsayar. Old Cooja'daki Sky/TelosB simülasyonları CC2420-class davranışı model eder. Slayt bu yüzden LQI'ı platform-specific bir ipucu olarak görmeni istiyor.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 30–31. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar · slayt 32</span>
+    <ul>
+      <li><strong>High LQI on one packet does not prove a stable link.</strong> Tek paketin değeri uzun dönem reliability'yi temsil etmeyebilir.</li>
+      <li>LQI genelde sadece alınan paketler için vardır. Hiç detect edilmeyen paketleri anlatamaz.</li>
+      <li>Güçlü link'lerde saturate olabilir: "çok iyi" ile "mükemmel" arasındaki farkı göstermez.</li>
+      <li>Anlamı hardware'e bağlıdır, ve operating system raw radio değerini dönüştürebilir.</li>
+      <li><em>High LQI for received packets + many missing packets = still a bad link.</em> Kayıp paketleri de ölç.</li>
+    </ul>
+    <p>Senin lab'ında UDGM altında LQI her pakette 37 çıktı (Bölüm 11). Lab deck'teki örnek çıktıda <code>LQI=104</code> yazıyor. İkisi de belli bir radio model'inin sayısıdır, evrensel bir "iyi" ya da "kötü" eşiği değildir.</p>
+  </div>
+  <div class="quiz" id="q-lqi-1">
+    <p class="quiz__q">100 paket gönderildi, 40'ı geldi. Gelen 40 paketin hepsinin LQI'ı çok yüksek. Link için doğru yorum hangisi?</p>
+    <button class="quiz__opt" data-correct>Kötü bir link: PRR 0.40. LQI sadece gelen 40 paketi anlatıyor.<span class="why">Doğru. Kaybolan 60 paket LQI'a hiç yansımaz. Slayt 36'nın ikinci durumu: high LQI but low PRR.</span></button>
+    <button class="quiz__opt">İyi bir link: LQI yüksekse decode kalitesi yüksektir.<span class="why">Decode kalitesi sadece çözülen frame'ler için ölçülür. Hiç çözülmeyen 60 paket ortalamaya girmez.</span></button>
+    <button class="quiz__opt">Bu bir ölçüm hatası; LQI ile PRR çelişemez.<span class="why">Çelişebilirler, bu normaldir. Üç metric farklı şeyleri ölçer ve slaytlar çelişki durumlarını ayrıca sayar.</span></button>
+  </div>
+  <div class="quiz" id="q-lqi-2">
+    <p class="quiz__q">CC2420'nin LQI'ı neye dayanır?</p>
+    <button class="quiz__opt">Received power'ın dBm değerine<span class="why">Bu RSSI. CC2420 RSSI'ı ayrı bir değer olarak raporlar.</span></button>
+    <button class="quiz__opt" data-correct>Gelen chip'lerin 7-bit average correlation değerine<span class="why">Doğru. Correlation chip hatalarıyla ilgilidir, yani decoding quality kanıtıdır (slayt 31).</span></button>
+    <button class="quiz__opt">CRC'nin geçip geçmediğine<span class="why">CRC validity ayrı bir indication. LQI correlation değeridir; CRC sadece frame'in bozuk olup olmadığını söyler.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="prr" data-min="6">
+  <h2>PRR, sequence number ve window</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · tahmin etme, say</span>
+    <p>RSSI ve LQI gelen pakete bakar. PRR ise gönderilenlerin kaçının geldiğini sayar. Slayt 33'ün örneği: 100 paket gönderildi, 92'si geldi, PRR = 0.92 = %92.</p>
+    <p>Gelmeyen bir paketi görmenin tek yolu neyin gönderildiğini bilmektir. Bu yüzden her paket bir <strong>sequence number</strong> taşır. Receiver 8'den sonra 10'u görürse 9'un kaybolduğunu anlar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · PRR (Packet Reception Ratio)</span>
+    $$\text{PRR} = \frac{N_\text{received}}{N_\text{transmitted}}$$
+    <ul>
+      <li>Bir observation window üzerinden ölçülür. Instantaneous bir hardware değeri değil, <strong>empirical</strong> bir metric'tir.</li>
+      <li>Sequence number'lar ya da bilinen bir transmission sayısı gerekir.</li>
+      <li>Application delivery'yi en doğrudan yansıtan metric budur.</li>
+      <li>Slayt 34'ün lab kuralı: <em>Every sender packet must carry a sequence number. Otherwise students cannot distinguish loss from silence.</em></li>
+    </ul>
+    <p><strong>Slayt 34 örneği:</strong> received: 1, 2, 3, 5, 6, 9, 10. Eksikler 4, 7 ve 8. Beklenen 10, gelen 7: $\text{PRR} = 7/10 = 0.70$.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 33–34 · lab deck xml slayt 12 (RX seq=7, 8, 10 → 9 eksik). -->
+  <h3>Kendin dene: sequence log'undan PRR</h3>
+  <p>Receiver'ın log'undaki seq'leri yaz ve sender'ın hangi aralığı gönderdiğini söyle. Stepper beklenen her seq'e tek tek bakıyor: yeşil geldi, turuncu kayıp.</p>
+  <p class="w-link-metrics-802154-guess"><b>Önce tahmin et:</b> Sender 1'den 10'a kadar gönderdi, receiver 1, 2, 3, 5, 6, 9, 10'u gördü. Hangi seq'ler eksik ve PRR kaç?</p>
+  <div class="w-link-metrics-802154-ctl">
+    <label>Gelen seq'ler <input id="wa-rx" type="text" value="1, 2, 3, 5, 6, 9, 10" class="btn btn--sm w-link-metrics-802154-wide" aria-label="Gelen sequence number listesi" /></label>
+  </div>
+  <div class="w-link-metrics-802154-ctl">
+    <label>Gönderilen: ilk <input id="wa-lo" type="text" inputmode="numeric" value="1" class="btn btn--sm" /></label>
+    <label>son <input id="wa-hi" type="text" inputmode="numeric" value="10" class="btn btn--sm" /></label>
+    <button class="btn btn--sm" id="wa-go">Kur</button>
+  </div>
+  <div class="w-link-metrics-802154-ctl">
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wa="1, 2, 3, 5, 6, 9, 10|1|10">slayt 34</button>
+    <button class="btn btn--sm" data-wa="34, 36, 38|34|38">lab deck, RX 0.6</button>
+    <button class="btn btn--sm" data-wa="1, 2, 3, 4, 5, 6|1|10">son paketler kayıp</button>
+    <button class="btn btn--sm" data-wa="10, 11, 15|8|15">ders kitabı 8–15</button>
+  </div>
+  <div class="w-link-metrics-802154-err" id="wa-err" aria-live="polite"></div>
+  <div id="wa-stepper"></div>
+
+  <h3>Window size</h3>
+  <p>Slayt 35: <em>A short window reacts fast; a long window is stable but slow. Window choice is part of the measurement design.</em> Lab deck aynı fikri pratik bir tabloya döker:</p>
+  <div class="table-wrap"><table>
+    <tr><th>Window</th><th>Lab'daki kullanım (lab deck)</th></tr>
+    <tr><td>10 packets</td><td>quick observation while moving</td></tr>
+    <tr><td>20 packets</td><td>small PRR measurement</td></tr>
+    <tr><td>30+ packets</td><td>better but slower estimate</td></tr>
+  </table></div>
+  <!-- Kaynak: W2 slayt 35 · lab deck xml slayt 15. -->
+  <p>Aşağıdaki log gerçekten üretiliyor: 300 paket, her paket ya geliyor ya kayboluyor. Mavi eğri son 10 paketin PRR'ı, turuncu eğri son 100 paketin PRR'ı. Alttaki kırmızı çizgiler kaybolan paketler. "Bursty" modelde link bazen kısa süreliğine kötü bir duruma geçiyor (Gilbert-Elliott tipi iki durumlu bir model); "i.i.d." modelde her paket aynı olasılıkla, birbirinden bağımsız kayboluyor. İki modelin uzun dönem kayıp oranı yaklaşık aynı, %13.</p>
+  <p class="w-link-metrics-802154-guess"><b>Önce tahmin et:</b> Hangi eğri daha çok zıplar? Bir kayıp burst'ünü hangisi daha erken gösterir? Hangisi burst'ü neredeyse hiç göstermez?</p>
+  <div class="w-link-metrics-802154-ctl">
+    <button class="btn btn--sm" data-wb="burst">bursty</button>
+    <button class="btn btn--sm" data-wb="iid">i.i.d.</button>
+    <button class="btn btn--sm" id="wb-seed">yeni log</button>
+  </div>
+  <div class="w-link-metrics-802154-box"><div id="wb-svg"></div>
+    <div class="w-link-metrics-802154-legend"><span style="--c:var(--blue-600)">10-packet window</span><span style="--c:var(--accent)">100-packet window</span><span style="--c:#c92a2a">kayıp paket</span></div>
+  </div>
+  <div class="w-link-metrics-802154-out" id="wb-out" aria-live="polite"></div>
+
+  <div class="box box--example">
+    <span class="box__label">Ders kitabı · Karl &amp; Willig 6.4.2 (slaytlarda yok, aynı trade-off)</span>
+    <p>Bir link-quality estimator'dan dört şey istenir: <strong>precision</strong> (istatistiksel olarak anlamlı olacak kadar örnek), <strong>agility</strong> (değişen koşulu hızlı yakalamak), <strong>stability</strong> (kısa dalgalanmalara kanmamak) ve <strong>efficiency</strong> (az dinleme, az bellek). Agility ile stability birbirine karşı çalışır: slayt 35'teki kısa/uzun window seçiminin aynısı.</p>
+    <p><strong>Active estimator</strong> özel probe paketleri gönderip cevapları toplar. <strong>Passive estimator</strong> komşunun normal trafiğini dinler ve kayıpları sequence number'lardaki boşluklardan çıkarır. Kitabın örneği: son görülen seq 7. Sonra 10 gelir (8 ve 9 eksik), sonra 11, sonra 15 (12, 13, 14 eksik). 8–15 arasındaki 8 paketten 3'ü gelmiştir: $3/8 = 0.375$. Window bittiği anda son paketten sonra kaç paketin kaybolduğunu ("Gap = ?") bilemezsin; periyodik trafikte bile bunu ancak tahmin edersin.</p>
+    <p>Kitapta en iyi uzlaşma olarak verilen WMEWMA estimator'ı her $T$ süresinin sonunda $\mu_n = \dfrac{r_n}{r_n + f_n}$ hesaplar ($r_n$ gelen, $f_n$ kayıp paket sayısı) ve bunu $\hat P_n = \alpha\,\hat P_{n-1} + (1-\alpha)\,\mu_n$ ile yumuşatır. Örnek: $\alpha = 0.6$, önceki tahmin 0.9, yeni window'da $\mu = 0.5$ ise $\hat P = 0.6 \cdot 0.9 + 0.4 \cdot 0.5 = 0.74$. Büyük $\alpha$ daha stable, küçük $\alpha$ daha agile.</p>
+  </div>
+  <!-- Kaynak: Karl & Willig, Protocols and Architectures for WSNs, 6.4.2 Link-quality estimation (Figure 6.15 gap örneği, WMEWMA). Sayılar python ile kontrol edildi. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Window'un sonunda kaybolan paketler bir sonraki seq gelene kadar görünmez. PRR'ı receiver'ın gördüğü son seq'e göre değil, <strong>gönderilen</strong> sayısına göre hesapla.</li>
+      <li>Saymaya ilk gelen seq'ten başlarsan baştaki kayıpları kaçırırsın.</li>
+      <li>10 paketlik window'da PRR sadece 0.0, 0.1, …, 1.0 değerlerini alabilir. 10/10 görmen link'in kusursuz olduğunu kanıtlamaz.</li>
+      <li>PRR olasılıklıdır. Lab deck: <em>Do not promise exactly 12 of 20 packets at RX=0.6. It is probabilistic.</em> Her paket bağımsız olarak 0.6 olasılıkla gelseydi bile 20 paketten tam 12'sinin gelme olasılığı sadece yaklaşık 0.18 olurdu.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: lab deck xml slayt 27 · binom(20, 0.6) P(X=12) ≈ 0.1797 python ile. -->
+  <div class="quiz" id="q-prr-1">
+    <p class="quiz__q">Sender 1'den 20'ye kadar seq gönderdi. Receiver'da 1–15 arası hepsi var, 16–20 yok. Receiver sadece kendi log'una bakıp "son seq 15, 15/15 = 1.00" diyor. Doğru PRR kaç?</p>
+    <button class="quiz__opt" data-correct>0.75<span class="why">Doğru: 15/20. Son beş paket receiver'ın log'unda hiç iz bırakmadı. Payda gönderilen sayıdır.</span></button>
+    <button class="quiz__opt">1.00<span class="why">Bu, paydayı "son gelen seq"e göre almaktan gelir. Sondaki kayıplar ancak sender'ın kaç paket gönderdiği bilinirse görünür.</span></button>
+    <button class="quiz__opt">0.25<span class="why">Bu loss ratio: 5/20. PRR gelenlerin oranıdır, 1 − 0.25 = 0.75.</span></button>
+  </div>
+  <div class="quiz" id="q-prr-2">
+    <p class="quiz__q">Bir node hareket ediyor ve link birkaç saniye içinde kötüleşiyor. Bu değişimi en hızlı hangi PRR tahmini gösterir?</p>
+    <button class="quiz__opt" data-correct>10 paketlik window<span class="why">Doğru. Short window reacts fast. Bedeli: daha gürültülü, tek tek kayıplarla zıplar.</span></button>
+    <button class="quiz__opt">100 paketlik window<span class="why">Long window stable ama slow: yeni kayıplar eski 90 iyi paketin arasında erir.</span></button>
+    <button class="quiz__opt">İkisi aynı hızda gösterir, sadece sayılar farklıdır<span class="why">Window boyu tepki süresini doğrudan belirler. Slayt 35'in bütün mesajı bu: window choice is part of the measurement design.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="compare" data-min="5">
+  <h2>Üç metric ne zaman çelişir?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · hangisi neyi görüyor?</span>
+    <p>RSSI ve LQI, receiver'ın yakaladığı paketin üstüne yazılan etiketlerdir. PRR ise sayımdır. Bu yüzden kaybı gören tek metric PRR'dır. Lab deck'in tek cümlelik ayrımı: <em>RSSI tells us how strong the heard packet looked; LQI tells us something about the decoded packet; PRR tells us how often packets arrived at all.</em></p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Metric</th><th>Represents</th><th>Collected how</th><th>Main limitation</th></tr>
+    <tr><td>RSSI</td><td>received power</td><td>per received packet</td><td>not delivery</td></tr>
+    <tr><td>LQI</td><td>quality of received frame</td><td>per received packet</td><td>hardware-specific</td></tr>
+    <tr><td>PRR</td><td>successful delivery fraction</td><td>over many transmissions</td><td>needs many packets</td></tr>
+  </table></div>
+  <!-- Kaynak: W2 slayt 36 (Represents, Main limitation) · lab deck xml slayt 28 (Collected how ve tek cümle). -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · üç çelişki durumu (slayt 36)</span>
+    <ol>
+      <li><strong>Strong RSSI but low PRR:</strong> collision or interference. Enerji yüksek ama frame çözülemiyor.</li>
+      <li><strong>High LQI but low PRR:</strong> missing packets are invisible to LQI. Gelenler temiz, ama çoğu gelmiyor.</li>
+      <li><strong>Similar RSSI both ways but asymmetric PRR:</strong> ACK direction matters. İki yönde sinyal gücü benzer, ama bir yönde receiver'ın yanındaki noise ya da interference farklı (Bölüm 6).</li>
+    </ol>
+    <p>Genel kural: RSSI ve LQI sadece gelen paketler için vardır. Kaybı gören tek metric PRR'dır.</p>
+  </div>
+  <h3>Hangi metric görür?</h3>
+  <p>Dört olay, her birinde aynı soru: RSSI, LQI ve PRR'dan hangisi bu olayı fark eder?</p>
+  <div class="quiz" id="q-see-1">
+    <p class="quiz__q">Bir paket hiç detect edilmedi: receiver preamble'ı bile yakalayamadı. Bu olayı hangi metric görür?</p>
+    <button class="quiz__opt" data-correct>Sadece PRR, sequence number'daki boşluk olarak<span class="why">Doğru. Detect edilmeyen paketin ne RSSI'ı ne LQI'ı olur. Sadece sayım bu kaybı gösterir.</span></button>
+    <button class="quiz__opt">RSSI, çok düşük bir değer olarak<span class="why">RSSI sadece bir şey alındığında ölçülür (slayt 27). Hiç alınmayan paket RSSI log'una satır olarak bile düşmez.</span></button>
+    <button class="quiz__opt">LQI, düşük bir değer olarak<span class="why">LQI cannot describe packets never detected (slayt 32).</span></button>
+    <button class="quiz__opt">Hiçbiri<span class="why">Sequence number'lar sayesinde PRR görür. Slayt 34'ün lab kuralı tam olarak bunun için var.</span></button>
+  </div>
+  <div class="quiz" id="q-see-2">
+    <p class="quiz__q">Receiver'a yakın iki sender aynı anda gönderdi ve collision oldu. Tipik görüntü hangisi?</p>
+    <button class="quiz__opt" data-correct>RSSI güçlü, PRR düşük<span class="why">Doğru. İki sinyalin enerjisi toplanır, RSSI yüksek görünür, ama frame'ler çözülemez. Slayt 29 ve 36'nın ilk durumu.</span></button>
+    <button class="quiz__opt">RSSI zayıf, PRR düşük<span class="why">Collision'da sinyal zayıf değildir, tersine kanalda fazladan enerji vardır. Sorun güç değil, iki frame'in üst üste binmesidir.</span></button>
+    <button class="quiz__opt">RSSI güçlü, PRR yüksek<span class="why">Collision'a uğrayan paketler çözülemez ve kaybolur. Güçlü RSSI delivery garantisi değildir.</span></button>
+  </div>
+  <div class="quiz" id="q-see-3">
+    <p class="quiz__q">Sinyal −85 dBm civarında geliyor (slayt 28'de "weak"), ama ortam çok sessiz. Ne beklersin?</p>
+    <button class="quiz__opt" data-correct>RSSI orta-zayıf, PRR yine iyi olabilir<span class="why">Doğru. Moderate RSSI + low noise → good PRR (slayt 29). Önemli olan sinyalin noise floor'un ne kadar üstünde olduğu, yani SNR.</span></button>
+    <button class="quiz__opt">PRR mutlaka düşük olur, çünkü −85 dBm "weak"<span class="why">Slayt 28'deki etiketler kaba rehberdir; eşik noise floor'a ve receiver sensitivity'ye bağlıdır.</span></button>
+    <button class="quiz__opt">Zayıf paketlerin LQI'ı ölçülemez<span class="why">Gelen her paketin LQI'ı vardır. LQI'ın olmadığı durum, paketin hiç detect edilmemesidir.</span></button>
+  </div>
+  <div class="quiz" id="q-see-4">
+    <p class="quiz__q">Receiver'ın hemen yanında bir microwave oven çalışmaya başladı. Mesafe ve TX power aynı. Hangisi doğru?</p>
+    <button class="quiz__opt" data-correct>RSSI yanıltabilir, çünkü interference enerjisini de içerir; kaybı asıl PRR gösterir<span class="why">Doğru. Slayt 29: RSSI includes interference/noise. Slayt 51: coexistence'ın sonucu packet loss, reduced PRR, retransmissions.</span></button>
+    <button class="quiz__opt">RSSI mutlaka düşer, çünkü sinyal bozuldu<span class="why">Gönderen değişmedi, sinyal aynı güçte geliyor. Üstüne interference eklendiği için RSSI düşmek yerine artabilir bile.</span></button>
+    <button class="quiz__opt">Hiçbir şey değişmez, çünkü mesafe aynı<span class="why">Distance is not a reliable link-quality metric (slayt 24). Interference link'i mesafeden bağımsız olarak bozar.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="w02-slide03-minibreak"><span class="box__label">W2 dersi, mini-break sorusu (slayt 3) · slayt sorusu</span>
+    <p>"Mini-break: ask “what does RSSI NOT tell us?”" (hocanın 2 × 45 dk ders planındaki ara sorusu; sorunun tamamı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>RSSI ne zaman ölçülür? Hangi paketler için vardır, hangileri için yoktur?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>RSSI'ın içine sadece istenen sinyal mi girer? Frame'in çözülüp çözülmediğini söyler mi? Diğer yönü (ACK'i) anlatır mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Sınav cevabı (English):</strong> RSSI only tells us how strong the received power looked for packets that were actually received. It does NOT tell us:</p>
+      <ol>
+        <li><em>Delivery probability:</em> packets that were never received have no RSSI, so RSSI cannot show loss. Only PRR (with sequence numbers) can.</li>
+        <li><em>Decoding quality:</em> a collision gives a strong RSSI but an undecodable frame (strong RSSI + collision → bad PRR). Decoding quality is LQI/CRC territory.</li>
+        <li><em>Whether the energy is the wanted signal:</em> RSSI includes noise and interference. Without the noise floor we do not know the SNR.</li>
+        <li><em>A universal threshold:</em> the scale and good/bad thresholds are platform dependent.</li>
+        <li><em>The reverse direction:</em> RSSI at B says nothing about whether B's ACKs reach A.</li>
+        <li><em>Long-term stability:</em> RSSI varies over time; one value is one sample.</li>
+      </ol>
+      <p>Türkçe özet: RSSI "duyduğum paket ne kadar güçlüydü" sorusunun cevabıdır. "Kaç paket kayboldu", "frame çözüldü mü", "bu enerji kimin" ve "geri yön çalışıyor mu" sorularına cevap vermez.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/2026-2027-fall/Week_2_WSN_Radio_PHY_60slides_Contiki3.pptx" target="_blank" rel="noopener">Orijinal slayt (W2 deck) ↗</a></p>
+    <!-- Kaynak: W2 slayt 3 ("Mini-break: ask “what does RSSI NOT tell us?”"), cevap slayt 27, 29, 36'dan. -->
+  </div>
+  <div class="box box--exam" data-exam="w02-practice-3"><span class="box__label">W2 Practice listesi S3 · ödev sorusu</span>
+    <p>"Why can strong RSSI coexist with low PRR? high LQI with low PRR?" (weeks/02, ## Practice; sorunun tamamı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her metric hangi paketler üzerinden hesaplanır? RSSI ve LQI hangi paketlerde hiç yoktur?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Collision'da kanaldaki enerji yükselir mi düşer mi? Detect edilmeyen bir paket LQI ortalamasını nasıl etkiler?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Sınav cevabı (English):</strong></p>
+      <p><em>Strong RSSI + low PRR:</em> RSSI measures received power, not delivery. When two transmissions collide, or when interference (Wi‑Fi, another 802.15.4 network) is present, the energy at the receiver is high, so RSSI looks strong, but the frames cannot be decoded and are lost. RSSI also includes noise and interference, so a strong reading does not mean a clean signal.</p>
+      <p><em>High LQI + low PRR:</em> LQI is reported only for frames that were successfully detected and received. Packets that are never detected leave no LQI value. So the received packets can all have high LQI while many packets are missing. The missing packets are invisible to LQI; only PRR, counted from sequence numbers, shows them. High LQI for received packets + many missing packets = still a bad link.</p>
+      <p>Türkçe özet: RSSI güç ölçer, LQI sadece gelen frame'i anlatır. Kaybı sadece PRR görür.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/weeks/02-radio-and-physical-layer.md" target="_blank" rel="noopener">Orijinal soru (weeks/02) ↗</a></p>
+    <!-- Kaynak: weeks/02 ## Practice madde 3; cevap W2 slayt 29, 32, 36. Repoda cevap anahtarı yok. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Slayt 36'nın başlığı: <em>The three metrics should not be treated as interchangeable.</em> "RSSI iyi, öyleyse link iyi" demek bu kuralı çiğner.</li>
+      <li>PRR'ın da zayıf yanı var: needs many packets. Beş paketle hesaplanan PRR çok gürültülüdür.</li>
+      <li>RSSI ve LQI ortalaması alırken sadece gelen paketlerin ortalamasını aldığını unutma.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="transitional" data-min="6">
+  <h2>Transitional region ve hysteresis</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · keskin bir çember yok</span>
+    <p>Ders kitaplarındaki çizimde her node'un etrafında bir çember vardır: içinde her paket gelir, dışında hiçbiri. Gerçek link'ler böyle davranmaz. Arada, PRR'ın ne tam iyi ne tam kötü olduğu, zamanla zıpladığı geniş bir bant vardır: <strong>transitional region</strong>.</p>
+    <p>Karl &amp; Willig iki ölçümü özetler. Woo ve arkadaşları node'ları 2 feet aralıkla bir hatta dizip her birine 200 paket göndertti. Yaklaşık 10 feet'e kadar node'lar paketlerin sürekli %90'ından fazlasını aldı (effective region). 40 feet'ten sonra kayıp sürekli %90'ın çok üstündeydi (poor region). Arada aynı mesafedeki node'ların kayıp oranları çok farklıydı. Ganesan ve arkadaşlarının 169 mote'luk grid ölçümü de şunu buldu: aynı mesafede çok farklı loss rate'ler, çember değil düzensiz şekilli bölgeler, link'lerin %5–15'i asymmetric (mesafeyle artıyor), ve durağan node'larda bile zamanla değişen kayıp. Kitabın vardığı yer: <em>Link quality should be understood in a statistical and time-varying sense.</em></p>
+  </div>
+  <!-- Kaynak: Karl & Willig 6.4.1 Link-quality characteristics (Woo et al. Figure 6.14, Ganesan et al. Figure 6.13). Şekiller kopyalanmadı. -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · üç informal link region (slayt 38)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Region</th><th>Davranış</th></tr>
+      <tr><td><strong>Connected</strong></td><td>High PRR, stable connectivity, few retransmissions.</td></tr>
+      <tr><td><strong>Transitional</strong></td><td>Intermediate or highly variable PRR, bursts, asymmetry.</td></tr>
+      <tr><td><strong>Disconnected</strong></td><td>PRR near zero, few decoded packets, unstable discovery.</td></tr>
+    </table></div>
+    <p><strong>Neden önemli (slayt 39):</strong> marginal links can be more expensive than clearly bad links.</p>
+    <ul>
+      <li>Node neighbor olarak görünür, sonra kaybolur.</li>
+      <li>Broadcast çalışabilir ama ACK'ler başarısız olur.</li>
+      <li>Bir channel çalışır, başka bir channel çalışmaz.</li>
+      <li>Routing aynı neighbor'ı tekrar tekrar seçer ve çıkarır.</li>
+      <li>Tekrarlanan retransmission'lar enerji harcar.</li>
+      <li>Shortest geographic link ≠ lowest energy link.</li>
+    </ul>
+    <p><em>"Almost works" is often expensive.</em></p>
+  </div>
+  <!-- Kaynak: W2 slayt 37–39. -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · hysteresis (slayt 40)</span>
+    <p><strong>Add neighbor if PRR &gt; 0.8; keep until PRR &lt; 0.5.</strong></p>
+    <p>PRR eşik civarında dalgalanır. Tek eşik olursa her küçük dalgalanma bir add ya da remove kararına dönüşür. İki eşik bir <strong>stability band</strong> oluşturur: 0.5 ile 0.8 arasında node önceki durumunu korur.</p>
+  </div>
+  <h3>Kendin dene: neighbor table'da tek eşik ve hysteresis</h3>
+  <p>Transitional bir link'in PRR'ını 60 kez ölçüyoruz (her ölçüm 20 paketlik bir window). Link'in gerçek kalitesi yavaşça kayıyor, ölçümler de rastgele dalgalanıyor. Üst satır tek eşikli neighbor table'ı, alt satır hysteresis'li table'ı gösteriyor: renkli kısım "neighbor tabloda" demek.</p>
+  <p class="w-link-metrics-802154-guess"><b>Önce tahmin et:</b> Link'in ortalama PRR'ı 0.65 ve tek eşik de 0.65 ise, 60 ölçümde tek eşikli table kaç kez add/remove yapar? Hysteresis kaç kez?</p>
+  <div class="w-link-metrics-802154-row"><label for="wc-m">ortalama PRR</label><input type="range" id="wc-m-r" min="0.3" max="0.95" step="0.01" value="0.65" aria-label="ortalama PRR slider" /><input id="wc-m" type="text" inputmode="decimal" value="0.65" class="btn btn--sm" /></div>
+  <div class="w-link-metrics-802154-ctl">
+    <label>tek eşik <input id="wc-t" type="text" inputmode="decimal" value="0.65" class="btn btn--sm" /></label>
+    <label>add &gt; <input id="wc-add" type="text" inputmode="decimal" value="0.8" class="btn btn--sm" /></label>
+    <label>drop &lt; <input id="wc-drop" type="text" inputmode="decimal" value="0.5" class="btn btn--sm" /></label>
+    <button class="btn btn--sm" id="wc-go">Uygula</button>
+    <button class="btn btn--sm" id="wc-seed">yeni ölçümler</button>
+  </div>
+  <div class="w-link-metrics-802154-err" id="wc-err" aria-live="polite"></div>
+  <div class="w-link-metrics-802154-box"><div id="wc-svg"></div>
+    <div class="w-link-metrics-802154-legend"><span style="--c:var(--accent)">tek eşik</span><span style="--c:#2b8a3e">add eşiği</span><span style="--c:#c92a2a">drop eşiği</span></div>
+  </div>
+  <div class="w-link-metrics-802154-out" id="wc-out" aria-live="polite"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Açıkça kötü bir link ucuzdur, çünkü hiç kullanılmaz. Pahalı olan "neredeyse çalışan" link'tir: retransmission, flapping, kaybolan ACK'ler.</li>
+      <li>Hysteresis'in iki eşiği aynı metric'e bakar ama farklı kararlar için kullanılır: 0.8 <em>eklemek</em> için, 0.5 <em>çıkarmak</em> için. Arada karar değişmez.</li>
+      <li>En yakın node her zaman en iyi parent değildir: shortest geographic link ≠ lowest energy link.</li>
+      <li>Cooja'nın UDGM'i transitional region model etmez: range'in içinde hep gelir, dışında hiç gelmez (Bölüm 10).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-tr-1">
+    <p class="quiz__q">Hysteresis kullanan bir node (add &gt; 0.8, drop &lt; 0.5). Komşu B başta tabloda değil. Ardışık PRR ölçümleri: 0.70, 0.85, 0.60, 0.55, 0.45. Sonunda B nerede?</p>
+    <button class="quiz__opt" data-correct>Tabloda değil: 0.85'te eklendi, 0.45'te çıkarıldı<span class="why">Doğru. 0.70 add eşiğinin altında, değişiklik yok. 0.85 &gt; 0.8, eklenir. 0.60 ve 0.55 bandın içinde, kalır. 0.45 &lt; 0.5, çıkarılır.</span></button>
+    <button class="quiz__opt">Tabloda: 0.60 ve 0.55 hâlâ 0.5'in üstünde<span class="why">O iki ölçümde B gerçekten kalır, ama son ölçüm 0.45 drop eşiğinin altında.</span></button>
+    <button class="quiz__opt">Hiç eklenmedi, çünkü ilk ölçüm 0.70<span class="why">İlk ölçüm sadece o anki kararı belirler. İkinci ölçüm 0.85 add eşiğini geçiyor.</span></button>
+  </div>
+  <div class="quiz" id="q-tr-2">
+    <p class="quiz__q">Transitional region'daki bir link neden açıkça kötü bir link'ten daha pahalı olabilir?</p>
+    <button class="quiz__opt" data-correct>Arada bir çalıştığı için seçilir; retransmission'lar, kaybolan ACK'ler ve neighbor flapping enerji harcatır.<span class="why">Doğru: slayt 39, "almost works" is often expensive.</span></button>
+    <button class="quiz__opt">Uzak olduğu için TX power'ı otomatik yükselir.<span class="why">Slaytlardaki maliyet TX power'dan değil, tekrar denemelerden ve routing değişikliklerinden gelir.</span></button>
+    <button class="quiz__opt">Pahalı değildir; PRR'ı 0'dan büyük olan her link disconnected link'ten iyidir.<span class="why">Disconnected link'e hiç paket gönderilmez. Transitional link'e gönderilen her paket ortalama birden fazla deneme ister.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="asymmetry" data-min="5">
+  <h2>Link asymmetry ve ACK</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · iki yön, iki ayrı link</span>
+    <p>A'nın B'yi iyi duyması, B'nin A'yı iyi duyduğu anlamına gelmez. Slayt 41'in örneği: A → B PRR = 0.95, B → A PRR = 0.40. Nedenleri:</p>
+    <ul>
+      <li>farklı transmit power,</li>
+      <li>receiver sensitivity farkı,</li>
+      <li>antenna orientation,</li>
+      <li>farklı local noise floor,</li>
+      <li>bir receiver'ın yanındaki interference,</li>
+      <li>geçici fading.</li>
+    </ul>
+    <p>Unicast bir paket iki yönü birden kullanır: data gider, ACK geri döner. Biri bile başarısız olursa sender bu denemeyi başarısız sayar.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 41. -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · asymmetry ve acknowledgement (slayt 42)</span>
+    $$P_\text{success} = \text{PRR}_\text{forward} \times \text{PRR}_\text{reverse}$$
+    <p>Slaytın örneği: forward PRR = 0.90, reverse ACK PRR = 0.50 ⇒ exchange success = 0.45. <em>A strong data direction is not enough if ACKs cannot return.</em></p>
+    <p>Çarpım, iki yönün birbirinden bağımsız başarılı olduğu varsayımına dayanır: data gelmeli <strong>ve</strong> ACK dönmeli. Her deneme bağımsız olarak $p$ olasılıkla başarılıysa ortalama deneme sayısı $1/p$'dir. 0.45 için $1/0.45 \approx 2.22$ deneme. Bu hesap W4'teki retransmission maliyetine bağlanır.</p>
+    <p><strong>Routing implication:</strong> <em>A node may hear advertisements from a parent, select it, then fail to deliver packets in the reverse direction needed by the protocol.</em> Node, parent'ı parent → node yönündeki advertisement'larla değerlendirir; data ise node → parent yönünde gider.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 42; 1/p bağlantısı lab-plans'teki W4 notu. Bağımsızlık varsayımı slaytta açıkça yazmıyor, formülün dayanağı olarak eklendi. -->
+  <h3>Kendin dene: iki yön, bir exchange</h3>
+  <p>A, B'ye data gönderiyor (forward = A → B), B ACK'i geri gönderiyor (reverse = B → A). B aynı zamanda A'nın parent adayı ve advertisement'larını da B → A yönünde gönderiyor.</p>
+  <p class="w-link-metrics-802154-guess"><b>Önce tahmin et:</b> A → B 0.95, B → A 0.40 iken exchange success kaç? A, B'yi sadece advertisement'lara bakarak değerlendirse link'i nasıl görür?</p>
+  <div class="w-link-metrics-802154-row"><label for="wd-f">A → B</label><input type="range" id="wd-f-r" min="0" max="1" step="0.01" value="0.95" aria-label="forward PRR slider" /><input id="wd-f" type="text" inputmode="decimal" value="0.95" class="btn btn--sm" /></div>
+  <div class="w-link-metrics-802154-row"><label for="wd-r">B → A</label><input type="range" id="wd-r-r" min="0" max="1" step="0.01" value="0.40" aria-label="reverse PRR slider" /><input id="wd-r" type="text" inputmode="decimal" value="0.40" class="btn btn--sm" /></div>
+  <div class="w-link-metrics-802154-ctl">
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wd="0.95|0.40">slayt 41</button>
+    <button class="btn btn--sm" data-wd="0.40|0.95">tersi</button>
+    <button class="btn btn--sm" data-wd="0.70|0.70">simetrik 0.70</button>
+    <button class="btn btn--sm" id="wd-swap">yönleri değiştir</button>
+  </div>
+  <div class="w-link-metrics-802154-err" id="wd-err" aria-live="polite"></div>
+  <div class="w-link-metrics-802154-out" id="wd-out" aria-live="polite"></div>
+  <div class="box box--exam" data-exam="w02-practice-4"><span class="box__label">W2 Practice listesi S4 · ödev sorusu</span>
+    <p>"Forward PRR 0.9, reverse 0.5 — probability of a successful data+ACK exchange?" (weeks/02, ## Practice; sorunun tamamı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Exchange'in başarılı olması için hangi iki olayın birlikte gerçekleşmesi gerekir?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Ve" ile bağlanan iki bağımsız olayın olasılığı toplanmaz, çarpılır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Sınav cevabı (English):</strong> A data+ACK exchange succeeds only if the data frame reaches the receiver (forward) <em>and</em> the ACK comes back (reverse). Assuming the two directions fail independently:</p>
+      $$P_\text{success} = \text{PRR}_\text{fwd} \times \text{PRR}_\text{rev} = 0.9 \times 0.5 = \boxed{0.45}$$
+      <p>So less than half of the attempts succeed, although the forward link looks good. On average the sender needs $1/0.45 \approx 2.2$ attempts per delivered packet, which costs energy and delay. A link must be judged in both directions, especially when ACKs are used.</p>
+      <p>Yaygın hata: ortalama almak, $(0.9 + 0.5)/2 = 0.7$. İki yön birlikte başarılı olmalı, bu yüzden çarpım.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/weeks/02-radio-and-physical-layer.md" target="_blank" rel="noopener">Orijinal soru (weeks/02) ↗</a></p>
+    <!-- Kaynak: weeks/02 ## Practice madde 4; W2 slayt 42 aynı sayıları kullanır. 0.9×0.5 ve 1/0.45 python ile. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Çarp, toplama ya da ortalama alma: $(0.9 + 0.5)/2 = 0.7$ yanlış.</li>
+      <li>Sadece broadcast'lerle (advertisement, beacon) ölçülen PRR tek yönü gösterir. Data'nın gideceği yön ölçülmemiş olabilir.</li>
+      <li>İki yönde RSSI benzer olabilir, ama PRR yine asymmetric olabilir: receiver'lardan birinin yanında noise floor ya da interference farklıdır (slayt 36'nın üçüncü durumu).</li>
+      <li>Data+ACK exchange'te iki yön de kullanıldığı için sender'ı A ya da B yapmak çarpımı değiştirmez. Değişen, hangi yönün zayıf olduğunu advertisement'lardan görüp göremeyeceğindir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-asym-1">
+    <p class="quiz__q">Slayt 41'deki link: A → B 0.95, B → A 0.40. A, B'ye data gönderiyor, B ACK dönüyor. Exchange success kaç?</p>
+    <button class="quiz__opt" data-correct>0.38<span class="why">Doğru: $0.95 \times 0.40 = 0.38$. Ortalama $1/0.38 \approx 2.6$ deneme.</span></button>
+    <button class="quiz__opt">0.95<span class="why">Bu sadece data yönü. ACK dönmezse sender paketi kaybolmuş sayar ve tekrar gönderir.</span></button>
+    <button class="quiz__opt">0.675<span class="why">Bu ortalama. İki olayın birlikte gerçekleşme olasılığı çarpımdır.</span></button>
+    <button class="quiz__opt">0.40<span class="why">Zayıf yön bir üst sınırdır, ama exchange iki yönün de tutmasını ister: 0.95 × 0.40, 0.40'tan küçüktür.</span></button>
+  </div>
+  <div class="quiz" id="q-asym-2">
+    <p class="quiz__q">Child node C, parent adayı P'nin advertisement'larını PRR 0.95 ile duyuyor ve P'yi seçiyor. C → P yönünün PRR'ı 0.30. Ne olur?</p>
+    <button class="quiz__opt" data-correct>C'nin data'sı P'ye çoğu zaman ulaşmaz; seçim yanlış yönün ölçümüne dayanıyor.<span class="why">Doğru. Slayt 42'nin routing implication'ı: advertisement'lar parent → child yönünde, data child → parent yönünde gider.</span></button>
+    <button class="quiz__opt">Sorun olmaz, çünkü link'in kalitesi 0.95.<span class="why">0.95 sadece P → C yönü. Link asymmetry'de iki yönün PRR'ı farklıdır.</span></button>
+    <button class="quiz__opt">Exchange success 0.95 + 0.30 − 1 = 0.25 olur.<span class="why">Formül çarpımdır: $0.30 \times 0.95 = 0.285$. Toplayıp 1 çıkarmak bir olasılık kuralı değildir.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="ieee802154" data-min="5">
+  <h2>IEEE 802.15.4 ve 2.4 GHz channel'ları</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · Sky mote'un konuştuğu dil</span>
+    <p>Sky/TelosB'deki CC2420, IEEE 802.15.4 konuşan bir radio'dur. 802.15.4 bir standarttır: bitlerin nasıl dalgaya çevrileceğini (PHY) ve kanala nasıl erişileceğini (MAC sublayer) tanımlar. Zigbee ise bunun üstüne network, application support ve profiles ekleyen ayrı bir stack'tir. 6LoWPAN gibi başka stack'ler de 802.15.4'ün üstünde çalışır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · IEEE 802.15.4 (slayt 44–45)</span>
+    <p><strong>Defines:</strong> physical layer · MAC sublayer · low-rate wireless operation · mechanisms for energy-constrained devices.</p>
+    <p><strong>IEEE 802.15.4 ≠ Zigbee.</strong> Zigbee, 802.15.4'ün üstüne network, application support ve profiles ekler.</p>
+    <p><strong>Classic 2.4 GHz PHY</strong> (O-QPSK, dersin odağı):</p>
+    <ul>
+      <li>16 channels: <strong>11–26</strong></li>
+      <li>Channel spacing: <strong>5 MHz</strong></li>
+      <li>Raw PHY rate: <strong>250 kb/s</strong></li>
+      <li>Spreading: <strong>2 Mchip/s</strong></li>
+    </ul>
+    $$f_c(k) = 2405 + 5\,(k - 11)\ \text{MHz}, \qquad k = 11, 12, \dots, 26$$
+    <div class="table-wrap"><table>
+      <tr><th>Channel</th><td>11</td><td>12</td><td>15</td><td>20</td><td>25</td><td>26</td></tr>
+      <tr><th>Center frequency</th><td>2405</td><td>2410</td><td>2425</td><td>2450</td><td>2475</td><td>2480 MHz</td></tr>
+    </table></div>
+  </div>
+  <!-- Kaynak: W2 slayt 44–45 (tablo slayttaki altı channel). Formül 2405 + 5 MHz spacing'den. -->
+  <h3>Kendin dene: channel → frekans</h3>
+  <p class="w-link-metrics-802154-guess"><b>Önce tahmin et:</b> Channel 18'in merkez frekansı kaç MHz?</p>
+  <div class="w-link-metrics-802154-ctl">
+    <label>channel k = <input id="we-k" type="text" inputmode="numeric" value="18" class="btn btn--sm" /></label>
+    <input type="range" id="we-k-r" min="11" max="26" step="1" value="18" aria-label="channel slider" style="flex:1;min-width:140px;accent-color:var(--blue-600)" />
+  </div>
+  <div class="w-link-metrics-802154-err" id="we-err" aria-live="polite"></div>
+  <div class="w-link-metrics-802154-box"><div id="we-svg"></div></div>
+  <div class="w-link-metrics-802154-out" id="we-out" aria-live="polite"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · data rate ≠ application throughput (slayt 46)</span>
+    <p><strong>250 kb/s is PHY raw rate, not what your application gets.</strong> Aradaki farkı yiyenler: PHY headers, MAC headers, addresses, sequence numbers, Frame Check Sequence, security fields, acknowledgements, backoff and retransmissions.</p>
+    <p>Application throughput &lt; raw PHY data rate, ve usable throughput overhead ve load arttıkça düşer.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Ders kitabı · Karl &amp; Willig Table 2.1 (802.15.4'ün üç PHY'ı)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Band</th><th>868 MHz</th><th>915 MHz</th><th>2.4 GHz</th></tr>
+      <tr><td># of channels</td><td>1</td><td>10</td><td>16</td></tr>
+      <tr><td>Data rate</td><td>20 kb/s</td><td>40 kb/s</td><td>250 kb/s</td></tr>
+      <tr><td>Chip rate</td><td>300 kchip/s</td><td>600 kchip/s</td><td>2000 kchip/s</td></tr>
+      <tr><td>Modulation</td><td>BPSK</td><td>BPSK</td><td>O-QPSK</td></tr>
+      <tr><td>Symbol rate</td><td>20 ksym/s</td><td>40 ksym/s</td><td>62.5 ksym/s</td></tr>
+    </table></div>
+    <p>2.4 GHz channel'larının 11'den başlamasının sebebi bu tablo: 1 + 10 = 11 numara alt bantlara ayrılmış. Ders 2.4 GHz PHY'a odaklanır.</p>
+  </div>
+  <!-- Kaynak: Karl & Willig 2.1.4 Table 2.1 (IEEE 802.15.4 PHYs). Channel 0 = 868, 1–10 = 915 numaralandırması tablodaki channel sayılarından. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Lab kodundaki <code>broadcast_open(&amp;broadcast, 129, …)</code> içindeki 129 bir <strong>Rime channel</strong> ID'sidir, software seviyesindedir. 802.15.4 PHY channel'ı değildir.</li>
+      <li>Channel numaraları 2.4 GHz'te 0'dan değil 11'den başlar. Formüle $k$'yı değil $k - 11$'i koy.</li>
+      <li>250 kb/s raw rate'tir; application bunun çok altını görür.</li>
+      <li>Zigbee bir radio değildir; radio standardı 802.15.4'tür.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-154-1">
+    <p class="quiz__q">802.15.4 2.4 GHz PHY'da channel 18'in merkez frekansı kaç MHz?</p>
+    <button class="quiz__opt" data-correct>2440 MHz<span class="why">Doğru: $2405 + 5\,(18 - 11) = 2405 + 35 = 2440$.</span></button>
+    <button class="quiz__opt">2495 MHz<span class="why">Bu $2405 + 5 \cdot 18$: 11 çıkarılmamış. Üstelik 2495 MHz, channel 26'nın (2480) bile üstünde.</span></button>
+    <button class="quiz__opt">2445 MHz<span class="why">Bu channel 19. 11'den 18'e 7 adım var, 8 değil.</span></button>
+  </div>
+  <div class="quiz" id="q-154-2">
+    <p class="quiz__q">Zigbee ile IEEE 802.15.4 arasındaki ilişki hangisi?</p>
+    <button class="quiz__opt" data-correct>802.15.4 PHY ve MAC'i tanımlar; Zigbee bunun üstüne network, application support ve profiles ekler.<span class="why">Doğru (slayt 44). 6LoWPAN gibi başka stack'ler de 802.15.4 kullanır.</span></button>
+    <button class="quiz__opt">İkisi aynı standardın iki adıdır.<span class="why">Slayt bunu açıkça yazıyor: IEEE 802.15.4 ≠ Zigbee.</span></button>
+    <button class="quiz__opt">Zigbee radio PHY'dır, 802.15.4 onun üstündeki routing katmanıdır.<span class="why">Sıra ters: PHY ve MAC 802.15.4'te, upper layers Zigbee'de.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="phy-chain" data-min="6">
+  <h2>Symbol, chip, DSSS, O-QPSK ve PPDU</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · her 4 bit'i 32 chip'le söylemek</span>
+    <p>2.4 GHz PHY bitleri tek tek göndermez. 4 bit'i bir <strong>symbol</strong> yapar (16 olası değer) ve her symbol'ü 32 chip'lik bir sequence ile gönderir. Yani her bit için 8 chip. Bilgi daha geniş bir chip sequence'ına yayılır: <strong>DSSS</strong> (Direct-Sequence Spread Spectrum).</p>
+    <p>Neden? Receiver bilinen 16 sequence'tan hangisinin geldiğini correlation ile bulur. Birkaç chip bozulsa bile en yakın sequence yine bulunabilir. Bu senkronizasyona ve narrowband interference'a karşı yardım eder, ama link'i bağışık yapmaz. LQI'ın kaynağı da bu correlation'dır (Bölüm 2).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · 4 bits → 1 symbol → 32 chips (slayt 47–48)</span>
+    $$\frac{250\,000\ \text{bit/s}}{4\ \text{bit/symbol}} = 62\,500\ \text{symbol/s}, \qquad 62\,500 \times 32 = 2\,000\,000\ \text{chip/s}$$
+    <p>Buradan: 1 symbol = 16 µs, 1 byte = 2 symbol = 32 µs = 64 chip, 1 chip = 0.5 µs.</p>
+    <p><strong>Processing chain:</strong> Bits → Symbols → Chip sequences → O-QPSK waveform. <strong>O-QPSK</strong> (Offset Quadrature Phase-Shift Keying) bileşenlerin geçişlerini kaydırarak ani phase değişimlerini sınırlar. Receiver zinciri ters çevirir: waveform → chips → symbols → bits. Bunu ancak sinyale senkronize olup decode edebilirse yapar.</p>
+    <p>Karl &amp; Willig'in ifadesiyle: 16 symbol değeri, 16 farklı ve neredeyse orthogonal pseudorandom chip sequence'ı ile birbirinden ayrılır.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 47–48 · Karl & Willig 2.1.4 (16-ary orthogonal, nearly orthogonal pseudorandom chip sequences). Türetilen süreler python ile. -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · PHY frame: PPDU (slayt 49)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Field</th><th>Size</th><th>Purpose</th></tr>
+      <tr><td>Preamble</td><td>4 bytes</td><td>synchronization</td></tr>
+      <tr><td>SFD</td><td>1 byte</td><td>frame boundary</td></tr>
+      <tr><td>PHR</td><td>1 byte</td><td>payload length</td></tr>
+      <tr><td>PSDU</td><td>0–127 bytes</td><td>MAC frame</td></tr>
+    </table></div>
+    <p>PHY frame MAC frame'i sarar. PPDU = 6 + PSDU byte, en fazla 133 byte. 250 kb/s'de en uzun PPDU $133 \times 32\ \mu\text{s} = 4256\ \mu\text{s} \approx 4.3$ ms sürer.</p>
+    <p><strong>Maximum application payload is smaller than 127 bytes after MAC/security overhead.</strong></p>
+  </div>
+  <h3>Kendin dene: bir PPDU'yu alan alan gönder</h3>
+  <p>PSDU uzunluğunu yaz. Stepper her alanı sırayla gönderiyor ve byte, bit, symbol, chip ve süreyi aynı kurallardan hesaplıyor.</p>
+  <p class="w-link-metrics-802154-guess"><b>Önce tahmin et:</b> 50 byte'lık bir PSDU için PPDU kaç byte olur ve havada kaç µs kalır?</p>
+  <div class="w-link-metrics-802154-ctl">
+    <label>PSDU = <input id="wf-l" type="text" inputmode="numeric" value="50" class="btn btn--sm" /> byte</label>
+    <button class="btn btn--sm" id="wf-go">Kur</button>
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wf="0">0</button>
+    <button class="btn btn--sm" data-wf="50">50</button>
+    <button class="btn btn--sm" data-wf="127">127</button>
+  </div>
+  <div class="w-link-metrics-802154-err" id="wf-err" aria-live="polite"></div>
+  <div id="wf-stepper"></div>
+  <div class="box box--example">
+    <span class="box__label">Ders kitabı · Karl &amp; Willig 4.3 (neden düşük rate ve basit modulation?)</span>
+    <p>Kitap WSN PHY'ını belirleyen gereksinimleri sayar: low power consumption, bu yüzden küçük transmit power ve kısa range; low duty cycle; onlarca ile yüzlerce kb/s arası düşük data rate; düşük maliyet ve karmaşıklık; küçük form factor. İki gözlem öne çıkar. Düşük transmit power'da transceiver'ın kendisi yaydığından çok daha fazla güç harcar ve receive, transmit kadar (hatta daha fazla) harcayabilir. Paketler kısa olduğunda radio'nun startup süresi enerjiyi domine edebilir. Enerji tarafı bir sonraki dersin konusu.</p>
+  </div>
+  <!-- Kaynak: Karl & Willig 4.3, 4.3.1 Energy usage profile, 4.3.2 Choice of modulation scheme. -->
+  <div class="box box--exam" data-exam="w02-practice-5"><span class="box__label">W2 Practice listesi S5 · ödev sorusu</span>
+    <p>"802.15.4 2.4 GHz: channel count, spacing, raw rate, chips per symbol" (weeks/02, ## Practice; sorunun tamamı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Channel'lar 11'den 26'ya kadar numaralanır. Kaç tane eder? İlk ve son merkez frekansı kaç?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bir symbol kaç bit taşır ve kaç chip ile gönderilir? Chip rate'i bit rate'ten bulmak için bu iki sayıyı kullan.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Sınav cevabı (English):</strong></p>
+      <ul>
+        <li><strong>Channel count:</strong> 16 channels, numbered 11–26 (2405 MHz … 2480 MHz).</li>
+        <li><strong>Spacing:</strong> 5 MHz, so $f_c = 2405 + 5(k - 11)$ MHz.</li>
+        <li><strong>Raw rate:</strong> 250 kb/s (PHY raw rate; application throughput is lower).</li>
+        <li><strong>Chips per symbol:</strong> 32. Each symbol carries 4 bits (DSSS, O-QPSK).</li>
+      </ul>
+      <p>Check: $250\,000 / 4 = 62\,500$ symbol/s and $62\,500 \times 32 = 2\,000\,000$ chip/s = 2 Mchip/s, which matches the spreading rate on slide 45.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/weeks/02-radio-and-physical-layer.md" target="_blank" rel="noopener">Orijinal soru (weeks/02) ↗</a></p>
+    <!-- Kaynak: weeks/02 ## Practice madde 5; cevap W2 slayt 45, 47. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>2 Mchip/s bir bit rate değildir. Bit rate 250 kb/s; chip'ler aynı bilginin yayılmış hâli.</li>
+      <li>32 chip <em>symbol</em> başınadır, bit başına değil. Bit başına 8 chip, byte başına 64 chip.</li>
+      <li>127 byte PSDU'nun, yani MAC frame'in sınırıdır. Preamble, SFD ve PHR bu 127'nin dışındadır; MAC header ve FCS ise içindedir. Application payload daha da küçüktür.</li>
+      <li>DSSS link'i bağışık yapmaz: <em>it does not make links immune</em> (slayt 47).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-phy-1">
+    <p class="quiz__q">PSDU'su 40 byte olan bir frame'in PPDU'su 250 kb/s'de kaç µs sürer?</p>
+    <button class="quiz__opt" data-correct>1472 µs<span class="why">Doğru: $(40 + 6) \times 32\ \mu\text{s} = 46 \times 32 = 1472$.</span></button>
+    <button class="quiz__opt">1280 µs<span class="why">Bu sadece PSDU: $40 \times 32$. Preamble, SFD ve PHR'ın 6 byte'ı da havada geçer.</span></button>
+    <button class="quiz__opt">184 µs<span class="why">Bu 46 byte'ı 4 µs/byte ile çarpmak olur. 250 kb/s'de bir byte $8 / 250\,000$ s = 32 µs sürer.</span></button>
+  </div>
+  <div class="quiz" id="q-phy-2">
+    <p class="quiz__q">Bir byte kaç chip olarak gönderilir?</p>
+    <button class="quiz__opt" data-correct>64<span class="why">Doğru: 1 byte = 2 symbol, her symbol 32 chip.</span></button>
+    <button class="quiz__opt">32<span class="why">32 chip bir symbol'dür, yani 4 bit. Bir byte iki symbol'dür.</span></button>
+    <button class="quiz__opt">8<span class="why">8 bir byte'taki bit sayısı. Her bit 8 chip'e yayılır, toplam 64.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="ed-cca" data-min="4">
+  <h2>Energy Detection, CCA ve 2.4 GHz coexistence</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · konuşmadan önce dinle</span>
+    <p>MAC protocol'leri (W4) göndermeden önce kanalın boş olup olmadığını sorar. PHY bu soruya iki araçla cevap verir. Ama cevap sender'ın kulağından gelir: sender'ın yanı sessiz diye receiver'ın yanı da sessiz olmayabilir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · ED ve CCA (slayt 50)</span>
+    <ul>
+      <li><strong>Energy Detection (ED):</strong> seçilen channel'daki received energy'yi ölçer. Transmitter'ı, protocol'ü ya da decode edilebilirliği tanımlamaz.</li>
+      <li><strong>Clear-Channel Assessment (CCA):</strong> göndermeden önce kanalın meşgul görünüp görünmediğine karar verir. CSMA/CA'yı destekler, ama her collision'ı önleyemez.</li>
+      <li><strong>CCA sees the channel at the sender, not necessarily at the receiver.</strong></li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · 2.4 GHz coexistence (slayt 51)</span>
+    <p>IEEE 802.15.4 spectrum'u daha gürültülü komşularla paylaşır: Wi‑Fi / IEEE 802.11, Bluetooth, başka IEEE 802.15.4 network'leri, microwave ovens, industrial equipment, proprietary wireless devices.</p>
+    <p><strong>Sonuçları:</strong> increased packet loss, reduced PRR, retransmissions, higher energy, longer delay, route changes and apparent asymmetry.</p>
+    <p>Son madde Bölüm 6'ya bağlanır: interference sadece bir receiver'ın yanındaysa, link o yönde kötü görünür.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 50–51. Hidden terminal ayrıntısı mac-contention-hidden-exposed dersinde. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>ED kanaldaki enerjiyi ölçer, paketin RSSI'ı ise alınan bir paket sırasındaki gücü. ED için paket gerekmez, ama ED "bu kimin enerjisi" sorusunu da cevaplamaz.</li>
+      <li>CCA "clear" dedi diye paket güvende değildir: receiver'ın yanında sender'ın duymadığı bir gönderici olabilir. Bu fikir W4'te hidden terminal olarak geri gelir.</li>
+      <li>Coexistence "apparent asymmetry" üretir: link'in kendisi değil, bir taraftaki interference asymmetric'tir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-cca-1">
+    <p class="quiz__q">A göndermeden önce CCA yaptı, sonuç "clear". Paket yine de B'de collision'a uğradı. Bu nasıl olabilir?</p>
+    <button class="quiz__opt" data-correct>B'nin yakınında A'nın duyamadığı bir gönderici vardı; CCA sadece A'daki kanalı görür.<span class="why">Doğru. Slayt 50: CCA sees the channel at the sender, not necessarily at the receiver.</span></button>
+    <button class="quiz__opt">CCA yanlış çalışmıştır; doğru çalışan CCA collision'ı önler.<span class="why">Doğru çalışan CCA bile her collision'ı önleyemez (slayt 50: cannot prevent every collision).</span></button>
+    <button class="quiz__opt">Collision PHY'da olmaz, sadece MAC'te olur.<span class="why">Collision fiziksel bir olaydır: iki sinyal receiver'da üst üste biner. MAC sadece bunu azaltmaya çalışır.</span></button>
+  </div>
+  <div class="quiz" id="q-cca-2">
+    <p class="quiz__q">Energy Detection hangisini söyleyemez?</p>
+    <button class="quiz__opt" data-correct>Enerjinin hangi transmitter'dan ve protocol'den geldiğini, ve decode edilip edilemeyeceğini<span class="why">Doğru. ED sadece seçilen channel'daki enerjiyi ölçer.</span></button>
+    <button class="quiz__opt">Seçilen channel'da ne kadar enerji olduğunu<span class="why">ED tam olarak bunu ölçer.</span></button>
+    <button class="quiz__opt">Hiçbirini; ED bir paketin RSSI'ı ile aynı şeydir<span class="why">ED için paket alınması gerekmez ve ED kanalın tamamına bakar. RSSI ise alınan bir paketin gücüdür.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="cooja-media" data-min="5">
+  <h2>Cooja radio medium: UDGM, DGRM, MRM</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · simülatör sana kendi fiziğini anlatır</span>
+    <p>Cooja'da ölçtüğün her sayı üç şeyden gelir: <strong>Simulation result = code + topology + radio model.</strong> Aynı code ve aynı topology, başka bir radio medium ile başka sonuç verir. Bu yüzden bir Cooja sonucu radio medium'u söylenmeden raporlanmaz.</p>
+    <p>Lab bütün işi Instant Contiki 3.0 VM'inde, old Cooja ile yapar (Contiki-NG API'leri değil). Cooja <code>cd ~/contiki/tools/cooja</code> ve <code>ant run</code> ile başlar. Slaytın kuralı: <em>In labs, tool reproducibility beats latest-version elegance.</em></p>
+  </div>
+  <!-- Kaynak: W2 slayt 53–54. -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · old Cooja radio media (slayt 54)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Medium</th><th>Ne yapar</th><th>Ne için</th></tr>
+      <tr><td><strong>UDGM: Distance Loss</strong></td><td>Basit range/interference davranışı</td><td>İlk deneyler, mesafe etkisini görmek</td></tr>
+      <tr><td><strong>Directed Graph Radio Medium</strong></td><td>Yönlü link'leri elle tanımlarsın</td><td>Asymmetry gösterimi</td></tr>
+      <tr><td><strong>MRM</strong> (Multi-path Ray-tracer) / richer models</td><td>Daha zengin propagation soyutlaması</td><td>Dikkatli kullan; yine bir yaklaşıklık, field truth değil</td></tr>
+    </table></div>
+    <p><strong>UDGM parametreleri (lab deck):</strong></p>
+    <div class="table-wrap"><table>
+      <tr><th>Parametre</th><th>Lab'daki rolü</th></tr>
+      <tr><td>Transmission range</td><td>inside this radius, packets may be received</td></tr>
+      <tr><td>Interference range</td><td>larger area where transmissions may disturb reception</td></tr>
+      <tr><td>TX success ratio</td><td>probability a transmission succeeds at sender side</td></tr>
+      <tr><td>RX success ratio</td><td>probability a receivable packet is delivered at receiver side</td></tr>
+    </table></div>
+    <p>Başlangıç ayarı: TX = 1.0, RX = 1.0, transmission range ≈ 20 m. Kayıp deneyi: motes yerinde dururken RX'i yaklaşık 0.6'ya indir.</p>
+    <p><strong>UDGM'in kodu ne yapıyor</strong> (senin lab notların, Cooja'nın <code>UDGM.java</code>'sından), $R$ = transmission range, $d \le R$ için:</p>
+    $$P_\text{rx}(d) = 1 - \left(\frac{d}{R}\right)^2 (1 - \text{RX}), \qquad \text{RSSI}(d) \approx -10 - 85\,\frac{d}{R}\ \text{dBm}$$
+    <p>$d &gt; R$ ise paket alınmaz; $d$ interference range'in içindeyse transmission yine başka bir reception'ı bozabilir. TX success ratio ise transmission'ın tamamını sender tarafında bir kez düşürür, bu yüzden toplam başarı $\text{TX} \times P_\text{rx}(d)$ olur.</p>
+  </div>
+  <!-- Kaynak: W2 slayt 54 · lab deck xml slayt 16, 17, 24–27 · weeks/02 Lab pitfalls ("UDGM's RX success ratio is distance-scaled: P = 1 − (d/range)² × (1 − RX) (UDGM.java)") ve Notes — Efe ("RSSI falls linearly with distance (UDGM: −10 − 85 × d/range dBm)"). -->
+  <h3>Kendin dene: UDGM'in küçük bir kopyası</h3>
+  <p>Receiver'ın mesafesini değiştir, parametreleri yaz ve "20 paket gönder"e bas. Her paket için gerçekten zar atılıyor. "Kopya sayısı" ContikiMAC'in her broadcast'i bir wake-up interval boyunca tekrarlamasına kaba bir benzetme: her kopya ayrı bir şans, en az biri gelirse paket gelmiş sayılır.</p>
+  <p class="w-link-metrics-802154-guess"><b>Önce tahmin et:</b> R = 20 m ve RX = 0.6 iken receiver 10 m'deyse bir paketin gelme olasılığı kaç? Hangi mesafede gerçekten 0.6 olur?</p>
+  <div class="w-link-metrics-802154-row"><label for="wg-d">mesafe d (m)</label><input type="range" id="wg-d-r" min="0" max="45" step="0.05" value="10" aria-label="mesafe slider" /><input id="wg-d" type="text" inputmode="decimal" value="10" class="btn btn--sm" /></div>
+  <div class="w-link-metrics-802154-ctl">
+    <label>TX range <input id="wg-R" type="text" inputmode="decimal" value="20" class="btn btn--sm" /></label>
+    <label>INT range <input id="wg-I" type="text" inputmode="decimal" value="40" class="btn btn--sm" /></label>
+    <label>TX ratio <input id="wg-tx" type="text" inputmode="decimal" value="1.0" class="btn btn--sm" /></label>
+    <label>RX ratio <input id="wg-rx" type="text" inputmode="decimal" value="0.6" class="btn btn--sm" /></label>
+    <label>kopya <select id="wg-k" class="btn btn--sm"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
+  </div>
+  <div class="w-link-metrics-802154-ctl">
+    <span class="src">senin konumların:</span>
+    <button class="btn btn--sm" data-wg="4">B close ≈4 m</button>
+    <button class="btn btn--sm" data-wg="10.35">D ≈10.35 m</button>
+    <button class="btn btn--sm" data-wg="15">B far ≈15 m</button>
+    <button class="btn btn--sm" data-wg="19">kenar 19 m</button>
+    <button class="btn btn--sm" data-wg="25">C dışarıda</button>
+  </div>
+  <div class="w-link-metrics-802154-err" id="wg-err" aria-live="polite"></div>
+  <div class="w-link-metrics-802154-box"><div id="wg-svg"></div></div>
+  <div class="w-link-metrics-802154-out" id="wg-out" aria-live="polite"></div>
+  <div class="w-link-metrics-802154-ctl">
+    <button class="btn btn--sm btn--accent" id="wg-send">20 paket gönder</button>
+    <button class="btn btn--sm" id="wg-reset">sayaçları sıfırla</button>
+  </div>
+  <div id="wg-log" aria-live="polite"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Transmission range bir simülasyon parametresidir: <em>Do not say this is the real-world range of a TelosB/Sky mote.</em> Slayt 59: <em>Do not infer real-world range directly from Cooja distance.</em></li>
+      <li>RX = 0.6 "her yerde %60" demek değildir. UDGM olasılığı mesafeyle ölçekler: sender'ın dibinde ≈ 1, yarı range'de 0.9, sadece kenarda 0.6.</li>
+      <li>UDGM'in sınırı keskindir: <em>Real links do not usually have a perfectly sharp boundary.</em> UDGM transitional region göstermez.</li>
+      <li>UDGM decode kalitesini model etmez; senin ölçümünde LQI hep 37'ydi. Bu LQI'ın işe yaramadığını değil, bu radio model'inde bilgi taşımadığını gösterir.</li>
+      <li>Transmission range: paketin alınabildiği yer. Interference range: transmission'ın başka bir reception'ı hâlâ bozabildiği yer. İki node'lu lab'da ikincisi pek görünmez; hidden terminal ve CCA MAC haftasının konusu.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: lab deck xml slayt 17, 25, 26 · W2 slayt 59 · weeks/02 Notes — Efe (LQI 37). -->
+  <div class="quiz" id="q-udgm-1">
+    <p class="quiz__q">UDGM'de R = 20 m, TX = 1.0, RX = 0.6. Receiver 10 m'de. Bir paketin gelme olasılığı kaç?</p>
+    <button class="quiz__opt" data-correct>0.9<span class="why">Doğru: $1 - (10/20)^2 \cdot 0.4 = 1 - 0.25 \cdot 0.4 = 0.9$.</span></button>
+    <button class="quiz__opt">0.6<span class="why">RX ratio sadece range'in kenarında ($d = R$) tam olarak uygulanır. İçeride olasılık daha yüksek.</span></button>
+    <button class="quiz__opt">0.8<span class="why">Bu oranı karesini almadan kullanmak: $1 - (10/20) \cdot 0.4$. UDGM $(d/R)^2$ kullanır.</span></button>
+  </div>
+  <div class="quiz" id="q-udgm-2">
+    <p class="quiz__q">Cooja'da A → B'nin iyi, B → A'nın kötü olduğu bir link'i bilerek kurmak istiyorsun. Hangi radio medium?</p>
+    <button class="quiz__opt" data-correct>Directed Graph Radio Medium<span class="why">Doğru. Yönlü link'leri elle tanımlarsın; slayt 54'e göre asymmetry gösterimi için ideal.</span></button>
+    <button class="quiz__opt">UDGM: Distance Loss<span class="why">UDGM'de başarı sadece mesafeye ve oranlara bağlıdır; aynı ayarlarla iki yön simetriktir.</span></button>
+    <button class="quiz__opt">Hiçbiri; asymmetry simülatörde gösterilemez<span class="why">DGRM tam olarak bunun için var.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="lab" data-min="6">
+  <h2>Lab: sender, receiver ve A–E görevleri</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · bir sender, bir receiver</span>
+    <p>Lab bilerek küçük: bir Sky sender her saniye bir sequence number broadcast eder, bir Sky receiver gelen her paket için seq, RSSI ve LQI yazar. Broadcast routing'i, addressing'i ve IPv6'yı devre dışı bırakır; böylece radio etkileri routing karmaşıklığının arkasına saklanmaz.</p>
+  </div>
+  <p><strong>Sender'ın döngüsü</strong> (lab deck kodundan):</p>
+<pre><code>broadcast_open(&amp;broadcast, 129, &amp;broadcast_call);   /* Rime channel 129: software ID */
+etimer_set(&amp;timer, CLOCK_SECOND);                    /* saniyede bir paket */
+while(1) {
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&amp;timer));
+  seq++;
+  packetbuf_copyfrom(&amp;seq, sizeof(seq));             /* seq payload'a yazılır */
+  broadcast_send(&amp;broadcast);
+  printf("TX seq=%u\n", seq);
+  etimer_reset(&amp;timer);
+}</code></pre>
+  <p><strong>Receiver'ın callback'i:</strong></p>
+<pre><code>memcpy(&amp;seq, packetbuf_dataptr(), sizeof(seq));
+rssi_raw = (int8_t)packetbuf_attr(PACKETBUF_ATTR_RSSI);
+/* CC2420 RSSI uses an approximately -45 dB offset. */
+rssi_dbm = ((int16_t)rssi_raw) - 45;
+lqi = packetbuf_attr(PACKETBUF_ATTR_LINK_QUALITY);
+printf("RX seq=%u RSSI=%d dBm LQI=%u\n", seq, rssi_dbm, lqi);</code></pre>
+  <p>Ana slayt 57 aynı fikri seq'i <code>PACKETBUF_ATTR_PACKET_ID</code>'den okuyarak gösterir ve uyarır: <em>Exact attribute behavior can differ by radio model; students must report their Cooja radio medium.</em> Lab kodu seq'i payload'un içinde taşır, bu yüzden radio model'den bağımsızdır.</p>
+  <!-- Kaynak: lab deck xml slayt 4, 10–14, 33–38 · W2 slayt 55–57. -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · lab'dan çıkan dört gerçek (senin çalıştırman)</span>
+    <ol>
+      <li><strong>Rime channel 129</strong> sender ve receiver'da aynı olmalı. Uyuşmazsa motes yan yana olsa bile hiç RX çıkmaz. Bu sayı 802.15.4 PHY channel'ı değildir.</li>
+      <li><strong>Printed RSSI 45 dB düşük:</strong> lab kodu 45 çıkarıyor, Contiki'nin cc2420 driver'ı offset'i zaten uygulamış. Gerçek dBm = printed + 45. Gerçek değerler UDGM'in $-10 - 85\,d/R$ doğrusuna oturuyor.</li>
+      <li><strong>LQI UDGM'de sabit 37.</strong> Decode kalitesi model edilmiyor.</li>
+      <li><strong>RX ratio mesafeyle ölçekleniyor</strong> ve ContikiMAC her broadcast'i bir wake-up interval boyunca tekrarlıyor. Orta bir kopya başına kayıp (≈ %90 başarı) bütün paketlerin gelmesiyle sonuçlanabiliyor.</li>
+    </ol>
+    <p>Makefile notu: lab deck'in Makefile'ı Contiki 3.0'da link etmiyor (<code>undefined reference to broadcast_send</code>). Çözüm: <code>CONTIKI_WITH_RIME = 1</code>. Bir de Simulation control'de Speed limit'i %100 yap, yoksa paketler sayamayacağın hızda akar.</p>
+  </div>
+  <!-- Kaynak: weeks/02 Lab pitfalls · assignments/2026-2027-fall-efe/week2/week2-radio/Makefile. -->
+  <p><strong>Senin ölçümün</strong> (1 Sky sender + 1 Sky receiver, UDGM TX range 20 m / interference 40 m, speed %100):</p>
+  <div class="table-wrap"><table>
+    <tr><th>Deney</th><th>Mesafe</th><th>Sent</th><th>Received</th><th>RSSI printed</th><th>RSSI real</th><th>LQI</th></tr>
+    <tr><td>B close</td><td>≈ 4 m</td><td>20</td><td>20</td><td>−71 dBm</td><td>−26 dBm</td><td>37</td></tr>
+    <tr><td>B medium</td><td>≈ 10 m</td><td>20</td><td>20</td><td>−98 dBm</td><td>−53 dBm</td><td>37</td></tr>
+    <tr><td>B far</td><td>≈ 15 m</td><td>20</td><td>20</td><td>−117 dBm</td><td>−72 dBm</td><td>37</td></tr>
+    <tr><td>C outside range</td><td>&gt; 20 m</td><td>15</td><td>0</td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td>D RX ratio %60</td><td>≈ 10 m</td><td>20</td><td>20</td><td>−99 dBm</td><td>−54 dBm</td><td>37</td></tr>
+  </table></div>
+  <!-- Kaynak: weeks/02 ## Notes — Efe (2026-2027 Fall) ### Lab tablosu. Formül kontrolü: 4 m → −27, 10 m → −52.5, 15 m → −73.75 dBm; −54 dBm → d ≈ 10.35 m → P ≈ 0.893 (Cooja'nın gösterdiği %89.2 ile uyumlu). python ile. -->
+  <div class="box box--exam" data-exam="w02-lab-A"><span class="box__label">W2 lab ödevi, Hands-on A · lab görevi</span>
+    <p>"Hands-on A: first packets. Press Start. Watch TX seq=... from sender. Watch RX seq=... RSSI=... LQI=... from receiver. Pause after about 10 packets. Verify that receiver sequence numbers follow sender sequence numbers." (lab deck, sorunun tamamı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Follow" ne demek: her TX seq için aynı numaralı bir RX satırı olmalı mı? Bir numara atlanırsa ne anlarsın?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Receiver sender'a çok yakın ve RX = 1.0 iken UDGM hangi olasılığı verir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap (English):</strong> Mote 1 prints <code>TX seq=1, 2, 3, …</code> and mote 2 prints <code>RX seq=1, 2, 3, …</code> with RSSI and LQI. Every TX sequence number appears once on the receiver, in order, so no packet was lost and PRR = 1.00 for this window. In UDGM with TX = RX = 1.0 and the receiver well inside the range, the delivery probability is 1, so this is expected. If a number were missing (for example 8 then 10), packet 9 was lost.</p>
+      <p>Senin çalıştırmanda (B close, ≈ 4 m) 20/20 geldi, printed RSSI −71 dBm (gerçek −26 dBm), LQI 37.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/2026-2027-fall/week2_cooja_radio_lab_contiki3.pptx" target="_blank" rel="noopener">Orijinal görev (lab deck) ↗</a></p>
+    <!-- Kaynak: lab deck xml slayt 18 (deck üstünde "19"). -->
+  </div>
+  <div class="box box--exam" data-exam="w02-lab-B"><span class="box__label">W2 lab ödevi, Hands-on B ve tablo · lab görevi</span>
+    <p>"Hands-on B: distance positions. Close: Place receiver close to sender (10 packets). Medium: Drag receiver farther away (10 packets). Near edge: Move receiver near range boundary (10 packets). Student instruction: Do not calculate averages. Record one typical RSSI/LQI range from what you actually see." Tablo sütunları: Position · Sent · Received · Typical RSSI · Typical LQI. (lab deck, görevin ilgili kısmı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>UDGM'de RSSI mesafeyle nasıl değişir? Doğrusal mı, logaritmik mi? Printed değere 45 eklemeyi unutma.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>RX = 1.0 iken range'in içinde PRR ne olur? LQI değişir mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Position</th><th>Sent</th><th>Received</th><th>Typical RSSI (printed / real)</th><th>UDGM formülü</th><th>LQI</th></tr>
+        <tr><td>Close ≈ 4 m</td><td>20</td><td>20</td><td>−71 / −26 dBm</td><td>−27 dBm</td><td>37</td></tr>
+        <tr><td>Medium ≈ 10 m</td><td>20</td><td>20</td><td>−98 / −53 dBm</td><td>−52.5 dBm</td><td>37</td></tr>
+        <tr><td>Far ≈ 15 m</td><td>20</td><td>20</td><td>−117 / −72 dBm</td><td>−73.75 dBm</td><td>37</td></tr>
+      </table></div>
+      <p><strong>Interpretation (English):</strong> RSSI decreases as the receiver moves away, and in UDGM it falls linearly with distance, from −10 dBm at the sender to −95 dBm at the edge of the range ($-10 - 85\,d/R$). The printed values are 45 dB too low because the offset is subtracted twice. Delivery stays at 100 % inside the range, so distance changed RSSI but not PRR. LQI is constant at 37 because UDGM does not model decoding quality. This shows that RSSI, LQI and PRR are related but not interchangeable, and that the result depends on the radio model.</p>
+      <p>Not: Sen her konumda 10 yerine 20 paket gönderdin; bu window'u büyütür, sonucu değiştirmez.</p>
+    </div></details>
+    <!-- Kaynak: lab deck xml slayt 19–20, 29 · weeks/02 Notes — Efe. Formül değerleri python ile. -->
+  </div>
+  <div class="box box--exam" data-exam="w02-slide58-partA"><span class="box__label">W2 slayt 58, Lab Part A · lab görevi</span>
+    <p>"Lab Part A — baseline direct link. Start with a clean two-node topology. Sender → Receiver. Radio medium: UDGM Distance Loss. Place nodes close enough for high PRR. Run for at least 100 packets. Export or copy receiver logs. Calculate PRR from sequence numbers." Slaytın alt notu: "Baseline first; chaos later". (W2 deck, görevin tamamı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>PRR'ın paydası gönderilen paket sayısı. Receiver log'u bunu tek başına veremez: baştaki ve sondaki kayıplar orada hiç görünmez. Sender'ın <code>TX seq=…</code> satırlarındaki ilk ve son numaraya bak.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Neden en az 100 paket? Tek bir kayıp 10 paketlik window'da PRR'ı kaça düşürür, 100 paketlikte kaça?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>İki Sky mote, UDGM Distance Loss, TX = RX success 1.0. Receiver range'in iyice içinde (örneğin $R$ = 20 m iken ≈ 4 m).</li>
+        <li>Sender saniyede bir paket gönderdiği için 100 paket en az 100 simüle saniye demek. Speed limit %100.</li>
+        <li>Mote Output'tan receiver'ın <code>RX seq=…</code> satırlarını ve aynı süredeki sender'ın <code>TX seq=…</code> satırlarını kopyala.</li>
+        <li>$\text{PRR} = \dfrac{\text{farklı alınan seq sayısı}}{\text{last\_sent} - \text{first\_sent} + 1}$. $\text{first\_sent}$ ve $\text{last\_sent}$ sender'ın log'undan (ya da bilinen gönderim window'undan) gelir, receiver'ın gördüğü ilk ve son seq'ten değil. Yoksa sender 1–20 gönderip receiver yalnızca 1–15'i aldığında 15/15 bulursun; doğrusu 15/20. Kodda <code>seq++</code> gönderimden önce geldiği için ilk paket 1 numaralı. Aynı numara iki kez görünürse bir kez say.</li>
+      </ol>
+      <p><strong>Örnek log:</strong> sender 1'den 100'e kadar gönderdi; receiver'da 17, 18 ve 63 yok. Alınan 97, gönderilen $100 - 1 + 1 = 100$, PRR = 97/100 = 0.97. 17 ile 18 art arda kayıp: bu bir burst. UDGM baseline'ında bu kadar bile kayıp beklenmez: TX = RX = 1.0 ve receiver range içinde olunca beklenen sonuç 100/100 = 1.00.</p>
+      <p><strong>Neden 100 paket:</strong> tek bir kayıp PRR'ı 10 paketlik window'da 0.90'a, 20'likte 0.95'e, 100'lükte 0.99'a indirir. Kısa window bir kaybı büyütür; uzun window daha kararlı bir tahmin verir (slayt 35).</p>
+      <p><strong>Cevap (English):</strong> "With a clean two-node UDGM link, TX and RX success 1.0 and the receiver well inside the range, every one of at least 100 sequence numbers arrived, so PRR = 1.00. I compute PRR as the number of distinct received sequence numbers divided by (last_sent − first_sent + 1), where first_sent and last_sent come from the sender's TX log, not from the receiver's log, so that losses at the start and end of the window are counted. This baseline shows that code, topology and radio model work, so any loss in the later experiments can be attributed to the change I make."</p>
+      <p>Not: Senin çalıştırmanda en uzun temiz window 20 paketti (B close, 20/20). Slayt 58 en az 100 paket istiyor.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/2026-2027-fall/Week_2_WSN_Radio_PHY_60slides_Contiki3.pptx" target="_blank" rel="noopener">Orijinal slayt (W2 deck) ↗</a></p>
+    <!-- Kaynak: W2 slayt 58 (ve 34–35: sequence numbers, window) · assignments/2026-2027-fall-efe/week2/week2-radio/sender.c (seq++ önce) · weeks/02 Notes — Efe. Örnek log uydurma; PRR ve window değerleri python ile: 97/100, 0.90 / 0.95 / 0.99. -->
+  </div>
+  <div class="box box--exam" data-exam="w02-slide59-partB"><span class="box__label">W2 slayt 59, Lab Part B · lab görevi</span>
+    <p>"Lab Part B — distance and transitional region. Move the receiver gradually and watch metrics change. Student task: For each position, record average RSSI, average LQI, received count, missing count and PRR. Identify connected, transitional and disconnected regions." (W2 deck, görevin tamamı; slaytın alt notu: "Do not infer real-world range directly from Cooja distance")</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>UDGM'de RX = 1.0 iken PRR, $d \le R$ ve $d &gt; R$ için ne olur? Arada bir bant var mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>RX &lt; 1 olunca PRR kenara doğru düşmeye başlar. Bu düşüş fading'den mi geliyor, yoksa simülatörün bir knob'undan mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap (English):</strong> With UDGM and RX = 1.0 the regions are: <em>connected</em> for $d \le R$ (PRR = 1.00, every sequence number arrives, RSSI falls linearly with $d$, LQI constant), and <em>disconnected</em> for $d &gt; R$ (PRR = 0, nothing is decoded). There is <em>no transitional region</em>: the boundary is a perfect disk. In my run the receiver got 20/20 at 4, 10 and 15 m and 0/15 outside 20 m.</p>
+      <p>With RX &lt; 1, PRR decreases towards the edge because UDGM scales the success probability as $1 - (d/R)^2(1 - \text{RX})$ (for RX = 0.6: 0.9 at $R/2$, 0.6 at $R$). This looks like a transitional band but it comes from a probability knob, not from shadowing, fading or interference. A richer model such as MRM, or a real deployment, would show intermediate and highly variable PRR at the same position, bursts and asymmetry. The Cooja distance (20 m) is a simulation parameter and says nothing about the real range of a Sky mote.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/2026-2027-fall/Week_2_WSN_Radio_PHY_60slides_Contiki3.pptx" target="_blank" rel="noopener">Orijinal slayt (W2 deck) ↗</a></p>
+    <!-- Kaynak: W2 slayt 58–59, 55 (lab objective: "Explain metric disagreement using propagation concepts"). -->
+  </div>
+  <div class="box box--exam" data-exam="w02-lab-C"><span class="box__label">W2 lab ödevi, Hands-on C · lab görevi</span>
+    <p>"Hands-on C: cross the boundary. Start with receiver just inside the transmission range. Watch approximately five packets arrive. Drag the receiver outside while the simulation is still running. Sender continues printing TX; receiver output stops. Drag back inside and observe reception resume." (lab deck, görevin tamamı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Sınırı geçtiğin an PRR yavaş yavaş mı düşer, yoksa birden mi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Gerçek bir link'te sınırın civarında ne beklerdin? Slayt 38'deki üç region'ı düşün.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap (English):</strong> As soon as the receiver leaves the transmission range, RX output stops completely while the sender keeps printing TX. In my run 15 consecutive packets were lost (seq 493–507); when I dragged the receiver back inside, reception resumed immediately. The receiver was still inside the 40 m interference range, but that range only means the transmission can disturb other receptions, not that it can be decoded. UDGM models the range as a perfect disk with a sharp edge, so there is no transitional region. Real links degrade through a transitional zone where packets are lost and received at the same position.</p>
+    </div></details>
+    <!-- Kaynak: lab deck xml slayt 21 (notu: "This is the slide students remember. The boundary makes UDGM's simplification very obvious.") · weeks/02 Notes — Efe. -->
+  </div>
+  <div class="box box--exam" data-exam="w02-lab-D"><span class="box__label">W2 lab ödevi, Hands-on D · lab görevi</span>
+    <p>"Hands-on D: create controlled packet loss. Step 1: TX success 1.0, RX success 1.0. Step 2: TX success 1.0, RX success 0.6. Important: Do not move the motes during this step. The only change should be the radio-medium success ratio." Slayttaki örnek çıktı: TX seq=34…38, RX seq=34, 36, 38. (lab deck, görevin tamamı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Geometri aynı kalıyor. Değişen tek şey bir olasılık. Hangi metric'ler bunu görür, hangileri görmez?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Receiver 10 m'deyse ($R$ = 20 m) UDGM'in verdiği olasılık 0.6 mı? ContikiMAC bir broadcast'i kaç kez gönderiyor olabilir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap (English):</strong> With the same geometry, lowering RX success makes sequence numbers disappear (e.g. 35 and 37 missing in 34–38): same distance, different delivery. RSSI and LQI of the packets that still arrive do not change, so only PRR shows the loss. UDGM scales the ratio with distance, $P = 1 - (d/R)^2 (1 - \text{RX})$, so 0.6 is reached only at the edge of the range. The receiver should be placed near the edge for this experiment.</p>
+      <p><strong>Senin çalıştırman:</strong> receiver ≈ 10 m'deydi (gerçek RSSI −54 dBm, formülden $d \approx 10.35$ m). Bu mesafede $P = 1 - (10.35/20)^2 \cdot 0.4 \approx 0.89$; Cooja'nın gösterdiği %89.2 bununla uyumlu. Yine de 70 paketin hiçbiri kaybolmadı. Tek kopya ile bunun olasılığı $0.892^{70} \approx 0.0003$, yani neredeyse imkânsız. ContikiMAC broadcast'i tekrarladığı için receiver bir paketi kaçırırsa bir sonraki kopyayı yakalayabiliyor. Basit bir modelle iki bağımsız şans: $1 - 0.108^2 \approx 0.988$ ve $0.988^{70} \approx 0.44$, artık şaşırtıcı değil. Kenarda RX 0.6 ile ölçüm yapmadın; orada kayıp görünürdü.</p>
+    </div></details>
+    <!-- Kaynak: lab deck xml slayt 22, 27 · weeks/02 Lab pitfalls ve Notes — Efe ("Cooja showed 89.2%, and none of 70 packets was lost"). Olasılıklar python ile. -->
+  </div>
+  <div class="box box--exam" data-exam="w02-lab-E"><span class="box__label">W2 lab ödevi, Hands-on E · lab görevi</span>
+    <p>"Hands-on E: PRR from observed packets. PRR = received / sent. Example: 14 packets received out of 20, PRR = 14 / 20 = 0.70. Their task: Use the reduced-success experiment. Count received packets from the Mote Output and compute one PRR value." (lab deck, görevin tamamı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>20 TX satırını say, sonra aynı aralıktaki RX satırlarını say. Payda hangisi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Receiver kenardaysa ve her paket tek kopya olarak bağımsız 0.6 ile geliyorsa 20 paketten ortalama kaç gelir? Her seferinde aynı sayı mı çıkar? Kopya iki olursa ne değişir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap (English):</strong> PRR = received / sent over the 20-packet window. In my reduced-success run at ≈ 10 m all packets arrived: 20/20, PRR = 1.00 (and 70/70 over a longer window), because UDGM scaled the success probability to about 0.89 and ContikiMAC repeated each broadcast. At the edge of the range with RX = 0.6 and a single copy per packet (one independent 0.6 trial each), about 12 of 20 would be expected on average, but the exact count changes from run to run: it is probabilistic. With independent 0.6 trials, a result between 10 and 14 out of 20 has a probability of about 0.75, so the slide's 14/20 = 0.70 is a normal outcome. If ContikiMAC's repetitions are kept and each copy is treated as an independent chance, the expectation becomes $20[1 - (1 - 0.6)^k]$: 16.8 of 20 for two copies, so 12/20 is only the single-copy case.</p>
+    </div></details>
+    <!-- Kaynak: lab deck xml slayt 23, 27 · binom(20, 0.6): P(10 ≤ X ≤ 14) ≈ 0.747; 20[1 − 0.4^k] = 12 / 16.8 / 18.72 (k = 1/2/3) python ile. -->
+  </div>
+  <div class="box box--exam" data-exam="w02-lab-MRM"><span class="box__label">W2 lab ödevi, MRM (isteğe bağlı) · lab görevi</span>
+    <p>"MRM: optional comparison model. Create a second simulation named Week2-MRM. Choose Multi-path Ray-tracer Medium if available. Add the same Sender and Receiver Sky mote types. Open MRM Area Viewer / Formula Viewer if present. Move the receiver and observe changes in output and visualization." (lab deck, görevin tamamı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Code ve mote type'lar aynı. "Simulation result = code + topology + radio model" denkleminde değişen terim hangisi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Lab deck MRM'i nasıl çerçeveliyor: "perfect physical world" mü, yoksa "richer abstraction" mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap iskeleti (English):</strong> Only the radio model changes; code and topology stay the same. MRM is a richer propagation abstraction than UDGM, so moving the receiver should not produce the same sharp in/out behaviour, and RSSI should not follow UDGM's straight line. Whatever is observed must be reported together with the radio medium, because MRM is still an approximation and not field truth. The point of the comparison is that the choice of radio medium changes the measured RSSI, LQI and PRR.</p>
+      <p>Senin kaydında MRM denemesi yok; lab deck de sınıf yavaşsa bu kısmın atlanabileceğini söylüyor. Yukarıdaki cevap ölçüm değil, ne bekleyeceğinin iskeleti.</p>
+    </div></details>
+    <!-- Kaynak: lab deck xml slayt 24 ("If class is slow, skip MRM"). Efe'nin notlarında MRM ölçümü yok. -->
+  </div>
+  <div class="box box--exam" data-exam="w02-lab-closing"><span class="box__label">W2 lab, kapanış sorusu · lab görevi</span>
+    <p>"Close by asking students what changed when only the simulator parameter changed and when only the position changed." (lab deck kapanış slaytının hoca notu; sorunun tamamı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Sadece konum değişti: B ve C deneyleri. RSSI, LQI ve PRR'dan hangileri değişti?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sadece parametre değişti: D deneyi. Gelen paketlerin RSSI'ı değişti mi? Peki eksik seq'ler?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Cevap (English):</strong> When only the <em>position</em> changed (B, C), RSSI changed: it fell linearly with distance in UDGM. PRR stayed at 1.00 inside the range and dropped to 0 outside, with a sharp boundary. LQI did not change. When only the <em>simulator parameter</em> changed (D, RX success ratio), the geometry and therefore RSSI and LQI of the received packets stayed the same, but packets started to go missing (when the receiver is near the edge), so only PRR changed. Conclusion: RSSI/LQI readings and PRR are related but not interchangeable, and simulation parameters are learning tools, not promises about real deployment performance. "A wireless link is not a cable. Measure delivery; do not assume it from distance alone."</p>
+    </div></details>
+    <!-- Kaynak: lab deck xml slayt 40 (Source basis and closing takeaways) ve notu. -->
+  </div>
+  <div class="box box--exam" data-exam="w02-lab-submission"><span class="box__label">W2 lab teslimi · lab görevi</span>
+    <p>Üç kaynak aynı teslimi tarif ediyor. W2 slayt 55: "Deliverable: One-page lab report with screenshot, topology, radio model, table of results and interpretation." Lab deck, "Expected student deliverables": "Screenshot 1: two Sky motes with UDGM radio range visible. Screenshot 2: Mote Output with TX seq and RX seq/RSSI/LQI. Screenshot 3: reduced-success or boundary-crossing experiment. One completed measurement table. One PRR value from the reduced-success experiment." weeks/02 Submission: bir video (en az 10 dakika, tam ekran, kamerada sen, İngilizce, how ve why anlatılarak).</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Listeleri yan yana koy. Hangi kalem üçünde de var? Slayt 55'te olup lab deck'te açıkça yazmayan iki kalem hangisi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Interpretation" için lab deck'in kapanış slaytındaki "most important observation" cümlesini hatırla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Teslim biçimi videoydu; içerik slayt 55'teki rapor kalemleriyle aynı. Slayt 55'te olup lab deck listesinde açıkça yazmayanlar: topology ve radio model, bir de interpretation.</p>
+      <div class="table-wrap"><table>
+        <tr><th>Kalem</th><th>Ne gösterilir</th><th>Senin değerin</th></tr>
+        <tr><td>Topology ve radio model</td><td>Kaç mote, hangi medium, hangi parametreler</td><td>1 Sky sender, 1 Sky receiver; UDGM Distance Loss, TX range 20 m, interference 40 m, TX 1.0, RX 1.0 → 0.6</td></tr>
+        <tr><td>Screenshot 1</td><td>İki Sky mote, UDGM range daireleri görünür</td><td>Network penceresi, Radio environment açık</td></tr>
+        <tr><td>Screenshot 2</td><td>Mote Output'ta TX seq ve RX seq / RSSI / LQI</td><td><code>RX seq=… RSSI=… dBm LQI=37</code></td></tr>
+        <tr><td>Screenshot 3</td><td>Boundary crossing ya da reduced success</td><td>Range dışında 15 ardışık kayıp (seq 493–507)</td></tr>
+        <tr><td>Tablo</td><td>Close / medium / near edge / reduced success</td><td>20/20 · 20/20 · 20/20 · 20/20; gerçek RSSI −26 / −53 / −72 / −54 dBm</td></tr>
+        <tr><td>Bir PRR değeri</td><td>Reduced-success deneyinden</td><td>20/20 = 1.00 (receiver ≈ 10 m'de, UDGM olasılığı ≈ 0.89, ContikiMAC tekrarları)</td></tr>
+      </table></div>
+      <p><strong>Interpretation (English):</strong> "Moving the receiver changed RSSI, which fell linearly with distance in UDGM, but PRR stayed at 1.00 inside the range and dropped to 0 outside, with a sharp edge. Lowering the RX success ratio did not change RSSI or LQI of the packets that arrived; only PRR can show the loss, and at 10 m it stayed at 1.00 because UDGM scales the ratio with distance and ContikiMAC repeats broadcasts. RSSI, LQI and PRR are related but not interchangeable, and the result belongs to this radio model, not to a real Sky mote."</p>
+      <p>Not: Printed RSSI'ı rapora olduğu gibi yazma; gerçek dBm = printed + 45.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/2026-2027-fall/week2_cooja_radio_lab_contiki3.pptx" target="_blank" rel="noopener">Orijinal görev (lab deck) ↗</a> · <a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/weeks/02-radio-and-physical-layer.md" target="_blank" rel="noopener">weeks/02 Submission ↗</a></p>
+    <!-- Kaynak: W2 slayt 55 · lab deck xml slayt 29 (deck üstünde "30") ve 40 · weeks/02 ## Submission ve Notes — Efe tablosu. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Printed RSSI'ı rapora olduğu gibi yazma: gerçek dBm = printed + 45. −117 dBm printed, Sky'ın duyabileceği bir değer bile değil.</li>
+      <li>Sadece TX satırları çıkıyorsa: receiver gerçekten <code>receiver.c</code>'den mi derlendi? RX hiç yoksa: iki tarafta da Rime channel 129 mu?</li>
+      <li>RX 0.6 deneyini receiver'ı sender'ın dibine koyarak yaparsan kayıp görmezsin; bu bir hata değil, UDGM'in mesafe ölçeklemesi.</li>
+      <li>"Sky mote 20 m'ye kadar çalışır" deme. 20 m senin yazdığın bir parametre.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: lab deck xml slayt 31 (Troubleshooting: no receiver output) · weeks/02 Lab pitfalls. -->
+  <div class="quiz" id="q-lab-1">
+    <p class="quiz__q">Lab kodu <code>RSSI=-98 dBm</code> yazdırdı. Gerçek received power kaç dBm?</p>
+    <button class="quiz__opt" data-correct>−53 dBm<span class="why">Doğru: offset iki kez çıkarıldığı için printed + 45. UDGM'de bu yaklaşık 10 m'ye karşılık gelir ($R$ = 20 m).</span></button>
+    <button class="quiz__opt">−143 dBm<span class="why">Bu offset'i üçüncü kez çıkarmak olur. Sorun, 45'in fazladan çıkarılmış olması; geri eklemen gerekir.</span></button>
+    <button class="quiz__opt">−98 dBm<span class="why">Driver offset'i zaten uyguladı, lab kodu bir kez daha çıkardı. Yazdırılan değer gerçek değerin 45 dB altında.</span></button>
+  </div>
+  <div class="quiz" id="q-lab-2">
+    <p class="quiz__q">RX success ratio 0.6 iken receiver ≈ 10 m'de 70 paketin hepsini aldı. En iyi açıklama hangisi?</p>
+    <button class="quiz__opt" data-correct>UDGM olasılığı mesafeyle ≈ 0.89'a ölçekledi ve ContikiMAC her broadcast'i tekrarladı.<span class="why">Doğru. İki etki birlikte: kopya başına kayıp az, ve kaybolan kopyanın yerine bir sonraki kopya geliyor.</span></button>
+    <button class="quiz__opt">RX ratio ayarı uygulanmamıştır.<span class="why">Cooja mote'un yanında %89.2 gösteriyordu; ayar uygulanmış, sadece mesafeye göre ölçeklenmiş.</span></button>
+    <button class="quiz__opt">70 paket PRR için çok az; 0.6'yı görmek için binlerce paket gerekir.<span class="why">Kopya başına 0.6 olsaydı 70 paketin hepsinin gelmesi pratikte imkânsız olurdu. Örnek boyu değil, olasılığın kendisi farklı.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Karışık sorular. Önce kâğıda cevabını yaz, sonra seç.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Bir protocol parent seçerken komşudan gelen son paketin LQI'ına bakıyor. Slaytlara göre en büyük sorun hangisi?</p>
+    <button class="quiz__opt" data-correct>Tek paketin LQI'ı uzun dönem reliability'yi göstermez ve kaybolan paketleri hiç görmez; PRR'ı bir window üzerinden ve hysteresis ile kullanmak gerekir.<span class="why">Doğru: slayt 32 (single-packet value, missing packets invisible), slayt 35 (window) ve slayt 40 (hysteresis).</span></button>
+    <button class="quiz__opt">LQI dBm cinsinden olmadığı için hesaplanamaz.<span class="why">LQI'ın birimi olmaması onu hesaplanamaz yapmaz; sorun neyi gösterdiği ve neyi göstermediği.</span></button>
+    <button class="quiz__opt">LQI sadece CC2420'de vardır.<span class="why">Birçok radio bir LQI verir, ama anlamı implementation-specific. Asıl sorun tek bir paketin değerine güvenmek.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Merkez frekansı 2480 MHz olan 802.15.4 channel'ı hangisi?</p>
+    <button class="quiz__opt" data-correct>26<span class="why">Doğru: $k = 11 + (2480 - 2405)/5 = 11 + 15 = 26$, son channel.</span></button>
+    <button class="quiz__opt">15<span class="why">15 = $(2480 - 2405)/5$. Buna 11 eklemen gerekir; channel 15 2425 MHz'tir.</span></button>
+    <button class="quiz__opt">25<span class="why">Channel 25 2475 MHz'tir; 5 MHz eksik.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Bir data+ACK exchange için en az 0.6 başarı istiyorsun. Forward PRR 0.8. Reverse PRR en az kaç olmalı?</p>
+    <button class="quiz__opt" data-correct>0.75<span class="why">Doğru: $0.8 \times r \ge 0.6 \Rightarrow r \ge 0.75$.</span></button>
+    <button class="quiz__opt">0.6<span class="why">O zaman exchange $0.8 \times 0.6 = 0.48$ olur. Hedef iki yönün çarpımı için.</span></button>
+    <button class="quiz__opt">0.4<span class="why">Bu, ortalamayı 0.6 yapmak: $(0.8 + 0.4)/2$. Exchange success ortalama değil, çarpım.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Hangisi doğrudur?</p>
+    <button class="quiz__opt" data-correct>127 byte, PSDU'nun yani MAC frame'in sınırıdır; PPDU 6 byte daha uzundur.<span class="why">Doğru: preamble 4 + SFD 1 + PHR 1 = 6 byte PHY alanı, PPDU en fazla 133 byte.</span></button>
+    <button class="quiz__opt">Application her frame'de 127 byte payload gönderebilir.<span class="why">127 byte'ın içinde MAC header'lar, address'ler, FCS ve security alanları da var (slayt 46, 49).</span></button>
+    <button class="quiz__opt">2 Mchip/s, 802.15.4'ün application data rate'idir.<span class="why">2 Mchip/s spreading rate'tir. Raw bit rate 250 kb/s, application throughput bunun da altında.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Cooja UDGM'de RX = 1.0 iken receiver range'in hemen dışına sürüklenirse ne olur?</p>
+    <button class="quiz__opt" data-correct>RX hemen tamamen durur; geri sokunca hemen devam eder. Transitional region yoktur.<span class="why">Doğru: senin C deneyinde 15 ardışık paket kayboldu, içeri girince alım hemen döndü.</span></button>
+    <button class="quiz__opt">PRR birkaç metre boyunca yavaş yavaş düşer.<span class="why">Bu gerçek link'lerin transitional region davranışı. UDGM'in sınırı keskin.</span></button>
+    <button class="quiz__opt">Interference range'in (40 m) içinde olduğu için paketler gelmeye devam eder.<span class="why">Interference range sadece bozabildiği alandır, paketin alınabildiği alan değil.</span></button>
+  </div>
+  <!-- Sıradaki konu: Energy accounting ve duty cycle. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+/* Shared helpers */
+const LM = {
+  rng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  },
+  fx(v, d) { return Number(v).toFixed(d === undefined ? 2 : d); },
+  esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); },
+  num(raw) {
+    const s = String(raw).trim().replace(",", ".");
+    if (!/^-?\d+(\.\d+)?$/.test(s)) return NaN;
+    return Number(s);
+  },
+  err(el, msg) { el.innerHTML = msg || ""; if (msg) Lab.renderMath(el); },
+  out(el, html) { el.innerHTML = html; Lab.renderMath(el); },
+  P: "w-link-metrics-802154-"
+};
+
+/* 1. PRR from a sequence log: step through every sent seq */
+(function () {
+  const rx = document.getElementById("wa-rx"), lo = document.getElementById("wa-lo"), hi = document.getElementById("wa-hi");
+  const err = document.getElementById("wa-err"), box = document.getElementById("wa-stepper");
+  function parse() {
+    const a = LM.num(lo.value), b = LM.num(hi.value);
+    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0) return { e: "İlk ve son seq negatif olmayan tam sayı olmalı (örneğin 1 ve 10)." };
+    if (b < a) return { e: "Son gönderilen seq, ilk seq'ten küçük olamaz." };
+    if (b - a + 1 > 60) return { e: "En fazla 60 paketlik bir aralık gir; daha uzun bir log'da kutular okunmuyor." };
+    const toks = rx.value.split(/[\s,;]+/).filter(Boolean);
+    const got = new Set(), dup = [], outside = [];
+    for (const t of toks) {
+      if (!/^\d+$/.test(t)) return { e: `"${LM.esc(t)}" bir sequence number değil. Sadece tam sayıları virgülle ayırarak yaz.` };
+      const v = Number(t);
+      if (v < a || v > b) outside.push(v);
+      else if (got.has(v)) dup.push(v);
+      else got.add(v);
+    }
+    if (outside.length) return { e: `${outside.join(", ")} gönderilen aralığın (${a}–${b}) dışında. Receiver gönderilmemiş bir seq'i alamaz: aralığı ya da listeyi düzelt.` };
+    return { a, b, got, dup };
+  }
+  function build() {
+    const p = parse();
+    if (p.e) { LM.err(err, p.e); return; }
+    LM.err(err, p.dup.length ? `Not: ${p.dup.join(", ")} birden fazla yazılmış. Aynı paket iki kez gelse bile bir kez sayılır.` : "");
+    const seqs = [];
+    for (let s = p.a; s <= p.b; s++) seqs.push(s);
+    const N = seqs.length, miss = [], frames = [];
+    let r = 0;
+    seqs.forEach((s, i) => {
+      const ok = p.got.has(s);
+      if (ok) r++; else miss.push(s);
+      frames.push({ i, caption: `seq ${s} ${ok ? "<b>geldi</b>" : "<b>gelmedi</b>"}. Şu ana kadar ${r} / ${i + 1} geldi` + (miss.length ? `, eksikler: ${miss.join(", ")}.` : ".") });
+    });
+    const last = p.got.size ? Math.max(...p.got) : null;
+    let tail = "";
+    if (last === null) tail = " Receiver hiç paket görmedi: log boş, ama sender'ın log'u sayesinde bunun bir kayıp olduğunu biliyoruz.";
+    else if (last < p.b) {
+      const seen = last - p.a + 1;
+      tail = ` Son ${p.b - last} paket receiver'ın log'unda hiç iz bırakmadı. Sadece receiver'a bakan biri "son seq ${last}" der ve PRR'ı $${r}/${seen} = ${LM.fx(r / seen)}$ sanar.`;
+    }
+    frames.push({ i: N, final: true, caption: `Gönderilen ${N} (seq ${p.a}–${p.b}), gelen ${r}. Eksik: ${miss.length ? miss.join(", ") : "yok"}. $\\text{PRR} = ${r}/${N} = ${LM.fx(r / N)}$.` + tail });
+    Lab.stepper(box, {
+      title: `Sequence log: ${p.a}–${p.b}`,
+      interval: 700,
+      frames,
+      render(f, idx, el) {
+        const marks = {};
+        seqs.forEach((s, j) => { marks[j] = j > f.i ? "dim" : (p.got.has(s) ? "done" : "swap"); });
+        const upto = Math.min(f.i + 1, N);
+        const rr = seqs.slice(0, upto).filter(s => p.got.has(s)).length;
+        const frac = upto ? rr / upto : 0;
+        el.innerHTML = Lab.arrayView(seqs, { marks, pointers: f.final ? {} : { "şimdi": f.i }, hideIndex: true }) +
+          `<div class="${LM.P}row"><span class="src">PRR şu an</span><div class="${LM.P}bar"><i style="width:${100 * frac}%"></i></div><b>${rr} / ${upto}</b></div>`;
+      }
+    });
+  }
+  document.getElementById("wa-go").addEventListener("click", build);
+  [rx, lo, hi].forEach(inp => inp.addEventListener("keydown", e => { if (e.key === "Enter") build(); }));
+  document.querySelectorAll("[data-wa]").forEach(btn => btn.addEventListener("click", () => {
+    const [list, a, b] = btn.dataset.wa.split("|");
+    rx.value = list; lo.value = a; hi.value = b; build();
+  }));
+  build();
+})();
+
+/* 2. Window size: one generated loss log, two sliding windows */
+(function () {
+  const N = 300;
+  let seed = 7, model = "burst";
+  const svgBox = document.getElementById("wb-svg"), out = document.getElementById("wb-out");
+  function gen() {
+    const r = LM.rng(seed * 2654435761 + (model === "iid" ? 1 : 2));
+    const rx = [];
+    let bad = false;
+    for (let i = 0; i < N; i++) {
+      if (model === "iid") { rx.push(r() >= 0.13 ? 1 : 0); continue; }
+      if (bad) { if (r() < 0.25) bad = false; } else if (r() < 0.03) bad = true;
+      rx.push(r() >= (bad ? 0.8 : 0.05) ? 1 : 0);
+    }
+    return rx;
+  }
+  function slide(rx, W) {
+    const pts = [];
+    let s = 0;
+    for (let i = 0; i < rx.length; i++) {
+      s += rx[i];
+      if (i >= W) s -= rx[i - W];
+      if (i >= W - 1) pts.push([i, s / W]);
+    }
+    return pts;
+  }
+  function draw() {
+    const rx = gen(), w10 = slide(rx, 10), w100 = slide(rx, 100);
+    const W = 600, H = 210, L = 34, T = 10, B = 170;
+    const X = i => L + (W - L - 8) * i / (N - 1), Y = v => T + (B - T) * (1 - v);
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="PRR over 10 and 100 packet windows">`;
+    [0, 0.5, 1].forEach(v => {
+      s += `<line x1="${L}" y1="${Y(v)}" x2="${W - 8}" y2="${Y(v)}" style="stroke:var(--stone-300);stroke-dasharray:${v === 0.5 ? "4 4" : "0"}" />`;
+      s += `<text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end" style="fill:var(--fg-subtle);font-size:11px">${v.toFixed(1)}</text>`;
+    });
+    const poly = (pts, col, wd) => `<polyline points="${pts.map(p => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" ")}" style="fill:none;stroke:${col};stroke-width:${wd}" />`;
+    s += poly(w10, "var(--blue-600)", 1.4) + poly(w100, "var(--accent)", 2.6);
+    rx.forEach((v, i) => { if (!v) s += `<line x1="${X(i).toFixed(1)}" y1="182" x2="${X(i).toFixed(1)}" y2="196" style="stroke:#c92a2a;stroke-width:1.2" />`; });
+    s += `<text x="${L}" y="${H - 1}" style="fill:var(--fg-subtle);font-size:11px">paket 1</text><text x="${W - 8}" y="${H - 1}" text-anchor="end" style="fill:var(--fg-subtle);font-size:11px">paket ${N}</text>`;
+    svgBox.innerHTML = s + `</svg>`;
+    const total = rx.reduce((a, b) => a + b, 0);
+    const v10 = w10.map(p => p[1]), v100 = w100.map(p => p[1]);
+    const below = v10.filter(v => v < 0.5).length;
+    let first = -1, firstLong = -1;
+    for (const p of w10) if (p[1] < 0.5) { first = p[0]; break; }
+    for (const p of w100) if (p[0] >= first && first >= 0 && p[1] < 0.8) { firstLong = p[0]; break; }
+    let msg = `<b>${model === "iid" ? "i.i.d." : "Bursty"} log, ${N} paket:</b> toplam PRR $= ${total}/${N} = ${LM.fx(total / N)}$. ` +
+      `10'luk window $${LM.fx(Math.min(...v10), 1)}$ ile $${LM.fx(Math.max(...v10), 1)}$ arasında geziyor ve ${below} window'da 0.5'in altına düşüyor. ` +
+      `100'lük window ise $${LM.fx(Math.min(...v100))}$ ile $${LM.fx(Math.max(...v100))}$ arasında kalıyor.`;
+    if (first >= 0) msg += ` 10'luk window 0.5'in altına ilk kez ${first + 1}. pakette iniyor` + (firstLong >= 0 ? `; 100'lük window o bölgede 0.8'in altına ancak ${firstLong + 1}. pakette iniyor.` : `; 100'lük window o sırada hiç 0.8'in altına inmiyor.`);
+    msg += ` Short window reacts fast, long window is stable but slow.`;
+    LM.out(out, msg);
+  }
+  document.querySelectorAll("[data-wb]").forEach(b => b.addEventListener("click", () => { model = b.dataset.wb; draw(); }));
+  document.getElementById("wb-seed").addEventListener("click", () => { seed++; draw(); });
+  draw();
+})();
+
+/* 3. Hysteresis vs single threshold on a noisy transitional link */
+(function () {
+  const K = 60, WIN = 20;
+  let seed = 3;
+  const mR = document.getElementById("wc-m-r"), mT = document.getElementById("wc-m");
+  const tI = document.getElementById("wc-t"), aI = document.getElementById("wc-add"), dI = document.getElementById("wc-drop");
+  const err = document.getElementById("wc-err"), svgBox = document.getElementById("wc-svg"), out = document.getElementById("wc-out");
+  function trace(m) {
+    const r = LM.rng(seed * 7919 + 13);
+    const pts = [];
+    let drift = 0;
+    for (let k = 0; k < K; k++) {
+      drift = 0.85 * drift + (r() + r() + r() - 1.5) * 0.08;
+      const p = Math.min(1, Math.max(0, m + drift));
+      let c = 0;
+      for (let j = 0; j < WIN; j++) if (r() < p) c++;
+      pts.push(c / WIN);
+    }
+    return pts;
+  }
+  function run(pts, decide) {
+    let inT = false, flips = 0, on = 0;
+    const st = pts.map(v => { const n = decide(inT, v); if (n !== inT) { flips++; inT = n; } if (inT) on++; return inT; });
+    return { st, flips, on };
+  }
+  function read() {
+    const m = LM.num(mT.value), t = LM.num(tI.value), a = LM.num(aI.value), d = LM.num(dI.value);
+    if (!(m >= 0.3 && m <= 0.95)) return { e: "Ortalama PRR 0.3 ile 0.95 arasında olmalı." };
+    if (!(t > 0 && t < 1)) return { e: "Tek eşik 0 ile 1 arasında bir sayı olmalı (örneğin 0.65)." };
+    if (!(a > 0 && a < 1 && d > 0 && d < 1)) return { e: "Add ve drop eşikleri 0 ile 1 arasında olmalı." };
+    if (!(a > d)) return { e: "Add eşiği drop eşiğinden büyük olmalı. Eşitse ya da tersse stability band kalmaz; slayt 40: add &gt; 0.8, drop &lt; 0.5." };
+    return { m, t, a, d };
+  }
+  function draw() {
+    const p = read();
+    if (p.e) { LM.err(err, p.e); return; }
+    LM.err(err, "");
+    const pts = trace(p.m);
+    const A = run(pts, (inT, v) => v >= p.t);
+    const Bh = run(pts, (inT, v) => inT ? !(v < p.d) : v > p.a);
+    const W = 600, H = 236, L = 34, T = 8, Bo = 150;
+    const X = k => L + (W - L - 10) * k / (K - 1), Y = v => T + (Bo - T) * (1 - v);
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="PRR ölçümleri ve neighbor table durumu">`;
+    [0, 0.5, 1].forEach(v => s += `<text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end" style="fill:var(--fg-subtle);font-size:11px">${v.toFixed(1)}</text><line x1="${L}" y1="${Y(v)}" x2="${W - 10}" y2="${Y(v)}" style="stroke:var(--stone-200)" />`);
+    const hl = (v, col, dash) => `<line x1="${L}" y1="${Y(v)}" x2="${W - 10}" y2="${Y(v)}" style="stroke:${col};stroke-width:1.6;stroke-dasharray:${dash}" />`;
+    s += hl(p.t, "var(--accent)", "6 4") + hl(p.a, "#2b8a3e", "0") + hl(p.d, "#c92a2a", "0");
+    s += `<polyline points="${pts.map((v, k) => X(k).toFixed(1) + "," + Y(v).toFixed(1)).join(" ")}" style="fill:none;stroke:var(--stone-300);stroke-width:1" />`;
+    pts.forEach((v, k) => s += `<circle cx="${X(k).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.6" style="fill:var(--blue-600)" />`);
+    const strip = (st, y, col, label) => {
+      let h = `<text x="${L - 6}" y="${y + 11}" text-anchor="end" style="fill:var(--fg);font-size:11px;font-weight:700">${label}</text><rect x="${L}" y="${y}" width="${W - L - 10}" height="14" rx="3" style="fill:var(--stone-100)" />`;
+      const cw = (W - L - 10) / K;
+      st.forEach((on, k) => { if (on) h += `<rect x="${(L + k * cw).toFixed(1)}" y="${y}" width="${(cw + 0.4).toFixed(1)}" height="14" style="fill:${col}" />`; });
+      return h;
+    };
+    s += strip(A.st, 172, "var(--accent)", "tek") + strip(Bh.st, 200, "#2b8a3e", "hyst");
+    s += `<text x="${L}" y="${H - 2}" style="fill:var(--fg-subtle);font-size:11px">ölçüm 1</text><text x="${W - 10}" y="${H - 2}" text-anchor="end" style="fill:var(--fg-subtle);font-size:11px">ölçüm ${K}</text>`;
+    svgBox.innerHTML = s + `</svg>`;
+    LM.out(out, `<b>Tek eşik ($\\text{PRR} \\ge ${p.t}$):</b> ${A.flips} değişiklik (add + remove). Neighbor'ın tabloda olduğu ölçümlerin oranı: %${Math.round(100 * A.on / K)}.<br>` +
+      `<b>Hysteresis (add &gt; ${p.a}, drop &lt; ${p.d}):</b> ${Bh.flips} değişiklik. Neighbor'ın tabloda olduğu ölçümlerin oranı: %${Math.round(100 * Bh.on / K)}.<br>` +
+      (A.flips > Bh.flips ? `Değişiklik sayısı tek eşikte ${A.flips}, hysteresis ile ${Bh.flips}. Routing her değişiklikte parent'ını yeniden düşünmek zorunda; daha az değişiklik daha az flapping demek.` :
+        A.flips === Bh.flips ? `Bu ölçümlerde iki yöntem aynı sayıda değişiklik yaptı. Ortalamayı eşiğe yaklaştır ya da yeni ölçümler üret.` :
+          `Bu ölçümlerde hysteresis daha çok değişiklik yaptı: band çok dar ya da ortalama bandın dışında. Eşikleri slayt 40'taki değerlere döndürmeyi dene.`));
+  }
+  mR.addEventListener("input", () => { mT.value = mR.value; draw(); });
+  mT.addEventListener("change", () => { const v = LM.num(mT.value); if (v >= 0.3 && v <= 0.95) mR.value = v; draw(); });
+  [tI, aI, dI, mT].forEach(i => i.addEventListener("keydown", e => { if (e.key === "Enter") draw(); }));
+  document.getElementById("wc-go").addEventListener("click", draw);
+  document.getElementById("wc-seed").addEventListener("click", () => { seed++; draw(); });
+  draw();
+})();
+
+/* 4. Asymmetry: data + ACK exchange */
+(function () {
+  const fR = document.getElementById("wd-f-r"), fT = document.getElementById("wd-f");
+  const rR = document.getElementById("wd-r-r"), rT = document.getElementById("wd-r");
+  const err = document.getElementById("wd-err"), out = document.getElementById("wd-out");
+  const bar = (v, col) => `<div class="${LM.P}bar"><i style="width:${100 * v}%;background:${col}"></i></div>`;
+  function upd() {
+    const f = LM.num(fT.value), r = LM.num(rT.value);
+    if (!(f >= 0 && f <= 1) || !(r >= 0 && r <= 1)) { LM.err(err, "PRR 0 ile 1 arasında bir sayı olmalı (örneğin 0.9; virgül de olur)."); return; }
+    LM.err(err, "");
+    const p = f * r;
+    let h = `<div class="${LM.P}row"><span>A → B data</span>${bar(f, "var(--blue-600)")}<b>${LM.fx(f)}</b></div>` +
+      `<div class="${LM.P}row"><span>B → A ACK</span>${bar(r, "var(--blue-600)")}<b>${LM.fx(r)}</b></div>` +
+      `<div class="${LM.P}row"><span><b>exchange</b></span>${bar(p, "var(--accent)")}<b>${LM.fx(p, 3)}</b></div>`;
+    h += `<p>$P_\\text{success} = ${LM.fx(f)} \\times ${LM.fx(r)} = ${LM.fx(p, 3)}$. `;
+    h += p > 0 ? `Ortalama deneme sayısı $1/p \\approx ${LM.fx(1 / p)}$.` : `Exchange hiç başarılı olmaz; sender sonsuza kadar tekrar dener (ya da vazgeçer).`;
+    h += ` Ortalama almak $${LM.fx((f + r) / 2)}$ verirdi; bu yanlış.</p>`;
+    h += `<p>A, B'yi sadece B'nin advertisement'larına bakarak değerlendirirse sadece B → A yönünü görür (PRR = ${LM.fx(r)}). Data için gereken yön ise A → B (PRR = ${LM.fx(f)}).`;
+    if (r - f >= 0.3) h += ` <b>Slayt 42'deki tuzak:</b> advertisement'lar link'i iyi gösteriyor, ama data'nın gideceği yön zayıf.`;
+    else if (f - r >= 0.3) h += ` Bu sefer data yönü iyi ama ACK yönü zayıf: "A strong data direction is not enough if ACKs cannot return."`;
+    out.innerHTML = h + `</p>`;
+    Lab.renderMath(out);
+  }
+  function bind(range, text) {
+    range.addEventListener("input", () => { text.value = Number(range.value).toFixed(2); upd(); });
+    text.addEventListener("input", () => { const v = LM.num(text.value); if (v >= 0 && v <= 1) range.value = v; upd(); });
+  }
+  bind(fR, fT); bind(rR, rT);
+  const set = (f, r) => { fT.value = f; rT.value = r; fR.value = f; rR.value = r; upd(); };
+  document.querySelectorAll("[data-wd]").forEach(b => b.addEventListener("click", () => { const [f, r] = b.dataset.wd.split("|"); set(f, r); }));
+  document.getElementById("wd-swap").addEventListener("click", () => set(rT.value, fT.value));
+  upd();
+})();
+
+/* 5. 802.15.4 channel map */
+(function () {
+  const kT = document.getElementById("we-k"), kR = document.getElementById("we-k-r");
+  const err = document.getElementById("we-err"), svgBox = document.getElementById("we-svg"), out = document.getElementById("we-out");
+  const fc = k => 2405 + 5 * (k - 11);
+  function draw() {
+    const raw = kT.value.trim();
+    const k = LM.num(raw);
+    if (!Number.isInteger(k)) { LM.err(err, "Channel numarası bir tam sayı olmalı."); return; }
+    if (k === 129) { LM.err(err, "129 lab kodundaki Rime channel'ı: software seviyesinde bir ID, 802.15.4 PHY channel'ı değil. PHY channel'ları 11–26."); return; }
+    if (k < 11 || k > 26) { LM.err(err, `2.4 GHz PHY'ın 16 channel'ı 11 ile 26 arasında. ${k >= 0 && k <= 10 ? "0–10 numaraları 868/915 MHz bantlarına ait (Karl &amp; Willig Table 2.1)." : ""}`); return; }
+    LM.err(err, "");
+    kR.value = k;
+    const W = 600, H = 96, L = 14, R = 14, f0 = 2398, f1 = 2487;
+    const X = f => L + (W - L - R) * (f - f0) / (f1 - f0);
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="802.15.4 channel haritası">`;
+    const y0 = 10;
+    for (let c = 11; c <= 26; c++) {
+      const on = c === k;
+      const col = on ? "var(--blue-600)" : "var(--stone-300)";
+      s += `<rect x="${X(fc(c) - 0.9)}" y="${y0 + (on ? 0 : 8)}" width="${X(fc(c) + 0.9) - X(fc(c) - 0.9)}" height="${on ? 40 : 32}" rx="2" style="fill:${col}" />`;
+      s += `<text x="${X(fc(c))}" y="${y0 + 54}" text-anchor="middle" style="fill:${on ? "var(--fg-brand)" : "var(--fg-subtle)"};font-size:${on ? 12 : 10}px;font-weight:${on ? 700 : 400}">${c}</text>`;
+    }
+    [2400, 2425, 2450, 2475].forEach(f => s += `<text x="${X(f)}" y="${H - 4}" text-anchor="middle" style="fill:var(--fg-subtle);font-size:10px">${f}</text>`);
+    svgBox.innerHTML = s + `</svg>`;
+    const h = `<span class="${LM.P}kv">$f_c(${k}) = 2405 + 5\\,(${k} - 11) = ${fc(k)}$ MHz</span>` +
+      `<br>Komşu channel'lar: ${k > 11 ? `${k - 1} → ${fc(k - 1)} MHz` : "yok (ilk channel)"} · ${k < 26 ? `${k + 1} → ${fc(k + 1)} MHz` : "yok (son channel)"}. Aradaki fark her zaman 5 MHz. Bant 2405'ten 2480 MHz'e, 15 aralık × 5 MHz = 75 MHz.`;
+    LM.out(out, h);
+  }
+  kR.addEventListener("input", () => { kT.value = kR.value; draw(); });
+  kT.addEventListener("input", draw);
+  draw();
+})();
+
+/* 6. PPDU stepper: field by field */
+(function () {
+  const inp = document.getElementById("wf-l"), err = document.getElementById("wf-err"), box = document.getElementById("wf-stepper");
+  const COLORS = ["#5f3dc4", "#1971c2", "#0c8599", "#e8590c"];
+  function build() {
+    const L = LM.num(inp.value);
+    if (!Number.isInteger(L) || L < 0) { LM.err(err, "PSDU uzunluğu 0 veya daha büyük bir tam sayı (byte) olmalı."); return; }
+    if (L > 127) { LM.err(err, `PSDU en fazla 127 byte (slayt 49). ${L} byte'lık bir paket tek frame'e sığmaz; IPv6 paketleri için bunu 6LoWPAN fragmentation çözer.`); return; }
+    LM.err(err, "");
+    const F = [
+      { n: "Preamble", b: 4, why: "synchronization" },
+      { n: "SFD", b: 1, why: "frame boundary" },
+      { n: "PHR", b: 1, why: `payload length: içinde ${L} yazar` },
+      { n: "PSDU", b: L, why: "MAC frame" }
+    ];
+    const total = 6 + L;
+    const frames = [];
+    let cum = 0;
+    F.forEach((f, i) => {
+      cum += f.b;
+      frames.push({ k: i, caption: `<b>${f.n}</b> (${f.why}): ${f.b} byte = ${f.b * 8} bit = ${f.b * 2} symbol = ${f.b * 64} chip, $${f.b} \\times 32\\ \\mu\\text{s} = ${f.b * 32}\\ \\mu\\text{s}$. Şu ana kadar ${cum} byte, ${cum * 32} µs.` });
+    });
+    frames.push({ k: 4, final: true, caption: `PPDU = 6 + ${L} = <b>${total} byte</b> = ${total * 2} symbol = ${total * 64} chip. Havada $${total} \\times 32 = ${total * 32}\\ \\mu\\text{s}$ ($\\approx ${LM.fx(total * 32 / 1000, 3)}$ ms). PHY alanlarının (6 byte) toplamdaki payı: %${Math.round(600 / total)}.` + (L === 127 ? " Bu en uzun PPDU: 133 byte." : "") });
+    Lab.stepper(box, {
+      title: `PPDU, PSDU = ${L} byte`,
+      interval: 1400,
+      frames,
+      render(f, idx, el) {
+        const seg = F.map((x, i) => {
+          if (x.b === 0) return "";
+          const lit = f.final || i <= f.k;
+          const cur = !f.final && i === f.k;
+          return `<div style="flex:${x.b} 1 0;background:${lit ? COLORS[i] : "var(--stone-200)"};${cur ? "outline:3px solid var(--accent);outline-offset:-3px;" : ""}" title="${x.n}">${x.b >= 3 || total < 20 ? x.n : ""}</div>`;
+        }).join("");
+        let rows = `<div class="table-wrap"><table><tr><th>Field</th><th>byte</th><th>symbol</th><th>chip</th><th>µs</th></tr>`;
+        F.forEach((x, i) => { if (f.final || i <= f.k) rows += `<tr${!f.final && i === f.k ? ' style="background:var(--blue-050)"' : ""}><td>${x.n}</td><td>${x.b}</td><td>${x.b * 2}</td><td>${x.b * 64}</td><td>${x.b * 32}</td></tr>`; });
+        if (f.final) rows += `<tr><td><b>PPDU</b></td><td><b>${total}</b></td><td><b>${total * 2}</b></td><td><b>${total * 64}</b></td><td><b>${total * 32}</b></td></tr>`;
+        el.innerHTML = `<div class="${LM.P}seg">${seg}</div>` + rows + `</table></div>`;
+      }
+    });
+  }
+  document.getElementById("wf-go").addEventListener("click", build);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") build(); });
+  document.querySelectorAll("[data-wf]").forEach(b => b.addEventListener("click", () => { inp.value = b.dataset.wf; build(); }));
+  build();
+})();
+
+/* 7. UDGM replica: Cooja's distance rule, sampled for real */
+(function () {
+  const dR = document.getElementById("wg-d-r"), dT = document.getElementById("wg-d");
+  const RI = document.getElementById("wg-R"), II = document.getElementById("wg-I"), TXI = document.getElementById("wg-tx"), RXI = document.getElementById("wg-rx"), KI = document.getElementById("wg-k");
+  const err = document.getElementById("wg-err"), svgBox = document.getElementById("wg-svg"), out = document.getElementById("wg-out"), log = document.getElementById("wg-log");
+  let seq = 0, sent = 0, got = 0, runs = 0;
+  function read() {
+    const d = LM.num(dT.value), R = LM.num(RI.value), I = LM.num(II.value), tx = LM.num(TXI.value), rx = LM.num(RXI.value), k = Number(KI.value);
+    if (!(R > 0 && R <= 200)) return { e: "TX range 0'dan büyük olmalı (en fazla 200 m)." };
+    if (!(I >= R && I <= 400)) return { e: "INT range, TX range'den küçük olamaz: interference alanı transmission alanını kapsar." };
+    if (!(tx >= 0 && tx <= 1) || !(rx >= 0 && rx <= 1)) return { e: "TX ve RX success ratio 0 ile 1 arasında olmalı (örneğin 0.6)." };
+    if (!(d >= 0 && d <= 400)) return { e: "Mesafe 0 ile 400 m arasında bir sayı olmalı." };
+    return { d, R, I, tx, rx, k };
+  }
+  function model(p) {
+    if (p.d > p.R) return { zone: p.d <= p.I ? "int" : "out", P1: 0, P: 0 };
+    const P1 = p.tx * (1 - (p.d / p.R) ** 2 * (1 - p.rx));
+    return { zone: "tx", P1, P: 1 - (1 - P1) ** p.k };
+  }
+  function draw() {
+    const p = read();
+    if (p.e) { LM.err(err, p.e); return null; }
+    LM.err(err, "");
+    const m = model(p);
+    const W = 340, H = 150, cx = 22, cy = 75;
+    const span = Math.max(p.I, p.d, p.R) * 1.04;
+    const sc = (W - cx - 12) / span;
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="UDGM range ve interference çemberleri">`;
+    s += `<circle cx="${cx}" cy="${cy}" r="${p.I * sc}" style="fill:var(--stone-100);stroke:var(--stone-300);stroke-dasharray:4 3" />`;
+    s += `<circle cx="${cx}" cy="${cy}" r="${p.R * sc}" style="fill:#ebf7ee;stroke:#2b8a3e" />`;
+    s += `<text x="${Math.min(W - 40, cx + p.R * sc - 4)}" y="${cy - 8}" text-anchor="end" style="fill:#2b8a3e;font-size:10px">TX ${p.R} m</text>`;
+    s += `<text x="${Math.min(W - 6, cx + p.I * sc - 4)}" y="${cy + 26}" text-anchor="end" style="fill:var(--fg-subtle);font-size:10px">INT ${p.I} m</text>`;
+    const rxX = cx + p.d * sc;
+    s += `<line x1="${cx}" y1="${cy}" x2="${rxX}" y2="${cy}" style="stroke:var(--fg-subtle);stroke-dasharray:2 3" />`;
+    s += `<circle cx="${cx}" cy="${cy}" r="7" style="fill:var(--blue-600)" /><text x="${cx}" y="${cy + 3.5}" text-anchor="middle" style="fill:#fff;font-size:9px;font-weight:700">1</text>`;
+    s += `<circle cx="${rxX}" cy="${cy}" r="7" style="fill:${m.zone === "tx" ? "var(--accent)" : "var(--stone-500)"}" /><text x="${rxX}" y="${cy + 3.5}" text-anchor="middle" style="fill:#fff;font-size:9px;font-weight:700">2</text>`;
+    s += `<text x="${(cx + rxX) / 2}" y="${cy - 12}" text-anchor="middle" style="fill:var(--fg);font-size:11px;font-weight:700">d = ${p.d} m</text>`;
+    svgBox.innerHTML = s + `</svg>`;
+    let h;
+    if (m.zone === "tx") {
+      const rs = -10 - 85 * p.d / p.R;
+      h = `Receiver transmission range'in içinde. $P = ${LM.fx(p.tx)} \\times \\left(1 - (${p.d}/${p.R})^2 \\cdot (1 - ${LM.fx(p.rx)})\\right) = ${LM.fx(m.P1, 3)}$` +
+        (p.k > 1 ? `; ${p.k} kopya ile $1 - (1 - ${LM.fx(m.P1, 3)})^{${p.k}} = ${LM.fx(m.P, 3)}$ (kaba model).` : ".") +
+        `<br>RSSI (gerçek) $\\approx -10 - 85 \\cdot ${p.d}/${p.R} = ${LM.fx(rs, 1)}$ dBm · lab kodunun yazdırdığı: ${LM.fx(rs - 45, 1).replace("-", "−")} dBm · LQI: senin ölçümünde hep 37.`;
+    } else if (m.zone === "int") {
+      h = `Receiver transmission range'in dışında, interference range'in içinde. Paket alınmaz ($P = 0$): bu alan sadece transmission'ın başka bir reception'ı bozabildiği yer.`;
+    } else {
+      h = `Receiver iki çemberin de dışında: hiçbir şey alınmaz, hiçbir şeyi bozmaz ($P = 0$).`;
+    }
+    LM.out(out, h);
+    return { p, m };
+  }
+  function send() {
+    const st = draw();
+    if (!st) return;
+    runs++;
+    const r = LM.rng(runs * 104729 + Math.round(st.p.d * 100));
+    const ids = [], marks = {};
+    let ok = 0;
+    for (let i = 0; i < 20; i++) {
+      seq++;
+      let rec = false;
+      if (st.m.zone === "tx") for (let c = 0; c < st.p.k && !rec; c++) rec = r() < st.m.P1;
+      ids.push(seq);
+      marks[i] = rec ? "done" : "swap";
+      if (rec) ok++;
+    }
+    sent += 20; got += ok;
+    log.innerHTML = Lab.arrayView(ids, { marks, hideIndex: true }) +
+      `<p>Bu 20 pakette ${ok} geldi: $\\text{PRR} = ${ok}/20 = ${LM.fx(ok / 20)}$ (beklenen $${LM.fx(st.m.P)}$). Bütün gönderimlerde toplam ${got} / ${sent} = ${LM.fx(got / sent)}. Aynı ayarla tekrar bas: sayı her seferinde biraz değişir.</p>`;
+    Lab.renderMath(log);
+  }
+  dR.addEventListener("input", () => { dT.value = dR.value; draw(); });
+  dT.addEventListener("input", () => { const v = LM.num(dT.value); if (v >= 0 && v <= 45) dR.value = v; draw(); });
+  [RI, II, TXI, RXI].forEach(i => i.addEventListener("input", draw));
+  KI.addEventListener("change", draw);
+  document.querySelectorAll("[data-wg]").forEach(b => b.addEventListener("click", () => { dT.value = b.dataset.wg; dR.value = b.dataset.wg; draw(); }));
+  document.getElementById("wg-send").addEventListener("click", send);
+  document.getElementById("wg-reset").addEventListener("click", () => { seq = 0; sent = 0; got = 0; log.innerHTML = ""; });
+  draw();
+})();
+</script>
+</body>
+</html>

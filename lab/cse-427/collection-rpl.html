@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 427: collection traffic ve tree, flooding ve gossiping, proactive ve reactive routing, hop count ve enerji metric'leri, sink çevresindeki yük, ETX, RPL DODAG, DIO/DIS/DAO, rank, OF0 ve MRHOF, hysteresis, loop ve repair, Trickle timer, storing ve non-storing mode." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Collection tree, ETX ve RPL · CSE 427 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-collection-rpl-guess { margin: 12px 0 6px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-collection-rpl-box { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; margin: 12px 0; background: var(--bg-elevated); min-width: 0; }
+    .w-collection-rpl-ctl { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 6px 0; }
+    .w-collection-rpl-ctl label { font-size: .9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .w-collection-rpl-ctl input[type="number"], .w-collection-rpl-ctl input[type="text"] { width: 72px; font: inherit; padding: 2px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+    .w-collection-rpl-ctl select { font: inherit; padding: 2px 4px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); max-width: 100%; }
+    .w-collection-rpl-ctl input[type="range"] { width: 150px; max-width: 100%; accent-color: var(--blue-600); }
+    .w-collection-rpl-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-collection-rpl-out { font-size: .97rem; margin: 6px 0; }
+    .w-collection-rpl-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+    .w-collection-rpl-two > div { min-width: 0; }
+    .w-collection-rpl-cap { font-size: .82rem; font-weight: 700; color: var(--fg-brand); margin: 2px 0; }
+    .w-collection-rpl-svg { display: block; width: 100%; height: auto; max-width: 560px; }
+    .w-collection-rpl-svg text { font-family: 'JetBrains Mono', monospace; }
+    .w-collection-rpl-tbl { border-collapse: collapse; font-size: .86rem; }
+    .w-collection-rpl-tbl td, .w-collection-rpl-tbl th { border: 1px solid var(--border); padding: 3px 7px; text-align: right; white-space: nowrap; }
+    .w-collection-rpl-tbl th { background: var(--stone-050); }
+    .w-collection-rpl-tbl tr.is-diff td { background: var(--blue-050); font-weight: 700; }
+    .w-collection-rpl-tbl tr.is-sw td { background: #d3f9d8; }
+    .w-collection-rpl-ok { color: #2b8a3e; font-weight: 700; }
+    .w-collection-rpl-bad { color: var(--orange-700); font-weight: 700; }
+    .w-collection-rpl-log { font-family: 'JetBrains Mono', monospace; font-size: .8rem; max-height: 140px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; background: var(--paper); }
+    .w-collection-rpl-mono { font-family: 'JetBrains Mono', monospace; font-size: .86rem; overflow-wrap: anywhere; }
+    .w-collection-rpl-legend { font-size: .8rem; color: var(--fg-subtle); margin: 4px 0; }
+    .w-collection-rpl-math { overflow-x: auto; overflow-y: hidden; max-width: 100%; }
+    .w-collection-rpl-legend span { display: inline-block; margin-right: 10px; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 427</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 427</a> / Collection tree, ETX ve RPL</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L11</span><span class="chip">W7 · 26 Eki</span><span class="chip chip--exam">Vize kapsamı (varsayım)</span><span class="src">~62 dk · 12 bölüm</span></div>
+          <h1>Collection tree, ETX ve RPL</h1>
+          <p class="lead">Bir WSN'de veri çoğu zaman tek yöne akar: yüzlerce node'dan tek bir sink'e. Bu derste bu <em>collection</em> trafiği için bir tree'nin nasıl kurulduğunu, hangi metric'le kurulması gerektiğini (hop count mu, ETX mi), IETF'in bu iş için yazdığı RPL'in DODAG'ını, rank kuralını, Trickle timer'ı ve aşağı yönlü route'lar için storing ile non-storing mode'u göreceksin.</p>
+          <p class="src">Not: Bu haftanın (W7) hoca slaytları repoda yok. Ders, haftanın okuma listesindeki Karl &amp; Willig Ch. 11.1–11.3 ile Dargie &amp; Poellabauer Ch. 7'ye, RPL'in kendi standartlarına (RFC 6550 RPL, RFC 6206 Trickle, RFC 6552 OF0, RFC 6719 MRHOF, RFC 6551 metric'ler, RFC 6554 source routing header; bunlar repoda değil) ve hocanın W1–W3 slaytlarında bu konuya değen yerlere dayanıyor. Hocanın vurgusu farklı olabilir; slaytlar gelince bu ders onlara göre düzeltilmeli.</p>
+          <!-- Kaynak: syllabus satırı W1 xml slayt 3 (basılı 06): "Routing I: Collection & RPL — Collection trees, ETX, DODAGs, Trickle, storing vs. non-storing" · weeks/07-routing-i-collection-and-rpl.md (slaytlar "add when shared", Notes bölümü boş) · K&W §11.1–11.3 (s.289–305), §6.4.1 (link quality ölçümleri), §12.1.4 (convergecast) · D&P §7.1–7.6 (s.163–180), §7.10 Tablo 7.1, s.296 (Trickle), alıştırmalar 7.1–7.7, 7.12–7.16 · W1 xml slayt 14–16 (state, lossy link, dynamic topology), 53 (Contiki'deki RPL) · W2 slayt 38–42 (transitional region, hysteresis, asymmetry, routing implication) · W3 slayt 52–53 (network lifetime, energy balancing) · W5 Orchestra slaytları (RPL control shared cell) · RFC 6550/6206/6552/6719/6551/6554 metinleri doğrudan okundu. Tüm sayılar python3 ile doğrulandı. Pratik vize kâğıdı (exams/practice-midterm) bilerek kullanılmadı. -->
+        </header>
+
+        <article class="lesson" data-course="cse-427" data-lesson="collection-rpl">
+
+<!-- 1 -->
+<section class="lsec" id="collection" data-min="4">
+  <h2>Collection traffic: çok kaynak, tek sink</h2>
+  <div class="quiz" id="q-coll-1">
+    <p class="quiz__q">Bir serada 60 sensor her dakika sıcaklık ölçüp tek bir gateway'e gönderiyor. Trafiğin baskın yönü hangisi?</p>
+    <button class="quiz__opt" data-correct>Multipoint-to-point: birçok node'dan tek bir sink'e<span class="why">Doğru. Buna collection ya da convergecast denir. RFC 6550 de bunu LLN'lerde baskın akış (MP2P) olarak adlandırıyor.</span></button>
+    <button class="quiz__opt">Point-to-multipoint: gateway'den bütün node'lara<span class="why">Bu ters yön (komut, konfigürasyon, firmware). Var ama seyrek. Periyodik ölçüm raporu yukarı akar.</span></button>
+    <button class="quiz__opt">Point-to-point: her node rastgele başka bir node'a<span class="why">Sensor'lar birbirine değil, veriyi kullanacak olan sink'e rapor verir. P2P trafiği bir WSN'de istisnadır.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · bir nehir havzası</span>
+    <p>Yağmur bütün havzaya düşer ama su tek bir ağızdan denize akar. Her dere yalnızca hangi dereye döküleceğini bilir, denizin nerede olduğunu bilmesi gerekmez. Collection tree de böyledir: her node sadece bir sonraki adımını (<em>parent</em>'ını) bilir. Bedeli de nehirdeki gibidir: ağıza yaklaştıkça akış birikir.</p>
+  </div>
+  <p>Tek hop'luk modelde her sensor sink'le doğrudan konuşur. Gerçekte menzil ve enerji buna izin vermez, bu yüzden <strong>multi-hop</strong> modele geçilir: aradaki node'lar başkalarının packet'lerini taşıyan <em>relay</em>'lerdir (D&amp;P §7.1). Ağın bir node'dan sink'e giden yolu bulma işi network layer'ındır.</p>
+  <p>K&amp;W iki kelimeyi ayırıyor. <strong>Forwarding</strong>: bir node'un, kendisine ait olmayan bir packet'i hangi komşusuna vereceğine karar vermesi. <strong>Routing</strong>: bu kararın dayandığı <em>routing table</em>'ları kuran ve güncel tutan dağıtık süreç. Routing table her destination için bir next-hop komşu ve bir <em>cost</em> tutar.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · collection tree'nin parçaları</span>
+    <ul>
+      <li><strong>Sink / root / gateway / border router:</strong> verinin WSN'den çıktığı nokta (W1).</li>
+      <li><strong>Parent:</strong> bir node'un sink'e doğru next hop'u. <strong>Child:</strong> o node üzerinden gönderen node'lar.</li>
+      <li><strong>Upward</strong> (child'dan sink'e) yön için her node'un tek bir satırlık "tablosu" yeter: "her şey parent'a". Bu yüzden collection tree'nin state'i çok küçüktür.</li>
+      <li>Sink'e yakın node'lar bütün alt ağacın trafiğini taşır; enerjileri daha hızlı biter (W3 slayt 52).</li>
+      <li>D&amp;P'ye göre veri üç biçimde toplanır: <strong>time-driven</strong> (periyodik rapor), <strong>event-driven</strong> (eşik aşılınca), <strong>query-driven</strong> (sink sorunca).</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · bir routing table</span>
+    <p>Sink S'ye bağlı küçük bir ağ: S–A, S–B, A–B, A–C, B–D, C–D. Hop count cost'uyla D'nin tablosunun S satırı:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Destination</th><th>Next hop</th><th>Cost (hop)</th></tr>
+      <tr><td>S</td><td>B</td><td>2</td></tr>
+      <tr><td>S</td><td>C</td><td>3</td></tr>
+    </table></div>
+    <p>Forwarding kuralı: en düşük cost'lu satırı kullan, yani S'ye giden packet B'ye verilir. Collection'da bu tablonun yalnızca en iyi satırı tutulur: B, D'nin parent'ıdır.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Routing" ile "forwarding"i aynı şey sanmak. Forwarding her packet'te yapılan yerel bir karardır; routing o kararı mümkün kılan tabloyu kuran protokoldür.</li>
+      <li>Collection tree'de her node'un bütün ağın haritasını tuttuğunu sanmak. Upward yön için parent'ı bilmek yeter. Aşağı yön (sink'ten bir node'a) ayrı bir iştir; 11. bölümde göreceğiz.</li>
+      <li>W1 slayt 14'teki soruyu unutmak: "Where does this state live?" Routing table RAM'de durur ve mote'un RAM'i birkaç KB'dir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-coll-2">
+    <p class="quiz__q">Collection tree'de bir node'un sink'e (upward) packet gönderebilmesi için en az ne bilmesi gerekir?</p>
+    <button class="quiz__opt">Sink'e giden yolun bütün hop'larını<span class="why">Bu source routing olurdu. Tree'de her node sadece bir sonraki adımı bilir; yolun geri kalanı parent'ın sorunudur.</span></button>
+    <button class="quiz__opt" data-correct>Yalnızca parent'ını (ve onun hâlâ ulaşılabilir olduğunu)<span class="why">Doğru. Upward route'un bütün state'i "default route = parent" satırıdır. Küçük RAM'li mote'lar için tree'yi çekici yapan budur.</span></button>
+    <button class="quiz__opt">Ağdaki her node'un adresini ve konumunu<span class="why">Bu link state ya da geographic routing'in ihtiyacı. Collection için gereksiz ve RAM'e sığmaz.</span></button>
+  </div>
+  <!-- Kaynak: D&P §7.1 (single-hop vs multi-hop model, Şekil 7.1), §7.2 (time/event/query-driven) · K&W §11.1 (forwarding vs routing, Tablo 11.1 fikri; örnek tablo özgün), §12.1.4 (convergecast, implosion near the root) · RFC 6550 §4.1 (MP2P dominant flow) · W1 xml slayt 14 ("Where does this state live?") · W3 slayt 52 · W5 lecture glossary (parent/child). -->
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="flooding" data-min="4">
+  <h2>Flooding ve gossiping: tablo yokken</h2>
+  <div class="quiz" id="q-flood-1">
+    <p class="quiz__q">Flooding'de her node yeni bir packet'i bütün komşularına iletir. Packet'lerin ağda sonsuza kadar dolaşmasını ne önler?</p>
+    <button class="quiz__opt" data-correct>Source adresi + sequence number ile duplicate tespiti ve bir hop limit (TTL)<span class="why">Doğru. Node aynı (source, seq) çiftini ikinci kez görünce atar; TTL de ulaşılamayan bir destination için yayılmayı keser.</span></button>
+    <button class="quiz__opt">MAC katmanındaki ACK'ler<span class="why">ACK tek bir hop'taki teslimi onaylar. Ağ çapında bir packet'in tekrar tekrar iletilmesini durdurmaz.</span></button>
+    <button class="quiz__opt">Hiçbir şey; flooding'in doğası bu<span class="why">Kural koyulmazsa evet, ama her iki kitap da duplicate eleme ve TTL'i flooding'in parçası sayıyor.</span></button>
+  </div>
+  <p>Routing table kurulmadan önce, ya da tablo kurmaya değmeyecek kadar seyrek bir mesaj için en basit kural <strong>flooding</strong>'dir: gelen her yeni packet'i bütün komşulara gönder. Kaynak ile hedef aynı connected component'teyse packet varır. Ucuzdur, ama trafiği patlatır.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · flooding'in üç sorunu (D&amp;P §7.3)</span>
+    <ol>
+      <li><strong>Implosion:</strong> bir node aynı packet'i birkaç komşusundan alır. Duplicate atılsa da o gönderimlerin enerjisi harcanmıştır.</li>
+      <li><strong>Overlap:</strong> sensing alanları örtüşen iki sensor aynı bilgiyi gönderir; aynı alıcıya iki kez gelir.</li>
+      <li><strong>Resource blindness:</strong> flooding node'ların kalan enerjisine bakmaz.</li>
+    </ol>
+    <p><strong>Gossiping</strong>: node packet'i her zaman değil, $p$ olasılığıyla iletir. $p = 1$ flooding'dir. Yalnızca implosion'a çare olur, overlap ve resource blindness kalır. $p$ küçükse packet bazı node'lara hiç ulaşmayabilir. K&amp;W'nin aktardığı sonuçlara göre (Haas ve arkadaşları) bir eşik değeri vardır (tipik olarak %65–75): altında gossip hızla söner, üstünde neredeyse herkese ulaşır.</p>
+  </div>
+  <p>K&amp;W bir de <strong>wireless multicast advantage</strong>'tan söz eder: tek bir radio gönderimini menzildeki bütün komşular duyar. Bunun gerçekten avantaj olup olmadığı MAC'e bağlıdır. Duty-cycled bir MAC'te komşuların hepsi aynı anda uyanık değildir (W4). Bu nokta Trickle bölümünde geri dönecek.</p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Sequence number tek başına yetmez. Duplicate'i tanımak için <em>source adresi + sequence number</em> çifti gerekir; farklı source'ların sayaçları çakışabilir.</li>
+      <li>Gossiping'i "flooding'in bütün sorunlarını çözer" diye ezberlemek. Sadece implosion'u hafifletir.</li>
+      <li>"Broadcast" ile "flooding"i eş anlamlı saymak. K&amp;W'ye göre broadcast bir hedeftir (herkese ulaştır), flooding onu gerçekleştirmenin yollarından biridir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="DP-ex7.7">
+    <span class="box__label">D&amp;P Exercise 7.7 · kitap alıştırması</span>
+    <p>"Flooding is a simple strategy for distributing data to one specific node or all sensor nodes in a network. Answer the following questions: (a) Explain the three challenges of flooding described in this chapter. (b) Which of these can be addressed by gossiping and how can they be addressed? […] (d) How do sequence numbers contribute to reducing unnecessary transmissions? Are sequence numbers alone sufficient and, if not, what other information is needed to use them correctly?"</p>
+    <p class="src">(c) şıkkı kitabın Şekil 7.22 ve 7.23'üne dayandığı için çıkarıldı.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Üç sorun: aynı packet'i tekrar alan node, aynı bilgiyi gönderen iki sensor, enerjiye bakmayan protokol.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sequence number'ı kim veriyor? İki farklı node'un ikisi de "seq = 7" diye bir packet üretebilir mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>(a) <strong>Implosion:</strong> node packet'i bütün komşularına yayar; komşular onu zaten başka bir yoldan almış olabilir, gönderim boşa gider. <strong>Overlap:</strong> örtüşen alanları izleyen sensor'lar aynı veriyi ayrı ayrı gönderir. <strong>Resource blindness:</strong> flooding node'ların enerji durumuna göre davranışını değiştirmez.</li>
+        <li>(b) Gossiping yalnızca implosion'u hafifletir: node packet'i $p$ olasılığıyla iletir, $1 - p$ ile atar. Bedeli: $p$ küçükse bazı node'lar packet'i hiç almaz (örneğin tek komşusu iletmemeye karar verirse). Overlap ve resource blindness için veri içeriğine ve enerjiye bakan bir mekanizma gerekir.</li>
+        <li>(d) Node gördüğü packet'leri hatırlar ve aynı packet'i ikinci kez iletmez; bu, gereksiz yeniden yayınları keser. Tek başına yetmez: sequence number'lar her source'ta ayrı sayıldığı için packet'i tekil yapan <strong>(source adresi, sequence number)</strong> çiftidir. Ayrıca bir hop limit (TTL) ulaşılamayan hedefe giden packet'in yayılmasını sınırlar.</li>
+      </ol>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/dargie-poellabauer-fundamentals-of-wireless-sensor-networks.pdf" target="_blank" rel="noopener">Orijinal kitap (D&amp;P, s. 199–200)</a></p>
+    <!-- Kaynak: D&P Exercise 7.7 (s.199–200); kitapta cevap anahtarı yok, cevap §7.3'ten derlendi. -->
+  </div>
+  <div class="quiz" id="q-flood-2">
+    <p class="quiz__q">Gossiping'de iletme olasılığını $p = 0.3$'ten $p = 0.9$'a çıkarıyorsun. Ne beklersin?</p>
+    <button class="quiz__opt" data-correct>Packet daha çok node'a ulaşır ama mesaj sayısı flooding'e yaklaşır<span class="why">Doğru. $p = 1$ klasik flooding'dir. Eşiğin üstünde neredeyse herkese ulaşırsın, karşılığında implosion geri gelir.</span></button>
+    <button class="quiz__opt">Overlap sorunu da çözülür<span class="why">$p$ sadece kaç kopya iletileceğini değiştirir. Örtüşen sensor'ların aynı veriyi üretmesine dokunmaz.</span></button>
+    <button class="quiz__opt">Hiçbir şey değişmez, gossip her $p$'de herkese ulaşır<span class="why">K&amp;W'nin aktardığı sonuç tersini söylüyor: kritik bir eşiğin altında gossip hızla söner (phase transition).</span></button>
+  </div>
+  <!-- Kaynak: K&W §11.1 (flooding, gossiping, controlled flooding), §11.2.1–11.2.2 (wireless multicast advantage, Haas et al. %65–75 eşiği), dipnot 1 (broadcast vs flooding) · D&P §7.3 (implosion, overlap, resource blindness, gossiping), Şekil 7.4. -->
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="proactive" data-min="6">
+  <h2>Proactive, reactive ve klasik protokoller</h2>
+  <div class="quiz" id="q-pro-1">
+    <p class="quiz__q">Her sensor dakikada bir aynı sink'e rapor veriyor. Route'u her packet'ten önce aramak (on-demand) mı mantıklı, baştan kurup tutmak (proactive) mı?</p>
+    <button class="quiz__opt" data-correct>Proactive: hedef hep aynı ve trafik sürekli, route'u bir kez kurup korumak ucuz<span class="why">Doğru. On-demand'in avantajı kullanılmayacak route'lara emek harcamamaktır. Burada route her dakika kullanılıyor.</span></button>
+    <button class="quiz__opt">On-demand: route'u tutmak her zaman pahalıdır<span class="why">Tutmanın bir maliyeti var, ama her rapordan önce RREQ flood'u yapmak çok daha pahalı olurdu.</span></button>
+    <button class="quiz__opt">Fark etmez, ikisi aynı mesaj sayısını üretir<span class="why">İkisinin overhead'i trafiğin sıklığına ve hedeflerin çeşitliliğine göre çok farklıdır. Soru tam da bu yüzden sorulur.</span></button>
+  </div>
+  <p>Routing protokollerini D&amp;P üç eksende sınıflıyor: ağın yapısı (<em>flat</em>, <em>hierarchical</em>, <em>location-based</em>), route'un ne zaman bulunduğu (<em>proactive</em>, <em>reactive</em>, <em>hybrid</em>) ve protokolün işleyişi (negotiation-, multipath-, query-, QoS-, coherent-based). Bu ders collection'a ve RPL'e odaklı, ama ikinci eksen RPL'i anlamak için şart.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · proactive ve reactive</span>
+    <ul>
+      <li><strong>Proactive (table-driven):</strong> route'lar ihtiyaçtan önce kurulur ve tutulur. Artı: göndermeden önce bekleme yok. Eksi: hiç kullanılmayacak route'lar için de overhead; tablo bayatlayabilir.</li>
+      <li><strong>Reactive (on-demand):</strong> route ancak gerekince aranır (route discovery). Artı: kullanılmayan route'a emek yok. Eksi: ilk packet'ten önce gecikme; discovery genelde flood ister.</li>
+      <li>İki klasik algoritma: <strong>distance vector</strong> (Bellman–Ford; her node komşularından "hedefe uzaklığım şu" duyar ve en küçüğünü seçer) ve <strong>link state</strong> (Dijkstra; her node bütün topolojiyi öğrenip yolu kendi hesaplar).</li>
+    </ul>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Protokol</th><th>Tür</th><th>Ana fikir (D&amp;P)</th></tr>
+    <tr><td><strong>DSDV</strong></td><td>Proactive, distance vector</td><td>Bellman–Ford + destination'ın verdiği <em>sequence number</em>. Yeni seq eski route'u geçersiz kılar; eşit seq'te kısa olan kazanır. Bayat route'ları ve loop'ları böyle ayırır. Full dump ve incremental update.</td></tr>
+    <tr><td><strong>OLSR</strong></td><td>Proactive, link state</td><td>HELLO ile komşuluk ve iki hop'luk çevre öğrenilir. Topoloji bilgisini sadece <em>multipoint relay</em>'ler (MPR) yayar; flood'daki duplicate'ler azalır.</td></tr>
+    <tr><td><strong>AODV</strong></td><td>Reactive, distance vector</td><td>RREQ flood'u, ters yönde kurulan reverse path, unicast RREP, kopunca RERR. Sequence number'lar tazeliği ölçer. Link'lerin <em>symmetric</em> olduğunu varsayar.</td></tr>
+    <tr><td><strong>DSR</strong></td><td>Reactive, source routing</td><td>Request ilerlerken her node adresini packet'e ekler; hedefe tam yol varır. Data packet'i da yolun tamamını taşır. Route cache; asymmetric link'leri destekler.</td></tr>
+  </table></div>
+  <p>Ch. 7'nin geri kalanı bu dersin değil sonraki haftaların konusu, ama isimleri ve tek cümlelik fikirleri bil (D&amp;P Tablo 7.1):</p>
+  <ul>
+    <li><strong>Data-centric:</strong> node'a değil veriye göre yönlendirme. <em>SPIN</em> (ADV–REQ–DATA el sıkışması, meta-data ile müzakere), <em>directed diffusion</em> (sink "interest" yayar, gradient'ler oluşur, sink bir yolu "reinforce" eder), <em>rumor routing</em> (event'i bilen agent'lar ile query'nin rastgele yürüyüşünün kesişmesi), <em>Gradient-Based Routing</em> (node'un sink'e hop sayısı = "height"; packet en büyük gradient yönüne gider).</li>
+    <li><strong>Hierarchical:</strong> cluster head'ler. <em>LEACH</em>, <em>PEGASIS</em> (zincir), <em>landmark routing</em>.</li>
+    <li><strong>Location-based:</strong> konuma göre ilerleme. <em>GPSR</em>, <em>GAF</em>, <em>GEAR</em>. <strong>QoS-based:</strong> <em>SAR</em>, <em>SPEED</em>, <em>MMSPEED</em>.</li>
+  </ul>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>AODV'nin reverse path'i RREQ'nun geldiği yolu ters çevirir. Link asymmetric ise (A, B'yi duyuyor ama B, A'yı duymuyor) RREP o yoldan geri dönemez. DSR ise kendi ayrı discovery'siyle bu durumu karşılayabilir.</li>
+      <li>Sequence number'ın DSDV'deki işi "hangi bilgi daha yeni?" sorusunu cevaplamak ve böylece loop'ları önlemektir. RPL'deki <em>DODAGVersionNumber</em> aynı fikrin akrabası (9. bölüm).</li>
+      <li>"Gradient-based routing'deki height" ile RPL'deki <em>rank</em> aynı sezgiyi taşır: root'tan uzaklaştıkça büyüyen bir sayı. Farkları metric'te ve kurallarda.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="DP-ex7.2">
+    <span class="box__label">D&amp;P Exercise 7.2 · kitap alıştırması</span>
+    <p>"What is the difference between a proactive routing protocol and a reactive routing protocol? Name at least two examples for each category. Consider the following WSN scenarios and explain why you would choose either a proactive or a reactive routing solution: (a) A WSN is used to monitor air pollution in a city where every sensor reports its sensor data once every minute to a single remote base station. Most sensors are mounted on lamp posts, but some are also mounted on city buses. (b) A WSN is used to measure humidity in a field, where low-power sensors report measurements only when certain thresholds are exceeded. (c) A WSN is used to detect the presence of vehicles, where each sensor locally records the times of vehicle detection. These records are delivered to the base station only when the sensor is explicitly queried."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her senaryoda iki şeye bak: trafik ne sıklıkta ve hep aynı hedefe mi gidiyor; topoloji ne kadar değişiyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c)'de sorguyu başlatan base station. Cevap, sorgunun geldiği yoldan geri dönebilir mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Fark:</strong> proactive (table-driven) protokol route'ları ihtiyaç olmadan kurar ve periyodik ya da değişiklikle tetiklenen update'lerle tutar: DSDV, OLSR. Reactive (on-demand) protokol route'u yalnızca bir packet gönderilecekken ve route yokken arar: AODV, DSR. Proactive'de gecikme yok ama sürekli overhead var; reactive'de overhead seyrek trafikte düşük ama her yeni route ilk packet'i geciktirir.</p>
+      <ol>
+        <li>(a) <strong>Proactive.</strong> Trafik sürekli (dakikada bir) ve hep aynı hedefe gidiyor; route bir kez kurulup tutulmalı. Otobüslerdeki sensor'lar topolojiyi değiştirdiği için update'ler sık olmalı (ya da bu node'lar leaf olarak bağlanmalı), ama her raporda discovery yapmak çok daha pahalı olurdu.</li>
+        <li>(b) <strong>Reactive</strong> makul. Rapor seyrek ve ne zaman geleceği belli değil; düşük güçlü node'ların route tutmak için sürekli kontrol mesajı göndermesi boşa enerji. Bedeli, eşik aşıldığında ilk raporun discovery kadar gecikmesi.</li>
+        <li>(c) <strong>Reactive / query-driven.</strong> Veri yalnızca sorulunca akıyor. Base station'ın sorgusu yolunu kurar; cevap o yolun tersinden döner (link'ler symmetric ise). Sürekli tablo tutmanın getirisi yok.</li>
+      </ol>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/dargie-poellabauer-fundamentals-of-wireless-sensor-networks.pdf" target="_blank" rel="noopener">Orijinal kitap (D&amp;P, s. 197)</a></p>
+    <!-- Kaynak: D&P Exercise 7.2 (s.197) · cevap §7.1, §7.5, §7.6'dan derlendi; kitapta anahtar yok. -->
+  </div>
+  <div class="box box--exam" data-exam="DP-ex7.3-4">
+    <span class="box__label">D&amp;P Exercise 7.3 ve 7.4 · kitap alıştırması</span>
+    <p>"7.3 What is data-centric routing? Why is data-centric routing feasible (or even necessary) compared to routing based on identities (addresses)? 7.4 Describe a WSN application for each of the following categories: time-driven, event-driven, and query-driven."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kullanıcı "node 17'nin ölçümü"nü mü ister, "kuzey bölgede 30 °C'yi aşan bir ölçüm"ü mü?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Üç kategoriyi verinin ne zaman gönderildiğine göre ayır: saatle, olayla, istekle.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>(7.3) Data-centric routing'de alıcılar adresle değil, verinin nitelikleriyle tanımlanır (örneğin "sıcaklık okuyabilen ve şu bölgedeki node'lar"). Mümkün, çünkü WSN'de önemli olan node'un kendisi değil ürettiği bilgidir; çok sayıda yedekli node aynı bilgiyi üretebilir. Gerekli olabilir, çünkü heterojen ve hareketli node'lu büyük ağlarda global adres şeması kurmak zor ya da imkânsızdır (D&amp;P §7.2). Aynı zamanda in-network aggregation'a kapı açar.</li>
+        <li>(7.4) <strong>Time-driven:</strong> sera ya da çevre izleme, her node dakikada bir sıcaklık gönderir. <strong>Event-driven:</strong> orman yangını algılama, yalnızca duman ya da sıcaklık eşiği aşılınca rapor. <strong>Query-driven:</strong> otopark ya da trafik sensor'ları kayıt tutar, merkez sorduğunda cevap verir.</li>
+      </ol>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/dargie-poellabauer-fundamentals-of-wireless-sensor-networks.pdf" target="_blank" rel="noopener">Orijinal kitap (D&amp;P, s. 198)</a></p>
+    <!-- Kaynak: D&P Exercises 7.3–7.4 (s.198); cevap §7.1–7.2 ve §7.4 girişinden. -->
+  </div>
+  <div class="box box--exam" data-exam="DP-ex7.12-14">
+    <span class="box__label">D&amp;P Exercise 7.12–7.14 · kitap alıştırması</span>
+    <p>"7.12 What are the concepts behind distance vector routing and link state routing and how do they compare to each other with respect to overheads for maintaining routing tables? 7.13 Compare a proactive routing protocol such as DSDV with a reactive protocol such as DSR with respect to overheads and route optimality. 7.14 Does DSR incur larger or smaller overheads for route discovery compared to the AODV protocol? Justify your answer."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Distance vector komşuya ne anlatır, link state herkese ne anlatır? Mesajı kim alıyor ve ne kadar büyük?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>DSR'de request ve data packet'leri neyi taşıyor? AODV'de bu bilgi nerede duruyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>(7.12) <strong>Distance vector:</strong> her node her destination için bir uzaklık tutar ve bunu yalnızca komşularına söyler; node, "komşunun uzaklığı + link cost" en küçük olan komşuyu next hop seçer (Bellman–Ford). <strong>Link state:</strong> her node kendi link'lerini bütün ağa yayar; herkes tam topolojiyi kurar ve en kısa yolu kendisi hesaplar (Dijkstra). Overhead: link state'te her değişiklik ağ çapında flood edilir ve her node bütün topolojiyi saklar (mesaj ve bellek yükü yüksek, ama tutarlı ve hızlı yakınsar). Distance vector'da mesajlar yalnızca komşulara gider ve tablo hedef sayısı kadardır, ama değişiklikler yavaş yayılır ve count-to-infinity gibi loop sorunları olabilir (DSDV bunu sequence number'la çözer). OLSR, MPR'lerle link state flood'unu küçültür.</li>
+        <li>(7.13) <strong>DSDV</strong> periyodik ve tetiklenmiş update'lerle bütün hedeflere route tutar: trafik olmasa da sürekli overhead, ama route hazır ve en kısa (hop count'a göre). <strong>DSR</strong> yalnızca gerektiğinde discovery yapar: seyrek trafikte overhead düşük, ama her yeni hedef için flood ve ilk packet gecikmesi var; bulunan yol ilk gelen request'in yoludur, cache'teki route'lar bayatlayıp optimal olmayabilir.</li>
+        <li>(7.14) Discovery'deki mesaj <strong>sayısı</strong> ikisinde benzer (ikisi de request'i flood eder), ama DSR'nin request'i ilerledikçe büyür, çünkü her node adresini ekler; data packet'leri da tam yolu taşır. Bu açıdan DSR'nin byte overhead'i daha büyüktür. Öte yandan DSR, duyduğu packet'lerdeki yollardan route cache'ine bilgi ekleyebildiği için yeni discovery ihtiyacı azalabilir. Cevap: packet başına daha büyük overhead, toplam discovery sayısı ise cache sayesinde daha az olabilir.</li>
+      </ol>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/dargie-poellabauer-fundamentals-of-wireless-sensor-networks.pdf" target="_blank" rel="noopener">Orijinal kitap (D&amp;P, s. 200)</a></p>
+    <!-- Kaynak: D&P Exercises 7.12–7.14 (s.200) · cevap §7.5–7.6 ve K&W §11.1'den. -->
+  </div>
+  <div class="box box--exam" data-exam="DP-ex7.15-16">
+    <span class="box__label">D&amp;P Exercise 7.15 ve 7.16 · kitap alıştırması</span>
+    <p>"7.15 In AODV, is it possible that route discovery packets travel in the network forever? Why or why not? 7.16 Asymmetric (or unidirectional) links occur when node A can hear node B, but B cannot hear node A. Explain whether this is a problem for the AODV protocol and if so, how this can be addressed."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bir node aynı RREQ'yu ikinci kez gördüğünde ne yapar? RREQ'yu tekil kılan alanlar hangileri?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>RREP hangi yoldan geri döner? O yol kurulurken hangi yön test edilmişti?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>(7.15) Hayır. Her RREQ, source adresi ve <em>broadcast ID</em> ile tekil olarak tanınır; bir node aynı RREQ'yu ikinci kez görünce atar. Böylece her node bir RREQ'yu en fazla bir kez yeniden yayar ve flood sonlu sayıda adımda biter. (Pratikte bir hop limit de yayılmayı sınırlar.)</li>
+        <li>(7.16) Evet, sorun. AODV'de RREQ ilerlerken her node "bu RREQ'yu kimden aldım" diye bir reverse path kaydeder ve RREP bu yolun tersinden unicast gelir. RREQ'nun geçtiği link B→A yönünde çalışıyor ama A→B çalışmıyorsa RREP o hop'u geçemez; AODV bu yüzden link'leri symmetric varsayar. Çözümler: link'leri kullanmadan önce iki yönde doğrulamak (HELLO ile çift yönlü komşuluk; OLSR'nin symmetric/asymmetric ayrımı), asymmetric link'leri route'tan dışlamak ya da DSR gibi hedefin source'a ayrı bir discovery başlatması. Bu dersin ETX'i de aynı derdin bir metric çözümüdür: reverse yön kötüyse $d_r$ küçülür ve link pahalı görünür.</li>
+      </ol>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/dargie-poellabauer-fundamentals-of-wireless-sensor-networks.pdf" target="_blank" rel="noopener">Orijinal kitap (D&amp;P, s. 200)</a></p>
+    <!-- Kaynak: D&P Exercises 7.15–7.16 (s.200) · cevap §7.6.1–7.6.2, §7.5.2 (OLSR symmetric/asymmetric) ve W2 slayt 41–42'den. -->
+  </div>
+  <div class="quiz" id="q-pro-2">
+    <p class="quiz__q">Hangisi DSR'yi AODV'den ayırır?</p>
+    <button class="quiz__opt">DSR proactive'dir, AODV reactive<span class="why">İkisi de reactive (on-demand). Fark yolun nerede durduğunda.</span></button>
+    <button class="quiz__opt" data-correct>DSR'de packet yolun tamamını taşır; AODV'de her ara node kendi next hop'unu tablosunda tutar<span class="why">Doğru. DSR source routing'dir. Bu fikri RPL'in non-storing mode'unda tekrar göreceksin.</span></button>
+    <button class="quiz__opt">DSR sequence number kullanır, AODV kullanmaz<span class="why">Tersine, AODV destination sequence number'larına dayanır. DSR'de request ID duplicate'leri ayırır.</span></button>
+  </div>
+  <!-- Kaynak: D&P §7.1 (Şekil 7.2 sınıflandırma), §7.4 (SPIN, directed diffusion, rumor routing, GBR), §7.5 (DSDV, OLSR), §7.6 (AODV, DSR), §7.7 (LEACH, PEGASIS, landmark), §7.8–7.9 adları, §7.10 Tablo 7.1 · K&W §11.1 (DSDV, AODV, DSR, taxonomy) · ders kapsamı dışındaki ayrıntılar (SPIN varyantları, GPSR face routing, SPEED) bilerek kısa tutuldu. -->
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="metrics" data-min="5">
+  <h2>Routing metric: hop count ve enerji</h2>
+  <div class="quiz" id="q-met-1">
+    <p class="quiz__q">Hop count'u en aza indiren yol, packet başına enerjiyi de en aza indirir mi?</p>
+    <button class="quiz__opt">Evet, her hop bir gönderim olduğu için<span class="why">Az hop çoğu zaman uzun hop demektir. Uzun bir link daha yüksek transmit power ya da daha çok retransmission isteyebilir.</span></button>
+    <button class="quiz__opt" data-correct>Hayır; az ama pahalı hop'lar, çok ama ucuz hop'lardan daha çok enerji yakabilir<span class="why">Doğru. K&amp;W'nin örneğinde en az hop'lu yol 6 birim, en az enerjili yol 3 birim harcıyor.</span></button>
+    <button class="quiz__opt">Sadece bütün link'ler kayıpsızsa hayır<span class="why">Kayıpsız link'lerde de uzun hop'un transmit maliyeti yüksek olabilir. Kayıp ise farkı daha da büyütür.</span></button>
+  </div>
+  <p>Bir routing protokolü yolları bir <em>cost</em>'a göre karşılaştırır. Cost'u ne seçtiğin, hangi tree'yi kuracağını belirler. D&amp;P'nin listesi: minimum hop, enerji, QoS (latency, throughput, jitter, packet loss) ve robustness (link quality, link stability).</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · hop count ve enerji metric'leri</span>
+    <ul>
+      <li><strong>Minimum hop:</strong> her link'in cost'u 1. Basit ve <em>isotonic</em>: iki yolun sırası, ikisine aynı ortak yol eklendiğinde bozulmaz. Bu yüzden Bellman–Ford ve Dijkstra ile doğru çalışır. Ama node'ların kaynaklarına bakmaz.</li>
+      <li><strong>Minimum energy per packet:</strong> yol üzerindeki bütün gönderim + alım enerjilerinin toplamını en aza indir.</li>
+      <li><strong>Maximum network lifetime:</strong> asıl amaç budur ama tanımı çok: ilk node'un ölümü, coverage kaybı, network partition (K&amp;W; W3 slayt 52'deki liste).</li>
+      <li><strong>Maximum total available battery capacity (MTABC):</strong> yol üzerindeki ara node'ların kalan kapasitelerinin toplamını en büyüt; gereksiz dolambaçlı yolları ele.</li>
+      <li><strong>Minimum battery cost routing (MBCR):</strong> node'un "isteksizliği" = $1/\text{kapasite}$; yolun cost'u bunların toplamı, en küçüğü seç.</li>
+      <li><strong>Min–max battery cost routing (MMBCR):</strong> yolun cost'u en büyük $1/\text{kapasite}$; en küçüğü seç (eşdeğeri: en zayıf node'u en güçlü olan yol, D&amp;P'nin "maximum minimum energy capacity"si).</li>
+      <li><strong>CMMBCR:</strong> bütün node'ları bir eşiğin üstünde olan yollar varsa aralarından en az enerjiliyi seç; yoksa MMBCR'ye geç.</li>
+      <li><strong>Minimum variance in power levels:</strong> pilleri eşit tüket. <strong>MTPR:</strong> SINR şartı altında toplam transmit power'ı en aza indir.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · K&amp;W Şekil 11.3, A'dan H'ye</span>
+    <svg class="w-collection-rpl-svg" viewBox="0 0 340 230" role="img" aria-label="Sekiz node'luk graph: link enerji maliyetleri ve node pil kapasiteleri">
+      <g stroke="var(--stone-500)" stroke-width="1.6">
+        <line x1="170" y1="25" x2="60" y2="95"/><line x1="170" y1="25" x2="170" y2="85"/><line x1="170" y1="25" x2="270" y2="80"/>
+        <line x1="170" y1="85" x2="170" y2="145"/><line x1="270" y1="80" x2="290" y2="150"/><line x1="60" y1="95" x2="170" y2="205"/>
+        <line x1="170" y1="145" x2="170" y2="205"/><line x1="170" y1="145" x2="235" y2="165"/><line x1="235" y1="165" x2="170" y2="205"/>
+        <line x1="235" y1="165" x2="290" y2="150"/><line x1="290" y1="150" x2="170" y2="205"/>
+      </g>
+      <g font-size="11" fill="var(--fg)" text-anchor="middle">
+        <text x="108" y="52">3</text><text x="180" y="58">1</text><text x="228" y="44">2</text>
+        <text x="180" y="118">1</text><text x="290" y="112">2</text><text x="104" y="160">3</text>
+        <text x="160" y="178">1</text><text x="206" y="148">2</text><text x="200" y="196">2</text>
+        <text x="262" y="150">2</text><text x="240" y="200">2</text>
+      </g>
+      <g font-size="12" font-weight="700" text-anchor="middle">
+        <circle cx="170" cy="25" r="13" fill="var(--paper)" stroke="var(--blue-600)" stroke-width="2"/><text x="170" y="29">A</text>
+        <circle cx="170" cy="85" r="13" fill="var(--paper)" stroke="var(--blue-600)" stroke-width="2"/><text x="170" y="89">B</text>
+        <circle cx="270" cy="80" r="13" fill="var(--paper)" stroke="var(--blue-600)" stroke-width="2"/><text x="270" y="84">C</text>
+        <circle cx="60" cy="95" r="13" fill="var(--paper)" stroke="var(--blue-600)" stroke-width="2"/><text x="60" y="99">D</text>
+        <circle cx="170" cy="145" r="13" fill="var(--paper)" stroke="var(--blue-600)" stroke-width="2"/><text x="170" y="149">E</text>
+        <circle cx="235" cy="165" r="13" fill="var(--paper)" stroke="var(--blue-600)" stroke-width="2"/><text x="235" y="169">G</text>
+        <circle cx="290" cy="150" r="13" fill="var(--paper)" stroke="var(--blue-600)" stroke-width="2"/><text x="290" y="154">F</text>
+        <circle cx="170" cy="205" r="13" fill="var(--paper)" stroke="var(--blue-600)" stroke-width="2"/><text x="170" y="209">H</text>
+      </g>
+      <g font-size="10" fill="var(--fg-brand)" text-anchor="start">
+        <text x="186" y="20">pil 4</text><text x="186" y="80">pil 2</text><text x="286" y="74">pil 1</text><text x="20" y="122">pil 3</text>
+        <text x="122" y="140">pil 2</text><text x="226" y="190">pil 2</text><text x="300" y="172">pil 4</text><text x="186" y="222">pil 4</text>
+      </g>
+    </svg>
+    <p class="w-collection-rpl-legend">Link üzerindeki sayı: packet başına enerji. "pil": node'un kalan kapasitesi. Çizim kitaptaki şeklin özgün bir yeniden çizimi.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Yol</th><th>Hop</th><th>Enerji</th><th>Ara node kapasite toplamı</th><th>MBCR $\sum 1/c$</th><th>MMBCR $\max 1/c$</th></tr>
+      <tr><td>A-D-H</td><td>2</td><td>6</td><td>3</td><td>0.333</td><td>0.333</td></tr>
+      <tr><td>A-B-E-H</td><td>3</td><td>3</td><td>4</td><td>1.000</td><td>0.500</td></tr>
+      <tr><td>A-C-F-H</td><td>3</td><td>6</td><td>5</td><td>1.250</td><td>1.000</td></tr>
+      <tr><td>A-B-E-G-H</td><td>4</td><td>6</td><td>6</td><td>1.500</td><td>0.500</td></tr>
+    </table></div>
+    <p>Minimum hop: A-D-H (6 birim enerji). Minimum energy: A-B-E-H (3 birim). MTABC: A-B-E-G-H toplamda 6 verir, ama A-B-E-H'nin ara node'larını içeren gereksiz bir dolambaç (G fazladan), bu yüzden elenir ve A-C-F-H (5) seçilir. MBCR: A-D-H ($1/3$), çünkü A-C-F-H, kapasitesi 1 olan C'yi kullanıyor ($1/1 + 1/4 = 1.25$). MMBCR: yine A-D-H. Aynı graph'ta dört metric dört farklı karar veriyor.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Toplam kapasiteyi en büyütmek, uzun yolları ödüllendirir: her fazladan node toplamı artırır. Bu yüzden ya dolambaçlar elenir ya da ortalama kapasiteye bakılır (D&amp;P).</li>
+      <li>Kapasiteye dayalı metric'ler zamanla değişir; route'ların sık yeniden hesaplanması gerekir ve bu da overhead'dir (K&amp;W).</li>
+      <li>D&amp;P denklem 7.1'de bir baskı hatası var; aşağıdaki nota bak.</li>
+    </ul>
+  </div>
+  <p class="src">Not: D&amp;P §7.2.1.3, denklem 7.1'i "ETT = ETT × S/B" diye yazıyor. Doğrusu ETT = ETX × S/B: link'in Expected Transmission Count'u, packet boyu $S$ ve bandwidth $B$ ile çarpılarak beklenen gönderim süresine çevrilir. ETX'i 6. bölümde ayrıntılı göreceğiz.</p>
+  <div class="box box--exam" data-exam="DP-ex7.5">
+    <span class="box__label">D&amp;P Exercise 7.5 · kitap alıştırması</span>
+    <p>"For the network topology shown in Figure 7.22, identify the optimal routes for source A to sink M according to the following criteria (describe how you compute the cost for the optimal route). The numbers X/Y along each link indicate the latency (X) and energy cost (Y) for transmitting a single packet over the link. The number Z under each node indicates the node's remaining energy capacity. (a) Minimum number of hops (b) Minimum energy consumed per packet (c) Maximum average energy capacity (eliminate hops that would result in a higher average but unnecessarily add to the route length!) (d) Maximum minimum energy capacity (e) Shortest latency"</p>
+    <p>Şekildeki link'ler (latency/energy) ve kapasiteler: A–B 1/1, A–E 1/2, A–C 1/1, B–D 3/5, C–E 3/1, E–F 1/1, E–G 3/3, D–G 2/2, F–G 3/1, G–H 1/2, G–J 1/3, G–I 1/2, H–K 4/1, K–M 2/2, J–M 5/5, I–J 2/1, J–L 2/2, L–M 2/1. Kapasite: B 3, C 8, D 4, E 7, F 8, G 4, H 6, I 2, J 1, K 5, L 4.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce bir yapısal gözlem: A'dan M'ye giden her yol hangi node'dan geçmek zorunda?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Problemi ikiye böl: A'dan G'ye en iyi parça ve G'den M'ye en iyi parça. (d) için G'nin kendi kapasitesi bir üst sınır koyar.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Gözlem: A'nın tarafını M'nin tarafına bağlayan tek node G (bir <em>cut vertex</em>). Her yol A → … → G → … → M biçimindedir. Toplam 25 basit yol var; aşağıdaki değerler hepsinin taranmasıyla doğrulandı.</p>
+      <ol>
+        <li>(a) <strong>Minimum hop:</strong> her link cost 1. A-E-G-J-M, 4 hop (tek 4 hop'luk yol). Enerjisi 13, latency'si 10.</li>
+        <li>(b) <strong>Minimum energy:</strong> link enerjilerinin toplamı. A–G arası en ucuz: A-E-F-G = 2 + 1 + 1 = 4. G–M arası en ucuz: G-H-K-M = 2 + 1 + 2 = 5. Toplam <strong>9</strong>: A-E-F-G-H-K-M. (A-C-E-F-G-H-K-M de 9 tutar, ama bir hop daha uzun; eşitlikte kısa olanı seç.)</li>
+        <li>(c) <strong>Maximum average capacity:</strong> ara node kapasitelerinin ortalaması. Ham en büyük A-C-E-F-G-H-K-M (38/6 = 6.33), ama C gereksiz (A–E doğrudan var). C atılınca A-E-F-G-H-K-M (30/5 = 6.0); burada da F gereksiz (E–G doğrudan var). Sorunun "ortalamayı yükseltip yolu gereksiz uzatan hop'ları ele" şartına göre cevap <strong>A-E-G-H-K-M</strong>: ara node'lar E 7, G 4, H 6, K 5, ortalama 22/4 = <strong>5.5</strong>. Hiçbir node'u atılamayan yollar arasında en yükseği bu.</li>
+        <li>(d) <strong>Maximum minimum capacity:</strong> her yol G'den (4) geçtiği için hiçbir yolun minimumu 4'ü aşamaz. Minimumu 4 olan yollar G'nin iki yanında yalnızca 4'ten büyük ya da eşit node'lar kullananlar: A-E-G-H-K-M (E 7, G 4, H 6, K 5) en kısası, minimum <strong>4</strong>. J (1) ve I (2) olan yollar elenir.</li>
+        <li>(e) <strong>Shortest latency:</strong> A-E-G = 1 + 3 = 4 (A–G arası en küçük latency); G-J-L-M = 1 + 2 + 2 = 5. Toplam <strong>9</strong>: A-E-G-J-L-M. (A-E-G-J-M 10 tutar: J–M link'inin latency'si 5.)</li>
+      </ol>
+      <p>Sonuç: beş kriter dört farklı yol seçiyor. G'nin cut vertex olması D&amp;P'nin "maximum time to network partition" fikrini de gösteriyor: G ölürse A ile M ayrılır.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/dargie-poellabauer-fundamentals-of-wireless-sensor-networks.pdf" target="_blank" rel="noopener">Orijinal kitap ve Şekil 7.22 (D&amp;P, s. 198)</a></p>
+    <!-- Kaynak: D&P Exercise 7.5 ve Şekil 7.22 (s.198; şekil 300 dpi render edilip okundu, link listesi elle çıkarıldı) · bütün yollar python3 ile tarandı (verify/v2.py): 25 yol, (a) 4 hop, (b) 9, (c) 5.5 / ham 6.33, (d) 4, (e) 9. Kitapta cevap anahtarı yok. -->
+  </div>
+  <div class="quiz" id="q-met-2">
+    <p class="quiz__q">MBCR'de bir node'un cost'u $1/\text{kapasite}$. Kapasitesi 1 olan bir node, kapasitesi 4 olan iki node'dan oluşan bir parçaya göre nasıl görünür?</p>
+    <button class="quiz__opt" data-correct>Daha pahalı: $1/1 = 1$, iki güçlü node ise $1/4 + 1/4 = 0.5$<span class="why">Doğru. Reciprocal, zayıflamış node'ları sert biçimde cezalandırır ve trafiği onlardan uzaklaştırır.</span></button>
+    <button class="quiz__opt">Daha ucuz: tek node, iki node'dan azdır<span class="why">MBCR hop saymaz, pil durumuna bakar. Tek ama zayıf node pahalıdır.</span></button>
+    <button class="quiz__opt">Eşit: toplam kapasite 1 ile 8 karşılaştırılmaz<span class="why">MBCR toplam kapasiteyi değil reciprocal'ların toplamını kullanır; burada 1 ile 0.5 karşılaştırılır.</span></button>
+  </div>
+  <!-- Kaynak: K&W §11.3.1 (s.295–297) ve Şekil 11.3 (render edilip okundu; çizim özgün; değerler verify/v1.py ile doğrulandı) · D&P §7.2.1.1–7.2.1.4 (isotonicity, beş enerji yorumu, QoS, robustness), denklem 7.1 baskı hatası (Draves et al. 2004'te ETT = ETX·S/B) · W3 slayt 52. -->
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="sink-load" data-min="4">
+  <h2>Sink çevresindeki yük ve network lifetime</h2>
+  <div class="quiz" id="q-load-1">
+    <p class="quiz__q">24 sensor'lık bir grid'de sink köşede ve sadece 2 komşusu var. Her sensor saniyede bir packet üretiyor. Bu iki komşunun saniyede taşıdığı toplam packet en az kaçtır?</p>
+    <button class="quiz__opt">2<span class="why">Sadece kendi packet'leri. Ama ağın geri kalanı da sink'e bu iki node üzerinden ulaşmak zorunda.</span></button>
+    <button class="quiz__opt" data-correct>24: bütün trafik sink'e bu iki node'dan geçer<span class="why">Doğru. En iyi dağılımda her biri 12 taşır. Sink'in komşu sayısı, ağın darboğazını belirler.</span></button>
+    <button class="quiz__opt">12<span class="why">Bu, ikisinden yalnızca birinin taşıdığı (dengeli dağılımda). Toplam 24.</span></button>
+  </div>
+  <p>Collection tree'de sink'in komşuları bütün ağın trafiğini taşır. K&amp;W, Alonso ve arkadaşlarının sonucunu aktarır: node'ları sink'ten hop uzaklığına göre "sphere"lere ayır; $S_1$ sink'in komşuları olsun. Varsayımlar: bütün node'lar aynı transmit power'ı kullanır, sürekli base station'a veri gönderir, aggregation yapılmaz ve node'ların çoğu sink'ten birden fazla hop uzaktadır. Bu ağlarda, routing control overhead'i hariç tutulursa, en kötü routing bile en iyisinden en fazla $2|S_1| - 1$ kat daha az enerji verimlidir.<!-- Kaynak: K&W §11.3.2 "Bounding the difference between routing protocols" (Alonso, Dunkels, Voigt [19]; varsayımlar: identical power, continuous data to base station, no aggregation, routing protocol overhead hariç; Şekil 11.4). --> Sink'in 4 komşusu varsa bu oran 7'dir. Yani routing'in etkisi, sink'in kaç komşusu olduğuyla sınırlıdır; asıl darboğaz $S_1$'dir.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · yük ve tree tasarımı</span>
+    <ul>
+      <li>Bir node'un yükü = kendi packet'i + alt ağacındaki bütün node'ların packet'leri (alt ağaç büyüklüğü).</li>
+      <li>Network lifetime "ilk node'un ölümü" ise ömrü, en çok yük taşıyan node belirler. Sink'e yakın relay'ler ilk ölür (W3 slayt 52) ve bölge sink'ten kopar.</li>
+      <li>Hoca W3 slayt 53'te açıkça söylüyor: "The shortest or lowest-ETX path is not always the best long-term choice." Hep aynı mükemmel parent'ı seçmek onu hızla tüketebilir, darboğaz yaratabilir, bir bölgeyi koparabilir. Energy-aware routing kalan pili, harvesting'i, forwarding yükünü, link quality'yi ve beklenen retransmission'ları birlikte tartabilir.</li>
+      <li><strong>Multipath:</strong> yedek yollar hem dayanıklılık hem yük dağıtımı sağlar. <em>Disjoint</em> yollar ortak node paylaşmaz; <em>braided</em> yollar ana yoldan sadece bir node'u atlamak zorundadır ve ana yola yakın, neredeyse aynı verimde kalır. SAR, sink'in her komşusundan ayrı bir tree kurar. Shah–Rabaey'de next hop, komşuların cost'larıyla ters orantılı bir olasılıkla rastgele seçilir.</li>
+    </ul>
+  </div>
+  <p>Yük dengesinin sayısal etkisini enerji dersinde bir widget ile denedin (battery-lifetime-harvesting, W3 slayt 52–53 kutuları). Burada D&amp;P'nin grid alıştırması aynı fikri sink'in konumu üzerinden gösteriyor.</p>
+  <div class="box box--exam" data-exam="DP-ex7.6">
+    <span class="box__label">D&amp;P Exercise 7.6 · kitap alıştırması (kısaltılmış)</span>
+    <p>"A WSN is modeled as a 5 × 5 grid […], with the base station placed at the center of the network (left topology) or at the bottom left corner (right topology). Assume that each node can communicate with only its immediate neighbors on the grid and that packet transmission or forwarding over a link costs exactly one unit of energy (packet reception and processing costs are neglected). (a) For both topologies, find an energy optimal graph of routes […]. (c) What is the lifetime of the network topologies […] when during every second, each node generates and transmits its own packet and forwards all packets received during the previous second? Assume that each node has an initial energy budget of 100. Each transmission costs 1 unit of energy […]. Consider the lifetime of a network to have expired once the first node depletes its energy budget. Compare the results and derive design principles […]. (d) […] each sensor transmits exactly one packet to the base station [in the center]. Then the topology is switched to the second one and each sensor transmits one packet to the base station in the bottom left corner. Then the topology is switched back to the first one and the process is repeated. Explain why the network lifetime changes and what other design principle can be derived from this insight."</p>
+    <p class="src">Not: Kitabın (b), (c) ve (d) şıkları Şekil 7.24'teki iki hazır ağaca dayanıyor ve o ağaçlarda bazı node'lar en kısa yolu kullanmıyor. Burada (b) çıkarıldı; (c) ve (d), (a)'da kurulan dengeli shortest-path tree'ler üzerinden çözüldü. Kitabın ağaçlarıyla sayılar farklı çıkar, ilkeler aynı kalır.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) Grid'de her node'un en kısa yolu Manhattan uzaklığı kadar hop'tur. Toplam enerji = uzaklıkların toplamı. Seçim serbestliği: çapraz konumdaki node iki komşudan birini parent seçebilir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c) Dolu boru hattında bir node saniyede "alt ağacındaki node sayısı" kadar gönderir. 100'ü en hızlı bitiren, sink'in en yüklü komşusudur. Sink'in kaç komşusu var ve 24 node'u onlara nasıl paylaştırırsın?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>(a) Enerji-optimal graph = her node'un Manhattan uzaklığı kadar hop'luk bir yol kullandığı shortest-path tree. <strong>Merkez:</strong> uzaklıklar toplamı 60, yani her turda (her sensor bir packet) 60 birim. <strong>Köşe:</strong> toplam 100 birim. Aynı ağ, sink köşedeyken tur başına %67 daha çok enerji harcıyor.</li>
+        <li>Yük (bir node'un taşıdığı route sayısı, kendi dahil): merkezde sink'in 4 komşusu var; 24 node dört gruba 6'şar bölünebilir, en yüklü node 6 taşır (toplam yük 60, ortalama 2.5). Köşede sink'in 2 komşusu var; en iyi bölüşümde ikisi de 12 taşır (toplam 100, ortalama 4.17).</li>
+        <li>(c) Saniye saniye simülasyon (her node kendi packet'i + önceki saniye aldıkları): merkezde en yüklü node'un kümülatif gönderimi 1, 4, 9, 15, 21, … ilerler, 18. saniyenin sonunda 99'dur ve 19. saniyede bütçe biter: ömür ≈ <strong>18 s</strong>. Köşede 1, 4, 10, 18, 27, 37, 48, 60, 72, 84, 96 ilerler ve 12. saniyede biter: ömür ≈ <strong>11 s</strong>. İlkeler: sink'i ağın ortasına koy (daha çok komşu, daha kısa yollar); tree'yi sink'in komşuları arasında dengeli kur; ömrü toplam enerji değil, en yüklü relay belirler.</li>
+        <li>(d) Sink'in yeri değiştikçe en yüklü node'lar da değişir. Köşe ağacında 12 taşıyan bir node, merkez ağacında yalnızca 2 taşıyabilir. Sırayla değiştirince yük zaman içinde farklı node'lara yayılır: bizim ağaçlarla bir merkez + bir köşe turu en yüklü node'a 14 birim yükler; sürekli köşede kalmak iki turda 24 yüklerdi. Yani ömür, sürekli köşe sink'e göre uzar (100 birimle ≈ 8.3 yerine ≈ 14 tur), merkez sink'in tek başına sağladığından (≈ 16.7 tur) kısa kalır. İlke: <strong>sink'i ya da tree'yi zamanla değiştirmek</strong> (mobile sink, root rotasyonu, periyodik yeniden kurulum) enerji tüketimini dengeler ve sink çevresindeki "hot spot"u dağıtır.</li>
+      </ol>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/dargie-poellabauer-fundamentals-of-wireless-sensor-networks.pdf" target="_blank" rel="noopener">Orijinal kitap ve Şekil 7.23–7.24 (D&amp;P, s. 198–199)</a></p>
+    <!-- Kaynak: D&P Exercise 7.6 (s.198–199), Şekil 7.23–7.24 render edilip okundu · verify/v4.py: brute-force ile max yükü en küçük shortest-path tree; merkez toplam 60 / max 6 / ömür 19. saniyede biter; köşe 100 / max 12 / 12. saniyede biter; alternasyon max çift yük 14. Kitapta cevap yok. -->
+  </div>
+  <div class="quiz" id="q-load-2">
+    <p class="quiz__q">K&amp;W'deki $2|S_1| - 1$ sınırı neyi söylüyor?</p>
+    <button class="quiz__opt">Routing protokolü seçimi enerjiyi sınırsız değiştirebilir<span class="why">Tersini: sink'in komşu sayısı küçükken en kötü ve en iyi routing arasındaki fark sınırlıdır.</span></button>
+    <button class="quiz__opt" data-correct>Sink'in komşuları ($S_1$) bütün trafiği taşıdığı için routing'in kazandırabileceği verim, sink'in komşu sayısıyla sınırlı<span class="why">Doğru. 4 komşuda en kötü routing en fazla 7 kat kötüdür. Asıl darboğaz $S_1$'deki node'lardır.</span></button>
+    <button class="quiz__opt">Her node en fazla $2|S_1| - 1$ hop uzaklıkta olmalı<span class="why">Sınır hop sayısıyla değil, enerji verimliliği oranıyla ilgili.</span></button>
+  </div>
+  <!-- Kaynak: K&W §11.3.2 son paragraf (Alonso et al., spheres S_i, 2|S1|−1, 4 komşu → 7), §11.3.4 (multipath: SAR, disjoint vs braided, Shah–Rabaey), §12.1.4 (convergecast implosion) · W3 slayt 52–53 (hoca) · D&P Exercise 7.6. -->
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="etx" data-min="6">
+  <h2>Hop count'un tuzağı ve ETX</h2>
+  <div class="quiz" id="q-etx-1">
+    <p class="quiz__q">A → B data PRR'ı 0.90, B → A ACK PRR'ı 0.50. A'nın bir packet'i başarıyla teslim edip ACK alması için ortalama kaç gönderim gerekir?</p>
+    <button class="quiz__opt">1.11<span class="why">Bu sadece forward yönü ($1/0.9$). ACK gelmezse A yeniden gönderir; reverse yönü de hesaba katmalısın.</span></button>
+    <button class="quiz__opt" data-correct>≈ 2.22<span class="why">Doğru. Bir denemenin başarısı $0.90 \times 0.50 = 0.45$ (W2 slayt 42), beklenen deneme sayısı $1/0.45 \approx 2.22$. Bu sayı ETX'tir.</span></button>
+    <button class="quiz__opt">1.4<span class="why">Olasılıklar toplanmaz, çarpılır: iki olayın (data gider, ACK döner) ikisinin de olması gerekir.</span></button>
+  </div>
+  <p>W2'de hoca link'leri üç bölgeye ayırmıştı: connected, transitional, disconnected. Transitional bölgedeki link'ler "neredeyse çalışır" ve bu en pahalısıdır: node komşu görünür sonra kaybolur, broadcast geçer ama ACK düşer, routing aynı komşuyu tekrar tekrar seçip bırakır (slayt 39). Hop count bu bölgeye kör: bir link'i ya var ya yok sayar. En az hop'u isteyen bir protokol doğal olarak en uzak, yani en kötü link'leri seçer.</p>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · iki kısa köprü mü, bir çürük köprü mü</span>
+    <p>Bir nehri bir hamlede geçen çürük bir köprü var; her denemede yarı yarıya çöküp seni geri yolluyor. Yanında iki sağlam kısa köprü var. Hop count "tek köprü daha az" der. Asıl soru şu: karşıya geçene kadar toplam kaç kez yürüyeceksin?</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · ETX (Expected Transmission Count)</span>
+    <p>Bir link'te gönderim, ancak data ileri yönde ($d_f$ olasılığıyla) ulaşır ve ACK geri yönde ($d_r$ olasılığıyla) dönerse başarılı sayılır. Denemeler bağımsızsa deneme sayısı geometric dağılır:</p>
+    <div class="w-collection-rpl-math">$$\text{ETX}_{\text{link}} = \frac{1}{d_f \cdot d_r}, \qquad \text{ETX}_{\text{path}} = \sum_{\text{link'ler}} \text{ETX}_{\text{link}}$$</div>
+    <ul>
+      <li>$d_f$: forward delivery ratio (data'nın komşuya ulaşma olasılığı). $d_r$: reverse delivery ratio (ACK'in geri gelme olasılığı). RFC 6551 aynı formülü örnek olarak veriyor.</li>
+      <li>Mükemmel link'te ETX = 1; link kötüleştikçe sınırsız büyür. Path ETX additive'dir, dolayısıyla hop count gibi isotonic'tir ve en kısa yol algoritmalarıyla çalışır.</li>
+      <li>ETX iki yönü birden cezalandırır: W2 slayt 41–42'deki asymmetry'yi metric'e taşır.</li>
+      <li>D&amp;P'nin tanımı: "the number of transmissions necessary to successfully deliver a packet over a wireless link" (Couto et al. 2003). ETX'i <em>retransmission maliyeti</em> olarak da okuyabilirsin; K&amp;W'nin "Consider all costs" notu tam bunu söyler: retransmission'lar cost'a girmeli.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · bir hop mu, iki hop mu</span>
+    <p>R'ye doğrudan link: $d_f = 0.60$, $d_r = 0.70$, ETX $= 1/0.42 = 2.381$. Alternatif X üzerinden: R–X için $0.95 \times 0.95$, ETX $= 1.108$; X–node için $0.95 \times 0.90$, ETX $= 1.170$. Path ETX $= 2.278$. Hop count doğrudan link'i (1 hop) seçer; ETX iki hop'u seçer ve packet başına ortalama 0.10 gönderim kazandırır. Fark küçük görünür ama her packet'te, her node için ve yıllarca birikir.</p>
+  </div>
+  <div class="w-collection-rpl-box" id="w-etx">
+    <p class="w-collection-rpl-guess"><b>Önce tahmin et:</b> Doğrudan link'in $d_r$'ını 0.70'ten 0.80'e çıkarırsan hangi yol kazanır? Sonra dene. Bir de iki hop'luk yoldaki bir link'in $d_r$'ını 0.50'ye düşür.</p>
+    <div class="w-collection-rpl-ctl">
+      <span class="w-collection-rpl-cap">Doğrudan link</span>
+      <label>$d_f$ <input type="text" id="we-df0" value="0.60" inputmode="decimal" /></label>
+      <label>$d_r$ <input type="text" id="we-dr0" value="0.70" inputmode="decimal" /></label>
+    </div>
+    <div class="w-collection-rpl-ctl">
+      <span class="w-collection-rpl-cap">İki hop: link 1</span>
+      <label>$d_f$ <input type="text" id="we-df1" value="0.95" inputmode="decimal" /></label>
+      <label>$d_r$ <input type="text" id="we-dr1" value="0.95" inputmode="decimal" /></label>
+      <span class="w-collection-rpl-cap">link 2</span>
+      <label>$d_f$ <input type="text" id="we-df2" value="0.95" inputmode="decimal" /></label>
+      <label>$d_r$ <input type="text" id="we-dr2" value="0.90" inputmode="decimal" /></label>
+      <button class="btn btn--sm btn--accent" id="we-go">Hesapla</button>
+    </div>
+    <div class="w-collection-rpl-err" id="we-err"></div>
+    <div class="w-collection-rpl-out" id="we-out"></div>
+  </div>
+  <p>$d_f$ ve $d_r$'ı node nereden bilir? Ölçerek. K&amp;W §6.4, link quality'nin zamanla dalgalandığını ve mesafeyle deterministik bir ilişkisi olmadığını gösteren ölçümleri aktarır (Ganesan, Woo); kestirim için bir pencere üzerindeki PRR ya da exponentially weighted moving average (EWMA) gibi estimator'lar kullanılır. ETX yeni bir ölçüm değil; W2'nin PRR'ını yön yön ölçüp routing'in anlayacağı bir cost'a çeviren bir formüldür.</p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$d_f$ ile $d_r$'ı toplamak ya da ortalamasını almak. Başarı için ikisinin de olması gerekir: <strong>çarpılır</strong>.</li>
+      <li>Path ETX'i link ETX'lerinin çarpımı sanmak. Her hop kendi gönderimlerini yapar; beklenen toplam gönderim <strong>toplanır</strong>.</li>
+      <li>RSSI'si yüksek bir link'in ETX'inin de iyi olduğunu varsaymak. RSSI tek yönü ve sadece alınan packet'leri görür; ACK'in dönmediğini bilmez (W2).</li>
+      <li>ETX en iyi yolu verir, ama "en iyi" packet başına gönderim anlamında. Enerji dengesini ve relay'in pilini görmez (W3 slayt 53).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="W2-s42-routing">
+    <span class="box__label">W2 slayt 42, "Routing implication" · slayt sorusu</span>
+    <p>"A node may hear advertisements from a parent, select it, then fail to deliver packets in the reverse direction needed by the protocol." Bu nasıl olur, hop count'lu bir collection protokolünde neye yol açar ve ETX bunu nasıl önler?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Advertisement hangi yönde gider (parent'tan child'a mı, child'dan parent'a mı)? Data hangi yönde?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Slayt 41'deki örnek: A → B PRR 0.95, B → A PRR 0.40. Parent B olsun.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Advertisement'lar (RPL'de DIO) parent'tan child'a doğru yayılır. Child onları iyi duyuyorsa parent'ı "iyi bir komşu" sanır. Data ise ters yönde, child'dan parent'a gider; ACK yine parent'tan child'a döner. Asymmetric bir link'te advertisement'ı taşıyan yön iyi, data'yı taşıyan yön kötü olabilir. Slayt 41'deki sayıları kullan: A → B PRR 0.95, B → A PRR 0.40. A parent, B child olsun. A'nın DIO'ları B'ye 0.95 ile ulaşır, B, A'yı seçer. Ama B'nin data'sı A'ya 0.40 ile gider (ACK'ler 0.95 ile döner).</p>
+      <p>Hop count'lu bir protokolde B, A'yı "1 hop" diye seçer; data'nın çoğu kaybolur, retransmission'lar enerji yakar, sonunda link bozuk sayılıp bırakılır, sonra advertisement yine iyi duyulduğu için geri seçilir: route flapping (W2 slayt 39). ETX'te link cost'u $1/(d_f \cdot d_r) = 1/(0.40 \times 0.95) \approx 2.63$ olur; link pahalı görünür ve daha iyi bir alternatif varsa seçilmez. Ön koşul: $d_f$'nin gerçekten data yönünde ölçülmesi (ACK'lere ya da komşunun geri bildirdiği alım oranına dayanarak), sadece duyulan advertisement'lardan tahmin edilmemesi.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/2026-2027-fall/Week_2_WSN_Radio_PHY_60slides_Contiki3.pptx" target="_blank" rel="noopener">Orijinal slayt (W2, slayt 41–42)</a></p>
+    <!-- Kaynak: W2 slayt 41 (asymmetry 0.95 / 0.40), 42 (P_success = PRR_f × PRR_r, routing implication cümlesi) · 1/(0.40·0.95) = 2.632 python ile doğrulandı. Plan bunu "cross-week question material" olarak listeliyor; hocanın sorduğu bir soru değil, slayttaki bir iddia. -->
+  </div>
+  <div class="quiz" id="q-etx-2">
+    <p class="quiz__q">Path 1: üç link, her biri ETX 1.1. Path 2: tek link, ETX 3.0. ETX metric'iyle hangisi seçilir?</p>
+    <button class="quiz__opt" data-correct>Path 2: tek link ETX 3.0, Path 1'in toplamı 3.3<span class="why">Doğru. $3 \times 1.1 = 3.3 &gt; 3.0$. ETX her zaman "daha çok hop" demek değildir; kötü link yeterince kötü değilse kısa yol kazanır.</span></button>
+    <button class="quiz__opt">Path 1, çünkü her link'i iyi<span class="why">Link'lerin tek tek iyi olması yetmez; ETX toplamı karşılaştırır: 3.3 &gt; 3.0.</span></button>
+    <button class="quiz__opt">Path 1, çünkü path ETX link'lerin çarpımıdır: $1.1^3 = 1.33$<span class="why">Path ETX toplanır, çarpılmaz. Her hop kendi gönderimlerini ayrı yapar.</span></button>
+  </div>
+  <!-- Kaynak: W2 slayt 38–42 (hoca) · W1 xml slayt 15 ("Distance is a clue, not a routing metric") · D&P §7.2.1.3 (ETX tanımı, Couto et al. 2003) · RFC 6551 §4.3.2 (ETX = 1/(Df·Dr)) · K&W §6.4.1 (Ganesan, Woo ölçümleri), §6.4.2 (WMEWMA estimator), §11.3.5 ("Consider all costs", "Routing and link quality": Wang et al. parent seçimi) · örnek sayılar özgün, python ile doğrulandı (2.381, 1.108, 1.170, 2.278). -->
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="rpl-basics" data-min="5">
+  <h2>RPL: LLN, DODAG ve dört kimlik</h2>
+  <div class="quiz" id="q-rpl-1">
+    <p class="quiz__q">RPL'in kurduğu yapının adı neden "tree" değil de DODAG?</p>
+    <button class="quiz__opt" data-correct>Bir node birden çok parent tutabilir; yapı tek root'a yönelen, döngüsüz bir graph'tır<span class="why">Doğru. Destination-Oriented Directed Acyclic Graph. Data bir anda bir <em>preferred parent</em>'a gider, ama parent set'teki diğerleri yedekte bekler.</span></button>
+    <button class="quiz__opt">Çünkü RPL birden çok root'u aynı anda tek bir yapıda birleştirir<span class="why">Bir DODAG'ın tek bir root'u vardır (adı da oradan: destination-oriented). Birden çok root birden çok DODAG demektir.</span></button>
+    <button class="quiz__opt">Çünkü RPL'de loop'lara izin verilir<span class="why">"Acyclic" tam tersini söyler: yapı döngüsüzdür. Rank kuralı bunu korumak için var.</span></button>
+  </div>
+  <p>K&amp;W ve D&amp;P'nin protokolleri 2010 öncesine ait. IETF'in ROLL çalışma grubu, IPv6 kullanan düşük güçlü ve kayıplı ağlar (<em>Low-power and Lossy Networks</em>, <strong>LLN</strong>) için 2012'de RPL'i yayımladı (RFC 6550). Contiki'nin IPv6 yığınında da bulunur (W1 xml slayt 53: "RPL — IPv6 routing for low-power and lossy networks"). RPL proactive'dir ve collection'ı merkeze koyar: önce upward route'ları kurar, aşağı yönü isteğe bağlı ekler.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · RPL sözlüğü</span>
+    <ul>
+      <li><strong>DODAG root:</strong> genelde LLN Border Router (LBR); ağı internete bağlar. Root'un rank'ı <code>ROOT_RANK</code> = MinHopRankIncrease.</li>
+      <li><strong>Grounded / floating:</strong> root uygulamanın hedefine (örneğin internete) ulaştırabiliyorsa DODAG grounded'dır; değilse floating.</li>
+      <li><strong>RPLInstanceID:</strong> aynı objective function'ı paylaşan bir ya da daha çok DODAG'ı gruplar. <strong>DODAGID:</strong> root'un IPv6 adresi. <strong>DODAGVersionNumber:</strong> root'un artırdığı sürüm numarası. (RPLInstanceID, DODAGID, DODAGVersionNumber) üçlüsü bir DODAG sürümünü tanımlar.</li>
+      <li><strong>Rank:</strong> node'un root'a göre konumu; root'tan uzaklaştıkça büyür. Objective function metric'leri rank'a çevirir. Karşılaştırma tam sayı kısmıyla yapılır: $\text{DAGRank}(r) = \lfloor r / \text{MinHopRankIncrease} \rfloor$.</li>
+      <li><strong>Parent set, preferred parent:</strong> rank'ı kendisinden küçük komşulardan seçilen aday parent'lar; upward data preferred parent'a gider.</li>
+      <li><strong>Trafik:</strong> MP2P (collection, baskın), P2MP (root'tan node'lara), P2P (iki node arası; DODAG üzerinden ortak bir atadan geçer).</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · control mesajları (ICMPv6 type 155)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Mesaj</th><th>Code</th><th>Ne yapar</th></tr>
+      <tr><td><strong>DIS</strong> (DODAG Information Solicitation)</td><td>0x00</td><td>"Etrafta DODAG var mı?" Yeni ya da kopmuş bir node DIO ister.</td></tr>
+      <tr><td><strong>DIO</strong> (DODAG Information Object)</td><td>0x01</td><td>Root'tan aşağı yayılır: RPLInstanceID, version, gönderenin rank'ı, Grounded biti, MOP, DODAGID; DODAG Configuration option'da Trickle parametreleri, MinHopRankIncrease, MaxRankIncrease ve objective function (OCP). Trickle timer'la gönderilir.</td></tr>
+      <tr><td><strong>DAO</strong> (Destination Advertisement Object)</td><td>0x02</td><td>Yukarı gider: "bu hedeflere benim üzerimden ulaşılır." Downward route'ları kurar (11. bölüm).</td></tr>
+      <tr><td><strong>DAO-ACK</strong></td><td>0x03</td><td>DAO'nun alındığını onaylar (isteğe bağlı).</td></tr>
+    </table></div>
+    <p>Bir de Consistency Check (0x8A) ve bu dört mesajın secure sürümleri var (0x80–0x83).</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>DIO ile DAO'nun yönünü karıştırmak. <strong>DIO aşağı</strong> (root → yapraklar) yayılır ve upward route'ları kurdurur. <strong>DAO yukarı</strong> (yapraklar → root) gider ve downward route'ları kurdurur. Akılda tutmanın yolu: DIO "ben buradayım, rank'ım bu", DAO "beni bu adreste bul".</li>
+      <li>Rank'ı hop count sanmak. Rank'ı objective function hesaplar; ETX tabanlı bir OF'de iki hop'luk iyi bir yol, tek hop'luk kötü bir yoldan daha küçük rank verebilir.</li>
+      <li>DIS'in cevabını karıştırmak: unicast DIS'e komşu unicast bir DIO ile cevap verir; multicast DIS ise komşuların Trickle timer'ını sıfırlar (10. bölüm).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-rpl-2">
+    <p class="quiz__q">Yeni açılan bir node hiç DIO duymadı. Beklemek yerine ne gönderebilir?</p>
+    <button class="quiz__opt">DAO<span class="why">DAO, bir DODAG'a katıldıktan sonra kendi adresini yukarı bildirmek içindir. Henüz parent'ı yok.</span></button>
+    <button class="quiz__opt" data-correct>DIS<span class="why">Doğru. DIS komşulardan DIO ister; böylece node Trickle'ın uzun aralığını beklemeden DODAG'ı öğrenir.</span></button>
+    <button class="quiz__opt">Kendi DIO'sunu, rank 0 ile<span class="why">Root değilse kendi DIO'sunu ancak bir DODAG'a katılıp rank hesapladıktan sonra yayar. Rank 0 da root'a ait değil (ROOT_RANK = MinHopRankIncrease).</span></button>
+  </div>
+  <!-- Kaynak: RFC 6550 §1, §3.1–3.2 (DODAG, RPLInstanceID, DODAGID, version, rank, grounded/floating), §3.5.1 (DAGRank), §4.1–4.3 (MP2P, P2MP, P2P), §6 (ICMPv6 type 155, code 0x00–0x03, 0x80–0x83, 0x8A), §6.3.1 (DIO alanları), §6.7.6 (DODAG Configuration option), §17 (ROOT_RANK) · W1 xml slayt 53 (Contiki ağ bileşenleri) · W5 lecture: Orchestra'da RPL control (DIO, DIS, DAO) shared cell'lerde. RFC'ler repoda değil; hoca materyali dışı. -->
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="of" data-min="6">
+  <h2>DODAG kurulumu, objective function ve hysteresis</h2>
+  <div class="quiz" id="q-of-1">
+    <p class="quiz__q">MRHOF'ta bir node'un mevcut parent'ı üzerinden path ETX'i 3.0. Bir komşu üzerinden 2.6 görünüyor. Önerilen ayarlarla (PARENT_SWITCH_THRESHOLD = 192, yani 1.5 ETX) ne olur?</p>
+    <button class="quiz__opt">Hemen yeni komşuya geçer; daha küçük cost her zaman kazanır<span class="why">Hysteresis olmasaydı evet. MRHOF ancak kazanç eşiği aşınca geçer.</span></button>
+    <button class="quiz__opt" data-correct>Mevcut parent'ta kalabilir; kazanç (0.4) eşiğin (1.5) altında<span class="why">Doğru. Bu MRHOF'un hysteresis bileşeni: ölçüm gürültüsüyle sürekli parent değiştirmeyi (route flapping) önler.</span></button>
+    <button class="quiz__opt">DODAG'dan ayrılır ve yeniden katılır<span class="why">Ayrılmak için bir neden yok: mevcut parent hâlâ geçerli ve iyi.</span></button>
+  </div>
+  <p>DODAG yukarıdan aşağı kurulur:</p>
+  <ol>
+    <li>Root, rank'ı ROOT_RANK olan DIO'lar yayar.</li>
+    <li>Bir node DIO'ları duyar; her gönderen için "onu parent seçersem rank'ım ne olur?" sorusunu objective function ile hesaplar.</li>
+    <li>Rank'ı kendisininkinden küçük olacak komşulardan bir parent set kurar ve en iyisini <strong>preferred parent</strong> yapar. Upward route = preferred parent.</li>
+    <li>Kendi rank'ını hesaplar ve kendi DIO'larını yaymaya başlar. Dalga böylece yapraklara iner. Acelesi olan node DIS gönderebilir.</li>
+  </ol>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki objective function</span>
+    <p><strong>OF0</strong> (RFC 6552): node rank'ı = preferred parent'ın rank'ı + bir artış.</p>
+    <div class="w-collection-rpl-math">$$R(N) = R(P) + \text{rank\_increase}, \qquad \text{rank\_increase} = (R_f \cdot S_p + S_r) \cdot \text{MinHopRankIncrease}$$</div>
+    <p>$S_p$ (step_of_rank) link'in kalitesine göre seçilir: varsayılan 3, aralık 1–9. $R_f$ rank_factor (varsayılan 1), $S_r$ stretch (varsayılan 0). Bütün link'lere aynı step verilirse OF0 hop count gibi davranır. Hangi link'e hangi step'in verileceğini RFC uygulamaya bırakır.</p>
+    <p><strong>MRHOF</strong> (Minimum Rank with Hysteresis, RFC 6719): additive bir metric'le (önerilen ETX) path cost'u en aza indirir.</p>
+    <ul>
+      <li>Komşu üzerinden path cost = link metric'i + komşunun ilan ettiği cost (ETX'te ilan edilen rank). ETX rank'a <code>ETX × 128</code> olarak yazılır.</li>
+      <li>En küçük path cost'lu komşu preferred parent olur, <strong>ama</strong> yeni en iyi yol mevcut yoldan PARENT_SWITCH_THRESHOLD'dan daha az ucuzsa node mevcut parent'ta kalabilir. Bu hysteresis'tir.</li>
+      <li>ETX için önerilen değerler: MAX_LINK_METRIC = 512 (ETX 4'ten kötü link'i kullanma), MAX_PATH_COST = 32768 (ETX 256), PARENT_SWITCH_THRESHOLD = 192 (en az 1.5 daha az gönderim vaat etmeyen yola geçme), PARENT_SET_SIZE = 3.</li>
+    </ul>
+  </div>
+  <p>Hysteresis fikri yeni değil. Hoca W2 slayt 40'ta neighbor table için aynı şeyi önermişti: "Add neighbor if PRR &gt; 0.8; keep until PRR &lt; 0.5". Tek eşik, eşiğin etrafında dalgalanan ölçümde sürekli ekle-çıkar demektir; iki eşik bir kararlılık bandı yaratır. MRHOF bunu parent seçimine uygular.</p>
+  <div class="w-collection-rpl-box" id="w-dodag">
+    <p class="w-collection-rpl-guess"><b>Önce tahmin et:</b> Aşağıdaki ağda hop count tree'si ile ETX tree'si hangi node'larda farklı parent seçer? Sonra link 1–3'ün $d_f$'ini 0.90'dan 0.70'e indir: node 3 parent'ını değiştirir mi? Threshold 0 ile ve 1.5 ile ayrı ayrı tahmin et.</p>
+    <div class="w-collection-rpl-ctl">
+      <label>Link <select id="wd-link"></select></label>
+      <label>$d_f$ <input type="range" id="wd-df" min="0.05" max="1" step="0.01" /> <span id="wd-dfv" class="w-collection-rpl-mono"></span></label>
+      <label>$d_r$ <input type="range" id="wd-dr" min="0.05" max="1" step="0.01" /> <span id="wd-drv" class="w-collection-rpl-mono"></span></label>
+    </div>
+    <div class="w-collection-rpl-ctl">
+      <label>PARENT_SWITCH_THRESHOLD <select id="wd-thr"><option value="0">0 (hysteresis yok)</option><option value="0.5">0.5 ETX (64)</option><option value="1">1.0 ETX (128)</option><option value="1.5" selected>1.5 ETX (192, önerilen)</option></select></label>
+      <button class="btn btn--sm" id="wd-reset">Varsayılana dön</button>
+      <button class="btn btn--sm btn--accent" id="wd-noise">Gürültü: 30 tur</button>
+    </div>
+    <div class="w-collection-rpl-two">
+      <div><div class="w-collection-rpl-cap">Hop count tree (eşitlikte küçük ID)</div><svg class="w-collection-rpl-svg" id="wd-svg-hop" viewBox="0 0 340 300" aria-label="Hop count ile kurulmuş tree"></svg></div>
+      <div><div class="w-collection-rpl-cap">MRHOF (ETX) DODAG</div><svg class="w-collection-rpl-svg" id="wd-svg-etx" viewBox="0 0 340 300" aria-label="MRHOF ve ETX ile kurulmuş DODAG"></svg></div>
+    </div>
+    <p class="w-collection-rpl-legend"><span>Kalın mavi: preferred parent</span><span>Kesikli: ETX &gt; 4, MAX_LINK_METRIC dışında</span><span>Link etiketi: ETX</span></p>
+    <div class="table-wrap" id="wd-tbl"></div>
+    <div class="w-collection-rpl-out" id="wd-out"></div>
+    <div class="w-collection-rpl-log" id="wd-log" aria-live="polite"></div>
+    <p class="src">Model: link ETX'i iki yönde aynı alınır ($1/(d_f d_r)$). MRHOF state'i (mevcut parent'lar) slider değişikliklerinde korunur; bir node, alt ağacındaki bir node'u parent seçemez (RPL bunu rank kuralıyla sağlar). Rank burada $128 \cdot (1 + \text{path ETX})$ olarak gösteriliyor: MinHopRankIncrease = 128 seçildi (RFC 6550 varsayılanı 256).</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Hysteresis'i "daha iyi yolu asla seçmemek" sanmak. Kazanç eşiği geçince node geçer; mevcut parent geçersizleşirse (link MAX_LINK_METRIC'i aşar ya da parent kopar) hemen geçer.</li>
+      <li>MRHOF'u bir metric sanmak. MRHOF bir objective function'dır; metric ETX, hop count ya da latency olabilir.</li>
+      <li>OF0'ın "hop count" olduğunu ezberlemek. OF0 her link'e bir step verir; step link kalitesine göre değişirse OF0 da kaliteyi hesaba katar. Sabit step'te hop count'a indirgenir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-of-2">
+    <p class="quiz__q">Widget'taki gürültü denemesinde hysteresis'li MRHOF daha az parent değişikliği yaptı ama ortalama path ETX'i biraz daha yüksek çıktı. Bu ne demek?</p>
+    <button class="quiz__opt">Hysteresis bir hatadır, kaldırılmalı<span class="why">Her parent değişikliğinin de bir maliyeti var: yeni DIO'lar, Trickle reset, aşağı yönde DAO'lar, TSCH'de schedule güncellemesi (W5, Orchestra). Az bir ETX kaybı bunun karşılığıdır.</span></button>
+    <button class="quiz__opt" data-correct>Kararlılık için biraz optimalliktan vazgeçildi: bir takas<span class="why">Doğru. Threshold bu takasın ayarıdır. RFC'nin önerdiği 1.5 ETX, deneyimden gelen bir denge noktası.</span></button>
+    <button class="quiz__opt">Simülasyon yanlıştır; hysteresis cost'u değiştirmez<span class="why">Hysteresis bir node'u bazen en iyi olmayan parent'ta tutar; o anki path ETX'i daha yüksek olabilir. Simülasyon tam bunu gösteriyor.</span></button>
+  </div>
+  <!-- Kaynak: RFC 6550 §3.2.1 (OF, OCP), §8.2 (upward route discovery, parent set, preferred parent) · RFC 6552 §4.1 (R(N) = R(P) + rank_increase; DEFAULT_STEP_OF_RANK 3, MINIMUM 1, MAXIMUM 9, DEFAULT_RANK_FACTOR 1, DEFAULT_RANK_STRETCH 0) · RFC 6719 §3.1–3.5 (path cost, parent selection, hysteresis, Rank = ETX·128), §5 (MAX_LINK_METRIC 512, MAX_PATH_COST 32768, PARENT_SWITCH_THRESHOLD 192, PARENT_SET_SIZE 3) · W2 slayt 40 (hysteresis 0.8/0.5, hoca) · W5 Orchestra slaytları (parent change → cell update). Widget ağı özgün; varsayılan tree'ler python ile doğrulandı (verify/v3.py). -->
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="rank-loops" data-min="5">
+  <h2>Rank kuralı, loop ve repair</h2>
+  <div class="quiz" id="q-rank-1">
+    <p class="quiz__q">Node 3'ün rank'ı 420, child'ı node 4'ün rank'ı 569. Node 3'ün parent'ı koptu ve tek komşusu node 4. Node 4'ü parent seçerse ne olur?</p>
+    <button class="quiz__opt">Sorun yok; node 4 zaten komşu<span class="why">Node 4'ün yolu node 3'ten geçiyor. Node 3, node 4'e verirse packet ikisinin arasında döner.</span></button>
+    <button class="quiz__opt" data-correct>Loop oluşur; RPL'in rank kuralı buna izin vermez<span class="why">Doğru. Bir node, rank'ı kendisininkinden küçük olmayan bir komşuyu parent seçemez (rank'ını o komşunun üstüne çıkarmadıkça), ve kendi child'ını seçmek kesin loop'tur.</span></button>
+    <button class="quiz__opt">Node 4'ün rank'ı düşer ve her şey düzelir<span class="why">Node 4'ün rank'ı node 3'e bağlı; node 3 artık node 4'e bağlanırsa ikisi birbirinin rank'ını sonsuza kadar artırır (count-to-infinity).</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · bir DODAG Version içinde rank hareketi (RFC 6550 §8.2.2.4)</span>
+    <ol>
+      <li>Node, parent set'indeki herhangi bir node'un rank'ına eşit ya da ondan küçük bir rank <strong>ilan edemez</strong>. Yani rank root'tan uzaklaştıkça kesin olarak artar. Loop'ları önleyen kural budur.</li>
+      <li>Node rank'ını <strong>düşürebilir</strong> (root'a yaklaşmak, "moving up"); bu loop riski taşımaz.</li>
+      <li>Node rank'ını <strong>artırmak</strong> ("moving down") isterse sınır var: bu version'da ilan ettiği en düşük rank $L$ ise, en fazla $L + \text{DAGMaxRankIncrease}$ ilan edebilir. Daha fazlası gerekiyorsa rank'ını INFINITE_RANK (0xFFFF) ilan etmelidir. İstisna: DAGMaxRankIncrease $= 0$ ise bu mekanizma kapalıdır ("this mechanism is disabled", RFC 6550 §6.7.6); bu sınır rank artışını engellemez.</li><!-- Kaynak: RFC 6550 §6.7.6 (MaxRankIncrease: "If DAGMaxRankIncrease is 0, then this mechanism is disabled"), §8.2.2.4 kural 3. Contiki RPL acceptable_rank() de max_rankinc == 0 iken sınırı uygulamaz. -->
+    </ol>
+    <ul>
+      <li><strong>Poisoning:</strong> INFINITE_RANK ilan etmek. Child'lar onu parent set'ten çıkarır.</li>
+      <li><strong>Detaching:</strong> parent bulamayan node kendi <em>floating DODAG</em>'ının root'u olur ve bunu DIO ile duyurur.</li>
+      <li><strong>Local repair:</strong> aynı version içinde, bu kurallara uyarak başka parent bulmak.</li>
+      <li><strong>Global repair:</strong> root DODAGVersionNumber'ı artırır. Yeni version'da node'lar eski rank'larıyla sınırlı değildir; DODAG baştan, temiz kurulur. DSDV'deki sequence number fikrinin akrabası: yeni version, eski bilgiyi geçersiz kılar.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · data-path validation (loop tespiti)</span>
+    <p>Kurallar loop'u önlemeye çalışır, ama kaybolan DIO'larla geçici loop'lar yine olabilir. RPL bunu data packet'iyle yakalar: packet'in taşıdığı RPL Packet Information'da yön biti (<strong>O</strong>, down), <strong>R</strong> (Rank-Error), <strong>F</strong> (Forwarding-Error) ve <strong>SenderRank</strong> vardır. Yukarı giden bir packet, rank'ı alıcınınkinden küçük bir node'dan geliyorsa ilerleme yok demektir: tutarsızlık. İlk tespitte R biti set edilir ve packet devam eder; aynı packet'te ikinci tespitte packet atılır ve Trickle timer sıfırlanır (local repair başlar).</p>
+  </div>
+  <div class="w-collection-rpl-box" id="w-rank">
+    <p class="w-collection-rpl-guess"><b>Önce tahmin et:</b> Varsayılan ETX DODAG'ında node 5, node 3'ü parent seçmek istese rank'ı ne olur, DAGMaxRankIncrease = 256 ile izin var mı? Node 7 için node 6? Node 1 için node 3?</p>
+    <div class="w-collection-rpl-ctl">
+      <label>Node <select id="wr-n"></select></label>
+      <label>Önerilen parent <select id="wr-q"></select></label>
+      <label>DAGMaxRankIncrease <input type="text" id="wr-max" value="256" inputmode="numeric" /></label>
+      <button class="btn btn--sm btn--accent" id="wr-go">Kontrol et</button>
+    </div>
+    <div class="w-collection-rpl-err" id="wr-err"></div>
+    <div class="w-collection-rpl-out" id="wr-out"></div>
+    <div class="table-wrap" id="wr-tbl"></div>
+    <p class="src">DODAG, bir önceki widget'ın varsayılan ağından MRHOF ile kurulur. Rank $= 128 \cdot (1 + \text{path ETX})$, yuvarlanmış; $L$ = node'un şimdiki rank'ı (kararlı durumda ilan ettiği en düşük rank). Sadeleştirme: yeni parent set'te yalnızca önerilen parent kalıyor.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Rank kuralını "her zaman rank'ı en küçük komşuyu seç" diye okumak. Kural kimin parent <em>olamayacağını</em> söyler; kimin seçileceğini objective function söyler.</li>
+      <li>Global ve local repair'ı karıştırmak. Version numarasını yalnızca <strong>root</strong> artırır (global). Bir node'un kendi başına yaptığı onarım local'dir ve aynı version'da kalır.</li>
+      <li>Poisoning'i "node kapanıyor" sanmak. Node data göndermeye devam edebilir; sadece kimsenin onu parent olarak kullanmamasını ilan eder.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-rank-2">
+    <p class="quiz__q">Ağın büyük kısmında rank'lar karıştı ve local repair'lar yetişmiyor. Kim, ne yapmalı?</p>
+    <button class="quiz__opt">Her node kendi DODAGVersionNumber'ını artırmalı<span class="why">Version numarası root'a aittir. Her node kendi version'ını açsa tek bir DODAG kalmaz.</span></button>
+    <button class="quiz__opt" data-correct>Root DODAGVersionNumber'ı artırarak global repair başlatmalı<span class="why">Doğru. Yeni version'da node'lar eski rank sınırlarından bağımsız olarak yeniden yerleşir. Yeni version bir Trickle tutarsızlığıdır, bu yüzden DIO'lar hızla yayılır.</span></button>
+    <button class="quiz__opt">Bütün node'lar INFINITE_RANK ilan etmeli<span class="why">Bu herkesi DODAG'dan kopartır ve root'un yeniden başlatması gerekir. Global repair aynı sonucu kontrollü biçimde verir.</span></button>
+  </div>
+  <!-- Kaynak: RFC 6550 §3.2.2 (global vs local repair), §3.4 / §11.2 (loop avoidance, data-path validation; RPL Packet Information O/R/F/SenderRank), §11.2.2.2 (ilk tespit R bit, ikinci tespit drop + Trickle reset), §8.2.2.4 (rank kuralları 1–5), §8.2.2.5 (poisoning), §8.2.2.6 (detaching, floating DODAG), §17 (INFINITE_RANK 0xFFFF) · D&P §7.5.1 (DSDV sequence number fikri) · widget örnekleri python ile doğrulandı (5→3: 725 > 437+256; 7→6: 638 ≤ 595+256). -->
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="trickle" data-min="6">
+  <h2>Trickle timer: sakin ağda sus, değişince konuş</h2>
+  <div class="quiz" id="q-tr-1">
+    <p class="quiz__q">Trickle'da bir node, $c &lt; k$ olduğunda gönderir. Tek bir broadcast alanında 8 node var ve $k = 1$. Her şey tutarlıyken bir interval'de kaç DIO gönderilir (interval'ler senkronsa)?</p>
+    <button class="quiz__opt">8: her node bir tane<span class="why">Bu periyodik yayın olurdu. Trickle'ın amacı tam bunu bastırmak (suppression).</span></button>
+    <button class="quiz__opt" data-correct>1: ilk gönderen diğerlerinin $c$'sini 1 yapar, onlar susar<span class="why">Doğru. $t$'si en erken gelen node gönderir; diğerleri o tutarlı mesajı duyunca $c = 1 \geq k$ olur ve kendi $t$'lerinde susar.</span></button>
+    <button class="quiz__opt">0: her şey tutarlıysa kimse göndermez<span class="why">Tamamen susmak, yeni bir node'un ya da bir değişikliğin fark edilmemesi demek. Trickle her interval'de en az $k$ mesaja izin verir.</span></button>
+  </div>
+  <p>DIO'lar ne sıklıkta gönderilmeli? Sık gönderirsen ağ değişikliğe hızlı uyar ama sürekli enerji yakarsın. Seyrek gönderirsen ucuz olur ama kopan bir parent geç fark edilir. Trickle (RFC 6206) ikisini birden ister: ağ sakinken mesajlar üstel olarak seyrekleşir, bir tutarsızlık görülünce hemen sıklaşır. Fikir ilk olarak sensor ağlarında kod yayımı için ortaya çıktı (D&amp;P s.296: Levis et al. 2004; Maté ve Deluge aynı yaklaşımı kullanır). RPL, DIO'ları bununla zamanlar.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Trickle'ın altı kuralı (RFC 6206 §4.2)</span>
+    <p>Parametreler: $I_{\min}$, $I_{\max}$ ($I_{\min}$'in kaç kez ikiye katlanacağı: "doublings") ve redundancy constant $k$. Değişkenler: interval $I$, zaman $t$, sayaç $c$.</p>
+    <ol>
+      <li>Başlarken $I$, $[I_{\min}, I_{\max}]$ aralığında bir değer alır.</li>
+      <li>Her interval başında $c = 0$ ve $t$, $[I/2, I)$ aralığından rastgele seçilir.</li>
+      <li>Tutarlı (consistent) bir mesaj duyunca $c$ bir artar.</li>
+      <li>$t$ anında node <strong>yalnızca $c &lt; k$ ise</strong> gönderir (suppression).</li>
+      <li>Interval bitince $I$ ikiye katlanır, ama $I_{\max}$'ı geçmez.</li>
+      <li>Tutarsız (inconsistent) bir mesaj duyulursa ve $I &gt; I_{\min}$ ise timer sıfırlanır: $I = I_{\min}$, yeni interval (kural 2). $I$ zaten $I_{\min}$ ise hiçbir şey yapılmaz.</li>
+    </ol>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · RPL'de "tutarlı" ve "tutarsız"</span>
+    <ul>
+      <li><strong>Tutarlı:</strong> daha küçük DAGRank'lı bir göndericiden gelen ve alıcının parent set'ini, preferred parent'ını ya da rank'ını değiştirmeyen bir DIO.</li>
+      <li><strong>Tutarsız (timer reset):</strong> data-path validation'da bir tutarsızlık; multicast DIS; yeni bir DODAG Version'a katılmak (örneğin root version'ı artırdığında). Unicast DIS timer'ı sıfırlamaz; ona tek bir unicast DIO ile cevap verilir.</li>
+      <li>RPL'de parametreler DIO'dan öğrenilir: $I_{\min} = 2^{\text{DIOIntervalMin}}$ ms, $I_{\max}$ = $I_{\min}$'in DIOIntervalDoublings kez ikiye katlanmışı, $k$ = DIORedundancyConstant. Varsayılanlar: DIOIntervalMin = 3 ($I_{\min} = 8$ ms), doublings = 20 ($I_{\max} = 8 \text{ ms} \cdot 2^{20} \approx 8389$ s $\approx 2.3$ saat), $k = 10$. RPL'de $k = 0$, "sonsuz" demektir: Trickle hiç bastırmaz.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · bir saatte kaç DIO</span>
+    <p>8 node, tek broadcast alanı, $I_{\min} = 1$ s, 6 doubling ($I_{\max} = 64$ s), $k = 1$, interval'ler senkron. Interval'ler: 1, 2, 4, 8, 16, 32 s (toplam 63 s), sonra hep 64 s. Bir saat (3600 s) içinde ilk 6 interval ve 55 tam 64 s'lik interval biter (son biten 3583 s'de). Sonraki interval'in $t$'si en erken $3583 + 32 = 3615$ s'ye düşer, yani saatin dışında kalır. Her interval'de tam bir DIO çıkar: <strong>61 DIO</strong>. Her node'un saniyede bir DIO yaydığı saf periyodik yayında $8 \times 3600 = 28\,800$ DIO olurdu. Root version'ı artırsa bütün node'lar $I_{\min}$'e döner ve ilk saniyelerde yine hızlı konuşur.</p>
+  </div>
+  <div class="w-collection-rpl-box" id="w-trickle">
+    <p class="w-collection-rpl-guess"><b>Önce tahmin et:</b> $k$'yı 1'den 2'ye çıkarırsan toplam DIO sayısı kabaca ne olur? "Başlangıçlar kaydırılmış" seçeneğini açınca interval başına mesaj sayısı $k$'nın üstüne çıkar mı?</p>
+    <div class="w-collection-rpl-ctl">
+      <label>Node <input type="number" id="wt-n" value="8" min="2" max="12" step="1" /></label>
+      <label>$I_{\min}$ (s) <input type="number" id="wt-imin" value="1" min="0.1" max="10" step="0.1" /></label>
+      <label>Doublings <input type="number" id="wt-dbl" value="4" min="0" max="8" step="1" /></label>
+      <label>$k$ <input type="number" id="wt-k" value="1" min="1" max="10" step="1" /></label>
+      <label>Süre (s) <input type="number" id="wt-T" value="120" min="10" max="600" step="10" /></label>
+    </div>
+    <div class="w-collection-rpl-ctl">
+      <label><input type="checkbox" id="wt-inc" checked /> Tutarsızlık anı (s) <input type="number" id="wt-tinc" value="70" min="0" max="600" step="1" /></label>
+      <label><input type="checkbox" id="wt-desync" /> Başlangıçlar kaydırılmış</label>
+      <label>Seed <input type="number" id="wt-seed" value="7" min="1" max="9999" step="1" /></label>
+      <button class="btn btn--sm btn--accent" id="wt-go">Simüle et</button>
+    </div>
+    <div class="w-collection-rpl-err" id="wt-err"></div>
+    <div class="w-collection-rpl-out" id="wt-out"></div>
+    <div id="wt-step"></div>
+    <p class="w-collection-rpl-legend"><span>● gönderdi</span><span>○ bastırıldı ($c \geq k$)</span><span>| interval sınırı</span><span>kırmızı çizgi: tutarsızlık</span></p>
+    <p class="src">Model: bütün node'lar birbirini duyar ve kayıp yok. Tutarsızlık anında her node bunu duymuş sayılır (örneğin root version'ı artırdı). Karşılaştırma: her node'un $I_{\min}$'de bir yaydığı periyodik yayın.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$t$'nin $[0, I)$'den seçildiğini sanmak. RFC $[I/2, I)$ der. İlk yarı "listen-only"dir: interval'leri senkron olmayan node'larda, interval'i yeni başlamış bir node'un hemen gönderip başkalarını bastırmadan konuşmasını (short-listen sorunu) engeller.</li>
+      <li>RPL'in varsayılan $k = 10$'unu unutmak. Komşu sayısı 10'dan azsa suppression neredeyse hiç devreye girmez; seyreltmeyi interval'in büyümesi yapar.</li>
+      <li>Tutarsızlıkta node'un hemen gönderdiğini sanmak. Timer sıfırlanır, gönderim yeni ve kısa interval'in $t$ anında olur. Bu bilerek böyledir: herkesin aynı anda cevap vermesi bir broadcast storm yaratırdı.</li>
+      <li>Duty-cycled bir MAC'te broadcast pahalıdır (LPL'de uzun preamble ya da tekrarlı gönderim; TSCH'de shared cell). Trickle'ın tasarrufu bu yüzden enerjide büyük fark yapar.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="DP-ex7.1">
+    <span class="box__label">D&amp;P Exercise 7.1 · kitap alıştırması</span>
+    <p>"The previous chapter presented several MAC protocols, while this chapter introduced routing protocols. Can you think of examples how the choice of MAC protocol affects the design, performance, and efficiency of the routing protocol?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Routing'in control mesajları (DIO, RREQ, flood) hangi tür gönderim? W4'teki LPL MAC'leri o tür gönderimi nasıl yapıyordu?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>ETX'teki "transmission" sayısını MAC'in retry'ı mı yapıyor? TSCH'de bir parent değişince ne güncellenmeli (W5)?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Broadcast maliyeti:</strong> duty-cycled (LPL) MAC'lerde komşular farklı anlarda uyanır; bir broadcast ya uzun bir preamble ya da wake-up interval boyunca tekrarlı gönderim ister (W4). Flooding'e ve sık DIO'ya dayanan routing pahalılaşır; Trickle gibi seyreltme mekanizmaları bu yüzden önemli. K&amp;W'nin "wireless multicast advantage"ı da ancak komşular aynı anda dinliyorsa geçerlidir.</li>
+        <li><strong>Link metric'i:</strong> ETX'teki gönderimleri MAC'in ACK ve retransmission'ları yapar; MAC'in retry sayısı ve CCA davranışı ölçülen ETX'i değiştirir. Hidden terminal'ler ve collision'lar (W4) link'i gerçekte olduğundan kötü gösterebilir.</li>
+        <li><strong>Gecikme ve topoloji:</strong> scheduled MAC'lerde (TDMA, TSCH) bir hop'un gecikmesi schedule'a bağlıdır; routing ile schedule birlikte tasarlanmalı ("Scheduling is temporal routing support", W5). Parent değişince TSCH cell'leri de değişmeli (Orchestra parent'tan cell türetir). Sık parent değişimi bu yüzden pahalı: MRHOF hysteresis'inin bir gerekçesi.</li>
+        <li><strong>Asymmetry ve ACK:</strong> MAC ACK kullanmıyorsa $d_r$ ölçülemez; ACK'li bir MAC reverse yönü de test eder.</li>
+        <li><strong>Enerji dağılımı:</strong> sink'e yakın relay'lerin MAC'i daha çok uyanık kalmak zorundadır (çok child, çok RX cell); routing'in yük dengesi MAC'in enerji dağılımını belirler.</li>
+      </ol>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/dargie-poellabauer-fundamentals-of-wireless-sensor-networks.pdf" target="_blank" rel="noopener">Orijinal kitap (D&amp;P, s. 197)</a></p>
+    <!-- Kaynak: D&P Exercise 7.1 (s.197) · cevap W4 (LPL broadcast), W5 (TSCH, Orchestra, "Scheduling is temporal routing support", çok child'lı parent'ın RX cell'leri), K&W §11.2.1 (wireless multicast advantage MAC'e bağlı) ve bu dersin ETX bölümünden derlendi. -->
+  </div>
+  <div class="quiz" id="q-tr-2">
+    <p class="quiz__q">Bir node'un Trickle interval'i şu an $I_{\max}$'ta. Komşusundan, kendisinin bulunduğundan daha yeni bir DODAG Version'lı bir DIO duyuyor ve o version'a katılıyor. Ne olur?</p>
+    <button class="quiz__opt">Hiçbir şey; tutarlı mesajlar sadece $c$'yi artırır<span class="why">Yeni bir DODAG Version'a katılmak RFC 6550'de açıkça bir tutarsızlık olarak sayılıyor.</span></button>
+    <button class="quiz__opt" data-correct>Timer sıfırlanır: $I = I_{\min}$; node kısa süre içinde yeni version'ı DIO ile yayar<span class="why">Doğru. Global repair'ın ağda hızla yayılmasını sağlayan mekanizma bu.</span></button>
+    <button class="quiz__opt">Node hemen, beklemeden bir DIO gönderir<span class="why">Trickle tek gönderim anı olarak $t$'yi kullanır; reset'ten sonra yeni interval'in $t$'sini bekler. Hemen cevap broadcast storm'a yol açardı.</span></button>
+  </div>
+  <!-- Kaynak: RFC 6206 §4.1 (Imin, Imax doublings, k; 100 ms · 2^16 örneği), §4.2 (altı kural, gecikmeli cevabın gerekçesi), §5 (listen-only period) · RFC 6550 §8.3 (consistent/inconsistent listesi, unicast DIS), §8.3.1 (Imin = 2^DIOIntervalMin ms, k = 0 sonsuz), §17 (DEFAULT_DIO_INTERVAL_MIN 3 → 8 ms, DOUBLINGS 20 → 2.3 h, REDUNDANCY 10) · D&P s.295–296 (Trickle, Maté, Deluge) · örnek: 1+2+4+8+16+32 = 63 s, (3600−63)/64 = 55.27 → 6 + 55 = 61 DIO (kısmi interval'in t'si ≥ 3615 s); 8·3600 = 28 800; widget simülasyonu da 61 veriyor (node ile doğrulandı). -->
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="downward" data-min="6">
+  <h2>Downward route: DAO, storing ve non-storing</h2>
+  <div class="quiz" id="q-down-1">
+    <p class="quiz__q">Upward route'lar DIO ile kuruldu. Root, derindeki node 9'a bir komut göndermek istiyor. Neden DIO'lar yetmez?</p>
+    <button class="quiz__opt" data-correct>DIO'lar her node'a sadece "yukarısı nerede" bilgisini verir; kimse altında hangi adreslerin olduğunu bilmez<span class="why">Doğru. Aşağı yön için her hedefin kendini yukarı bildirmesi gerekir: DAO.</span></button>
+    <button class="quiz__opt">DIO'lar sadece root'tan gönderilir<span class="why">Her node kendi DIO'sunu yayar. Sorun yönde değil, içerikte: DIO bir adres listesi taşımaz.</span></button>
+    <button class="quiz__opt">Yeter; packet DIO'ların geldiği yolu izler<span class="why">DIO'lar broadcast'tir; bir node'un hangi child'ının altında 9 olduğunu söylemez.</span></button>
+  </div>
+  <p>RPL'in aşağı yönü, DIO'daki <strong>MOP</strong> (Mode of Operation) alanıyla bütün DODAG için root tarafından seçilir:</p>
+  <div class="table-wrap"><table>
+    <tr><th>MOP</th><th>Anlamı</th></tr>
+    <tr><td>0</td><td>Downward route yok; DAO gönderilmez. Sadece collection.</td></tr>
+    <tr><td>1</td><td>Non-storing mode</td></tr>
+    <tr><td>2</td><td>Storing mode, multicast desteği yok</td></tr>
+    <tr><td>3</td><td>Storing mode, multicast desteğiyle</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki mod</span>
+    <ul>
+      <li><strong>Storing mode:</strong> DAO, link-local adreslerle bir hop yukarı, DAO parent'a gider. Her router "bu hedef şu child'ımın altında" diye bir satır saklar ve kendi DAO'sunu yukarı iletir. Downward packet her hop'ta tabloya bakılarak, IPv6 destination adresine göre iletilir. P2P packet ortak bir ataya kadar çıkar, oradan iner.</li>
+      <li><strong>Non-storing mode:</strong> node'lar route saklamaz. Her node DAO'sunu doğrudan root'a (global ya da unique-local adresle) gönderir ve içinde parent'ını bildirir. Root, bu "child → parent" kayıtlarından her hedefe yolu kendisi kurar ve packet'e bir <strong>source routing header</strong> (SRH, RFC 6554, IPv6 Routing Header type 3) ekler. P2P packet önce root'a çıkar, root onu (bir IPv6-in-IPv6 tünelinde) source route ile indirir.</li>
+      <li>Bir node, root'un ilan ettiği MOP'u destekleyemiyorsa ancak <em>leaf</em> olarak katılabilir.</li>
+      <li>Parent değişince eski parent'a bir <strong>No-Path DAO</strong> ile route silinir (storing).</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · bedeller</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Storing</th><th>Non-storing</th></tr>
+      <tr><td>Bellek</td><td>Her router alt ağacının bütün hedeflerini saklar; root'a yakın node'larda tablo büyür (W1: "Where does this state live?").</td><td>Yalnızca root saklar (her node için bir parent kaydı). Node'lar sadece default route tutar.</td></tr>
+      <tr><td>Header</td><td>Ek header yok.</td><td>SRH, path uzadıkça büyür: $8 + (n-1)(16 - \text{CmprI}) + (16 - \text{CmprE})$ byte, 8'in katına tamamlanır ($n$ = SRH'deki adres sayısı).</td></tr>
+      <tr><td>P2P yolu</td><td>Ortak ataya kadar; çoğu zaman kısa.</td><td>Hep root üzerinden; root bir darboğaz ve single point of failure.</td></tr>
+      <tr><td>Parent değişimi</td><td>Ara node'ların tabloları güncellenmeli (DAO, No-Path DAO).</td><td>Sadece yeni parent'ı root'a bildiren tek bir DAO.</td></tr>
+    </table></div>
+  </div>
+  <div class="w-collection-rpl-box" id="w-down">
+    <p class="w-collection-rpl-guess"><b>Önce tahmin et:</b> Node 4'ten node 8'e bir packet: storing mode'da kaç hop, non-storing mode'da kaç hop? Root'tan node 9'a (derinlik 5) non-storing'de, adresler sıkıştırılmadan SRH kaç byte?</p>
+    <div class="w-collection-rpl-ctl">
+      <label>Mod <select id="wn-mode"><option value="s">Storing</option><option value="n">Non-storing</option></select></label>
+      <label>Kaynak <select id="wn-src"></select></label>
+      <label>Hedef <select id="wn-dst"></select></label>
+      <label>Adres sıkıştırma <select id="wn-cmp"><option value="0">yok (16 B/adres)</option><option value="8">ortak /64 prefix (8 B)</option><option value="14">16-bit kısa (2 B)</option></select></label>
+      <button class="btn btn--sm btn--accent" id="wn-go">Yolu göster</button>
+    </div>
+    <div class="w-collection-rpl-err" id="wn-err"></div>
+    <div class="w-collection-rpl-out" id="wn-out"></div>
+    <div id="wn-step"></div>
+    <div class="table-wrap" id="wn-tbl"></div>
+    <p class="src">SRH boyu RFC 6554 §3'e göre: 8 byte'lık sabit kısım + adresler + 8'in katına padding. İlk hop'un adresi IPv6 destination alanında taşınır, bu yüzden $h$ hop'luk bir inişte SRH'de $n = h - 1$ adres bulunur. Kaynak root değilse root'un eklediği 40 byte'lık dış IPv6 header'ı ayrıca gösterilir.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Storing mode'da sadece root'un tablo tuttuğunu sanmak. Tersine: storing'de bütün router'lar tutar, non-storing'de yalnızca root.</li>
+      <li>Non-storing mode'da DAO'nun parent'a gittiğini sanmak. DAO doğrudan root'a gider (uçtan uca), içinde parent bilgisi vardır.</li>
+      <li>Non-storing'i "bedava" sanmak. Node'ların RAM'i kurtulur, ama header byte'ları ve root çevresindeki trafik artar. 127 byte'lık bir 802.15.4 frame'inde birkaç onluk byte'lık bir SRH fragmentation'a yol açabilir (naming-6lowpan dersi).</li>
+      <li>Upward trafiğin mod'dan etkilendiğini sanmak. İki modda da upward route aynıdır: preferred parent.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-down-2">
+    <p class="quiz__q">RAM'i çok küçük (birkaç KB) mote'lardan oluşan, root'u güçlü bir border router olan bir ağ için hangi MOP daha uygun? Root'un mote'lara komut gönderebilmesi de gerekiyor.</p>
+    <button class="quiz__opt" data-correct>Non-storing (MOP 1): route state'i güçlü root'ta tutulur<span class="why">Doğru. Mote'lar sadece default route tutar. Bedel: SRH header'ı ve her downward/P2P packet'in root'tan geçmesi.</span></button>
+    <button class="quiz__opt">Storing (MOP 2): her mote kendi alt ağacını bilir<span class="why">Root'a yakın mote'lar yüzlerce satır saklamak zorunda kalabilir; küçük RAM'de bu en riskli seçenek.</span></button>
+    <button class="quiz__opt">MOP 0: downward route gerekmez<span class="why">Ancak ağa hiç komut ya da sorgu gönderilmeyecekse. Burada root komut gönderecek, yani downward route gerekiyor.</span></button>
+  </div>
+  <!-- Kaynak: RFC 6550 §4.2 (P2MP), §4.3 (P2P ortak ata), §6.3.1 (MOP tablosu, Şekil 15), §6.4.3 (No-Path DAO), §9.1–9.2 (DAO parent, link-local vs global adres, storing'de bütün non-root non-leaf node'lar saklar, non-storing'de root), §9.7 (non-storing: DAO root'a, transit info'da parent), §9.8 (storing) · RFC 6554 §2–3 (SRH format, CmprI/CmprE/Pad, type 3, IPv6-in-IPv6) · W1 xml slayt 14 ("Where does this state live?") · W5 (RPL control shared cell) · widget sayıları node + python ile doğrulandı. -->
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="final" data-min="5">
+  <h2>Son kontrol</h2>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Bir link'in $d_f = 0.8$, $d_r = 0.5$. Link ETX'i kaç?</p>
+    <button class="quiz__opt">1.3<span class="why">$d_f$ ile $d_r$ toplanmaz. Başarı ikisinin birlikte olmasıdır: çarp, sonra tersini al.</span></button>
+    <button class="quiz__opt" data-correct>2.5<span class="why">Doğru: $1/(0.8 \times 0.5) = 1/0.4 = 2.5$.</span></button>
+    <button class="quiz__opt">1.25<span class="why">Bu sadece forward yönü ($1/0.8$). ACK dönmezse de yeniden gönderilir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Hangisi RPL'de bir Trickle timer reset'ine (tutarsızlık) yol açmaz?</p>
+    <button class="quiz__opt">Multicast DIS almak<span class="why">RFC 6550 bunu açıkça tutarsızlık sayıyor: yeni bir node DODAG bilgisi istiyor, hızlı DIO gerekli.</span></button>
+    <button class="quiz__opt">Yeni bir DODAG Version'a katılmak<span class="why">Bu da tutarsızlık: global repair'ın hızlı yayılması buna dayanıyor.</span></button>
+    <button class="quiz__opt" data-correct>Daha küçük rank'lı bir komşudan, kendi parent'ını ve rank'ını değiştirmeyen bir DIO almak<span class="why">Doğru. Bu tutarlı bir mesajdır; sadece $c$'yi artırır ve suppression'a katkı yapar.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Storing mode'da root'un hemen altındaki bir node'un 40 node'luk bir alt ağacı var. Non-storing'e geçilirse bu node'un routing tablosu ne olur?</p>
+    <button class="quiz__opt">40 satırdan 80 satıra çıkar<span class="why">Non-storing'de ara node'lar downward route saklamaz.</span></button>
+    <button class="quiz__opt" data-correct>Downward satırları kalkar; sadece parent'a giden default route kalır<span class="why">Doğru. 40 hedefin bilgisi artık root'ta, source route olarak. Bu node'dan geçen downward packet'ler SRH'yi izler.</span></button>
+    <button class="quiz__opt">Değişmez; MOP sadece root'u etkiler<span class="why">MOP bütün DODAG'ın davranışını belirler ve her node uymak zorundadır (uymayan yalnızca leaf olabilir).</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">MRHOF'ta threshold 1.5 ETX. Mevcut yol 4.0, yeni bulunan yol 2.4. Node ne yapar?</p>
+    <button class="quiz__opt">Kalır; hysteresis değişimi engeller<span class="why">Kazanç $4.0 - 2.4 = 1.6$, eşikten (1.5) büyük. Hysteresis yalnızca küçük kazançları yok sayar.</span></button>
+    <button class="quiz__opt" data-correct>Yeni parent'a geçer; kazanç (1.6) eşiği aşıyor<span class="why">Doğru. Eşiği aşan bir iyileşme gerçek bir değişim sayılır.</span></button>
+    <button class="quiz__opt">Global repair ister<span class="why">Parent değişimi node'un yerel kararıdır; version'ı yalnızca root artırır ve buna gerek yok.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Hocanın W3'teki uyarısı ("The shortest or lowest-ETX path is not always the best long-term choice") RPL'in hangi parçasıyla ele alınabilir?</p>
+    <button class="quiz__opt">Trickle timer'la<span class="why">Trickle control mesajlarının zamanlamasını yönetir; hangi parent'ın seçileceğine karışmaz.</span></button>
+    <button class="quiz__opt">MOP seçimiyle<span class="why">MOP downward route'ların nasıl tutulacağını belirler, upward yükü dağıtmaz.</span></button>
+    <button class="quiz__opt" data-correct>Objective function ve metric seçimiyle: kalan enerji gibi node metric'leri ya da yük hesaba katılabilir<span class="why">Doğru. RPL, OF ile metric'leri (RFC 6551'de node energy dahil) protokolden ayırır. ETX'e dayalı MRHOF sadece bir seçenek.</span></button>
+  </div>
+  <!-- Sıradaki konu (W8): Routing II, robustness ve mobility. Bu derste kısa geçilen multipath ve mobile sink orada genişleyecek. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+/* Shared helpers and the widget network */
+const CR = {
+  esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); },
+  rng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  },
+  prob(v) {
+    const x = Number(String(v).trim().replace(",", "."));
+    return (String(v).trim() !== "" && isFinite(x) && x > 0 && x <= 1) ? x : null;
+  },
+  math(el) { if (window.Lab && Lab.renderMath) Lab.renderMath(el); },
+  etx(df, dr) { return 1 / (df * dr); },
+  /* Turkish case suffix after a number or "R": sfx(5, "gen") -> "5'in" */
+  sfx(x, k) {
+    const T = { "1": ["in", "e", "den", "i"], "2": ["nin", "ye", "den", "yi"], "3": ["ün", "e", "ten", "ü"], "4": ["ün", "e", "ten", "ü"], "5": ["in", "e", "ten", "i"],
+      "6": ["nın", "ya", "dan", "yı"], "7": ["nin", "ye", "den", "yi"], "8": ["in", "e", "den", "i"], "9": ["un", "a", "dan", "u"],
+      "10": ["un", "a", "dan", "u"], "20": ["nin", "ye", "den", "yi"], "30": ["un", "a", "dan", "u"], "40": ["ın", "a", "tan", "ı"], "50": ["nin", "ye", "den", "yi"],
+      "60": ["ın", "a", "tan", "ı"], "70": ["in", "e", "ten", "i"], "80": ["in", "e", "den", "i"], "90": ["ın", "a", "dan", "ı"], "100": ["ün", "e", "den", "ü"], "1000": ["in", "e", "den", "i"], R: ["nin", "ye", "den", "yi"] };
+    const i = { gen: 0, dat: 1, abl: 2, acc: 3 }[k];
+    const str = String(x);
+    let key = "R";
+    if (str !== "R") {
+      const v = Math.abs(Math.round(+str));
+      if (v % 10) key = String(v % 10);
+      else if (v % 100) key = String(v % 100);
+      else if (v % 1000) key = "100";
+      else key = "1000";
+      if (v === 0) key = "40";
+    }
+    return `${str}'${T[key][i]}`;
+  }
+};
+
+/* The DODAG network used by widgets 2 and 3 */
+const NET = {
+  ids: ["R", "1", "2", "3", "4", "5", "6", "7"],
+  pos: { R: [170, 28], "1": [62, 108], "2": [280, 104], "3": [170, 122], "4": [210, 204], "5": [86, 212], "6": [298, 206], "7": [176, 280] },
+  base: [
+    ["R", "1", 0.95, 0.95], ["R", "3", 0.60, 0.65], ["R", "2", 0.90, 0.85], ["1", "3", 0.90, 0.95], ["1", "5", 0.85, 0.90],
+    ["3", "5", 0.70, 0.60], ["3", "4", 0.95, 0.90], ["2", "4", 0.50, 0.55], ["2", "6", 0.92, 0.90], ["4", "6", 0.90, 0.85],
+    ["5", "7", 0.88, 0.92], ["4", "7", 0.60, 0.50], ["6", "7", 0.85, 0.80]
+  ],
+  MAXLINK: 4,
+  links(list) { return list.map(l => ({ u: l[0], v: l[1], df: l[2], dr: l[3] })); },
+  adj(links) {
+    const a = {};
+    this.ids.forEach(n => { a[n] = {}; });
+    links.forEach(l => { const e = CR.etx(l.df, l.dr); a[l.u][l.v] = e; a[l.v][l.u] = e; });
+    return a;
+  },
+  idOrder(x, y) { return (x === "R" ? -1 : +x) - (y === "R" ? -1 : +y); },
+  hopTree(adj) {
+    const h = { R: 0 }, par = {}, q = ["R"];
+    while (q.length) {
+      const u = q.shift();
+      Object.keys(adj[u]).sort(this.idOrder).forEach(v => { if (!(v in h)) { h[v] = h[u] + 1; par[v] = u; q.push(v); } });
+    }
+    return { h, par };
+  },
+  costs(par, adj) {
+    const c = { R: 0 };
+    const get = (n, seen) => {
+      if (n in c) return c[n];
+      const p = par[n];
+      if (p == null || seen.has(n) || !(p in adj[n])) return Infinity;
+      seen.add(n);
+      const v = adj[n][p] + get(p, seen);
+      return v;
+    };
+    this.ids.forEach(n => { if (n !== "R") c[n] = get(n, new Set()); });
+    return c;
+  },
+  isDesc(q, n, par) {
+    let x = q, guard = 0;
+    while (x != null && x !== "R" && guard++ < 20) { if (x === n) return true; x = par[x]; }
+    return false;
+  },
+  /* MRHOF-like parent selection with hysteresis; par is updated in place, returns list of switches */
+  mrhof(par, adj, thr) {
+    const sw = [];
+    for (let it = 0; it < 40; it++) {
+      let changed = false;
+      for (const n of this.ids) {
+        if (n === "R") continue;
+        const c = this.costs(par, adj);
+        const cands = Object.keys(adj[n]).filter(q => adj[n][q] <= this.MAXLINK && isFinite(c[q]) && !this.isDesc(q, n, par)).sort(this.idOrder);
+        const cur = par[n];
+        if (!cands.length) {
+          if (cur != null) { par[n] = null; sw.push([n, cur, null]); changed = true; }
+          continue;
+        }
+        let best = cands[0], bc = adj[n][best] + c[best];
+        cands.forEach(q => { const v = adj[n][q] + c[q]; if (v < bc - 1e-9) { best = q; bc = v; } });
+        const curOk = cur != null && cands.includes(cur);
+        let doSwitch;
+        if (!curOk) doSwitch = best !== cur;
+        else {
+          const cc = adj[n][cur] + c[cur];
+          doSwitch = thr > 0 ? (cc - bc >= thr - 1e-9) : (cc - bc > 1e-9);
+        }
+        if (doSwitch && best !== cur) { par[n] = best; sw.push([n, cur, best]); changed = true; }
+      }
+      if (!changed) break;
+    }
+    return sw;
+  },
+  rank(cost) { return Math.round(128 * (1 + cost)); },
+  svg(links, adj, par, opts) {
+    const P = this.pos;
+    let s = "";
+    links.forEach(l => {
+      const e = adj[l.u][l.v];
+      const [x1, y1] = P[l.u], [x2, y2] = P[l.v];
+      const tree = par[l.u] === l.v || par[l.v] === l.u;
+      const dead = e > this.MAXLINK;
+      s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${tree ? "var(--blue-600)" : "var(--stone-300)"}" stroke-width="${tree ? 4 : 1.5}"${dead ? ' stroke-dasharray="4 3"' : ""}/>`;
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      s += `<rect x="${mx - 15}" y="${my - 8}" width="30" height="14" rx="3" fill="var(--paper)" opacity=".9"/><text x="${mx}" y="${my + 3}" font-size="9.5" text-anchor="middle" fill="var(--fg)">${e.toFixed(2)}</text>`;
+    });
+    this.ids.forEach(n => {
+      const [x, y] = P[n];
+      const hi = opts && opts.hi && opts.hi.includes(n);
+      s += `<circle cx="${x}" cy="${y}" r="15" fill="${n === "R" ? "var(--accent)" : (hi ? "#d3f9d8" : "var(--paper)")}" stroke="${n === "R" ? "var(--accent)" : "var(--blue-600)"}" stroke-width="2"/>`;
+      s += `<text x="${x}" y="${y + 4}" font-size="12" font-weight="700" text-anchor="middle" fill="${n === "R" ? "#fff" : "var(--fg)"}">${n}</text>`;
+    });
+    return s;
+  }
+};
+
+/* 1. ETX calculator */
+(function () {
+  const $ = id => document.getElementById(id);
+  const ids = ["we-df0", "we-dr0", "we-df1", "we-dr1", "we-df2", "we-dr2"];
+  function run() {
+    const v = ids.map(i => CR.prob($(i).value));
+    const bad = ids.filter((_, i) => v[i] === null);
+    ids.forEach(i => $(i).style.borderColor = bad.includes(i) ? "var(--accent)" : "");
+    if (bad.length) { $("we-err").textContent = "Her olasılık 0'dan büyük ve en fazla 1 olmalı (örneğin 0.85)."; $("we-out").innerHTML = ""; return; }
+    $("we-err").textContent = "";
+    const e0 = CR.etx(v[0], v[1]), e1 = CR.etx(v[2], v[3]), e2 = CR.etx(v[4], v[5]), p2 = e1 + e2;
+    const win = Math.abs(e0 - p2) < 5e-4 ? "Eşit: iki yol aynı beklenen gönderim sayısını istiyor." :
+      (e0 < p2 ? `<span class="w-collection-rpl-ok">Doğrudan link kazanır</span>: packet başına ${(p2 - e0).toFixed(3)} daha az gönderim.` :
+        `<span class="w-collection-rpl-ok">İki hop kazanır</span>: packet başına ${(e0 - p2).toFixed(3)} daha az gönderim.`);
+    $("we-out").innerHTML = `<div class="table-wrap"><table class="w-collection-rpl-tbl">
+      <tr><th>Yol</th><th>Hop</th><th>Link ETX'leri</th><th>Path ETX</th></tr>
+      <tr><td>Doğrudan</td><td>1</td><td>1/(${v[0]}·${v[1]}) = ${e0.toFixed(3)}</td><td>${e0.toFixed(3)}</td></tr>
+      <tr><td>İki hop</td><td>2</td><td>${e1.toFixed(3)} + ${e2.toFixed(3)}</td><td>${p2.toFixed(3)}</td></tr></table></div>
+      <p>Hop count her zaman doğrudan link'i seçer. ETX ile: ${win}</p>`;
+  }
+  $("we-go").addEventListener("click", run);
+  ids.forEach(i => $(i).addEventListener("change", run));
+  run();
+})();
+
+/* 2. DODAG builder: hop count tree vs MRHOF/ETX with hysteresis and a noise run */
+const DODAG = (function () {
+  const $ = id => document.getElementById(id);
+  let links = NET.links(NET.base);
+  let par = {};
+  const sel = $("wd-link"), sdf = $("wd-df"), sdr = $("wd-dr");
+  links.forEach((l, i) => { const o = document.createElement("option"); o.value = i; o.textContent = `${l.u}–${l.v}`; sel.appendChild(o); });
+  sel.value = "3";
+  function fresh() {
+    links = NET.links(NET.base);
+    par = {};
+    NET.mrhof(par, NET.adj(links), 0);
+  }
+  function loadSliders() {
+    const l = links[+sel.value];
+    sdf.value = l.df; sdr.value = l.dr;
+    $("wd-dfv").textContent = l.df.toFixed(2); $("wd-drv").textContent = l.dr.toFixed(2);
+  }
+  function draw(msg, switched) {
+    const adj = NET.adj(links);
+    const ht = NET.hopTree(adj);
+    const hc = NET.costs(ht.par, adj), ec = NET.costs(par, adj);
+    const diff = NET.ids.filter(n => n !== "R" && ht.par[n] !== par[n]);
+    $("wd-svg-hop").innerHTML = NET.svg(links, adj, ht.par, {});
+    $("wd-svg-etx").innerHTML = NET.svg(links, adj, par, { hi: switched || [] });
+    let t = `<table class="w-collection-rpl-tbl"><tr><th>Node</th><th>Hop parent</th><th>Hop</th><th>O tree'de path ETX</th><th>MRHOF parent</th><th>Path ETX</th><th>Rank</th></tr>`;
+    let sh = 0, se = 0;
+    NET.ids.forEach(n => {
+      if (n === "R") return;
+      const cls = (switched || []).includes(n) ? "is-sw" : (diff.includes(n) ? "is-diff" : "");
+      sh += hc[n]; se += ec[n];
+      t += `<tr class="${cls}"><td>${n}</td><td>${ht.par[n] || "–"}</td><td>${ht.h[n] ?? "–"}</td><td>${isFinite(hc[n]) ? hc[n].toFixed(3) : "∞"}</td><td>${par[n] || "kopuk"}</td><td>${isFinite(ec[n]) ? ec[n].toFixed(3) : "∞"}</td><td>${isFinite(ec[n]) ? NET.rank(ec[n]) : "INFINITE"}</td></tr>`;
+    });
+    t += `<tr><td colspan="3"><b>Toplam</b></td><td><b>${isFinite(sh) ? sh.toFixed(3) : "∞"}</b></td><td></td><td><b>${isFinite(se) ? se.toFixed(3) : "∞"}</b></td><td></td></tr></table>`;
+    $("wd-tbl").innerHTML = t;
+    const opt = NET.costs(fullBest(adj), adj);
+    let gap = 0; NET.ids.forEach(n => { if (n !== "R") gap += ec[n] - opt[n]; });
+    $("wd-out").innerHTML = `Parent'ı farklı olan node'lar (mavi satır): <b>${diff.length ? diff.join(", ") : "yok"}</b>. ` +
+      `Bütün node'ların path ETX toplamı: hop tree ${isFinite(sh) ? sh.toFixed(3) : "∞"}, MRHOF ${isFinite(se) ? se.toFixed(3) : "∞"}` +
+      (gap > 1e-6 && isFinite(gap) ? ` (hysteresis yüzünden optimumdan ${gap.toFixed(3)} fazla).` : ".") + (msg ? `<br>${msg}` : "");
+  }
+  function fullBest(adj) { const p = {}; NET.mrhof(p, adj, 0); return p; }
+  function onSlide() {
+    const l = links[+sel.value];
+    l.df = +sdf.value; l.dr = +sdr.value;
+    $("wd-dfv").textContent = l.df.toFixed(2); $("wd-drv").textContent = l.dr.toFixed(2);
+    const thr = +$("wd-thr").value;
+    const sw = NET.mrhof(par, NET.adj(links), thr);
+    const log = $("wd-log");
+    if (sw.length) {
+      sw.forEach(s => { log.insertAdjacentHTML("afterbegin", `<div>${l.u}–${l.v}: d_f=${l.df.toFixed(2)}, d_r=${l.dr.toFixed(2)} → node ${s[0]}: ${s[1] || "–"} → ${s[2] || "kopuk"}</div>`); });
+    }
+    draw(sw.length ? `Bu adımda ${sw.length} parent değişikliği (yeşil).` : "Bu adımda parent değişikliği yok.", sw.map(s => s[0]));
+  }
+  function noise() {
+    const thr = Number($("wd-thr").value);
+    const rnd = CR.rng(2026);
+    const base = NET.links(NET.base);
+    const p0 = {}, p1 = {};
+    NET.mrhof(p0, NET.adj(base), 0); NET.mrhof(p1, NET.adj(base), 0);
+    let ch0 = 0, ch1 = 0, s0 = 0, s1 = 0;
+    const R = 30;
+    for (let r = 0; r < R; r++) {
+      const L = base.map(l => ({ u: l.u, v: l.v, df: Math.min(1, Math.max(0.05, l.df + (rnd() - 0.5) * 0.24)), dr: Math.min(1, Math.max(0.05, l.dr + (rnd() - 0.5) * 0.24)) }));
+      const adj = NET.adj(L);
+      ch0 += NET.mrhof(p0, adj, 0).length;
+      ch1 += NET.mrhof(p1, adj, thr).length;
+      const c0 = NET.costs(p0, adj), c1 = NET.costs(p1, adj);
+      NET.ids.forEach(n => { if (n !== "R") { s0 += c0[n]; s1 += c1[n]; } });
+    }
+    $("wd-log").insertAdjacentHTML("afterbegin", `<div><b>Gürültü (${R} tur, her $d$ ±0.12):</b> hysteresis yok → ${ch0} parent değişikliği, ortalama toplam path ETX ${(s0 / R).toFixed(3)}; threshold ${thr} → ${ch1} değişiklik, ${(s1 / R).toFixed(3)}.</div>`);
+    CR.math($("wd-log"));
+  }
+  sel.addEventListener("change", loadSliders);
+  sdf.addEventListener("input", onSlide); sdr.addEventListener("input", onSlide);
+  $("wd-thr").addEventListener("change", () => { $("wd-log").insertAdjacentHTML("afterbegin", `<div>Threshold = ${$("wd-thr").value} ETX</div>`); });
+  $("wd-reset").addEventListener("click", () => { fresh(); loadSliders(); $("wd-log").innerHTML = ""; draw("Varsayılan ağ."); });
+  $("wd-noise").addEventListener("click", noise);
+  fresh(); loadSliders(); draw("Varsayılan ağ.");
+  return { fresh };
+})();
+
+/* 3. Rank-rule checker on the default MRHOF DODAG */
+(function () {
+  const $ = id => document.getElementById(id);
+  const links = NET.links(NET.base), adj = NET.adj(links);
+  const par = {}; NET.mrhof(par, adj, 0);
+  const c = NET.costs(par, adj);
+  const rank = { R: 128 }; NET.ids.forEach(n => { if (n !== "R") rank[n] = NET.rank(c[n]); });
+  const sn = $("wr-n"), sq = $("wr-q");
+  NET.ids.filter(n => n !== "R").forEach(n => { const o = document.createElement("option"); o.value = n; o.textContent = n; sn.appendChild(o); });
+  sn.value = "5";
+  function fillQ() {
+    const n = sn.value; sq.innerHTML = "";
+    Object.keys(adj[n]).sort(NET.idOrder).forEach(q => { const o = document.createElement("option"); o.value = q; o.textContent = q + (par[n] === q ? " (şimdiki)" : ""); sq.appendChild(o); });
+    sq.value = n === "5" ? "3" : sq.options[0].value;
+  }
+  let t = `<table class="w-collection-rpl-tbl"><tr><th>Node</th><th>Parent</th><th>Path ETX</th><th>Rank</th></tr><tr><td>R</td><td>–</td><td>0</td><td>128</td></tr>`;
+  NET.ids.forEach(n => { if (n !== "R") t += `<tr><td>${n}</td><td>${par[n]}</td><td>${c[n].toFixed(3)}</td><td>${rank[n]}</td></tr>`; });
+  $("wr-tbl").innerHTML = t + "</table>";
+  function children(n) { return NET.ids.filter(x => par[x] === n); }
+  function run() {
+    const n = sn.value, q = sq.value;
+    const m = Number(String($("wr-max").value).trim());
+    if (!Number.isInteger(m) || m < 0 || m > 65535) { $("wr-err").textContent = "DAGMaxRankIncrease 0 ile 65535 arasında bir tam sayı olmalı."; $("wr-out").innerHTML = ""; return; }
+    $("wr-err").textContent = "";
+    const L = rank[n];
+    if (par[n] === q) { $("wr-out").innerHTML = `${q} zaten node ${CR.sfx(n, "gen")} preferred parent'ı.`; return; }
+    if (NET.isDesc(q, n, par)) {
+      $("wr-out").innerHTML = `<span class="w-collection-rpl-bad">Loop.</span> Node ${q}, node ${CR.sfx(n, "gen")} alt ağacında (yolu ${CR.sfx(n, "abl")} geçiyor; rank ${rank[q]} &gt; ${L}). ${n}, ${CR.sfx(q, "acc")} parent seçerse packet'ler ikisinin arasında döner ve rank'lar birbirini sonsuza kadar artırır (count-to-infinity). Rank kuralı bunu yasaklar: node, parent'ının rank'ından büyük bir rank ilan etmek zorundadır, ${CR.sfx(q, "gen")} rank'ı ise ${CR.sfx(n, "dat")} bağlı.`;
+      return;
+    }
+    const e = adj[n][q];
+    if (e > NET.MAXLINK) { $("wr-out").innerHTML = `<span class="w-collection-rpl-bad">Link çok kötü.</span> ETX(${n}–${q}) = ${e.toFixed(2)} &gt; 4: MRHOF bu link'i MAX_LINK_METRIC yüzünden hiç değerlendirmez.`; return; }
+    const nr = rank[q] + Math.round(128 * e);
+    let h = `Yeni rank = rank(${q}) + 128·ETX(${n}–${q}) = ${rank[q]} + ${Math.round(128 * e)} = <b>${nr}</b> (şimdiki ${L}). `;
+    if (nr <= L) {
+      h += `<span class="w-collection-rpl-ok">İzinli.</span> Rank düşüyor ya da aynı kalıyor ("moving up"): loop riski yok.`;
+      if (nr < L) h += " Üstelik daha iyi bir yol; objective function de bunu seçerdi.";
+      else h += " Ama kazanç yok; objective function seçmez.";
+    } else {
+      const d = nr - L;
+      h += m === 0 ? `Rank ${d} artıyor ("moving down"). DAGMaxRankIncrease = 0: sınır kapalı (RFC 6550 §6.7.6), L + DAGMaxRankIncrease kontrolü yapılmaz. ` : `Rank ${d} artıyor ("moving down"). Sınır: L + DAGMaxRankIncrease = ${L} + ${m} = ${L + m}. `;
+      if (m === 0 || nr <= L + m) {
+        const ch = children(n);
+        h += `<span class="w-collection-rpl-ok">İzinli</span>, ama yeni yol daha pahalı; objective function bunu ancak şimdiki parent kaybolursa seçer.`;
+        if (ch.length) h += ` Child'lar (${ch.join(", ")}) rank'larını ${CR.sfx(nr, "gen")} üstünde tutmalı; tutamayan child başka parent aramalı ya da kendisi de aşağı inmeli.`;
+      } else {
+        h += `<span class="w-collection-rpl-bad">İzin yok</span> bu version içinde. Node ya INFINITE_RANK ilan edip (poisoning) ayrılmalı, ya floating bir DODAG'a geçmeli, ya da root'un version'ı artırmasını (global repair) beklemeli.`;
+      }
+    }
+    $("wr-out").innerHTML = h;
+  }
+  sn.addEventListener("change", () => { fillQ(); run(); });
+  sq.addEventListener("change", run);
+  $("wr-go").addEventListener("click", run);
+  fillQ(); run();
+})();
+
+/* 4. Trickle simulator */
+const TRICKLE = {
+  sim(o) {
+    const rnd = CR.rng(o.seed);
+    const Imax = o.imin * Math.pow(2, o.dbl);
+    const nodes = [];
+    for (let i = 0; i < o.n; i++) {
+      const I = o.imin;
+      const s = o.desync ? -rnd() * I / 2 : 0;
+      nodes.push({ I, s, c: 0, t: s + I / 2 + rnd() * I / 2, fired: false, ivals: [] });
+    }
+    nodes.forEach(nd => nd.ivals.push([nd.s, nd.s + nd.I]));
+    const ev = [];
+    let incDone = !o.inc;
+    let guard = 0;
+    while (guard++ < 200000) {
+      let k = -1, tk = Infinity, kind = "";
+      nodes.forEach((nd, i) => {
+        if (!nd.fired && nd.t < tk) { tk = nd.t; k = i; kind = "fire"; }
+        const end = nd.s + nd.I;
+        if (end < tk) { tk = end; k = i; kind = "end"; }
+      });
+      if (!incDone && o.tinc <= tk) { tk = o.tinc; kind = "inc"; }
+      if (tk > o.T) break;
+      if (kind === "inc") {
+        incDone = true;
+        nodes.forEach(nd => {
+          if (nd.I > o.imin + 1e-12) {
+            nd.ivals[nd.ivals.length - 1][1] = o.tinc;
+            nd.I = o.imin; nd.s = o.tinc; nd.c = 0; nd.t = nd.s + nd.I / 2 + rnd() * nd.I / 2; nd.fired = false;
+            nd.ivals.push([nd.s, nd.s + nd.I]);
+          }
+        });
+        ev.push({ kind: "inc", t: o.tinc });
+        continue;
+      }
+      const nd = nodes[k];
+      if (kind === "fire") {
+        nd.fired = true;
+        const tx = nd.c < o.k;
+        ev.push({ kind: "fire", t: tk, node: k, c: nd.c, tx, I: nd.I });
+        if (tx) nodes.forEach((m, j) => { if (j !== k) m.c += 1; });
+      } else {
+        nd.s = nd.s + nd.I; nd.I = Math.min(2 * nd.I, Imax); nd.c = 0; nd.fired = false;
+        nd.t = nd.s + nd.I / 2 + rnd() * nd.I / 2;
+        nd.ivals.push([nd.s, nd.s + nd.I]);
+      }
+    }
+    const fires = ev.filter(e => e.kind === "fire");
+    const tx = fires.filter(e => e.tx).length;
+    const naive = o.n * Math.floor(o.T / o.imin + 1e-9);
+    return { ev, fires, tx, sup: fires.length - tx, naive, nodes, Imax };
+  },
+  svg(o, r, upto) {
+    const W = 340, left = 26, right = 6, top = 8, rowH = 16, H = top + o.n * rowH + 22;
+    const x = t => left + (Math.max(0, Math.min(o.T, t)) / o.T) * (W - left - right);
+    let s = `<svg class="w-collection-rpl-svg" viewBox="0 0 ${W} ${H}" aria-label="Trickle zaman çizelgesi">`;
+    r.nodes.forEach((nd, i) => {
+      const y = top + i * rowH + rowH / 2;
+      s += `<text x="2" y="${y + 3}" font-size="9" fill="var(--fg)">n${i + 1}</text><line x1="${left}" y1="${y}" x2="${W - right}" y2="${y}" stroke="var(--stone-200)"/>`;
+      nd.ivals.forEach(iv => { if (iv[0] >= 0 && iv[0] <= o.T) s += `<line x1="${x(iv[0])}" y1="${y - 5}" x2="${x(iv[0])}" y2="${y + 5}" stroke="var(--stone-500)" stroke-width="1"/>`; });
+    });
+    if (o.inc && o.tinc <= o.T) s += `<line x1="${x(o.tinc)}" y1="${top - 4}" x2="${x(o.tinc)}" y2="${top + o.n * rowH}" stroke="#c92a2a" stroke-width="1.5"/>`;
+    r.fires.forEach((e, idx) => {
+      if (upto != null && idx > upto) return;
+      const y = top + e.node * rowH + rowH / 2;
+      const cur = upto != null && idx === upto;
+      s += e.tx ? `<circle cx="${x(e.t)}" cy="${y}" r="${cur ? 5 : 3.2}" fill="var(--blue-600)" stroke="${cur ? "var(--accent)" : "none"}" stroke-width="2"/>`
+        : `<circle cx="${x(e.t)}" cy="${y}" r="${cur ? 5 : 3.2}" fill="var(--paper)" stroke="${cur ? "var(--accent)" : "var(--stone-500)"}" stroke-width="${cur ? 2 : 1.2}"/>`;
+    });
+    const ay = top + o.n * rowH + 12;
+    s += `<line x1="${left}" y1="${ay - 8}" x2="${W - right}" y2="${ay - 8}" stroke="var(--stone-500)"/>`;
+    [0, 0.25, 0.5, 0.75, 1].forEach(f => { s += `<text x="${x(f * o.T)}" y="${ay + 4}" font-size="9" text-anchor="middle" fill="var(--fg)">${Math.round(f * o.T)} s</text>`; });
+    return s + "</svg>";
+  }
+};
+(function () {
+  const $ = id => document.getElementById(id);
+  function read() {
+    const g = (id, lo, hi, int) => { const v = Number(String($(id).value).trim()); return (isFinite(v) && v >= lo && v <= hi && (!int || Number.isInteger(v))) ? v : null; };
+    const o = { n: g("wt-n", 2, 12, true), imin: g("wt-imin", 0.1, 10), dbl: g("wt-dbl", 0, 8, true), k: g("wt-k", 1, 10, true), T: g("wt-T", 10, 600), tinc: g("wt-tinc", 0, 600), seed: g("wt-seed", 1, 9999, true), inc: $("wt-inc").checked, desync: $("wt-desync").checked };
+    const bad = Object.keys(o).filter(k => o[k] === null);
+    if (bad.length) return { err: "Aralık dışı ya da geçersiz değer: node 2–12, Imin 0.1–10 s, doublings 0–8, k 1–10, süre 10–600 s, tutarsızlık 0–600 s, seed tam sayı." };
+    return o;
+  }
+  function run() {
+    const o = read();
+    if (o.err) { $("wt-err").textContent = o.err; $("wt-out").innerHTML = ""; $("wt-step").innerHTML = ""; return; }
+    $("wt-err").textContent = "";
+    const r = TRICKLE.sim(o);
+    $("wt-out").innerHTML = `$I_{\\max} = ${o.imin} \\cdot 2^{${o.dbl}} = ${+(r.Imax).toFixed(3)}$ s. Trickle: <b>${r.tx}</b> DIO gönderildi, ${r.sup} gönderim bastırıldı. Her node'un $I_{\\min}$'de bir yaydığı periyodik yayın: <b>${r.naive}</b> DIO (${(r.naive / Math.max(1, r.tx)).toFixed(1)} kat).`;
+    CR.math($("wt-out"));
+    const frames = [{ idx: -1, caption: `Başlangıç: ${o.n} node, $I = I_{\\min} = ${o.imin}$ s, $k = ${o.k}$. ${o.desync ? "Interval başlangıçları rastgele kaydırılmış." : "Bütün interval'ler $t = 0$'da başlıyor."} Oynat ya da adım adım ilerle.` }];
+    const lim = Math.min(r.fires.length, 60);
+    let evI = 0;
+    for (let i = 0; i < lim; i++) {
+      const e = r.fires[i];
+      while (evI < r.ev.length && r.ev[evI] !== e) { if (r.ev[evI].kind === "inc") frames.push({ idx: i - 1, caption: `$t = ${r.ev[evI].t.toFixed(2)}$ s: tutarsızlık (örneğin yeni DODAG Version). $I > I_{\\min}$ olan her node'un timer'ı sıfırlanır: $I = I_{\\min}$.` }); evI++; }
+      evI++;
+      frames.push({ idx: i, caption: `$t = ${e.t.toFixed(2)}$ s · node n${e.node + 1} · $I = ${+e.I.toFixed(3)}$ s · $c = ${e.c}$, $k = ${o.k}$ → ${e.tx ? `<b>gönderir</b> ($c &lt; k$); duyan herkesin $c$'si 1 artar` : `<b>susar</b> ($c \\geq k$): bu interval'de yeterince tutarlı mesaj duydu`}.` });
+    }
+    if (r.fires.length > lim) frames.push({ idx: r.fires.length - 1, caption: `İlk ${lim} olaydan sonrası tek karede: toplam ${r.tx} gönderim, ${r.sup} bastırma.` });
+    Lab.stepper($("wt-step"), {
+      title: "Trickle olayları, adım adım",
+      interval: 700,
+      frames,
+      render(fr, i, el) { el.innerHTML = TRICKLE.svg(o, r, fr.idx); }
+    });
+  }
+  $("wt-go").addEventListener("click", run);
+  run();
+})();
+
+/* 5. Storing vs non-storing downward routing */
+const DOWN = {
+  par: { "1": "R", "2": "R", "3": "1", "4": "1", "5": "3", "6": "2", "7": "5", "8": "5", "9": "7", "10": "6" },
+  nodes: ["R", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+  pos: { R: [170, 22], "1": [95, 72], "2": [255, 72], "3": [60, 125], "4": [135, 125], "5": [60, 178], "6": [255, 125], "7": [30, 230], "8": [100, 230], "9": [30, 280], "10": [255, 178] },
+  up(n) { const p = [n]; while (n !== "R") { n = this.par[n]; p.push(n); } return p; },
+  depth(n) { return this.up(n).length - 1; },
+  subtree(n) { return this.nodes.filter(x => x !== n && x !== "R" && this.up(x).includes(n)); },
+  path(src, dst, mode) {
+    const us = this.up(src), ud = this.up(dst);
+    if (mode === "s") {
+      const anc = us.find(x => ud.includes(x));
+      const upPart = us.slice(0, us.indexOf(anc) + 1);
+      const downPart = ud.slice(0, ud.indexOf(anc)).reverse();
+      return { hops: upPart.concat(downPart), anc };
+    }
+    const upPart = src === "R" ? ["R"] : us;
+    const downPart = ud.slice(0, -1).reverse();
+    return { hops: upPart.concat(downPart), anc: "R" };
+  },
+  srh(h, cmp) {
+    if (h < 2) return { n: 0, bytes: 0, pad: 0 };
+    const n = h - 1, a = 16 - cmp;
+    const raw = 8 + n * a;
+    const tot = Math.ceil(raw / 8) * 8;
+    return { n, bytes: tot, pad: tot - raw };
+  },
+  tables(mode) {
+    const t = {};
+    this.nodes.forEach(n => {
+      if (mode === "s") t[n] = n === "R" ? this.nodes.length - 1 : this.subtree(n).length;
+      else t[n] = n === "R" ? this.nodes.length - 1 : 0;
+    });
+    return t;
+  },
+  svg(hops, cur, mode) {
+    const P = this.pos;
+    let s = "";
+    this.nodes.forEach(n => { if (n !== "R") { const [x1, y1] = P[n], [x2, y2] = P[this.par[n]]; s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--stone-300)" stroke-width="1.5"/>`; } });
+    for (let i = 0; i < cur && i + 1 < hops.length; i++) {
+      const [x1, y1] = P[hops[i]], [x2, y2] = P[hops[i + 1]];
+      s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--accent)" stroke-width="4"/>`;
+    }
+    const tb = this.tables(mode);
+    this.nodes.forEach(n => {
+      const [x, y] = P[n];
+      const here = hops[Math.min(cur, hops.length - 1)] === n;
+      s += `<circle cx="${x}" cy="${y}" r="14" fill="${here ? "var(--accent)" : (n === "R" ? "var(--blue-100)" : "var(--paper)")}" stroke="var(--blue-600)" stroke-width="2"/>`;
+      s += `<text x="${x}" y="${y + 4}" font-size="11" font-weight="700" text-anchor="middle" fill="${here ? "#fff" : "var(--fg)"}">${n}</text>`;
+      if (tb[n]) s += `<text x="${x + 17}" y="${y - 9}" font-size="9" fill="var(--fg-brand)">${tb[n]}</text>`;
+    });
+    return `<svg class="w-collection-rpl-svg" viewBox="0 0 320 300" aria-label="DODAG üzerinde downward yol">${s}</svg>`;
+  }
+};
+(function () {
+  const $ = id => document.getElementById(id);
+  const ss = $("wn-src"), sd = $("wn-dst");
+  DOWN.nodes.forEach(n => { [ss, sd].forEach(s => { const o = document.createElement("option"); o.value = n; o.textContent = n === "R" ? "R (root)" : n; s.appendChild(o); }); });
+  ss.value = "4"; sd.value = "8";
+  function nextHopIn(at, dst) {
+    const kids = DOWN.nodes.filter(x => DOWN.par[x] === at);
+    return kids.find(k => k === dst || DOWN.subtree(k).includes(dst));
+  }
+  function run() {
+    const mode = $("wn-mode").value, src = ss.value, dst = sd.value, cmp = +$("wn-cmp").value;
+    if (src === dst) { $("wn-err").textContent = "Kaynak ve hedef farklı olmalı."; $("wn-out").innerHTML = ""; $("wn-step").innerHTML = ""; return; }
+    $("wn-err").textContent = "";
+    const p = DOWN.path(src, dst, mode);
+    const H = p.hops.length - 1;
+    const tb = DOWN.tables(mode);
+    let out = `Yol: <span class="w-collection-rpl-mono">${p.hops.join(" → ")}</span>, <b>${H} hop</b>. `;
+    const frames = [];
+    let srhInfo = null;
+    if (mode === "s") {
+      out += p.anc === "R" ? "Ortak ata root. " : `Ortak ata node ${p.anc}: packet root'a çıkmadan döner. `;
+      out += `Ek header yok. Saklanan downward satır sayısı: root ${tb.R}, en yüklü ara node ${Math.max(...DOWN.nodes.filter(n => n !== "R").map(n => tb[n]))}, toplam ${DOWN.nodes.reduce((a, n) => a + tb[n], 0)}.`;
+      p.hops.forEach((n, i) => {
+        let cap;
+        if (i === p.hops.length - 1) cap = `Node ${n}: packet hedefe ulaştı.`;
+        else if (p.hops.indexOf(p.anc) > i) cap = `Node ${n}: tablosunda ${dst} yok (alt ağacında değil) → default route, parent ${CR.sfx(DOWN.par[n], "dat")} (yukarı).`;
+        else cap = `Node ${n}: tablosunda "${dst} → ${nextHopIn(n, dst)}" satırı var (${tb[n]} satırdan biri) → child ${CR.sfx(nextHopIn(n, dst), "dat")} (aşağı).`;
+        frames.push({ i, caption: cap });
+      });
+    } else {
+      const dd = DOWN.depth(dst);
+      srhInfo = DOWN.srh(dd, cmp);
+      const ri = p.hops.indexOf("R");
+      if (dst === "R") out += `Packet default route'larla root'a çıkıyor ve orada teslim ediliyor (${ri} hop). Downward bacak yok: SRH 0 byte, tünel 0 byte.`;
+      else {
+      out += src === "R" ? "" : `Packet önce root'a çıkıyor (${ri} hop). `;
+      out += srhInfo.n ? `Root, ${dst} için yolu kendi parent kayıtlarından kurar: SRH'de ${srhInfo.n} adres, <b>${srhInfo.bytes} byte</b>${srhInfo.pad ? ` (${srhInfo.pad} byte padding dahil)` : ""}` : `Hedef root'un doğrudan child'ı: SRH gerekmez`;
+      out += src === "R" ? "." : `; packet root'tan gelmediği için root onu bir IPv6-in-IPv6 tünelinde taşır: +40 byte dış header.`;
+      }
+      out += ` Saklanan downward satır: yalnızca root'ta ${tb.R} parent kaydı.`;
+      const down = p.hops.slice(ri);
+      p.hops.forEach((n, i) => {
+        let cap;
+        if (i === p.hops.length - 1) cap = `Node ${n}: packet hedefe ulaştı${srhInfo.n ? "; Segments Left = 0" : ""}.`;
+        else if (i < ri) cap = `Node ${n}: route saklamaz → default route, parent ${CR.sfx(DOWN.par[n], "dat")} (yukarı).`;
+        else if (n === "R") cap = srhInfo.n ? `Root: kayıtlardan yol ${down.join(" → ")}. IPv6 destination = ${down[1]}, SRH adresleri [${down.slice(2).join(", ")}], Segments Left = ${srhInfo.n}.` : `Root: ${dst} doğrudan child; IPv6 destination = ${dst}.`;
+        else {
+          const k = i - ri;
+          const left = srhInfo.n - k;
+          cap = `Node ${n}: tablo yok. SRH'den sıradaki adresi (${down[k + 1]}) destination'a yazar, Segments Left ${left + 1} → ${left}.`;
+        }
+        frames.push({ i, caption: cap });
+      });
+    }
+    $("wn-out").innerHTML = out;
+    Lab.stepper($("wn-step"), {
+      title: mode === "s" ? `Storing mode: ${src} → ${dst}` : `Non-storing mode: ${src} → ${dst}`,
+      interval: 1000,
+      frames,
+      render(fr, idx, el) { el.innerHTML = DOWN.svg(p.hops, fr.i, mode); }
+    });
+    let t = `<table class="w-collection-rpl-tbl"><tr><th>Node</th>${DOWN.nodes.map(n => `<th>${n}</th>`).join("")}</tr><tr><td>Derinlik</td>${DOWN.nodes.map(n => `<td>${DOWN.depth(n)}</td>`).join("")}</tr>`;
+    t += `<tr><td>Satır (storing)</td>${DOWN.nodes.map(n => `<td>${DOWN.tables("s")[n]}</td>`).join("")}</tr><tr><td>Satır (non-storing)</td>${DOWN.nodes.map(n => `<td>${DOWN.tables("n")[n]}</td>`).join("")}</tr>`;
+    t += `<tr><td>Root'tan SRH (B)</td>${DOWN.nodes.map(n => `<td>${n === "R" ? "–" : DOWN.srh(DOWN.depth(n), cmp).bytes}</td>`).join("")}</tr></table>`;
+    $("wn-tbl").innerHTML = t;
+  }
+  ["wn-mode", "wn-src", "wn-dst", "wn-cmp"].forEach(id => $(id).addEventListener("change", run));
+  $("wn-go").addEventListener("click", run);
+  run();
+})();
+</script>
+</body>
+</html>

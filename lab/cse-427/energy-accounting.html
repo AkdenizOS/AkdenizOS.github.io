@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 427: power, energy ve charge, radio state'leri, idle listening, duty cycle, average current, state-based energy model, Energest ve Powertrace ile W3 energy accounting lab'ı." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Energy accounting ve duty cycle · CSE 427 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-energy-accounting-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-energy-accounting-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-energy-accounting-ctl input[type="text"] { width: 84px; padding: 4px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font: inherit; }
+    .w-energy-accounting-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-energy-accounting-ok { color: #2b8a3e; font-weight: 600; }
+    .w-energy-accounting-note { color: var(--fg-subtle); font-size: .88rem; }
+    .w-energy-accounting-num { font-family: 'JetBrains Mono', monospace; text-align: right; white-space: nowrap; }
+    .w-energy-accounting-cur { background: var(--blue-050); }
+    .w-energy-accounting-tbl input[type="text"] { width: 70px; padding: 3px 5px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-family: 'JetBrains Mono', monospace; font-size: .85rem; }
+    .w-energy-accounting-tbl input.is-bad { border-color: var(--orange-600); background: var(--orange-100); }
+    .w-energy-accounting-stack { display: flex; height: 22px; border-radius: var(--radius-sm); overflow: hidden; background: var(--stone-200); margin: 8px 0 4px; }
+    .w-energy-accounting-stack > div { height: 100%; min-width: 1px; }
+    .w-energy-accounting-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: .82rem; }
+    .w-energy-accounting-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+    .w-energy-accounting-bar { display: grid; grid-template-columns: 74px minmax(0, 1fr) 76px; gap: 6px; align-items: center; margin: 3px 0; font-size: .85rem; }
+    .w-energy-accounting-bar > span:first-child { white-space: nowrap; }
+    .w-energy-accounting-bar > span:last-child { font-family: 'JetBrains Mono', monospace; text-align: right; white-space: nowrap; }
+    .w-energy-accounting-track { background: var(--stone-200); border-radius: 4px; height: 12px; overflow: hidden; }
+    .w-energy-accounting-track > div { height: 100%; border-radius: 4px; transition: width .4s; }
+    .w-energy-accounting-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+    .w-energy-accounting-chart { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 10px; background: var(--paper); min-width: 0; }
+    .w-energy-accounting-chart h4 { margin: 0 0 4px; font-size: .92rem; color: var(--fg-brand); }
+    .w-energy-accounting-ta { width: 100%; min-height: 92px; font-family: 'JetBrains Mono', monospace; font-size: .78rem; padding: 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); box-sizing: border-box; }
+    .w-energy-accounting-flag { border-left: 3px solid var(--orange-600); background: var(--orange-100); padding: 6px 10px; border-radius: var(--radius-sm); margin: 8px 0; font-size: .92rem; }
+    .w-energy-accounting-choices label { display: inline-flex; align-items: center; gap: 4px; margin-right: 12px; white-space: nowrap; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 427</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 427</a> / Energy accounting ve duty cycle</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L4</span><span class="chip chip--exam">Vize</span><span class="chip">W3 lab · 20 puan</span><span class="src">~60 dk · 12 bölüm</span></div>
+          <h1>Energy accounting ve duty cycle</h1>
+          <p class="lead">Bir mote'un enerjisi nereye gidiyor ve bunu nasıl ölçersin? Bu derste power, energy ve charge arasındaki farkı, radio state'lerini, idle listening'in neden en büyük israf olduğunu, duty cycle ile average current hesabını ve Contiki 3.0'daki Energest/Powertrace sayaçlarını tick'ten mJ'e kadar çevirmeyi göreceksin. Son iki bölüm W3 lab'ının (vizeye 20 puan) üç senaryosunu senin ölçtüğün sayılarla yorumluyor.</p>
+          <!-- Kaynak: resources/2026-2027-fall/Week_3_WSN_Energy_60slides_InstantContiki3_Cooja.pptx slayt 1-44 ve 60 (45-59 battery-lifetime-harvesting dersinde) · Week_3_Energy_Lab_Tutorial_InstantContiki3_Cooja_STYLE_FIXED.pptx (xml slayt 1-42; xml 29'dan sonra basılı numara bir fazla) · How to Read the Powertrace.pdf · weeks/03-energy.md (Lab, Calculations, Pitfalls, Submission) · assignments/2026-2027-fall-efe/week3 (results.html, scenario-a/b/c.txt ve .csv, powertrace_to_csv.py, video-script.md) · Karl & Willig Ch. 2.2 · Dargie & Poellabauer Ch. 8.1-8.2. Bütün sayılar python3 -I ile yeniden hesaplandı. -->
+          <!-- Rezerv mock'un (exams/practice-midterm) sayıları kullanılmadı. Efe'nin lab tablosundaki lifetime sütunu 2500 mAh ile hesaplandığı için burada lifetime'lar slayt 21'deki 2000 mAh ile verildi; I_avg değerleri aynen kaldı. -->
+        </header>
+
+        <article class="lesson" data-course="cse-427" data-lesson="energy-accounting">
+
+<!-- 1 -->
+<section class="lsec" id="why" data-min="4">
+  <h2>Enerji neden her katmanı değiştirir</h2>
+  <div class="quiz" id="q-ea-why-1">
+    <p class="quiz__q">Bir sera sensörünün uygulaması 10 dakikada bir nem ölçümü istiyor. Bir mühendis sampling period'u 1 saate çıkarıyor ve lifetime 5 katına çıkıyor. W3 slaytlarının bakışıyla bu tasarım nasıl değerlendirilir?</p>
+    <button class="quiz__opt">İyi bir tasarım: lifetime arttı, enerji verimliliği budur.<span class="why">Slayt 4 tam bunu reddediyor: "Energy efficiency is not 'do nothing.' A useless node can live forever." Ölçmeyen node uzun yaşar ama görevini yapmaz.</span></button>
+    <button class="quiz__opt" data-correct>Kötü: required sensing karşılanmıyor, yani bu sustainable service değil.<span class="why">Doğru. Hedef "useful service under a budget": required sensing + required communication + acceptable lifetime. Üçünden biri eksikse tasarım başarısız.</span></button>
+    <button class="quiz__opt">Fark etmez: sampling period application katmanında, enerji ise sadece MAC'i ilgilendirir.<span class="why">Slayt 4'e göre enerji "almost every layer"ı değiştirir. Sampling period, application behavior altında ilk sırada.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Bir tarlaya 200 mote yerleştirdiğini düşün. Pillerini kimse değiştirmeyecek. Mote'un yaptığı her şey (ölçmek, hesaplamak, göndermek, beklemek) aynı pilden harcıyor. Bu yüzden enerji WSN'de ayrı bir başlık değil. Application'ın ne sıklıkta ölçtüğünü, radyonun ne zaman uyandığını, hangi node'un paket taşıdığını hep enerji belirliyor.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Katman</th><th>Enerjiyi belirleyen kararlar (W3 slayt 4)</th></tr>
+    <tr><td>Application behavior</td><td>Sampling period · event detection threshold · local processing vs sending raw data</td></tr>
+    <tr><td>Communication behavior</td><td>When the radio wakes · how many retransmissions are allowed · how often control packets are sent</td></tr>
+    <tr><td>Network behavior</td><td>Which node forwards packets · how paths are balanced · when routes are repaired</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · core thesis</span>
+    <p>"A WSN is useful only if it performs its sensing task sustainably under a strict energy budget." (slayt 1)</p>
+    <p>Energy efficiency "hiçbir şey yapmamak" değildir: <em>"A useless node can live forever."</em> Asıl hedef bir budget altında işe yarar servis:</p>
+    $$\text{Sustainable service} = \text{required sensing} + \text{required communication} + \text{acceptable lifetime}$$
+  </div>
+  <h3>Mote'un içinde enerji nereye gider</h3>
+  <p>Slayt 10'un cümlesi: "A node is not just a radio." Beş harcayıcı ve kayıplar var:</p>
+  <div class="table-wrap"><table>
+    <tr><th>Component</th><th>Neye harcar</th></tr>
+    <tr><td>MCU</td><td>computation, interrupts, protocol logic</td></tr>
+    <tr><td>Radio</td><td>TX/RX/listen/sleep transitions</td></tr>
+    <tr><td>Sensors</td><td>warm-up, conversion, calibration</td></tr>
+    <tr><td>Memory</td><td>buffering, flash reads/writes</td></tr>
+    <tr><td>Peripherals</td><td>LEDs, serial, actuators, regulators</td></tr>
+  </table></div>
+  $$E_{total} = E_{CPU} + E_{radio} + E_{sensors} + E_{memory} + E_{peripherals} + E_{losses}$$
+  <div class="box box--rule">
+    <span class="box__label">Kural · energy-aware design is state-aware design (slayt 11)</span>
+    <p>Component'ler aynı anda aktif değildir. Tipik bir döngü: Sleep → Sense → Compute → TX/RX → Sleep. Enerji hesabı iki ayrı soru grubundan oluşur:</p>
+    <div class="table-wrap"><table>
+      <tr><th>State accounting asks</th><th>Energy estimate asks</th></tr>
+      <tr><td>How long did the CPU stay active?</td><td>What current corresponds to each state?</td></tr>
+      <tr><td>How long did the radio listen?</td><td>What voltage was used?</td></tr>
+      <tr><td>How long did the radio transmit?</td><td>Were state transitions ignored?</td></tr>
+      <tr><td>Which sensor/peripheral was active?</td><td>Did uninstrumented peripherals matter?</td></tr>
+    </table></div>
+    <p>Bu ayrımı aklında tut. Bölüm 7'deki Energest sol sütunu ölçer; sağ sütunu (current, voltage) sen eklersin.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Kitaptan · hesaplamak mı, göndermek mi?</span>
+    <p>Karl &amp; Willig (§2.2.5) kaba bir kıyas veriyor: 1 kB veriyi 100 m uzağa göndermek, yaklaşık 3 milyon instruction çalıştırmak kadar enerji ister. Communication, computation'dan çok daha pahalı. Slayt 4'teki "local processing vs sending raw data" seçimi bu yüzden gerçek bir karar: veriyi node'da özetleyip az göndermek çoğu zaman daha ucuzdur.</p>
+  </div>
+  <!-- Kaynak: W3 slayt 1, 3, 4, 10, 11 · Karl & Willig §2.2.5 (s. 44). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Enerjiyi en aza indir" tek başına hedef değildir. Ölçmeyen, göndermeyen node sonsuza kadar yaşar ama işe yaramaz.</li>
+      <li>Sadece radyoya bakmak: LED'ler, serial port, regulator ve sensor warm-up da harcar. Bölüm 9'da göreceğin gibi standart sayaçlar bunları görmez.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ea-why-2">
+    <p class="quiz__q">Aşağıdakilerden hangisi slayt 11'e göre <em>state accounting</em> sorusu değil, <em>energy estimate</em> sorusudur?</p>
+    <button class="quiz__opt">How long did the radio listen?<span class="why">Bu bir süre sorusu, yani state accounting. Energest gibi bir yazılım sayacı bunu cevaplar.</span></button>
+    <button class="quiz__opt" data-correct>What voltage was used?<span class="why">Doğru. Süreyi enerjiye çevirmek için current ve voltage gerekir; bunlar sayaçtan değil, model ya da datasheet'ten gelir.</span></button>
+    <button class="quiz__opt">Which sensor/peripheral was active?<span class="why">Bu da "hangi state'te ne kadar kaldı" sorusu, yani state accounting tarafında.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="units" data-min="5">
+  <h2>Power, energy, charge ve capacity</h2>
+  <div class="quiz" id="q-ea-units-1">
+    <p class="quiz__q">3.3 V'ta 20 mA çeken bir component ne kadar power harcar?</p>
+    <button class="quiz__opt" data-correct>66 mW<span class="why">Doğru: $P = V \times I = 3.3 \times 0.020 = 0.066$ W $= 66$ mW.</span></button>
+    <button class="quiz__opt">6.6 mW<span class="why">mA'i A'e çevirirken bir sıfır kaydı. $20$ mA $= 0.020$ A, $0.0020$ değil.</span></button>
+    <button class="quiz__opt">66 mJ<span class="why">Sayı doğru, birim yanlış. Joule bir enerji miktarıdır; power bir hızdır (W, mW). Enerji için süre de gerekir.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Power bir anlık hızdır, arabadaki hız göstergesi gibi. Energy ise kat edilen yoldur: hız çarpı süre. Slayt 6'nın cümlesi: "A high-power operation can be cheap if it is very short; a low-power state can be expensive if it lasts for months."</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Quantity</th><th>Meaning</th><th>Unit</th><th>Useful question</th></tr>
+    <tr><td>Power (P)</td><td>Rate of energy use</td><td>W or mW</td><td>How fast am I spending energy now?</td></tr>
+    <tr><td>Energy (E)</td><td>Accumulated power over time</td><td>J, mJ, Wh</td><td>How much energy was spent in this task?</td></tr>
+    <tr><td>Charge (Q)</td><td>Accumulated current over time</td><td>C, Ah, mAh</td><td>How much battery capacity was used?</td></tr>
+    <tr><td>Capacity</td><td>Nominal charge store</td><td>mAh</td><td>How long might the node operate?</td></tr>
+  </table></div>
+  <p class="src">Slayt 5: "Power is instantaneous. Energy is power over time. Charge is current over time."</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · dört formül (slayt 6-9)</span>
+    $$P = V \times I \qquad\qquad E = \int P(t)\,dt \;\xrightarrow{V,\,I \text{ sabit}}\; E = V \times I \times t$$
+    $$Q = \int I(t)\,dt, \quad 1\text{ Ah} = 3600\text{ C}, \quad 1\text{ mAh} = 3.6\text{ C} \qquad\qquad E = V \times Q$$
+    <ul>
+      <li>3 V'ta 10 mA çeken component: $P = 3 \times 0.010 = 0.030$ W $= 30$ mW.</li>
+      <li>30 mW, 10 saniye boyunca: $E = 30\text{ mW} \times 10\text{ s} = 300$ mJ.</li>
+      <li>2000 mAh, 3 V pil: $E = 3\text{ V} \times 2\text{ Ah} = 6$ Wh $= 6 \times 3600 = 21{,}600$ J (nominal).</li>
+    </ul>
+    <p>Birimler kendiliğinden tutar: mA × s = mC, mC × V = mJ, mW × s = mJ.</p>
+  </div>
+  <p>Slayt 9'un "reality check" kısmı: advertised capacity tamamen kullanılamayabilir, cut-off voltage node'u erken durdurabilir, sıcaklık ve load current davranışı değiştirir. Bunların hesabı bir sonraki derste (battery lifetime).</p>
+  <!-- Kaynak: W3 slayt 5-9. -->
+  <h3>Birim merdiveni</h3>
+  <p class="w-energy-accounting-guess"><b>Önce tahmin et:</b> aynı 2000 mAh'lik pil 1.5 V'ta mı, 3.7 V'ta mı daha çok enerji tutar? Kaç katı?</p>
+  <div class="w-energy-accounting-ctl">
+    <label>Capacity <input id="ea-u-mah" type="text" inputmode="decimal" value="2000" /> mAh</label>
+    <label>Voltage <input id="ea-u-v" type="text" inputmode="decimal" value="3" /> V</label>
+    <button class="btn btn--sm" id="ea-u-go">Hesapla</button>
+  </div>
+  <div class="w-energy-accounting-err" id="ea-u-err" aria-live="polite"></div>
+  <div id="ea-u-out"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>mAh bir <strong>charge</strong> birimidir, enerji değil. Voltage olmadan J ya da Wh'e geçemezsin. Slayt 8: "A 2000 mAh battery at 3 V and a 2000 mAh battery at another voltage do not store the same energy."</li>
+      <li>İşlemleri sadece current ile karşılaştırma; süreyle çarp (slayt 7: "Always include how long the state lasts.").</li>
+      <li>mW bir hız, mJ bir miktar. "Radyo 50 mJ harcıyor" cümlesi bir süre aralığı olmadan anlamsız; "radyo 50 mW harcıyor" ise anlık hızdır.</li>
+      <li>mAh / mA saat verir, gün değil. Güne çevirmek için 24'e böl.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ea-units-2">
+    <p class="quiz__q">Hangi pil daha çok enerji tutar: 1200 mAh / 3.7 V mu, 2000 mAh / 1.5 V mu?</p>
+    <button class="quiz__opt">2000 mAh / 1.5 V, çünkü mAh'i daha büyük.<span class="why">mAh charge'tır. Enerji $E = V \times Q$: $1.5 \times 2 = 3.0$ Wh, diğeri $3.7 \times 1.2 = 4.44$ Wh.</span></button>
+    <button class="quiz__opt" data-correct>1200 mAh / 3.7 V: 4.44 Wh, diğeri 3.0 Wh.<span class="why">Doğru. Capacity tek başına enerjiyi vermez; voltage ile çarpman gerekir.</span></button>
+    <button class="quiz__opt">İkisi eşit, çünkü ikisi de "nominal".<span class="why">"Nominal" etiketin anlamı kullanılabilir kapasitenin garanti olmadığıdır; eşitlik söylemez. Hesap 4.44 Wh'e karşı 3.0 Wh.</span></button>
+  </div>
+  <div class="quiz" id="q-ea-units-3">
+    <p class="quiz__q">Radyo 18 mA ile 2 s dinliyor, sonra 17 mA ile 4 ms gönderiyor. Hangisi pilden daha çok charge çeker?</p>
+    <button class="quiz__opt">Gönderme, çünkü TX "pahalı" state.<span class="why">Current'lar neredeyse aynı; fark süredeki. TX: $17 \times 0.004 = 0.068$ mC, listen: $18 \times 2 = 36$ mC.</span></button>
+    <button class="quiz__opt" data-correct>Dinleme: 36 mC, gönderme 0.068 mC; yaklaşık 530 kat.<span class="why">Doğru. Slayt 7: "Idle duration can dominate over brief transmissions."</span></button>
+    <button class="quiz__opt">İkisi aynı, çünkü 18 mA ile 17 mA neredeyse eşit.<span class="why">Current eşit olsa bile charge $Q = I \times t$. Süreler 500 kat farklı.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="states" data-min="6">
+  <h2>Radio state'leri ve transition'lar</h2>
+  <div class="quiz" id="q-ea-states-1">
+    <p class="quiz__q">Düşük güçlü bir 802.15.4 radyosunda hangisi doğrudur?</p>
+    <button class="quiz__opt">Listen neredeyse bedavadır; enerjiyi asıl TX harcar.<span class="why">Klasik yanlış. Receiver da çalışır: signal detection, preamble detection, synchronization, demodulation. Lab'ın modelinde listen 18.8 mA, TX 17.4 mA.</span></button>
+    <button class="quiz__opt" data-correct>Listen, TX kadar ya da ondan fazla current çekebilir.<span class="why">Doğru. Slayt 16: "Listening can cost as much as, or more than, transmitting on some low-power radios."</span></button>
+    <button class="quiz__opt">Sleep'teki radio paket alabilir ama yavaş alır.<span class="why">Slayt 14: sleep "essential but deaf". Uyuyan radio hiçbir şey alamaz; bir schedule ya da rendezvous mekanizması gerekir.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Radyoyu bir telefon santralindeki operatör gibi düşün. Uyurken (sleep) masraf yok ama kimse ona ulaşamaz. Kulaklık takılı bekliyorsa (listen) maaş işliyor, telefon çalmasa bile. Konuşurken (transmit) de maaş işliyor. Bir protocol enerjiyi esas olarak bu state'lerde <strong>ne kadar kalındığını</strong> değiştirerek etkiler (slayt 13).</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>State</th><th>Slayttaki özet</th><th>Fayda</th><th>Bedel</th></tr>
+    <tr><td>Sleep</td><td>very low current, no reception</td><td>Very low current consumption · major lifetime extension · safe default for inactive periods</td><td>Cannot receive packets · wake-up delay and transition energy · possible loss of synchronization</td></tr>
+    <tr><td>Idle / standby</td><td>ready faster, not full RX</td><td>Some circuits remain active; transition to TX/RX faster than from deep sleep</td><td>Current higher than sleep, usually lower than full receive. "Do not assume idle means free."</td></tr>
+    <tr><td>Receive / listen</td><td>radio monitors channel, can waste energy</td><td>Paket gelirse alabilir</td><td>Signal detection, preamble detection, synchronization, demodulation, CRC/address filtering hep çalışır; kanal noise ya da başkasının frame'ini taşısa bile</td></tr>
+    <tr><td>Transmit</td><td>sends waveform, packet length matters</td><td>Paketi yollar</td><td>Output power, radio hardware, packet length, supply voltage, startup/shutdown behavior'a bağlı</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · listen ve transmit</span>
+    <ul>
+      <li>"In WSNs, the radio can spend more energy waiting for packets than sending them." (slayt 16)</li>
+      <li>TX state "visible, expensive, but often brief" (slayt 17). Higher TX power is not magic: received signal'ı iyileştirebilir ama collisions'ı kaldıramaz, link asymmetry'yi düzeltemez, interference'ı yok edemez.</li>
+    </ul>
+    $$\text{Successful delivery} = \text{radio link} + \text{MAC timing} + \text{ACK path} + \text{interference conditions}$$
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Kitaptan · CC2420 (Sky mote'un radyosu)</span>
+    <p>Dargie &amp; Poellabauer Table 8.1: CC2420 0 dBm'de 17.4 mA, −25 dBm'de 8.5 mA çekiyor. Radiated power 25 dB yani yaklaşık 316 kat düşüyor, current ise sadece yarıya iniyor. Çünkü current'ın büyük kısmı frequency synthesizer, filter gibi sabit elektroniğe gidiyor (Karl &amp; Willig, Eq. 2.4: $P_{amp} = \alpha_{amp} + \beta_{amp} P_{tx}$). Lab'daki TX 17.4 mA, bu tablonun 0 dBm satırıdır; lab'ın listen değeri 18.8 mA ondan büyüktür.</p>
+  </div>
+  <h3>Transition'lar bedava değil</h3>
+  <p>Bir state'ten ötekine geçmek de iş ister (slayt 18): start oscillator, enable regulators, calibrate radio, lock frequency synthesizer, restore configuration. Örneğin CC2420'nin frequency synthesizer PLL'i kilitlenmek için 192 µs harcar (D&amp;P §8.1.2).</p>
+  $$E_{operation} = E_{startup} + E_{active} + E_{shutdown}$$
+  <div class="box box--rule">
+    <span class="box__label">Kural · modeling implication (slayt 15, 18)</span>
+    <p>Kısa ve sık aktif dönemlerde transition maliyeti görünür hale gelir. "A steady-state model can underestimate energy if the protocol repeatedly wakes for very short checks."</p>
+  </div>
+  <h3>CPU ve peripheral power state'leri</h3>
+  <p>Slayt 27: MCU'nun da modları var: Active, Idle, Low-power mode, Deep sleep, Shutdown. Daha derin uyku genelde şu demek:</p>
+  <ul>
+    <li>Lower current</li>
+    <li>Longer wake-up latency</li>
+    <li>Possible loss of clock/peripheral state</li>
+    <li>Fewer wake-up sources</li>
+  </ul>
+  <p>Sensörler de anında hazır olmaz: warm-up time, stabilization time, conversion time, calibration cost. Slaytın sonucu: "Turning a component off after every sample is not automatically optimal if the sampling interval is short."</p>
+  <div class="box box--example">
+    <span class="box__label">Kitaptan · MSP430 ve "uyumaya değer mi?"</span>
+    <p>Karl &amp; Willig (§2.2.2), Sky'daki MSP430 ailesi için: aktif mod yaklaşık 1.2 mW (1 MHz, 3 V). LPM3'te bir clock çalışmaya devam eder, zamanlı uyanma mümkündür, yaklaşık 6 µW. En derin LPM4 sadece 0.3 µW ama sadece external interrupt ile uyanır. Periyodik ölçüm yapan bir node LPM4'e giremez: timer ile uyanamaz. "Fewer wake-up sources" budur.</p>
+    <p>Aynı bölüm (Eq. 2.3) bir eşik veriyor. $t_1$ anında uyumaya karar veriyorsun, sonraki olay $t_{event}$'te. Uykuya iniş $\tau_{down}$, uyanış $\tau_{up}$ sürüyor. Uyumak ancak şu durumda kazançlıdır:</p>
+    $$t_{event} - t_1 &gt; \frac12\left(\tau_{down} + \frac{P_{active} + P_{sleep}}{P_{active} - P_{sleep}}\,\tau_{up}\right)$$
+    <p>Örnek: $P_{active} = 60$ mW, $P_{sleep} = 0.06$ mW, $\tau_{down} = 1$ ms, $\tau_{up} = 3$ ms ⇒ eşik $\approx 2.0$ ms. Bir sonraki iş 2 ms'den yakınsa uyumak enerji kaybettirir. $P_{sleep} \ll P_{active}$ iken eşik kabaca iki transition süresinin ortalamasıdır.</p>
+  </div>
+  <!-- Kaynak: W3 slayt 12-18, 27 · Dargie & Poellabauer §8.1.2 ve Table 8.1 (s. 209-210) · Karl & Willig §2.2.1 Eq. 2.1-2.3, §2.2.2 (MSP430), §2.2.4 Eq. 2.4. Break-even örneğinin sayıları uydurma bir örnek, python ile hesaplandı (2.003 ms). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Idle" bedava değildir. Datasheet'ler state'leri farklı tanımlar; idle/standby'ın current'ı sleep'ten yüksektir.</li>
+      <li>TX power'ı artırmak her problemi çözmez: collision, asymmetry ve interference yerinde kalır, TX current artar.</li>
+      <li>"Her ölçümden sonra her şeyi kapat" otomatik olarak en iyisi değildir: warm-up ve transition maliyeti kısa aralıklarda kazancı yer.</li>
+      <li>Steady-state model (sadece state süreleri × current) çok kısa ve sık uyanmaları düşük tahmin eder.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ea-states-2">
+    <p class="quiz__q">Bir protocol radyoyu saniyede 50 kez, her seferinde 0.2 ms için uyandırıyor. State süreleri × current ile hesaplanan tahmin gerçeğe göre nasıl olur?</p>
+    <button class="quiz__opt">Doğru çıkar, çünkü 0.2 ms × 50 = 10 ms aktif süre tam ölçülmüştür.<span class="why">Aktif süre doğru olabilir ama her uyanışta oscillator'ı başlatmak, synthesizer'ı kilitlemek gibi transition işleri var. 50 kez tekrarlanınca bu enerji ihmal edilemez.</span></button>
+    <button class="quiz__opt" data-correct>Gerçek tüketimi düşük tahmin eder; transition enerjisi modelde yok.<span class="why">Doğru. Slayt 18: "A steady-state model can underestimate energy if the protocol repeatedly wakes for very short checks."</span></button>
+    <button class="quiz__opt">Gerçek tüketimi yüksek tahmin eder, çünkü kısa uyanışlarda radio tam current'a çıkmaz.<span class="why">Ters yön. Model transition maliyetini hiç saymaz, bu yüzden eksik sayar.</span></button>
+  </div>
+  <div class="quiz" id="q-ea-states-3">
+    <p class="quiz__q">Bir node her 30 saniyede bir timer ile uyanıp ölçüm yapacak. MSP430'u hangi uyku moduna sokmalı?</p>
+    <button class="quiz__opt">LPM4, çünkü en düşük current orada.<span class="why">LPM4'te clock da durur; sadece external interrupt uyandırır. Timer ile uyanamazsın. Daha derin uyku = fewer wake-up sources.</span></button>
+    <button class="quiz__opt" data-correct>LPM3: clock çalışır, timer uyandırabilir, current hâlâ µW düzeyinde.<span class="why">Doğru. En derin modu değil, işini yapabilen en derin modu seçersin.</span></button>
+    <button class="quiz__opt">Active mod: 30 saniye uyanma maliyetine değmez.<span class="why">Eşik formülüne göre uyumak, sonraki olaya kalan süre transition sürelerinden (ms düzeyi) uzunsa kazançlıdır. 30 s bunun çok üstünde.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="idle" data-min="4">
+  <h2>Idle listening ve suç ortakları</h2>
+  <div class="quiz" id="q-ea-idle-1">
+    <p class="quiz__q">1500 mAh'lik bir pil, hiç uyumayan ve 20 mA çeken bir receiver'ı ne kadar besler? ($L = C/I$, sadece radio)</p>
+    <button class="quiz__opt" data-correct>75 saat, yani yaklaşık 3.1 gün.<span class="why">Doğru: $1500 / 20 = 75$ h, $75 / 24 \approx 3.1$ gün. Yıllar beklenen bir uygulama için çok kısa.</span></button>
+    <button class="quiz__opt">30,000 saat.<span class="why">Capacity ile current çarpılmış. mAh / mA = h; bölmen gerekir.</span></button>
+    <button class="quiz__opt">75 gün.<span class="why">mAh / mA saat verir, gün değil. 75 h'yi 24'e bölmeyi unuttun.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanım · idle listening (slayt 20)</span>
+    <p>"The radio is on, but the application receives no useful data." Kanalda şunlardan biri olabilir: no transmission, noise or interference, frames for another node, colliding transmissions, control traffic only.</p>
+    <p>Neden israf: receiver circuitry aktif, CPU interrupt ya da header işleyebilir, ama hiçbir application ölçümü elde edilmez. "Battery drains without progress."</p>
+    <p>Slaytın sonucu: "Idle listening is why 'always ready to receive' is usually incompatible with multi-year battery lifetime."</p>
+  </div>
+  <div class="box box--exam" data-exam="w3-s21-idle-listening"><span class="box__label">W3 slayt 21 · hocanın sorusu</span>
+    <p>"Why idle listening is expensive: one quick calculation. $L_{hours} = C_{mAh} / I_{mA}$. Assume: Radio receive current = 19 mA, Battery capacity = 2000 mAh." (Slaytta sonuç da yazılı; burada soru olarak soruluyor.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Radyo hiç uyumuyorsa average current, receive current'ın kendisidir. Formüle koy.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sonucu saat olarak bulursun. Bir de güne çevir ve modelin neyi saymadığını yaz.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$L = 2000\text{ mAh} / 19\text{ mA} \approx 105.3$ h $\approx 105.3 / 24 \approx 4.4$ gün.</p>
+      <p>Yani hiç uyumayan bir receiver, sadece radyo için, iki AA pili bir haftadan kısa sürede bitirir. Bu tahmin MCU'yu, sensörleri, regulator'ları ve gerçek pil davranışını saymıyor: "Real lifetime can be shorter."</p>
+    </div></details>
+    <!-- Kaynak: W3 slayt 21. 2000/19 = 105.26 h = 4.39 gün (python). -->
+  </div>
+  <h3>Suç ortakları</h3>
+  <p>Slayt 22: "Idle listening is the star villain, but it has accomplices."</p>
+  <div class="table-wrap"><table>
+    <tr><th>Waste source</th><th>What happens</th><th>Energy consequence</th></tr>
+    <tr><td>Overhearing</td><td>Node receives a frame for another node</td><td>RX time and processing wasted</td></tr>
+    <tr><td>Collisions</td><td>Overlapping transmissions cannot be decoded</td><td>TX/RX energy lost; retry needed</td></tr>
+    <tr><td>Retransmissions</td><td>Data or ACK is lost</td><td>Extra radio activity</td></tr>
+    <tr><td>Over-emitting</td><td>Sender transmits while receiver sleeps</td><td>No possible delivery</td></tr>
+    <tr><td>Control overhead</td><td>Routing, sync, discovery, ACKs</td><td>Necessary, but not application data</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural</span>
+    <p>"Protocol design is often about reducing wasted states, not only making a single packet cheaper." MAC derslerinde göreceğin her protocol bu tablodaki satırlardan birini azaltmaya çalışır.</p>
+  </div>
+  <!-- Kaynak: W3 slayt 19-22. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Overhearing ile idle listening'i karıştırma. Idle listening'de kanalda işe yarar bir şey yoktur; overhearing'de bir frame gerçekten alınır ama başka bir node içindir.</li>
+      <li>Over-emitting'de sorun receiver'da değil, sender'dadır: receiver uyurken gönderilen frame hiçbir şekilde teslim edilemez.</li>
+      <li>Control overhead israf sayılmaz ama application data da değildir. "Necessary" kelimesi önemli: sıfıra indiremezsin, azaltabilirsin.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ea-idle-2">
+    <p class="quiz__q">Sender bir frame'i art arda gönderiyor ama hedef node o sırada uyuyor; frame'lerin hiçbiri alınmıyor. Slayt 22'deki hangi waste source bu?</p>
+    <button class="quiz__opt">Overhearing<span class="why">Overhearing'de frame alınır, ama başka node içindir. Burada kimse almıyor.</span></button>
+    <button class="quiz__opt">Collisions<span class="why">Collision iki transmission'ın üst üste binmesidir. Burada tek sender var, alıcı uyuyor.</span></button>
+    <button class="quiz__opt" data-correct>Over-emitting<span class="why">Doğru: "Sender transmits while receiver sleeps", sonuç "No possible delivery".</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="duty" data-min="6">
+  <h2>Duty cycle, average current ve trade-off'lar</h2>
+  <div class="quiz" id="q-ea-duty-1">
+    <p class="quiz__q">Radyo her 2 saniyede 12 ms aktif. Duty cycle kaç?</p>
+    <button class="quiz__opt">6%<span class="why">Bu, slayt 23'teki 60 ms / 1 s örneği. Burada $12 / 2000$.</span></button>
+    <button class="quiz__opt" data-correct>0.6%<span class="why">Doğru: $D = 12 / 2000 = 0.006 = 0.6\%$.</span></button>
+    <button class="quiz__opt">0.06%<span class="why">Yüzdeye çevirirken bir basamak kaydı: $0.006 \times 100 = 0.6$.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanım · duty cycle (slayt 23)</span>
+    $$D = \frac{t_{active}}{t_{total}}$$
+    <p>Duty cycling "the basic energy-saving lever": short active checks, long sleep intervals. "A 1% radio duty cycle means the radio is active for about one hundredth of the observation interval."</p>
+  </div>
+  <div class="box box--exam" data-exam="w3-s23-duty-example"><span class="box__label">W3 slayt 23 · hocanın sorusu</span>
+    <p>"Example: Radio active for 60 ms every 1 s." Duty cycle nedir? (Slaytta sonuç yazılı; soru olarak soruluyor.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İki süreyi aynı birime getir: 1 s = 1000 ms.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$D$ bir oran; istersen 100 ile çarpıp yüzde yaz.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$D = 60 / 1000 = 0.06 = 6\%$. Radyo gözlem süresinin %6'sında açık, %94'ünde uyuyor.</p>
+    </div></details>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · average current (slayt 24)</span>
+    $$I_{avg} = \sum_i D_i\, I_i \qquad\quad I_{radio,avg} = D_{RX} I_{RX} + D_{TX} I_{TX} + D_{sleep} I_{sleep}$$
+    <p>Protocol'leri her state'te geçen ağırlıklı zamanla karşılaştırırsın. Design insight: "Reducing listening time can matter more than reducing transmit time, because a node may listen far more often than it transmits."</p>
+  </div>
+  <div class="box box--exam" data-exam="w3-s24-iavg-table"><span class="box__label">W3 slayt 24 · hocanın tablosu</span>
+    <p>Slayttaki tablo (contribution sütunu boş bırakıldı):</p>
+    <div class="table-wrap"><table>
+      <tr><th>State</th><th>Current</th><th>Duty</th><th>Contribution</th></tr>
+      <tr><td>RX/listen</td><td>19 mA</td><td>5%</td><td>?</td></tr>
+      <tr><td>TX</td><td>17 mA</td><td>0.1%</td><td>?</td></tr>
+      <tr><td>Sleep</td><td>0.002 mA</td><td>94.9%</td><td>?</td></tr>
+    </table></div>
+    <p>Her satırın contribution'ını ve radyonun average current'ını bul. Hangi state baskın?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Yüzdeyi ondalığa çevir: 5% = 0.05, 0.1% = 0.001, 94.9% = 0.949. Sonra current ile çarp.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Önce kontrol: üç duty'nin toplamı 100% mü? Radyo her an bu üç state'ten birinde olmalı.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Kontrol: $5 + 0.1 + 94.9 = 100\%$ ✓.</p>
+      <ul>
+        <li>RX/listen: $0.05 \times 19 = 0.95$ mA</li>
+        <li>TX: $0.001 \times 17 = 0.017$ mA</li>
+        <li>Sleep: $0.949 \times 0.002 = 0.0019$ mA</li>
+      </ul>
+      <p>$I_{radio,avg} = 0.95 + 0.017 + 0.0019 \approx 0.969$ mA. Listening tek başına %98'i oluşturuyor. TX current'ı listen'e yakın (17 vs 19 mA), ama duty'si 50 kat küçük. Sleep current'ı en düşük, duty'si en büyük, katkısı yine de ihmal edilebilir.</p>
+    </div></details>
+    <!-- Kaynak: W3 slayt 24 (slayt toplamı yazmıyor; 0.968898 mA python ile). -->
+  </div>
+  <h3>Duty cycling'in bedeli</h3>
+  <p>Slayt 25: "Turning the radio off moves cost elsewhere; it does not make communication free."</p>
+  <div class="table-wrap"><table>
+    <tr><th>Energy benefit</th><th>Communication cost</th><th>Protocol complexity</th></tr>
+    <tr><td>Less idle listening<br>Lower average current<br>Longer theoretical lifetime</td><td>Longer packet delay<br>Longer neighbor discovery<br>More sender effort<br>Risk of missing urgent events</td><td>Synchronization or wake-up strobes<br>More careful MAC timing<br>Different behavior under bursts</td></tr>
+  </table></div>
+  <p>Slaytın örneği: "A soil-moisture sensor can sleep aggressively. A safety alarm may justify higher radio duty cycle."</p>
+  <h3>Synchronous ve asynchronous duty cycling</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Approach</th><th>How it works</th><th>Advantage</th><th>Cost</th></tr>
+    <tr><td>Synchronous</td><td>Nodes coordinate wake/sleep schedules</td><td>Predictable communication opportunities</td><td>Synchronization overhead and clock drift</td></tr>
+    <tr><td>Asynchronous</td><td>Nodes wake independently</td><td>Flexible deployment and joining</td><td>Sender may repeat packets or wait longer</td></tr>
+  </table></div>
+  <div class="box box--intuition">
+    <span class="box__label">MAC'e köprü (slayt 26)</span>
+    <p>"Low-power MAC protocols are basically answers to this question: how do sender and receiver rendezvous when the receiver sleeps?" B-MAC, X-MAC, ContikiMAC asenkron cevaplardır; TDMA ve TSCH senkron cevaplardır. Ayrıntıları ileriki derslerde. Lab'daki ContikiMAC asenkron: sender, receiver uyanana kadar frame'ini tekrar eder. Bölüm 11'de bunun TX sayacına etkisini göreceksin.</p>
+  </div>
+  <!-- Kaynak: W3 slayt 23-26. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$I_{avg}$'yi hesaplarken yüzdeyi ondalığa çevirmeyi unutma: $5\% \times 19$ mA $= 0.95$ mA, $95$ mA değil.</li>
+      <li>"En pahalı state'i küçült" yanlış hedef. Contribution $D_i I_i$'dir; uzun süren ucuz state, kısa süren pahalı state'ten fazla harcayabilir.</li>
+      <li>Duty cycling enerjiyi yok etmez, taşır: delay'e, sender'ın çabasına, discovery süresine.</li>
+      <li>Synchronous "bedava" değil: clock drift yüzünden periyodik sync mesajları gerekir; bunlar da control overhead'dir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ea-duty-2">
+    <p class="quiz__q">Listen 18 mA / 2%, TX 16 mA / 0.2%, sleep 0.001 mA / 97.8%. Radyonun average current'ı yaklaşık kaç?</p>
+    <button class="quiz__opt" data-correct>0.393 mA<span class="why">Doğru: $0.36 + 0.032 + 0.00098 \approx 0.393$ mA. Yine listen baskın.</span></button>
+    <button class="quiz__opt">39.3 mA<span class="why">Yüzdeleri ondalığa çevirmeden çarpmışsın (2 × 18 = 36). Average current hiçbir state'in current'ından büyük olamaz.</span></button>
+    <button class="quiz__opt">11.3 mA<span class="why">Bu, üç current'ın düz ortalaması: $(18 + 16 + 0.001)/3$. Ağırlık duty olmalı, her state'e eşit ağırlık değil.</span></button>
+  </div>
+  <div class="quiz" id="q-ea-duty-3">
+    <p class="quiz__q">Synchronous duty cycling'in slayt 26'daki bedeli hangisi?</p>
+    <button class="quiz__opt">Sender paketi tekrar tekrar göndermek zorunda kalabilir.<span class="why">Bu asynchronous'un bedeli: node'lar bağımsız uyandığı için sender receiver'ı yakalamaya çalışır.</span></button>
+    <button class="quiz__opt" data-correct>Synchronization overhead ve clock drift.<span class="why">Doğru. Schedule'lar ortak olmalı; clock'lar kaydıkça yeniden senkronize etmek gerekir.</span></button>
+    <button class="quiz__opt">Yeni node'ların ağa katılması kolaylaşır.<span class="why">Bu bir bedel değil, ve asynchronous'un avantajı ("flexible deployment and joining").</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="model" data-min="4">
+  <h2>State-based model: yüzdeleri değil enerjileri topla</h2>
+  <div class="quiz" id="q-ea-model-1">
+    <p class="quiz__q">Bir node'da CPU %5 active / %95 LPM, radyo %20 listen / %1 TX / %79 sleep. Bir öğrenci "node toplamda %26 aktif" diyor. Doğru mu?</p>
+    <button class="quiz__opt">Evet: 5 + 20 + 1 = 26.<span class="why">CPU ve radyo ayrı component'ler ve aynı anda aktif olabilirler. Yüzdelerini toplamak anlamsız; toplam 200% bile çıkardı.</span></button>
+    <button class="quiz__opt" data-correct>Hayır: yüzdeler farklı component'leri anlatır; toplanacak olan enerjiler (ya da current katkıları).<span class="why">Doğru. Slayt 30: "Add energies, not percentages."</span></button>
+    <button class="quiz__opt">Hayır, doğru cevap 21%, çünkü CPU radyonun içinde sayılır.<span class="why">CPU radyonun içinde değildir. İkisi ayrı component, ayrı hesaplanır, sonra enerjileri toplanır.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · state-based energy model (slayt 29)</span>
+    <p>Zamanı, current'ı yaklaşık sabit olan state'lere böl:</p>
+    $$Q_{total} = \sum_i I_i\, t_i \qquad\quad E_{total} = V \sum_i I_i\, t_i = \sum_i P_i\, t_i$$
+    <p>Gerekenler: state süreleri, current değerleri, voltage. "Simple enough for lab comparison." Model çekici, çünkü "software can often record state time, even when exact current is not directly measured."</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · component overlap (slayt 30)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Component</th><th>Example accounting</th><th>Should these sum with radio?</th></tr>
+      <tr><td>CPU</td><td>CPU active 5% + LPM 95% = 100%</td><td>No, CPU modes are one component</td></tr>
+      <tr><td>Radio</td><td>Listen 20% + TX 1% + sleep 79% = 100%</td><td>No, radio is another component</td></tr>
+      <tr><td>Node</td><td>CPU and radio can be active at the same wall-clock time</td><td>Add energies, not percentages</td></tr>
+    </table></div>
+    $$E_{node} = E_{CPU} + E_{radio} + E_{sensors} + \dots$$
+  </div>
+  <div class="box box--exam" data-exam="w3-s30-percent-overlap"><span class="box__label">W3 slayt 30 · hocanın tablosu</span>
+    <p>"Component overlap: do not add percentages blindly." Slayt 30'daki yüzdelerle (CPU active 5%, LPM 95%; listen 20%, TX 1%, sleep 79%) ve slayt 41'in current'larıyla (CPU active 8 mA, LPM 0.02 mA, listen 19 mA, TX 17 mA, sleep 0.002 mA) node'un average current'ını bul. Yüzdeleri toplasaydın ne çıkardı, neden anlamsız?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her component'i kendi içinde hesapla: CPU'nun iki state'i, radyonun üç state'i. Her component'in duty'leri kendi içinde 100% eder.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İki component'in current katkısını topla. Aynı voltage'ta current'ları toplamak, enerjileri toplamakla aynı şeydir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>CPU: $0.05 \times 8 + 0.95 \times 0.02 = 0.4 + 0.019 = 0.419$ mA.</p>
+      <p>Radio: $0.20 \times 19 + 0.01 \times 17 + 0.79 \times 0.002 = 3.8 + 0.17 + 0.0016 \approx 3.972$ mA.</p>
+      <p>Node: $0.419 + 3.972 \approx 4.391$ mA. Enerji olarak: $E_{node} = V \cdot 4.391\text{ mA} \cdot t = E_{CPU} + E_{radio}$.</p>
+      <p>Yüzdeleri toplasaydın $5 + 95 + 20 + 1 + 79 = 200\%$ çıkardı. Bu bir şey ölçmez: her component kendi zaman çizgisinin %100'ünü doldurur ve CPU ile radyo aynı saat diliminde birlikte aktif olabilir.</p>
+    </div></details>
+    <!-- Kaynak: W3 slayt 29-30; current'lar slayt 41'den. 0.419 + 3.97158 = 4.39058 mA (python). Slayt sadece kavramı veriyor; sayısal hesap bu derste eklendi. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Radio on %" ile "CPU %" toplanmaz. Lab tablosunda yan yana durmaları toplanacakları anlamına gelmez.</li>
+      <li>Bir component'in duty'leri toplamı 100% değilse eksik bir state var demektir (örneğin sensörün "off" durumu, current'ı 0 kabul edilir).</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W3 slayt 28-30. -->
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="energest" data-min="6">
+  <h2>Energest ve Powertrace: tick'ten mA'e, mC'den mJ'e</h2>
+  <div class="quiz" id="q-ea-energest-1">
+    <p class="quiz__q">Energest Contiki 3.0'da neyi kaydeder?</p>
+    <button class="quiz__opt">Her state'te çekilen current'ı (mA).<span class="why">Slayt 31: "It does not directly measure electrical current." Current'ı sen bir modelden eklersin.</span></button>
+    <button class="quiz__opt" data-correct>Yazılımın gördüğü CPU ve radio state'lerinde geçen süreyi (tick).<span class="why">Doğru: "Energest records time spent in software-visible CPU and radio states."</span></button>
+    <button class="quiz__opt">Pilin kalan voltage'ını.<span class="why">Energest pil durumunu bilmez. Sadece state süresi sayar.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Energest (slayt 31)</span>
+    <p>Energest, yazılımın görebildiği state'lerde geçen zamanı sayar; current ölçmez. Contiki 3.0'daki standart state adları:</p>
+    <ul>
+      <li><code>ENERGEST_TYPE_CPU</code> · CPU aktif</li>
+      <li><code>ENERGEST_TYPE_LPM</code> · CPU low power mode'da</li>
+      <li><code>ENERGEST_TYPE_TRANSMIT</code> · radio gönderiyor</li>
+      <li><code>ENERGEST_TYPE_LISTEN</code> · radio dinliyor</li>
+    </ul>
+    <p>Contiki-NG tutorial'larındaki parçaları kullanma: <code>os/services/simple-energest</code> yok, <code>MODULES += os/services/...</code> yok, eski kurulumda <code>DEEP_LPM</code> olduğunu varsayma. Lab'ın odağı: Energest counters + Powertrace output + Cooja Timeline/Mote Output.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Powertrace (slayt 32)</span>
+<pre><code># Makefile
+APPS += powertrace
+
+/* C source */
+#include "powertrace.h"
+PROCESS_BEGIN();
+powertrace_start(CLOCK_SECOND * 10);
+/* application work here */
+PROCESS_END();</code></pre>
+    <p>Powertrace, Energest sayaçlarından periyodik satırlar basar: CPU, LPM, radio transmit ve listen süresi. Slayttaki örnek 10 saniyede bir basıyor; lab'da <code>CLOCK_SECOND * 30</code> kullanıldı. Öğrencinin toplaması gerekenler: Mote Output satırları, CPU/LPM/TX/RX tick'leri, packet count / PDR, scenario configuration.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · tick'ten enerjiye zincir (slayt 38-40)</span>
+    <p>$N_i$: state $i$'de geçen tick, $F$: saniyedeki tick sayısı, $N_{total}$: aralıktaki toplam tick.</p>
+    $$t_i = \frac{N_i}{F} \qquad D_i = \frac{N_i}{N_{total}} \qquad I_{avg,i} = D_i\, I_i \qquad I_{avg,total} = \sum_i I_{avg,i}$$
+    $$Q_i\,(\text{mC}) = \frac{N_i\, I_i}{F} \qquad\qquad E_i\,(\text{mJ}) = Q_i\,(\text{mC}) \times V$$
+    <p>"Do not overclaim": simulated ticks are state accounting, not direct current measurement; current values still come from a model or datasheet. Raporda şunları yaz: scenario name, mote ID, duration, counter values, calculated duty cycles, assumed currents. Assumptions must be stated: voltage, current per state, timer frequency, which components were included.</p>
+    <p>Slayt 39: "If LISTEN is 10% of total ticks, the radio was listening for one tenth of the observation interval." Raporda hem ham sayaçları hem türetilmiş duty'leri ver ki sonuç kontrol edilebilsin.</p>
+  </div>
+  <p>Aşağıda zinciri senin lab log'undaki gerçek iki satırla adım adım çalıştırabilirsin. Current'lar lab'ın modeli (CPU 1.8, LPM 0.0545, TX 17.4, listen 18.8 mA), $F = 32768$ tick/s, voltage 3 V varsayımı.</p>
+  <p class="w-energy-accounting-guess"><b>Önce tahmin et:</b> B senaryosunda server 30 saniyenin yüzde kaçında dinliyor? Bu 30 saniyede kaç mJ harcıyor (10 mJ'den az mı, çok mu)?</p>
+  <div class="w-energy-accounting-ctl"><label for="ea-pipe-sel">Senaryo ve mote</label><select id="ea-pipe-sel" class="btn btn--sm"></select></div>
+  <div id="ea-pipe-stepper"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Sky'da iki ayrı saat var. Powertrace satırındaki üçüncü sayı (örneğin 23046) Contiki'nin <code>clock_time()</code>'ı: saniyede 128 tick, $23046/128 \approx 180$ s. Energest sayaçları ise rtimer tick'iyle sayılır: saniyede 32768. 30 saniyelik bir aralıkta $30 \times 32768 = 983040$ tick eder; log'larında $N_{CPU} + N_{LPM} \approx 982690$, yani tutuyor.</li>
+      <li>$N_{total}$ olarak $N_{CPU} + N_{LPM}$ kullan: CPU her an ya aktif ya LPM'dedir, bu ikisinin toplamı duvar saatidir. TX + listen toplamı ise sadece radyonun açık olduğu süredir.</li>
+      <li>Birimler: mA × s = mC, mC × V = mJ. $Q_i$ formülündeki $N_i/F$ saniyedir.</li>
+      <li>Powertrace sayaçları boot'tan beri birikir (cumulative). Bir aralığın değerini iki satırın farkından alırsın.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ea-energest-2">
+    <p class="quiz__q">$F = 32768$ tick/s. 10 saniyelik bir aralıkta $N_{total} = 327680$, $N_{listen} = 6553$. Listen duty'si ve süresi?</p>
+    <button class="quiz__opt" data-correct>$D \approx 2\%$, $t \approx 0.2$ s<span class="why">Doğru: $6553/327680 \approx 0.02$, $6553/32768 \approx 0.2$ s. Kontrol: $0.02 \times 10$ s $= 0.2$ s.</span></button>
+    <button class="quiz__opt">$D \approx 20\%$, $t \approx 2$ s<span class="why">Bir basamak kayması: $6553/327680$, $0.2$ değil $0.02$.</span></button>
+    <button class="quiz__opt">$D \approx 2\%$, $t \approx 6553$ s<span class="why">Tick saniye değildir. Süre için $F$'ye böl: $t = N/F$.</span></button>
+  </div>
+  <!-- Kaynak: W3 slayt 31-32, 38-40 · Efe'nin scenario-a/b/c.txt satırları (mote 1, seqno 4 ve 5). 32768 tick/s: ΔCPU+ΔLPM ≈ 982690 tick / 30 s ile doğrulandı. -->
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="worked" data-min="5">
+  <h2>Worked example: listen neden baskın</h2>
+  <div class="quiz" id="q-ea-worked-1">
+    <p class="quiz__q">Slayt 41'deki node'da listen duty'si 5%'ten 2%'ye inerse (listen current 19 mA) average current ne kadar düşer?</p>
+    <button class="quiz__opt">0.76 mA<span class="why">Bu, 5% → 1% için slaytın verdiği sayı. 3 puanlık düşüş: $0.03 \times 19$.</span></button>
+    <button class="quiz__opt" data-correct>0.57 mA<span class="why">Doğru: $0.03 \times 19 = 0.57$ mA. (Radyo bu süreyi sleep'te geçirir ve $0.03 \times 0.002 = 0.00006$ mA ekler; ihmal edilebilir.)</span></button>
+    <button class="quiz__opt">3 mA<span class="why">Yüzde puanı current'tan çıkarılmaz. Değişim $\Delta D \times I$.</span></button>
+  </div>
+  <div class="box box--exam" data-exam="w3-s41-worked-example"><span class="box__label">W3 slayt 41-42 · hocanın worked example'ı</span>
+    <p>"Worked energy-accounting example. A compact example shows why listening can dominate." (Contribution sütunu boş bırakıldı.)</p>
+    <div class="table-wrap"><table>
+      <tr><th>State</th><th>Current</th><th>Duty cycle</th><th>Contribution</th></tr>
+      <tr><td>CPU active</td><td>8 mA</td><td>1%</td><td>?</td></tr>
+      <tr><td>CPU LPM</td><td>0.02 mA</td><td>99%</td><td>?</td></tr>
+      <tr><td>Radio TX</td><td>17 mA</td><td>0.1%</td><td>?</td></tr>
+      <tr><td>Radio listen</td><td>19 mA</td><td>5%</td><td>?</td></tr>
+      <tr><td>Radio sleep</td><td>0.002 mA</td><td>94.9%</td><td>?</td></tr>
+      <tr><td>Sensor active</td><td>2 mA</td><td>0.5%</td><td>?</td></tr>
+    </table></div>
+    <p>(a) Total average current? (b) "If listening falls from 5% to 1%", listen contribution ne olur, ne kadar tasarruf edilir? (c) "What the worked example teaches": üç gözlemi yaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her satır $D_i I_i$. Component'leri ayrı kontrol et: CPU 1 + 99 = 100%, radio 0.1 + 5 + 94.9 = 100%, sensor 0.5% (kalan %99.5 off, 0 mA).</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c) için: TX'in duty'si ne kadar küçük, yine de radyo neden baskın? Radyo katkısının ne kadarı listen'den geliyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> CPU active $0.0800$, CPU LPM $0.0198$, Radio TX $0.0170$, Radio listen $0.9500$, Radio sleep $0.0019$, Sensor $0.0100$ mA. Toplam:</p>
+      $$I_{avg} = 0.0800 + 0.0198 + 0.0170 + 0.9500 + 0.0019 + 0.0100 = 1.0787\text{ mA}$$
+      <p>Radio listen tek başına $0.95$ mA, yani toplamın yaklaşık %88'i.</p>
+      <p><strong>(b)</strong> Listen 1% olunca katkı $0.01 \times 19 = 0.19$ mA. Tasarruf $0.95 - 0.19 = 0.76$ mA. Yeni toplam yaklaşık $0.319$ mA, yani aynı pille yaklaşık 3.4 kat uzun ömür.</p>
+      <p><strong>(c)</strong> Slayt 42:</p>
+      <ol>
+        <li>"The radio dominates even though transmit duty cycle is tiny."</li>
+        <li>"Most radio contribution came from listening, not transmission."</li>
+        <li>"A modest duty-cycle change can shift lifetime estimates dramatically."</li>
+      </ol>
+      <p>Optimization target: "reduce expensive time, not just expensive states". Bu, MAC protocol'lerine köprüdür: receiver'ı gereksiz yere uyanık tutmamak.</p>
+    </div></details>
+    <!-- Kaynak: W3 slayt 41-42. Satırların toplamı python ile 1.078698 mA; slayt 1.0797 yazıyor. 0.76 tasarruf ve 0.19 doğru. -->
+  </div>
+  <p class="src">Not: Slayt 41 toplamı "≈ 1.0797 mA" yazıyor. Satırların toplamı 1.0787 mA (0.001 mA fark, büyük ihtimalle yazım hatası). Sınavda satırları toplarsan 1.0787 bulursun; slayttaki değeri görürsen aynı tablo olduğunu bil. Slayt 47'deki lifetime da 1.0797 ile hesaplanmış; fark sonuçta önemsiz.</p>
+  <h3>Hesap makinesi: kim baskın?</h3>
+  <p class="w-energy-accounting-guess"><b>Önce tahmin et:</b> slayt 41'de CPU active duty'sini 1%'den 2%'ye çıkarmak mı, listen'i 5%'ten 4%'e indirmek mi average current'ı daha çok değiştirir?</p>
+  <div class="w-energy-accounting-ctl">
+    <span class="w-energy-accounting-note">hazır:</span>
+    <button class="btn btn--sm" data-ea-preset="s41">Slayt 41</button>
+    <button class="btn btn--sm" data-ea-preset="s24">Slayt 24 (radio)</button>
+    <button class="btn btn--sm" data-ea-preset="labA">Lab A server</button>
+    <button class="btn btn--sm" data-ea-preset="labB">Lab B server</button>
+    <button class="btn btn--sm" data-ea-preset="labC">Lab C server</button>
+  </div>
+  <div id="ea-calc-table"></div>
+  <div class="w-energy-accounting-ctl">
+    <button class="btn btn--sm" id="ea-calc-listen">Listen'i 1%'e indir</button>
+    <label>Capacity <input id="ea-calc-cap" type="text" inputmode="decimal" value="2000" /> mAh</label>
+  </div>
+  <div class="w-energy-accounting-err" id="ea-calc-err" aria-live="polite"></div>
+  <div id="ea-calc-out"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"TX pahalı, onu azaltalım" refleksi: slayt 41'de TX'i yarıya indirmek $0.0085$ mA kazandırır, listen'i 1 puan indirmek $0.19$ mA.</li>
+      <li>Listen'i azaltınca radyonun o süresi sleep'e geçer. Component toplamı yine 100% olmalı.</li>
+      <li>Lifetime = capacity / $I_{avg}$ sadece kaba bir ilk tahmin. Nominal ve usable capacity farkı, pilin non-linear davranışı bir sonraki dersin konusu.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ea-worked-2">
+    <p class="quiz__q">Slayt 41 tablosunda hangi tek değişiklik average current'ı en çok düşürür?</p>
+    <button class="quiz__opt">TX duty'sini 0.1%'den 0.05%'e indirmek<span class="why">$0.0005 \times 17 = 0.0085$ mA. TX zaten çok kısa; yarıya indirmek neredeyse bir şey değiştirmez.</span></button>
+    <button class="quiz__opt">CPU active'i 1%'den 0.5%'e indirmek<span class="why">$0.005 \times (8 - 0.02) \approx 0.040$ mA. Listen değişikliğinin beşte biri.</span></button>
+    <button class="quiz__opt" data-correct>Listen'i 5%'ten 4%'e indirmek<span class="why">Doğru: $0.01 \times (19 - 0.002) \approx 0.19$ mA. "Reduce expensive time, not just expensive states."</span></button>
+  </div>
+  <!-- Kaynak: W3 slayt 41-42. Karşılaştırma sayıları python ile. -->
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="limits" data-min="3">
+  <h2>Tahminin sınırları ve validation ladder</h2>
+  <div class="quiz" id="q-ea-limits-1">
+    <p class="quiz__q">Radyo çok kısa ve sık açılıp kapanıyor; bazı açılışlar sayaçta hiç görünmüyor. Slayt 43'teki hangi sınır bu?</p>
+    <button class="quiz__opt">Current model accuracy<span class="why">O, varsayılan mA değerlerinin gerçeği tutmamasıdır. Burada süre sayımı eksik.</span></button>
+    <button class="quiz__opt" data-correct>Timer resolution<span class="why">Doğru: "Short rapid state changes may be rounded or hidden."</span></button>
+    <button class="quiz__opt">Unmodeled components<span class="why">O, sayacı hiç olmayan parçalardır (LED, sensor, flash). Radyonun sayacı var; sorun çözünürlüğünde.</span></button>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Limitation (slayt 43)</th><th>Why it matters</th></tr>
+    <tr><td>Current model accuracy</td><td>Datasheet current may not match your actual VM/platform assumptions or hardware.</td></tr>
+    <tr><td>Unmodeled components</td><td>Sensors, LEDs, serial, flash and regulators may be absent from standard counters.</td></tr>
+    <tr><td>Transition energy</td><td>Startup spikes and state changes can be missed by simple duration models.</td></tr>
+    <tr><td>Timer resolution</td><td>Short rapid state changes may be rounded or hidden.</td></tr>
+    <tr><td>Simulation gap</td><td>Cooja counters are not equivalent to a power analyzer on a physical mote.</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · ne için kullanılır</span>
+    <p>"Use Cooja/Powertrace to compare scenarios; use physical measurement when exact lifetime matters." Lab için Cooja göreli karşılaştırmaya yeter: "which setup keeps radio listen time lower?"</p>
+    <p><strong>Validation ladder (slayt 44):</strong></p>
+    <ol>
+      <li>Cooja run: identify expensive states</li>
+      <li>Assign currents: datasheet or calibrated platform model</li>
+      <li>Physical measurement: ammeter, oscilloscope or power analyzer</li>
+      <li>Calibrate model: compare measured and estimated values</li>
+      <li>Deploy realism: traffic, interference, temperature, aging</li>
+    </ol>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Powertrace bir power analyzer değildir. Lab raporunda "node X mJ harcadı" yerine "modelimize göre yaklaşık X mJ" de.</li>
+      <li>Mutlak sayı yanlış olsa da karşılaştırma anlamlı kalabilir: aynı current modeli bütün senaryolarda aynı hatayı yapar (lab slayt 27: "Use the same current assumptions for every scenario").</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ea-limits-2">
+    <p class="quiz__q">Validation ladder'da "Calibrate model" adımından hemen önce ne gelir?</p>
+    <button class="quiz__opt">Cooja run<span class="why">Cooja run ilk basamak. Kalibrasyon için karşılaştıracak gerçek bir ölçüm gerekir.</span></button>
+    <button class="quiz__opt" data-correct>Physical measurement (ammeter, oscilloscope, power analyzer)<span class="why">Doğru. Model, ölçülen değerle karşılaştırılarak kalibre edilir.</span></button>
+    <button class="quiz__opt">Deploy realism<span class="why">Bu son basamak; kalibre edilmiş modeli gerçek koşullara taşır.</span></button>
+  </div>
+  <!-- Kaynak: W3 slayt 43-44 · lab slayt 8, 27-28. -->
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="lab-line" data-min="6">
+  <h2>Lab: kurulum ve Powertrace satırını okumak</h2>
+  <div class="quiz" id="q-ea-lab-1">
+    <p class="quiz__q">Powertrace'in parantez içindeki yüzdelerinde <code>listen 99.-8639%</code> görüyorsun. Ne yapmalısın?</p>
+    <button class="quiz__opt">Radyonun hata verdiğini, bu satırın atılması gerektiğini düşünmek.<span class="why">Radyo ya da sayaç bozuk değil; bozuk olan yüzdenin yazdırılması. Tick sayaçları doğru.</span></button>
+    <button class="quiz__opt" data-correct>Yüzdeyi tick sayaçlarından kendin hesaplamak.<span class="why">Doğru. weeks/03: "compute them from the tick counters instead." Sayaçlar doğru, sadece yüzdenin ondalık kısmı taşıyor (overflow).</span></button>
+    <button class="quiz__opt">Eksi işaretini silip 99.8639% yazmak.<span class="why">Bu da yanlış bir sayı. Ondalık kısım taşmanın sonucu; doğru değer tick'lerden hesaplanınca yaklaşık 100.0%.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Lab'ın amacı (W3 slayt 34, lab slayt 2-5)</span>
+    <p>"Measure how radio listening, transmission and packet rate influence estimated energy consumption." Topology: one UDP sender, one UDP receiver (isteğe bağlı bir forwarding node). "Run several short simulations with identical topology and only one variable changed."</p>
+  </div>
+  <h3>Kurulum (lab slayt 6-20)</h3>
+  <ol>
+    <li><code>~/contiki-3.0/examples/udp-ipv6</code>'dan <code>udp-client.c</code> ve <code>udp-server.c</code>'yi yeni bir <code>examples/energy-lab-week3</code> klasörüne kopyala, <code>energy-client.c</code> ve <code>energy-server.c</code> diye adlandır. Bu VM'de <code>rpl-udp</code> klasörü yok.</li>
+    <li>İki dosyada da <code>#include "powertrace.h"</code> ve <code>PROCESS_BEGIN();</code>'den hemen sonra <code>powertrace_start(CLOCK_SECOND * 30);</code>.</li>
+    <li>Makefile: <code>CONTIKI_PROJECT = energy-client energy-server</code>, <code>APPS += powertrace</code>, senaryoya göre RDC satırı (Bölüm 11).</li>
+    <li>Cooja: önce bir server Sky mote (<code>energy-server.c</code>), sonra bir client; yakın koy, bütün senaryolarda aynı konum ve aynı radio medium.</li>
+    <li>Her değişiklikten sonra yeniden derle: "The simulation does not automatically use edited source code."</li>
+    <li>Warm-up'tan sonraki Powertrace satırlarını kopyala; gönderilen ve alınan paketleri say (PDR).</li>
+  </ol>
+  <div class="box box--trap">
+    <span class="box__label">Lab tuzakları (lab slayt 7, 30-35 · weeks/03 Pitfalls)</span>
+    <ul>
+      <li><code>sudo ant run</code> ya da <code>sudo make</code> kullanma. Root'un PATH'i farklı, <code>msp430-gcc</code>'yi bulamaz ve root'a ait <code>obj_sky</code> dosyaları bırakır (sonra "Permission denied"). Onarım: <code>sudo chown -R &#36;USER:&#36;USER ~/contiki-3.0</code>, sonra normal kullanıcıyla <code>ant clean</code>, <code>ant run</code>.</li>
+      <li>Client'ta <code>region `rom' overflowed by 12 bytes</code>: compiler çalışıyor, Sky firmware'i ROM'a birkaç byte sığmıyor. <code>#define DEBUG DEBUG_NONE</code> yap, client'ın <code>printf</code>'ini kısalt; <code>powertrace_start</code>'ı silme, deneyin parçası.</li>
+      <li>Paketler gelmiyorsa: mote'ları yaklaştır, basit bir radio medium kullan, server'ın önce başladığını kontrol et, gerekirse stock <code>udp-ipv6</code> örneğine dön ("debug the environment before debugging the lab code").</li>
+      <li>Tek satır görünüyor ya da değerler değişmiyorsa: daha uzun çalıştır, warm-up'ı at, bütün senaryolarda karşılaştırılabilir pencereler kullan.</li>
+      <li>Bir senaryonun start-up penceresini ötekinin steady-state penceresiyle karşılaştırma.</li>
+    </ul>
+  </div>
+  <h3>Bir Powertrace satırının anatomisi</h3>
+  <p>"How to Read the Powertrace" dokümanının örnek satırı:</p>
+<pre><code>60572 ID:2 7686 P 0.18 1 21915 1944478 702 1966095 0 0 9891 972768 0 983036 0 0 (radio 100.-8735% / 100.-8738% tx 0.03% / 0.00% listen 99.-8639% / 100.-8738%)</code></pre>
+  <div class="table-wrap"><table>
+    <tr><th>Alan</th><th>Değer</th><th>Anlamı</th></tr>
+    <tr><td>Cooja time</td><td>60572</td><td>simülasyon zamanı, ms</td></tr>
+    <tr><td>Mote</td><td>ID:2</td><td>mote ID; node'u bununla tanı</td></tr>
+    <tr><td>clock time</td><td>7686</td><td>Contiki <code>clock_time()</code>, 128 tick/s ⇒ ≈ 60 s</td></tr>
+    <tr><td>prefix</td><td>P</td><td>Powertrace satırı</td></tr>
+    <tr><td>address</td><td>0.18</td><td>link-layer address'in ilk iki byte'ı</td></tr>
+    <tr><td>seqno</td><td>1</td><td>Powertrace sıra numarası</td></tr>
+    <tr><td>cumulative (boot'tan beri)</td><td>21915 1944478 702 1966095 0 0</td><td>all_cpu, all_lpm, all_transmit, all_listen, all_idle_transmit, all_idle_listen</td></tr>
+    <tr><td>interval (son pencere)</td><td>9891 972768 0 983036 0 0</td><td>cpu, lpm, transmit, listen, idle_transmit, idle_listen</td></tr>
+    <tr><td>(…)</td><td>radio / tx / listen</td><td>"cumulative % / interval %" biçiminde duty'ler</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · lab hesapları (weeks/03, How to Read the Powertrace)</span>
+    <p>Sayaçlar cumulative, bu yüzden iki satırın farkıyla çalış: $\Delta CPU = CPU_t - CPU_{t-1}$, aynı şekilde $\Delta LPM$, $\Delta TX$, $\Delta RX$; $\Delta T = \Delta CPU + \Delta LPM$.</p>
+    $$\text{CPU \%} = \frac{\Delta CPU}{\Delta CPU + \Delta LPM}\times 100 \qquad \text{TX \%} = \frac{\Delta TX}{\Delta T}\times 100 \qquad \text{Listen \%} = \frac{\Delta RX}{\Delta T}\times 100$$
+    $$\text{Radio on \%} = \frac{\Delta TX + \Delta RX}{\Delta T}\times 100 \qquad I_{avg} = \sum D_i I_i \;\;(\text{CPU } 1.8,\ \text{LPM } 0.0545,\ \text{TX } 17.4,\ \text{listen } 18.8\text{ mA})$$
+    <p>Hoca log'u CSV'ye çeviren bir Python script'i öneriyor: <code>Time, Mote, CPU %, LPM %, TX %, RX %, Radio On %</code>. "Use the same field positions consistently within one VM/build."</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>"100.-8735%" bug'ı.</strong> Powertrace yüzdenin ondalık kısmını <code>10000L * ticks / all_time</code> ile hesaplıyor. MSP430'da <code>long</code> 32 bit; tick sayısı yaklaşık 429,000'i geçince çarpım 32 bit'e sığmıyor ve ondalık kısım saçma, eksi bir sayı çıkıyor. Tam kısım (100, 99) doğru. Bu bug'ı aşağıdaki parser 32-bit aritmetiği taklit ederek birebir üretiyor; logdaki her bozuk sayı tutuyor. Yüzdeyi tick'lerden kendin hesapla. Doküman "Listen %"i parantezden oku diyor ("Fix the negative decimal bug if present"); tick'ten hesaplamak bu düzeltmenin güvenli yolu.</li>
+      <li><strong>0.18 node'u tanıtmaz.</strong> Senin log'unda mote 1 de mote 2 de "0.18" basıyor. Bu, link address'in ilk iki byte'ı (00 ve 0x12 = 18); bütün Sky mote'larda aynı. Node'u <code>ID:X</code>'ten tanı.</li>
+      <li><strong>Interval alanı ile cumulative farkı birkaç tick ayrışabilir.</strong> Senin log'unda B, mote 1: cumulative farkı $\Delta CPU = 15641$, interval alanı 15638. Fark ihmal edilebilir; weeks/03 cumulative farkını kullanıyor.</li>
+      <li><strong>idle_transmit / idle_listen.</strong> NullRDC'de 0 kalıyor. ContikiMAC'te idle_listen, listen süresinin paket getirmeyen kısmını gösteriyor (B'de server için 30 saniyede ≈ 6200 tick, listen'in ≈ 8650'si). Listen'in içinde sayılır; ayrıca ekleme.</li>
+      <li>Listen bazen 100%'ü az geçer (A'da 100.02%): CPU ve radio sayaçları birkaç tick arayla okunuyor. Anlamı "radyo hep açık".</li>
+    </ul>
+  </div>
+  <h3>Powertrace parser</h3>
+  <p class="w-energy-accounting-guess"><b>Önce tahmin et:</b> A senaryosunda (NullRDC) server'ın 30 saniyelik bir aralıkta TX'te geçirdiği süre, listen'deki sürenin kaçta biri? 1/10 mu, 1/1000 mi, daha da az mı?</p>
+  <div class="w-energy-accounting-ctl">
+    <span class="w-energy-accounting-note">hazır:</span>
+    <button class="btn btn--sm" data-ea-pt="b1">B server</button>
+    <button class="btn btn--sm" data-ea-pt="a1">A server (bozuk yüzde)</button>
+    <button class="btn btn--sm" data-ea-pt="c2">C client</button>
+    <button class="btn btn--sm" data-ea-pt="pdf">Dokümandaki satır</button>
+  </div>
+  <textarea id="ea-pt-in" class="w-energy-accounting-ta" spellcheck="false" aria-label="Powertrace satırları"></textarea>
+  <div class="w-energy-accounting-ctl"><button class="btn btn--sm btn--accent" id="ea-pt-go">Çözümle</button><span class="w-energy-accounting-note">Bir ya da iki satır yapıştır (aynı mote, önce eski satır).</span></div>
+  <div class="w-energy-accounting-err" id="ea-pt-err" aria-live="polite"></div>
+  <div id="ea-pt-out"></div>
+  <div class="box box--exam" data-exam="w3-lab-table"><span class="box__label">W3 lab teslimi · tablo · lab görevi</span>
+    <p>Teslim listesinden (lab slayt 5): "Completed measurement table: CPU, LPM, TX, listen, duty cycle, average current." Aşağıdaki iki satır senin C senaryondan (ContikiMAC, 5 s), mote 1 (server), $t = 150 \to 180$ s. Tabloyu bu aralık için doldur.</p>
+<pre><code>150720.409 ID:1 19206 P 0.18 4 184829 4729736 77898 71758 0 30835 34088 948593 13766 13689 0 6110
+180720.528 ID:1 23046 P 0.18 5 214286 5682975 89084 85248 0 36997 29454 953239 11186 13490 0 6162</code></pre>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Satırda "P 0.18 seqno"dan sonraki ilk dört sayı cumulative CPU, LPM, TX, listen. İkinci satırdan birinciyi çıkar.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\Delta T = \Delta CPU + \Delta LPM$. Her $\Delta$'yı buna böl, sonra lab'ın current modeliyle $\sum D_i I_i$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$\Delta CPU = 214286 - 184829 = 29457$, $\Delta LPM = 5682975 - 4729736 = 953239$, $\Delta TX = 89084 - 77898 = 11186$, $\Delta RX = 85248 - 71758 = 13490$. $\Delta T = 29457 + 953239 = 982696$ tick ($\approx 29.99$ s).</p>
+      <div class="table-wrap"><table>
+        <tr><th>State</th><th>$\Delta$ tick</th><th>Duty</th><th>Current</th><th>$D_i I_i$</th></tr>
+        <tr><td>CPU</td><td>29457</td><td>3.00%</td><td>1.8 mA</td><td>0.0540 mA</td></tr>
+        <tr><td>LPM</td><td>953239</td><td>97.00%</td><td>0.0545 mA</td><td>0.0529 mA</td></tr>
+        <tr><td>TX</td><td>11186</td><td>1.14%</td><td>17.4 mA</td><td>0.1981 mA</td></tr>
+        <tr><td>Listen</td><td>13490</td><td>1.37%</td><td>18.8 mA</td><td>0.2581 mA</td></tr>
+      </table></div>
+      <p>CPU duty cycle 3.00%, radio on $= 1.14 + 1.37 = 2.51\%$, $I_{avg} \approx 0.563$ mA. Parantezdeki interval değerleri (tx 1.13%, listen 1.37%, radio 2.51%) bununla tutuyor. Bu tek aralık; senin tablondaki C server değeri (0.594 mA) 27 aralığın ortalaması.</p>
+      <p>Not: CPU yüzdesi ile radio yüzdeleri toplanmaz (Bölüm 6). Toplanan, $I_{avg}$ katkılarıdır.</p>
+    </div></details>
+    <!-- Kaynak: lab slayt 5, 24-25, 27 · weeks/03 Submission ve Calculations · assignments/.../week3/scenario-c.txt (mote 1, seqno 4-5). Sayılar python ile: 0.5630 mA. -->
+  </div>
+  <div class="box box--exam" data-exam="w3-lab-s8-compute"><span class="box__label">W3 lab slayt 8 · "What students compute" · notlu lab görevi</span>
+    <p>Lab slayt 8: "What students compute: Duty cycle, average current, estimated charge, estimated energy and rough lifetime." Duty cycle ve average current'ı yukarıdaki aralık için buldun (C, mote 1, $t = 150 \to 180$ s). Aynı aralık için estimated charge'ı (mC), estimated energy'yi (mJ, 3 V varsayımıyla) ve 2000 mAh'lik bir pille rough lifetime'ı hesapla.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her state için $Q_i = N_i I_i / F$, $F = 32768$ tick/s. Toplam charge'ı bir de $I_{avg} \times \Delta T$ ile kontrol et.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Birimler: mA × s = mC, mC × V = mJ. Lifetime = mAh / mA saat verir; güne çevirmek için 24'e böl.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>State</th><th>$\Delta N$ (tick)</th><th>Current</th><th>$Q_i$ (mC)</th><th>$E_i$ (mJ, 3 V)</th></tr>
+        <tr><td>CPU</td><td>29457</td><td>1.8 mA</td><td>1.618</td><td>4.85</td></tr>
+        <tr><td>LPM</td><td>953239</td><td>0.0545 mA</td><td>1.585</td><td>4.76</td></tr>
+        <tr><td>TX</td><td>11186</td><td>17.4 mA</td><td>5.940</td><td>17.82</td></tr>
+        <tr><td>Listen</td><td>13490</td><td>18.8 mA</td><td>7.740</td><td>23.22</td></tr>
+        <tr><td><strong>Toplam</strong></td><td>$\Delta T$ = 982696 (29.99 s)</td><td></td><td><strong>16.88</strong></td><td><strong>50.65</strong></td></tr>
+      </table></div>
+      <p>Kontrol: $I_{avg} \times \Delta T = 0.5630 \text{ mA} \times 29.99 \text{ s} \approx 16.88$ mC. Pil biriminde bu $16.88 / 3600 \approx 0.0047$ mAh eder. Günde $0.563 \times 24 \approx 13.5$ mAh.</p>
+      <p>Rough lifetime: $2000 / 0.563 \approx 3553$ h $\approx 148$ gün. Bu tek bir 30 saniyelik aralıktan. Aşağıdaki tablodaki 0.594 mA, 27 aralığın ortalaması ve 140 gün veriyor.</p>
+      <p>Energy'nin $(17.82 + 23.22) / 50.65 \approx \%81$'i radyodan (TX + listen). CPU ve LPM birlikte %19.</p>
+      <p>Not: Bu bir tahmin. Lab slayt 8: "Powertrace is an estimate. It is enough for comparing scenarios; it is not a physical power analyzer." Raporda voltage'ı (3 V) ve current modelini yaz.</p>
+    </div></details>
+    <!-- Kaynak: lab slayt 8, 27-28 · W3 slayt 38-40 · assignments/.../week3/scenario-c.txt (mote 1, seqno 4-5). python ile: Q = 1.618 / 1.585 / 5.940 / 7.740 mC, toplam 16.883 mC, E = 50.65 mJ, 3553 h = 148.0 gün, radio payı 0.810. -->
+  </div>
+  <div class="quiz" id="q-ea-lab-2">
+    <p class="quiz__q"><code>ID:1 23046 P 0.18 5 130968 5766220 44361 56301 0 37309 15638 967049 3730 8650 0 6214</code> satırında 30 saniyelik son pencerede radyo kaç tick dinlemiş?</p>
+    <button class="quiz__opt">56301<span class="why">Bu all_listen: boot'tan beri biriken listen. Son pencere için interval alanına ya da iki satırın farkına bakarsın.</span></button>
+    <button class="quiz__opt" data-correct>8650<span class="why">Doğru. İkinci altılı grubun dördüncüsü: cpu 15638, lpm 967049, transmit 3730, listen 8650.</span></button>
+    <button class="quiz__opt">6214<span class="why">Bu interval idle_listen: listen'in paket getirmeyen kısmı. Listen'in tamamı değil, bir parçası.</span></button>
+  </div>
+  <!-- Kaynak: W3 slayt 33-34 · lab slayt 2-12, 16-20, 24-25, 30-35 · How to Read the Powertrace.pdf · weeks/03 Lab ve Pitfalls · results.html (alan sırası, 100.02% notu). Overflow açıklaması: Powertrace'in 32-bit long ile 10000*ticks/all_time hesabı python ve JS ile taklit edildi; dokümandaki ve Efe'nin loglarındaki bütün bozuk değerler (100.-8735, 99.-8639, 100.-9829, 99.-9732 …) birebir üretildi. -->
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="lab-results" data-min="6">
+  <h2>Lab: A, B, C senaryolarını yorumlamak</h2>
+  <div class="quiz" id="q-ea-res-1">
+    <p class="quiz__q">B'den C'ye geçerken client 3 kat sık paket gönderiyor. Server'ın listen yüzdesi 0.89%'dan 1.38%'e çıkıyor, 3 katına değil. Neden?</p>
+    <button class="quiz__opt">Cooja'nın sayacı yüksek trafikte bazı listen'leri kaçırıyor.<span class="why">Sayaçlar tutarlı; açıklama ölçümün kendisinde. Listen'in bir kısmı trafikten bağımsız.</span></button>
+    <button class="quiz__opt" data-correct>Listen'in bir tabanı var: ContikiMAC'in 8 Hz channel check'leri trafikten bağımsız. Sadece paket trafiğine bağlı toplam kısım 3 katına çıkıyor.<span class="why">Doğru. Log'daki idle_listen alanı tabanı veriyor: B'de ve C'de ≈ 0.62%. Paket trafiğine bağlı toplam kısım 0.26%'dan 0.76%'ya, yani ≈ 2.9 katına çıkıyor. Paket başına maliyet ise neredeyse aynı: bu kısmı paket sayısına bölersen bir alışveriş B'de ≈ 39.5 ms, C'de ≈ 38 ms listen tutuyor ($0.002634 \times 15$ s ve $0.007609 \times 5$ s).</span></button>
+    <button class="quiz__opt">C'de paketler daha kısa, bu yüzden daha az dinleniyor.<span class="why">Payload aynı (sadece SEND_INTERVAL değişti). Değişen paket sayısı.</span></button>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Senaryo</th><th>MAC / RDC</th><th>SEND_INTERVAL</th><th>Beklenen (lab slayt 13, 21-23)</th><th>Ne gösterir</th></tr>
+    <tr><td>A · continuous listening</td><td>NullRDC</td><td>15 s</td><td>High radio listen time; TX appears briefly during sends; CPU usually much lower than radio listening</td><td>baseline cost of always-on listening</td></tr>
+    <tr><td>B · duty cycling</td><td>ContikiMAC</td><td>15 s</td><td>Listen decreases; packet timing may look less continuous; sender may need rendezvous with receiver</td><td>value and trade-off of duty cycling</td></tr>
+    <tr><td>C · higher traffic</td><td>ContikiMAC</td><td>5 s</td><td>More TX and RX activity</td><td>how workload affects energy</td></tr>
+  </table></div>
+<pre><code># Makefile, senaryo A
+CONTIKI_WITH_RIME = 0
+CFLAGS += -DNETSTACK_CONF_RDC=nullrdc_driver
+CFLAGS += -DNETSTACK_CONF_MAC=csma_driver
+# senaryo B ve C: RDC satırı
+CFLAGS += -DNETSTACK_CONF_RDC=contikimac_driver
+# senaryo C: energy-client.c
+#define SEND_INTERVAL   5 * CLOCK_SECOND</code></pre>
+  <div class="box box--rule">
+    <span class="box__label">Kural · deney tasarımı</span>
+    <ul>
+      <li>"Change only one variable at a time." A → B'de sadece RDC değişir, B → C'de sadece packet rate.</li>
+      <li>A "bad code" değil, bir referans: "Students need a bad baseline to appreciate duty cycling." (W3 slayt 35)</li>
+      <li>Raporda kullandığın RDC/MAC ayarını yaz (slayt 36). Lab'daki boot satırı: <code>nullsec CSMA ContikiMAC, channel check rate 8 Hz</code>.</li>
+      <li>C'nin amacı (slayt 37): traffic load'un CPU, TX ve RX/listen'i nasıl değiştirdiğini göstermek ve "lifetime may not scale linearly with packet interval" gerçeğini ortaya çıkarmak.</li>
+    </ul>
+  </div>
+  <h3>Senin ölçtüğün sayılar</h3>
+  <p>15 simüle dakika, aynı seed, ilk iki aralık (60 s) warm-up olarak atıldı, 27 aralığın ortalaması. Lifetime burada slayt 21'deki 2000 mAh ile (senin tablonda başka bir capacity kullanıldı; oranlar aynı).</p>
+  <div class="table-wrap"><table>
+    <tr><th>Senaryo</th><th>Mote</th><th>CPU %</th><th>TX %</th><th>Listen %</th><th>Radio on %</th><th>$I_{avg}$ (mA)</th><th>2000 mAh ile</th><th>PDR</th></tr>
+    <tr><td rowspan="2">A</td><td>1 server</td><td>0.99</td><td>0.02</td><td>100.0</td><td>100.0</td><td>18.878</td><td>4.4 gün</td><td rowspan="2">59/59</td></tr>
+    <tr><td>2 client</td><td>1.08</td><td>0.02</td><td>100.0</td><td>100.0</td><td>18.881</td><td>4.4 gün</td></tr>
+    <tr><td rowspan="2">B</td><td>1 server</td><td>1.84</td><td>0.52</td><td>0.89</td><td>1.41</td><td>0.344</td><td>242 gün</td><td rowspan="2">59/59</td></tr>
+    <tr><td>2 client</td><td>2.19</td><td>0.68</td><td>0.99</td><td>1.66</td><td>0.396</td><td>210 gün</td></tr>
+    <tr><td rowspan="2">C</td><td>1 server</td><td>3.26</td><td>1.28</td><td>1.38</td><td>2.66</td><td>0.594</td><td>140 gün</td><td rowspan="2">179/179</td></tr>
+    <tr><td>2 client</td><td>4.15</td><td>1.75</td><td>1.65</td><td>3.41</td><td>0.743</td><td>112 gün</td></tr>
+  </table></div>
+  <p class="w-energy-accounting-guess"><b>Önce tahmin et</b> (lab slayt 29'un sorusu): "Did higher packet rate mainly affect TX, listen, CPU or all of them?" B'den C'ye geçerken hangisi değişir?</p>
+  <div class="w-energy-accounting-ctl w-energy-accounting-choices" id="ea-cmp-guess">
+    <label><input type="radio" name="ea-cmp-g" value="tx" /> TX</label>
+    <label><input type="radio" name="ea-cmp-g" value="listen" /> Listen</label>
+    <label><input type="radio" name="ea-cmp-g" value="cpu" /> CPU</label>
+    <label><input type="radio" name="ea-cmp-g" value="all" /> Hepsi</label>
+    <button class="btn btn--sm btn--accent" id="ea-cmp-go">Ölçümü göster</button>
+  </div>
+  <div class="w-energy-accounting-err" id="ea-cmp-err" aria-live="polite"></div>
+  <div id="ea-cmp-out"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · energy tek başına yetmez (lab slayt 26)</span>
+    $$\text{PDR} = \frac{\text{received packets}}{\text{transmitted packets}}$$
+    <p>Lab'ın örneği: 100 sent, 92 received ⇒ PDR = 0.92. "Energy cannot be judged alone. A low-energy setting that loses too many packets is not a good design." PDR'yi radio duty cycle'ın yanında raporla; topology sabit kalsın ki PDR'deki değişim konfigürasyondan gelsin.</p>
+  </div>
+  <div class="box box--exam" data-exam="w3-lab-s29-prompts"><span class="box__label">W3 lab slayt 29 · interpretation prompts · lab görevi</span>
+    <ul>
+      <li>"Which scenario had the largest radio listen percentage?"</li>
+      <li>"Did duty cycling reduce listening as expected?"</li>
+      <li>"Did higher packet rate mainly affect TX, listen, CPU or all of them?"</li>
+      <li>"Did any scenario reduce energy but harm delivery?"</li>
+      <li>"What would change if the topology became multi-hop?"</li>
+    </ul>
+    <p>"Good answers connect measured output to protocol behavior, not only to numbers."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her cevaba bir sayı ve bir mekanizma koy: NullRDC radyoyu hiç kapatmaz; ContikiMAC 8 Hz'de kısa channel check yapar ve sender, receiver uyanana kadar frame'i tekrarlar.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Multi-hop için: ortadaki node kimin paketini taşır? Hem alır hem gönderir. Lab'ın "Optional extension 1" slaytı ne bekliyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>En yüksek listen:</strong> A, iki mote'ta da ≈ 100%. NullRDC radyoyu hiç uyutmuyor; radyo paket olsa da olmasa da dinliyor. Bu idle listening'in kendisi: server'ın 18.878 mA'inin %99.6'sı listen'den.</li>
+        <li><strong>Duty cycling:</strong> evet. Listen 100% → 0.89% (server), $I_{avg}$ 18.878 → 0.344 mA, yaklaşık 55 kat. Bedeli TX'te görünüyor: 0.02% → 0.52%, çünkü ContikiMAC'te sender frame'ini receiver uyanana kadar tekrarlıyor (asynchronous rendezvous).</li>
+        <li><strong>Higher packet rate:</strong> hepsi. Server'da TX ×2.5, listen ×1.5, CPU ×1.8; client'ta TX ×2.6, listen ×1.7, CPU ×1.9. Listen 3 kat artmıyor, çünkü tabanı (8 Hz channel check, ≈ 0.62%) trafikten bağımsız; sadece paket trafiğine bağlı toplam kısım ≈ 2.9 kat artıyor. Paket başına listen ise neredeyse sabit (server'da bir alışveriş ≈ 39.5 ms → 38 ms). $I_{avg}$ ×1.73. Bu, slayt 37'deki "lifetime may not scale linearly with packet interval" demek.</li>
+        <li><strong>Delivery:</strong> bu ölçümde hayır. PDR her senaryoda 1.00 (59/59, 59/59, 179/179). UDGM, 10 m, TX/RX success 1.0: kayıp yok. Gerçek bir kanalda duty cycling'in bedeli delay ve kayıp olarak görünebilir.</li>
+        <li><strong>Multi-hop:</strong> ortadaki forwarding node başkalarının paketlerini de alıp gönderir, bu yüzden daha çok TX ve listen harcar. Sink'e yakın relay'ler önce ölür; node lifetime ile network lifetime ayrışır (lab slayt 36). Ayrıca collisions ve retransmissions ortaya çıkar; iki mote'lu deneyde bunlar yoktu.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: lab xml slayt 29 (basılı 30), 26, 36 · results.html ve video-script.md · oranlar python ile: A/B 54.8, C/B server 1.725; TX 2.48/2.59, listen 1.55/1.67, CPU 1.77/1.90; idle_listen tabanı B 0.629/0.632 %, C 0.621/0.611 %. -->
+  </div>
+  <div class="box box--exam" data-exam="w3-lab-submission-dominant"><span class="box__label">W3 lab teslimi · video · lab görevi</span>
+    <p>weeks/03 Submission listesinden: "which state dominates and why, plus the limitations of the estimate." (Lab slayt 39'un grading focus'u: "Reasonable interpretation", "No copy-paste theory without experiment evidence".)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>A'da her state'in $I_{avg}$'ye katkısını hesapla. Hangi satır 18.8 mA'in neredeyse tamamını veriyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Limitations için slayt 43'ün beş satırını kendi deneyine uyarla: hangi radio medium, kaç mote, kaç dakika, hangi current'lar?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Baskın state: radio listen.</strong> A'da server'ın $I_{avg}$'si 18.878 mA ve bunun $1.00 \times 18.8 \approx 18.80$ mA'i (≈ %99.6) listen'den. Radyo zamanın sadece 0.02%'sinde gönderiyor. Enerjinin neredeyse tamamı veri beklemeye gidiyor: idle listening. Duty cycling açıkken (B) bile listen hâlâ en büyük tek katkı: server için $0.0089 \times 18.8 \approx 0.168$ mA, toplamın yarısı; geri kalanı TX ($0.090$ mA), CPU ($0.033$ mA) ve LPM ($0.053$ mA).</p>
+      <p><strong>Limitations:</strong></p>
+      <ul>
+        <li>Simulation gap: UDGM, girişim yok, kayıp yok, iki mote, tek hop. Collisions, retransmissions, forwarding yükü yok.</li>
+        <li>Current model accuracy: sabit datasheet tarzı current'lar; voltage düşüşü, sıcaklık, self-discharge yok.</li>
+        <li>Energest state süresi sayar, gerçek power değil; sensörler, LED'ler, serial sayılmaz (unmodeled components).</li>
+        <li>Transition energy ve timer resolution: ContikiMAC'in ≈ 0.8 ms'lik kısa channel check'leri ve start-up'ları kaba sayılır.</li>
+        <li>15 dakikalık steady state ayları temsil etmek için uzatıldı; network formation, route repair, alarm patlamaları yok.</li>
+      </ul>
+    </div></details>
+    <!-- Kaynak: weeks/03 Submission · lab slayt 39 · results.html §6 · W3 slayt 43. B server katkıları python ile: CPU 0.0332, LPM 0.0535, TX 0.0899, listen 0.1679 mA. Channel check süresi: idle_listen ≈ 6184 tick / (30 s × 8 Hz) ≈ 25.8 tick ≈ 0.79 ms. -->
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Lab'ın isteğe bağlı uzantıları (lab slayt 36-37)</span>
+    <ul>
+      <li><strong>Forwarding node:</strong> client ile server arasına bir mote. "Forwarding nodes consume more energy because they receive and transmit other nodes' packets." Leaf ve forwarding node'un Powertrace'ini karşılaştır; merkezdeki relay'lerin neden erken öldüğünü tartış.</li>
+      <li><strong>Radio medium sensitivity:</strong> UDGM Distance Loss ilk kontrollü deneyler için iyi; Multipath Ray-tracer görsel ama yorumu zorlaştırır; interference modeli sonraki MAC/routing lab'ları için. Radio medium retransmission'ları, dolayısıyla enerjiyi etkileyebilir; raporda yaz.</li>
+    </ul>
+    <p>Lab'ın kavram haritası (lab slayt 40): application packet rate workload'u, MAC/RDC configuration radio wake behavior'ı belirler; radio state time estimated energy'yi sürer; estimated lifetime tasarım karşılaştırmasını destekler. "Good WSN design is not 'minimum energy at all costs.'"</p>
+  </div>
+  <div class="box box--exam" data-exam="w3-lab-ext2-radio-medium"><span class="box__label">W3 lab · Optional extension 2 · Radio medium sensitivity · notlu lab görevi</span>
+    <p>"Optional extension 2: Radio medium sensitivity. UDGM Distance Loss: Good for first controlled experiments. Multipath Ray-tracer: More visual, but can complicate interpretation. Interference model: Useful for later MAC/routing labs. Change only after students finish the baseline scenarios. Radio model can affect retransmissions and therefore energy. Record the selected radio medium in the report." (lab slayt 37, görevin tamamı)</p>
+    <p>Soru: B senaryosunu UDGM yerine kayıplı bir medium ile çalıştırırsan enerji neden değişebilir? Hangi sayaçlar önce değişir, raporda ne yazarsın?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Senin UDGM çalıştırmalarında (TX ve RX success 1.0, 10 m) application düzeyinde kaç paket kayboldu? Bir paket ikinci denemede ulaşsaydı PDR bunu gösterir miydi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bir denemenin başarı olasılığı $p$ ise beklenen deneme sayısı $1/p$ (W4 slayt 56). ContikiMAC'te her deneme, receiver uyanana kadar süren bir tekrar treni demek.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>UDGM çalıştırmalarında PDR her senaryoda 1.00'dı: application düzeyinde kayıp gözlenmedi. Retransmission sayısı ise PDR'den çıkarılamaz, çünkü tekrar denemeyle ulaşan bir paket de PDR'ye 1 olarak yazılır. "Hiç retransmission olmadı" demek için MAC attempt counter'ları ya da bir frame trace gerekir. MRM ya da bir interference modeli kayıp ve asymmetry getirir. Kaybolan her unicast frame'i CSMA ve ContikiMAC yeniden gönderir: sender frame'ini yeniden tekrarlar, receiver daha uzun açık kalır. Önce TX ve listen tick'leri artar, CPU da biraz artar. Energy per delivered packet büyür, PDR düşebilir.</p>
+      <p><strong>Kaba bir hesap</strong> (varsayım: baseline'da tekrar deneme yok, TX süresi deneme sayısıyla orantılı, geri kalan her şey aynı): B client'ta TX katkısı $0.0068 \times 17.4 \approx 0.118$ mA. Deneme başına başarı $p = 0.8$'e düşerse bu $0.118 / 0.8 \approx 0.148$ mA olur. $I_{avg}$ 0.396'dan yaklaşık 0.43 mA'e çıkar, yaklaşık %7.5 artış. Gerçek artış daha büyük olabilir, çünkü receiver'ın listen'i ve ACK bekleme süresi de artar.</p>
+      <p><strong>Raporda:</strong> seçilen radio medium'u ve parametrelerini yaz. Medium'u baseline senaryoları bittikten sonra değiştir ve aynı anda başka bir şeyi değiştirme. Yoksa enerjideki farkın RDC'den mi, trafikten mi, kanaldan mı geldiğini ayıramazsın. MRM'in "can complicate interpretation" uyarısı bu yüzden: konum ve kayıp birlikte değişir.</p>
+      <p><strong>Cevap (English):</strong> "In UDGM with success ratios 1.0 no application packet was lost (PDR 1.00). PDR cannot show retransmissions, because a packet delivered after a retry also counts; claiming zero retransmissions needs MAC attempt counters or a frame trace. A lossy medium makes CSMA and ContikiMAC repeat unicast frames, so TX and listen time per delivered packet rise and energy per packet grows. To first order, if each attempt succeeds with probability p, the sender needs 1/p attempts. I record the radio medium and change it only after the baseline, one variable at a time."</p>
+    </div></details>
+    <!-- Kaynak: lab xml slayt 37 (basılı 38) · W4 slayt 56 (1/p) · results.html (B client TX 0.68 %, I_avg 0.396 mA, PDR 59/59). python ile: 0.1183 mA → 0.1479 mA, I_avg 0.4256 mA, +7.5 %. -->
+  </div>
+  <div class="quiz" id="q-ea-res-2">
+    <p class="quiz__q">B'de iki mote da 15 saniyede bir frame gönderiyor (client: Hello, server: cevap). Yine de client'ın listen'i 0.99%, server'ınki 0.89%. Log hangi açıklamayı destekliyor?</p>
+    <button class="quiz__opt">Client'ın channel check rate'i daha yüksek.<span class="why">İki mote da aynı firmware ayarıyla 8 Hz kontrol ediyor; idle_listen tabanı ikisinde de ≈ 0.63%.</span></button>
+    <button class="quiz__opt" data-correct>Taban aynı (≈ 0.63%); fark paket trafiğine bağlı kısımda: client'ınki 0.36%, server'ınki 0.26%.<span class="why">Doğru. Fark, channel check'lerden değil, paket alışverişi sırasında açık kalan radyodan geliyor. Client'ın TX'i de daha yüksek (0.68% vs 0.52%): ContikiMAC'te sender frame'ini receiver uyanana kadar tekrarlıyor.</span></button>
+    <button class="quiz__opt">Fark ölçüm hatası; 0.1 puan anlamlı değil.<span class="why">27 aralığın ortalaması ve her aralıkta tekrarlanıyor; ayrıca TX ve CPU da aynı yönde farklı. Rastgele bir hata değil.</span></button>
+  </div>
+  <div class="quiz" id="q-ea-res-3">
+    <p class="quiz__q">A'dan B'ye server'ın $I_{avg}$'si 18.878'den 0.344 mA'e düşüyor. Ama TX yüzdesi 0.02%'den 0.52%'ye çıkıyor. Bu çelişki mi?</p>
+    <button class="quiz__opt">Evet; duty cycling TX'i artırdıysa enerji de artmalıydı.<span class="why">TX'teki artış $0.005 \times 17.4 \approx 0.09$ mA ekliyor; listen'deki düşüş $\approx 0.99 \times 18.8 \approx 18.6$ mA kazandırıyor.</span></button>
+    <button class="quiz__opt" data-correct>Hayır; duty cycling enerjiyi receiver'ın bekleme süresinden sender'ın çabasına taşıdı, ve bu taşınan miktar çok daha küçük.<span class="why">Doğru. Slayt 25: "More sender effort". Asenkron rendezvous'ta sender frame'ini tekrarlar; bedeli birkaç onda bir mA, kazanç ise ≈ 18.5 mA.</span></button>
+    <button class="quiz__opt">Hayır, çünkü TX current'ı listen'den küçük olduğu için TX artışı enerjiyi azaltır.<span class="why">TX'te geçen her ek saniye enerji ekler; azaltmaz. Toplamın düşmesinin sebebi listen'deki çok büyük düşüş.</span></button>
+  </div>
+  <!-- Kaynak: W3 slayt 34-37 · lab slayt 13-15, 21-23, 26, 29, 36-40 · weeks/03 Lab ve Submission · results.html, scenario-*.txt (idle_listen alanları). Paket başına listen python ile (seqno 1 → 28): server B 0.2634 % × 15 s = 39.5 ms, C 0.7609 % × 5 s = 38.0 ms; client 53.4 → 52.0 ms. -->
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-ea-final-1">
+    <p class="quiz__q">1800 mAh, 3.6 V'luk bir pilin nominal enerjisi?</p>
+    <button class="quiz__opt">6480 J<span class="why">Bu, charge'ın coulomb karşılığı: $1800 \times 3.6 = 6480$ C. Enerji için bir de voltage ile çarp.</span></button>
+    <button class="quiz__opt" data-correct>6.48 Wh = 23,328 J<span class="why">Doğru: $3.6\text{ V} \times 1.8\text{ Ah} = 6.48$ Wh, $\times 3600 = 23{,}328$ J.</span></button>
+    <button class="quiz__opt">500 h<span class="why">mAh / V bir anlam taşımaz. Saat için bir current'a bölmen gerekirdi.</span></button>
+  </div>
+  <div class="quiz" id="q-ea-final-2">
+    <p class="quiz__q">CPU active 4 mA / 2%, LPM 0.01 mA / 98%, listen 20 mA / 1%, TX 18 mA / 0.5%, radio sleep 0.001 mA / 98.5%. Node'un $I_{avg}$'si yaklaşık?</p>
+    <button class="quiz__opt" data-correct>0.381 mA<span class="why">Doğru: CPU $0.08 + 0.0098 = 0.0898$ mA, radio $0.2 + 0.09 + 0.000985 \approx 0.291$ mA; toplam $\approx 0.381$ mA.</span></button>
+    <button class="quiz__opt">0.291 mA<span class="why">Bu sadece radyonun katkısı. CPU ayrı bir component; onun $0.0898$ mA'ini de eklemelisin.</span></button>
+    <button class="quiz__opt">200% duty ile 3.8 mA<span class="why">Yüzdeleri toplamak anlamsız. Her component kendi içinde 100%; toplanan current katkıları.</span></button>
+  </div>
+  <div class="quiz" id="q-ea-final-3">
+    <p class="quiz__q">Powertrace satırında listen için interval alanı 491500, CPU 4900, LPM 486620. Bu 15 saniyelik aralıkta radyo ne yapıyordu?</p>
+    <button class="quiz__opt">Yaklaşık %1 dinliyordu (ContikiMAC tipi).<span class="why">$491500 / (4900 + 486620) \approx 1.0$, yani %100. %1 değil.</span></button>
+    <button class="quiz__opt" data-correct>Neredeyse hep dinliyordu (≈ 100%), NullRDC tipi.<span class="why">Doğru: $\Delta T = 491520$ tick $= 15$ s, listen $491500$ tick. Radyo kapanmamış.</span></button>
+    <button class="quiz__opt">Hiç dinlemiyordu, çünkü CPU %99 LPM'de.<span class="why">CPU ile radyo ayrı component'ler. CPU uyurken radyo dinleyebilir (A senaryosundaki durum, W3 slayt 35: "Show CPU may sleep while radio is still active").</span></button>
+  </div>
+  <div class="quiz" id="q-ea-final-4">
+    <p class="quiz__q">Bir öğrenci raporunda "Cooja'ya göre node'umuz 2 yıl yaşar" yazıyor. Slayt 43-44'e göre en iyi düzeltme hangisi?</p>
+    <button class="quiz__opt">"Powertrace ölçtü, 2 yıl kesin."<span class="why">Powertrace state süresi sayar; current'lar bir modelden. "Do not overclaim."</span></button>
+    <button class="quiz__opt" data-correct>"Varsayılan current modeliyle, nominal capacity ile kaba tahmin ≈ 2 yıl; senaryoları karşılaştırmak için kullanılabilir, kesin lifetime için fiziksel ölçüm gerekir."<span class="why">Doğru. Varsayımları yaz, sonucu göreli karşılaştırma için kullan.</span></button>
+    <button class="quiz__opt">"Cooja hep iyimserdir, sonucu 2'ye böl."<span class="why">Rastgele bir düzeltme çarpanı bir kalibrasyon değildir. Validation ladder fiziksel ölçümle kalibre eder.</span></button>
+  </div>
+  <div class="quiz" id="q-ea-final-5">
+    <p class="quiz__q">Duty cycling'e geçen bir ağda hangi sonuç slayt 25'e göre beklenmez?</p>
+    <button class="quiz__opt">Packet delay'in artması<span class="why">Beklenir: "Longer packet delay". Receiver uyurken paket bekler.</span></button>
+    <button class="quiz__opt">Sender'ın daha çok çaba harcaması<span class="why">Beklenir: "More sender effort". Lab'daki B senaryosunda TX bu yüzden arttı.</span></button>
+    <button class="quiz__opt" data-correct>Communication'ın bedavaya gelmesi<span class="why">Doğru, beklenmez: "Turning the radio off moves cost elsewhere; it does not make communication free."</span></button>
+  </div>
+  <!-- Sıradaki konu: Battery lifetime, network lifetime ve energy harvesting. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+/* Shared helpers and the lab's current model */
+const EA = {
+  F: 32768,
+  V: 3,
+  CUR: { cpu: 1.8, lpm: 0.0545, tx: 17.4, rx: 18.8 },
+  COLORS: ["#0063AA", "#66A8DA", "#F47524", "#C75712", "#8E97AE", "#2b8a3e", "#6B7591", "#A6CCEA"],
+  fmt(v, d) {
+    if (!Number.isFinite(v)) return "–";
+    return v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  },
+  num(raw) {
+    const s = String(raw).trim();
+    if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(s)) return NaN;
+    return Number(s);
+  },
+  track(frac, color) {
+    const w = Math.max(0.5, Math.min(100, 100 * frac));
+    return `<div class="w-energy-accounting-track"><div style="width:${w}%;background:${color}"></div></div>`;
+  },
+  esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+};
+
+/* 1. Unit ladder: mAh -> C -> Wh -> J at a chosen voltage */
+(function () {
+  const $ = id => document.getElementById(id);
+  const mah = $("ea-u-mah"), volt = $("ea-u-v"), out = $("ea-u-out"), err = $("ea-u-err");
+  function run() {
+    const C = EA.num(mah.value), V = EA.num(volt.value);
+    let e = "";
+    if (!Number.isFinite(C)) e = "Capacity bir sayı olmalı (ondalık için nokta: 2400.5).";
+    else if (C <= 0) e = "Capacity sıfırdan büyük olmalı: boş bir pil hiçbir şey tutmaz.";
+    else if (C > 100000) e = "100,000 mAh'ten büyük bir pil bir mote için gerçekçi değil.";
+    else if (!Number.isFinite(V)) e = "Voltage bir sayı olmalı (örneğin 3 ya da 3.7).";
+    else if (V <= 0) e = "Voltage sıfırdan büyük olmalı.";
+    else if (V > 24) e = "24 V'tan büyük bir besleme bir mote için gerçekçi değil.";
+    err.textContent = e;
+    if (e) { out.innerHTML = ""; return; }
+    const Q = C * 3.6, Ah = C / 1000, Wh = Ah * V, J = Wh * 3600;
+    let h = `<div class="table-wrap"><table>
+      <tr><th>Basamak</th><th>Hesap</th><th>Sonuç</th></tr>
+      <tr><td>Charge</td><td>${EA.fmt(C, 0)} mAh × 3.6 C/mAh</td><td class="w-energy-accounting-num">${EA.fmt(Q, 0)} C</td></tr>
+      <tr><td>Charge</td><td>${EA.fmt(C, 0)} mAh / 1000</td><td class="w-energy-accounting-num">${EA.fmt(Ah, 3)} Ah</td></tr>
+      <tr><td>Energy</td><td>${EA.fmt(V, 2)} V × ${EA.fmt(Ah, 3)} Ah</td><td class="w-energy-accounting-num">${EA.fmt(Wh, 3)} Wh</td></tr>
+      <tr><td>Energy</td><td>${EA.fmt(Wh, 3)} Wh × 3600 s/h</td><td class="w-energy-accounting-num">${EA.fmt(J, 0)} J</td></tr>
+    </table></div>`;
+    const vs = [1.5, 3, 3.7];
+    const maxJ = Ah * 3.7 * 3600;
+    h += `<p class="w-energy-accounting-note">Aynı ${EA.fmt(C, 0)} mAh, farklı voltage:</p>`;
+    vs.forEach((v, k) => {
+      const j = Ah * v * 3600;
+      h += `<div class="w-energy-accounting-bar"><span>${v} V</span>${EA.track(j / maxJ, EA.COLORS[k])}<span>${EA.fmt(j, 0)} J</span></div>`;
+    });
+    h += `<p class="w-energy-accounting-note">3.7 V / 1.5 V = ${EA.fmt(3.7 / 1.5, 2)} kat enerji, charge ise aynı. mAh tek başına enerjiyi söylemez.</p>`;
+    out.innerHTML = h;
+  }
+  $("ea-u-go").addEventListener("click", run);
+  [mah, volt].forEach(i => i.addEventListener("keydown", ev => { if (ev.key === "Enter") run(); }));
+  run();
+})();
+
+/* 2. Stepper: ticks -> duration -> duty -> current -> charge -> energy, from two real Powertrace lines */
+(function () {
+  const SETS = {
+    b1: { name: "B (ContikiMAC, 15 s) · mote 1 server · t = 150 → 180 s", a: [115327, 4799171, 40631, 47651], b: [130968, 5766220, 44361, 56301] },
+    c1: { name: "C (ContikiMAC, 5 s) · mote 1 server · t = 150 → 180 s", a: [184829, 4729736, 77898, 71758], b: [214286, 5682975, 89084, 85248] },
+    a1: { name: "A (NullRDC, 15 s) · mote 1 server · t = 150 → 180 s", a: [49571, 4864966, 1248, 4914628], b: [59140, 5838093, 1376, 5897539] }
+  };
+  const ST = [{ k: "cpu", n: "CPU" }, { k: "lpm", n: "LPM" }, { k: "tx", n: "TX" }, { k: "rx", n: "Listen" }];
+  const sel = document.getElementById("ea-pipe-sel");
+  const box = document.getElementById("ea-pipe-stepper");
+  Object.entries(SETS).forEach(([k, s]) => { const o = document.createElement("option"); o.value = k; o.textContent = s.name; sel.appendChild(o); });
+  const COLS = ["önceki", "sonraki", "N_i", "t_i (s)", "D_i", "I_i (mA)", "D_i·I_i (mA)", "Q_i (mC)", "E_i (mJ)"];
+  function build() {
+    const s = SETS[sel.value];
+    const rows = ST.map((st, i) => {
+      const N = s.b[i] - s.a[i];
+      return { n: st.n, before: s.a[i], after: s.b[i], N, I: EA.CUR[st.k] };
+    });
+    const Ntot = rows[0].N + rows[1].N;
+    rows.forEach(r => { r.t = r.N / EA.F; r.D = r.N / Ntot; r.c = r.D * r.I; r.Q = r.N * r.I / EA.F; r.E = r.Q * EA.V; });
+    const Iavg = rows.reduce((a, r) => a + r.c, 0);
+    const Qsum = rows.reduce((a, r) => a + r.Q, 0);
+    const Esum = rows.reduce((a, r) => a + r.E, 0);
+    const T = Ntot / EA.F;
+    const dom = rows.slice().sort((x, y) => y.c - x.c)[0];
+    const L = rows[3];
+    const frames = [
+      { cols: 2, hi: 1, caption: `Powertrace'in iki ardışık satırındaki cumulative sayaçlar (boot'tan beri tick). Tek başlarına sadece büyüyen sayılar; bir aralığın bilgisi farklarında.` },
+      { cols: 3, hi: 2, caption: `$N_i$ = sonraki − önceki. Listen: $${L.after} - ${L.before} = ${L.N}$ tick.` },
+      { cols: 4, hi: 3, caption: `CPU her an ya aktif ya LPM'de, bu yüzden $N_{total} = N_{CPU} + N_{LPM} = ${Ntot}$ tick. $t_i = N_i / F$ ile $F = 32768$: aralık $${EA.fmt(T, 2)}$ s, yani <code>powertrace_start(CLOCK_SECOND * 30)</code>.` },
+      { cols: 5, hi: 4, caption: `$D_i = N_i / N_{total}$. Listen: $${L.N} / ${Ntot} = ${EA.fmt(100 * L.D, 2)}\\%$. CPU ve LPM birlikte 100%; TX ve listen radyonun kendi payı.` },
+      { cols: 7, hi: 6, caption: `$I_{avg,i} = D_i \\times I_i$ (lab current model). Listen: $${EA.fmt(L.D, 5)} \\times 18.8 = ${EA.fmt(L.c, 4)}$ mA.` },
+      { cols: 7, hi: 6, total: true, caption: `$I_{avg} = \\sum_i D_i I_i = ${EA.fmt(Iavg, 4)}$ mA. En büyük pay: <b>${dom.n}</b> (%${EA.fmt(100 * dom.c / Iavg, 1)}).` },
+      { cols: 8, hi: 7, total: true, caption: `$Q_i = N_i I_i / F$ (mA × s = mC). Bu ${EA.fmt(T, 1)} saniyede toplam $${EA.fmt(Qsum, 3)}$ mC.` },
+      { cols: 9, hi: 8, total: true, caption: `$E_i = Q_i \\times V$, $V = 3$ V varsayımıyla (mC × V = mJ). Toplam $${EA.fmt(Esum, 2)}$ mJ. Kontrol: $I_{avg} \\cdot V \\cdot t = ${EA.fmt(Iavg, 4)} \\times 3 \\times ${EA.fmt(T, 2)} = ${EA.fmt(Iavg * 3 * T, 2)}$ mJ.` }
+    ];
+    const maxC = Math.max(...rows.map(r => r.c));
+    Lab.stepper(box, {
+      title: s.name,
+      interval: 1600,
+      frames,
+      render(f, idx, el) {
+        const vals = r => [r.before, r.after, r.N, EA.fmt(r.t, 3), EA.fmt(100 * r.D, 3) + "%", r.I, EA.fmt(r.c, 4), EA.fmt(r.Q, 3), EA.fmt(r.E, 3)];
+        let h = `<div class="table-wrap"><table><tr><th>State</th>`;
+        for (let c = 0; c < f.cols; c++) h += `<th class="${c === f.hi ? "w-energy-accounting-cur" : ""}">${COLS[c]}</th>`;
+        if (f.cols >= 7) h += `<th style="min-width:80px">pay</th>`;
+        h += `</tr>`;
+        rows.forEach(r => {
+          const v = vals(r);
+          h += `<tr><td>${r.n}</td>`;
+          for (let c = 0; c < f.cols; c++) h += `<td class="w-energy-accounting-num ${c === f.hi ? "w-energy-accounting-cur" : ""}">${v[c]}</td>`;
+          if (f.cols >= 7) h += `<td>${EA.track(r.c / maxC, r.n === "Listen" ? "var(--accent)" : "var(--blue-600)")}</td>`;
+          h += `</tr>`;
+        });
+        if (f.total) {
+          h += `<tr><td><b>Toplam</b></td>`;
+          for (let c = 0; c < f.cols; c++) {
+            let t = "";
+            if (c === 6) t = EA.fmt(Iavg, 4);
+            if (c === 7) t = EA.fmt(Qsum, 3);
+            if (c === 8) t = EA.fmt(Esum, 2);
+            h += `<td class="w-energy-accounting-num"><b>${t}</b></td>`;
+          }
+          if (f.cols >= 7) h += `<td></td>`;
+          h += `</tr>`;
+        }
+        h += `</table></div>`;
+        el.innerHTML = h;
+      }
+    });
+  }
+  sel.addEventListener("change", build);
+  build();
+})();
+
+/* 3. Average-current calculator with presets, component checks and the listen 5% -> 1% move */
+(function () {
+  const $ = id => document.getElementById(id);
+  const PRESETS = {
+    s41: [["CPU", "CPU active", 8, 1], ["CPU", "CPU LPM", 0.02, 99], ["Radio", "Radio TX", 17, 0.1], ["Radio", "Radio listen", 19, 5], ["Radio", "Radio sleep", 0.002, 94.9], ["Sensor", "Sensor active", 2, 0.5]],
+    s24: [["Radio", "RX/listen", 19, 5], ["Radio", "TX", 17, 0.1], ["Radio", "Sleep", 0.002, 94.9]],
+    labA: [["CPU", "CPU", 1.8, 0.992], ["CPU", "LPM", 0.0545, 99.008], ["Radio", "TX", 17.4, 0.016], ["Radio", "Listen", 18.8, 100.018]],
+    labB: [["CPU", "CPU", 1.8, 1.844], ["CPU", "LPM", 0.0545, 98.156], ["Radio", "TX", 17.4, 0.517], ["Radio", "Listen", 18.8, 0.893]],
+    labC: [["CPU", "CPU", 1.8, 3.259], ["CPU", "LPM", 0.0545, 96.741], ["Radio", "TX", 17.4, 1.282], ["Radio", "Listen", 18.8, 1.382]]
+  };
+  const tbl = $("ea-calc-table"), out = $("ea-calc-out"), err = $("ea-calc-err"), cap = $("ea-calc-cap");
+  let rows = [], baseline = null;
+  function load(key) {
+    rows = PRESETS[key].map(r => ({ comp: r[0], name: r[1], I: String(r[2]), D: String(r[3]) }));
+    baseline = null;
+    drawTable(); compute();
+  }
+  function drawTable() {
+    let h = `<div class="table-wrap"><table class="w-energy-accounting-tbl"><tr><th>Component</th><th>State</th><th>Current (mA)</th><th>Duty (%)</th></tr>`;
+    rows.forEach((r, i) => {
+      h += `<tr><td>${EA.esc(r.comp)}</td><td>${EA.esc(r.name)}</td><td><input type="text" inputmode="decimal" data-i="${i}" data-f="I" value="${EA.esc(r.I)}" aria-label="${EA.esc(r.name)} current" /></td><td><input type="text" inputmode="decimal" data-i="${i}" data-f="D" value="${EA.esc(r.D)}" aria-label="${EA.esc(r.name)} duty" /></td></tr>`;
+    });
+    tbl.innerHTML = h + `</table></div>`;
+  }
+  tbl.addEventListener("input", ev => {
+    const inp = ev.target.closest("input[data-i]");
+    if (!inp) return;
+    rows[+inp.dataset.i][inp.dataset.f] = inp.value;
+    compute();
+  });
+  function compute() {
+    const msgs = [];
+    tbl.querySelectorAll("input[data-i]").forEach(inp => inp.classList.remove("is-bad"));
+    const parsed = rows.map((r, i) => {
+      const I = EA.num(r.I), D = EA.num(r.D);
+      const bad = (f, m) => { msgs.push(m); const el = tbl.querySelector(`input[data-i="${i}"][data-f="${f}"]`); if (el) el.classList.add("is-bad"); };
+      if (!Number.isFinite(I)) bad("I", `${r.name}: current bir sayı olmalı (ondalık için nokta).`);
+      else if (I < 0) bad("I", `${r.name}: current negatif olamaz; bir state pilden akım çeker, geri vermez.`);
+      else if (I > 500) bad("I", `${r.name}: ${I} mA bir mote state'i için çok büyük; mA yazdığından emin ol.`);
+      if (!Number.isFinite(D)) bad("D", `${r.name}: duty bir sayı olmalı (yüzde, örneğin 0.5).`);
+      else if (D < 0) bad("D", `${r.name}: duty negatif olamaz; bir state'te geçen süre en az 0.`);
+      else if (D > 100.1) bad("D", `${r.name}: duty 100%'ü geçemez; bir state zamanın tamamından fazlasını dolduramaz.`);
+      return { ...r, I, D };
+    });
+    if (msgs.length) { err.textContent = msgs[0]; out.innerHTML = ""; return; }
+    const comps = {};
+    parsed.forEach(r => { comps[r.comp] = (comps[r.comp] || 0) + r.D; });
+    const notes = [];
+    for (const [c, s] of Object.entries(comps)) {
+      if (s > 100.1) { err.textContent = `${c} component'inin duty'leri toplamı ${EA.fmt(s, 3)}%. Bir component'in state'leri toplamda 100%'ü geçemez: aynı anda iki state'te olamaz.`; out.innerHTML = ""; return; }
+      if (s > 100.0001) notes.push(`${c}: toplam ${EA.fmt(s, 3)}%, 100%'ü az geçiyor (sayaçlar birkaç tick arayla okunuyor); kabul edildi.`);
+      else if (s < 99.9) notes.push(`${c}: toplam ${EA.fmt(s, 2)}%. Kalan ${EA.fmt(100 - s, 2)}% için current 0 kabul edildi (off).`);
+    }
+    err.textContent = "";
+    const C = EA.num(cap.value);
+    const contrib = parsed.map(r => r.D / 100 * r.I);
+    const tot = contrib.reduce((a, b) => a + b, 0);
+    let h = `<div class="table-wrap"><table><tr><th>State</th><th>D·I</th><th>pay</th><th style="min-width:90px"></th></tr>`;
+    const maxc = Math.max(...contrib, 1e-12);
+    parsed.forEach((r, i) => {
+      h += `<tr><td>${EA.esc(r.comp)} · ${EA.esc(r.name)}</td><td class="w-energy-accounting-num">${EA.fmt(contrib[i], 4)} mA</td><td class="w-energy-accounting-num">${tot > 0 ? EA.fmt(100 * contrib[i] / tot, 1) : "0"}%</td><td>${EA.track(contrib[i] / maxc, EA.COLORS[i % EA.COLORS.length])}</td></tr>`;
+    });
+    h += `<tr><td><b>Toplam I<sub>avg</sub></b></td><td class="w-energy-accounting-num"><b>${EA.fmt(tot, 4)} mA</b></td><td></td><td></td></tr></table></div>`;
+    h += `<div class="w-energy-accounting-stack" aria-hidden="true">${parsed.map((r, i) => `<div style="width:${tot > 0 ? 100 * contrib[i] / tot : 0}%;background:${EA.COLORS[i % EA.COLORS.length]}"></div>`).join("")}</div>`;
+    h += `<div class="w-energy-accounting-legend">${parsed.map((r, i) => `<span><i style="background:${EA.COLORS[i % EA.COLORS.length]}"></i>${EA.esc(r.name)}</span>`).join("")}</div>`;
+    if (tot > 0) {
+      const di = contrib.indexOf(Math.max(...contrib));
+      h += `<p>Baskın state: <b>${EA.esc(parsed[di].name)}</b> (toplamdaki payı %${EA.fmt(100 * contrib[di] / tot, 1)}).</p>`;
+    }
+    if (baseline !== null) {
+      h += `<p class="w-energy-accounting-ok">Listen değişikliğinden önce ${EA.fmt(baseline, 4)} mA, şimdi ${EA.fmt(tot, 4)} mA: ${EA.fmt(baseline - tot, 4)} mA tasarruf (${EA.fmt(baseline / tot, 2)} kat uzun ömür).</p>`;
+    }
+    if (Number.isFinite(C) && C > 0 && C <= 100000 && tot > 0) {
+      const hrs = C / tot;
+      h += `<p>Kaba lifetime: ${EA.fmt(C, 0)} mAh / ${EA.fmt(tot, 4)} mA = <b>${EA.fmt(hrs, 0)} h ≈ ${EA.fmt(hrs / 24, 1)} gün</b> (sadece bu state'ler, nominal capacity).</p>`;
+    } else if (cap.value.trim() !== "") {
+      h += `<p class="w-energy-accounting-err">Capacity 0 ile 100,000 mAh arasında bir sayı olmalı.</p>`;
+    }
+    if (notes.length) h += `<p class="w-energy-accounting-note">${notes.map(EA.esc).join("<br>")}</p>`;
+    out.innerHTML = h;
+  }
+  $("ea-calc-listen").addEventListener("click", () => {
+    const li = rows.findIndex(r => /listen/i.test(r.name));
+    if (li < 0) { err.textContent = "Bu tabloda listen satırı yok."; return; }
+    const cur = EA.num(rows[li].D);
+    if (!Number.isFinite(cur)) { err.textContent = "Önce listen duty'sini düzelt."; return; }
+    if (cur <= 1) { err.textContent = "Listen zaten 1% ya da altında."; return; }
+    const before = rows.map(r => ({ ...r }));
+    const contrib = before.map(r => EA.num(r.D) / 100 * EA.num(r.I));
+    baseline = contrib.every(Number.isFinite) ? contrib.reduce((a, b) => a + b, 0) : null;
+    const diff = cur - 1;
+    rows[li].D = "1";
+    const si = rows.findIndex(r => r.comp === rows[li].comp && /sleep/i.test(r.name));
+    if (si >= 0) {
+      const s = EA.num(rows[si].D);
+      if (Number.isFinite(s)) rows[si].D = String(Math.round((s + diff) * 1e6) / 1e6);
+    }
+    drawTable(); compute();
+    if (si < 0) out.insertAdjacentHTML("beforeend", `<p class="w-energy-accounting-note">Bu tabloda radio sleep satırı yok: listen'den çıkan ${EA.fmt(diff, 3)}% radyonun 0 mA kabul edilen "off" süresine gitti.</p>`);
+  });
+  document.querySelectorAll("[data-ea-preset]").forEach(b => b.addEventListener("click", () => load(b.dataset.eaPreset)));
+  cap.addEventListener("input", compute);
+  load("s41");
+})();
+
+/* 4. Powertrace parser: field labels, deltas, duties, I_avg and the 32-bit overflow behind "100.-8735%" */
+(function () {
+  const $ = id => document.getElementById(id);
+  const SAMPLES = {
+    b1: "150719.743\tID:1\t 19206 P 0.18 4 115327 4799171 40631 47651 0 31095 20376 962311 6364 8929 0 6136 (radio 1.79% / 1.55% tx 0.82% / 0.64% listen 0.96% / 0.90%)\n180719.72\tID:1\t 23046 P 0.18 5 130968 5766220 44361 56301 0 37309 15638 967049 3730 8650 0 6214 (radio 1.70% / 1.25% tx 0.75% / 0.37% listen 0.95% / 0.88%)",
+    a1: "150718.705\tID:1\t 19206 P 0.18 4 49571 4864966 1248 4914628 0 0 9798 972897 189 982844 0 0 (radio 100.-9611% / 100.-8738% tx 0.02% / 0.01% listen 100.-9614% / 100.-8740%)\n180718.725\tID:1\t 23046 P 0.18 5 59140 5838093 1376 5897539 0 0 9566 973127 128 982907 0 0 (radio 100.-9466% / 100.-8738% tx 0.02% / 0.01% listen 100.-9468% / 100.-8740%)",
+    c2: "",
+    pdf: "60572 ID:2 7686 P 0.18 1 21915 1944478 702 1966095 0 0 9891 972768 0 983036 0 0 (radio 100.-8735% / 100.-8738% tx 0.03% / 0.00% listen 99.-8639% / 100.-8738%)"
+  };
+  SAMPLES.c2 = "150575.038\tID:2\t 19206 P 0.18 4 235606 4678866 104473 85159 0 29959 43028 939626 18524 16544 0 6079 (radio 3.85% / 3.56% tx 2.12% / 1.88% listen 1.73% / 1.68%)\n180575.364\tID:2\t 23046 P 0.18 5 274021 5623101 120400 101436 0 35887 38413 944235 15927 16277 0 5928 (radio 3.76% / 3.27% tx 2.04% / 1.62% listen 1.72% / 1.65%)";
+  const ta = $("ea-pt-in"), out = $("ea-pt-out"), err = $("ea-pt-err");
+  const RE = /^\s*(?:([\d.]+)\s+)?ID:(\d+)\s+(\d+)\s+P\s+(\d+\.\d+)\s+(\d+)\s+((?:\d+\s+){11}\d+)\s*(?:\((.*)\))?\s*$/;
+  function parseLine(line) {
+    const m = line.match(RE);
+    if (!m) return null;
+    const n = m[6].trim().split(/\s+/).map(Number);
+    return { time: m[1] || "", id: +m[2], clock: +m[3], addr: m[4], seq: +m[5], all: n.slice(0, 6), iv: n.slice(6, 12), pct: m[7] || "" };
+  }
+  /* Powertrace prints %d.%02d with 32-bit unsigned long arithmetic on the MSP430 */
+  function buggy(num, den) {
+    const M = 2n ** 32n, N = BigInt(num), D = BigInt(den);
+    const a = ((100n * N) % M) / D;
+    const b = ((10000n * N) % M) / D;
+    let frac = (b - a * 100n) % M; if (frac < 0n) frac += M;
+    if (frac >= 2n ** 31n) frac -= M;
+    const f = Number(frac);
+    return `${Number(a)}.${f < 0 ? String(f) : String(f).padStart(2, "0")}`;
+  }
+  function run() {
+    const lines = ta.value.split(/\n/).map(s => s.trim()).filter(Boolean);
+    if (!lines.length) { err.textContent = "Kutu boş. Bir ya da iki Powertrace satırı yapıştır ya da hazır örneklerden birini seç."; out.innerHTML = ""; return; }
+    if (lines.length > 2) { err.textContent = "En fazla iki satır: aynı mote'un iki Powertrace satırı."; out.innerHTML = ""; return; }
+    const P = [];
+    for (let i = 0; i < lines.length; i++) {
+      const p = parseLine(lines[i]);
+      if (!p) { err.textContent = `${i + 1}. satır Powertrace biçiminde değil. Beklenen: "ID:X <clock> P <addr> <seqno>" ve ardından 12 sayı.`; out.innerHTML = ""; return; }
+      if (p.all[0] + p.all[1] === 0) { err.textContent = `${i + 1}. satırda all_cpu + all_lpm = 0: zaman tabanı yok.`; out.innerHTML = ""; return; }
+      P.push(p);
+    }
+    if (P.length === 2) {
+      if (P[0].id !== P[1].id) { err.textContent = `İki satır farklı mote'lardan (ID:${P[0].id} ve ID:${P[1].id}). Fark almak için aynı mote'un satırları gerekir.`; out.innerHTML = ""; return; }
+      if (P[1].seq <= P[0].seq) { err.textContent = "İkinci satırın seqno'su birinciden büyük olmalı. Sırayı kontrol et (önce eski satır)."; out.innerHTML = ""; return; }
+      if (P[1].all.some((v, k) => k < 4 && v < P[0].all[k])) { err.textContent = "Cumulative sayaçlar azalamaz. Satırlar farklı çalıştırmalardan olabilir."; out.innerHTML = ""; return; }
+    }
+    err.textContent = "";
+    const L = P[P.length - 1];
+    let h = `<h4>Alanlar (son satır)</h4><div class="table-wrap"><table><tr><th>Alan</th><th>Değer</th><th>Anlamı</th></tr>`;
+    const F = [
+      ["Cooja time", L.time || "–", L.time ? `${EA.fmt(+L.time / 1000, 1)} s simülasyon zamanı` : "satırda yok"],
+      ["Mote", "ID:" + L.id, "node'u bununla tanı"],
+      ["clock time", L.clock, `clock_time(), 128 tick/s ⇒ ${EA.fmt(L.clock / 128, 1)} s`],
+      ["address", L.addr, "link address'in ilk iki byte'ı; bütün Sky mote'larda 0.18"],
+      ["seqno", L.seq, "Powertrace sıra numarası"],
+      ["all_cpu / all_lpm", L.all[0] + " / " + L.all[1], "boot'tan beri CPU ve LPM tick'i"],
+      ["all_transmit / all_listen", L.all[2] + " / " + L.all[3], "boot'tan beri TX ve listen tick'i"],
+      ["all_idle_tx / all_idle_listen", L.all[4] + " / " + L.all[5], L.all[5] ? "listen'in paket getirmeyen kısmı (ContikiMAC channel check'leri); listen'in içinde" : "0: NullRDC'de bu sayaç kullanılmıyor"],
+      ["cpu lpm tx listen (interval)", L.iv.slice(0, 4).join(" "), `son pencere; toplam ${L.iv[0] + L.iv[1]} tick ≈ ${EA.fmt((L.iv[0] + L.iv[1]) / EA.F, 2)} s`],
+      ["idle tx / idle listen (interval)", L.iv[4] + " / " + L.iv[5], "son pencerenin idle kısmı"]
+    ];
+    F.forEach(f => { h += `<tr><td>${f[0]}</td><td class="w-energy-accounting-num">${EA.esc(f[1])}</td><td>${f[2]}</td></tr>`; });
+    h += `</table></div>`;
+    let d, src;
+    const gap = P.length === 2 ? P[1].seq - P[0].seq : 0;
+    if (P.length === 2) { d = [0, 1, 2, 3].map(k => P[1].all[k] - P[0].all[k]); src = gap === 1 ? `İki satırın cumulative farkı (seqno ${P[0].seq} → ${P[1].seq})` : `İki satırın cumulative farkı (seqno ${P[0].seq} → ${P[1].seq}, ${gap} Powertrace aralığının toplamı)`; }
+    else { d = L.iv.slice(0, 4); src = "Tek satır: interval alanları kullanıldı"; }
+    const T = d[0] + d[1];
+    if (T <= 0) { err.textContent = "Bu aralıkta ΔCPU + ΔLPM = 0; duty hesaplanamaz."; out.innerHTML = h; return; }
+    const D = d.map(x => x / T);
+    const parts = [D[0] * EA.CUR.cpu, D[1] * EA.CUR.lpm, D[2] * EA.CUR.tx, D[3] * EA.CUR.rx];
+    const I = parts.reduce((a, b) => a + b, 0);
+    const names = ["CPU", "LPM", "TX", "Listen"];
+    h += `<h4>${src}</h4><div class="table-wrap"><table><tr><th>State</th><th>Δ tick</th><th>Duty</th><th>D·I (mA)</th></tr>`;
+    names.forEach((n, k) => { h += `<tr><td>${n}</td><td class="w-energy-accounting-num">${d[k]}</td><td class="w-energy-accounting-num">${EA.fmt(100 * D[k], 3)}%</td><td class="w-energy-accounting-num">${EA.fmt(parts[k], 4)}</td></tr>`; });
+    h += `<tr><td><b>ΔT</b></td><td class="w-energy-accounting-num"><b>${T}</b></td><td>${EA.fmt(T / EA.F, 2)} s</td><td class="w-energy-accounting-num"><b>${EA.fmt(I, 4)}</b></td></tr></table></div>`;
+    h += `<p>CPU duty cycle <b>${EA.fmt(100 * D[0], 2)}%</b> · radio on <b>${EA.fmt(100 * (D[2] + D[3]), 2)}%</b> · I<sub>avg</sub> <b>${EA.fmt(I, 4)} mA</b> (lab modeli). ${d[2] === 0 ? "Bu aralıkta TX hiç yok." : d[2] < d[3] ? "TX : listen süresi = 1 : " + EA.fmt(d[3] / d[2], 1) + "." : "TX süresi listen'den uzun (TX / listen = " + EA.fmt(d[2] / Math.max(d[3], 1), 2) + ")."}</p>`;
+    if (P.length === 2 && gap > 1) h += `<p class="w-energy-accounting-note">Satırlar ardışık değil: tablo ${gap} aralığın toplamını gösteriyor. İkinci satırın interval alanları yalnızca son aralığı kapsadığı için onlarla karşılaştırma yapılmadı.</p>`;
+    if (P.length === 2 && gap === 1) {
+      const ivd = [0, 1, 2, 3].map(k => P[1].iv[k] - d[k]);
+      if (ivd.some(x => x !== 0)) h += `<p class="w-energy-accounting-note">İkinci satırın interval alanları ile cumulative farkı arasındaki fark (cpu, lpm, tx, listen): ${ivd.join(", ")} tick. İhmal edilebilir; tablo cumulative farkını kullanıyor.</p>`;
+    }
+    if (L.pct) {
+      const bad = /\d+\.-\d+%/.test(L.pct);
+      const at = L.all[0] + L.all[1], it = L.iv[0] + L.iv[1];
+      const sim = [
+        ["radio (cumulative)", buggy(L.all[2] + L.all[3], at), 100 * (L.all[2] + L.all[3]) / at],
+        ["radio (interval)", buggy(L.iv[2] + L.iv[3], it), 100 * (L.iv[2] + L.iv[3]) / it],
+        ["tx (cumulative)", buggy(L.all[2], at), 100 * L.all[2] / at],
+        ["tx (interval)", buggy(L.iv[2], it), 100 * L.iv[2] / it],
+        ["listen (cumulative)", buggy(L.all[3], at), 100 * L.all[3] / at],
+        ["listen (interval)", buggy(L.iv[3], it), 100 * L.iv[3] / it]
+      ];
+      const printed = (L.pct.match(/-?\d+\.-?\d+%/g) || []).map(s => s.replace("%", ""));
+      h += `<div class="${bad ? "w-energy-accounting-flag" : ""}"><b>${bad ? "Bozuk yüzde var." : "Parantezdeki yüzdeler düzgün."}</b> Powertrace'in 32-bit hesabının taklidi ve doğru değer:</div>`;
+      h += `<div class="table-wrap"><table><tr><th>Alan</th><th>Satırda basılan</th><th>32-bit taklit</th><th>Doğru değer</th></tr>`;
+      const order = [0, 1, 2, 3, 4, 5];
+      order.forEach(k => {
+        const p = printed[k] || "–";
+        const ok = p === sim[k][1];
+        h += `<tr><td>${sim[k][0]}</td><td class="w-energy-accounting-num">${EA.esc(p)}%</td><td class="w-energy-accounting-num">${sim[k][1]}% ${ok ? "✓" : ""}</td><td class="w-energy-accounting-num">${EA.fmt(sim[k][2], 2)}%</td></tr>`;
+      });
+      h += `</table></div>`;
+      if (bad) h += `<p class="w-energy-accounting-note">Ondalık kısım <code>10000 × ticks / all_time</code> ile hesaplanıyor. Tick sayısı ≈ 429,497'yi geçince 10000 × ticks, 32 bit'e (4,294,967,296) sığmıyor ve sarıyor. Tam kısım doğru, ondalık çöp. Değeri tick'lerden hesapla.</p>`;
+    }
+    out.innerHTML = h;
+  }
+  $("ea-pt-go").addEventListener("click", run);
+  document.querySelectorAll("[data-ea-pt]").forEach(b => b.addEventListener("click", () => { ta.value = SAMPLES[b.dataset.eaPt]; run(); }));
+  ta.value = SAMPLES.b1;
+  run();
+})();
+
+/* 5. Scenario comparator: Efe's steady-state averages (27 intervals after a 60 s warm-up) */
+(function () {
+  const $ = id => document.getElementById(id);
+  /* [cpu%, lpm%, tx%, listen%, I_avg mA, idle-listen base %] computed from scenario-a/b/c.txt */
+  const DATA = {
+    A: { 1: [0.992, 99.008, 0.016, 100.018, 18.8781, 0], 2: [1.076, 98.924, 0.016, 100.025, 18.8807, 0] },
+    B: { 1: [1.844, 98.156, 0.517, 0.893, 0.3444, 0.629], 2: [2.187, 97.813, 0.676, 0.989, 0.3962, 0.632] },
+    C: { 1: [3.259, 96.741, 1.282, 1.382, 0.5941, 0.621], 2: [4.146, 95.854, 1.754, 1.651, 0.7425, 0.611] }
+  };
+  const SEND = { B: 15, C: 5 };
+  const SC = ["A", "B", "C"], COL = { A: "#C75712", B: "#0063AA", C: "#66A8DA" };
+  const out = $("ea-cmp-out"), err = $("ea-cmp-err");
+  let mote = 1, shown = false, guess = null;
+  const FB = {
+    tx: "TX gerçekten en çok artan (göreli olarak ≈ 2.5 kat), ama tek değil: listen ve CPU da artıyor.",
+    listen: "Listen artıyor ama sadece ≈ 1.5-1.7 kat; tabanı (channel check'ler) sabit. TX ve CPU da artıyor.",
+    cpu: "CPU artıyor (≈ 1.8-1.9 kat), ama TX daha çok artıyor ve listen de artıyor.",
+    all: "Doğru: üçü de artıyor. Göreli olarak en çok TX, sonra CPU, en az listen."
+  };
+  function chart(title, k, log, unit, dec) {
+    const vals = SC.map(s => DATA[s][mote][k]);
+    const lo = log ? Math.log10(Math.min(...vals) / 2) : 0, hi = log ? Math.log10(Math.max(...vals)) : Math.max(...vals);
+    let h = `<div class="w-energy-accounting-chart"><h4>${title}${log ? " · log ölçek" : ""}</h4>`;
+    SC.forEach((s, i) => {
+      const v = vals[i];
+      const frac = log ? (Math.log10(v) - lo) / (hi - lo) : v / hi;
+      h += `<div class="w-energy-accounting-bar"><span>${s}</span>${EA.track(frac, COL[s])}<span>${EA.fmt(v, dec)}${unit}</span></div>`;
+    });
+    return h + `</div>`;
+  }
+  function draw() {
+    if (!shown) return;
+    const b = DATA.B[mote], c = DATA.C[mote], a = DATA.A[mote];
+    let h = `<div class="w-energy-accounting-ctl"><button class="btn btn--sm${mote === 1 ? " btn--accent" : ""}" data-ea-m="1">mote 1 · server</button><button class="btn btn--sm${mote === 2 ? " btn--accent" : ""}" data-ea-m="2">mote 2 · client</button></div>`;
+    if (guess) h += `<p class="${guess === "all" ? "w-energy-accounting-ok" : "w-energy-accounting-err"}">${FB[guess]}</p>`;
+    h += `<div class="w-energy-accounting-charts">`;
+    h += chart("Listen %", 3, true, "%", 3);
+    h += chart("TX %", 2, true, "%", 3);
+    h += chart("CPU %", 0, false, "%", 2);
+    h += chart("I_avg", 4, true, " mA", 3);
+    h += `</div>`;
+    const r = k => EA.fmt(c[k] / b[k], 2);
+    /* SEND_INTERVAL'de bir alışveriş olur; trafiğe bağlı listen süresi / alışveriş sayısı */
+    const pp = (x, s) => (x[3] - x[5]) / 100 * SEND[s] * 1000;
+    h += `<div class="table-wrap"><table><tr><th>B → C</th><th>B</th><th>C</th><th>oran</th></tr>
+      <tr><td>TX %</td><td class="w-energy-accounting-num">${b[2]}</td><td class="w-energy-accounting-num">${c[2]}</td><td class="w-energy-accounting-num">×${r(2)}</td></tr>
+      <tr><td>Listen %</td><td class="w-energy-accounting-num">${b[3]}</td><td class="w-energy-accounting-num">${c[3]}</td><td class="w-energy-accounting-num">×${r(3)}</td></tr>
+      <tr><td>· taban (idle_listen)</td><td class="w-energy-accounting-num">${b[5]}</td><td class="w-energy-accounting-num">${c[5]}</td><td class="w-energy-accounting-num">×${r(5)}</td></tr>
+      <tr><td>· paket trafiğine bağlı toplam</td><td class="w-energy-accounting-num">${EA.fmt(b[3] - b[5], 3)}</td><td class="w-energy-accounting-num">${EA.fmt(c[3] - c[5], 3)}</td><td class="w-energy-accounting-num">×${EA.fmt((c[3] - c[5]) / (b[3] - b[5]), 2)}</td></tr>
+      <tr><td>· bir alışveriş başına listen (ms)</td><td class="w-energy-accounting-num">${EA.fmt(pp(b, "B"), 1)}</td><td class="w-energy-accounting-num">${EA.fmt(pp(c, "C"), 1)}</td><td class="w-energy-accounting-num">×${EA.fmt(pp(c, "C") / pp(b, "B"), 2)}</td></tr>
+      <tr><td>CPU %</td><td class="w-energy-accounting-num">${b[0]}</td><td class="w-energy-accounting-num">${c[0]}</td><td class="w-energy-accounting-num">×${r(0)}</td></tr>
+      <tr><td>I_avg (mA)</td><td class="w-energy-accounting-num">${b[4]}</td><td class="w-energy-accounting-num">${c[4]}</td><td class="w-energy-accounting-num">×${r(4)}</td></tr>
+    </table></div>`;
+    h += `<p>Paket 3 kat sıklaştı; paket trafiğine bağlı toplam listen ≈ ${EA.fmt((c[3] - c[5]) / (b[3] - b[5]), 1)} kat arttı, paket başına listen neredeyse aynı kaldı (${EA.fmt(pp(b, "B"), 1)} → ${EA.fmt(pp(c, "C"), 1)} ms), taban sabit kaldı. Bu yüzden $I_{avg}$ 3 kat değil, ${r(4)} kat arttı. A'dan B'ye: $I_{avg}$ ${EA.fmt(a[4] / b[4], 1)} kat düştü. Listen'in $I_{avg}$ içindeki payı A'da %${EA.fmt(a[3] * 18.8 / a[4], 1)}, B'de %${EA.fmt(b[3] * 18.8 / b[4], 1)}.</p>`;
+    out.innerHTML = h.replace(/\$I_\{avg\}\$/g, "I<sub>avg</sub>");
+  }
+  out.addEventListener("click", ev => {
+    const b = ev.target.closest("[data-ea-m]");
+    if (!b) return;
+    mote = +b.dataset.eaM; draw();
+  });
+  $("ea-cmp-go").addEventListener("click", () => {
+    const g = document.querySelector('input[name="ea-cmp-g"]:checked');
+    if (!g) { err.textContent = "Önce bir tahmin seç: TX, listen, CPU ya da hepsi."; return; }
+    err.textContent = "";
+    guess = g.value; shown = true; draw();
+  });
+})();
+</script>
+</body>
+</html>

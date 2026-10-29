@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 427: MAC sözlüğü, MAC katmanındaki beş enerji israfı, contention-based access, CCA ve CSMA/CA, ACK ve 1/p, hidden terminal, exposed terminal, RTS/CTS'in WSN'e neden uymadığı ve üç gerçek deployment." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>MAC temelleri: CSMA/CA, hidden ve exposed terminal · CSE 427 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-mac-contention-hidden-exposed-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-mac-contention-hidden-exposed-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-mac-contention-hidden-exposed-ctl label { display: inline-flex; gap: 6px; align-items: center; font-size: .92rem; }
+    .w-mac-contention-hidden-exposed-ctl input[type="text"] { width: 70px; }
+    .w-mac-contention-hidden-exposed-ctl select { max-width: 100%; }
+    .w-mac-contention-hidden-exposed-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-mac-contention-hidden-exposed-svg { width: 100%; max-width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); touch-action: none; display: block; }
+    .w-mac-contention-hidden-exposed-svg [data-node] { cursor: grab; outline: none; }
+    .w-mac-contention-hidden-exposed-svg [data-node]:focus-visible circle { stroke: var(--accent); stroke-width: 5; }
+    .w-mac-contention-hidden-exposed-verdict { margin-top: 8px; padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--stone-050); font-size: .97rem; }
+    .w-mac-contention-hidden-exposed-verdict b.is-bad { color: #c92a2a; }
+    .w-mac-contention-hidden-exposed-verdict b.is-ok { color: #2b8a3e; }
+    .w-mac-contention-hidden-exposed-verdict b.is-warn { color: var(--orange-700); }
+    .w-mac-contention-hidden-exposed-grid { border-collapse: separate; border-spacing: 1px; font-family: 'JetBrains Mono', monospace; font-size: .7rem; }
+    .lesson .w-mac-contention-hidden-exposed-grid td, .lesson .w-mac-contention-hidden-exposed-grid th { padding: 0; border: 0; width: 13px; min-width: 13px; height: 18px; text-align: center; vertical-align: middle; background: none; font-weight: 400; }
+    .lesson .w-mac-contention-hidden-exposed-grid th.w-mac-contention-hidden-exposed-rowh { width: auto; padding-right: 6px; text-align: right; font-weight: 700; color: var(--fg-brand); }
+    .w-mac-contention-hidden-exposed-grid td.k-b { background: var(--stone-200); }
+    .w-mac-contention-hidden-exposed-grid td.k-c { background: var(--paper); box-shadow: inset 0 0 0 2px var(--blue-600); color: var(--blue-600); font-weight: 700; }
+    .w-mac-contention-hidden-exposed-grid td.k-d { background: var(--blue-600); color: #fff; }
+    .w-mac-contention-hidden-exposed-grid td.k-x { background: #c92a2a; color: #fff; }
+    .w-mac-contention-hidden-exposed-grid td.k-a { background: #2b8a3e; color: #fff; }
+    .w-mac-contention-hidden-exposed-grid td.k-w { background: var(--orange-100); color: var(--orange-700); font-weight: 700; }
+    .w-mac-contention-hidden-exposed-grid td.k-r { background: #ebf7ee; color: #2b8a3e; font-weight: 700; }
+    .w-mac-contention-hidden-exposed-grid td.k-r1 { background: var(--blue-100); }
+    .w-mac-contention-hidden-exposed-grid td.k-rx { background: #fdecec; color: #c92a2a; font-weight: 700; }
+    .w-mac-contention-hidden-exposed-grid td.is-now { outline: 2px solid var(--accent); }
+    .w-mac-contention-hidden-exposed-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .82rem; color: var(--fg-muted); margin: 6px 0; }
+    .w-mac-contention-hidden-exposed-legend i { display: inline-block; width: 12px; height: 12px; vertical-align: -1px; margin-right: 4px; border-radius: 2px; }
+    .w-mac-contention-hidden-exposed-bar { display: grid; grid-template-columns: 44px minmax(0, 1fr) 64px; gap: 8px; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: .82rem; margin: 3px 0; }
+    .w-mac-contention-hidden-exposed-bar > div { background: var(--stone-200); border-radius: 4px; height: 12px; overflow: hidden; }
+    .w-mac-contention-hidden-exposed-bar > div > i { display: block; height: 100%; background: var(--blue-600); }
+    .w-mac-contention-hidden-exposed-bar.is-cut > div > i { background: var(--stone-500); }
+    .w-mac-contention-hidden-exposed-out { margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 427</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 427</a> / MAC temelleri: CSMA/CA, hidden ve exposed terminal</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W4 Part 1</span><span class="chip chip--exam">Lab A: midterm puanı</span><span class="chip">Vize kapsamı</span><span class="src">~52 dk · 11 bölüm</span></div>
+          <h1>MAC temelleri: CSMA/CA, hidden ve exposed terminal</h1>
+          <p class="lead">Bir WSN'de bütün node'lar aynı havayı paylaşır. MAC katmanı kimin ne zaman göndereceğine ve radio'nun ne zaman uyanacağına karar verir. Bu derste önce sözlüğü kuracağız, sonra MAC'in boşa harcadığı enerjiyi, carrier sensing'i (CCA) ve CSMA/CA'yı göreceğiz. Asıl konu şu: sender kanalı kendi bulunduğu yerde dinler, frame ise receiver'da çözülür. Hidden terminal, exposed terminal ve RTS/CTS'in WSN'de neden pek kullanılmadığı bu farktan çıkar.</p>
+          <!-- Kaynak: Week_4_WSN_MAC_I_Contention_theo.pptx slayt 1–24, 54, 56, 58, 60 · "Hidden & Exposed Terminals in Real WSNs.pptx" slayt 1–20 ve konuşmacı notları · Week_4_React_Duty_Cycle_MAC_Bench_Tutorial.pptx slayt 3, 6–12, 25, 28 · Week_4_Duty_Cycle_MAC_Bench_Lab_Worksheet_FINAL2.docx Experiment A · assignments/2026-2027-fall-efe/week4/video-script.md Part 2 · weeks/01 Exam-worthy notu · W2 slayt 47, 49, 50 · week2_cooja_radio_lab_contiki3.pptx xml 26 · W5 basılı 3/60 ve 4/60 (xml 10–11, sadece slayt gövdesi) · Karl & Willig Bölüm 5.1, 5.3.1, 5.5 · Dargie & Poellabauer Bölüm 6.1–6.3. -->
+        </header>
+
+        <article class="lesson" data-course="cse-427" data-lesson="mac-contention-hidden-exposed">
+
+<!-- 1 -->
+<section class="lsec" id="vocab" data-min="4">
+  <h2>Ağ sözlüğü: node, link, path, layer, frame</h2>
+  <div class="quiz" id="q-vocab-link">
+    <p class="quiz__q">Ölçüm A → B → C → Sink yoluyla gidiyor. B ile C arasındaki doğrudan iletişim ilişkisini adlandıran terim hangisi?</p>
+    <button class="quiz__opt" data-correct>Bir link<span class="why">Doğru. Link, yakın iki node arasındaki doğrudan iletişim ilişkisidir. B → C tek hop'tur.</span></button>
+    <button class="quiz__opt">Bir path<span class="why">Path, link'lerin art arda dizilmiş hâlidir (A → B → C → Sink). B ile C arasındaki ilişki bir link'tir. Tek link'lik bir path de olabilir, ama soru ilişkinin kendi adını soruyor; o ad link.</span></button>
+    <button class="quiz__opt">Bir frame<span class="why">Frame bir veri birimidir (MAC header + packet + trailer). B → C ise iki node arasındaki ilişki. Veri birimiyle bağlantıyı karıştırma.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · ders neden tanımlarla başlıyor</span>
+    <p>Hoca bu derste Computer Networks almamış öğrencileri de düşünmüş. Sıra şöyle: önce temel kelimeler, sonra WSN'deki MAC sorunları, en son protokoller. IEEE 802.11 ayrıntısı ve ağır türetme yok. Kendi deyişiyle: "Definitions first; protocols second; trade-offs third."</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanımlar · W4 slayt 4–7</span>
+    <ul>
+      <li><strong>Node:</strong> ağdaki bir cihaz. Sensor, actuator, router ya da sink/gateway olabilir.</li>
+      <li><strong>Link:</strong> yakın iki node arasındaki doğrudan iletişim ilişkisi.</li>
+      <li><strong>Path:</strong> veriyi birden çok hop boyunca taşıyan link dizisi. A → B → C → Sink bir multi-hop path'tir.</li>
+      <li><strong>Wireless channel:</strong> paylaşılan bir ortam (shared medium). Yakındaki node'lar aynı radio ortamına gönderir. Kablodaki gibi iki mote arasında özel bir tel yoktur. Bir receiver normalde aynı anda tek bir faydalı sinyali çözebilir.</li>
+    </ul>
+    <div class="table-wrap"><table>
+      <tr><th>Layer</th><th>Hangi soruyu cevaplar</th></tr>
+      <tr><td>Application</td><td>Verinin anlamı: sıcaklık, alarm, komut</td></tr>
+      <tr><td>Network</td><td>Multi-hop routing: packet hangi path'i izlesin?</td></tr>
+      <tr><td><strong>MAC</strong></td><td>Wireless channel'ı kim, ne zaman kullanabilir?</td></tr>
+      <tr><td>PHY</td><td>Bitler radio sinyali olarak: frequency, modulation, channel</td></tr>
+    </table></div>
+    <p>Bu ders MAC'e odaklanıyor. Ama MAC kararları enerjiyi ve routing'i de güçlü biçimde etkiler.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Frame, packet, payload · W4 slayt 7</span>
+    <p>Her katman veriyi kendi header'ıyla sarar:</p>
+    <ul>
+      <li><strong>Link frame</strong> = MAC header + packet + trailer</li>
+      <li><strong>IP packet</strong> = IP header + transport data</li>
+      <li><strong>Payload</strong> = application data (ölçüm ya da komut)</li>
+    </ul>
+    <p>MAC protokolleri esas olarak yerel wireless channel üzerindeki link-layer frame'leri zamanlar ve korur. 802.15.4'te bütün MAC frame'i en fazla 127 byte'lık PSDU'ya sığmak zorunda; header'lardan sonra payload'a daha az yer kalır (W2 slayt 49).</p>
+  </div>
+  <!-- Kaynak: W4 slayt 2 (teaching strategy), 4 (vocabulary), 5 (layers), 6 (wireless channel), 7 (frame/packet/payload) · W2 slayt 49 (PPDU, PSDU 0–127 byte). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Frame ≠ packet.</strong> Packet network katmanının birimi, frame onu saran link katmanı birimi. MAC frame'leri korur.</li>
+      <li><strong>Link ≠ path.</strong> Link tek hop, path hop'ların dizisi.</li>
+      <li>Wireless channel'ı kablo gibi düşünme. İki mote arasında "özel hat" yok; yakındaki herkes aynı ortama konuşur.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-vocab-frame">
+    <p class="quiz__q">Bir link frame'in içinde ne vardır?</p>
+    <button class="quiz__opt" data-correct>MAC header + packet + trailer<span class="why">Doğru. Packet (IP header + transport data) frame'in içinde taşınır; payload en içteki application data'dır.</span></button>
+    <button class="quiz__opt">IP header + transport data<span class="why">Bu IP packet'ın tanımı. Frame onu bir kat daha sarar.</span></button>
+    <button class="quiz__opt">Sadece application data<span class="why">Bu payload. Header'sız payload kanala tek başına çıkmaz; her katman kendi header'ını ekler.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="mac-job" data-min="4">
+  <h2>MAC neye karar verir?</h2>
+  <div class="quiz" id="q-macjob-sleep">
+    <p class="quiz__q">WSN'de MAC tasarımını klasik MAC'ten daha zor yapan cümle hangisi?</p>
+    <button class="quiz__opt" data-correct>Uyuyan bir receiver sender'ı duyamaz.<span class="why">Doğru. WSN MAC'i enerji için radio'yu kapatır. Ama radio kapalıyken gelen frame kaybolur. Hoca bunu "the hard part" diye işaretliyor.</span></button>
+    <button class="quiz__opt">Wireless channel paylaşılır.<span class="why">Bu her wireless MAC için geçerli (Wi-Fi dahil). WSN'e özgü zorluk, kanal paylaşımına radio'yu uyutma kararının eklenmesi.</span></button>
+    <button class="quiz__opt">Fairness en önemli hedeftir.<span class="why">Tersine: WSN'de node'lar ortak bir amaç için çalışır, fairness ikinci planda. Ana hedef enerji.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W4 slayt 8</span>
+    <p>WSN'de Medium Access Control hem bir <strong>access</strong> problemi hem de bir <strong>energy</strong> problemidir. İki karar verir:</p>
+    <ol>
+      <li><strong>Channel access:</strong> node'un verisi varken şimdi mi göndersin, beklesin mi, backoff mu yapsın?</li>
+      <li><strong>Radio wake-up:</strong> radio ne zaman dinlesin, ne zaman göndersin, ne zaman uyusun?</li>
+    </ol>
+    <p>Traditional MAC: collision'lardan kaçın ve kanalı adil paylaştır. WSN MAC: bunlara ek olarak idle listening'i ve gereksiz uyanmaları en aza indir. Zor kısım: <strong>a sleeping receiver cannot hear a sender.</strong></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Ders kitabından · MAC protokol sınıfları</span>
+    <p>Dargie &amp; Poellabauer MAC protokollerini iki büyük gruba ayırır (Şekil 6.2):</p>
+    <div class="table-wrap"><table>
+      <tr><th>Contention-free</th><th>Contention-based</th></tr>
+      <tr><td><strong>Fixed assignment:</strong> FDMA, TDMA, CDMA<br><strong>Dynamic assignment:</strong> polling, token passing, reservation-based</td><td>ALOHA, CSMA, MACA, MACAW</td></tr>
+      <tr><td>Çakışabilecek erişimler ayrı time, frequency ya da code resource'larına atanır; aynı anda birden fazla cihaz iletişim kurabilir (FDMA, CDMA). Collision tasarım gereği yok.</td><td>Node'lar aynı anda erişmeye çalışabilir; protokol collision'ları azaltır ve sonradan toparlar.</td></tr>
+    </table></div>
+    <p>Bu ders contention-based tarafı anlatıyor. Schedule-based taraf (TDMA, slotframe) ayrı derste.</p>
+    <p>Karl &amp; Willig'e göre WSN'de gereksinimlerin dengesi farklıdır: enerji ilk sırada. Fairness önemli değildir, çünkü node'lar bant genişliği için yarışan bireyler değil, ortak bir amaç için çalışırlar. Delay ve throughput da enerji karşılığında feda edilebilir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Contention-based access: artı ve eksi · W5 slayt 4/60 (MAC I tekrarı)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Avantajlar</th><th>Sınırlar</th></tr>
+      <tr><td>Esnek, bursty traffic için basit, yeni node kolay katılır, hassas global clock gerekmez.</td><td>Collision'lar, sınırsız (unbounded) contention delay, hidden terminal'ler, belirsiz enerji maliyeti.</td></tr>
+    </table></div>
+    <p>"Contention is adaptive, but not deterministic."</p>
+  </div>
+  <!-- Kaynak: W4 slayt 8 · D&P Bölüm 6.1 ve Şekil 6.2 (PDF s.145–146), 6.3 (fairness) · K&W Bölüm 5.1.3 "Balance of requirements" (basılı s.119, PDF s.146) · W5 self-study dosyası xml 11 = basılı 4/60, sadece hocanın slayt gövdesi; "In plain words" kutusu ve notlar self-study eki olduğu için kullanılmadı. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzak</span>
+    <ul>
+      <li>"MAC sadece kimin göndereceğini seçer" eksik bir cevap. WSN'de MAC radio'nun ne zaman açık kalacağını da seçer; enerji kararı MAC'in içindedir.</li>
+      <li>Radio'yu kapatmak bedava değil: uyuyan receiver'a giden frame boşa gider. Sonraki derste bunun adı <em>rendezvous problem</em> olacak.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-macjob-classes">
+    <p class="quiz__q">Hangisi contention-based bir protokoldür?</p>
+    <button class="quiz__opt">TDMA<span class="why">TDMA her node'a ayrı time slot verir; contention-free (fixed assignment) sınıfındadır.</span></button>
+    <button class="quiz__opt" data-correct>CSMA<span class="why">Doğru. Node'lar kanalı dinleyip boşsa gönderir; aynı anda deneyen node'lar çakışabilir.</span></button>
+    <button class="quiz__opt">Polling<span class="why">Polling'de bir controller sırayla "verin var mı?" diye sorar; dynamic assignment, yani contention-free.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="waste" data-min="5">
+  <h2>MAC katmanındaki beş enerji israfı</h2>
+  <div class="quiz" id="q-waste-overhear">
+    <p class="quiz__q">C, A'nın B'ye gönderdiği frame'in başını dinliyor, adrese bakıp "bana değil" diyor. Bu hangi israf?</p>
+    <button class="quiz__opt" data-correct>Overhearing<span class="why">Doğru. Kanalda gerçekten bir frame var ama başka bir node için. Address filtering yardım eder, ama ancak bir miktar dinledikten sonra.</span></button>
+    <button class="quiz__opt">Idle listening<span class="why">Idle listening'de kanalda faydalı hiçbir frame yoktur. Burada bir frame var; sadece C'ye ait değil.</span></button>
+    <button class="quiz__opt">Over-emitting<span class="why">Over-emitting sender tarafının israfıdır: receiver alamazken göndermek. C burada gönderen değil, dinleyen.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Radio sadece gönderirken değil, <strong>yanlış zamanda beklerken</strong> de enerji harcar (W4 slayt 9). Aşağıdaki beş israfın her biri, radio'nun açık olduğu ama işe yarar bir şey olmadığı bir durumdur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanımlar · W4 slayt 9–14</span>
+    <div class="table-wrap"><table>
+      <tr><th>İsraf</th><th>Tanım</th><th>Not</th></tr>
+      <tr><td><strong>Idle listening</strong></td><td>Receiver uyanık ama faydalı hiçbir frame gelmiyor.</td><td>Radio receive gücü çekiyor, hiçbir şey almıyor. Az yüklü WSN'lerde enerjinin büyük kısmı buraya gidebilir.</td></tr>
+      <tr><td><strong>Collision</strong></td><td>İki ya da daha çok transmission receiver'da üst üste biner.</td><td>B ikisini de çözemezse iki sender da enerjisini boşa harcamıştır ve tekrar denemelidir.</td></tr>
+      <tr><td><strong>Overhearing</strong></td><td>Node başka bir node'a giden frame'i alır ya da işler.</td><td>Address filtering yardım eder, ama ancak bir miktar dinlemeden sonra.</td></tr>
+      <tr><td><strong>Over-emitting</strong></td><td>Sender, hedef receiver alamazken gönderir.</td><td>Kanal boş olabilir; receiver uyuyorsa transmission yine başarılı olamaz.</td></tr>
+      <tr><td><strong>Protocol (control) overhead ve radio transitions</strong></td><td>Kontrol trafiği faydalıdır ama bedava değildir.</td><td>Overhead: preamble, wake-up strobe, beacon, ACK, CCA check, synchronization mesajı. Transition: oscillator başlatma, radio calibrate, RX ↔ TX geçişi, devrenin oturması, driver için CPU'yu uyandırma.</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Ders kitabından · her israf neden israf?</span>
+    <ul>
+      <li><strong>Collision:</strong> receiver'da boşa receive, sender'da boşa transmit, üstüne retransmission. Ya tasarımla (TDMA) ya da collision avoidance ile önlenir. Yük hep düşükse sorun olmayabilir.</li>
+      <li><strong>Overhearing:</strong> yoğun ağlarda overhearing'den kaçınmak ciddi enerji kazandırır. Bazen istenir de: komşuluk bilgisi toplamak ya da trafik yükünü tahmin etmek için.</li>
+      <li><strong>Idle listening:</strong> çözüm transceiver'ı kapatmak. Ama mod değiştirmenin de enerjisi var, bu yüzden çok sık açıp kapatmak da kötü.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W4 slayt 9 (liste), 10 (idle listening), 11 (collision), 12 (overhearing), 13 (over-emitting), 14 (overhead + transitions) · K&W 5.1.3 "Energy problems on the MAC layer" (basılı s.119–120, PDF s.146–147). Aynı liste W3 slayt 22'de de var (energy-accounting dersi). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Overhearing ile idle listening'i karıştırma.</strong> Overhearing'de kanalda bir frame var ama başkası için. Idle listening'de kanal boş.</li>
+      <li><strong>Over-emitting ile collision'ı karıştırma.</strong> Over-emitting'de kanal boş olabilir; sorun receiver'ın uyuyor (ya da meşgul) olması. Collision'da iki sinyal receiver'da üst üste biner.</li>
+      <li>ACK, CCA ve beacon "faydalı" mesajlardır, yine de overhead sayılır. Overhead = gereksiz değil, bedeli olan kontrol işi.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-waste-overemit">
+    <p class="quiz__q">S, R'ye DATA gönderiyor. Kanalda başka kimse yok ama R'nin radio'su o an kapalı. Bu hangi israf?</p>
+    <button class="quiz__opt">Collision<span class="why">Collision için iki transmission'ın receiver'da üst üste binmesi gerekir. Burada tek bir transmission var.</span></button>
+    <button class="quiz__opt" data-correct>Over-emitting<span class="why">Doğru. Kanal boş, ama hedef alamıyor. Slayt 13: "The channel may be free, but the transmission still cannot succeed."</span></button>
+    <button class="quiz__opt">Idle listening<span class="why">Idle listening receiver tarafının israfıdır: radio açık, frame yok. Burada receiver'ın radio'su kapalı, harcayan sender.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="csma" data-min="6">
+  <h2>Contention-based access, CCA ve CSMA/CA</h2>
+  <div class="quiz" id="q-csma-random">
+    <p class="quiz__q">Kanal meşgulken bekleyen iki node, kanal boşalınca neden sabit değil de <em>random</em> bir süre bekler?</p>
+    <button class="quiz__opt" data-correct>Aynı anda tekrar denemesinler diye.<span class="why">Doğru. Herkes aynı süre beklerse kanal boşaldığı anda hepsi birlikte gönderir ve çakışır. Randomness denemeleri zamana yayar.</span></button>
+    <button class="quiz__opt">Random bekleme enerjiyi azalttığı için.<span class="why">Bekleme süresinin random olması enerjiyi doğrudan azaltmaz. Amaç denemeleri birbirinden ayırmak.</span></button>
+    <button class="quiz__opt">Random bekleme collision'ı tamamen önler.<span class="why">Önlemez. İki node aynı sayıyı çekebilir, ya da birbirini duymuyor olabilir. Slayt 17: "Collision avoidance reduces collisions; it does not eliminate them."</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Contention-based MAC · W4 slayt 15</span>
+    <p>"Compete for the channel": trafik ortaya çıkmadan önce kalıcı bir slot ayrılmaz. Sıra şudur:</p>
+    <p style="text-align:center"><strong>sense → backoff → sense → transmit → ACK</strong></p>
+    <ul>
+      <li>Node'lar verileri olduğunda göndermeyi dener.</li>
+      <li>Aynı anda denemeleri azaltmak için randomness kullanılır.</li>
+      <li>Kanala erişim zamanı tam olarak öngörülemez.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Carrier sensing / CCA · W4 slayt 16</span>
+    <p><strong>Clear-Channel Assessment (CCA)</strong> şunu sorar: "Kanal <em>burada</em> meşgul görünüyor mu?" Göndermeden önce yapılan kısa bir radio kontrolüdür; başka bir transmission olup olmadığını tahmin eder.</p>
+    <p style="text-align:center">wake radio → listen briefly → idle? → transmit or defer</p>
+    <p><strong>CCA is local:</strong> sender'ın algıladığını yansıtır, receiver'ın yaşayacağını değil. W2'de aynı cümle vardı: CCA kanalı sender'da görür, receiver'da değil (W2 slayt 50).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">CSMA/CA with random backoff · W4 slayt 17</span>
+    <ol>
+      <li>Wake radio</li>
+      <li>Check channel</li>
+      <li>If idle → transmit</li>
+      <li>If busy → wait random backoff</li>
+      <li>After failure → retry with possible larger window</li>
+    </ol>
+    <p>Backoff sezgisi: random bir bekleme noktası seç. Randomness herkesin tam aynı anda tekrar denemesini engeller. <strong>Collision avoidance collision'ları azaltır, ortadan kaldırmaz.</strong></p>
+  </div>
+  <h3>Oynat: CSMA/CA backoff timeline</h3>
+  <p>İki ya da üç sender aynı anda R'ye bir packet üretiyor. Her sender window'dan random bir backoff çekiyor, sayaç bitince CCA yapıyor, boşsa DATA'yı gönderiyor. R temiz aldığı DATA'ya ACK veriyor. ACK gelmezse sender window'u ikiye katlayıp tekrar deniyor (slayt 17'deki "larger window"). Timeline aşağıdaki kurallarla gerçekten koşturuluyor; seed aynıysa koşu da aynı.</p>
+  <p class="src">Model: 1 slot = 1 backoff birimi, DATA 4 slot, ACK 1 slot, ilk window 0–3 (BE = 2), en fazla BE = 5, en fazla 3 retry, CCA busy 5. kez gelirse frame düşer. R herkesi duyar, herkes R'yi duyar. Bunlar öğretim için seçilmiş değerler, standardın değerleri değil.</p>
+  <p class="w-mac-contention-hidden-exposed-guess"><b>Önce tahmin et:</b> "Sender'lar birbirini duyuyor" kapalıyken (hidden), CCA kaç çakışmayı önleyebilir? Açıkken çakışma hiç olur mu?</p>
+  <div class="w-mac-contention-hidden-exposed-ctl">
+    <label>Sender sayısı <select id="w-cs-n" class="btn btn--sm"><option value="2">2</option><option value="3" selected>3</option></select></label>
+    <label><input type="checkbox" id="w-cs-hear" checked /> Sender'lar birbirini duyuyor</label>
+    <label>seed <input id="w-cs-seed" type="text" inputmode="numeric" value="7" class="btn btn--sm" /></label>
+    <button class="btn btn--sm" id="w-cs-go">Koştur</button>
+    <button class="btn btn--sm" id="w-cs-rand">Yeni seed</button>
+  </div>
+  <div class="w-mac-contention-hidden-exposed-err" id="w-cs-err" aria-live="polite"></div>
+  <div class="w-mac-contention-hidden-exposed-legend">
+    <span><i style="background:var(--stone-200)"></i>backoff</span>
+    <span><i style="box-shadow:inset 0 0 0 2px var(--blue-600)"></i>C = CCA</span>
+    <span><i style="background:var(--blue-600)"></i>DATA</span>
+    <span><i style="background:#c92a2a"></i>bozulan DATA</span>
+    <span><i style="background:#2b8a3e"></i>ACK (R)</span>
+    <span><i style="background:var(--orange-100)"></i>? = ACK gelmedi</span>
+    <span><i style="background:#fdecec"></i>R'de çakışma</span>
+  </div>
+  <div id="w-cs-stepper"></div>
+  <div class="box box--example">
+    <span class="box__label">Ders kitabından · CSMA aileleri ve IEEE 802.15.4 CSMA-CA</span>
+    <ul>
+      <li><strong>ALOHA</strong> hiç dinlemeden gönderir, ACK gelmezse random backoff yapar. <strong>CSMA</strong> önce dinler; bu yüzden collision sayısı azalır.</li>
+      <li><strong>Non-persistent CSMA:</strong> kanal meşgulse random bir süre bekler, sonra tekrar dinler. <strong>1-persistent:</strong> kanalı sürekli dinler, boşaldığı anda gönderir. <strong>p-persistent:</strong> kanal boşalınca $p$ olasılıkla gönderir, $1-p$ olasılıkla bir slot daha bekler. Küçük $p$ collision'ı azaltır ama access delay'i artırır.</li>
+      <li><strong>Binary exponential backoff:</strong> her collision'da (ACK yoksa) contention window iki katına çıkar. <em>Truncated</em> versiyonda bir üst sınıra kadar büyür, sonra sabit kalır.</li>
+      <li><strong>IEEE 802.15.4 CSMA-CA:</strong> RTS/CTS yoktur, sadece random delay vardır. Node üç değişken tutar: $NB$ (backoff sayısı), $CW$ (slotted modda art arda kaç CCA, başta 2) ve $BE$ (backoff exponent). Backoff $[0,\ 2^{BE}-1]$ aralığından seçilen tam sayı kadar backoff period'dur. CCA busy çıkarsa $NB$ ve $BE$ bir artar ($BE \le$ aMaxBE); $NB$ sınırı geçerse frame düşer. Nonbeaconed (unslotted) modda tek CCA yeterlidir.</li>
+      <li>Bir backoff period 20 symbol'dür. 2.4 GHz PHY'de 62,500 symbol/s (W2 slayt 47) olduğu için 1 symbol = 16 µs, 1 backoff period = 320 µs. Örneğin $BE = 3$ iken window 0–7 period, en uzun bekleme $7 \times 320\ \mu s = 2.24$ ms.</li>
+    </ul>
+    <p>Hocanın slayt 17'deki algoritması bunun sadeleştirilmiş hâli: "If busy → wait random backoff; after failure → retry with possible larger window."</p>
+  </div>
+  <!-- Kaynak: W4 slayt 15–17 · W2 slayt 47 (62,500 symbols/s), 50 (CCA) · K&W 5.1.2 "Random access protocols" + dipnot 4 (basılı s.115–116, PDF s.142–143), 5.3.1 Woo–Culler CSMA (random delay sonra listen, sonra backoff; s.129–131) ve 5.5 slotted CSMA-CA, Şekil 5.16 (basılı s.143–144, PDF s.170–171) · D&P 6.2.1 (PDF s.149). Standarttaki varsayılan değerler (macMinBE 3, aMaxBE/macMaxBE 5, macMaxCSMABackoffs 4) kitapta yok, bu yüzden metne sayı olarak sadece BE = 3 örneği kondu. Hesaplar verify.py ile kontrol edildi. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>CSMA/CA'daki "CA" <em>avoidance</em>, <em>elimination</em> değil. İki sender aynı slot'ta CCA yaparsa ikisi de kanalı boş bulur ve birlikte başlar.</li>
+      <li>CCA busy bir <em>başarısızlık</em> değil, bir <em>erteleme</em>dir (defer). Frame henüz gönderilmedi. Başarısızlık ACK'in gelmemesidir.</li>
+      <li>Wireless'ta CSMA/CD (collision detection) çalışmaz: transceiver half-duplex'tir ve sender'ın gördüğü sinyal seviyesi receiver'dakini söylemez. Bölüm 6'da ayrıntısı var.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-csma-same-slot">
+    <p class="quiz__q">S1 ve S2 birbirini duyuyor. Yine de DATA'ları R'de çakıştı. En olası neden?</p>
+    <button class="quiz__opt" data-correct>İkisi aynı slot'ta CCA yaptı; ikisi de kanalı boş buldu.<span class="why">Doğru. CCA ancak <em>zaten başlamış</em> bir transmission'ı görür. Aynı anda karar veren iki node birbirini göremez. Random backoff bunu seyrekleştirir, sıfırlamaz.</span></button>
+    <button class="quiz__opt">Hidden terminal.<span class="why">Hidden terminal'de sender'lar birbirini duymaz. Burada duyuyorlar.</span></button>
+    <button class="quiz__opt">R uyuyordu.<span class="why">R uyusaydı bu over-emitting olurdu, collision değil; iki DATA'nın üst üste binmesi gerekmezdi.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="ack" data-min="5">
+  <h2>ACK, retransmission ve 1/p</h2>
+  <div class="quiz" id="q-ack-ambig">
+    <p class="quiz__q">S, R'ye DATA gönderdi ve ACK gelmedi. S kesin olarak ne bilir?</p>
+    <button class="quiz__opt" data-correct>Bir şeyin ters gittiğini, ama neyin olduğunu değil.<span class="why">Doğru. Slayt 18: "A missing ACK tells the sender that something went wrong — but not exactly what."</span></button>
+    <button class="quiz__opt">DATA'nın collision yüzünden kaybolduğunu.<span class="why">Collision sebeplerden sadece biri. DATA ulaşmış ama ACK kaybolmuş da olabilir.</span></button>
+    <button class="quiz__opt">R'nin uyuduğunu.<span class="why">Bu da sebeplerden biri; S bunu diğerlerinden ayıramaz.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">ACK ve retransmission · W4 slayt 18</span>
+    <p>Eksik bir ACK şu anlamlara gelebilir: <strong>data lost, ACK lost, collision, asleep receiver, fading ya da interference.</strong> Sender bunları birbirinden ayıramaz. Hepsine aynı tepkiyi verir: backoff ve tekrar dene.</p>
+    <p>Broadcast frame'lerin ACK'i yoktur. Sender, birinin alıp almadığını hiç öğrenmez. Unicast ise ACK'lidir (Efe'nin W1 notu).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Expected attempts · W4 slayt 56</span>
+    <p>Bir deneme $p$ olasılıkla başarılıysa ve denemeler birbirinden bağımsızsa, gereken deneme sayısı $K$ geometric dağılır:</p>
+    $$P(K = k) = (1-p)^{k-1}\,p, \qquad E[K] = \frac{1}{p}$$
+    <p>Enerji sonucu: her başarısız deneme yeni bir wake-up ya da contention gerektiriyorsa enerji hızla artar. "Poor links multiply rendezvous energy."</p>
+    <p>Başarılı bir deneme için iki şey gerekir: DATA'nın ileri yönde, ACK'in geri yönde ulaşması. Link asymmetric ise $p \approx PRR_{fwd} \times PRR_{rev}$ (PRR, link-metrics dersinde).</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Retry limit olunca</span>
+    <p>MAC sonsuza kadar denemez; en fazla $N$ deneme yapar. O zaman:</p>
+    $$P(\text{ACK ile başarı}) = 1-(1-p)^N, \qquad E[\text{deneme}] = \sum_{k=0}^{N-1}(1-p)^k = \frac{1-(1-p)^N}{p}$$
+    <p>$p = 0.4$, $N = 3$: sender'ın ACK alarak başarı bildirme olasılığı $1 - 0.6^3 = 0.784$, ortalama deneme $0.784/0.4 = 1.96$. Frame'lerin yüzde 21.6'sında sender hiç ACK almaz ve frame'i düşürür.</p>
+    <p>Dikkat: $p$ bütün DATA + ACK exchange'inin başarısıdır. Receiver'a en az bir DATA'nın ulaşma olasılığı ayrıca $1-(1-PRR_{fwd})^N$'dir. ACK kaybolduğunda receiver DATA'yı almış olabilir; sender bunu bilmediği için tekrar gönderir ve receiver aynı frame'in kopyasını alır.</p>
+  </div>
+  <!-- Kaynak: W4 slayt 18, 56 · weeks/01 Exam-worthy ("Broadcast has no ACK") · retry-limit formülü geometric dağılımın kesilmiş beklenen değeri, verify.py ile kontrol edildi. -->
+  <h3>Hesapla: kaç deneme?</h3>
+  <p>İki yönün PRR'ını ve retry limit'i yaz. Hesap: $p = PRR_{fwd} \cdot PRR_{rev}$, dağılım $P(K=k)$, limitli ve limitsiz ortalama, bir de receiver'a en az bir DATA'nın ulaşma olasılığı. Ondalık için nokta ya da virgül kullanabilirsin; 90 ya da 90% yazarsan yüzde olarak okunur.</p>
+  <p class="w-mac-contention-hidden-exposed-guess"><b>Önce tahmin et:</b> İki yön de 0.9 ise $p$ kaç olur ve ortalama deneme 1.1'den büyük mü?</p>
+  <div class="stepper">
+    <div class="w-mac-contention-hidden-exposed-ctl">
+      <label>PRR<sub>fwd</sub> <input id="w-at-f" type="text" inputmode="decimal" value="0.9" class="btn btn--sm" /></label>
+      <label>PRR<sub>rev</sub> <input id="w-at-r" type="text" inputmode="decimal" value="0.9" class="btn btn--sm" /></label>
+      <label>N (deneme) <input id="w-at-n" type="text" inputmode="numeric" value="3" class="btn btn--sm" /></label>
+    </div>
+    <div class="w-mac-contention-hidden-exposed-ctl"><span class="src">hazır:</span>
+      <button class="btn btn--sm" data-at="0.8,1,3">slayt 56: p = 0.8</button>
+      <button class="btn btn--sm" data-at="0.4,1,3">slayt 56: p = 0.4</button>
+      <button class="btn btn--sm" data-at="0.95,0.6,3">asymmetric link</button>
+    </div>
+    <div class="w-mac-contention-hidden-exposed-err" id="w-at-err" aria-live="polite"></div>
+    <div id="w-at-bars"></div>
+    <div class="stepper__caption" id="w-at-out"></div>
+  </div>
+  <div class="box box--exam" data-exam="W4-s56-expected-attempts"><span class="box__label">W4 slayt 56 · slayt sorusu tipi (hocanın örneği)</span>
+    <p>"Expected attempts: If one attempt succeeds with probability p, expected attempts ≈ 1 / p. Energy implication: If each failed attempt requires new wake-up or contention, energy rises quickly. Example: p = 0.8 → … expected attempts; p = 0.4 → … expected attempts." (slayttaki sayılar boş bırakıldı)</p>
+    <p>Boşlukları doldur ve iki link arasındaki enerji farkını açıkla.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Ortalama deneme $1/p$. İki bölme yap.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her deneme kabaca aynı enerjiye mal oluyorsa, enerji deneme sayısıyla orantılıdır. İki sonucu birbirine böl.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$p = 0.8$: $E[K] = 1/0.8 = \mathbf{1.25}$ deneme. $p = 0.4$: $E[K] = 1/0.4 = \mathbf{2.5}$ deneme.</p>
+      <p>Her deneme (wake-up, contention, DATA, ACK bekleme) yaklaşık aynı enerjiyi harcıyorsa, $p = 0.4$'lük link aynı frame'i teslim etmek için $2.5/1.25 = 2$ kat enerji harcar. Ayrıca her başarısız deneme bir backoff ve yeni bir rendezvous getirdiği için delay de uzar. Kötü link'ler rendezvous enerjisini çarpar.</p>
+      <p>Not: 1/p, denemelerin bağımsız olduğunu ve retry limit olmadığını varsayar. Limit $N$ varsa ortalama $\frac{1-(1-p)^N}{p}$ ve sender bazı frame'ler için hiç ACK almaz.</p>
+    </div></details>
+    <!-- Kaynak: Week_4_WSN_MAC_I_Contention_theo.pptx slayt 56 (repoda var ama origin/main'de yok, link verilmedi). Cevap slaytta yazıyor: 1.25 ve 2.5. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"PRR 0.8, o hâlde 0.8 deneme" gibi ters çevirmeyi unutma: ortalama deneme <strong>1/p</strong>, her zaman 1'den büyük ya da eşit.</li>
+      <li>Sadece DATA yönünün PRR'ını kullanma. ACK geri dönmezse sender yine tekrar gönderir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ack-half">
+    <p class="quiz__q">$p$ yarıya inerse ortalama deneme sayısı ne olur?</p>
+    <button class="quiz__opt">Yarıya iner.<span class="why">Ters orantı: $E[K] = 1/p$. $p$ küçülürse deneme artar.</span></button>
+    <button class="quiz__opt" data-correct>İki katına çıkar.<span class="why">Doğru. $1/(p/2) = 2/p$. Slayttaki örnek de böyle: 0.8 → 1.25, 0.4 → 2.5.</span></button>
+    <button class="quiz__opt">Değişmez, retry limit belirler.<span class="why">Retry limit sadece üst sınırı koyar. Ortalama $p$'ye bağlıdır.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="cs-fails" data-min="5">
+  <h2>Carrier sensing neden yanılır?</h2>
+  <div class="quiz" id="q-csfail-where">
+    <p class="quiz__q">A, B'ye göndermeden önce CCA yapıyor. CCA hangi noktadaki kanalı ölçer?</p>
+    <button class="quiz__opt" data-correct>A'nın bulunduğu noktadaki.<span class="why">Doğru. Slayt 19: "A senses here, B receives here." Frame'in çözülüp çözülmeyeceği ise B'de belli olur.</span></button>
+    <button class="quiz__opt">B'nin bulunduğu noktadaki.<span class="why">A, B'nin antenini kullanamaz. CCA sender'ın kendi radio'suyla yapılır; receiver tarafında bir garanti vermez.</span></button>
+    <button class="quiz__opt">A ile B arasındaki bütün alandaki.<span class="why">CCA bir alan taraması değil, sender'daki tek bir ölçüm. Bütün bu derste sorun tam olarak bu.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W4 slayt 19</span>
+    <p>Sender bir noktayı dinler; başarılı decoding başka bir noktada olur. <strong>CCA is not a receiver-side guarantee.</strong></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Transmission range ve interference range</span>
+    <ul>
+      <li><strong>Transmission range:</strong> packet'ın alınıp çözülebildiği bölge.</li>
+      <li><strong>Interference range:</strong> çözülemese bile bir transmission'ın başka bir reception'ı bozabildiği bölge. Genelde transmission range'den büyüktür.</li>
+    </ul>
+    <p>Hocanın benzetmesi: biri anlaşılamayacak kadar uzakta olabilir, ama yakındaki başka birinin konuşmasını bölecek kadar yüksek sesle konuşuyor olabilir. W2 Cooja lab'ında UDGM'nin iki ayarı tam bunlardı (TX range ve interference range).</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Ders kitabından · kabloda olan neden havada olmaz?</span>
+    <p>Ethernet CSMA/CD kullanır: sender gönderirken hattı okur, çakışma görürse keser. Bu kabloda çalışır, çünkü zayıflama az ve sender ile receiver'daki SNR birbirine yakın. Wireless'ta ikisi de geçersiz: sender'daki interference durumu receiver'daki hakkında pek bir şey söylemez. Ayrıca basit transceiver'lar <strong>half-duplex</strong>'tir: aynı anda ya gönderir ya alır. Bu yüzden wireless'ta collision detection yerine collision <em>avoidance</em> ve ACK kullanılır.</p>
+  </div>
+  <!-- Kaynak: W4 slayt 19 · week2_cooja_radio_lab_contiki3.pptx xml 26 (basılı 27) "Parameter lecture: interference range" ve benzetme · W2 slayt 50 · K&W 5.1.1 (basılı s.113–114, PDF s.140–141) · weeks/01 Exam-worthy notu. -->
+  <div class="box box--exam" data-exam="W1-note-interference-range"><span class="box__label">Efe'nin W1 notu (Exam-worthy) · sınavlık soru</span>
+    <p>Not: "Transmission range = packet can be received; interference range = cannot be decoded but can corrupt other receptions (root of the hidden-terminal problem, week 4)."</p>
+    <p>Soru biçiminde: <em>Define transmission range and interference range. Why is the difference between them a root cause of the hidden-terminal problem?</em></p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bir sender'ın CCA'sı başka bir sender'ı ancak onun sinyalini algılayabildiği mesafede fark eder. Bozma etkisi hangi mesafeye kadar uzanır?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Üç node çiz: A → B gönderiyor, C, B'ye interference range içinde ama A'ya uzak. C'nin CCA'sı ne der?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Transmission range:</strong> bir frame'in receiver tarafından doğru çözülebildiği mesafe. <strong>Interference range:</strong> frame'in artık çözülemediği, ama sinyalin başka bir receiver'daki reception'ı bozabildiği daha geniş mesafe.</p>
+      <p><strong>Neden hidden terminal'in kökü:</strong> CCA sender'da yapılır. C, A'nın sinyalini algılayamıyorsa kanalı boş bulur ve gönderir. C'nin sinyali B'ye A'nınkinden zayıf, hatta çözülemez olsa bile B, C'nin interference range'i içindeyse A'nın frame'i bozulur. Yani bozma mesafesi algılama mesafesinden uzun olduğu sürece, sender'ın "kanal boş" kararı receiver için yanlış olabilir. W4 slayt 21 bunu "Interference range can exceed communication range" diye sayar.</p>
+    </div></details>
+    <a class="src" href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/weeks/01-introduction-and-hardware-anatomy.md">Orijinal not: weeks/01 (Exam-worthy)</a>
+  </div>
+  <div class="box box--exam" data-exam="W4-s58-carrier-sense-myth"><span class="box__label">W4 slayt 58 · sınav tuzağı (hocanın işaretlediği)</span>
+    <p>"These are exam-trap style misunderstandings. 'Carrier sensing prevents all collisions.' → ?" (slaytın bu dersle ilgili maddesi; diğer maddeler duty-cycled MAC dersinde)</p>
+    <p>True mu, false mu? Bir cümleyle gerekçelendir.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>CCA hangi noktada ölçüm yapıyor, collision nerede oluyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Birbirini duyan iki sender bile aynı slot'ta CCA yaparsa ne olur?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>False.</strong> Carrier sensing yereldir: sender kanalı kendi konumunda ölçer, collision ise receiver'da olur. Birbirini duymayan iki sender (hidden terminal) ikisi de kanalı boş bulup gönderir ve frame'leri ortak receiver'da çakışır. Ayrıca birbirini duyan iki sender bile aynı anda CCA yaparsa ikisi de boş bulur. Hocanın cevabı: "No; hidden terminals still exist."</p>
+    </div></details>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak</span>
+    <ul>
+      <li>"Transmit power'ı artırırsam collision biter" yanlış. W3 slayt 17: daha yüksek TX power collision'ları kaldıramaz, link asymmetry'sini de düzeltemez. Üstelik interference range'i de büyütür.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-csfail-range">
+    <p class="quiz__q">C, B'ye 25 m uzakta. Transmission range 20 m, interference range 30 m. C gönderirken B başka birinden frame alıyor. Ne olur?</p>
+    <button class="quiz__opt" data-correct>B'deki reception bozulabilir; C'nin frame'i B'de çözülemez ama interference yapar.<span class="why">Doğru. 25 m, transmission range'in (20) dışında ama interference range'in (30) içinde.</span></button>
+    <button class="quiz__opt">Hiçbir şey olmaz; C, B'nin range'i dışında.<span class="why">Bu sadece transmission range'e bakmak olur. Bozma etkisi daha uzağa uzanır.</span></button>
+    <button class="quiz__opt">B, C'nin frame'ini çözer.<span class="why">25 m &gt; 20 m: C'nin frame'i B'de çözülemez.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="hidden" data-min="6">
+  <h2>Hidden terminal</h2>
+  <div class="quiz" id="q-hidden-def">
+    <p class="quiz__q">A ve C birbirini duymuyor, ikisi de B'ye ulaşabiliyor. İkisi aynı anda B'ye göndermek istiyor. Ne olur?</p>
+    <button class="quiz__opt" data-correct>İkisi de CCA'da kanalı boş bulur, gönderir; B'de collision olur.<span class="why">Doğru. Bu hidden terminal. Her sender kendi açısından doğru karar verdi; çakışma B'de.</span></button>
+    <button class="quiz__opt">Biri CCA'da diğerini duyar ve bekler.<span class="why">Duyamazlar: varsayım tam olarak bu. CCA ancak sender'ın algılayabildiği sinyali görür.</span></button>
+    <button class="quiz__opt">A ve C çakışmayı fark edip keserler.<span class="why">Wireless'ta collision detection yok. Sender'lar sadece ACK'in gelmediğini görür.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanım · W4 slayt 20</span>
+    <p><strong>Hidden terminal:</strong> iki sender birbirini duyamaz, ama ikisi de receiver'da interference yapabilir. Sonuç: her biri kanalın boş olduğuna inandığı için gönderir; B collision görür.</p>
+    <p>Karl &amp; Willig'in sırası: A, B'ye göndermeye başlar. Biraz sonra C de göndermek ister. C'nin carrier sense'i boş kanal gösterir, çünkü C, A'yı duyamaz. Sinyaller B'de çakışır, iki packet de işe yaramaz. "Using simple CSMA in a hidden-terminal scenario thus leads to needless collisions."</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">WSN'de neden sık? · W4 slayt 21</span>
+    <p>Low-power wireless temiz bir dairesel coverage modeli değildir:</p>
+    <ul>
+      <li>Limited radio range</li>
+      <li>Asymmetric links</li>
+      <li>Node'ların etrafında farklı engeller (obstacles)</li>
+      <li>Node'lar komşularının aktivitesi sırasında uyuyor olabilir</li>
+      <li>Interference range communication range'i aşabilir</li>
+    </ul>
+    <p>WSN sonucu: bir node fiziksel olarak yakın olduğu hâlde güvenilir biçimde algılanamayabilir. CCA, receiver'ı yine de bozan bir transmitter'ı kaçırabilir. Duty cycling, kimin aktif olduğunu öğrenme fırsatlarını azaltır.</p>
+  </div>
+  <h3>Kum havuzu: kim kimi duyuyor?</h3>
+  <p>Node'ları sürükle (klavyeyle: Tab ile node'a gel, ok tuşları 1 m, Shift + ok 5 m taşır), iki transmission seç (X → Y ve U → V, aynı anda göndermek istiyorlar). Sayfa mesafeleri gerçekten hesaplıyor: her sender'ın CCA'sı diğer sender'ı duyuyor mu, ve her receiver öbür sender'ın interference range'i içinde mi? Model lab'daki bench ile aynı fikirde: carrier-sense range = communication range $R_c$, capture effect yok. Ek olarak interference range'i $R_i \ge R_c$ ayrı ayarlayabilirsin. 1 kare = 10 m.</p>
+  <p class="w-mac-contention-hidden-exposed-guess"><b>Önce tahmin et:</b> "Interference &gt; comm" hazırında $R_i = R_c = 20$ m iken sonuç ne? $R_i$'yi 30 m'ye çıkarınca ne değişir?</p>
+  <div class="stepper">
+    <div class="w-mac-contention-hidden-exposed-ctl"><span class="src">hazır:</span>
+      <button class="btn btn--sm" data-sb="hidden">Hidden (slayt 20)</button>
+      <button class="btn btn--sm" data-sb="exposed">Exposed (slayt 22)</button>
+      <button class="btn btn--sm" data-sb="safe">İki uzak çift</button>
+      <button class="btn btn--sm" data-sb="interf">Interference &gt; comm</button>
+      <button class="btn btn--sm" data-sb="funnel">Funnel: 4 → R</button>
+    </div>
+    <div class="w-mac-contention-hidden-exposed-ctl">
+      <span style="white-space:nowrap"><label>X <select id="w-sb-x" class="btn btn--sm"></select></label> → <label>Y <select id="w-sb-y" class="btn btn--sm"></select></label></span>
+      <span style="white-space:nowrap"><label>U <select id="w-sb-u" class="btn btn--sm"></select></label> → <label>V <select id="w-sb-v" class="btn btn--sm"></select></label></span>
+    </div>
+    <div class="w-mac-contention-hidden-exposed-ctl">
+      <label>$R_c$ (m) <input id="w-sb-rc" type="text" inputmode="decimal" value="20" class="btn btn--sm" /></label>
+      <label>$R_i$ (m) <input id="w-sb-ri" type="text" inputmode="decimal" value="20" class="btn btn--sm" /></label>
+    </div>
+    <div class="w-mac-contention-hidden-exposed-err" id="w-sb-err" aria-live="polite"></div>
+    <svg class="w-mac-contention-hidden-exposed-svg" id="w-sb-svg" viewBox="0 0 640 300" role="group" aria-label="Node yerleşimi ve range çemberleri"></svg>
+    <div class="w-mac-contention-hidden-exposed-verdict" id="w-sb-out" aria-live="polite"></div>
+  </div>
+  <!-- Kaynak: W4 slayt 20–21 · K&W 5.1.1 ve Şekil 5.1 (PDF s.140) · D&P 6.1.2 ve Şekil 6.3 (PDF s.148) · bench modeli: Week_4_React_Duty_Cycle_MAC_Bench_Tutorial.pptx slayt 8 (unit-disk, carrier-sense range = communication range, no capture). Widget'ın sınıflandırması bench'in exposed tanımıyla aynı mantıkta; bench kodu kopyalanmadı. -->
+  <h3>Lab: Experiment A (hidden terminal)</h3>
+  <p>W4 lab'ında Duty-Cycle MAC Bench ile yapılan bu deney midterm'e eklenen 15 puanın parçası. Ayar: preset <em>Hidden terminal (S1 ↛ S2)</em>, protocol ContikiMAC, synchronised traffic ON, <em>Burst: all senders</em> en az üç kez. Topology, radio timeline, hidden-terminal losses sayacı ve event log izlenir. Sayaç tanımı: "Frames lost because transmitters that cannot hear each other overlap at a common receiver."</p>
+  <div class="box box--exam" data-exam="2026-W4lab-A-Q1"><span class="box__label">W4 lab worksheet, Experiment A Q1 · lab görevi (midterm puanı)</span>
+    <p>"Q1. Why can S1 and S2 both transmit even though carrier sensing is used? <em>What to write: Explain the difference between what each sender can sense locally and what R1 receives.</em>"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>S1 CCA'yı nerede yapıyor? S2 o noktadan algılanabilir mi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>R1 her iki sender'ın range'i içinde. "Locally correct" iki karar R1'de ne üretir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Carrier sensing sender'a yereldir. Göndermeden önce S1 kanalı <em>kendi</em> konumunda kontrol eder. S2, S1'in range'inin dışında olduğu için S1 hiçbir şey duymaz ve kanalı boş sayar; S2 de S1 için aynı kararı verir. Synchronised traffic ile ikisi neredeyse aynı anda başlar. İki karar da yerel olarak doğrudur, ama CCA, receiver R1'in ne alacağı hakkında hiçbir şey söylemez: R1 iki sender'ın da range'i içinde ve ikisini birden duyar.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="2026-W4lab-A-Q2"><span class="box__label">W4 lab worksheet, Experiment A Q2 · lab görevi (midterm puanı)</span>
+    <p>"Q2. Where does the collision occur? <em>What to write: Name the common receiver and describe the overlapping transmissions.</em>" (tutorial slayt 12'deki hâli: "What exactly happens at R1 during a hidden-terminal event?")</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Collision sender'da değil. Hangi node iki sinyali aynı anda alıyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bench'te capture effect yok. Üst üste binen iki frame'den biri kurtulabilir mi? Sender'lar ne fark eder?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Collision ortak receiver <strong>R1</strong>'de olur. R1 iki range'in de içinde; S1'in ve S2'nin DATA frame'leri R1'e zamanda üst üste binerek gelir. Model capture effect içermediği için ikisi de bozulur, R1 hiçbirini çözemez ve ACK göndermez. Sender'lar collision'ı göremez; sadece eksik ACK'i görür, backoff yapıp tekrar dener. Bu yüzden enerji iki kez harcanır. Bench bunu hidden-terminal loss olarak sayar; event log satırı "R1 lost S1's DATA + S2's DATA" biçimindedir.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="2026-W4lab-A-Q3"><span class="box__label">W4 lab worksheet, Experiment A Q3 · lab görevi (midterm puanı)</span>
+    <p>"Q3. Increase the radio range until S1 and S2 can hear each other. What changes? <em>What to write: Record whether hidden-terminal losses decrease and explain why carrier sensing becomes more useful.</em>" (tutorial: "Explain using 'who can hear whom.'")</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>S1 ve S2 birbirini duymaya başlayınca S1'in CCA'sı, S2 gönderirken ne der?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bench preset'inde S1 ile S2 arası 38 m, range slider'ı en fazla 32 m. Sadece range'i artırmak yeter mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Who can hear whom:</strong> önce S1 ↔ R1 ve S2 ↔ R1 var, S1 ↔ S2 yok. Range S1 ile S2 arasındaki mesafeyi geçince S1 ↔ S2 de olur. O andan sonra biri gönderirken diğerinin CCA'sı kanalı <strong>busy</strong> bulur ve backoff yapar; iki frame artık sırayla gider. Sonuç: hidden-terminal losses düşer (bench'te 0'a), PDR artar, log'da hidden-terminal olayı yerine "deferred: channel busy" satırları görünür. Carrier sensing ancak sender'lar birbirini duyduğunda işe yarar; buradaki erteleme doğru bir erteleme, çünkü iki sender da aynı receiver'a gönderiyor.</p>
+      <p><strong>Bench'e özgü ayrıntı:</strong> preset'te S1–S2 mesafesi 38 m, range slider'ı 12–32 m arası. Range'i 32 m'ye çıkarmak yetmez; kayıplar sürer. Efe'nin videosunda yaptığı gibi S2'yi R1'e yaklaştırmak (S1–S2 mesafesi range'in altına inince) aynı koşulu sağlar.</p>
+    </div></details>
+    <p class="src">Not: Bu deneyin cevap anahtarı yok. Efe'nin teslim ettiği cevaplar (assignments/…/week4/video-script.md, Part 2) yukarıdakiyle aynı. Sayılar (PDR, kayıp sayısı) bench'in o andaki zamanlamasına bağlı; sınavda mekanizmayı yaz, sayıyı değil.</p>
+    <!-- Kaynak: Week_4_Duty_Cycle_MAC_Bench_Lab_Worksheet_FINAL2.docx Experiment A · Week_4_React_Duty_Cycle_MAC_Bench_Tutorial.pptx slayt 10–12 (beklenen akıl yürütme: "Carrier sensing is local to the sender…") · bench geometrisi Duty-Cycle MAC Bench.html PRESETS.hidden (S1 x=260, R1 x=450, S2 x=640 px, 10 px = 1 m; range slider min 12 max 32 m) okunarak kontrol edildi. Bu dosyalar origin/main'de değil, link verilmedi. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Collision S1'de oldu" yanlış. Collision her zaman <strong>receiver'da</strong> olur.</li>
+      <li>Hidden terminal'i "sender'lar uzak" diye tarif etmek eksik. Doğrusu: sender'lar birbirini duymuyor <em>ve</em> ikisi de ortak receiver'a ulaşıyor (ya da onu bozuyor).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-hidden-funnel">
+    <p class="quiz__q">Kum havuzundaki funnel'da A ve C (R'nin karşı tarafları) R'ye aynı anda göndermek istiyor, $R_c = R_i = 20$ m. Sonuç?</p>
+    <button class="quiz__opt" data-correct>Hidden terminal: A–C 28 m, birbirlerini duymuyorlar; R'de collision.<span class="why">Doğru. İkisi de R'ye 14 m. Sink yanındaki receiver birçok hidden çifti toplar, bu yüzden contention noktası olur.</span></button>
+    <button class="quiz__opt">Doğru deferral: biri bekler.<span class="why">Bu A ile B (komşu, 19.8 m) için geçerli. A–C 28 m &gt; 20 m, birbirlerini duymuyorlar.</span></button>
+    <button class="quiz__opt">Güvenli: farklı yönlerden geliyorlar.<span class="why">Yön önemli değil; ikisi de aynı receiver'a gönderiyor ve R ikisini birden duyuyor.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="exposed" data-min="5">
+  <h2>Exposed terminal</h2>
+  <div class="quiz" id="q-exposed-def">
+    <p class="quiz__q">B → A gönderiyor. C, B'yi duyuyor ve D'ye göndermek için bekliyor. A, C'nin; D de B'nin range'i dışında. C'nin beklemesi…</p>
+    <button class="quiz__opt" data-correct>gereksiz: C → D güvenle aynı anda yapılabilirdi.<span class="why">Doğru. Bu exposed terminal. C'nin frame'i A'ya ulaşmıyor, B'nin frame'i D'ye ulaşmıyor; iki reception da bozulmazdı.</span></button>
+    <button class="quiz__opt">gerekli: C gönderseydi A'da collision olurdu.<span class="why">C'nin sinyali A'ya ulaşmıyor (A, C'nin range'i dışında). Collision receiver'da olur ve A'yı C bozamaz.</span></button>
+    <button class="quiz__opt">bir hidden terminal örneği.<span class="why">Hidden terminal'de sender'lar birbirini duymaz ve çakışırlar. Burada C, B'yi duyuyor ve gereksiz yere susuyor: tam tersi.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanım · W4 slayt 22</span>
+    <p><strong>Exposed terminal:</strong> bir sender yakındaki bir transmission'ı duyduğu için erteler, oysa güvenle gönderebilirdi.</p>
+    <p>Şekil: A, B, C, D bir hat üzerinde sırayla. B → A aktif. C, B'yi duyar ve erteler. Ama C → D güvenli olabilirdi.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Hidden vs exposed · W4 slayt 23</span>
+    <p>Biri çok fazla eşzamanlı transmission'a, öbürü çok azına yol açar.</p>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Sender ne görüyor</th><th>Gerçekte</th><th>Sonuç</th><th>Bedel</th></tr>
+      <tr><td><strong>Hidden terminal</strong></td><td>Idle channel</td><td>Receiver interference yaşıyor</td><td>Collision</td><td>Enerji, retransmission</td></tr>
+      <tr><td><strong>Exposed terminal</strong></td><td>Busy channel</td><td>Transmission güvenli olabilirdi</td><td>Unnecessary deferral</td><td>Throughput, latency (kaybedilen spatial reuse)</td></tr>
+    </table></div>
+    <p><strong>"Carrier sensing is conservative and local — not an oracle."</strong> İkisinin de kökü aynı: sender kararını <em>kendi</em> duyduğuna göre verir, başarı ise <em>receiver'ın</em> duyduğuna bağlıdır.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Ne kadar kayıp? · "Hidden &amp; Exposed Terminals in Real WSNs" slayt 4</span>
+    <p>802.15.4 radio'larda (MicaZ / CC2420) iki sender–receiver çifti, iki transmitter da iki receiver'ın sensing range'i içinde olduğu hâlde, zamanın <strong>%40–75</strong>'inde aynı anda kayıpsız gönderebiliyordu. Carrier sense'in her ertelemesi, bu fırsatın çöpe atılmasıdır.</p>
+    <p class="src">Not: Kaynak bir technical report (Son, Krishnamachari, Heidemann, USC/ISI TR-639, 2007), hakemli makale değil. Doğrudan "exposed terminal oranı"nı değil, concurrency fırsatını ölçüyor. Gözlenen SINR eşiği MicaZ'de yaklaşık 2 dB.</p>
+  </div>
+  <p>Bench'teki sayaç: <strong>Exposed deferrals</strong> = "CCA backoffs where the sender could potentially have transmitted safely." Kum havuzunda "Exposed (slayt 22)" hazırını aç: B–C 12 m (duyuyorlar), C–A ve B–D 28 m, $R_c = 20$ m.</p>
+  <!-- Kaynak: W4 slayt 22–23 · deck slayt 2 ve notları (bedeller), slayt 4 ve notları (40–75%, TR-639, SINR ~2 dB) · worksheet "What the page reports" tablosu · K&W 5.1.1 ("needless waiting") · D&P 6.1.2. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Hidden-terminal collision ile exposed-terminal deferral'ı karıştırma</strong> (lab tutorial slayt 25 bunu ilk sıradaki hatalardan sayıyor). Hidden: göndermemesi gerekirken gönderir, çakışır. Exposed: gönderebilecekken susar.</li>
+      <li>Her deferral exposed değildir. İki sender aynı receiver'a gidiyorsa ya da biri diğerinin receiver'ını bozacaksa bekleme <strong>doğru</strong> bir deferral'dır.</li>
+      <li>Exposed terminal enerji değil, esas olarak <strong>throughput ve latency</strong> kaybettirir. Hiçbir frame bozulmaz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-exposed-grow">
+    <p class="quiz__q">Kum havuzunda "Exposed (slayt 22)" hazırında $R_c$'yi 30 m yaparsan ($R_i = R_c$) sonuç ne olur?</p>
+    <button class="quiz__opt" data-correct>Doğru deferral olur: artık C'nin frame'i A'ya ulaşıyor (28 m ≤ 30 m).<span class="why">Doğru. Range büyüyünce C → D, A'daki reception'ı bozar hâle gelir; beklemek artık gerekli. Range, exposed durumu doğru deferral'a çevirebilir.</span></button>
+    <button class="quiz__opt">Hâlâ exposed: C → D yine güvenli.<span class="why">C–A mesafesi 28 m. $R_i = 30$ m iken C'nin sinyali A'yı bozar; bu yüzden C → D artık güvenli değil.</span></button>
+    <button class="quiz__opt">Hidden terminal olur.<span class="why">Range büyüyünce sender'lar birbirini daha iyi duyar; hidden'a dönüşmez. B–C zaten 12 m.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="rtscts" data-min="6">
+  <h2>RTS/CTS: işe yarayan fikir, WSN'e zayıf uyum</h2>
+  <div class="quiz" id="q-rts-why">
+    <p class="quiz__q">RTS/CTS hidden terminal'e karşı nasıl yardım eder?</p>
+    <button class="quiz__opt" data-correct>Receiver'ın CTS'ini duyan gizli komşular bekler.<span class="why">Doğru. CTS receiver'dan çıkar; receiver'ı bozabilecek komşular onu duyar. Böylece koruma sender'ın değil receiver'ın etrafına yayılır.</span></button>
+    <button class="quiz__opt">RTS'i duyan herkes bekler, bu yeterlidir.<span class="why">RTS sender'dan çıkar; hidden node sender'ı zaten duymuyor, RTS'i de duymaz. Hidden node'u susturan CTS'tir.</span></button>
+    <button class="quiz__opt">Collision'ları sender'da tespit eder.<span class="why">Wireless'ta collision detection yok. RTS/CTS bir rezervasyon (reservation) yöntemidir.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W4 slayt 24</span>
+    <p>Sıra: <strong>RTS → CTS → DATA → ACK</strong>. Reservation mesajları hidden-terminal collision'larını azaltabilir ama overhead ekler.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Neden yardım eder</th><th>Neden zarar verebilir</th></tr>
+      <tr><td>Yakındaki hidden node'lar CTS'i duyup erteleyebilir. Bu, receiver tarafını sender-only CCA'dan daha iyi korur.</td><td>Control frame'ler enerji harcar. Uyuyan node'lar RTS/CTS'i kaçırabilir. Küçük WSN data frame'leri dört mesajlık bir exchange'i haklı çıkarmayabilir.</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Ders kitabından · NAV ve kalan açıklar</span>
+    <p>RTS/CTS önce MACA ve MACAW'da çıktı, sonra IEEE 802.11'e girdi. B, C'ye göndermek istesin. B kanalı boş bulunca C'ye <strong>RTS</strong> gönderir; RTS'te işlemin kalan süresini gösteren bir duration alanı vardır. C, <strong>CTS</strong> ile cevap verir (o da duration taşır). B DATA'yı gönderir, C ACK ile bitirir. RTS, CTS, DATA ya da ACK'i duyan her başka node <strong>NAV</strong> (Network Allocation Vector) adlı bir zamanlayıcıyı bu süreye kurar ve süre bitene kadar göndermez.</p>
+    <p>Collision'ları tamamen bitirir mi? Hayır. İki node aynı anda RTS gönderebilir (sadece kısa RTS'ler kaybolur, uzun DATA değil). Bir CTS, başka bir node'un RTS'i ile çarpışıp okunamazsa o node NAV kuramaz ve sonradan DATA'yı bozabilir. Ayrıca DATA küçükse iki control packet'ın overhead'i kendini ödemeyebilir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Neden sensor radio'larında pek yok? · "Hidden &amp; Exposed" slayt 3</span>
+    <ol>
+      <li><strong>Standard:</strong> IEEE 802.15.4'ün hiçbir sürümü RTS/CTS handshake'i tanımlamaz. ZigBee, Wi-SUN ve 6LoWPAN stack'leri de bu yüzden RTS/CTS'siz gelir. (Karl &amp; Willig de 802.15.4 için "there is no RTS/CTS handshake" der.)</li>
+      <li><strong>Overhead:</strong> küçük frame'ler bunu ödeyemez. Deneysel olarak eklendiğinde RTS/CTS, bandwidth efficiency'de basic access'i ancak yaklaşık 5 frame birleştirildiğinde (concatenation) geçti (Barroca et al., 2020).</li>
+      <li><strong>Traffic:</strong> broadcast'te CTS verecek kimse yok. Flood, beacon, routing update ve time sync herkese gider; tek bir receiver kanalı rezerve edemez.</li>
+      <li><strong>Physics:</strong> interference decoding'den uzağa uzanır. CTS'i çözemeyecek kadar uzaktaki bir node, korunması gereken DATA frame'ini bozacak kadar yakın olabilir.</li>
+    </ol>
+    <p>Bir de: RTS/CTS <strong>exposed terminal'e hiç yardım etmez</strong>; RTS'i duyan komşuları da susturduğu için daha çok node'u bekletir.</p>
+  </div>
+  <!-- Kaynak: W4 slayt 24 · deck slayt 3 ve notları ("RTS/CTS also does nothing for exposed terminals; it actually silences more nodes"), slayt 9 notları · K&W 5.1.2 RTS/CTS, NAV, Şekil 5.2–5.3 (basılı s.117–119, PDF s.144–146) ve 5.5.5 "there is no RTS/CTS handshake" (basılı s.143, PDF s.170) · D&P 6.2.2 MACA/MACAW (PDF s.149–150). -->
+  <h3>Adım adım: RTS/CTS neyi korur, neyi koruyamaz?</h3>
+  <p>Düzen: W, X, A, B, C soldan sağa bir hat üzerinde, E ve F aşağıda. $R_c = 20$ m (çözme ve CCA), $R_i = 28$ m (bozma). A'nın B'ye, C'nin de B'ye, X'in W'ye, E'nin F'ye frame'i var. Her adımda kimin neyi çözdüğü, kimin sadece gürültü duyduğu mesafelerden hesaplanıyor.</p>
+  <p class="w-mac-contention-hidden-exposed-guess"><b>Önce tahmin et:</b> RTS/CTS açıkken C susar mı? X susar mı? E susar mı? Hangisinin susması gereksiz?</p>
+  <div class="w-mac-contention-hidden-exposed-ctl">
+    <label><input type="checkbox" id="w-rc-rts" checked /> RTS/CTS kullan</label>
+    <label><input type="checkbox" id="w-rc-e" /> E de göndermek istiyor</label>
+  </div>
+  <div id="w-rc-stepper"></div>
+  <h3>Overhead: küçük payload'da dört mesaj</h3>
+  <p>802.15.4'te RTS/CTS frame'i tanımlı olmadığı için iyimser bir varsayım yapıyoruz: RTS ve CTS, ACK kadar kısa (havada 11 byte: 6 byte PHY header + 5 byte MAC). DATA = 6 byte PHY + 11 byte MAC header/FCS (kısa adresler) + payload. 250 kb/s'te 1 byte = 32 µs. Turnaround süreleri hesaba katılmadı.</p>
+  <p class="w-mac-contention-hidden-exposed-guess"><b>Önce tahmin et:</b> 20 byte payload'da RTS/CTS ile havadaki sürenin yüzde kaçı payload olur?</p>
+  <div class="stepper">
+    <div class="w-mac-contention-hidden-exposed-ctl">
+      <label>payload (byte) <input id="w-oh-p" type="text" inputmode="numeric" value="20" class="btn btn--sm" /></label>
+      <span class="src">hazır:</span>
+      <button class="btn btn--sm" data-oh="20">20</button>
+      <button class="btn btn--sm" data-oh="50">50</button>
+      <button class="btn btn--sm" data-oh="116">116 (en büyük)</button>
+    </div>
+    <div class="w-mac-contention-hidden-exposed-err" id="w-oh-err" aria-live="polite"></div>
+    <div class="table-wrap" id="w-oh-out"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Hidden terminal'in çözümü RTS/CTS'tir" sınavda yarım cevap. Ekle: 802.15.4'te yok, küçük frame'lerde overhead ağır, broadcast'te çalışmaz, interference range'deki node CTS'i çözemez, exposed terminal'i kötüleştirir.</li>
+      <li>Hidden node'u susturan CTS'tir, RTS değil.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-rts-exposed">
+    <p class="quiz__q">RTS/CTS exposed terminal problemini ne yapar?</p>
+    <button class="quiz__opt">Çözer, çünkü herkes rezervasyonu bilir.<span class="why">Rezervasyonu bilen herkes susar; bu, susması gerekmeyen node'ları da kapsar.</span></button>
+    <button class="quiz__opt" data-correct>Çözmez; RTS'i duyan komşular da sustuğu için daha çok node bekler.<span class="why">Doğru. Deck'in notu: "it actually silences more nodes." Adım adım widget'ında X'in durumu bu.</span></button>
+    <button class="quiz__opt">Exposed terminal'i hidden terminal'e çevirir.<span class="why">Böyle bir dönüşüm yok. RTS/CTS sadece daha fazla node'u erteletir.</span></button>
+  </div>
+  <div class="quiz" id="q-rts-broadcast">
+    <p class="quiz__q">Bir routing update'i bütün komşulara broadcast ediliyor. RTS/CTS neden işe yaramaz?</p>
+    <button class="quiz__opt" data-correct>CTS gönderecek tek bir receiver yok.<span class="why">Doğru. Broadcast herkese gider; kimse "clear to send" diye kanalı rezerve edemez. Broadcast'in ACK'i de yok.</span></button>
+    <button class="quiz__opt">Broadcast frame'ler çok uzundur.<span class="why">Uzunluk sorun değil; sorun handshake'in tek bir karşı tarafa ihtiyaç duyması.</span></button>
+    <button class="quiz__opt">Broadcast'te collision olmaz.<span class="why">Olur; hidden sender'ların broadcast'leri de receiver'larda çakışır.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="cases" data-min="7">
+  <h2>Gerçek deployment'lar: BAN, smart meter, farm + drone</h2>
+  <div class="quiz" id="q-cases-root">
+    <p class="quiz__q">Üç gerçek vakada da hidden ve exposed terminal'lerin ortak kökü nedir?</p>
+    <button class="quiz__opt" data-correct>Asymmetry: sender'ın kanal görüşü receiver'ınkinden farklı.<span class="why">Doğru. Deck'in özeti: carrier sense, receiver'ın kanalını sender'ın konumundan tahmin eder; her deployment bu tahmini kendi yoluyla bozar.</span></button>
+    <button class="quiz__opt">Radio'ların düşük transmit power'ı.<span class="why">Power'ı artırmak range'leri büyütür ama asymmetry'i kaldırmaz; drone vakasında yükseklik zaten sensing domain'ini şişiriyor.</span></button>
+    <button class="quiz__opt">Yanlış seçilmiş MAC protokolü.<span class="why">Protokol tedaviyi değiştirir (schedule, jitter), ama kök geometri, vücut, bina ya da ekin.</span></button>
+  </div>
+  <p class="src">Not: "Hidden &amp; Exposed Terminals in Real WSNs" sunumu hocanın klasöründe week 4 okuması olarak duruyor; kimin hazırladığı belli değil. Sayılar sunumun kaynak gösterdiği yayınlardan.</p>
+  <div class="box box--rule">
+    <span class="box__label">Her vaka için aynı anatomy · deck slayt 5</span>
+    <ol>
+      <li><strong>Body:</strong> deployment; node'lar nerede, topology, traffic pattern.</li>
+      <li><strong>Physiology:</strong> propagation nedeni; radio'yu ne engelliyor, ne yutuyor, ne uzatıyor.</li>
+      <li><strong>Pathology I:</strong> hidden terminal; hangi çift birbirini duyamıyor, neden.</li>
+      <li><strong>Pathology II:</strong> exposed terminal; kim gereksiz yere erteliyor, bedeli ne.</li>
+      <li><strong>Evidence:</strong> bunun gerçek olduğunu gösteren ölçüm, standard ya da patent.</li>
+      <li><strong>Treatment:</strong> gerçek deployment'lar ne yapıyor, o çözümün bedeli ne.</li>
+    </ol>
+    <p>Etiketler: <strong>MEASURED</strong> = yayınlanmış veri destekliyor. <strong>MECHANISM</strong> = fizikten çıkarılıyor ama o etkiyi ölçen bir makale bulunamamış; iyi bir lab ya da proje sorusu.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th></th><th>Case 1: Body area network (hastane koğuşu)</th><th>Case 2: Smart-meter mesh (apartman)</th><th>Case 3: Farm + drone (buğday tarlası)</th></tr>
+    <tr><td><strong>Body</strong></td><td>Her hastada ECG, SpO₂, motion sensor'ları kalçadaki hub'a raporluyor. IEEE 802.15.6 ya da 802.15.4. Vücut başına bir star, odada çok star. Periyodik vital'ler + süreli alarmlar.</td><td>Binlerce meter multi-hop mesh ile data concentrator'a raporluyor, çoğu aynı interval sınırında. 802.15.4 / 15.4g (ZigBee, Wi-SUN). Tree ya da mesh, tek concentrator'a. Senkron interval okumaları, kesinti alarmları.</td><td>Sensor'lar ekinin içinde alçakta; veriyi bir UAV topluyor (kısmen multi-hop'un hidden-terminal collision'larından kaçmak için). Yerde 802.15.4, 2.4 GHz. Mobile sink'in poll ettiği cluster'lar. Bursty: drone tepedeyken herkes yükler.</td></tr>
+    <tr><td><strong>Physiology</strong></td><td><em>MEASURED:</em> vücut 2.4 GHz'i yutar ve gölgeler; 802.15.6 channel model'i bu yüzden LOS ve NLOS diye ayırır. Gölgeleme duruşa ve dönmeye göre değişir.</td><td>Beton duvar, bodrum ve meter dolabı fiziksel olarak yakın meter'lar arasındaki link'leri keser.</td><td><em>MEASURED:</em> path-loss exponent ekim zamanında varsayılan 1.85'ten olgun buğdayda ölçülen 5.93'e çıktı. −75 dBm'de link range free space'te 48 m, olgun buğdayda 8 m.</td></tr>
+    <tr><td><strong>Pathology I (hidden)</strong></td><td><em>MECHANISM:</em> sırttaki ve göğüsteki sensor yandan dolaşarak hub'a ulaşır, birbirine ulaşamaz. İkisi de boş bulur, gönderir, hub collision görür. Hasta yatakta dönünce hidden çiftler çıkar ve kaybolur.</td><td><em>MEASURED:</em> aynı binanın karşı duvarlarındaki iki meter direkteki relay'e ulaşır, birbirine ulaşamaz. Senkron raporlama ile her interval'de collision. Battery life, hidden meter payına ve backoff limit'ine bağlı. Bir patent hidden node'ları "ubiquitous" diye niteliyor.</td><td><em>MEASURED + MECHANISM:</em> ekin büyüdükçe link'ler düştü, ağ bölündü. Ekimde birbirini duyan sensor'lar hasatta birbirinden gizli, ama hepsi drone'u görüyor.</td></tr>
+    <tr><td><strong>Pathology II (exposed)</strong></td><td><em>MECHANISM:</em> yan yataktaki Sensor A, Sensor B'yi duyup bekler. Hub A, B'nin range'i dışında, Hub B de A'nınkinin; iki rapor aynı anda gidebilirdi. NIST simülasyonları: BAN'lar arası hidden/exposed node'lar delay'i artırıyor, başarılı reception'ı azaltıyor.</td><td><em>MECHANISM:</em> Meter D, C'nin batıya gönderdiğini duyup doğuya hop'unu erteler; Relay 1 D'yi, Relay 2 C'yi duymuyor. Convergecast zaten trafiği birkaç relay'e huniler; spatial reuse kaybı her raporlama turunu uzatır.</td><td><em>MECHANISM:</em> havada her drone her drone'u duyar. Drone B, Drone A'nın poll'unu duyup kendi poll'unu tutar; ekinin içindeki Cluster B, A'yı zar zor duyar, bekleme hiçbir şey kazandırmaz. Yükseklik her sensing domain'ini şişirir.</td></tr>
+    <tr><td><strong>Treatment</strong></td><td>802.15.6 beacon mode ile scheduled slot'lar (vücut içi); iki hop'lu relay ya da hub yeri; BAN başına ayrı channel; RTS/CTS (simülasyonda daha az inter-BAN collision, exposed'a faydası yok); adaptive energy-detection threshold.</td><td>Raporlama zamanına random jitter (en ucuzu); TSCH (802.15.4e) schedule'ları; seviyeleri dönüşümlü time frame'ler; hidden-neighbour discovery; hidden payına göre backoff ayarı.</td><td>Drone-initiated polling ya da TDMA slot'ları; uçuş hızını node yoğunluğuna göre ayarlamak; antenleri olgun ekinin üstüne koymak; deployment'ı ekime göre değil hasada göre planlamak; drone başına ayrı channel ya da schedule.</td></tr>
+    <tr><td><strong>Akılda kalacak</strong></td><td>Sorun contention. Her node'u kontrol ettiğin yerde (tek vücut) contention'ı kaldır; kontrol etmediğin yerde (çok vücut) müzakere et.</td><td>Traffic shape hastalığın yarısı. Senkron convergecast, ara sıra olan hidden çiftleri her interval'de bir collision'a çevirir.</td><td>Topology mevsimlik. Ekimde ölçülen link budget'ı ekin bozacak.</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Özet tablo · deck slayt 18</span>
+    <div class="table-wrap"><table>
+      <tr><th>Case</th><th>Hidden: ne engelliyor</th><th>Exposed: kim overhear ediyor</th><th>Ne değişiyor</th><th>İşe yarayan çözüm</th></tr>
+      <tr><td>BAN</td><td>Göğüs ile sırt arasındaki gövde</td><td>Komşu hastanın BAN'ı</td><td>Duruş ve hareket, dakika dakika</td><td>İçeride scheduled slot'lar, arada ayrı channel'lar</td></tr>
+      <tr><td>Smart meter</td><td>Duvarlar, katlar + senkron okumalar</td><td>Farklı relay'lere route eden bitişik meter'lar</td><td>Çoğunlukla statik; her interval'de yük sıçraması</td><td>Report jitter + TSCH schedule'ları</td></tr>
+      <tr><td>Farm + drone</td><td>Yerdeki node'lar arasındaki ekin örtüsü</td><td>Açık havadaki diğer drone'lar</td><td>Ekin boyu, mevsim boyunca</td><td>Drone polling; antenler ekinin üstünde</td></tr>
+    </table></div>
+    <p>Her vakada neden asymmetry: <strong>the sender's view of the channel differs from the receiver's.</strong> Geometri, vücutlar, binalar ve ekinler sadece bunun nasıl olacağını belirler. Zaman sütununa bak: BAN dakikada, ekin mevsimde değişir, meter neredeyse hiç; bu yüzden meter ağları statik planlanabilir, BAN'lar planlanamaz.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Duty cycling bunları kaldırmaz · W4 slayt 54</span>
+    <p>Duty cycling zamanlamayı değiştirir, interference'ı kaldırmaz. B-MAC'te hidden sender'ların uzun preamble'ları, X-MAC'te strobe train'leri ya da early ACK'ler, ContikiMAC'te tekrar edilen data frame'leri çakışabilir. RI-MAC/A-MAC'te birden çok hidden sender aynı receiver beacon'ına cevap verebilir. Backoff, retry ve contention window yine gerekir. Bu protokoller bir sonraki derste.</p>
+  </div>
+  <!-- Kaynak: deck slayt 5–18 ve notları (MEASURED/MECHANISM etiketleri, kaynak numaraları [1]–[14]) · W4 slayt 54. Sunumdaki fotoğraf ve şekiller kopyalanmadı. -->
+  <div class="box box--exam" data-exam="HE-s19-LAB-BAN"><span class="box__label">"Hidden &amp; Exposed" slayt 19, LAB · BAN · slayt sorusu tipi</span>
+    <p>"Put one mote on a volunteer's chest, one on the back, a hub at the hip. Predict the collision rate as they turn around, then measure it."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Göğüs ile sırt arasında ne var? İki sensor'ın birbirini duyması hangi duruşlarda mümkün?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Ölçmek için ne sayarsın? Bir collision'ı sender ancak hangi yolla fark eder? Receiver'da hangi alan eksik packet'ları gösterir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Tahmin:</strong> gövde 2.4 GHz'i yuttuğu için göğüs ve sırt sensor'ları çoğu duruşta birbirini duymaz (NLOS), ama ikisi de yandan dolaşan yolla kalçadaki hub'a ulaşır: hidden terminal. Collision oranı sabit olmaz; duruşla değişir. Gövdenin direkt yolu kestiği duruşlarda yüksek, bir yansıma ya da yan yol iki sensor'ı birbirine "gösterdiğinde" düşük. Senkron raporlamada en yüksek, raporlar zamana yayılınca düşük.</p>
+      <p><strong>Ölçüm:</strong> iki mote her packet'a sequence number koyar; hub'da eksik sequence number'lar ve sender'larda eksik ACK / retransmission sayılır. Gönüllü belirli açılarda (0°, 90°, 180°…) durur, her açıda yeterince packet gönderilir. Kontrol deneyi: aynı ölçümü raporlar arasına jitter koyarak tekrarla; collision kaybı düşüyorsa, kayıp gerçekten hidden-terminal kaynaklıdır, sadece zayıf link değil.</p>
+      <p>Bu vaka sunumda MECHANISM etiketli: tek bir BAN içinde hidden çift oranını ölçen bir makale bulunamamış. Bu yüzden cevap bir sayı değil, bir tahmin ve onu test eden bir deney tasarımıdır.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="HE-s19-DESIGN-METERS"><span class="box__label">"Hidden &amp; Exposed" slayt 19, DESIGN · METERS · slayt sorusu tipi</span>
+    <p>"A utility reads 10,000 meters at :00, :15, :30 and :45. Propose the cheapest change that cuts hidden-node collisions. What does it cost billing?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Collision'ları her interval'de garantili yapan şey hidden çiftlerin varlığı mı, yoksa hepsinin aynı anda göndermesi mi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Okumayı ölçüldüğü anda damgalarsan, gönderme anını kaydırmak faturayı etkiler mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>En ucuz değişiklik:</strong> raporlama zamanına <strong>random jitter</strong>. Her meter okumayı interval sınırında alır ama göndermeyi interval içinde random bir ana kaydırır (örneğin sınırdan sonraki birkaç dakika içinde). Hidden çiftler yine var, ama artık aynı anda göndermiyorlar; senkron patlama dağılır, collision olasılığı düşer. Donanım ya da yeni schedule gerekmez, sadece firmware'de bir random delay.</p>
+      <p><strong>Faturaya maliyeti:</strong> okumalar concentrator'a dağınık ve biraz geç ulaşır. Okuma meter'da, interval sınırında damgalanıyorsa (timestamp) fatura doğruluğu değişmez; sadece veri biraz geç gelir. Concentrator varış zamanını damgalıyorsa okumalar kayar ve faturalama hassasiyeti düşer. Sunumun cevap taslağı: "random jitter within the interval; cost is less precise timestamps unless readings are stamped at the meter."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="HE-s19-DEBATE-DRONES"><span class="box__label">"Hidden &amp; Exposed" slayt 19, DEBATE · DRONES · slayt sorusu tipi</span>
+    <p>"Two drones serve two fields from 30 m up. Should they carrier-sense each other at all? Argue both sides with the exposed-terminal picture."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Havadaki drone–drone link'i ile ekinin içindeki drone–cluster link'ini karşılaştır. Hangisi daha iyi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Drone B'nin beklemesi hangi durumda bir collision'ı gerçekten önler? O durum ne sıklıkla olur?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Evet tarafı:</strong> iki tarlanın cluster'ları örtüşüyorsa (bir yer node'u iki drone'u da duyuyorsa), iki drone'un aynı anda poll etmesi o node'da collision yaratır. Carrier sense bu nadir durumu korur.</p>
+      <p><strong>Hayır tarafı:</strong> açık havada drone'lar birbirini rahatça duyar, ama ekinin içindeki Cluster B, Drone A'yı zar zor duyar. Drone B, A'nın poll'unu duyup bekler; oysa A'nın sinyali B'nin cluster'ını bozmuyor ve B'nin poll'u A'nın cluster'ını bozmuyor. Bu tam exposed-terminal resmi: yaygın durumda carrier sense sadece kayıp, gereksiz deferral ve kaybedilen spatial reuse.</p>
+      <p><strong>Sonuç:</strong> sunumun notu da böyle: carrier sense nadir örtüşmeyi korur, yaygın durumda saf exposed-terminal kaybıdır. Genelde drone başına bir schedule ya da ayrı channel daha iyi sonuç verir (swarm satırı: "one channel or schedule per drone").</p>
+    </div></details>
+    <!-- Kaynak: "Hidden & Exposed Terminals in Real WSNs.pptx" slayt 19 ve konuşmacı notları (Q2 ve Q3 cevap taslakları), slayt 7, 11, 16–17. Dosya origin/main'de değil, link verilmedi. -->
+  </div>
+  <div class="quiz" id="q-cases-jitter">
+    <p class="quiz__q">Smart-meter vakasında "report jitter" neden bu kadar etkili?</p>
+    <button class="quiz__opt" data-correct>Hidden çiftleri ortadan kaldırmaz, ama onların aynı anda göndermesini engeller.<span class="why">Doğru. Hidden çift + senkron trafik = her interval'de collision. Jitter senkronu bozar.</span></button>
+    <button class="quiz__opt">Meter'ların birbirini duymasını sağlar.<span class="why">Jitter zamanı değiştirir, geometriyi değil. Beton duvar yine orada.</span></button>
+    <button class="quiz__opt">Exposed terminal'leri kaldırır.<span class="why">Jitter senkron collision'ları hedefler; exposed deferral'ları azaltmak için TSCH gibi bir schedule gerekir.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle cevapla, sonra seçeneklere bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Hidden terminal ile exposed terminal arasındaki fark hangisinde doğru verilmiş?</p>
+    <button class="quiz__opt" data-correct>Hidden: sender kanalı boş görür, receiver interference yaşar → collision. Exposed: sender kanalı meşgul görür, transmission güvenli olurdu → gereksiz deferral.<span class="why">Doğru, slayt 23'ün tablosu. Biri çok fazla, öbürü çok az eşzamanlılık.</span></button>
+    <button class="quiz__opt">Hidden: gereksiz deferral. Exposed: collision.<span class="why">Tam tersi. Bu karışıklık lab tutorial'ının uyardığı hataların başında.</span></button>
+    <button class="quiz__opt">İkisi de collision'a yol açar; farkı collision'ın yeri.<span class="why">Exposed terminal'de collision yok; kimse göndermiyor. Bedel throughput ve latency.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">CCA neden "receiver-side guarantee" değildir?</p>
+    <button class="quiz__opt" data-correct>Çünkü sender'da ölçülür; decoding receiver'da olur ve receiver'ın komşuları farklıdır.<span class="why">Doğru. Slayt 16 ve 19.</span></button>
+    <button class="quiz__opt">Çünkü CCA çok kısa sürer.<span class="why">Süre değil, yer sorunu. Uzun dinlemek de sender'ın konumundan receiver'ın interference'ını göstermez.</span></button>
+    <button class="quiz__opt">Çünkü 802.15.4 CCA'yı tanımlamaz.<span class="why">Tanımlar; CCA, PHY'nin sağladığı bir hizmet (W2 slayt 50). Sorun ölçümün yeri.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Bir link'te bir denemenin (DATA + ACK) başarı olasılığı 0.5. Retry limit yoksa ortalama kaç deneme? Retry limit 2 deneme ise sender'ın ACK alma olasılığı?</p>
+    <button class="quiz__opt" data-correct>2 deneme; ACK alma olasılığı 0.75.<span class="why">Doğru. $1/0.5 = 2$; $1 - 0.5^2 = 0.75$.</span></button>
+    <button class="quiz__opt">0.5 deneme; ACK alma olasılığı 1.<span class="why">Ortalama deneme 1/p, p değil. İki denemenin de başarısız olma ihtimali $0.5^2 = 0.25$.</span></button>
+    <button class="quiz__opt">2 deneme; ACK alma olasılığı 1.<span class="why">Ortalama 2 olması her frame'in en fazla 2 denemede gittiği anlamına gelmez; $0.25$ ihtimalle iki deneme de başarısız.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Bir sınav cevabı "Hidden terminal'i çözmek için RTS/CTS kullanırız" diyor. En önemli eksik hangisi?</p>
+    <button class="quiz__opt" data-correct>802.15.4'te RTS/CTS yok, küçük frame'lerde overhead ağır, broadcast'te ve interference range'deki node'larda işe yaramaz.<span class="why">Doğru. Slayt 24 ve deck slayt 3: "useful idea, limited fit for WSNs."</span></button>
+    <button class="quiz__opt">RTS/CTS exposed terminal'i de çözer, bunu da yazmalı.<span class="why">Çözmez; daha çok node'u susturur.</span></button>
+    <button class="quiz__opt">Eksik yok, bu tam cevap.<span class="why">WSN bağlamında yarım cevap: neden kullanılmadığını da açıklamak gerekir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Radio açık, kanal boş, hiçbir frame gelmiyor. Bu israfın adı ve az yüklü WSN'deki önemi?</p>
+    <button class="quiz__opt" data-correct>Idle listening; az yüklü WSN'lerde enerjinin büyük kısmı olabilir.<span class="why">Doğru, slayt 10. Duty-cycled MAC'ler tam bunu hedefler.</span></button>
+    <button class="quiz__opt">Overhearing; yoğun ağlarda önemlidir.<span class="why">Overhearing'de bir frame vardır, sadece başkasına. Burada hiç frame yok.</span></button>
+    <button class="quiz__opt">Over-emitting; sender tarafında.<span class="why">Over-emitting gönderen tarafın israfıdır. Burada kimse göndermiyor.</span></button>
+  </div>
+  <!-- Sıradaki konu: Duty-cycled MAC'ler (rendezvous, LPL, B-MAC, X-MAC, ContikiMAC, RI-MAC, A-MAC). -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+/* core:start — pure functions, tested outside the page */
+const MACW = {
+  /* Turkish suffix after a node name, by how the name is read: 0 accusative, 1 dative, 2 genitive */
+  sfx(n, k) { return n + ({ A: ["'yı", "'ya", "'nın"], X: ["'i", "'e", "'in"], S1: ["'i", "'e", "'in"], S3: ["'ü", "'e", "'ün"] }[n] || ["'yi", "'ye", "'nin"])[k]; },
+  dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); },
+  /* classify two simultaneous wishes X→Y and U→V; U decides after X started (K&W order) */
+  classify(pos, X, Y, U, V, Rc, Ri) {
+    const d = (p, q) => MACW.dist(pos[p], pos[q]);
+    const sense = d(X, U) <= Rc;
+    const same = Y === V;
+    const hitY = same || d(U, Y) <= Ri;
+    const hitV = same || d(X, V) <= Ri;
+    let kind;
+    if (!sense) kind = (hitY || hitV) ? "hidden" : "safe";
+    else kind = (hitY || hitV) ? "defer" : "exposed";
+    return { kind, sense, same, hitY, hitV, dXU: d(X, U), dUY: d(U, Y), dXV: d(X, V), dXY: d(X, Y), dUV: d(U, V) };
+  },
+  rng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  },
+  /* slotted CSMA/CA teaching model: backoff → CCA → DATA (L slots) → ACK; no ACK → BE+1 */
+  csma(opt) {
+    const L = 4, BEmin = 2, BEmax = 5, maxRetry = 3, maxBusy = 4, MAXT = 160;
+    const R = MACW.rng(opt.seed), n = opt.n, hear = opt.hear;
+    const draw = be => Math.floor(R() * 2 ** be);
+    const S = [];
+    for (let i = 0; i < n; i++) S.push({ name: "S" + (i + 1), st: "backoff", cnt: draw(BEmin), BE: BEmin, nb: 0, tries: 1, txS: -1, txE: -1 });
+    const grid = Array.from({ length: n + 1 }, () => []);
+    const ev = [], tx = [], ackAt = {}, iv = [];
+    let t = 0;
+    /* every DATA interval ever started, so a retransmission never hides an earlier overlap */
+    const active = (j, u) => iv.some(x => x.i === j && x.s <= u && u <= x.e);
+    for (; t < MAXT; t++) {
+      const e = [];
+      for (let i = 0; i < n; i++) {
+        const s = S[i];
+        if (s.st === "done" || s.st === "drop") continue;
+        if (s.st === "ackwait") { grid[i][t] = "r"; s.st = "done"; e.push(`${s.name}: ACK geldi, frame teslim edildi (${s.tries}. deneme).`); continue; }
+        if (s.st === "nack") {
+          grid[i][t] = "w";
+          if (s.tries > maxRetry) { s.st = "drop"; e.push(`${s.name}: ACK yok ve retry limit doldu → frame düşürüldü.`); continue; }
+          s.tries++; s.BE = Math.min(s.BE + 1, BEmax); s.cnt = draw(s.BE); s.nb = 0; s.st = "backoff";
+          e.push(`${s.name}: ACK gelmedi. Neden olduğunu bilmiyor. ${s.tries}. deneme, window büyüdü: 0–${2 ** s.BE - 1} (BE = ${s.BE}), backoff ${s.cnt} slot.`);
+          continue;
+        }
+        if (s.st === "tx") { if (active(i, t)) grid[i][t] = "d"; continue; }
+        if (s.st === "backoff") {
+          if (s.cnt > 0) { grid[i][t] = "b"; s.cnt--; continue; }
+          s.st = "cca";
+        }
+        if (s.st === "cca") {
+          grid[i][t] = "c";
+          let who = null;
+          for (let j = 0; j < n; j++) if (j !== i && hear && active(j, t)) who = S[j].name;
+          if (who === null && ackAt[t] !== undefined) who = "R'nin ACK'i";
+          if (who !== null) {
+            s.nb++;
+            if (s.nb > maxBusy) { s.st = "drop"; e.push(`${s.name}: CCA busy (${who}) ve deneme hakkı bitti → channel access failure.`); continue; }
+            s.cnt = draw(s.BE); s.st = "backoff";
+            e.push(`${s.name}: CCA busy (${who} duyuluyor) → erteliyor, yeni backoff ${s.cnt} slot (window 0–${2 ** s.BE - 1}).`);
+          } else {
+            s.st = "tx"; s.txS = t + 1; s.txE = t + L; iv.push({ i, s: t + 1, e: t + L });
+            e.push(`${s.name}: CCA idle → DATA t = ${t + 1}…${t + L} arasında.`);
+          }
+        }
+      }
+      for (let i = 0; i < n; i++) {
+        const s = S[i];
+        if (s.st !== "tx" || s.txE !== t) continue;
+        let clash = [], ackHit = false;
+        for (let j = 0; j < n; j++) if (j !== i) for (let u = s.txS; u <= s.txE; u++) if (active(j, u)) { clash.push(S[j].name); break; }
+        for (let u = s.txS; u <= s.txE; u++) if (ackAt[u] !== undefined) ackHit = true;
+        const ok = clash.length === 0 && !ackHit;
+        tx.push({ i, s: s.txS, e: s.txE, ok });
+        if (ok) { ackAt[t + 1] = i; s.st = "ackwait"; e.push(`R: ${MACW.sfx(s.name, 2)} DATA'sı temiz geldi → ACK, t = ${t + 1} anında.`); }
+        else {
+          s.st = "nack";
+          e.push(clash.length ? `R: ${MACW.sfx(s.name, 2)} DATA'sı ${clash.join(", ")} ile üst üste bindi, çözülemedi. ${s.name} bunu göremez.` : `R: ${MACW.sfx(s.name, 2)} DATA'sı R ACK gönderirken geldi (half-duplex), kayboldu.`);
+        }
+      }
+      ev.push(e);
+      if (S.every(s => s.st === "done" || s.st === "drop")) { t++; break; }
+    }
+    const T = t;
+    /* receiver row: count overlapping DATA per slot, ACKs */
+    for (let u = 0; u < T; u++) {
+      let c = 0;
+      for (const x of tx) if (x.s <= u && u <= x.e) c++;
+      grid[n][u] = ackAt[u] !== undefined ? "a" : c >= 2 ? "rx" : c === 1 ? "r1" : "";
+    }
+    for (const x of tx) if (!x.ok) for (let u = x.s; u <= x.e; u++) grid[x.i][u] = "x";
+    const delivered = S.filter(s => s.st === "done").length;
+    const lost = tx.filter(x => !x.ok).length;
+    return { T, grid, ev, S, tx, delivered, lost, n };
+  },
+  attempts(f, r, N) {
+    const p = f * r, q = 1 - p;
+    const dist = [];
+    for (let k = 1; k <= 8; k++) dist.push(q ** (k - 1) * p);
+    return { p, mean: 1 / p, within: 1 - q ** N, data: 1 - (1 - f) ** N, capped: (1 - q ** N) / p, dist, tail: q ** 8 };
+  },
+  overhead(pay) {
+    const PHY = 6, MAC = 11, CTRL = 11, US = 32;
+    const data = PHY + MAC + pay;
+    const plain = data + CTRL, rts = data + 3 * CTRL;
+    return { data, plain, rts, effPlain: pay / plain, effRts: pay / rts, usPlain: plain * US, usRts: rts * US };
+  },
+  /* RTS/CTS scenario frames on fixed geometry */
+  rtsFrames(useRts, withE) {
+    const P = { W: { x: 2, y: 12 }, X: { x: 18, y: 12 }, A: { x: 32, y: 12 }, B: { x: 48, y: 12 }, C: { x: 64, y: 12 }, E: { x: 48, y: 38 }, F: { x: 58, y: 52 } };
+    const Rc = 20, Ri = 28, d = (p, q) => MACW.dist(P[p], P[q]);
+    const names = Object.keys(P).filter(k => withE || (k !== "E" && k !== "F"));
+    const decode = s => names.filter(k => k !== s && d(s, k) <= Rc);
+    const noise = s => names.filter(k => k !== s && d(s, k) > Rc && d(s, k) <= Ri);
+    const m = v => v.toFixed(1).replace(/\.0$/, "");
+    const F = [];
+    const xSafe = d("X", "B") > Ri && d("A", "W") > Ri;
+    F.push({ tx: [], nav: [], caption: `Başlangıç: A → B, C → B, X → W${withE ? ", E → F" : ""} frame'leri hazır. $R_c = ${Rc}$ m, $R_i = ${Ri}$ m. A–C ${m(d("A", "C"))} m: A ile C birbirini duymuyor.` });
+    if (!useRts) {
+      F.push({ tx: [["A", "B", "DATA"]], nav: [], caption: `A: CCA idle → DATA. Çözenler: ${decode("A").join(", ")}. X, A'yı ${m(d("X", "A"))} m'den duyuyor → CCA busy, erteliyor.` });
+      const late = [["A", "B", "DATA"], ["C", "B", "DATA"]];
+      let cap = `C: A'yı duyamıyor (${m(d("C", "A"))} m &gt; ${Rc}) → CCA idle → B'ye DATA. B'de iki DATA üst üste: <b>hidden-terminal collision</b>.`;
+      if (withE) { late.push(["E", "F", "DATA"]); cap += ` E de A'yı duymuyor (${m(d("E", "A"))} m) → gönderiyor; E, B'ye ${m(d("E", "B"))} m (≤ $R_i$) olduğu için B'yi ayrıca bozuyor.`; }
+      cap += ` X'in beklemesi ${xSafe ? "gereksiz (exposed): X–B " + m(d("X", "B")) + " m ve A–W " + m(d("A", "W")) + " m, ikisi de $R_i$'den büyük" : "gerekli"}.`;
+      F.push({ tx: late, nav: [], bad: ["B"], caption: cap });
+      F.push({ tx: [], nav: [], bad: ["B"], caption: `B hiçbir DATA'yı çözemedi, ACK yok. A da C de nedenini bilmiyor; backoff yapıp tekrar deneyecekler. Sadece CSMA ile: 1 collision, 1 gereksiz deferral (X).` });
+      return { P, Rc, Ri, names, F };
+    }
+    const rtsHear = decode("A");
+    F.push({ tx: [["A", "B", "RTS"]], nav: rtsHear.filter(k => k !== "B"), caption: `A: CCA idle → RTS (duration alanı ile). RTS'i çözenler: ${rtsHear.join(", ")}. X NAV kuruyor ve susuyor. C, RTS'i duymadı (${m(d("C", "A"))} m).` });
+    const ctsHear = decode("B"), ctsNoise = noise("B");
+    const nav2 = Array.from(new Set(rtsHear.filter(k => k !== "B").concat(ctsHear.filter(k => k !== "A"))));
+    let c2 = `B: CTS. Çözenler: ${ctsHear.join(", ")}. C NAV kuruyor: hidden node korundu.`;
+    if (ctsNoise.length) c2 += ` ${ctsNoise.join(", ")} sadece gürültü duyuyor (${ctsNoise.map(k => m(d("B", k)) + " m").join(", ")}, $R_c$ ile $R_i$ arası): duration'ı okuyamıyor, NAV yok.`;
+    F.push({ tx: [["B", "A", "CTS"]], nav: nav2, caption: c2 });
+    const dataTx = [["A", "B", "DATA"]];
+    let c3 = `A: DATA. C ve X NAV yüzünden susuyor. X'in susması ${xSafe ? "gereksiz (exposed): RTS/CTS bunu düzeltmedi, tersine X'i RTS ile susturdu" : "gerekli"}.`;
+    let bad = [];
+    if (withE) {
+      dataTx.push(["E", "F", "DATA"]);
+      bad = ["B"];
+      c3 += ` E: A'yı duymuyor (${m(d("E", "A"))} m), B susuyor (alıyor) → CCA idle → F'ye DATA. E, B'ye ${m(d("E", "B"))} m: CTS'i çözemeyecek kadar uzak, DATA'yı bozacak kadar yakın. <b>B'deki DATA bozuldu.</b>`;
+    }
+    F.push({ tx: dataTx, nav: nav2, bad, caption: c3 });
+    const ov = MACW.overhead(20);
+    F.push({ tx: withE ? [] : [["B", "A", "ACK"]], nav: [], bad, caption: (withE ? `ACK yok: RTS/CTS'e rağmen collision. "Interference outreaches decoding."` : `B: ACK. Hidden node C korundu, frame teslim edildi.`) + ` Bedeli: 20 byte payload için havada ${ov.plain} yerine ${ov.rts} byte (varsayım aşağıda).` });
+    return { P, Rc, Ri, names, F };
+  }
+};
+/* core:end */
+
+/* helpers */
+const W = {
+  num(v, k) { const r = Math.round(v * 10 ** (k === undefined ? 4 : k)) / 10 ** (k === undefined ? 4 : k); return String(r); },
+  pct(v) { return "%" + W.num(100 * v, 1); },
+  parseProb(raw) {
+    let s = String(raw).trim().replace(",", ".");
+    let pc = false;
+    if (s.endsWith("%")) { pc = true; s = s.slice(0, -1).trim(); }
+    if (s === "" || !/^\d*\.?\d+$/.test(s)) return null;
+    let v = Number(s);
+    if (pc || v > 1) v = v / 100;
+    return v;
+  }
+};
+
+/* 1. CSMA/CA backoff stepper */
+(function () {
+  const $ = id => document.getElementById(id);
+  const box = $("w-cs-stepper"), err = $("w-cs-err"), seedIn = $("w-cs-seed");
+  const CELL = { b: "", c: "C", d: "", x: "", a: "A", w: "?", r: "✓", r1: "", rx: "×" };
+  function build() {
+    const raw = seedIn.value.trim();
+    if (!/^\d+$/.test(raw) || +raw < 1 || +raw > 99999) { err.textContent = "Seed 1 ile 99999 arasında bir tam sayı olmalı."; return; }
+    err.textContent = "";
+    const n = +$("w-cs-n").value, hear = $("w-cs-hear").checked;
+    const run = MACW.csma({ n, hear, seed: +raw });
+    const rows = run.S.map(s => s.name).concat(["R"]);
+    const frames = [];
+    for (let t = 0; t < run.T; t++) {
+      const e = run.ev[t] || [];
+      frames.push({ t, caption: `<b>t = ${t}</b> · ` + (e.length ? e.join(" ") : "Backoff sayaçları azalıyor, kanalda değişiklik yok.") });
+    }
+    const coll = run.tx.filter(x => !x.ok).length;
+    frames.push({ t: run.T - 1, final: true, caption: `<b>Sonuç:</b> ${run.delivered}/${n} frame teslim edildi, ${run.T} slot sürdü, ${run.tx.length} DATA gönderildi, ${coll} tanesi bozuldu. ` + (hear ? "Sender'lar birbirini duyduğu için çakışma ancak aynı slot'ta CCA yapınca oluyor." : "Sender'lar birbirini duymadığı için CCA sadece R'nin ACK'ini görebiliyor; DATA'ları R'de çakışabiliyor (hidden terminal).") });
+    Lab.stepper(box, {
+      title: `${n} sender → R, ${hear ? "birbirini duyuyor" : "birbirini duymuyor (hidden)"}, seed ${raw}`,
+      interval: 650,
+      frames,
+      render(f, idx, el) {
+        let h = `<table class="w-mac-contention-hidden-exposed-grid"><tr><th class="w-mac-contention-hidden-exposed-rowh">t</th>`;
+        for (let u = 0; u < run.T; u++) h += `<th>${u % 5 === 0 ? u : ""}</th>`;
+        h += "</tr>";
+        rows.forEach((name, r) => {
+          h += `<tr><th class="w-mac-contention-hidden-exposed-rowh">${name}</th>`;
+          for (let u = 0; u < run.T; u++) {
+            const shown = f.final || u <= f.t;
+            /* bozulan DATA is only known once the frame ends: show it as normal DATA until then */
+            let k = shown ? (run.grid[r][u] || "") : "";
+            if (k === "x" && !f.final) { const x = run.tx.find(q => q.i === r && q.s <= u && u <= q.e); if (x && x.e > f.t) k = "d"; }
+            h += `<td class="${k ? "k-" + k : ""}${!f.final && u === f.t ? " is-now" : ""}">${k ? CELL[k] : ""}</td>`;
+          }
+          h += "</tr>";
+        });
+        el.innerHTML = h + "</table>";
+      }
+    });
+  }
+  $("w-cs-go").addEventListener("click", build);
+  $("w-cs-n").addEventListener("change", build);
+  $("w-cs-hear").addEventListener("change", build);
+  seedIn.addEventListener("keydown", e => { if (e.key === "Enter") build(); });
+  $("w-cs-rand").addEventListener("click", () => { seedIn.value = String(1 + Math.floor(Math.random() * 99999)); build(); });
+  build();
+})();
+
+/* 2. Expected attempts calculator */
+(function () {
+  const $ = id => document.getElementById(id);
+  const f = $("w-at-f"), r = $("w-at-r"), nIn = $("w-at-n"), err = $("w-at-err"), bars = $("w-at-bars"), out = $("w-at-out");
+  function upd() {
+    const e = [];
+    const fv = W.parseProb(f.value), rv = W.parseProb(r.value);
+    if (fv === null) e.push("PRR<sub>fwd</sub> bir sayı olmalı (0.9, 0,9 ya da 90%)."); else if (fv <= 0 || fv > 1) e.push("PRR<sub>fwd</sub> 0'dan büyük ve en fazla 1 (100%) olmalı. 0 olursa hiçbir deneme başarılı olmaz.");
+    if (rv === null) e.push("PRR<sub>rev</sub> bir sayı olmalı."); else if (rv <= 0 || rv > 1) e.push("PRR<sub>rev</sub> 0'dan büyük ve en fazla 1 olmalı. ACK hiç dönmezse sender sonsuza kadar tekrar eder.");
+    const nr = nIn.value.trim();
+    if (!/^\d+$/.test(nr) || +nr < 1 || +nr > 10) e.push("N, 1 ile 10 arasında bir tam sayı olmalı (toplam deneme sayısı).");
+    if (e.length) { err.innerHTML = e.join("<br>"); bars.innerHTML = ""; out.innerHTML = "Değerleri düzeltince sonuç burada görünecek."; return; }
+    err.innerHTML = "";
+    const N = +nr, a = MACW.attempts(fv, rv, N);
+    const mx = Math.max(...a.dist, a.tail);
+    bars.innerHTML = a.dist.map((v, i) => `<div class="w-mac-contention-hidden-exposed-bar${i + 1 > N ? " is-cut" : ""}"><span>K=${i + 1}</span><div><i style="width:${100 * v / mx}%"></i></div><span>${W.pct(v)}</span></div>`).join("") +
+      `<div class="w-mac-contention-hidden-exposed-bar is-cut"><span>K&gt;8</span><div><i style="width:${100 * a.tail / mx}%"></i></div><span>${W.pct(a.tail)}</span></div>`;
+    out.innerHTML = `$p = ${W.num(fv)} \\times ${W.num(rv)} = ${W.num(a.p)}$. Limitsiz ortalama $E[K] = 1/p = ${W.num(a.mean, 3)}$ deneme. ` +
+      `En fazla $N = ${N}$ deneme ile sender'ın ACK alarak başarı bildirme olasılığı $1-(1-p)^{${N}} = ${W.num(a.within)}$ (sender'ın düşürdüğü frame oranı ${W.pct(1 - a.within)}), ortalama deneme $\\frac{1-(1-p)^{${N}}}{p} = ${W.num(a.capped, 3)}$. ` +
+      `Receiver'a en az bir DATA ulaşma olasılığı ayrıca $1-(1-PRR_{fwd})^{${N}} = ${W.num(a.data)}$.${a.data - a.within > 1e-9 ? " Aradaki fark ACK kaybından gelir: receiver DATA'yı almış, sender bunu öğrenememiştir." : ""} Gri çubuklar limitin dışında kalan denemeler.`;
+    Lab.renderMath(out);
+  }
+  [f, r, nIn].forEach(x => x.addEventListener("input", upd));
+  document.querySelectorAll("[data-at]").forEach(b => b.addEventListener("click", () => { const [x, y, z] = b.dataset.at.split(","); f.value = x; r.value = y; nIn.value = z; upd(); }));
+  upd();
+})();
+
+/* 3. Hidden / exposed sandbox */
+(function () {
+  const $ = id => document.getElementById(id);
+  const svg = $("w-sb-svg"), out = $("w-sb-out"), err = $("w-sb-err");
+  const sx = $("w-sb-x"), sy = $("w-sb-y"), su = $("w-sb-u"), sv = $("w-sb-v"), irc = $("w-sb-rc"), iri = $("w-sb-ri");
+  const PRE = {
+    hidden: { pos: { A: [10, 15], B: [28, 15], C: [46, 15] }, pick: ["A", "B", "C", "B"], rc: 20, ri: 20 },
+    exposed: { pos: { A: [8, 15], B: [24, 15], C: [36, 15], D: [52, 15] }, pick: ["B", "A", "C", "D"], rc: 20, ri: 20 },
+    safe: { pos: { A: [5, 15], B: [18, 15], C: [43, 15], D: [56, 15] }, pick: ["B", "A", "C", "D"], rc: 20, ri: 20 },
+    interf: { pos: { A: [5, 15], B: [22, 15], C: [45, 15], D: [59, 15] }, pick: ["A", "B", "C", "D"], rc: 20, ri: 20 },
+    funnel: { pos: { R: [32, 15] }, pick: ["A", "R", "C", "R"], rc: 20, ri: 20 }
+  };
+  for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2; PRE.funnel.pos["ABCD"[i]] = [32 + 14 * Math.cos(a), 15 + 14 * Math.sin(a)]; }
+  let pos = {}, drag = null, focusKey = null;
+  const m = v => W.num(v, 1);
+  function fill(sel, keys, val) { sel.innerHTML = keys.map(k => `<option${k === val ? " selected" : ""}>${k}</option>`).join(""); }
+  function load(key) {
+    const p = PRE[key];
+    pos = {}; focusKey = null;
+    for (const k of Object.keys(p.pos)) pos[k] = { x: p.pos[k][0], y: p.pos[k][1] };
+    const keys = Object.keys(pos).sort();
+    fill(sx, keys, p.pick[0]); fill(sy, keys, p.pick[1]); fill(su, keys, p.pick[2]); fill(sv, keys, p.pick[3]);
+    irc.value = p.rc; iri.value = p.ri;
+    draw();
+  }
+  function readR() {
+    const e = [];
+    const rc = Number(irc.value.trim().replace(",", ".")), ri = Number(iri.value.trim().replace(",", "."));
+    if (irc.value.trim() === "" || !Number.isFinite(rc)) e.push("$R_c$ bir sayı olmalı."); else if (rc < 5 || rc > 40) e.push("$R_c$ 5 ile 40 m arasında olsun: alan 64 × 30 m.");
+    if (iri.value.trim() === "" || !Number.isFinite(ri)) e.push("$R_i$ bir sayı olmalı."); else if (Number.isFinite(rc) && ri < rc) e.push("$R_i \\ge R_c$ olmalı: çözülebilen bir sinyal reception'ı da bozabilir, interference range communication range'den küçük olamaz."); else if (ri > 60) e.push("$R_i$ en fazla 60 m olsun.");
+    return { e, rc, ri };
+  }
+  function draw() {
+    const { e, rc, ri } = readR();
+    const X = sx.value, Y = sy.value, U = su.value, V = sv.value;
+    if (X === U) e.push("X ve U aynı node olamaz: iki ayrı sender seç.");
+    if (X === Y || U === V) e.push("Bir node kendine gönderemez.");
+    if (X === V || U === Y) e.push("Bir node aynı anda hem gönderip hem alamaz (half-duplex). Receiver'lardan biri öbür sender olmasın.");
+    const ok = e.length === 0;
+    const S = 10;
+    let h = "";
+    for (let gx = 0; gx <= 64; gx += 10) h += `<line x1="${gx * S}" y1="0" x2="${gx * S}" y2="300" style="stroke:var(--stone-200);stroke-width:1"/>`;
+    for (let gy = 0; gy <= 30; gy += 10) h += `<line x1="0" y1="${gy * S}" x2="640" y2="${gy * S}" style="stroke:var(--stone-200);stroke-width:1"/>`;
+    const senders = ok ? [[X, "var(--blue-600)"], [U, "var(--accent)"]] : [];
+    for (const [s, c] of senders) {
+      if (Number.isFinite(ri) && ri > rc) h += `<circle cx="${pos[s].x * S}" cy="${pos[s].y * S}" r="${ri * S}" style="fill:none;stroke:${c};stroke-width:1.5;stroke-dasharray:6 5;opacity:.7"/>`;
+      h += `<circle cx="${pos[s].x * S}" cy="${pos[s].y * S}" r="${rc * S}" style="fill:${c};fill-opacity:.07;stroke:${c};stroke-width:1.5"/>`;
+    }
+    if (ok) for (const [a, b, c] of [[X, Y, "var(--blue-600)"], [U, V, "var(--accent)"]]) {
+      const A = pos[a], B = pos[b], L = MACW.dist(A, B) || 1, ux = (B.x - A.x) / L, uy = (B.y - A.y) / L;
+      const x2 = (B.x - ux * 1.6) * S, y2 = (B.y - uy * 1.6) * S;
+      h += `<line x1="${A.x * S}" y1="${A.y * S}" x2="${x2}" y2="${y2}" style="stroke:${c};stroke-width:3"/>`;
+      h += `<polygon points="${x2},${y2} ${x2 - ux * 12 - uy * 6},${y2 - uy * 12 + ux * 6} ${x2 - ux * 12 + uy * 6},${y2 - uy * 12 - ux * 6}" style="fill:${c}"/>`;
+    }
+    for (const k of Object.keys(pos)) {
+      const p = pos[k];
+      const col = ok && k === X ? "var(--blue-600)" : ok && k === U ? "var(--accent)" : "var(--paper)";
+      const fg = ok && (k === X || k === U) ? "#fff" : "var(--fg)";
+      h += `<g data-node="${k}" tabindex="0" role="button" aria-label="Node ${k}: x ${m(p.x)} m, y ${m(p.y)} m. Ok tuşlarıyla taşı."><circle cx="${p.x * S}" cy="${p.y * S}" r="20" style="fill:${col};stroke:var(--fg);stroke-width:1.5"/><text x="${p.x * S}" y="${p.y * S + 6}" text-anchor="middle" style="font:700 18px 'JetBrains Mono',monospace;fill:${fg};pointer-events:none">${k}</text></g>`;
+    }
+    const fk = focusKey;
+    svg.innerHTML = h;
+    if (fk) { const g = svg.querySelector(`[data-node="${fk}"]`); if (g) g.focus(); focusKey = fk; }
+    if (!ok) { err.innerHTML = e.join("<br>"); out.innerHTML = "Seçimi düzeltince sonuç burada görünecek."; Lab.renderMath(err); return; }
+    const lk = [];
+    if (MACW.dist(pos[X], pos[Y]) > rc) lk.push(`${X}, ${MACW.sfx(Y, 1)} ulaşamıyor (${m(MACW.dist(pos[X], pos[Y]))} m &gt; $R_c$): böyle bir link yok.`);
+    if (MACW.dist(pos[U], pos[V]) > rc) lk.push(`${U}, ${MACW.sfx(V, 1)} ulaşamıyor (${m(MACW.dist(pos[U], pos[V]))} m &gt; $R_c$): böyle bir link yok.`);
+    if (lk.length) { err.innerHTML = lk.join("<br>") + " Node'ları yaklaştır ya da $R_c$'yi büyüt."; out.innerHTML = "İki link de var olmalı."; Lab.renderMath(err); return; }
+    err.innerHTML = "";
+    const c = MACW.classify(pos, X, Y, U, V, rc, ri);
+    const senseTxt = c.sense ? `${U}, ${MACW.sfx(X, 0)} duyuyor (${m(c.dXU)} m ≤ $R_c$ = ${m(rc)}): CCA <b>busy</b>.` : `${U}, ${MACW.sfx(X, 0)} duymuyor (${m(c.dXU)} m &gt; $R_c$ = ${m(rc)}): CCA <b>idle</b>.`;
+    const hit = [];
+    if (c.same) hit.push(`ikisi de aynı receiver'a (${Y}) gidiyor; bir receiver aynı anda tek frame çözer`);
+    else {
+      hit.push(c.hitY ? `${MACW.sfx(U, 2)} sinyali ${MACW.sfx(Y, 0)} bozar (${m(c.dUY)} m ≤ $R_i$)` : `${MACW.sfx(U, 2)} sinyali ${MACW.sfx(Y, 1)} ulaşmaz (${m(c.dUY)} m &gt; $R_i$)`);
+      hit.push(c.hitV ? `${MACW.sfx(X, 2)} sinyali ${MACW.sfx(V, 0)} bozar (${m(c.dXV)} m ≤ $R_i$)` : `${MACW.sfx(X, 2)} sinyali ${MACW.sfx(V, 1)} ulaşmaz (${m(c.dXV)} m &gt; $R_i$)`);
+    }
+    const V2 = {
+      hidden: `<b class="is-bad">Hidden terminal → collision.</b> CCA "boş" dedi ama receiver tarafında çakışma var.`,
+      safe: `<b class="is-ok">Güvenli eşzamanlı gönderim (spatial reuse).</b> CCA "boş" dedi ve haklıydı.`,
+      exposed: `<b class="is-warn">Exposed terminal → gereksiz deferral.</b> ${U} bekliyor, oysa iki frame de aynı anda geçebilirdi.`,
+      defer: `<b class="is-ok">Doğru deferral.</b> ${MACW.sfx(U, 2)} beklemesi bir collision'ı önledi.`
+    };
+    out.innerHTML = `${X} gönderiyor, ${U} de göndermek istiyor. ${senseTxt} Receiver'lar: ${hit.join("; ")}.<br>${V2[c.kind]}`;
+    Lab.renderMath(out);
+  }
+  function svgPoint(ev) {
+    const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+    const q = pt.matrixTransform(svg.getScreenCTM().inverse());
+    return { x: Math.max(1.5, Math.min(62.5, q.x / 10)), y: Math.max(1.5, Math.min(28.5, q.y / 10)) };
+  }
+  svg.addEventListener("pointerdown", ev => {
+    const g = ev.target.closest("[data-node]");
+    if (!g) return;
+    drag = g.getAttribute("data-node");
+    svg.setPointerCapture(ev.pointerId);
+    ev.preventDefault();
+  });
+  svg.addEventListener("pointermove", ev => { if (!drag) return; pos[drag] = svgPoint(ev); draw(); });
+  const KEYS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  svg.addEventListener("keydown", ev => {
+    const g = ev.target.closest("[data-node]"), mv = KEYS[ev.key];
+    if (!g || !mv) return;
+    ev.preventDefault();
+    const k = g.getAttribute("data-node"), st = ev.shiftKey ? 5 : 1;
+    pos[k] = { x: Math.max(1.5, Math.min(62.5, pos[k].x + mv[0] * st)), y: Math.max(1.5, Math.min(28.5, pos[k].y + mv[1] * st)) };
+    focusKey = k; draw();
+  });
+  svg.addEventListener("focusin", ev => { const g = ev.target.closest("[data-node]"); focusKey = g ? g.getAttribute("data-node") : null; });
+  svg.addEventListener("focusout", ev => { if (!svg.contains(ev.relatedTarget)) focusKey = null; });
+  const end = () => { drag = null; };
+  svg.addEventListener("pointerup", end);
+  svg.addEventListener("pointercancel", end);
+  [sx, sy, su, sv].forEach(s => s.addEventListener("change", draw));
+  [irc, iri].forEach(i => i.addEventListener("input", draw));
+  document.querySelectorAll("[data-sb]").forEach(b => b.addEventListener("click", () => load(b.dataset.sb)));
+  load("hidden");
+})();
+
+/* 4. RTS/CTS step-through */
+(function () {
+  const $ = id => document.getElementById(id);
+  const box = $("w-rc-stepper"), cr = $("w-rc-rts"), ce = $("w-rc-e");
+  const COL = { DATA: "var(--blue-600)", RTS: "#6741d9", CTS: "#6741d9", ACK: "#2b8a3e" };
+  function build() {
+    const sc = MACW.rtsFrames(cr.checked, ce.checked);
+    const S = 9, P = sc.P;
+    Lab.stepper(box, {
+      title: cr.checked ? "RTS → CTS → DATA → ACK" : "Sadece CSMA (RTS/CTS yok)",
+      interval: 2600,
+      frames: sc.F,
+      render(f, idx, el) {
+        let h = `<svg viewBox="0 0 640 ${ce.checked ? 520 : 230}" style="width:100%;max-width:640px;display:block" role="img" aria-label="RTS/CTS senaryosu"><g transform="translate(26,0)">`;
+        for (const [a] of f.tx) {
+          h += `<circle cx="${P[a].x * S}" cy="${P[a].y * S}" r="${sc.Ri * S}" style="fill:none;stroke:var(--stone-500);stroke-width:1;stroke-dasharray:5 5"/>`;
+          h += `<circle cx="${P[a].x * S}" cy="${P[a].y * S}" r="${sc.Rc * S}" style="fill:var(--blue-600);fill-opacity:.06;stroke:var(--blue-600);stroke-width:1"/>`;
+        }
+        for (const [a, b, kind] of f.tx) {
+          const c = COL[kind];
+          h += `<line x1="${P[a].x * S}" y1="${P[a].y * S}" x2="${P[b].x * S}" y2="${P[b].y * S}" style="stroke:${c};stroke-width:4;stroke-linecap:round"/>`;
+          h += `<text x="${(P[a].x + P[b].x) / 2 * S}" y="${(P[a].y + P[b].y) / 2 * S - 10}" text-anchor="middle" style="font:700 18px 'JetBrains Mono',monospace;fill:${c}">${kind}</text>`;
+        }
+        for (const k of sc.names) {
+          const p = P[k], nav = f.nav.includes(k), bad = (f.bad || []).includes(k);
+          const fill = bad ? "#fdecec" : nav ? "var(--orange-100)" : "var(--paper)";
+          const stroke = bad ? "#c92a2a" : nav ? "var(--orange-700)" : "var(--fg)";
+          h += `<circle cx="${p.x * S}" cy="${p.y * S}" r="24" style="fill:${fill};stroke:${stroke};stroke-width:2"/><text x="${p.x * S}" y="${p.y * S + 7}" text-anchor="middle" style="font:700 20px 'JetBrains Mono',monospace;fill:var(--fg)">${k}</text>`;
+          if (nav) h += `<text x="${p.x * S}" y="${p.y * S + 50}" text-anchor="middle" style="font:700 18px 'JetBrains Mono',monospace;fill:var(--orange-700)">NAV</text>`;
+          if (bad) h += `<text x="${p.x * S}" y="${p.y * S + 50}" text-anchor="middle" style="font:700 18px 'JetBrains Mono',monospace;fill:#c92a2a">× bozuldu</text>`;
+        }
+        el.innerHTML = h + "</g></svg>";
+      }
+    });
+  }
+  cr.addEventListener("change", build);
+  ce.addEventListener("change", build);
+  build();
+})();
+
+/* 5. RTS/CTS overhead */
+(function () {
+  const $ = id => document.getElementById(id);
+  const inp = $("w-oh-p"), err = $("w-oh-err"), out = $("w-oh-out");
+  function upd() {
+    const raw = inp.value.trim();
+    if (!/^\d+$/.test(raw) || +raw < 1 || +raw > 116) { err.textContent = "Payload 1 ile 116 byte arasında bir tam sayı olmalı: PSDU en fazla 127 byte ve 11 byte'ı MAC header/FCS."; out.innerHTML = ""; return; }
+    err.textContent = "";
+    const o = MACW.overhead(+raw);
+    out.innerHTML = `<table><tr><th></th><th>Havada byte</th><th>Süre (µs)</th><th>Payload payı</th></tr>` +
+      `<tr><td>DATA + ACK</td><td>${o.data} + 11 = <b>${o.plain}</b></td><td>${o.usPlain}</td><td><b>${W.pct(o.effPlain)}</b></td></tr>` +
+      `<tr><td>RTS + CTS + DATA + ACK</td><td>11 + 11 + ${o.data} + 11 = <b>${o.rts}</b></td><td>${o.usRts}</td><td><b>${W.pct(o.effRts)}</b></td></tr></table>` +
+      `<p class="src">RTS/CTS, collision olmadığında havadaki süreyi ${W.num(o.rts / o.plain, 2)} katına çıkarıyor. Kazancı sadece collision olduğunda gelir: o zaman uzun DATA yerine kısa RTS kaybolur. Payload ne kadar küçükse bu kazanç o kadar az.</p>`;
+  }
+  inp.addEventListener("input", upd);
+  document.querySelectorAll("[data-oh]").forEach(b => b.addEventListener("click", () => { inp.value = b.dataset.oh; upd(); }));
+  upd();
+})();
+</script>
+</body>
+</html>

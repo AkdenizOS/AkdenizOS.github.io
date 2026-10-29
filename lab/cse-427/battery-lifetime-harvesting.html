@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 427: battery neden ideal bir depo değil, linear lifetime model, usable capacity, model seviyeleri, 7 adımlı lifetime procedure, node ve network lifetime, energy balancing, energy harvesting, energy causality, storage recursion ve energy-neutral operation." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Battery lifetime ve energy harvesting · CSE 427 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-battery-lifetime-harvesting-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-battery-lifetime-harvesting-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-battery-lifetime-harvesting-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 12px; margin: 8px 0; }
+    .w-battery-lifetime-harvesting-grid label { display: flex; flex-direction: column; gap: 2px; font-size: .88rem; font-weight: 600; min-width: 0; }
+    .w-battery-lifetime-harvesting-grid input[type="text"], .w-battery-lifetime-harvesting-grid select { width: 100%; box-sizing: border-box; font: inherit; font-weight: 400; padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--fg); }
+    .w-battery-lifetime-harvesting-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-battery-lifetime-harvesting-out { margin: 8px 0; }
+    .w-battery-lifetime-harvesting-out td.num, .w-battery-lifetime-harvesting-out th.num { text-align: right; font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+    .w-battery-lifetime-harvesting-tag { display: inline-block; font-size: .75rem; font-weight: 700; border-radius: var(--radius-full); padding: 1px 8px; color: #fff; background: var(--blue-600); }
+    .w-battery-lifetime-harvesting-tag.is-usable { background: #2b8a3e; }
+    .w-battery-lifetime-harvesting-svg { display: block; width: 100%; height: auto; max-width: 720px; }
+    .w-battery-lifetime-harvesting-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; margin: 4px 0 8px; }
+    .w-battery-lifetime-harvesting-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+    .w-battery-lifetime-harvesting-days { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0; font-size: .9rem; }
+    .w-battery-lifetime-harvesting-verdict { margin: 8px 0; padding: 8px 12px; border-radius: var(--radius-md); background: var(--blue-050); border: 1px solid var(--border); }
+    .w-battery-lifetime-harvesting-verdict.is-bad { background: #fdecec; border-color: #c92a2a; }
+    .w-battery-lifetime-harvesting-verdict.is-good { background: #ebf7ee; border-color: #2b8a3e; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 427</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 427</a> / Battery lifetime ve energy harvesting</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W3 Part IV–V</span><span class="chip chip--exam">Vize kapsamı</span><span class="chip">W3 lab</span><span class="src">~59 dk · 12 bölüm</span></div>
+          <h1>Battery lifetime ve energy harvesting</h1>
+          <p class="lead">Bir önceki derste average current'ı ($I_{avg}$) bulmayı öğrendin. Bu derste o sayıyı bir süreye çeviriyoruz: bir battery kaç gün dayanır, bu tahmin nerede yanılır, tek bir node'un ölmesi network'ün ölmesi demek mi, ve node enerjisini çevreden toplarken (energy harvesting) "sürdürülebilir çalışma" ne anlama gelir.</p>
+          <!-- Kaynak: Week_3_WSN_Energy_60slides_InstantContiki3_Cooja.pptx slaytlar 45–60 (Part IV Battery lifetime and network lifetime, Part V Energy harvesting and energy-neutral operation), slayt 21, 41–42 · Week_3_Energy_Lab_Tutorial_InstantContiki3_Cooja_STYLE_FIXED.pptx xml slaytlar 28, 29, 36, 38, 39, 40, 42 (sayfada yazan numara xml + 1) · W1 deck xml slayt 35 (sayfada 38) · Dargie & Poellabauer Ch. 8.1.5 ve alıştırmalar 8.12–8.14 · Karl & Willig 2.1.6, 3.2.2, 11.x (energy-efficient unicast) · Efe'nin W3 lab sonuçları (assignments/2026-2027-fall-efe/week3/results.html). -->
+        </header>
+
+        <article class="lesson" data-course="cse-427" data-lesson="battery-lifetime-harvesting">
+
+<!-- 1 -->
+<section class="lsec" id="ideal" data-min="4">
+  <h2>Battery ideal bir depo değil</h2>
+  <div class="quiz" id="q-blh-ideal">
+    <p class="quiz__q">Bir node'un battery'sinde kimyasal enerji hâlâ var, ama node her packet gönderişinde reset atıyor. En olası açıklama hangisi?</p>
+    <button class="quiz__opt" data-correct>Terminal voltage, TX akımı çekilirken cut-off voltage'ın altına iniyor<span class="why">Doğru. Battery'nin internal resistance'ı yüzünden yüksek akım anında voltage düşer. MCU, radio ya da regulator minimum voltage'ın altında çalışamaz, bu yüzden içeride enerji kalsa bile node durur.</span></button>
+    <button class="quiz__opt">Battery tamamen boşalmış<span class="why">Soruda kimyasal enerjinin kaldığı söyleniyor. Node'u durduran şey "enerji sıfır" değil, "voltage yetersiz" durumu.</span></button>
+    <button class="quiz__opt">Self-discharge kalan enerjiyi o an yiyip bitiriyor<span class="why">Self-discharge yavaş bir süreçtir (haftalar, aylar). Her TX anında olan ani bir olayı açıklamaz.</span></button>
+    <button class="quiz__opt">mAh değeri yanlış hesaplanmış<span class="why">Hesap hatası bir tahmini bozar, node'u reset ettirmez. Reset fiziksel bir voltage olayıdır.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Battery'yi bir su deposu gibi düşünmek kolaydır: 2400 mAh'lik depo, 1 mA'lik bir delikten 2400 saat akar. Gerçek battery ise içinde kimyasal reaksiyon olan bir hücredir. Node'un çalışması için yalnızca "içeride enerji olması" yetmez. Battery'nin uçlarındaki voltage, MCU'nun, radio'nun, sensor'ün ya da regulator'ın istediği en düşük değerin üstünde kalmalıdır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 slayt 46</span>
+    <p><strong>Battery behavior depends on:</strong></p>
+    <div class="table-wrap"><table>
+      <tr><th>Etken</th><th>Ne yapar?</th></tr>
+      <tr><td>Chemistry</td><td>Hücrenin türü (alkaline, lithium, NiMH…) energy density'yi, voltage eğrisini ve diğer etkenlerin ne kadar güçlü olduğunu belirler.</td></tr>
+      <tr><td>Discharge current</td><td>Ne kadar hızlı çektiğin. Yüksek akımda usable capacity azalır (rate-capacity effect, Bölüm 4).</td></tr>
+      <tr><td>Temperature</td><td>Soğukta capacity düşer, internal resistance artar.</td></tr>
+      <tr><td>Age</td><td>Hücre yaşlandıkça capacity azalır, resistance artar.</td></tr>
+      <tr><td>Internal resistance</td><td>Akım çekilince hücrenin içinde voltage kaybı olur. Akım büyükse (TX pulse) kayıp da büyür.</td></tr>
+      <tr><td>Cut-off voltage</td><td>Cihazın çalışabildiği en düşük voltage. Altına inince node durur.</td></tr>
+      <tr><td>Self-discharge</td><td>Hiç kullanılmasa da hücre yavaş yavaş boşalır.</td></tr>
+      <tr><td>Recovery effects</td><td>Yük kalkınca hücre biraz toparlanır, voltage yükselir (relaxation).</td></tr>
+    </table></div>
+    <p><strong>Practical consequence:</strong> "A node may stop operating even though chemical energy remains, because voltage falls below what the MCU, radio, sensor or regulator requires."</p>
+    <p>Slaytın alt satırı: <strong>Advertised capacity ≠ guaranteed usable capacity in deployment.</strong></p>
+  </div>
+  <p>W1'deki power subsystem slaytı aynı şeyi söylüyor: "Voltage regulators add losses and minimum operating thresholds" ve "Battery capacity is not fully usable under all loads and temperatures." Karl &amp; Willig bir ayrıntı ekliyor: battery zayıfladıkça voltage düşer. Bunu dengelemek için bir DC–DC converter kullanılırsa converter sabit voltage vermek için battery'den <em>daha fazla</em> akım çeker ve battery'nin ölümünü hızlandırır. Converter yoksa zayıf battery'li node'un transmission range'i küçülür.</p>
+  <!-- Kaynak: W3 slayt 46 · W1 deck xml slayt 35 (sayfada 38) "BATTERY, REGULATOR, HARVESTING" · Karl & Willig 2.1.6 "DC–DC Conversion" ve "Self-discharge" (zinc-air haftalar mertebesinde). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Enerji kaldıysa node çalışır" yanlış. Node, voltage threshold'a göre ölür; chemical energy sıfıra inmeden ölebilir.</li>
+      <li>mAh tek başına enerji değildir (bir önceki ders): enerji $E = V \cdot Q$. 3 V'ta 2400 mAh, $3 \times 2.4 = 7.2$ Wh $= 25{,}920$ J eder; başka bir voltage'ta aynı mAh başka enerji demektir.</li>
+      <li>Datasheet'teki capacity belirli bir akımda ve sıcaklıkta ölçülmüş bir sayıdır. Senin deployment'ın o koşulda olmayabilir.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="linear" data-min="4">
+  <h2>Ideal linear lifetime model</h2>
+  <div class="quiz" id="q-blh-linear">
+    <p class="quiz__q">$C = 1200$ mAh, $I_{avg} = 150\ \mu$A. Linear model'e göre lifetime ne kadar?</p>
+    <button class="quiz__opt">8 saat<span class="why">Bu $1200/150$: akımı µA olarak bırakıp böldün. Önce $150\ \mu\text{A} = 0.15$ mA yap, birimler ancak o zaman saat verir.</span></button>
+    <button class="quiz__opt" data-correct>8000 saat ≈ 333 gün<span class="why">Doğru: $1200 / 0.15 = 8000$ h, $8000 / 24 \approx 333$ gün.</span></button>
+    <button class="quiz__opt">333 saat<span class="why">Saat ile günü karıştırdın: 333, $8000/24$ yani gün sayısı.</span></button>
+    <button class="quiz__opt">8000 gün<span class="why">mAh / mA saat verir, gün değil. Güne çevirmek için 24'e bölmen gerekir.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Bir önceki derste node'un bütün state'lerini tek bir sayıda topladın: $I_{avg}$. Bu sayı hiç değişmeseydi battery sabit hızla boşalırdı ve süre basit bir bölme olurdu. Linear model tam olarak bunu varsayar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 slayt 47</span>
+    $$L_{hours} = \frac{C_{battery}\ (\text{mAh})}{I_{avg}\ (\text{mA})}, \qquad L_{days} = \frac{L_{hours}}{24}$$
+    <p>Birim kontrolü: $\text{mAh} / \text{mA} = \text{h}$. Akım µA ise önce 1000'e böl.</p>
+    <p><strong>Use it for:</strong> rough feasibility checks, comparing protocol settings, explaining sensitivity to current.<br>
+    <strong>Do not use it for:</strong> exact deployment warranty, ignoring load pulses, ignoring environment and aging.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · W3 slayt 47</span>
+    <p>$C = 2400$ mAh, $I_{avg} = 1.0797$ mA (bir önceki dersteki slayt 41 örneğinin toplamı).</p>
+    $$L = \frac{2400}{1.0797} \approx 2223\ \text{h} \approx 92.6\ \text{gün}$$
+    <p><strong>Sensitivity:</strong> Slayt 41'de listen duty cycle'ı %5'ten %1'e inince listen katkısı 0.95 mA iken 0.19 mA oluyordu, yani toplam $1.0797 - 0.76 = 0.3197$ mA. Aynı battery ile $2400 / 0.3197 \approx 7507$ h $\approx 312.8$ gün. Akım 3.38 kat azaldı, lifetime 3.38 kat uzadı. Slayt 42'nin dediği bu: "A modest duty-cycle change can shift lifetime estimates dramatically."</p>
+    <p class="src">Not: Slayt 41'deki katkı sütununu topladığında 1.0787 mA çıkıyor ($0.08 + 0.0198 + 0.017 + 0.95 + 0.0019 + 0.01$), slaytta 1.0797 yazıyor. Fark 0.001 mA ve lifetime'ı 92.6 günden 92.7 güne çıkarıyor. Sınavda slayttaki 1.0797'yi kullanman yeterli.</p>
+  </div>
+  <!-- Kaynak: W3 slayt 47 (formül, örnek, use/do not use), slayt 41 (tablo ve %5 → %1 notu), slayt 42 (Observation 3). Sayılar python ile kontrol edildi: 2400/1.0797 = 2222.84 h = 92.62 gün; 2400/0.3197 = 7507.0 h = 312.79 gün; slayt 41 katkı toplamı 1.0787. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>µA ile mA birimlerini karıştırma: $5\ \mu\text{A} = 0.005$ mA.</li>
+      <li>Payda $I_{avg}$'dır, en yüksek akım değil. TX akımını (17 mA) koyarsan node'un sürekli transmit ettiğini varsaymış olursun.</li>
+      <li>Model doğrusal olduğu için "akım yarıya inerse lifetime iki katına çıkar" model içinde doğrudur. Gerçek battery'de bu oran tutmayabilir (Bölüm 4). Sınavda modeli kullandığını açıkça yaz.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="usable" data-min="5">
+  <h2>Usable capacity ve safety margin</h2>
+  <div class="quiz" id="q-blh-usable">
+    <p class="quiz__q">Nominal capacity yerine usable capacity $C_{usable} = 0.8\,C_{nominal}$ kullanırsan linear model'deki lifetime nasıl değişir?</p>
+    <button class="quiz__opt" data-correct>Tam %20 kısalır<span class="why">Doğru. $L = C/I_{avg}$ ve $L$, $C$ ile doğru orantılı. $C$ %20 azalınca $L$ de %20 azalır.</span></button>
+    <button class="quiz__opt">%80 kısalır<span class="why">η = 0.8, capacity'nin %80'ini <em>tuttuğun</em> anlamına gelir; %80'ini kaybettiğin değil.</span></button>
+    <button class="quiz__opt">%25 kısalır<span class="why">$1/0.8 = 1.25$ oranı tersten okununca bu sayı çıkar. Usable lifetime nominal'in 0.8 katıdır; nominal, usable'ın 1.25 katıdır. Kısalma %20.</span></button>
+    <button class="quiz__opt">Değişmez, çünkü $I_{avg}$ aynı<span class="why">Pay da değişti. Lifetime iki sayıya bağlı: capacity ve akım.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 slayt 48</span>
+    $$C_{usable} = \eta \times C_{nominal}, \qquad 0 &lt; \eta &lt; 1$$
+    <p><strong>η can represent:</strong> cut-off voltage, temperature derating, aging reserve, design safety margin.</p>
+    <p><strong>Engineering habit:</strong> "Always state whether a lifetime value uses nominal capacity or usable capacity."</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · W3 slayt 48</span>
+    <p>2400 mAh'lik battery'nin yalnızca %80'i usable sayılırsa $C_{usable} = 0.8 \times 2400 = 1920$ mAh ve aynı akımla</p>
+    $$L = \frac{1920}{1.0797} \approx 1778\ \text{h} \approx 74\ \text{gün}.$$
+  </div>
+  <h3>Lifetime estimator</h3>
+  <p class="w-battery-lifetime-harvesting-guess"><b>Önce tahmin et:</b> slayt 21'deki sürekli dinleyen radio (2000 mAh, 19 mA) ile slayt 41'in listen %1 hâli (2400 mAh, 0.3197 mA) arasında lifetime kaç kat fark eder? Kafanda bir sayı tut, sonra iki hazır ayarı da dene.</p>
+  <div class="w-battery-lifetime-harvesting-grid">
+    <label>Capacity $C_{nominal}$ (mAh)<input id="wl-c" type="text" inputmode="decimal" value="2400" /></label>
+    <label>Average current $I_{avg}$<input id="wl-i" type="text" inputmode="decimal" value="1.0797" /></label>
+    <label>Akım birimi<select id="wl-u"><option value="mA">mA</option><option value="uA">µA</option></select></label>
+    <label>η (usable oranı, 0–1)<input id="wl-eta" type="text" inputmode="decimal" value="0.8" /></label>
+  </div>
+  <div class="w-battery-lifetime-harvesting-ctl">
+    <button class="btn btn--sm btn--accent" id="wl-go">Hesapla</button>
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wl="s47">Slayt 47</button>
+    <button class="btn btn--sm" data-wl="s48">Slayt 48 (η = 0.8)</button>
+    <button class="btn btn--sm" data-wl="s21">Slayt 21 (sürekli listen)</button>
+    <button class="btn btn--sm" data-wl="s41">Slayt 41, listen %1</button>
+  </div>
+  <div class="w-battery-lifetime-harvesting-err" id="wl-err" aria-live="polite"></div>
+  <div class="w-battery-lifetime-harvesting-out" id="wl-out" aria-live="polite"></div>
+  <div class="box box--exam" data-exam="W3-s47-48-lifetime"><span class="box__label">W3 slayt 47–48 · slayt hesabı</span>
+    <p>Slayttaki iki örnek (olduğu gibi): "C = 2400 mAh, I_avg = 1.0797 mA, L ≈ 2223 h ≈ 92.6 days" ve "If only 80% of a 2400 mAh battery is considered usable: C_usable = 1920 mAh, L ≈ 74 days". Sınav sorusu gibi çöz: iki lifetime'ı birimleriyle hesapla, hangisinin nominal hangisinin usable olduğunu yaz, η'nın neyi temsil edebileceğini söyle.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>mAh / mA saat verir. Saati 24'e bölünce gün çıkar.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>η, capacity'yi çarpar. Akım aynı kaldığı için ikinci lifetime birincinin tam η katı olmalı.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Nominal:</strong> $L = 2400 / 1.0797 = 2222.8$ h $= 92.6$ gün. Bu sayı nominal capacity ile hesaplandı.</p>
+      <p><strong>Usable:</strong> $C_{usable} = 0.8 \times 2400 = 1920$ mAh, $L = 1920 / 1.0797 = 1778.3$ h $= 74.1$ gün. Kontrol: $0.8 \times 92.6 = 74.1$.</p>
+      <p><strong>η neyi temsil eder:</strong> cut-off voltage (battery'nin son kısmı kullanılamaz), temperature derating, aging reserve ve design safety margin. Rapor ya da cevapta "74 gün (usable, η = 0.8)" diye yaz; etiketsiz bir lifetime sayısı eksik cevaptır.</p>
+    </div></details>
+    <!-- Kaynak: W3 slayt 47 ve 48. Ders planındaki exam_items listesinde. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Birden fazla etkeni ayrı η'larla ifade ediyorsan onları <strong>çarp</strong>: cut-off için 0.9 ve aging için 0.9 ise $\eta = 0.81$, $0.8$ değil.</li>
+      <li>η'yı hem capacity'ye hem akıma uygulama. $C\eta / I$ ile $C / (I/\eta)$ aynı sayıdır; ikisini birden yaparsan η'yı iki kez saymış olursun.</li>
+      <li>"74 gün" tek başına anlamsız. Yanına "usable, η = 0.8" yaz.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="nonlinear" data-min="5">
+  <h2>Linear estimate neden yanılır?</h2>
+  <div class="quiz" id="q-blh-nonlinear">
+    <p class="quiz__q">Peukert equation $t = H\,(I_r / I)^n$ ile, Peukert number $n = 1.3$ olan bir battery'den çekilen sabit akımı iki katına çıkarırsan discharge süresi kaç katına iner?</p>
+    <button class="quiz__opt">0.5 katına<span class="why">Bu $n = 1$, yani ideal linear model. $n &gt; 1$ olunca yüksek akımda capacity ayrıca kaybolur ve süre yarıdan da kısa olur.</span></button>
+    <button class="quiz__opt" data-correct>Yaklaşık 0.41 katına<span class="why">Doğru: $t_2 / t_1 = (I_1/I_2)^n = 2^{-1.3} \approx 0.406$.</span></button>
+    <button class="quiz__opt">0.25 katına<span class="why">Bu $2^{-2}$, yani $n = 2$ almışsın. Exponent Peukert number'dır, burada 1.3.</span></button>
+    <button class="quiz__opt">0.65 katına<span class="why">$n$'i bir çarpan gibi kullanmışsın ($0.5 \times 1.3$). $n$ bir exponent: akım oranının kuvveti.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 slayt 49 · Why linear lifetime estimates fail</span>
+    <div class="table-wrap"><table>
+      <tr><th>Cause</th><th>What goes wrong</th></tr>
+      <tr><td>Variable workload</td><td>Network formation, route repair, alarms ve retransmission'lar burst'ler yaratır. $I_{avg}$'ı sakin bir pencereden ölçtüysen bunlar içinde yoktur.</td></tr>
+      <tr><td>Cut-off voltage</td><td>Node, chemical energy sıfıra inince değil, voltage threshold'un altına inince ölür.</td></tr>
+      <tr><td>Internal resistance</td><td>Radio TX pulse'ları geçici voltage drop'lara ve reset'lere yol açabilir.</td></tr>
+      <tr><td>Rate-capacity effect</td><td>Yüksek yük usable capacity'yi azaltabilir.</td></tr>
+      <tr><td>Temperature and aging</td><td>Capacity ve internal resistance deployment boyunca değişir.</td></tr>
+    </table></div>
+    <p>"A quiet 10-minute experiment is rarely a complete model of a multi-year deployment."</p>
+  </div>
+  <p>Kendi W3 lab raporunda da limitations kısmına "15 minutes of steady-state traffic extrapolated to months" yazmıştın. Slayt 49'un söylediği tam olarak bu: kısa ve sakin bir ölçüm, aylar süren bir deployment'ın burst'lerini, sıcaklık değişimini ve yaşlanmayı görmez.</p>
+  <h3>Kitaptan: rated capacity, C-rate ve Peukert</h3>
+  <div class="box box--rule">
+    <span class="box__label">Dargie &amp; Poellabauer 8.1.5.1</span>
+    <p>Battery bir <strong>rated current capacity</strong> $C$ (Ah) ile verilir: battery'nin, istenen supply voltage'ı belirgin biçimde bozmadan boşalabildiği miktar. Çoğu taşınabilir battery <strong>1C</strong>'de rate edilir: 1000 mAh'lik bir battery 1C'de 1 saat boyunca 1000 mA verir. İdeal olarak 0.5C'de 2 saat boyunca 500 mA, 2C'de 30 dakika boyunca 2000 mA verirdi.</p>
+    <p>Gerçekte discharge rate arttıkça rated capacity düşer. Kitap bunu <strong>Peukert equation</strong> ile gösterir:</p>
+    $$t = \frac{C}{I^{\,n}}$$
+    <p>$n$ Peukert number'dır, internal resistance ile ilgilidir ve deneyle bulunur. $n = 1$ ise battery idealdir ve formül linear model'e döner. $n$ büyüdükçe yüksek akımda daha çok capacity kaybolur. Kitabın örneği: lead acid battery'lerde $n$ tipik olarak 1.3–1.4.</p>
+    <p><strong>Birimlere dikkat:</strong> kitap $C$'yi Ah cinsinden capacity diye tanımlıyor, ama $n \ne 1$ iken $C / I^n$'in birimi saat çıkmaz. Bu yazımda $C$, nominal Ah değeri değil, battery için ölçülerek bulunan bir Peukert sabitidir. Nominal değerlerle çalışmak için rated discharge süresini $H$, rated current'ı $I_r = C / H$ al:</p>
+    $$t = H\left(\frac{I_r}{I}\right)^{n}$$
+    <p>$I = I_r$ iken $t = H$ çıkar. $n = 1$ iken $t = H \cdot (C/H) / I = C / I$, yani linear model. İki yazımda da akım oranı aynı kuvvetle girer: akım iki katına çıkınca süre $2^{-n}$ katına iner.</p>
+    <p><strong>Neden olur:</strong> akım, electrolyte'teki active material'ın electrode'lara diffusion hızından hızlı çekilirse electrode'larda active material tükenir, oysa electrolyte'te hâlâ active material vardır. Akım <em>aralıklı</em> çekilirse sessiz dönemlerde diffusion yetişir ve kayıp kısmen geri kazanılır. Karl &amp; Willig buna <strong>relaxation effect</strong> diyor: boş ya da neredeyse boş bir battery'nin, akım çekilmeyince kendini biraz "doldurmuş" gibi görünmesi.</p>
+  </div>
+  <!-- Kaynak: W3 slayt 49 · Dargie & Poellabauer 8.1.5.1 "Battery" (Peukert eq. 8.1, Fig. 8.3, lead acid n 1.3–1.4; kitaptaki t = C/I^n yazımı n ≠ 1 için birim tutmuyor, bu yüzden rated form t = H (I_r/I)^n da verildi) · Karl & Willig 2.1.6 "Relaxation", "Capacity under load" ve dipnot 6 · Efe'nin results.html "Limitations". 2^-1.3 = 0.406 python ile kontrol edildi. -->
+  <div class="box box--exam" data-exam="DP-ch8-ex8.12-14"><span class="box__label">Dargie &amp; Poellabauer Ch. 8 · alıştırma 8.12–8.14</span>
+    <p>"8.12 What is a rated current capacity? 8.13 Why do real batteries operate at a rate below the rated current capacity? 8.14 What is the side-effect of drawing current at a rate greater than the discharge rate?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>8.12 bir tanım: birim (Ah) ve "supply voltage'ı bozmadan" fikri. Bir 1C örneği ver.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>8.13 ve 8.14 aynı mekanizmaya bakıyor: active material'ın electrode'lara taşınma hızı. Peukert number'ı ve aralıklı kullanımı an.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>8.12:</strong> Rated current capacity $C$, ampere-hour (Ah ya da mAh) cinsinden, battery'nin prescribed supply voltage'ı belirgin biçimde düşürmeden verebildiği yüktür. Örnek: 1C'de rate edilmiş 1000 mAh'lik bir battery 1000 mA akımı 1 saat boyunca verir.</p>
+      <p><strong>8.13:</strong> Discharge rate arttıkça usable capacity azalır (rate-capacity effect). Bunun sebebi internal resistance ve electrolyte içindeki diffusion'ın sınırlı hızıdır. Peukert equation $t = H\,(I_r/I)^n$ bunu ölçer; $n &gt; 1$ olduğu için akım artınca süre orantılı olandan daha hızlı kısalır.</p>
+      <p><strong>8.14:</strong> Akım, active material'ın diffusion hızından hızlı çekilirse electrode'lardaki active material tükenir, electrolyte'te hâlâ active material olsa bile battery boşalmış gibi davranır ve erken "ölür". Çözüm akımı aralıklı çekmektir: sessiz dönemlerde diffusion yetişir ve battery kısmen toparlanır (recovery / relaxation).</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/dargie-poellabauer-fundamentals-of-wireless-sensor-networks.pdf">Kitabın kendisi (D&amp;P, Ch. 8 alıştırmaları)</a></p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Recovery effect enerji <em>üretmez</em>. Hücrede zaten olan enerjinin bir kısmını tekrar erişilebilir yapar.</li>
+      <li>Düşük $I_{avg}$ "battery'yi hiç zorlamıyorum" demek değildir. $I_{avg} = 0.3$ mA olan bir node da TX anında 17 mA çeker; internal resistance ve rate-capacity effect bu pulse'larda çalışır.</li>
+      <li>Peukert number her chemistry için farklıdır ve deneyle bulunur. Soruda verilmediyse bir sayı uydurma; etkiyi sözle açıkla.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-blh-nonlinear-2">
+    <p class="quiz__q">Bir node aylar sonra, radio transmit etmeye başladığı anda reset atmaya başlıyor. Oscilloscope ile bakınca TX başlarken terminal voltage'ın kısa bir süre minimum çalışma voltage'ının altına indiği görülüyor. Slayt 49'daki hangi neden bunu en iyi açıklar?</p>
+    <button class="quiz__opt" data-correct>Internal resistance<span class="why">Doğru. Akım çekilirken internal resistance üzerinde $I \cdot R$ kadar voltage düşer. $R$ yaşla arttığı için TX pulse'unun başında bu drop terminal voltage'ı minimum çalışma voltage'ının altına itiyor.</span></button>
+    <button class="quiz__opt">Variable workload<span class="why">Workload burst'leri $I_{avg}$'ı büyütür ve battery'yi erken bitirir. Ölçülen olay ise TX anındaki ani bir voltage düşüşü.</span></button>
+    <button class="quiz__opt">Self-discharge<span class="why">Self-discharge her durumda yavaşça çalışır, belirli bir state'e bağlı değildir.</span></button>
+    <button class="quiz__opt">Hiçbiri, sorun yazılımda<span class="why">Ölçülen voltage düşüşü reset'i zaten açıklıyor: voltage minimum çalışma değerinin altına inen bir MCU, yazılım ne olursa olsun reset'e girer. Önce bu elektriksel nedeni gidermek gerekir.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="levels" data-min="3">
+  <h2>Battery modeling seviyeleri</h2>
+  <div class="quiz" id="q-blh-levels">
+    <p class="quiz__q">Bir node'un battery'sinin hangi gün cut-off voltage'a ineceğini tahmin etmek istiyorsun (failure prediction). Slayt 50'de terminal voltage ve cut-off'u açıkça modelleyen, bu soru için yeterli olan <strong>en basit</strong> model seviyesi hangisi?</p>
+    <button class="quiz__opt">Constant capacity<span class="why">mAh / average current yalnızca bir süre verir. Voltage'ı hiç modellemediği için cut-off'u göremez.</span></button>
+    <button class="quiz__opt" data-correct>Voltage-based<span class="why">Doğru. Terminal voltage ve cutoff'u modeller; slayttaki kullanım alanı da "failure prediction".</span></button>
+    <button class="quiz__opt">State of Charge<span class="why">SoC kalan oranı zamanla izler (simulation ve control için). Voltage eğrisini ve cutoff'u açıkça içermez.</span></button>
+    <button class="quiz__opt">Electrochemical/diffusion<span class="why">Bunu da yapabilir ama research-grade bir modeldir. Soruyu cevaplayan en basit seviye voltage-based.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 slayt 50 · Choose model detail according to the question</span>
+    <div class="table-wrap"><table>
+      <tr><th>Model level</th><th>Captures</th><th>When useful</th></tr>
+      <tr><td>Constant capacity</td><td>mAh / average current</td><td>Initial comparison</td></tr>
+      <tr><td>State of Charge</td><td>remaining fraction over time</td><td>Simulation and control</td></tr>
+      <tr><td>Voltage-based</td><td>terminal voltage and cutoff</td><td>Failure prediction</td></tr>
+      <tr><td>Equivalent circuit</td><td>resistance, transients, recovery</td><td>Detailed experiments</td></tr>
+      <tr><td>Electrochemical/diffusion</td><td>cell chemistry dynamics</td><td>Research-grade modeling</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · soruya göre seviye seç</span>
+    <ul>
+      <li>"ContikiMAC mi NullRDC mi daha uzun yaşatır?" → constant capacity yeter. W3 lab'da yaptığın tam olarak buydu.</li>
+      <li>"Harvesting'li node her saat ne kadar enerjiyle kalıyor?" → State of Charge. Bölüm 10'daki storage recursion bir SoC modelidir.</li>
+      <li>"Soğuk bir gecede TX pulse'u node'u reset eder mi?" → equivalent circuit, çünkü resistance ve transient gerekiyor.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W3 slayt 50. Örneklerin eşlemesi slayttaki "Captures / When useful" sütunlarından. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Daha ayrıntılı model her zaman daha iyi değildir. İlk karşılaştırma için electrochemical model zaman kaybıdır; parametrelerini de bilmezsin.</li>
+      <li>Constant capacity modeli "node cut-off yüzünden erken ölür mü?" sorusunu cevaplayamaz. O modelde voltage yoktur.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="procedure" data-min="5">
+  <h2>Lifetime estimation procedure: 7 adım</h2>
+  <div class="quiz" id="q-blh-proc">
+    <p class="quiz__q">Aşağıdaki örnek cycle'da radio listen süresi cycle'ın %1'i ve $I_{avg}$'ın yaklaşık %76'sını oluşturuyor. Lifetime'ı en çok hangisi uzatır?</p>
+    <button class="quiz__opt" data-correct>Listen süresini kısaltmak (örneğin daha seyrek channel check)<span class="why">Doğru. En büyük katkı nerede ise optimizasyon orada yapılır. Slayt 42: "reduce expensive time, not just expensive states."</span></button>
+    <button class="quiz__opt">TX süresini yarıya indirmek<span class="why">TX'in katkısı yaklaşık 0.00145 mA, toplamın %0.59'u, çünkü süresi çok kısa. Yarıya inmesi lifetime'ı neredeyse değiştirmez.</span></button>
+    <button class="quiz__opt">Sensor'ü daha düşük akımlı bir modelle değiştirmek<span class="why">Sensor bu cycle'da 0.002 mA katkı yapıyor. Doğru yöne bir adım, ama etkisi listen'ın yanında çok küçük.</span></button>
+    <button class="quiz__opt">Battery'yi daha yüksek voltage'lı bir modelle değiştirmek<span class="why">Linear model mAh değerini mA değerine böler; voltage lifetime formülünde yer almaz. Akım aynı kaldıkça süre de aynı kalır.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 slayt 51</span>
+    <p>"A reliable estimate starts from an application cycle, not a random current number."</p>
+    <ol>
+      <li>Define application cycle</li>
+      <li>Measure state durations</li>
+      <li>Obtain current values</li>
+      <li>Calculate average current</li>
+      <li>Select battery model</li>
+      <li>Include safety margin</li>
+      <li>Validate experimentally</li>
+    </ol>
+    <p>Slayttaki örnek cycle: <strong>wake every 60 s → start sensor → sample → process → transmit → wait for ACK → sleep.</strong></p>
+  </div>
+  <p>Aşağıdaki animasyon bu cycle'ı yedi adımda bir tahmine çeviriyor. Akım değerleri W3 lab deck'inin current model'i (CPU 1.8 mA, LPM 0.0545 mA, TX 17.4 mA, listen 18.8 mA). Sensor akımı (0.5 mA) ve süreler bu örnek için seçildi; hiçbiri slayttan değil. Bütün sayılar tablodan hesaplanıyor.</p>
+  <div id="w-proc-stepper"></div>
+  <!-- Kaynak: W3 slayt 51 (adımlar ve cycle), lab deck xml slayt 27 (current model). Süreler ve sensor akımı örnek için seçildi. Python: I_avg = 0.24736 mA, listen payı %76.0, 2400 mAh → 9702 h = 404.3 gün, 1920 mAh → 7762 h = 323.4 gün. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>ACK beklerken radio listen'dadır. "Transmit ettim, bitti" deyip ACK bekleme süresini unutursan listen katkısını eksik sayarsın.</li>
+      <li>Bileşenlerin yüzdelerini toplama (bir önceki ders): CPU active + LPM bir bileşenin %100'üdür, radio ayrı bir bileşendir. Her satırın katkısı $D_i \times I_i$ olarak ayrı hesaplanır, sonra katkılar toplanır.</li>
+      <li>Adım 7'yi atlama. Slayt 44'ün validation ladder'ı: Cooja run → assign currents → physical measurement → calibrate model → deploy realism.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="W3-lab-s28-lifetime"><span class="box__label">W3 lab · lifetime adımı · notlu lab görevi</span>
+    <p>Lab deck, "From current to lifetime" slaytı (olduğu gibi): "Lifetime hours = battery capacity (mAh) / average current (mA). Lifetime days = lifetime hours / 24. … This is a first-order estimate. Real lifetime also depends on battery chemistry, voltage cutoff, temperature, self-discharge and aging. Do not promise exact deployment lifetime from simulation. Use it to compare configurations." Report checklist'inde de "Calculation formulas used for duty cycle, average current and lifetime" isteniyor.</p>
+    <p>Senin ölçtüğün server değerleri: Scenario A (NullRDC, 15 s) $I_{avg} = 18.878$ mA, Scenario B (ContikiMAC, 15 s) $I_{avg} = 0.344$ mA. 2400 mAh nominal ve η = 0.8 usable için iki lifetime'ı hesapla. Sonra lab deck'in "use it to compare configurations" cümlesinin neden mutlak sayıdan daha önemli olduğunu açıkla.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Dört bölme yapacaksın: iki capacity × iki akım. Her sonucu hem saat hem gün olarak yaz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İki senaryonun lifetime oranı capacity'ye bağlı mı? $L_A / L_B$'yi yaz ve $C$'nin sadeleştiğine bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Scenario</th><th>$I_{avg}$</th><th>Nominal (2400 mAh)</th><th>Usable (1920 mAh)</th></tr>
+        <tr><td>A · NullRDC</td><td>18.878 mA</td><td>127.1 h = 5.3 gün</td><td>101.7 h = 4.2 gün</td></tr>
+        <tr><td>B · ContikiMAC</td><td>0.344 mA</td><td>6976.7 h = 290.7 gün</td><td>5581.4 h = 232.6 gün</td></tr>
+      </table></div>
+      <p><strong>Karşılaştırma:</strong> $L_B / L_A = 18.878 / 0.344 \approx 54.9$. Bu oran capacity'den bağımsızdır, çünkü $C$ pay ile paydada sadeleşir. Battery'yi, η'yı, hatta voltage'ı yanlış bilsen bile "duty cycling lifetime'ı yaklaşık 55 kat uzatıyor" sonucu değişmez. Mutlak sayılar (5 gün, 290 gün) ise simulation'ın current model'ine, sakin 15 dakikalık pencereye ve battery davranışını görmeyen linear model'e bağlıdır. Bu yüzden lab deck mutlak lifetime'ı bir söz olarak değil, bir karşılaştırma aracı olarak kullanmanı istiyor.</p>
+      <p><strong>Raporda yazılacak limitation'lar:</strong> chemistry, voltage cutoff, temperature, self-discharge ve aging modelde yok; kısa simulation penceresi aylara uzatıldı.</p>
+    </div></details>
+    <p class="src">Not: Kendi results.html'inde lifetime için farklı bir battery capacity kullandın. Bu yanlış değil; önemli olan raporda hangi capacity'yi ve nominal mi usable mı olduğunu yazman. Yukarıdaki tablo slayt 47'nin 2400 mAh'ini kullanıyor.</p>
+    <!-- Kaynak: lab deck xml slayt 28 (sayfada 29) "FROM CURRENT TO LIFETIME", xml slayt 39 (sayfada 40) report checklist · Efe'nin results.html tablosu (A server 18.878 mA, B server 0.344 mA). Sonuçlar python ile kontrol edildi. -->
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="network" data-min="6">
+  <h2>Node lifetime ve network lifetime</h2>
+  <div class="quiz" id="q-blh-net">
+    <p class="quiz__q">7 node'lu bir collection tree'de sink'e bağlı relay ölüyor. Geri kalan 6 node yaşıyor, ama bunlardan yalnızca 2'si sink'e ulaşabiliyor. Hangi network-lifetime tanımına göre network <em>hâlâ yaşıyor</em>?</p>
+    <button class="quiz__opt">First node failure<span class="why">İlk node zaten öldü; bu tanıma göre network'ün ömrü tam bu anda bitti.</span></button>
+    <button class="quiz__opt" data-correct>x% of nodes failed, x = 50<span class="why">Doğru. 7 node'dan sadece 1'i öldü (%14). Bu tanım yalnızca ölü node'ları sayar, cut off olanları saymaz.</span></button>
+    <button class="quiz__opt">Sink'e veri ulaştırabilen node oranı %50'nin altına inince<span class="why">Sadece 2/7 node'un (%29) verisi sink'e ulaşıyor; bu tanıma göre network öldü. Sensing coverage ise bundan çıkarılamaz: cut off olan 4 node hâlâ ölçüm yapıyor, yalnızca verileri sink'e gitmiyor.</span></button>
+    <button class="quiz__opt">Packet delivery unacceptable<span class="why">Yaşayan 6 node'un 4'ünün packet'ı artık sink'e gitmiyor. Delivery ratio büyük ölçüde düştü.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · W3 slayt 52</span>
+    <p>"The first node to die is not always the moment the network becomes useless." Bir leaf node'un ölmesi bir ölçüm noktasını kaybettirir. Sink'in yanındaki bir relay'in ölmesi ise arkasındaki bütün node'ları sink'ten koparır: onlar hâlâ çalışıyor ama verileri hiçbir yere gitmiyor. Hangi anın "network öldü" sayılacağı uygulamanın sorusudur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 slayt 52 · Possible network-lifetime definitions</span>
+    <ul>
+      <li><strong>First node failure</strong>: ilk node'un ölümü. Karl &amp; Willig: <em>time to first node death</em>.</li>
+      <li><strong>x% of nodes failed</strong>: node'ların belirli bir yüzdesi ölünce. $x = 50$ için kitaptaki adı <em>network half-life</em>.</li>
+      <li><strong>Sink unreachable</strong>: sink'e yol kalmaması. Kitapta yakın tanım <em>time to partition</em>: network ilk kez iki (ya da daha çok) kopuk parçaya ayrıldığında. Kitap bunun, pivotal bir node ölürse ilk ölümle aynı anda olabileceğini söylüyor.</li>
+      <li><strong>Coverage below threshold</strong>: alanın yeterince gözlenmemesi. Kitap: <em>time to loss of coverage</em>, yani bölgede herhangi bir noktanın artık hiçbir node tarafından (ya da $k$ redundant gözlem gerekiyorsa en az $k$ node tarafından) gözlenmediği ilk an.</li>
+      <li><strong>Packet delivery unacceptable</strong>: delivery ratio'nun kabul edilemez düzeye inmesi.</li>
+      <li><strong>Application mission failure</strong>: uygulamanın amacının gerçekleşmemesi. Kitapta buna yakın: <em>time to failure of first event notification</em>.</li>
+    </ul>
+    <p><strong>Why routing matters:</strong> "Nodes near the sink may forward traffic for many children, so their energy drains faster than leaf nodes."<br>
+    <strong>Design implication:</strong> "Balanced energy consumption can be more important than maximizing one individual node’s lifetime."</p>
+  </div>
+  <p>Sink'e yakın node'ların neden erken öldüğünü bir formülle görmek için basit bir model kullanalım. Node $i$'nin subtree'sinde, ona yaşayan bir yol üzerinden bağlı $f_i$ tane descendant olsun. Her node kendi packet'ını ve bütün descendant'larının packet'larını yukarı gönderir; descendant'ların packet'larını önce alır:</p>
+  $$I_i = I_b + I_{tx}\cdot \text{ETX}_i \cdot (1 + f_i) + I_{rx}\cdot f_i$$
+  <p>$I_b$ her node'da aynı olan taban akım (CPU, LPM, duty-cycled listen), $I_{tx}$ ve $I_{rx}$ bir packet akışını göndermenin ve almanın average current'a eklediği pay, $\text{ETX}_i$ node'un parent'ına olan link'inde packet başına beklenen gönderim sayısıdır (ETX ayrıntısı collection-rpl dersinde). Bu formül bu ders için kurulmuş bir modeldir, slaytta yoktur; slayttaki fikri sayıya döker.</p>
+  <h3>Network-lifetime tree</h3>
+  <p class="w-battery-lifetime-harvesting-guess"><b>Önce tahmin et:</b> varsayılan ayarlarda ilk hangi node ölür? Node 5'i parent 2'ye taşıyınca (biraz daha kötü bir link, ETX daha yüksek) ilk ölüm erkene mi, geç mi kayar? Peki "artık hiçbir node sink'e ulaşamıyor" anı?</p>
+  <div class="w-battery-lifetime-harvesting-grid">
+    <label>$I_b$ (mA)<input id="wn-ib" type="text" inputmode="decimal" value="0.20" /></label>
+    <label>$I_{tx}$ / akış (mA)<input id="wn-itx" type="text" inputmode="decimal" value="0.03" /></label>
+    <label>$I_{rx}$ / akış (mA)<input id="wn-irx" type="text" inputmode="decimal" value="0.02" /></label>
+    <label>Capacity (mAh)<input id="wn-c" type="text" inputmode="decimal" value="2400" /></label>
+    <label>Alternatif link ETX (5 → 2)<input id="wn-etx" type="text" inputmode="decimal" value="1.5" /></label>
+  </div>
+  <div class="w-battery-lifetime-harvesting-ctl">
+    <label style="display:flex;gap:6px;align-items:center"><input id="wn-alt" type="checkbox" /> Node 5'i parent 2'ye taşı (energy balancing)</label>
+    <button class="btn btn--sm btn--accent" id="wn-go">Simüle et</button>
+  </div>
+  <div class="w-battery-lifetime-harvesting-err" id="wn-err" aria-live="polite"></div>
+  <div class="w-battery-lifetime-harvesting-legend">
+    <span><i style="background:var(--blue-600)"></i>yaşıyor, sink'e ulaşıyor</span>
+    <span><i style="background:#e8590c"></i>yaşıyor ama cut off</span>
+    <span><i style="background:var(--stone-300)"></i>öldü</span>
+  </div>
+  <div id="wn-stepper"></div>
+  <div class="w-battery-lifetime-harvesting-out" id="wn-sum"></div>
+  <!-- Kaynak: W3 slayt 52 (tanımlar, why routing matters, design implication) · Karl & Willig 3.2.2 "Network lifetime" (time to first node death, network half-life, time to partition, time to loss of coverage, time to failure of first event notification). Widget modeli ve sayıları bu ders için; python ile kontrol: varsayılan ağaçta ilk ölüm node 1, 232.6 gün; taşıma sonrası ilk ölüm 263.2 gün, herkes cut off 357.1 → 303.0 gün, teslim edilen node·gün 1877.1 → 1961.7. -->
+  <div class="box box--exam" data-exam="W3-s52-network-lifetime"><span class="box__label">W3 slayt 52 · slayt sorusu</span>
+    <p>Slayttaki iddia (olduğu gibi): "The first node to die is not always the moment the network becomes useless." Bunu açıkla, en az üç network-lifetime tanımı ver ve sink'e yakın node'ların neden önce öldüğünü söyle.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Ölen ilk node bir leaf mi, yoksa sink'in yanındaki bir relay mi? İki durumda network'ün geri kalanına ne olur?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Relay'in akımını leaf'inkiyle karşılaştır: relay kimin packet'larını alıp gönderiyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Network'ün işi bir alanı gözlemek ve veriyi sink'e ulaştırmaktır. Redundant bir deployment'ta bir leaf node ölünce komşuları aynı alanı gözlemeye devam eder ve network işini yapmayı sürdürür; yani ilk ölüm network'ün işe yaramaz olduğu an değildir. Tersine, pivotal bir relay ölürse arkasındaki node'lar yaşadığı hâlde sink'e ulaşamaz ve network ilk ölümle birlikte işlevini kaybedebilir.</p>
+      <p><strong>Tanımlar:</strong> first node failure; x% of nodes failed (x = 50 için network half-life); sink unreachable / time to partition; coverage below threshold; packet delivery unacceptable; application mission failure.</p>
+      <p><strong>Sink'e yakın node'lar:</strong> collection tree'de bir relay hem kendi packet'larını hem de bütün descendant'larının packet'larını alır ve gönderir. RX ve TX süresi descendant sayısıyla büyür, bu yüzden average current'ı ve boşalma hızı leaf'lerden yüksektir (funnel etkisi). Sonuç: "Balanced energy consumption can be more important than maximizing one individual node’s lifetime."</p>
+    </div></details>
+    <!-- Kaynak: W3 slayt 52 · Karl & Willig 3.2.2. Ders planındaki exam_items listesinde. -->
+  </div>
+  <div class="box box--exam" data-exam="W3-lab-ext1-forwarding"><span class="box__label">W3 lab · Optional extension 1 · Forwarding node · notlu lab görevi</span>
+    <p>"Goal: Add one intermediate mote between client and server to examine forwarding cost. Expected result: Forwarding nodes consume more energy because they receive and transmit other nodes’ packets. … Compare leaf node and forwarding node Powertrace output. Discuss why central relays can die early. Connect the result to network lifetime, not only node lifetime."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Powertrace'te hangi iki counter forwarding node'da leaf'e göre artmalı? Hangisi neredeyse aynı kalmalı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Forwarding node ölürse client'ın packet'larına ne olur? Bunu slayt 52'deki bir tanıma bağla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Beklenen ölçüm:</strong> forwarding node'da hem listen (RX) hem transmit tick'leri leaf client'tan yüksek olur, çünkü client'ın her packet'ını önce alır sonra yeniden gönderir. Duty-cycled bir MAC'te (ContikiMAC) gönderici, alıcı uyanana kadar frame'i tekrarladığı için forwarding node'un TX payı daha da büyür. CPU payı biraz artar (packet işleme), LPM azalır. $I_{avg} = \sum D_i I_i$ ile hesaplanan akım ve dolayısıyla lifetime leaf'ten kötü çıkar.</p>
+      <p><strong>Network lifetime bağlantısı:</strong> İki hop'lu bu topolojide forwarding node, client ile server arasındaki tek yoldur. O ölünce client yaşadığı hâlde verisi sink'e (server'a) ulaşmaz: "sink unreachable" ve "packet delivery unacceptable" tanımlarına göre network ölmüştür, oysa client'ın battery'si hâlâ doludur. Merkezdeki relay'ler en çok trafiği taşıdığı için önce ölür ve network'ün ömrünü onlar belirler.</p>
+      <p>Videoda "numbers alone are not enough" ilkesine uy: farkı sayıyla göster, sonra yukarıdaki mekanizmayla açıkla.</p>
+    </div></details>
+    <!-- Kaynak: lab deck xml slayt 36 (sayfada 37) "OPTIONAL EXTENSION 1". -->
+  </div>
+  <div class="box box--exam" data-exam="W3-lab-s29-multihop"><span class="box__label">W3 lab · Interpretation prompts · notlu lab görevi</span>
+    <p>Lab deck'in yorum sorularından biri (olduğu gibi): "What would change if the topology became multi-hop?" (sorunun bu derse ait kısmı; diğer yorum soruları energy-accounting dersinde)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İki node'lu lab'da her mote yalnızca kendi trafiğini taşıyor. Multi-hop'ta kim başkasının trafiğini taşır?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Energy, delivery ve lifetime tanımı için ayrı ayrı bir cümle kur.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Energy:</strong> Ara node'lar başkalarının packet'larını alıp yeniden gönderir; listen ve TX payları, dolayısıyla $I_{avg}$, node'un rolüne göre farklılaşır. Sink'e yakın node'lar en çok yüklenir.</p>
+      <p><strong>Delivery:</strong> Her hop bir kayıp şansı ekler; uçtan uca PDR hop'ların başarı oranlarının çarpımına yaklaşır ve retransmission'lar enerjiyi artırır. PDR'ı yine energy'nin yanında raporlamak gerekir.</p>
+      <p><strong>Lifetime:</strong> Artık tek bir "node lifetime" yetmez. Ağır yüklü bir relay ölünce arkasındaki node'lar cut off olur; network lifetime'ı slayt 52'deki bir tanımla (first node failure, sink unreachable…) belirtmen gerekir. Lab deck'in son cümlesi de bunu söylüyor: "once energy differs by role, routing and parent selection become energy problems too."</p>
+    </div></details>
+    <!-- Kaynak: lab deck xml slayt 29 (sayfada 30) "Interpretation prompts", xml slayt 42 (sayfada 44) son satır. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Network lifetime = en kısa node lifetime" yalnızca first node failure tanımında doğrudur. Hangi tanımı kullandığını yaz.</li>
+      <li>Yaşayan ama cut off olmuş bir node işe yaramaz: enerji harcar, verisi gitmez. "Yaşayan node sayısı" ile "sink'e ulaşan node sayısı" farklıdır.</li>
+      <li>Sink'e yakın node'un erken ölmesinin sebebi daha uzağa göndermesi değil, daha <em>çok</em> trafik taşımasıdır.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="balance" data-min="5">
+  <h2>Routing'de energy balancing</h2>
+  <div class="quiz" id="q-blh-balance">
+    <p class="quiz__q">Yukarıdaki widget'ta node 5'i parent 2'ye taşıdın: ilk ölüm 232.6 günden 263.2 güne çıktı, ama "hiçbir node sink'e ulaşamıyor" anı 357.1 günden 303.0 güne indi. Hangisi doğru?</p>
+    <button class="quiz__opt" data-correct>Hangi değişikliğin daha iyi olduğu network-lifetime tanımına bağlı<span class="why">Doğru. Balancing en yüklü relay'i korudu ve ilk ölüm geç geldi; ama iki relay'in yükü birbirine yaklaştığı için ikisi de daha erken tükendi. Toplam teslim edilen veri (node·gün) ise arttı.</span></button>
+    <button class="quiz__opt">Balancing her tanıma göre lifetime'ı uzatır<span class="why">Widget'ın kendi sonucu bunu çürütüyor: son bağlantının kopma zamanı erkene kaydı.</span></button>
+    <button class="quiz__opt">Balancing işe yaramadı, çünkü bir tanımda sonuç kötüleşti<span class="why">Uygulama ilk ölümü ya da sink'e veri ulaştırabilen node oranını önemsiyorsa balancing açıkça daha iyi. Tek bir tanıma bakıp karar verme.</span></button>
+    <button class="quiz__opt">Fark sadece ETX'ten geliyor, yük dağılımının etkisi yok<span class="why">ETX = 1.5 node 5'in kendi akımını biraz artırıyor. Asıl değişiklik node 1'in descendant sayısının 4'ten 3'e inmesi.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 slayt 53 · The shortest or lowest-ETX path is not always the best long-term choice</span>
+    <p><strong>Repeatedly choosing one excellent parent may:</strong> drain that parent quickly, create a bottleneck, disconnect a region, reduce network lifetime.</p>
+    <p><strong>Energy-aware routing may consider:</strong> remaining battery, harvested energy, forwarding load, link quality, expected retransmissions, coverage importance.</p>
+    <p>"Sometimes a slightly more expensive route is better because it protects a critical relay."</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Kitaptan · battery-aware path metric'leri (Karl &amp; Willig)</span>
+    <p>İki path düşün. P1'in iki relay'i var, kalan battery oranları 0.9 ve 0.2. P2'nin üç relay'i var: 0.5, 0.5 ve 0.6. Hop sayısına ya da en düşük enerjiye bakan bir metric P1'i seçer.</p>
+    <ul>
+      <li><strong>Minimum Battery Cost Routing (MBCR):</strong> path cost = relay'lerin $1/b$ toplamı. P1: $1/0.9 + 1/0.2 = 6.11$, P2: $2 + 2 + 1.67 = 5.67$ ⇒ P2.</li>
+      <li><strong>Min–Max Battery Cost Routing (MMBCR):</strong> path cost = en büyük $1/b$. P1: 5, P2: 2 ⇒ P2. Yani en zayıf relay'i en güçlü olan path.</li>
+    </ul>
+    <p>İkisi de 0.2'lik relay'i korur ve bir hop daha uzun path'i seçer. Slayt 53'ün "slightly more expensive route" cümlesinin sayısal hâli bu.</p>
+  </div>
+  <!-- Kaynak: W3 slayt 53 · Karl & Willig 11.x "Routing considering available battery energy" (MBCR, MMBCR tanımları). P1/P2 sayıları bu ders için, python ile kontrol edildi. -->
+  <div class="box box--exam" data-exam="W3-s53-balancing"><span class="box__label">W3 slayt 53 · slayt sorusu</span>
+    <p>Slayttaki iddia (olduğu gibi): "Sometimes a slightly more expensive route is better because it protects a critical relay." Bir collection tree örneğiyle açıkla. Energy-aware routing'in bakabileceği en az dört bilgiyi say.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Lowest-ETX parent'ı herkes seçerse o parent'ın yükü ne olur? Slayttaki dört sonucu hatırla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Daha pahalı route" kimin için pahalı? Taşınan node mu, network mü?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Bir bölgedeki bütün node'lar en iyi link'e sahip tek bir parent'ı seçerse o parent bütün bölgenin trafiğini taşır, hızla tükenir, bir bottleneck olur ve ölünce bölgeyi sink'ten koparır; network lifetime kısalır. Bir child'ı biraz daha kötü (ETX'i yüksek) bir alternatif parent'a taşımak o child için packet başına biraz daha fazla enerji demektir: "slightly more expensive". Ama kritik relay'in yükü azalır ve ilk ölüm (ve bir bölgenin sink'ten kopması) gecikir. Widget'taki örnekte ilk ölüm 232.6 günden 263.2 güne kaydı ve toplam teslim edilen veri arttı.</p>
+      <p><strong>Energy-aware routing'in bakabileceği bilgiler:</strong> remaining battery, harvested energy, forwarding load, link quality, expected retransmissions, coverage importance.</p>
+      <p>Bedeli de söyle: dengeli yük iki relay'i birbirine yakın zamanlarda tükettiği için "son bağlantının kopması" daha erken olabilir. Hangi tanımı optimize ettiğini belirtmek gerekir.</p>
+    </div></details>
+    <!-- Kaynak: W3 slayt 53. Ders planındaki exam_items listesinde. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Balancing toplam enerjiyi artırmaz, hatta biraz artırabilir (daha kötü link). Kazandırdığı şey enerjinin <em>dağılımı</em>dır.</li>
+      <li>"Lowest ETX her zaman en iyisi" kısa vadede doğru, uzun vadede yanlış olabilir. Slayt 53'ün başlığı bu.</li>
+      <li>MBCR toplama bakar, MMBCR en kötü relay'e bakar. Bir path'te tek bir çok zayıf relay varsa MMBCR onu daha kesin dışlar.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-blh-mmbcr">
+    <p class="quiz__q">Path Q1'in relay battery oranları 0.3 ve 0.9; Q2'ninki 0.4, 0.4 ve 0.4. MMBCR hangisini seçer?</p>
+    <button class="quiz__opt" data-correct>Q2<span class="why">Doğru. MMBCR cost'u en büyük $1/b$: Q1 için $1/0.3 = 3.33$, Q2 için $1/0.4 = 2.5$. Küçük cost Q2'de.</span></button>
+    <button class="quiz__opt">Q1, çünkü daha az hop var<span class="why">Hop sayısı MMBCR'ın baktığı şey değil. MMBCR yalnızca path'teki en zayıf relay'e bakar.</span></button>
+    <button class="quiz__opt">Q1, çünkü $1/b$ toplamı daha küçük<span class="why">Toplam MBCR'ın kuralı. Burada Q1: $3.33 + 1.11 = 4.44$, Q2: $7.5$, yani MBCR Q1'i seçerdi. Soru MMBCR'ı soruyor.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="harvest" data-min="5">
+  <h2>Energy harvesting: kaynaklar ve mimari</h2>
+  <div class="quiz" id="q-blh-harvest">
+    <p class="quiz__q">Harvester 20 mW üretiyor. Power management %80, storage'a şarj %90 verimli. Storage'a ne kadar güç girer?</p>
+    <button class="quiz__opt" data-correct>14.4 mW<span class="why">Doğru: verimler art arda çarpılır, $20 \times 0.8 \times 0.9 = 14.4$ mW. Toplam $\eta_h = 0.72$.</span></button>
+    <button class="quiz__opt">14 mW<span class="why">Kayıp yüzdelerini toplamışsın ($20 \times (1 - 0.2 - 0.1)$). İkinci aşama, birincinin <em>çıkışının</em> %10'unu kaybeder, 20 mW'nin değil.</span></button>
+    <button class="quiz__opt">20 mW<span class="why">Slayt 56: "Harvested power is not equal to usable load power." Her aşamanın kaybı var.</span></button>
+    <button class="quiz__opt">16 mW<span class="why">Yalnızca ilk aşamayı uyguladın. Şarj aşamasının kaybı da var.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 slayt 55 · Energy harvesting: definition and sources</span>
+    <p>"Harvested energy can power the node directly, recharge storage, or both."</p>
+    <p>Kaynaklar (hepsi environment → electrical energy): <strong>solar / indoor light</strong>, <strong>vibration / motion</strong>, <strong>thermal gradients</strong>, <strong>air / water flow</strong>, <strong>RF energy</strong>, <strong>human motion</strong>.</p>
+    <p>"Harvesting changes the problem from 'spend a fixed initial battery' to 'manage uncertain energy income over time.'" W1'deki cümle de aynı: "Energy harvesting changes the problem from finite energy to variable energy income."</p>
+  </div>
+  <p>Kaynakların ne kadar güç verdiğine dair Karl &amp; Willig'in kaba değerleri (kitap da bunların "a grain of salt" ile alınmasını söylüyor):</p>
+  <div class="table-wrap"><table>
+    <tr><th>Kaynak</th><th>Kitaptaki değer</th></tr>
+    <tr><td>Solar, dışarıda</td><td>15 mW/cm² (doğrudan güneş), 0.15 mW/cm² (bulutlu gün)</td></tr>
+    <tr><td>Solar, içeride</td><td>0.006 mW/cm² (standart ofis masası), 0.57 mW/cm² (60 W'tan küçük masa lambası)</td></tr>
+    <tr><td>Vibration</td><td>0.01–0.1 mW/cm³ (tablo); 1 cm³'lük pratik cihazlar 120 Hz kaynaktan yaklaşık 200 µW/cm³</td></tr>
+    <tr><td>Thermal gradient</td><td>5 K farktan yaklaşık 80 µW/cm² (Seebeck etkili thermoelectric generator)</td></tr>
+    <tr><td>Human (ayakkabı içi)</td><td>1.8 mW (shoe inserts)</td></tr>
+  </table></div>
+  <p>Bulutlu gün, doğrudan güneşin yüzde biri; ofis ışığı onun da 25'te biri. Kitap bu yüzden harvesting'in genellikle şarj edilebilir bir battery ile birlikte kullanıldığını söylüyor: kaynaklar gücü sürekli ve kesintisiz vermez, zamanla dalgalanır.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 slayt 56 · Harvesting architecture</span>
+    <p style="font-weight:700">Environment → Harvester → Power management → Storage → Mote load</p>
+    <p><strong>Power management'ın işleri:</strong> voltage conversion, regulation, charging control, maximum-power-point tracking (MPPT). MPPT, harvester'ın en çok güç verdiği çalışma noktasını (voltage ile current'ın çarpımının en büyük olduğu nokta) sürekli arar; solar panelde bu nokta ışık şiddetiyle değiştiği için sabit bir ayar yetmez.</p>
+    <p><strong>Each stage has losses:</strong> "Harvested power is not equal to usable load power. Efficiency belongs in the model." Aşamaların verimleri çarpılarak tek bir $\eta_h$ elde edilir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · ofis ışığında bir mote</span>
+    <p>Aşama verimleri 0.85 (power management), 0.9 (şarj), 0.9 (load'a regulation) olsun: $\eta_h = 0.85 \times 0.9 \times 0.9 = 0.6885$. Slayt 41'in node'u 3 V'ta $P_c = 3 \times 1.0797 = 3.24$ mW çeker. Bunu karşılamak için ortalama $P_h \ge 3.24 / 0.6885 = 4.70$ mW harvest gerekir. Ofis masasında 0.006 mW/cm² ile, ışık 24 saat hiç sönmese bile, $4.70 / 0.006 \approx 784$ cm²'lik bir panel lazım. Listen'ı %1'e indirince ($0.3197$ mA, $0.96$ mW) bile $\approx 232$ cm². İçerideki harvesting'li node'lar bu yüzden çok düşük duty cycle ile çalışır.</p>
+  </div>
+  <!-- Kaynak: W3 slayt 55, 56 · W1 deck xml slayt 35 · Karl & Willig 2.1.6 "Energy scavenging" ve Table 2.3. Aşama verimleri örnek için seçildi. Python: 0.85·0.9·0.9 = 0.6885; 3.2391/0.6885 = 4.705 mW; /0.006 = 784.1 cm²; 0.9591/0.6885/0.006 = 232.2 cm². -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Verimleri topla değil, çarp. %80 ve %90 verim toplam %72 eder, %70 değil.</li>
+      <li>Kitaptaki "15 mW/cm²" bir tepe değer, günlük ortalama değil. Gece sıfır, bulutlu gün yüzde bir.</li>
+      <li>MPPT bir storage değildir; harvester'dan alınan gücü artırır, enerjiyi saklamaz.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="storage" data-min="6">
+  <h2>Variability, storage ve energy causality</h2>
+  <div class="quiz" id="q-blh-storage">
+    <p class="quiz__q">$B_k = 3$, $B_{max} = 10$, $\eta_h = 0.5$, $E_{h,k} = 8$, $E_{c,k} = 2$, $E_{loss,k} = 0.5$ (hepsi aynı enerji biriminde). $B_{k+1}$ kaç?</p>
+    <button class="quiz__opt" data-correct>4.5<span class="why">Doğru: $\min(10,\ 3 + 0.5 \cdot 8 - 2 - 0.5) = \min(10,\ 4.5) = 4.5$.</span></button>
+    <button class="quiz__opt">8.5<span class="why">$\eta_h$'yı unuttun: $3 + 8 - 2.5$. Harvest edilen enerjinin yalnızca $\eta_h$ kadarı storage'a girer.</span></button>
+    <button class="quiz__opt">5<span class="why">$E_{loss}$'u unuttun. Storage kendi kendine de enerji kaybeder (leakage, self-discharge).</span></button>
+    <button class="quiz__opt">10<span class="why">$\min$ yalnızca storage doluysa keser. Burada sonuç $B_{max}$'ın altında, kesilecek bir şey yok.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 slayt 57 · Harvested energy is variable</span>
+    <div class="table-wrap"><table>
+      <tr><th>Source</th><th>Why it varies</th></tr>
+      <tr><td>Solar</td><td>time of day, season, weather, orientation, shading</td></tr>
+      <tr><td>Vibration</td><td>machine operation, traffic, resonance</td></tr>
+      <tr><td>Thermal</td><td>temperature difference and contact quality</td></tr>
+      <tr><td>RF</td><td>distance, antenna orientation, source activity, propagation loss</td></tr>
+    </table></div>
+    <p>"A node must survive periods of little or no harvesting, not only match average daily energy."</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 slayt 58 · A node cannot spend energy before it is available</span>
+    <p><strong>Energy causality:</strong></p>
+    $$E_c(0,t) \le E_0 + E_h(0,t) \quad \text{her } t \text{ için}$$
+    <p>$0$'dan $t$'ye kadar harcanan enerji, başlangıçta storage'da olanla o ana kadar toplanan (storage'a giren) enerjinin toplamını geçemez. "Her $t$ için" kısmı kritik: gün sonunda dengede olmak yetmez, gece yarısında da dengede olmalısın.</p>
+    <p><strong>Storage options:</strong></p>
+    <ul>
+      <li><strong>Rechargeable battery</strong>: higher energy density.</li>
+      <li><strong>Supercapacitor</strong>: high cycle life and power.</li>
+      <li><strong>Capacitor</strong>: simple but very limited energy.</li>
+    </ul>
+    <p><strong>Storage recursion</strong> (her adım $k$ bir zaman aralığı):</p>
+    $$B_{k+1} = \min\big(B_{max},\ B_k + \eta_h E_{h,k} - E_{c,k} - E_{loss,k}\big)$$
+    <p>"If storage reaches zero, the node may brown out. If storage is full, additional harvested energy is wasted."</p>
+  </div>
+  <p>Karl &amp; Willig iki ayrıntı ekliyor. Birincisi, bazı harvester'lar yalnızca µA mertebesinde akım üretir ve sıradan battery'ler bu kadar küçük akımla iyi şarj olmaz; storage seçiminde "efficient recharging" de bir ölçüttür. İkincisi, "gold caps" denen yüksek kapasiteli capacitor'lar hızlı şarj olur ve zamanla yıpranmaz; slayttaki supercapacitor satırı bu.</p>
+  <h3>Recursion'u adım adım çalıştır</h3>
+  <p>Küçük sayılarla 8 adım: $B_{max} = 10$, $B_0 = 4$, $\eta_h = 0.5$, her adım $E_c = 2$ ve $E_{loss} = 0.5$. Harvest gece sıfır, öğlen yüksek. Formül negatif bir sonuç verirse energy causality bozulmuş demektir: node o adımda istenen enerjiyi harcayamaz, brown-out olur ve storage 0'da kalır.</p>
+  <div id="w-rec-stepper"></div>
+  <!-- Kaynak: W3 slayt 57, 58 · Karl & Willig 2.1.6 "Efficient recharging", "gold caps". Trace sayıları bu ders için; python ile kontrol: B = 1.5, brown-out, brown-out, 3.5, 9, 10 (2.5 waste), 9.5, 7. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Formüldeki $\min$ yalnızca üstten keser (waste). Alttan kesme, yani 0, formülde yazmaz; ama fiziksel olarak negatif enerji olmaz. Negatif çıktıysa brown-out vardır.</li>
+      <li>Toplamda yeterli enerji toplamak causality'yi garanti etmez. Yukarıdaki trace'te 8 adımda storage'a giren enerji (24) harcanması gerekenden (20) fazla, yine de iki adım brown-out var.</li>
+      <li>Storage doluyken gelen enerji kaybolur. Öğlen kaybolan enerji gece lazım olabilir: ya $B_{max}$'ı büyüt ya da işi gündüze kaydır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-blh-storage-2">
+    <p class="quiz__q">Bir node günde binlerce kez küçük şarj-deşarj döngüsü yapacak ve kısa süreli yüksek güç pulse'ları çekecek. Uzun süre enerji saklaması gerekmiyor. Slayt 58'e göre hangi storage en uygun?</p>
+    <button class="quiz__opt" data-correct>Supercapacitor<span class="why">Doğru: "high cycle life and power". Çok döngü ve pulse için uygun; energy density'si battery'den düşük, ama burada uzun süre saklama istenmiyor.</span></button>
+    <button class="quiz__opt">Rechargeable battery<span class="why">Avantajı energy density, yani çok enerjiyi uzun süre saklamak. Çok sayıda döngü sorunun asıl isteği ve orada supercap öne çıkar.</span></button>
+    <button class="quiz__opt">Sıradan capacitor<span class="why">"Simple but very limited energy": pulse'u bile karşılayamayabilir.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="eno" data-min="6">
+  <h2>Energy-neutral operation (ENO)</h2>
+  <div class="quiz" id="q-blh-eno">
+    <p class="quiz__q">Bir node'un energy-neutral operation (ENO) yaptığı söyleniyor. Bu ne anlama gelir?</p>
+    <button class="quiz__opt" data-correct>Node, hedeflenen süre boyunca storage'ı tüketmeden çalışmaya devam edebiliyor<span class="why">Doğru: slayt 59'un "What ENO means" tanımı.</span></button>
+    <button class="quiz__opt">Node hiç enerji harcamıyor<span class="why">"ENO does not mean zero energy use." Node harcar; harcadığını harvest ile karşılar.</span></button>
+    <button class="quiz__opt">Node battery'siz çalışıyor<span class="why">"ENO does not mean battery-free operation." Gece ve bulutlu günler için storage genellikle gerekir.</span></button>
+    <button class="quiz__opt">Node'un performansı hep aynı ve parçaları sonsuza kadar dayanır<span class="why">Slayt ikisini de açıkça dışlıyor: "constant performance" ve "infinite component lifetime" ENO'nun anlamı değil. Enerji azsa node duty cycle'ını düşürebilir; battery de yaşlanır.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · W3 slayt 59</span>
+    $$P_c \le \eta_h\, P_h$$
+    <p>Consumption, kayıplardan sonra kalan harvest gücünü geçmemeli. ("Consumption must be sustainable under harvested energy, storage and losses.")</p>
+    <p><strong>What ENO means:</strong> "The node can keep operating over the intended horizon without depleting storage."</p>
+    <p><strong>Average neutrality is not enough:</strong> night periods, cloudy days, storage limits, charging losses, forecast uncertainty.</p>
+    <p><strong>ENO does not mean:</strong> zero energy use, battery-free operation, constant performance, infinite component lifetime.</p>
+  </div>
+  <p>Lab deck aynı fikri günlük enerjiyle yazıyor: günlük harvest $E_h$, günlük consumption $E_c$ ise "$E_c \le E_h$ is necessary but not sufficient. Timing and storage also matter." Ortalama koşul, Bölüm 10'daki causality'nin yalnızca gün sonundaki hâlidir; gece yarısındaki hâlini garanti etmez.</p>
+  <h3>Harvesting simulator: 72 saat</h3>
+  <p>Simulator Bölüm 10'daki recursion'ı sürekli zamanda çalıştırıyor. Güneş 06:00'da doğup 18:00'de batıyor; harvest gücü bu aralıkta bir sinüs, gece sıfır. Bir günü bulutlu işaretlersen o günün harvest'i "bulut çarpanı" ile küçülür. Load $P_c = V \cdot I_{avg}$ ve $E_{loss}$ sabit güç gibi sürekli harcanıyor. Her saat, harvest gücünün tüketimi geçtiği ve geçemediği anlarda parçalara bölünüyor. Her parçada storage ya yalnız artar ya yalnız azalır, bu yüzden storage'ın 0'a ya da $B_{max}$'a değdiği an tam bulunuyor. Bu neden gerekli: sabah güneş yeni doğarken harvest gücü henüz tüketimden küçüktür. Saatin toplam harvest'i tüketimi karşılasa bile storage o saatin ilk dakikalarında boşalabilir; yalnızca saat sınırlarına bakan bir hesap bu brown-out'u görmez. Grafikte kırmızı çizgiler içinde brown-out olan saatler, gri çizgiler storage dolu olduğu için harvest'in kaybolduğu saatler. Simülasyon gece yarısında başlıyor.</p>
+  <p class="w-battery-lifetime-harvesting-guess"><b>Önce tahmin et:</b> "Küçük storage" ayarında günlük ortalama harvest, günlük tüketimden fazla. Node yine de brown-out olur mu? Olursa günün hangi saatlerinde?</p>
+  <div class="w-battery-lifetime-harvesting-grid">
+    <label>Tepe harvest $P_{peak}$ (mW)<input id="wh-pp" type="text" inputmode="decimal" value="20" /></label>
+    <label>$\eta_h$ (0–1)<input id="wh-eta" type="text" inputmode="decimal" value="0.6" /></label>
+    <label>$I_{avg}$ (mA)<input id="wh-i" type="text" inputmode="decimal" value="1.0797" /></label>
+    <label>Voltage $V$ (V)<input id="wh-v" type="text" inputmode="decimal" value="3" /></label>
+    <label>$B_{max}$ (mWh)<input id="wh-bmax" type="text" inputmode="decimal" value="200" /></label>
+    <label>$B_0$ (mWh)<input id="wh-b0" type="text" inputmode="decimal" value="100" /></label>
+    <label>$E_{loss}$ (mWh / saat)<input id="wh-loss" type="text" inputmode="decimal" value="0.05" /></label>
+    <label>Bulut çarpanı (0–1)<input id="wh-cf" type="text" inputmode="decimal" value="0.1" /></label>
+  </div>
+  <div class="w-battery-lifetime-harvesting-days">
+    <label><input type="checkbox" id="wh-d0" /> 1. gün bulutlu</label>
+    <label><input type="checkbox" id="wh-d1" /> 2. gün bulutlu</label>
+    <label><input type="checkbox" id="wh-d2" /> 3. gün bulutlu</label>
+  </div>
+  <div class="w-battery-lifetime-harvesting-ctl">
+    <button class="btn btn--sm btn--accent" id="wh-go">Çalıştır</button>
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wh="sunny">Üç güneşli gün</button>
+    <button class="btn btn--sm" data-wh="small">Küçük storage</button>
+    <button class="btn btn--sm" data-wh="cloudy">2. gün bulutlu</button>
+    <button class="btn btn--sm" data-wh="lowduty">Bulutlu + listen %1</button>
+  </div>
+  <div class="w-battery-lifetime-harvesting-err" id="wh-err" aria-live="polite"></div>
+  <div class="w-battery-lifetime-harvesting-legend">
+    <span><i style="background:#f2c94c"></i>storage'a giren harvest ($\eta_h E_h$)</span>
+    <span><i style="background:var(--blue-600)"></i>storage $B_k$</span>
+    <span><i style="background:#c92a2a"></i>brown-out olan saat</span>
+    <span><i style="background:#868e96"></i>kaybolan harvest (storage dolu)</span>
+  </div>
+  <div id="wh-plot"></div>
+  <div class="w-battery-lifetime-harvesting-out" id="wh-sum" aria-live="polite"></div>
+  <!-- Kaynak: W3 slayt 58 (recursion), 59 (ENO) · lab deck xml slayt 38 (sayfada 39). Widget parametreleri bu ders için. Simulator sürekli zamanda (saat içi işaret değişimlerinde bölerek) çalışıyor. Python ile kontrol: güneşli gün harvest 152.79 mWh (= 20·24/π); varsayılan ayarda brown-out yok, en düşük B 78.5 mWh; "küçük storage" (B_max 25, B_0 20) 3 brown-out, toplam 12.9 saat, ilki 1. gün 06:05, 92.0 mWh kayıp; "2. gün bulutlu" (P_peak 26, B_0 40) 72 saatlik ortalama yetiyor (250.3 ≥ 236.8 mWh) ama 1 brown-out, 2.8 saat, 3. gün 04:01'de başlıyor; aynı ayarda I_avg 0.3197 ile brown-out yok. Saat sınırı kontrolünün kaçırdığı durum: P_peak 100, B_0 20, diğerleri varsayılan → B(06:00) = 0.2654 mWh, sürekli hesapta bakiye 06:12:34'te −0.0790 mWh olurdu; simulator 1. gün 06:07'de brown-out gösteriyor (0.1 saat). -->
+  <div class="box box--exam" data-exam="W3-lab-ext3-harvest"><span class="box__label">W3 lab · Optional extension 3 · Harvesting thought experiment · notlu lab görevi</span>
+    <p>"If daily harvested energy = E_h and daily consumption = E_c: E_c ≤ E_h is necessary but not sufficient. Timing and storage also matter. Question: If a solar node has energy at noon but fails at night, which assumption in the average-energy model was too simple? • Use measured average current to estimate a daily energy budget. • Discuss whether packet rate, sensing frequency, or routing role should change. • Connect harvesting-aware routing to node energy diversity."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Average-energy model enerjinin <em>ne zaman</em> geldiğini ve nerede bekletildiğini hesaba katıyor mu? Simulator'da "Küçük storage" ayarına bak.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Günlük bütçe: $E_{c,day} = V \cdot I_{avg} \cdot 24$ h. Gece kısmı: $V \cdot I_{avg} \cdot 12$ h. Bu, storage'ın en az ne kadar tutması gerektiğini söyler.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Çok basit kalan varsayım:</strong> enerjinin zaman içinde düzgün geldiği ve harcandığı, yani storage'ın sınırsız ve kayıpsız olduğu varsayımı. Ortalama model yalnızca günlük toplamlara bakar ($E_c \le E_h$). Gerçekte enerji öğlen gelir, node ise gece de çalışır; arada enerjiyi storage taşımak zorundadır. Storage küçükse öğlen dolar, fazlası kaybolur (waste) ve gece yetmez (brown-out). Ayrıca charging losses ($\eta_h$), bulutlu günler ve leakage da ortalamada görünmez. Slayt 59'un listesi: night periods, cloudy days, storage limits, charging losses, forecast uncertainty.</p>
+      <p><strong>Günlük bütçe (ölçülen akımla):</strong> W3 lab'da B senaryosundaki server'ın $I_{avg} = 0.344$ mA ölçüldü. 3 V'ta $P_c = 1.032$ mW, günlük $E_c = 24.8$ mWh, yalnızca gece 12 saati için $12.4$ mWh. Storage gecenin tamamını (artı leakage ve bir margin) tutamıyorsa günlük ortalama ne kadar iyi olursa olsun node gece brown-out olur.</p>
+      <p><strong>Ne değişmeli:</strong> enerjisi az olan saatlerde packet rate ya da sensing frequency düşürülebilir, ağır işler gündüze kaydırılabilir; storage büyütülebilir. Routing'de enerjisi az ya da harvest'i zayıf node'lar relay rolünden çıkarılıp yük, harvest'i iyi node'lara kaydırılabilir (harvesting-aware routing, node energy diversity). Karl &amp; Willig, işleri harvest'in zamanlamasına göre dağıtmanın network lifetime'ı %200'e kadar uzatabildiğini bildiren bir çalışmayı (Kansal ve Srivastava) aktarıyor.</p>
+    </div></details>
+    <!-- Kaynak: lab deck xml slayt 38 (sayfada 39) · W3 slayt 59 · Karl & Willig 2.1.6 son paragraf. 0.344 mA · 3 V = 1.032 mW, ×24 h = 24.77 mWh, ×12 h = 12.38 mWh (python). Voltage 3 V varsayımı (iki seri hücre) bu çözüm için. -->
+  </div>
+  <div class="box box--exam" data-exam="W3-s59-eno"><span class="box__label">W3 slayt 59 · slayt sorusu</span>
+    <p>Slayttaki koşul ve listeler: "P_c ≤ η_h P_h", "Average neutrality is not enough", "ENO does not mean …". Energy-neutral operation'ı tanımla, ortalama koşulun neden yetmediğini iki örnekle açıkla ve ENO'nun ne <em>olmadığını</em> söyle.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Tanım bir zaman ufkundan ve storage'dan söz ediyor. "Without depleting storage" kısmını unutma.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Örnekler için simulator'daki iki hazır ayarı kullan: küçük storage ve bulutlu gün.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Tanım:</strong> ENO, node'un hedeflenen süre (intended horizon) boyunca storage'ı tüketmeden çalışmaya devam edebilmesidir. Gerekli koşul: ortalama consumption, kayıplardan sonra kalan ortalama harvest'i geçmemeli, $P_c \le \eta_h P_h$.</p>
+      <p><strong>Ortalama neden yetmez:</strong> (1) Gece harvest sıfırdır; storage gecenin tüketimini tutamıyorsa node, günlük ortalama yetse bile gece brown-out olur (küçük storage örneği). (2) Bulutlu bir gün harvest'i çok küçültür; storage'ta yeterli rezerv yoksa node o gece ölür (2. gün bulutlu örneği). Storage limits, charging losses ve forecast uncertainty de ortalamada görünmez.</p>
+      <p><strong>ENO şunlar değildir:</strong> zero energy use, battery-free operation, constant performance, infinite component lifetime. Node enerji harcar, storage'a genellikle ihtiyaç duyar, enerji azken performansını düşürebilir ve parçaları (özellikle battery) yine yaşlanır.</p>
+    </div></details>
+    <!-- Kaynak: W3 slayt 59. Ders planındaki exam_items listesinde. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$P_c \le \eta_h P_h$ ortalamalar üzerine bir koşuldur: <em>gerekli</em> ama <em>yeterli</em> değil.</li>
+      <li>$\eta_h$'yı unutursan harvest'i olduğundan büyük görürsün. Slayt 56: "Efficiency belongs in the model."</li>
+      <li>"Harvesting var, lifetime sonsuz" yanlış. Battery cycle'larla yaşlanır, capacitor'lar ve diğer parçalar da bozulur.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kapanış · W3 slayt 60'tan bu derse ait iki takeaway</span>
+    <p>"Battery lifetime estimates need assumptions and margin." · "Harvesting requires timing-aware scheduling."</p>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="5">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-blh-final-1">
+    <p class="quiz__q">$C_{nominal} = 3000$ mAh, η = 0.9, $I_{avg} = 250\ \mu$A. Usable capacity ile linear lifetime kaç gün?</p>
+    <button class="quiz__opt" data-correct>450 gün<span class="why">Doğru: $0.9 \times 3000 = 2700$ mAh, $2700 / 0.25 = 10800$ h $= 450$ gün.</span></button>
+    <button class="quiz__opt">500 gün<span class="why">Bu nominal lifetime ($3000 / 0.25 / 24$). Soru usable capacity istiyor.</span></button>
+    <button class="quiz__opt">405 gün<span class="why">η'yı iki kez uyguladın ($0.81$). η yalnızca bir kez, capacity'ye uygulanır.</span></button>
+    <button class="quiz__opt">0.45 gün<span class="why">Akımı mA birimine çevirmedin: $2700/250 = 10.8$ h. $250\ \mu\text{A} = 0.25$ mA.</span></button>
+  </div>
+  <div class="quiz" id="q-blh-final-2">
+    <p class="quiz__q">Bir collection tree'de sink'in yanındaki node, leaf'lerle aynı radio'yu ve aynı TX power'ı kullanıyor ama çok daha erken ölüyor. Neden?</p>
+    <button class="quiz__opt" data-correct>Descendant'larının packet'larını alıp yeniden gönderdiği için RX ve TX süresi çok daha uzun<span class="why">Doğru: slayt 52, "nodes near the sink may forward traffic for many children".</span></button>
+    <button class="quiz__opt">Sink'e yakın olduğu için daha yüksek TX power ile gönderiyor<span class="why">Soruda TX power aynı. Sink'e yakınlık TX power'ı artırmaz, gerekirse azaltır.</span></button>
+    <button class="quiz__opt">Sink, yakınındaki node'ların enerjisini kendine çekiyor<span class="why">Sink enerji çekmez. Sorun trafik yükü.</span></button>
+    <button class="quiz__opt">Leaf'ler daha sık uyandığı için ona daha az iş kalıyor<span class="why">Tersi: leaf'ler yalnızca kendi packet'ları için uyanır, relay herkes için.</span></button>
+  </div>
+  <div class="quiz" id="q-blh-final-3">
+    <p class="quiz__q">Bir solar node'un storage'ı tam doluyken $B_{max} = 15$ mWh. Günlük $\eta_h E_h = 90$ mWh, günlük tüketim 80 mWh, bunun 40 mWh'i gece (harvest yokken). Ne olur?</p>
+    <button class="quiz__opt" data-correct>Günlük ortalama yeterli olsa da node her gece brown-out olur<span class="why">Doğru. Gece 40 mWh gerekiyor, storage en fazla 15 tutuyor. Energy causality gece bozuluyor; gündüzün fazlası storage dolu olduğu için kayboluyor.</span></button>
+    <button class="quiz__opt">Node ENO'dadır, çünkü $90 \ge 80$<span class="why">Bu yalnızca ortalama koşul. Slayt 59: "Average neutrality is not enough", storage limits listede.</span></button>
+    <button class="quiz__opt">Node yalnızca bulutlu günlerde brown-out olur<span class="why">Güneşli günde bile gece ihtiyacı (40) storage'ı (15) aşıyor.</span></button>
+    <button class="quiz__opt">Storage gündüz dolmadığı için gece yetmez<span class="why">Gündüz 90 mWh giriyor; 15 mWh'lik storage kolayca dolar. Sorun dolmaması değil, küçük olması.</span></button>
+  </div>
+  <div class="quiz" id="q-blh-final-4">
+    <p class="quiz__q">Bir lifetime raporunda yalnızca "Lifetime: 300 days" yazıyor. Slaytlara göre en önemli eksik hangisi?</p>
+    <button class="quiz__opt" data-correct>Nominal mı usable capacity mi kullanıldığı ve hangi assumption'larla hesaplandığı<span class="why">Doğru. Slayt 48: "Always state whether a lifetime value uses nominal capacity or usable capacity." Slayt 60: "Battery lifetime estimates need assumptions and margin."</span></button>
+    <button class="quiz__opt">Sonucun saat olarak da yazılması<span class="why">Birim çevirisi kozmetik. Asıl eksik, sayının hangi koşulda geçerli olduğu.</span></button>
+    <button class="quiz__opt">Battery'nin markası<span class="why">Marka değil, kullanılan capacity'nin türü (nominal / usable) ve current model önemli.</span></button>
+  </div>
+  <div class="quiz" id="q-blh-final-5">
+    <p class="quiz__q">Slayt 51'deki procedure'da "Include safety margin" adımı hangi adımdan hemen sonra gelir?</p>
+    <button class="quiz__opt" data-correct>Select battery model<span class="why">Doğru: 4 calculate average current → 5 select battery model → 6 include safety margin → 7 validate experimentally.</span></button>
+    <button class="quiz__opt">Calculate average current<span class="why">Average current'tan sonra önce battery model seçilir (adım 5); margin o modelin üzerine eklenir.</span></button>
+    <button class="quiz__opt">Validate experimentally<span class="why">Validation son adımdır (7); margin ondan önce gelir.</span></button>
+  </div>
+  <!-- Sıradaki konu: MAC temelleri: CSMA/CA, hidden ve exposed terminal. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+/* Shared helpers */
+const BLH = {
+  f(v, d) { return Number.isFinite(v) ? v.toFixed(d) : "–"; },
+  /* parse a positive decimal typed with "." or "," */
+  parse(raw) {
+    const s = String(raw).trim().replace(",", ".");
+    if (!/^\d*\.?\d+$/.test(s)) return null;
+    return Number(s);
+  },
+  err(el, msgs) {
+    el.innerHTML = msgs.join("<br>");
+    Lab.renderMath(el);
+  }
+};
+
+/* 1. Lifetime estimator: L = C / I_avg, nominal and usable */
+(function () {
+  const $ = id => document.getElementById(id);
+  const iC = $("wl-c"), iI = $("wl-i"), iU = $("wl-u"), iE = $("wl-eta"), err = $("wl-err"), out = $("wl-out");
+  const PRE = {
+    s47: { c: "2400", i: "1.0797", u: "mA", e: "1" },
+    s48: { c: "2400", i: "1.0797", u: "mA", e: "0.8" },
+    s21: { c: "2000", i: "19", u: "mA", e: "1" },
+    s41: { c: "2400", i: "0.3197", u: "mA", e: "1" }
+  };
+  function build() {
+    const msgs = [];
+    const C = BLH.parse(iC.value), Iraw = BLH.parse(iI.value), eta = BLH.parse(iE.value);
+    if (C === null) msgs.push("Capacity pozitif bir sayı olmalı, örneğin 2400 (mAh).");
+    else if (C <= 0) msgs.push("Capacity 0 olamaz: boş bir battery'nin lifetime'ı yok.");
+    else if (C > 100000) msgs.push("Capacity en fazla 100000 mAh olsun: bu bir mote battery'si değil, araç aküsü.");
+    if (Iraw === null) msgs.push("$I_{avg}$ pozitif bir sayı olmalı, örneğin 1.0797.");
+    else if (Iraw <= 0) msgs.push("$I_{avg} = 0$ ise node hiçbir şey yapmıyor: slayt 4, \"a useless node can live forever\".");
+    if (eta === null) msgs.push("η 0 ile 1 arasında bir sayı olmalı, örneğin 0.8.");
+    else if (eta <= 0 || eta > 1) msgs.push("η, $0 &lt; \\eta \\le 1$ olmalı: usable capacity nominal'den büyük olamaz.");
+    if (msgs.length) { BLH.err(err, msgs); out.innerHTML = ""; return; }
+    const I = iU.value === "uA" ? Iraw / 1000 : Iraw;
+    if (I > 1000) { BLH.err(err, ["$I_{avg}$ 1000 mA'in üstünde: bir mote için çok yüksek. Birimi kontrol et (µA mı demek istedin?)."]); out.innerHTML = ""; return; }
+    err.innerHTML = "";
+    const Cu = eta * C;
+    const row = (name, tag, cap, cur) => {
+      const h = cap / cur;
+      return `<tr><td>${name} ${tag}</td><td class="num">${BLH.f(cap, 0)}</td><td class="num">${BLH.f(cur, 4)}</td><td class="num">${BLH.f(h, 1)}</td><td class="num">${BLH.f(h / 24, 1)}</td><td class="num">${BLH.f(h / 24 / 365, 2)}</td></tr>`;
+    };
+    const tN = `<span class="w-battery-lifetime-harvesting-tag">nominal</span>`;
+    const tU = `<span class="w-battery-lifetime-harvesting-tag is-usable">usable, η = ${eta}</span>`;
+    let h = `<div class="table-wrap"><table><tr><th>Satır</th><th class="num">C (mAh)</th><th class="num">$I_{avg}$ (mA)</th><th class="num">saat</th><th class="num">gün</th><th class="num">yıl</th></tr>`;
+    h += row("Lifetime", tN, C, I);
+    if (eta < 1) h += row("Lifetime", tU, Cu, I);
+    h += row("Akım yarıya inerse", eta < 1 ? tU : tN, Cu, I / 2);
+    h += row("Akım iki katına çıkarsa", eta < 1 ? tU : tN, Cu, I * 2);
+    h += `</table></div>`;
+    const Lu = Cu / I;
+    h += `<p>$L = ${BLH.f(Cu, 0)} / ${BLH.f(I, 4)} = ${BLH.f(Lu, 1)}$ h $= ${BLH.f(Lu / 24, 1)}$ gün${eta < 1 ? ` (usable). Nominal ile fark tam %${BLH.f(100 * (1 - eta), 0)}` : " (nominal)"}. Linear model'de lifetime akımla ters orantılı: akım yarıya inince süre iki katına çıkıyor.</p>`;
+    if (Lu / 24 / 365 > 5) h += `<p class="src">Not: ${BLH.f(Lu / 24 / 365, 1)} yıl çok uzun bir süre. Bu ölçekte self-discharge ve aging (slayt 46, 49) linear model'in görmediği başlıca kayıplar olur; gerçek lifetime büyük olasılıkla daha kısadır.</p>`;
+    out.innerHTML = h;
+    Lab.renderMath(out);
+  }
+  $("wl-go").addEventListener("click", build);
+  [iC, iI, iE].forEach(x => x.addEventListener("keydown", e => { if (e.key === "Enter") build(); }));
+  iU.addEventListener("change", build);
+  document.querySelectorAll("[data-wl]").forEach(b => b.addEventListener("click", () => {
+    const p = PRE[b.dataset.wl];
+    iC.value = p.c; iI.value = p.i; iU.value = p.u; iE.value = p.e; build();
+  }));
+  build();
+})();
+
+/* 2. Seven-step lifetime procedure on one 60 s application cycle */
+(function () {
+  const T = 60, C = 2400, ETA = 0.8;
+  const ST = [
+    { n: "CPU active", t: 0.06, I: 1.8, why: "sensor okuma, işleme, network stack" },
+    { n: "CPU LPM", t: 59.94, I: 0.0545, why: "geri kalan süre" },
+    { n: "Radio TX", t: 0.005, I: 17.4, why: "tek bir data frame" },
+    { n: "Radio listen", t: 0.6, I: 18.8, why: "channel check'ler ve ACK bekleme" },
+    { n: "Sensor active", t: 0.2, I: 0.5, why: "warm-up ve sample" }
+  ];
+  ST.forEach(s => { s.D = s.t / T; s.c = s.D * s.I; });
+  const Iavg = ST.reduce((a, s) => a + s.c, 0);
+  const top = ST.reduce((a, s) => (s.c > a.c ? s : a));
+  const Ln = C / Iavg, Lu = ETA * C / Iavg;
+  const CYCLE = ["wake (her 60 s)", "start sensor", "sample", "process", "transmit", "wait for ACK", "sleep"];
+  const frames = [
+    { k: 1, caption: "<b>1. Define application cycle.</b> Node her 60 saniyede bir uyanır ve aynı sırayı izler. Bütün hesap bu tek cycle üzerinden yapılacak, çünkü cycle tekrar ettikçe oranlar değişmez." },
+    { k: 2, caption: `<b>2. Measure state durations.</b> Her state'in 60 s içindeki süresi. CPU active ve LPM birlikte 60 s eder (aynı bileşen); radio state'leri ayrı bir bileşen.` },
+    { k: 3, caption: "<b>3. Obtain current values.</b> CPU, LPM, TX ve listen akımları W3 lab'ın current model'inden; sensor akımı bu örnek için seçildi. Gerçek bir node'da datasheet ya da kalibre edilmiş bir platform modeli kullanılır." },
+    { k: 4, caption: `<b>4. Calculate average current.</b> $D_i = t_i / T$, katkı $D_i I_i$, toplam $I_{avg} = \\sum D_i I_i = ${BLH.f(Iavg, 4)}$ mA. En büyük katkı ${top.n}, toplamın yüzde ${BLH.f(100 * top.c / Iavg, 0)} kadarı; oysa süresi cycle'ın yalnızca yüzde ${BLH.f(100 * top.D, 1)} kadarı.` },
+    { k: 5, caption: `<b>5. Select battery model.</b> Soru "kabaca kaç gün?" olduğu için constant capacity yeter: $L = ${C} / ${BLH.f(Iavg, 4)} = ${BLH.f(Ln, 0)}$ h $= ${BLH.f(Ln / 24, 1)}$ gün <b>(nominal)</b>.` },
+    { k: 6, caption: `<b>6. Include safety margin.</b> η = ${ETA} (cut-off, sıcaklık, aging, margin): $C_{usable} = ${ETA * C}$ mAh, $L = ${BLH.f(Lu, 0)}$ h $= ${BLH.f(Lu / 24, 1)}$ gün <b>(usable)</b>. Raporda bu sayıyı etiketiyle yaz.` },
+    { k: 7, caption: "<b>7. Validate experimentally.</b> State sürelerini Cooja'da Energest / Powertrace ile, akımları fiziksel node üzerinde ammeter, oscilloscope ya da power analyzer ile doğrula; modeli ölçümlerle kalibre et (slayt 44). Burst'ler (route repair, retransmission) sakin bir ölçümde görünmez." }
+  ];
+  Lab.stepper(document.getElementById("w-proc-stepper"), {
+    title: "Lifetime procedure, 60 s cycle",
+    interval: 2200,
+    frames,
+    render(f, idx, el) {
+      let h = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">` + CYCLE.map(c => `<span class="chip">${c}</span>`).join("→") + `</div>`;
+      if (f.k >= 2) {
+        h += `<div class="table-wrap"><table><tr><th>State</th><th>$t_i$ (s)</th>${f.k >= 3 ? "<th>$I_i$ (mA)</th>" : ""}${f.k >= 4 ? "<th>$D_i$</th><th>$D_i I_i$ (mA)</th>" : ""}</tr>`;
+        ST.forEach(s => {
+          const hot = f.k >= 4 && s === top;
+          h += `<tr style="${hot ? "background:var(--orange-100)" : ""}"><td>${s.n}<div class="src">${s.why}</div></td><td>${s.t}</td>${f.k >= 3 ? `<td>${s.I}</td>` : ""}${f.k >= 4 ? `<td>${BLH.f(100 * s.D, 3)}%</td><td><b>${BLH.f(s.c, 5)}</b></td>` : ""}</tr>`;
+        });
+        if (f.k >= 4) h += `<tr><td colspan="4"><b>$I_{avg}$</b></td><td><b>${BLH.f(Iavg, 4)}</b></td></tr>`;
+        h += `</table></div>`;
+      }
+      if (f.k >= 5) h += `<p><span class="w-battery-lifetime-harvesting-tag">nominal</span> ${BLH.f(Ln / 24, 1)} gün ${f.k >= 6 ? `· <span class="w-battery-lifetime-harvesting-tag is-usable">usable, η = ${ETA}</span> ${BLH.f(Lu / 24, 1)} gün` : ""}</p>`;
+      el.innerHTML = h;
+    }
+  });
+})();
+
+/* 3. Network-lifetime tree: event-driven drain of a 7-node collection tree */
+(function () {
+  const $ = id => document.getElementById(id);
+  const NODES = ["1", "2", "3", "4", "5", "6", "7"];
+  const BASE = { "1": "S", "2": "S", "3": "1", "4": "1", "5": "1", "6": "2", "7": "3" };
+  const err = $("wn-err"), box = $("wn-stepper"), sum = $("wn-sum");
+  function config(alt, etxAlt) {
+    const parent = Object.assign({}, BASE), etx = {};
+    NODES.forEach(n => { etx[n] = 1; });
+    if (alt) { parent["5"] = "2"; etx["5"] = etxAlt; }
+    return { parent, etx };
+  }
+  /* real run: piecewise-constant currents, recomputed after every death */
+  function simulate(cfg, P) {
+    const { parent, etx } = cfg;
+    const alive = {}, Q = {};
+    NODES.forEach(n => { alive[n] = true; Q[n] = P.C; });
+    const connected = n => { for (let k = n; k !== "S"; k = parent[k]) if (!alive[k]) return false; return true; };
+    const f = n => NODES.filter(j => {
+      if (j === n || !alive[j]) return false;
+      for (let k = parent[j]; k !== "S"; k = parent[k]) { if (k === n) return true; if (!alive[k]) return false; }
+      return false;
+    }).length;
+    const current = n => P.Ib + P.Itx * etx[n] * (1 + f(n)) + P.Irx * f(n);
+    const snap = (t, died) => {
+      const st = {};
+      NODES.forEach(n => { st[n] = { alive: alive[n], conn: alive[n] && connected(n), I: alive[n] ? current(n) : 0, q: Q[n] / P.C, f: alive[n] ? f(n) : 0 }; });
+      const dead = NODES.filter(n => !alive[n]).length, deliver = NODES.filter(n => st[n].conn).length;
+      return { t, died, st, dead, deliver };
+    };
+    const ev = [snap(0, null)];
+    let t = 0;
+    while (NODES.some(n => alive[n])) {
+      const live = NODES.filter(n => alive[n]);
+      const I = {}; live.forEach(n => { I[n] = current(n); });
+      let dt = Infinity;
+      live.forEach(n => { dt = Math.min(dt, Q[n] / I[n]); });
+      t += dt;
+      const died = [];
+      live.forEach(n => { Q[n] -= I[n] * dt; if (Q[n] <= 1e-9 * P.C) { Q[n] = 0; alive[n] = false; died.push(n); } });
+      ev.push(snap(t, died));
+    }
+    return ev;
+  }
+  function metrics(ev) {
+    const N = NODES.length, day = h => h / 24;
+    const first = ev.find(e => e.dead >= 1);
+    const half = ev.find(e => e.dead >= Math.ceil(N / 2));
+    const part = ev.find(e => NODES.some(n => e.st[n].alive && !e.st[n].conn));
+    const reach = ev.find(e => e.deliver < N / 2);
+    const none = ev.find(e => e.deliver === 0);
+    let nd = 0;
+    for (let i = 1; i < ev.length; i++) nd += ev[i - 1].deliver * day(ev[i].t - ev[i - 1].t);
+    return { first: day(first.t), half: day(half.t), part: part ? day(part.t) : NaN, reach: day(reach.t), none: day(none.t), nd };
+  }
+  function layout(parent) {
+    const kids = {}; ["S"].concat(NODES).forEach(n => { kids[n] = []; });
+    NODES.forEach(n => kids[parent[n]].push(n));
+    Object.values(kids).forEach(a => a.sort());
+    const pos = {}; let leaf = 0;
+    (function walk(n, d) {
+      if (!kids[n].length) { pos[n] = { x: leaf++, y: d }; return; }
+      kids[n].forEach(c => walk(c, d + 1));
+      const xs = kids[n].map(c => pos[c].x);
+      pos[n] = { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: d };
+    })("S", 0);
+    const W = 360, gap = W / leaf;
+    Object.values(pos).forEach(p => { p.x = gap * (p.x + 0.5); p.y = 26 + p.y * 62; });
+    return pos;
+  }
+  function svg(cfg, e, P) {
+    const pos = layout(cfg.parent);
+    let s = `<svg class="w-battery-lifetime-harvesting-svg" viewBox="0 0 360 236" role="img" aria-label="collection tree">`;
+    NODES.forEach(n => {
+      const a = pos[n], b = pos[cfg.parent[n]], ok = e.st[n].alive;
+      const dash = cfg.etx[n] > 1 ? "stroke-dasharray:5 4;" : "";
+      s += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" style="stroke:${ok ? "var(--stone-500)" : "var(--stone-300)"};stroke-width:2;${dash}" />`;
+    });
+    s += `<rect x="${pos.S.x - 22}" y="${pos.S.y - 14}" width="44" height="28" rx="6" style="fill:var(--fg-brand)" /><text x="${pos.S.x}" y="${pos.S.y + 5}" text-anchor="middle" style="fill:#fff;font-size:13px;font-weight:700">sink</text>`;
+    NODES.forEach(n => {
+      const p = pos[n], st = e.st[n];
+      const col = !st.alive ? "var(--stone-300)" : st.conn ? "var(--blue-600)" : "#e8590c";
+      const hit = e.died && e.died.includes(n);
+      s += `<circle cx="${p.x}" cy="${p.y}" r="16" style="fill:${col};${hit ? "stroke:#c92a2a;stroke-width:4" : ""}" />`;
+      s += `<text x="${p.x}" y="${p.y + 5}" text-anchor="middle" style="fill:#fff;font-size:14px;font-weight:700">${n}</text>`;
+      const lab = st.alive ? `${BLH.f(st.I, 3)} mA · %${BLH.f(100 * st.q, 0)}` : "öldü";
+      s += `<text x="${p.x}" y="${p.y + 30}" text-anchor="middle" style="fill:var(--fg);font-size:10px">${lab}</text>`;
+    });
+    return s + `</svg>`;
+  }
+  function read() {
+    const spec = [
+      ["wn-ib", "Ib", "$I_b$", 0.001, 50], ["wn-itx", "Itx", "$I_{tx}$", 0, 20], ["wn-irx", "Irx", "$I_{rx}$", 0, 20],
+      ["wn-c", "C", "Capacity", 1, 100000], ["wn-etx", "etx", "ETX", 1, 10]
+    ];
+    const P = {}, msgs = [];
+    spec.forEach(([id, key, name, lo, hi]) => {
+      const v = BLH.parse($(id).value);
+      if (v === null) msgs.push(`${name} bir sayı olmalı (ondalık için nokta: 0.03).`);
+      else if (v < lo || v > hi) msgs.push(key === "etx" ? "ETX en az 1 olmalı: bir packet en az bir kez gönderilir. En fazla 10 olsun." : key === "Ib" ? "$I_b$ sıfırdan büyük olmalı: hiç akım çekmeyen node yoktur (LPM bile çeker). En fazla 50 mA." : `${name} ${lo} ile ${hi} arasında olsun.`);
+      else P[key] = v;
+    });
+    return { P, msgs };
+  }
+  function build() {
+    const { P, msgs } = read();
+    if (msgs.length) { BLH.err(err, msgs); return; }
+    err.innerHTML = "";
+    const alt = $("wn-alt").checked;
+    const cfg = config(alt, P.etx);
+    const ev = simulate(cfg, P);
+    const m = metrics(ev);
+    const N = NODES.length;
+    const frames = ev.map((e, i) => {
+      let cap;
+      if (i === 0) {
+        const top = NODES.reduce((a, n) => (e.st[n].I > e.st[a].I ? n : a), "1");
+        cap = `Başlangıç, $t = 0$. Her node'un akımı $I_b + I_{tx}\\,\\text{ETX}\\,(1 + f) + I_{rx}\\,f$. En yüklü node ${top}: ${e.st[top].f} descendant, $${BLH.f(e.st[top].I, 3)}$ mA. Leaf'ler $${BLH.f(e.st["7"].I, 3)}$ mA.${alt ? " Node 5 şimdi parent 2'ye bağlı (kesikli link, ETX " + P.etx + ")." : ""}`;
+      } else {
+        const tags = [];
+        if (e.dead >= 1 && ev[i - 1].dead === 0) tags.push("first node failure");
+        if (NODES.some(n => e.st[n].alive && !e.st[n].conn) && !NODES.some(n => ev[i - 1].st[n].alive && !ev[i - 1].st[n].conn)) tags.push("ilk partition: yaşayan bir node sink'e ulaşamıyor");
+        if (e.dead >= Math.ceil(N / 2) && ev[i - 1].dead < Math.ceil(N / 2)) tags.push("%50 node öldü (network half-life)");
+        if (e.deliver < N / 2 && ev[i - 1].deliver >= N / 2) tags.push("sink'e veri ulaştırabilen node oranı %50'nin altında");
+        if (e.deliver === 0 && ev[i - 1].deliver > 0) tags.push("hiçbir node sink'e ulaşamıyor");
+        cap = `$t = ${BLH.f(e.t / 24, 1)}$ gün: node ${e.died.join(", ")} öldü. Ölü: ${e.dead}/${N}, sink'e ulaşan: ${e.deliver}/${N}.` + (tags.length ? ` <b>Tetiklenen tanım: ${tags.join("; ")}.</b>` : "") + (e.died.some(n => cfg.parent[n] !== "S" && e.st[cfg.parent[n]].alive) ? " Ölenin yükü kalktığı için yaşayan ancestor'larının akımı düştü." : "") + (e.died.some(n => NODES.some(j => cfg.parent[j] === n && e.st[j].alive)) ? " Arkasındaki node'lar yaşıyor ama artık cut off." : "");
+      }
+      return { e, caption: cap };
+    });
+    Lab.stepper(box, {
+      title: alt ? "Collection tree, node 5 → parent 2" : "Collection tree, varsayılan parent'lar",
+      interval: 1800,
+      frames,
+      render(fr, idx, el) { el.innerHTML = svg(cfg, fr.e, P); }
+    });
+    /* both configurations side by side, same parameters */
+    const mA = metrics(simulate(config(false, P.etx), P)), mB = metrics(simulate(config(true, P.etx), P));
+    const r = (name, a, b, unit) => `<tr><td>${name}</td><td class="num">${BLH.f(a, 1)}</td><td class="num">${BLH.f(b, 1)}</td><td class="num">${Number.isFinite(a) && Number.isFinite(b) ? (b > a + 1e-9 ? "geç ▲" : b < a - 1e-9 ? "erken ▼" : "aynı") : "–"}</td></tr>`;
+    let h = `<p><b>Aynı parametrelerle iki ağaç</b> (gün; son satır node·gün):</p><div class="table-wrap"><table><tr><th>Tanım</th><th class="num">varsayılan</th><th class="num">5 → 2</th><th class="num">5 → 2 ile</th></tr>`;
+    h += r("First node failure", mA.first, mB.first);
+    h += r("İlk partition (sink unreachable, bir bölge)", mA.part, mB.part);
+    h += r("Sink'e veri ulaştırabilen node oranı &lt; %50", mA.reach, mB.reach);
+    h += r("x% of nodes failed (x = 50)", mA.half, mB.half);
+    h += r("Hiçbir node sink'e ulaşamıyor", mA.none, mB.none);
+    h += `<tr><td>Teslim edilen veri (sink'e ulaşan node × gün)</td><td class="num">${BLH.f(mA.nd, 0)}</td><td class="num">${BLH.f(mB.nd, 0)}</td><td class="num">${mB.nd > mA.nd ? "fazla ▲" : "az ▼"}</td></tr></table></div>`;
+    h += `<p class="src">Model varsayımları: parent ölünce child'lar yeni parent aramıyor (route repair yok); cut off olan node çalışmaya devam ediyor ve enerji harcıyor; her node aynı capacity ile başlıyor. Sensing alanları modelde yok, bu yüzden tablo coverage'ı değil, sink'e veri ulaştırabilen node oranını gösteriyor.</p>`;
+    sum.innerHTML = h;
+    Lab.renderMath(sum);
+  }
+  $("wn-go").addEventListener("click", build);
+  $("wn-alt").addEventListener("change", build);
+  document.querySelectorAll("#wn-ib, #wn-itx, #wn-irx, #wn-c, #wn-etx").forEach(x => x.addEventListener("keydown", e => { if (e.key === "Enter") build(); }));
+  build();
+})();
+
+/* 4. Storage recursion traced step by step (slide 58) */
+(function () {
+  const BMAX = 10, B0 = 4, ETA = 0.5, EC = 2, EL = 0.5;
+  const EH = [0, 0, 4, 12, 16, 12, 4, 0];
+  const rows = [];
+  let B = B0;
+  EH.forEach((eh, k) => {
+    const raw = B + ETA * eh - EC - EL;
+    let next, ev, waste = 0;
+    if (raw < 0) { next = 0; ev = "brown-out"; }
+    else if (raw > BMAX) { next = BMAX; waste = raw - BMAX; ev = "dolu, waste " + waste; }
+    else { next = raw; ev = ""; }
+    rows.push({ k, B, eh, raw, next, ev, waste });
+    B = next;
+  });
+  const inTot = ETA * EH.reduce((a, x) => a + x, 0), need = (EC + EL) * EH.length;
+  const frames = rows.map((r, i) => {
+    let cap = `$k = ${r.k}$: $B_{${r.k + 1}} = \\min(${BMAX},\\ ${r.B} + ${ETA}\\cdot ${r.eh} - ${EC} - ${EL}) = \\min(${BMAX},\\ ${r.raw})$`;
+    if (r.ev === "brown-out") cap += ` Sonuç negatif: storage'da istenen ${EC} birim yok, energy causality bozuluyor. <b>Brown-out</b>, $B_{${r.k + 1}} = 0$.`;
+    else if (r.waste > 0) cap += ` $= ${BMAX}$. Storage doldu, <b>${r.waste} birim harvest kayboldu</b>.`;
+    else cap += ` $= ${r.next}$.`;
+    return { upto: i, caption: cap };
+  });
+  const nb = rows.filter(r => r.ev === "brown-out").length, nw = rows.reduce((a, r) => a + r.waste, 0);
+  frames.push({ upto: rows.length - 1, caption: `Toplam: storage'a giren $\\eta_h \\sum E_h = ${inTot}$, harcanması gereken $\\sum (E_c + E_{loss}) = ${need}$. Toplamda fazlası var, yine de ${nb} adım brown-out ve ${nw} birim waste. Zamanlama ve storage boyutu, toplamdan daha belirleyici.` });
+  Lab.stepper(document.getElementById("w-rec-stepper"), {
+    title: "Storage recursion, 8 adım",
+    interval: 1600,
+    frames,
+    render(f, idx, el) {
+      let h = `<div class="table-wrap"><table><tr><th>$k$</th><th>$E_{h,k}$</th><th>$B_k$</th><th>ham sonuç</th><th>$B_{k+1}$</th><th style="width:30%">storage</th><th></th></tr>`;
+      rows.slice(0, f.upto + 1).forEach((r, i) => {
+        const cur = i === f.upto && idx < rows.length;
+        const col = r.ev === "brown-out" ? "#c92a2a" : r.waste > 0 ? "#868e96" : "var(--blue-600)";
+        h += `<tr style="${cur ? "background:var(--blue-050)" : ""}"><td>${r.k}</td><td>${r.eh}</td><td>${r.B}</td><td>${r.raw}</td><td><b>${r.next}</b></td><td><div style="background:var(--stone-200);border-radius:4px;height:12px;overflow:hidden"><div style="height:100%;width:${100 * r.next / BMAX}%;background:var(--blue-600)"></div></div></td><td style="color:${col};font-weight:700">${r.ev}</td></tr>`;
+      });
+      el.innerHTML = h + `</table></div>`;
+    }
+  });
+})();
+
+/* 5. 72-hour harvesting simulator: slide 58 recursion every hour */
+(function () {
+  const $ = id => document.getElementById(id);
+  const H = 72;
+  const F = { pp: "wh-pp", eta: "wh-eta", I: "wh-i", V: "wh-v", bmax: "wh-bmax", b0: "wh-b0", loss: "wh-loss", cf: "wh-cf" };
+  const PRE = {
+    sunny: { pp: 20, eta: 0.6, I: 1.0797, V: 3, bmax: 200, b0: 100, loss: 0.05, cf: 0.1, d: [0, 0, 0] },
+    small: { pp: 20, eta: 0.6, I: 1.0797, V: 3, bmax: 25, b0: 20, loss: 0.05, cf: 0.1, d: [0, 0, 0] },
+    cloudy: { pp: 26, eta: 0.6, I: 1.0797, V: 3, bmax: 200, b0: 40, loss: 0.05, cf: 0.1, d: [0, 1, 0] },
+    lowduty: { pp: 26, eta: 0.6, I: 0.3197, V: 3, bmax: 200, b0: 40, loss: 0.05, cf: 0.1, d: [0, 1, 0] }
+  };
+  const err = $("wh-err"), plot = $("wh-plot"), sum = $("wh-sum");
+  /* exact energy of a half-sine with peak pp between 06:00 and 18:00, day-local hours [a, b] */
+  function sunE(pp, a, b) {
+    a = Math.max(6, a); b = Math.min(18, b);
+    if (b <= a) return 0;
+    return pp * 12 / Math.PI * (Math.cos(Math.PI * (a - 6) / 12) - Math.cos(Math.PI * (b - 6) / 12));
+  }
+  /* continuous time: each hour is cut where net power changes sign, so storage is monotone in every
+     piece and the instants it touches 0 or B_max are found by bisection, not only at hour boundaries */
+  function run(p) {
+    const Pc = p.V * p.I, c = Pc + p.loss;
+    const peak = day => p.pp * (p.d[day] ? p.cf : 1);
+    const net = (day, a, b) => p.eta * sunE(peak(day), a, b) - c * (b - a);
+    const power = (day, x) => (x >= 6 && x <= 18 ? p.eta * peak(day) * Math.sin(Math.PI * (x - 6) / 12) : 0) - c;
+    const cross = (day, a, b, B0, target) => {
+      let lo = a, hi = b;
+      for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if ((B0 + net(day, a, m) - target) * (B0 - target) > 0) lo = m; else hi = m; }
+      return (lo + hi) / 2;
+    };
+    let B = p.b0, raw = 0, waste = 0, dur = 0, eps = 0, first = null, off = false;
+    const tr = [B], pts = [[0, B]], hv = [], bo = [], ws = [];
+    const goOff = t => { if (!off) { eps++; if (first === null) first = t; off = true; } };
+    for (let k = 0; k < H; k++) {
+      const day = Math.floor(k / 24), h0 = k % 24, A = p.eta * peak(day);
+      const eh = sunE(peak(day), h0, h0 + 1);
+      raw += eh; hv.push(p.eta * eh);
+      const cuts = [h0, h0 + 1];
+      [6, 18].forEach(x => { if (x > h0 && x < h0 + 1) cuts.push(x); });
+      if (A > c) { const s = Math.asin(c / A) * 12 / Math.PI; [6 + s, 18 - s].forEach(x => { if (x > h0 && x < h0 + 1) cuts.push(x); }); }
+      cuts.sort((x, y) => x - y);
+      let hb = false, hw = false;
+      for (let i = 0; i + 1 < cuts.length; i++) {
+        const a = cuts[i], b = cuts[i + 1], e = net(day, a, b);
+        if (power(day, (a + b) / 2) <= 0) {
+          if (B <= 0) { B = 0; dur += b - a; hb = true; goOff(24 * day + a); }
+          else if (B + e < 0) { const ts = cross(day, a, b, B, 0); dur += b - ts; hb = true; goOff(24 * day + ts); pts.push([24 * day + ts, 0]); B = 0; }
+          else B += e;
+        } else {
+          off = false;
+          if (B + e > p.bmax) { const ts = cross(day, a, b, B, p.bmax); waste += B + e - p.bmax; hw = true; pts.push([24 * day + ts, p.bmax]); B = p.bmax; }
+          else B += e;
+        }
+        pts.push([24 * day + b, B]);
+      }
+      if (hb) bo.push(k);
+      if (hw) ws.push(k);
+      tr.push(B);
+    }
+    return { Pc, tr, pts, hv, bo, ws, raw, waste, dur, eps, first, minB: Math.min(...pts.map(q => q[1])) };
+  }
+  function read() {
+    const spec = {
+      pp: ["Tepe harvest", 0, 1000, "mW"], eta: ["$\\eta_h$", 0.01, 1, ""], I: ["$I_{avg}$", 0.001, 100, "mA"], V: ["Voltage", 0.5, 12, "V"],
+      bmax: ["$B_{max}$", 0.1, 100000, "mWh"], b0: ["$B_0$", 0, 100000, "mWh"], loss: ["$E_{loss}$", 0, 100, "mWh"], cf: ["Bulut çarpanı", 0, 1, ""]
+    };
+    const p = {}, msgs = [];
+    Object.keys(F).forEach(k => {
+      const v = BLH.parse($(F[k]).value), [name, lo, hi, u] = spec[k];
+      if (v === null) msgs.push(`${name} bir sayı olmalı (ondalık için nokta: 0.6).`);
+      else if (v < lo || v > hi) msgs.push(k === "eta" ? "$\\eta_h$ 0 ile 1 arasında olmalı: harvest edilenden fazlası storage'a giremez." : k === "cf" ? "Bulut çarpanı 0 ile 1 arasında olmalı: bulut harvest'i artırmaz." : `${name} ${lo}–${hi} ${u} aralığında olsun.`);
+      else p[k] = v;
+    });
+    if (!msgs.length && p.b0 > p.bmax) msgs.push("$B_0$, $B_{max}$'tan büyük olamaz: storage kapasitesinden fazlasını tutamaz.");
+    p.d = [0, 1, 2].map(i => ($("wh-d" + i).checked ? 1 : 0));
+    return { p, msgs };
+  }
+  const hhmm = t => { const M = Math.round(t * 60), m = M % 1440; return `${Math.floor(M / 1440) + 1}. gün ${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+  function draw(p, r) {
+    const W = 720, Ht = 230, L = 44, R = 8, T = 10, Bt = 28, pw = W - L - R, ph = Ht - T - Bt;
+    const x = k => L + pw * k / H;
+    const yB = v => T + ph * (1 - v / p.bmax);
+    const hmax = Math.max(1e-9, ...r.hv);
+    let s = `<svg class="w-battery-lifetime-harvesting-svg" viewBox="0 0 ${W} ${Ht}" role="img" aria-label="72 saatlik storage grafiği">`;
+    for (let d = 0; d < 3; d++) {
+      s += `<rect x="${x(d * 24)}" y="${T}" width="${x(6) - x(0)}" height="${ph}" style="fill:var(--stone-200);opacity:.6" />`;
+      s += `<rect x="${x(d * 24 + 18)}" y="${T}" width="${x(6) - x(0)}" height="${ph}" style="fill:var(--stone-200);opacity:.6" />`;
+      s += `<text x="${x(d * 24 + 12)}" y="${Ht - 4}" text-anchor="middle" style="fill:var(--fg);font-size:12px">${d + 1}. gün${p.d[d] ? " (bulutlu)" : ""}</text>`;
+    }
+    r.hv.forEach((v, k) => { if (v > 0) { const hh = 0.45 * ph * v / hmax; s += `<rect x="${x(k) + 0.5}" y="${T + ph - hh}" width="${Math.max(1, x(1) - x(0) - 1)}" height="${hh}" style="fill:#f2c94c" />`; } });
+    r.bo.forEach(k => { s += `<rect x="${x(k)}" y="${T + ph - 8}" width="${x(1) - x(0)}" height="8" style="fill:#c92a2a" />`; });
+    r.ws.forEach(k => { s += `<rect x="${x(k)}" y="${T}" width="${x(1) - x(0)}" height="6" style="fill:#868e96" />`; });
+    s += `<polyline fill="none" style="stroke:var(--blue-600);stroke-width:2.5" points="${r.pts.map(([t, v]) => `${x(t).toFixed(1)},${yB(v).toFixed(1)}`).join(" ")}" />`;
+    s += `<line x1="${L}" y1="${T}" x2="${L}" y2="${T + ph}" style="stroke:var(--stone-500)" /><line x1="${L}" y1="${T + ph}" x2="${W - R}" y2="${T + ph}" style="stroke:var(--stone-500)" />`;
+    s += `<text x="${L - 4}" y="${T + 10}" text-anchor="end" style="fill:var(--fg);font-size:11px">${BLH.f(p.bmax, 0)}</text><text x="${L - 4}" y="${T + ph}" text-anchor="end" style="fill:var(--fg);font-size:11px">0</text>`;
+    s += `<text x="4" y="${T + ph / 2}" style="fill:var(--fg);font-size:11px">mWh</text>`;
+    return s + `</svg>`;
+  }
+  function build() {
+    const { p, msgs } = read();
+    if (msgs.length) { BLH.err(err, msgs); return; }
+    err.innerHTML = "";
+    const r = run(p);
+    plot.innerHTML = `<div class="table-wrap">${draw(p, r)}</div>`;
+    const avgIn = p.eta * r.raw / H, okAvg = avgIn >= r.Pc + p.loss;
+    let cls = "is-good", v;
+    const boTxt = () => `toplam ${BLH.f(r.dur, 1)} saat brown-out (${r.eps} kez); ilki ${hhmm(r.first)}`;
+    if (r.eps && okAvg) { cls = "is-bad"; v = `Ortalama koşul sağlanıyor (storage'a giren ortalama ${BLH.f(avgIn, 2)} mW ≥ tüketim + loss ${BLH.f(r.Pc + p.loss, 2)} mW), yine de node <b>${boTxt()}</b>. Ortalama neutrality yetmiyor: storage gece ihtiyacını, bulutlu günün açığını ya da sabah güneş yeni doğarken harvest'in tüketimi henüz karşılamadığı dakikaları taşıyamıyor.`; }
+    else if (r.eps) { cls = "is-bad"; v = `Ortalama koşul bile sağlanmıyor (giren ${BLH.f(avgIn, 2)} mW &lt; tüketim + loss ${BLH.f(r.Pc + p.loss, 2)} mW). Node ${boTxt()}. Tüketimi düşür ya da harvest'i büyüt.`; }
+    else if (okAvg) v = `Brown-out yok ve ortalama koşul sağlanıyor. En düşük storage ${BLH.f(r.minB, 1)} mWh: gecelerin ve bulutun açığını storage karşıladı. Bu 72 saat için ENO.`;
+    else { cls = ""; v = `72 saat boyunca brown-out olmadı, ama ortalama harvest tüketimden az (giren ${BLH.f(avgIn, 2)} mW &lt; ${BLH.f(r.Pc + p.loss, 2)} mW). Node başlangıçtaki storage'ı yiyor; ufuk uzarsa ölecek. Bu ENO değil.`; }
+    sum.innerHTML = `<div class="table-wrap"><table>
+      <tr><td>Load $P_c = V \\cdot I_{avg}$</td><td class="num">${BLH.f(r.Pc, 3)} mW</td></tr>
+      <tr><td>72 saatte harvest (ham / storage'a giren)</td><td class="num">${BLH.f(r.raw, 1)} / ${BLH.f(p.eta * r.raw, 1)} mWh</td></tr>
+      <tr><td>72 saatte istenen tüketim + loss</td><td class="num">${BLH.f((r.Pc + p.loss) * H, 1)} mWh</td></tr>
+      <tr><td>Brown-out süresi (kaç kez)</td><td class="num">${BLH.f(r.dur, 1)} h (${r.eps})</td></tr>
+      <tr><td>Kaybolan harvest (storage dolu)</td><td class="num">${BLH.f(r.waste, 1)} mWh</td></tr>
+      <tr><td>En düşük / son storage</td><td class="num">${BLH.f(r.minB, 1)} / ${BLH.f(r.tr[H], 1)} mWh</td></tr>
+    </table></div><div class="w-battery-lifetime-harvesting-verdict ${cls}">${v}</div>`;
+    Lab.renderMath(sum);
+  }
+  $("wh-go").addEventListener("click", build);
+  Object.values(F).forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") build(); }));
+  [0, 1, 2].forEach(i => $("wh-d" + i).addEventListener("change", build));
+  document.querySelectorAll("[data-wh]").forEach(b => b.addEventListener("click", () => {
+    const p = PRE[b.dataset.wh];
+    Object.keys(F).forEach(k => { $(F[k]).value = p[k]; });
+    p.d.forEach((v, i) => { $("wh-d" + i).checked = !!v; });
+    build();
+  }));
+  build();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 427: rendezvous problemi, Low-Power Listening ve preamble sampling, B-MAC, X-MAC, ContikiMAC, phase lock, broadcast maliyeti, RI-MAC ve A-MAC, multi-hop delay ve Duty-Cycle MAC Bench lab'ı." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Duty-cycled MAC'ler · CSE 427 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-lpl-mac-protocols-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-lpl-mac-protocols-box { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; margin: 12px 0; background: var(--paper); min-width: 0;
+      --w-lpl-pre: #6741d9; --w-lpl-strobe: #845ef7; --w-lpl-data: #1c6bd0; --w-lpl-ack: #0d8f7c; --w-lpl-beacon: #c27a0a; --w-lpl-rx: #9fd3bd; --w-lpl-chk: #c7ccd6; --w-lpl-tx: #e8590c; }
+    .w-lpl-mac-protocols-ctl { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 6px 0 10px; font-size: .93rem; }
+    .w-lpl-mac-protocols-ctl label { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .w-lpl-mac-protocols-ctl input[type="range"] { width: 130px; accent-color: var(--blue-600); }
+    .w-lpl-mac-protocols-ctl input[type="text"] { width: 72px; font: inherit; padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+    .w-lpl-mac-protocols-ctl b { font-family: 'JetBrains Mono', monospace; font-size: .88rem; min-width: 54px; display: inline-block; }
+    .w-lpl-mac-protocols-ctl .is-on { background: var(--blue-600); color: #fff; border-color: var(--blue-600); }
+    .w-lpl-mac-protocols-svg { display: block; width: 100%; height: auto; }
+    .w-lpl-mac-protocols-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .8rem; color: var(--fg-muted); margin-top: 6px; }
+    .w-lpl-mac-protocols-legend i { display: inline-block; width: 14px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+    .w-lpl-mac-protocols-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-lpl-mac-protocols-ok { color: #2b8a3e; font-weight: 600; }
+    .w-lpl-mac-protocols-out { font-size: .93rem; }
+    .w-lpl-mac-protocols-out table { font-size: .88rem; }
+    .w-lpl-mac-protocols-out td, .w-lpl-mac-protocols-out th { padding: 4px 8px; white-space: nowrap; }
+    .w-lpl-mac-protocols-score { font-family: 'JetBrains Mono', monospace; font-size: .88rem; color: var(--fg-subtle); }
+    @media (max-width: 480px) { .w-lpl-mac-protocols-ctl input[type="range"] { width: 110px; } }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 427</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 427</a> / Duty-cycled MAC'ler</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L7</span><span class="chip">W4 Part 2</span><span class="chip chip--exam">Lab: 15 + 5 puan vizeye</span><span class="src">~61 dk · 12 bölüm</span></div>
+          <h1>Duty-cycled MAC'ler: B-MAC, X-MAC, ContikiMAC, RI-MAC</h1>
+          <p class="lead">Bir sensor node'u ömrünün çoğunu uyuyarak geçirir. Uyuyan bir receiver'a paket göndermek isteyen sender, onun ne zaman uyanacağını bilmez. Bu derste bu buluşma (rendezvous) sorununa verilen cevapları göreceksin: long preamble (B-MAC), addressed strobe (X-MAC), tekrarlanan DATA (ContikiMAC) ve receiver'ın kendini duyurması (RI-MAC, A-MAC). Her birinde enerjinin kimden kime kaydığını hesaplayacaksın.</p>
+          <p class="src">Not: Hafta 4 lab'ı (Duty-Cycle MAC Bench) vizeye eklendi: A, B, C, E deneyleri 15 puan, D deneyi 5 puan bonus. Çalışma kâğıdının Q4–Q13 soruları bu dersin ilgili bölümlerinde, senin ölçtüğün sayılarla birlikte. Experiment A (hidden terminal, Q1–Q3) bir önceki derste.</p>
+          <!-- Kaynak: resources/2026-2027-fall/Week_4_WSN_MAC_I_Contention_theo.pptx slayt 25–60 · Week_4_React_Duty_Cycle_MAC_Bench_Tutorial.pptx slayt 6–9, 13–21, 25–28 · Week_4_Duty_Cycle_MAC_Bench_Lab_Worksheet_FINAL2.docx (Experiments B–E, Q4–Q13) · assignments/2026-2027-fall-efe/week4/video-script.md Part 3–6 · weeks/04-mac-i-contention-based.md · weeks/01 (11418+36 gözlemi) · assignments/.../week3/results.html (ContikiMAC 8 Hz) · Week_3_WSN_Energy slayt 25–26 · Karl & Willig 5.2 · Dargie & Poellabauer 6.5.7–6.5.8. W4 dosyaları henüz origin/main'de olmadığı için link verilmedi. -->
+        </header>
+
+        <article class="lesson" data-course="cse-427" data-lesson="lpl-mac-protocols">
+
+<!-- 1 -->
+<section class="lsec" id="rendezvous" data-min="3">
+  <h2>Rendezvous problemi</h2>
+  <div class="box box--intuition"><span class="box__label">Sezgi</span>
+    <p>Bir arkadaşın telefonunu her saat başı sadece bir dakika açıyor ve saatleri sana söylemiyor. Ona bir şey söylemek istiyorsan ya o bir dakikayı yakalayana kadar aramaya devam edeceksin, ya da onun "açığım" mesajını bekleyeceksin. İkisinde de bedeli biri ödüyor.</p>
+    <p>WSN'de durum aynı. Receiver radio'sunu çoğu zaman kapalı tutar, arada kısa bir an kanalı kontrol eder (check). Sender'ın elinde bir paket vardır ama receiver'ın bir sonraki check'inin ne zaman olacağını bilmez. Sender ile uyuyan receiver'ın zamanında buluşması gerekir: buna <strong>rendezvous problem</strong> denir.</p>
+  </div>
+  <div class="box box--rule"><span class="box__label">Kural · duty cycle</span>
+    <p><strong>Duty cycle</strong>, bir bileşenin aktif olduğu zamanın oranıdır. Receiver her $T_{wake}$ (kısaca $T_w$, wake-up interval) sürede bir, $T_{check}$ (kısaca $T_c$) süren bir channel check yapıyorsa, boştaki receiver'ın duty cycle'ı:</p>
+    $$D_{idle} \approx \frac{T_{check}}{T_{wake}}$$
+    <p>Hocanın örneği: her 500 ms'de bir 5 ms'lik check → $5/500 = 1\%$.</p>
+    <p>Düşük receiver duty cycle enerji kazandırır ama rendezvous maliyetini artırır. Bu derste "maliyet nereye gitti?" sorusunu her protokolde soracağız.</p>
+  </div>
+  <p>Hafta 3'te iki yol görmüştün. <strong>Synchronous</strong> duty cycling'de node'lar uyanma programlarını ortak tutar (öngörülebilir ama senkronizasyon yükü ve clock drift var). <strong>Asynchronous</strong> duty cycling'de her node kendi programıyla uyanır (esnek ama sender paketi tekrarlamak ya da daha uzun beklemek zorunda kalır). Bu dersteki protokollerin hepsi asynchronous. Scheduled (TDMA) tarafı bir sonraki derste.</p>
+  <div class="box box--trap"><span class="box__label">Tuzak</span>
+    <p>$D_{idle}$ sadece receiver'ın <em>boşta</em> harcadığını ölçer. Sender'ın rendezvous için harcadığı süre, komşuların overhearing'i ve gecikme bu oranın içinde yok. "$T_w$'yi büyüttüm, duty cycle %1'e indi, enerji çözüldü" demek bu yüzden eksik.</p>
+  </div>
+  <div class="quiz" id="q-rdv-duty">
+    <p class="quiz__q">Receiver her 250 ms'de bir 5 ms boyunca kanalı kontrol ediyor. Boştaki receiver'ın duty cycle'ı kaç?</p>
+    <button class="quiz__opt" data-correct>%2<span class="why">Doğru: $5/250 = 0.02$.</span></button>
+    <button class="quiz__opt">%50<span class="why">Bu, oranı ters çevirip $250/5$'i bir yüzdeye benzetmekten çıkar. Duty cycle aktif sürenin toplam süreye oranıdır, 1'den büyük olamaz.</span></button>
+    <button class="quiz__opt">%0.02<span class="why">$5/250 = 0.02$ bir oran, yüzde olarak %2. Oranı yüzdeye çevirmeyi unuttun.</span></button>
+  </div>
+  <!-- Kaynak: W4 slayt 25 (rendezvous problem), 26 (duty cycle recap, 5 ms / 500 ms) · W3 slayt 14 ("A sleeping receiver cannot hear a sender unless a schedule, wake-up mechanism or rendezvous protocol exists"), 26 (synchronous vs asynchronous) · Karl & Willig 5.2: cycled receiver, "this task corresponds to a rendezvous". -->
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="lpl" data-min="4">
+  <h2>Low-Power Listening ve preamble sampling</h2>
+  <p><strong>Low-Power Listening (LPL)</strong>: receiver kanalı sürekli dinlemez, periyodik olarak örnekler (sample). Sıra şöyle: sleep → wake → check → sleep → wake → check…</p>
+  <ul>
+    <li>Check'te aktivite yoksa hemen uykuya döner.</li>
+    <li>Aktivite varsa uyanık kalır ve veriyi alır.</li>
+  </ul>
+  <p>Bu yüzden sender, receiver'ın en az bir check'iyle çakışacak kadar uzun sinyal vermek zorundadır. En basit çözüm <strong>preamble sampling</strong>: sender, data frame'den önce bir wake-up sinyali (preamble) gönderir.</p>
+  <ol>
+    <li>Receiver uyuyor.</li>
+    <li>Sender preamble'a başlıyor.</li>
+    <li>Receiver bir check için uyanıyor ve aktivite görüyor.</li>
+    <li>Preamble bitince data geliyor, receiver ACK gönderiyor.</li>
+  </ol>
+  <div class="box box--rule"><span class="box__label">Kural · preamble koşulu</span>
+    <p>Preamble, receiver'ın wake-up interval'ını ve bir zamanlama payını (timing guard) kapsamalı:</p>
+    $$T_{preamble} \ge T_w + T_{guard}$$
+    <p>Neden: en kötü durumda receiver, preamble başlamadan hemen önce check'ini bitirmiştir. Bir sonraki check'i $T_w$ sonra gelir. Preamble bundan kısa olursa receiver onu hiç görmez.</p>
+    <p>Fikir basit ama uzun preamble dört maliyet getirir: <strong>energy</strong> (sender uzun süre TX'te), <strong>latency</strong> (data preamble'ın sonunu bekler), <strong>overhearing</strong> (komşular da uyanır) ve <strong>channel occupation</strong> (kanal o süre boyunca başkasına kapalı).</p>
+  </div>
+  <div class="box box--trap"><span class="box__label">Tuzak · iki farklı "preamble"</span>
+    <p>Hafta 2'de 802.15.4 PPDU'sunun başındaki 4 byte'lık preamble'ı gördün. O, alıcının bit senkronizasyonu içindir ve her frame'de vardır. LPL preamble'ı ise yüzlerce milisaniye sürebilen bir wake-up sinyalidir. Sınavda "preamble" kelimesini gördüğünde hangisinin kastedildiğine bak.</p>
+  </div>
+  <div class="box box--example"><span class="box__label">Kitapta</span>
+    <p>Dargie &amp; Poellabauer (6.5.7) aynı tekniği anlatır: node'lar kanalı sabit bir $T_w$ periyoduyla örnekler, preamble'ın boyu bu sampling period'a eşittir, böylece receiver data kısmında kesin uyanık olur. Dezavantajı da aynı yazılmış: preamble boyu throughput'u düşürür ve preamble'ı duyan her node, hedef o olmasa bile uyanık kalmak zorundadır. Karl &amp; Willig (5.2.5) bu tekniği ALOHA ve CSMA'ya uygulanmış hâliyle verir.</p>
+  </div>
+  <div class="quiz" id="q-lpl-cover">
+    <p class="quiz__q">Receiver'ın wake-up interval'ı 200 ms. Sender preamble'ı 120 ms tutarsa ne olur?</p>
+    <button class="quiz__opt">Receiver bu sefer uyanmayı geciktirip preamble'ı bekler.<span class="why">Asynchronous LPL'de receiver kendi programıyla uyanır, sender'ı bilmez ve beklemez. Programını değiştiren bir mekanizma yok.</span></button>
+    <button class="quiz__opt" data-correct>Receiver'ın check'i bu 120 ms'lik pencereye düşmezse paketi kaçırır; bazı denemeler boşa gider.<span class="why">Doğru. Check'ler arasında 200 ms var. Preamble 200 ms + guard'dan kısa olunca, receiver'ın check'i preamble'a denk gelmeyebilir.</span></button>
+    <button class="quiz__opt">Sorun olmaz, preamble'ın 120 ms olması enerji tasarrufu sağlar.<span class="why">Kısa preamble sender'ın enerjisini azaltır ama koşul $T_{preamble} \ge T_w + T_{guard}$. Koşulu bozan kısaltma teslimatı şansa bırakır.</span></button>
+  </div>
+  <!-- Kaynak: W4 slayt 27 (LPL), 28 (preamble sampling: basic sequence, condition, four costs) · D&P 6.5.7 Figure 6.14 · K&W 5.2.5 · W2 notları: "PPDU: preamble 4 B · SFD 1 B · PHR 1 B". -->
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="bmac" data-min="5">
+  <h2>B-MAC: long preamble + DATA</h2>
+  <p><strong>B-MAC</strong>, basit asynchronous çalışan erken bir LPL tasarımıdır. Sender: LONG PREAMBLE → DATA → (receiver'dan) ACK.</p>
+  <ul>
+    <li>Receiver periyodik olarak kanalı kontrol eder. Preamble sırasında uyanırsa data için uyanık kalır.</li>
+    <li>Global synchronization gerekmez. Duty cycle, check interval'ı değiştirerek ayarlanır.</li>
+  </ul>
+  <h3>Receiver'ın iki durumu</h3>
+  <ul>
+    <li><strong>Idle channel:</strong> wake → CCA → sleep. Check'lerin çoğu böyle, kısa ve ucuz.</li>
+    <li><strong>Busy channel:</strong> wake → preamble'ı fark et → bekle → data'yı al. Receiver preamble'ı erken yakalarsa, preamble'ın kalan kısmı boyunca dinleyerek bekler ve fazladan öder.</li>
+  </ul>
+  <div class="box box--rule"><span class="box__label">Kural · B-MAC maliyeti</span>
+    <p>Sender, receiver'ın ne zaman uyandığını bilmez. Bu yüzden preamble'ı her zaman sonuna kadar gönderir, sonra data'yı:</p>
+    $$T_{TX} \approx T_{preamble} + T_{data}$$
+    <p>Preamble $\approx T_w$ olduğu için B-MAC'te sender'ın radio-on süresi ve latency, receiver'ın fazından bağımsız olarak $\approx T_w$'dir. Receiver $\varphi$ anında uyanırsa $T_{preamble} - \varphi$ kadar boşuna dinler.</p>
+    <p><strong>Güçlü yanları:</strong> clock synchronization yok, sender ve receiver davranışı basit, duty cycle ayarlanabilir, ağa node girip çıkması sorun değil, sonraki protokolleri anlamak için iyi bir baseline.</p>
+    <p><strong>Zayıf yanları (merkezdeki maliyet long preamble):</strong> sender yaklaşık bir check interval'ı boyunca TX'te; receiver preamble'ın kalanını bekleyebilir; komşular overhear edip uyanık kalır; uzun preamble kanalı meşgul eder; data preamble bitene kadar gecikir; hidden terminal'ler yine çakışabilir.</p>
+  </div>
+  <h3>Network-wide maliyet</h3>
+  <p>Preamble sadece hedefe gitmez, menzildeki her komşuya ulaşır. Komşu N1 ve N2 kendi check'lerinde preamble'ı görür. Preamble'da adres olmadığı için hedefin kendileri olup olmadığını bilemezler, DATA'nın başlığını okuyana kadar uyanık kalırlar. Bir sender'ın kendi işini kolaylaştırması, çevresindeki birçok node'da enerji harcatır.</p>
+  <h3>Timeline'da B-MAC</h3>
+  <p class="w-lpl-mac-protocols-guess"><b>Önce tahmin et:</b> R'nin fazını (ilk uyanma anı) sağa, sonra sola çek. Latency değişir mi? R'nin bu teslim için harcadığı radio-on süresi hangi durumda büyük?</p>
+  <div class="w-lpl-mac-protocols-box" data-w-lpl-tl data-protos="bmac" data-tw="100" data-phi="0.3" data-phin="0.6"></div>
+  <div class="box box--trap"><span class="box__label">Tuzak · "B-MAC preamble carries data"</span>
+    <p>Hayır. B-MAC'in preamble'ı adres de veri de taşımayan bir wake-up sinyalidir. Data, long preamble'ın <em>ardından</em> gelir. Hoca bunu "exam-trap" olarak işaretledi (slayt 58).</p>
+  </div>
+  <div class="quiz" id="q-bmac-phase">
+    <p class="quiz__q">B-MAC'te receiver preamble başladıktan 10 ms sonra uyanıyor ($T_w$ = 200 ms). Aşağıdakilerden hangisi doğru?</p>
+    <button class="quiz__opt">Receiver hemen ACK gönderir, sender preamble'ı keser.<span class="why">Bu X-MAC'in early ACK fikri. B-MAC'te preamble'ın içinde adres yok ve sender onu sonuna kadar gönderir.</span></button>
+    <button class="quiz__opt" data-correct>Receiver yaklaşık 190 ms preamble dinleyip sonra DATA'yı alır; latency yine ≈ $T_w$.<span class="why">Doğru. Erken uyanan receiver preamble'ın geri kalanını bekler. Sender her durumda tam preamble'ı gönderdiği için latency faza bağlı değil.</span></button>
+    <button class="quiz__opt">Receiver erken uyandığı için latency yaklaşık 10 ms olur.<span class="why">Latency'yi belirleyen, data'nın ne zaman çıktığı. B-MAC'te data hep preamble bittikten sonra, yani ≈ $T_w$ sonra çıkar.</span></button>
+  </div>
+  <!-- Kaynak: W4 slayt 29 (B-MAC), 30 (receiver behavior), 31 (strengths), 32 (limitations), 33–34 (analysis, T_TX ≈ T_preamble + T_data), 35 (network-wide cost), 58 (misconception 3). Timeline modeli: kendi modelimiz, guard 3 ms, DATA 4 ms, ACK 1 ms. -->
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="xmac" data-min="6">
+  <h2>X-MAC: addressed strobes ve early ACK</h2>
+  <p><strong>X-MAC</strong>, B-MAC'in tek uzun preamble'ını kısa ve adresli <strong>strobe</strong>'lara böler: strobe, gap, strobe, gap… Her strobe hedefin adresini taşır. Sender her gap'te dinler.</p>
+  <ol>
+    <li>Receiver uyanır ve adresli bir strobe duyar.</li>
+    <li>Hedef kendisiyse gap içinde <strong>early ACK</strong> gönderir.</li>
+    <li>Sender strobe'ları keser ve data'yı hemen gönderir, sonra normal ACK gelir.</li>
+  </ol>
+  <p>Böylece latency ve channel occupation azalır. Hedef olmayan komşu N bir strobe'u okur, "destination = D" görür ve uykuya döner. N yine bir strobe alacak kadar enerji harcar ama tam preamble boyunca uyanık kalmaktan kurtulur.</p>
+  <div class="box box--rule"><span class="box__label">Kural · beklenen bekleme</span>
+    <p>Receiver'ın fazı $\varphi$, $[0, T_w)$ aralığında düzgün (uniform) dağılmışsa ve sender receiver uyanır uyanmaz durabiliyorsa:</p>
+    $$E[\text{bekleme}] \approx \frac{T_w}{2}, \qquad \text{en kötü durum} \approx T_w$$
+    <p>Çünkü uniform bir değişkenin ortalaması aralığın ortasıdır. B-MAC'te ise sender duramadığı için her zaman $\approx T_w$ öder.</p>
+    <p><strong>Strengths:</strong> long preamble'dan daha az sender energy, daha az overhearing, daha kısa ortalama delay, hedef olmayan trafiğin erken anlaşılması.</p>
+    <p><strong>Limits:</strong> strobe'lar çakışabilir, early ACK'ler çakışabilir, hidden terminal'ler hâlâ mümkün, broadcast tek bir early ACK'e güvenemez (kim ACK verirse versin diğer komşular henüz uyanmamış olabilir).</p>
+  </div>
+  <p class="w-lpl-mac-protocols-guess"><b>Önce tahmin et:</b> Aynı fazlarla B-MAC'ten X-MAC'e geç. Sender'ın radio-on süresi kaç kat azalır? N'nin overhearing'i kaç ms'ye iner?</p>
+  <div class="w-lpl-mac-protocols-box" data-w-lpl-tl data-protos="bmac xmac" data-start="xmac" data-tw="100" data-phi="0.3" data-phin="0.6"></div>
+  <div class="box box--trap"><span class="box__label">Tuzak</span>
+    <p>"X-MAC'in sender'ı da sonunda $T_w$ öder" yanlış: sender $\varphi$ kadar strobe gönderir, ortalama $T_w/2$. Ama "X-MAC overhearing'i sıfırlar" da yanlış: komşu en az bir strobe'u okumak için uyanık kalır.</p>
+  </div>
+  <div class="box box--exam" data-exam="W4-lab-ws-Q4"><span class="box__label">W4 lab çalışma kâğıdı Q4 <span lang="en">(Experiment B)</span> · çıkmış soru</span>
+    <p>"Q4. What does B-MAC transmit while waiting for the receiver, and what does X-MAC transmit instead? <em>What to write: Use the timeline terms: preamble, strobes, early ACK and DATA.</em>"</p>
+    <p class="src">Tutorial deck'te aynı soru Q4 ve Q5 olarak iki parçaya bölünmüş.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bench timeline'ında B-MAC'te uzun mor bir bar, X-MAC'te ince bir tarak (comb) görürsün. Her birinin içinde ne var: adres var mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>X-MAC'te tarak neden aniden kesiliyor? Kesilmeden hemen önce receiver ne gönderdi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>B-MAC, receiver'ın wake-up interval'ından uzun tek bir preamble gönderir. Preamble adres ve veri taşımaz. Ardından DATA gelir, receiver ACK verir. X-MAC ise aynı süreyi kısa, hedef adresli strobe'lara böler ve aralarındaki gap'lerde dinler. Hedef uyandığında bir gap'te early ACK gönderir, sender strobe'ları keser ve DATA'yı hemen yollar.</p>
+      <p><strong>Sınav cevabı:</strong> "B-MAC sends one long un-addressed preamble that covers the whole check interval, then DATA, then waits for the ACK. X-MAC sends a train of short strobes carrying the destination address with listening gaps; the destination answers with an early ACK in a gap, the sender stops strobing and sends DATA immediately."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W4-lab-ws-Q5"><span class="box__label">W4 lab çalışma kâğıdı Q5 <span lang="en">(Experiment B)</span> · çıkmış soru</span>
+    <p>"Q5. Which protocol produced less overhearing in your run, and why? <em>What to write: Use both the measured counter and the protocol mechanism. Do not answer using the number alone.</em>"</p>
+    <p>Senin ölçümün (preset Overhearing crowd: S1, R1 ve menzilde beş boşta komşu N1–N5; wake 100 ms, range 21 m, 30 s):</p>
+    <div class="table-wrap"><table>
+      <tr><th>Protocol</th><th>PDR</th><th>Radio duty cycle</th><th>Overhearing</th><th>Over-emitting</th><th>Timeline</th></tr>
+      <tr><td>B-MAC</td><td>100 %</td><td>7.2 %</td><td>≈ 7100 ms / 130 frames</td><td>≈ 1300 ms</td><td>long preamble</td></tr>
+      <tr><td>X-MAC</td><td>100 %</td><td>3.7 %</td><td>≈ 135 ms / 57 frames</td><td>≈ 650 ms</td><td>strobe train + early ACK</td></tr>
+    </table></div>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Hoca "Numbers alone are not enough" diyor. Sayıyı söyle, sonra bir komşunun uyandığı anda ne gördüğünü anlat.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>B-MAC'te uyanan komşu, frame'in kime gittiğini en erken ne zaman öğrenebilir? X-MAC'te?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>X-MAC'te overhearing yaklaşık 135 ms, B-MAC'te 7100 ms: yaklaşık 53 kat az. Mekanizma: B-MAC'te preamble sırasında uyanan bir komşu frame'in kime gittiğini bilemez, DATA'nın başlığına kadar uyanık kalıp sonra atar. Bu, ortalama yarım wake interval'lık dinleme demek. X-MAC'te komşu tek bir kısa strobe'u çözer, adresin başkasına ait olduğunu görür ve uykuya döner. Frame sayısının çok farklı olmaması (130'a 57) ama sürenin çok farklı olması da bunu gösteriyor: her overhearing olayı X-MAC'te çok kısa.</p>
+      <p><strong>Sınav cevabı:</strong> "X-MAC: about 135 ms of overhearing vs about 7100 ms for B-MAC. A neighbour that wakes during a B-MAC preamble cannot tell who it is for and must stay awake until the DATA header; in X-MAC it decodes one addressed strobe, sees another destination and goes back to sleep."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W4-lab-ws-Q6"><span class="box__label">W4 lab çalışma kâğıdı Q6 <span lang="en">(Experiment B)</span> · çıkmış soru</span>
+    <p>"Q6. Why can X-MAC's early ACK reduce both energy use and latency? <em>What to write: Explain why the sender can stop strobes early and send DATA sooner.</em>"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Early ACK gelmeseydi sender strobe'lara ne kadar devam ederdi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Ortalama bekleme B-MAC'te $\approx T_w$, X-MAC'te $\approx T_w/2$. Tablodaki over-emitting ve duty cycle değerleri bu oranla uyumlu mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Early ACK, receiver'ın uyanık olduğunu sender'a hemen bildirir. Sender o andan sonra strobe göndermeyi bırakır, preamble'ın geri kalanını harcamaz (enerji) ve DATA'yı hemen gönderir (latency). Ortalama olarak sender $T_w$ yerine $T_w/2$ civarı öder. Senin ölçümünde over-emitting ≈ 1300 ms'den ≈ 650 ms'ye, radio duty cycle %7.2'den %3.7'ye indi, ikisi de yaklaşık yarıya.</p>
+      <p><strong>Sınav cevabı:</strong> "The early ACK tells the sender the destination is awake, so it stops the strobe train instead of finishing a full-interval preamble (less TX energy, ~T_w/2 instead of ~T_w on average) and sends DATA at once (lower latency). In my run over-emitting fell from ~1300 to ~650 ms and duty cycle from 7.2 % to 3.7 %."</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-xmac-neighbour">
+    <p class="quiz__q">X-MAC'te hedef olmayan bir komşu, strobe train sırasında uyanıyor. Ne yapar?</p>
+    <button class="quiz__opt">Early ACK gönderir, çünkü strobe'u duydu.<span class="why">Early ACK'i sadece adresi strobe'daki hedefle eşleşen node gönderir. Herkes ACK verseydi sender yanlış node'a DATA yollardı.</span></button>
+    <button class="quiz__opt">DATA gelene kadar uyanık kalır, sonra uyur.<span class="why">Bu B-MAC davranışı. X-MAC'in strobe'u adres taşıdığı için komşu DATA'yı beklemek zorunda değil.</span></button>
+    <button class="quiz__opt" data-correct>Bir strobe'u çözer, adresin başkasına ait olduğunu görür ve uykuya döner.<span class="why">Doğru. Bir strobe süresi kadar enerji harcar, tam preamble kadar değil.</span></button>
+  </div>
+  <!-- Kaynak: W4 slayt 36–39 · tutorial slayt 13–15 (Experiment B, good answer example) · worksheet Experiment B · video-script.md Part 3 (ölçüm ve Q4–Q6 cevapları). 7100/135 ≈ 52.6, python ile kontrol edildi. -->
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="contikimac" data-min="4">
+  <h2>ContikiMAC: tekrarlanan DATA frame'leri</h2>
+  <p><strong>ContikiMAC</strong> ayrı bir wake-up preamble'ı kullanmaz. Sender tam DATA frame'ini arka arkaya tekrarlar: DATA, DATA, DATA… Receiver'ın başarıyla aldığı ilk tam kopya zaten uygulama verisini taşır. Receiver ACK gönderir, sender tekrarı keser.</p>
+  <ul>
+    <li><strong>Verimlilik neye bağlı:</strong> frame uzunluğu, wake-up interval, frame'ler arası zamanlama (inter-frame timing) ve ACK'in güvenilirliği.</li>
+    <li><strong>Channel check ve fast sleep:</strong> receiver uyanınca arka arkaya iki CCA yapar. İki CCA, geçerli bir paket dizisini gürültüden ya da kısa bir parazitten ayırmaya yardım eder. Aktivite alakasız ya da geçersizse <strong>fast sleep</strong> receiver'ı hemen uykuya döndürür.</li>
+    <li><strong>ACK-based termination:</strong> X-MAC'in early termination'ına benzer, ama farkı şu: ContikiMAC'te sonlandıran ACK, <em>verinin gerçekten teslim edildiğini</em> doğrular. X-MAC'in early ACK'i sadece "uyanığım" der, DATA daha sonra gelir.</li>
+  </ul>
+  <div class="box box--example"><span class="box__label">Senin Cooja çıktın</span>
+    <p>Contiki 3.0'da varsayılan RDC katmanı ContikiMAC'tir. Hafta 1'de boot mesajında <code>nullsec CSMA ContikiMAC</code>, Hafta 3 lab'ında <code>channel check rate 8 Hz</code> gördün. 8 Hz, saniyede 8 check demek, yani $T_w = 1/8\ \text{s} = 125$ ms.</p>
+    <p>Hafta 3 ölçümünde ContikiMAC'li senaryolarda paketi gönderen client'ın radio-on oranı server'dan yüksekti (15 s aralıkla %1.66'ya %1.41). Sebep bu bölümdeki mekanizma: client, server uyanana kadar frame'i tekrarlıyor.</p>
+  </div>
+  <p class="w-lpl-mac-protocols-guess"><b>Önce tahmin et:</b> ContikiMAC'te sender'ın radio-on süresi X-MAC'e göre daha mı uzun, daha mı kısa? Komşu N bir kopyanın tamamını okumak zorunda mı?</p>
+  <div class="w-lpl-mac-protocols-box" data-w-lpl-tl data-protos="xmac cmac" data-start="cmac" data-tw="125" data-phi="0.45" data-phin="0.2"></div>
+  <div class="box box--trap"><span class="box__label">Tuzak · "ContikiMAC is just X-MAC"</span>
+    <p>Hayır. X-MAC kısa strobe'lar gönderir, data early ACK'ten sonra ayrıca gider. ContikiMAC tekrarlanan <em>tam DATA frame</em>'leri gönderir, ilk alınan kopya teslimattır. İkisi de sender-initiated ve ikisi de ACK ile durur, ama durduran ACK'in anlamı farklı.</p>
+  </div>
+  <div class="quiz" id="q-cmac-ack">
+    <p class="quiz__q">ContikiMAC'te sender'ın tekrarı kesmesini sağlayan ACK neyi doğrular?</p>
+    <button class="quiz__opt">Receiver'ın uyandığını; data bir sonraki adımda gönderilecek.<span class="why">Bu X-MAC'in early ACK'i. ContikiMAC'te kopyaların kendisi data olduğu için ACK geldiğinde teslimat bitmiştir.</span></button>
+    <button class="quiz__opt" data-correct>Verinin gerçekten teslim edildiğini.<span class="why">Doğru. Receiver bir tam kopyayı aldıktan sonra ACK verir; bu ACK actual data delivery'nin onayıdır.</span></button>
+    <button class="quiz__opt">Kanalın boş olduğunu.<span class="why">Kanalın boş olup olmadığını CCA söyler. ACK bir receiver cevabıdır ve kanal hakkında değil, frame hakkında bilgi verir.</span></button>
+  </div>
+  <!-- Kaynak: W4 slayt 40 (overview), 41 (repeated data frames, efficiency factors), 42 (channel checks and fast sleep), 43 (ACK-based termination), 58 (misconception 4) · weeks/01 boot satırı · assignments/2026-2027-fall-efe/week3/results.html: B senaryosu client radio on 1.66 %, server 1.41 %; "the client pays more in B and C — ContikiMAC repeats each frame until the receiver wakes up". -->
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="phaselock" data-min="6">
+  <h2>Phase lock ve broadcast</h2>
+  <h3>Phase lock (phase optimization)</h3>
+  <p>Sender bir komşuya her paket gönderdiğinde ACK'in geldiği an, o komşunun uyanma anına çok yakındır. Komşu her $T_w$'de bir uyandığına göre, sender bir sonraki uyanmayı tahmin edebilir. <strong>Phase lock</strong>: komşunun genelde ne zaman uyandığını öğren, gönderimi o zamana yakın yap.</p>
+  <ul>
+    <li>Faz bilgisi yoksa: beklenen rendezvous bekleme ≈ $T_w/2$ (sender bu sürenin tamamında frame tekrarlar).</li>
+    <li>Faz bilgisi varsa: sadece tahmin edilen uyanma anının biraz öncesinde, bir <strong>guard interval</strong> payıyla gönderilir. Sender'ın TX süresi guard + bir iki kopya kadar kalır.</li>
+  </ul>
+  <p class="w-lpl-mac-protocols-guess"><b>Önce tahmin et:</b> Phase lock'u aç. Sender radio-on süresi azalır, peki latency de azalır mı?</p>
+  <div class="w-lpl-mac-protocols-box" data-w-lpl-tl data-protos="cmac" data-lock="1" data-tw="125" data-phi="0.7" data-phin="0.3"></div>
+  <div class="box box--rule"><span class="box__label">Kural</span>
+    <p>Phase lock sender'ın <em>TX süresini</em> (over-emitting) azaltır, <em>latency</em>'yi azaltmaz. Paket yine receiver'ın bir sonraki uyanmasını bekler; sender sadece beklerken radio'yu kapalı tutar.</p>
+    <p>Phase bilgisi bayatlayabilir: iki node'un saatleri farklı hızda çalışır (clock drift). Bu yüzden guard interval son başarılı teslimattan bu yana geçen süreyle birlikte büyümelidir. Bir deneme başarısız olursa sender kilidi bırakır ve bir sonraki denemede tam $T_w$ boyunca kopya gönderir.</p>
+  </div>
+  <div class="box box--example"><span class="box__label">Kitapta · WiseMAC</span>
+    <p>Dargie &amp; Poellabauer'deki WiseMAC aynı fikri preamble ile yapar: receiver'ın schedule offset'i ACK içinde gönderilir, sender preamble'ı receiver uyanmadan hemen önce başlatır. Preamble süresi, $T_w$ ile clock drift'in zamanla büyüyen bir katının küçüğü seçilir. Sonuç: trafik yoğunsa (son temastan beri az zaman geçmişse) preamble kısa, trafik seyrekse uzun.</p>
+  </div>
+  <div class="box box--exam" data-exam="W4-lab-ws-Q9"><span class="box__label">W4 lab çalışma kâğıdı Q9 <span lang="en">(Experiment D, bonus)</span> · çıkmış soru</span>
+    <p>"Q9. What changes after the sender learns the receiver's wake-up phase? <em>What to write: Explain how starting close to the predicted wake time can reduce repeated packet copies / over-emitting.</em>"</p>
+    <p class="src">Tutorial deck'te bu soru Q10, devamı Q11: "Which counters changed the most: over-emitting, duty cycle, latency, or energy per packet?"</p>
+    <p>Senin ölçümün (ContikiMAC, wake 100 ms, Compare all five tablosu):</p>
+    <div class="table-wrap"><table>
+      <tr><th>Phase lock</th><th>PDR</th><th>Mean latency</th><th>Duty cycle</th><th>Energy / pkt</th><th>Over-emitting</th></tr>
+      <tr><td>OFF</td><td>100 %</td><td>57 ms</td><td>2.9 %</td><td>13.86 mJ</td><td>1.90 s</td></tr>
+      <tr><td>ON</td><td>100 %</td><td>60 ms</td><td>2.3 %</td><td>11.22 mJ</td><td>0.26 s</td></tr>
+    </table></div>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Hangi sütun en çok oransal değişti? Oranları hesapla: ON / OFF.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Latency neden neredeyse aynı kaldı? Yukarıdaki timeline'da latency'yi belirleyen şey ne?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>İlk başarılı teslimattan sonra sender, ACK'in geldiği andan receiver'ın uyanma fazını öğrenir (event log: "learned R1's wake-up phase from the ACK"). Sonraki paketlerde kopyalara tam $T_w$ boyunca değil, tahmin edilen uyanmanın hemen öncesinde başlar. Sonuç: over-emitting 1.90 s'den 0.26 s'ye (yaklaşık 7 kat az, en büyük değişim), duty cycle %2.9'dan %2.3'e, energy per packet 13.86 mJ'den 11.22 mJ'ye (yaklaşık %19 az). Latency 57 ms'den 60 ms'ye neredeyse aynı kaldı, çünkü paket yine receiver'ın uyanmasını bekliyor; sender artık beklerken radio'yu kapalı tutuyor.</p>
+      <p><strong>Sınav cevabı:</strong> "After the first ACK the sender knows when the receiver wakes, so it starts its copies just before the predicted wake-up (plus a guard) instead of repeating for a whole wake interval. Over-emitting changed most (1.90 s → 0.26 s); duty cycle and energy per packet dropped (2.9 → 2.3 %, 13.86 → 11.22 mJ). Latency stayed about the same (57 vs 60 ms) because the packet still waits for the receiver's next wake-up."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W4-lab-ws-Q10"><span class="box__label">W4 lab çalışma kâğıdı Q10 <span lang="en">(Experiment D, bonus)</span> · çıkmış soru</span>
+    <p>"Q10. Why should you not assume phase prediction is perfect in a real WSN? <em>What to write: Use the simulator's model assumptions: it does not model clock drift, so real hardware can be less ideal.</em>"</p>
+    <p class="src">Tutorial deck Q12 aynı soruyu sorar: "Why does phase prediction not make rendezvous free in real networks? Mention clock drift or stale phase information."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bench'in model varsayımlarında phase lock hakkında ne yazıyor? ("No clock drift; ContikiMAC phase lock stays valid until an attempt fails.")</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Gerçek bir mote'ta iki kristal osilatör aynı hızda mı sayar? Tahmin hatası büyürse sender ne yapmak zorunda?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Bench clock drift'i modellemiyor: öğrenilen faz, bir deneme başarısız olana kadar geçerli kalıyor. Gerçek donanımda iki node'un saatleri farklı hızlarda kayar; son temastan beri geçen süre arttıkça tahmin hatası büyür. Bu yüzden sender daha erken başlamalı (guard büyür). Faz bilgisi bayatlarsa ya da receiver programını değiştirirse tahmin tutmaz, deneme boşa gider ve sender tam bir wake interval boyunca kopya göndermeye geri döner. Rendezvous ucuzlar ama bedava olmaz.</p>
+      <p><strong>Sınav cevabı:</strong> "The simulator assumes no clock drift, so a learned phase stays valid until a failure. Real crystals drift, so the prediction error grows with the time since the last contact; the sender needs a guard interval that grows over time, and when the phase is stale the attempt fails and it falls back to repeating for a full wake interval."</p>
+    </div></details>
+  </div>
+  <h3>Broadcast asynchronous MAC'te pahalıdır</h3>
+  <p>Broadcast'te tek bir receiver'ın ACK'i tekrarı durduramaz. R1, R2, R3 farklı zamanlarda uyanır. Hepsinin en az bir kopyayı yakalaması için sender bütün bir wake-up interval boyunca tekrar etmek zorunda kalabilir.</p>
+  <p class="w-lpl-mac-protocols-guess"><b>Önce tahmin et:</b> $T_w$ = 125 ms ve kopya + gap 5 ms ise, 1 receiver'lı broadcast için kaç kopya gerekir? 5 receiver için? Unicast'te kaç?</p>
+  <div class="w-lpl-mac-protocols-box" id="w-lpl-bc"></div>
+  <div class="box box--example"><span class="box__label">Senin Cooja gözlemin · Hafta 1</span>
+    <p>Hafta 1'de Cooja'nın Radio messages penceresinde <code>11418+36</code> gibi satırlar gördün: aynı "Hello" broadcast frame'i 36 kez gönderilmişti. ContikiMAC 8 Hz'de ($T_w$ = 125 ms) bir broadcast'i bütün interval boyunca tekrarlıyor. 36 kopya, kopya başına (frame + gap) yaklaşık $125/36 \approx 3.5$ ms demek. Hafta 2'de de aynı sebeple, kopya başına kayıp olmasına rağmen her broadcast teslim edilmişti.</p>
+  </div>
+  <div class="quiz" id="q-pl-latency">
+    <p class="quiz__q">Phase lock açıldığında hangisinin <em>değişmemesi</em> beklenir?</p>
+    <button class="quiz__opt">Over-emitting<span class="why">Phase lock'un asıl etkisi bu: kopyalar sadece tahmin edilen uyanmanın yakınında gönderiliyor, over-emitting en çok düşen sayaç.</span></button>
+    <button class="quiz__opt" data-correct>Mean latency<span class="why">Doğru. Paket yine receiver'ın bir sonraki uyanmasını bekler. Sender sadece bekleme süresince radio'yu kapalı tutar. Senin ölçümünde 57 ms'ye 60 ms.</span></button>
+    <button class="quiz__opt">Energy per delivered packet<span class="why">TX süresi azaldığı için energy per packet de düşer (senin ölçümünde 13.86'dan 11.22 mJ'ye).</span></button>
+  </div>
+  <div class="quiz" id="q-bc-cover">
+    <p class="quiz__q">ContikiMAC'te broadcast neden unicast'ten pahalıdır?</p>
+    <button class="quiz__opt">Broadcast frame'i daha uzundur.<span class="why">Frame uzunluğu aynı olabilir. Maliyet farkı kopya sayısından gelir.</span></button>
+    <button class="quiz__opt">Broadcast'te CCA yapılmaz, çakışma olur.<span class="why">CCA broadcast'te de yapılır. Asıl fark ACK ile durdurulamaması.</span></button>
+    <button class="quiz__opt" data-correct>Tek bir ACK tekrarı durduramaz; farklı fazlardaki bütün komşuları kapsamak için sender tam bir $T_w$ boyunca tekrar eder.<span class="why">Doğru. Unicast (phase lock yokken) ortalama $T_w/2$'de biter; broadcast her zaman $\approx T_w$ sürer.</span></button>
+  </div>
+  <!-- Kaynak: W4 slayt 44 (phase lock), 45 (broadcast) · tutorial slayt 8 (no clock drift), 18–19 (Experiment D, Q10–Q12) · worksheet Experiment D (bonus 5 puan), Q9–Q10 · video-script.md Part 5 · D&P 6.5.7 WiseMAC · weeks/01 satır 101 (11418+36) · weeks/02 (ContikiMAC repeats each broadcast). Oranlar: 1.90/0.26 ≈ 7.3, 11.22/13.86 ≈ 0.81 (python). -->
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="compare" data-min="5">
+  <h2>Üç sender-initiated tasarım ve 500 ms sezgisi</h2>
+  <p>B-MAC, X-MAC ve ContikiMAC'in üçü de <strong>sender-initiated</strong>: rendezvous'u sender başlatır ve öder. Farkları wake-up sinyalinde.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Protocol</th><th>Wake-up sinyali</th><th>Ne durdurur</th><th>Sender ortalama</th><th>Komşu</th></tr>
+    <tr><td>B-MAC</td><td>sürekli long preamble</td><td>hiçbir şey (sonuna kadar)</td><td>$\approx T_w$</td><td>DATA başlığına kadar uyanık</td></tr>
+    <tr><td>X-MAC</td><td>kısa addressed strobe'lar</td><td>early ACK</td><td>$\approx T_w/2$</td><td>bir strobe, sonra uyku</td></tr>
+    <tr><td>ContikiMAC</td><td>tekrarlanan DATA frame'leri</td><td>data ACK</td><td>$\approx T_w/2$ (phase lock ile çok daha az)</td><td>bir kopya, sonra uyku</td></tr>
+  </table></div>
+  <div class="box box--exam" data-exam="W4-s47-500ms"><span class="box__label">W4 slayt 47 · hocanın sayısal örneği</span>
+    <p>"Numerical intuition: 500 ms wake-up interval. Assume: receiver checks 5 ms every 500 ms." Slayttaki üç sonucu soru biçimine çevirdik: (a) receiver idle duty cycle, (b) expected rendezvous wait, (c) B-MAC'in preamble'ı ile X-MAC/ContikiMAC'in karşılaştırması.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) $D_{idle} = T_c / T_w$. (b) Uniform faz için ortalama aralığın ortası.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c) B-MAC'in sender'ı receiver uyandığında durabiliyor mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) $5/500 = 1\%$. (b) $\approx 500/2 = 250$ ms. (c) B-MAC'in preamble'ı receiver'ın bütün interval'ını kapsamalı, yani $\approx 500$ ms; X-MAC ve ContikiMAC receiver uyanınca durabildiği için çoğu zaman daha erken biter (ortalama $\approx 250$ ms).</p>
+      <p>Slaytın mesajı: receiver'ın %1'lik duty cycle'ı güzel görünür ama sender her paket için yüzlerce milisaniye ödeyebilir. Düşük receiver duty cycle, sender'a yine de pahalıya patlayabilir.</p>
+      <p><strong>Sınav cevabı:</strong> "Receiver idle duty = 5/500 = 1 %. Expected rendezvous ≈ T_w/2 = 250 ms. B-MAC needs a preamble of about 500 ms (the full interval); X-MAC/ContikiMAC can stop as soon as the receiver answers, ≈ 250 ms on average."</p>
+    </div></details>
+  </div>
+  <h3>Ortalamayı kendin üret</h3>
+  <p class="w-lpl-mac-protocols-guess"><b>Önce tahmin et:</b> $T_w$ = 500 ms'de 1000 rastgele faz için ortalama latency B-MAC'te kaç ms, X-MAC'te kaç ms? Tahminini yaz, sonra çalıştır.</p>
+  <div class="w-lpl-mac-protocols-box" id="w-lpl-mc">
+    <div class="w-lpl-mac-protocols-ctl">
+      <label>$T_w$ (ms) <input type="text" id="w-lpl-mc-tw" value="500" inputmode="numeric" /></label>
+      <label>tahmin B-MAC <input type="text" id="w-lpl-mc-gb" inputmode="numeric" placeholder="ms" /></label>
+      <label>tahmin X-MAC <input type="text" id="w-lpl-mc-gx" inputmode="numeric" placeholder="ms" /></label>
+      <button class="btn btn--sm btn--accent" id="w-lpl-mc-go">1000 rastgele faz</button>
+    </div>
+    <div class="w-lpl-mac-protocols-err" id="w-lpl-mc-err" aria-live="polite"></div>
+    <div class="w-lpl-mac-protocols-out" id="w-lpl-mc-out"></div>
+  </div>
+  <div class="box box--trap"><span class="box__label">Tuzak</span>
+    <p>RI-MAC satırına dikkat et: sender'ın radio-on süresi de $\approx T_w/2$, ama TX kısmı sadece DATA kadar. Bekleme yine var, sadece biçimi değişti: gönderme yerine dinleme. Bunu bölüm 9'da göreceğiz.</p>
+  </div>
+  <div class="quiz" id="q-cmp-mean">
+    <p class="quiz__q">$T_w$ = 400 ms, faz rastgele. B-MAC ve X-MAC için sender'ın rendezvous süresi kabaca ne olur?</p>
+    <button class="quiz__opt" data-correct>B-MAC ≈ 400 ms, X-MAC ≈ 200 ms<span class="why">Doğru. B-MAC tam interval'ı kapsar; X-MAC receiver uyanınca durur, uniform fazın ortalaması interval'ın yarısı.</span></button>
+    <button class="quiz__opt">İkisi de ≈ 200 ms<span class="why">B-MAC'in sender'ı receiver'ın ne zaman uyandığını öğrenemez, preamble'ı her seferinde sonuna kadar gönderir. $T_w/2$ sadece durabilen protokoller için.</span></button>
+    <button class="quiz__opt">B-MAC ≈ 200 ms, X-MAC ≈ 4 ms<span class="why">X-MAC'te strobe'lar kısa ama strobe train, receiver uyanana kadar sürer. Kısa olan tek tek strobe'lar, toplam train değil.</span></button>
+  </div>
+  <!-- Kaynak: W4 slayt 46 (comparison), 47 (numerical intuition). Monte Carlo widget'ı kendi modelimiz; ortalamalar python ile kontrol edildi (Tw = 500: B-MAC 508, X-MAC 258, ContikiMAC 257.5, phase lock sender-on 10, RI-MAC 256 ms). -->
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="tradeoff" data-min="6">
+  <h2>Energy–latency trade-off: wake interval seçimi</h2>
+  <p>Receiver daha uzun uyursa receiver duty cycle düşer, ama rendezvous delay ve sender'ın çabası artar. Hocanın cümlesi: <em>"Energy does not disappear; it moves between receiver, sender, delay, and control overhead."</em></p>
+  <div class="box box--rule"><span class="box__label">Kural · maliyet nereye gider</span>
+    <ul>
+      <li>$T_w$ kısa: receiver sık check yapar → daha çok idle listening, daha düşük rendezvous delay.</li>
+      <li>$T_w$ uzun: receiver az check yapar → sender daha uzun preamble / strobe / kopya gönderir, latency artar, komşular daha uzun overhear eder.</li>
+    </ul>
+    <p>Receiver'ın check'i, sender'ın rendezvous'u ve $n$ komşunun overhearing'i için seçili radio maliyetlerini kabaca üç terimle toplayabiliriz ($\lambda$: saniyedeki paket sayısı, $k$: B-MAC için 1, X-MAC için 1/2):</p>
+    $$I_\Sigma(T_w) \approx \underbrace{I_{RX}\frac{T_c}{T_w}}_{\text{receiver check}} + \underbrace{\lambda\, k\, T_w\, I_{TX}}_{\text{sender rendezvous}} + \underbrace{n\,\lambda\, T_{over}\, I_{RX}}_{\text{overhearing}}$$
+    <p>Bu, tek bir node'un ortalama akımı değil: sender, receiver ve $n$ komşunun katkılarının toplamı. Tek bir node'un battery lifetime'ı için o node'un rolündeki terimi ayrı hesapla. İlk terim $T_w$ ile azalır, ikincisi $T_w$ ile artar. Toplamın bir minimumu vardır. Trafik ($\lambda$) arttıkça minimum daha kısa $T_w$'ye kayar.</p>
+  </div>
+  <p class="src">Not: Bu formül slaytlarda yok. Slayt 33, 48 ve Hafta 3'teki $I_{avg} = \sum D_i I_i$ fikrini birleştiren basit bir modeldir. Sınavda bu formülü değil, arkasındaki yön bilgisini kullan.</p>
+  <div class="box box--example"><span class="box__label">Örnek · dakikada 1 paket</span>
+    <p>$T_c$ = 5 ms, $I_{RX}$ = 19 mA, $I_{TX}$ = 17 mA (Hafta 3 slayt 24'teki değerler), B-MAC, komşu yok, dakikada 1 paket. $T_w$ = 100 ms'de $I_\Sigma \approx 0.95 + 0.03 = 0.98$ mA (receiver check + sender). Minimum $T_w \approx 579$ ms civarında, $I_\Sigma \approx 0.33$ mA. $T_w$ = 2000 ms'de tekrar 0.61 mA'ya çıkar: bu sefer sender'ın preamble'ı baskın.</p>
+    <p>Aynı ayarlarla beş komşu overhear ediyorsa B-MAC'in minimumu yaklaşık 297 ms'ye kayar. X-MAC'te overhearing terimi çok küçük olduğu için minimum yerinde kalır (≈ 819 ms).</p>
+  </div>
+  <p class="w-lpl-mac-protocols-guess"><b>Önce tahmin et:</b> Dakikadaki paket sayısını 1'den 10'a çıkarırsan en iyi $T_w$ uzar mı, kısalır mı? Komşu sayısını 0'dan 5'e çıkarınca B-MAC ve X-MAC'te ne olur?</p>
+  <div class="w-lpl-mac-protocols-box" id="w-lpl-to"></div>
+  <div class="box box--exam" data-exam="W4-lab-ws-Q7"><span class="box__label">W4 lab çalışma kâğıdı Q7 <span lang="en">(<span lang="en">Experiment C</span>)</span> · çıkmış soru</span>
+    <p>"Q7. What happened to mean latency when the wake/check interval increased? <em>What to write: Compare the two measured values and explain the rendezvous reason.</em>"</p>
+    <p>Senin ölçümün (Overhearing crowd, B-MAC satırı, Compare all five):</p>
+    <div class="table-wrap"><table>
+      <tr><th>Wake interval</th><th>PDR</th><th>Mean latency</th><th>Duty cycle</th><th>Energy / pkt</th><th>Over-emitting</th><th>Idle listening</th></tr>
+      <tr><td>50 ms</td><td>100 %</td><td>62 ms</td><td>7.0 %</td><td>33.47 mJ</td><td>1.11 s</td><td>16.10 s</td></tr>
+      <tr><td>500 ms</td><td>100 %</td><td>512 ms</td><td>24.6 %</td><td>114.98 mJ</td><td>12.31 s</td><td>1.02 s</td></tr>
+    </table></div>
+    <p class="src">Çalışma kâğıdı genişletilmiş sürüm için 500 ms ve 5 s öneriyor; senin sayfan 50–500 ms aralığına izin verdiği için iki uç kullanıldı.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>B-MAC'te latency $\approx T_w$ + birkaç ms. Bu tablo bununla uyumlu mu?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Paket ne zaman teslim edilebilir? Receiver uyanmadan önce mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Mean latency 62 ms'den 512 ms'ye çıktı. Bir paket ancak receiver uyandığında teslim edilebilir; interval uzadıkça rendezvous için beklenen süre de uzar. B-MAC'te sender preamble'ı tüm interval boyunca göndermek zorunda olduğu için latency $\approx T_w$ + birkaç ms: 50 + 12 ≈ 62, 500 + 12 ≈ 512. X-MAC olsaydı ortalama $\approx T_w/2$ olurdu.</p>
+      <p><strong>Sınav cevabı:</strong> "Mean latency rose from 62 ms to 512 ms. A packet can only be delivered when the receiver wakes; with a longer interval the rendezvous takes longer, and B-MAC's preamble must cover the whole interval, so latency ≈ T_w plus the DATA/ACK time."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W4-lab-ws-Q8"><span class="box__label">W4 lab çalışma kâğıdı Q8 <span lang="en">(<span lang="en">Experiment C</span>)</span> · çıkmış soru</span>
+    <p>"Q8. Did the energy cost disappear when the receiver slept longer? <em>What to write: Explain where the cost moved: less frequent receiver activity can require longer sender preambles/strobes/repeated transmissions or waiting.</em>"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Tabloda hangi sütun azaldı, hangisi arttı? Idle listening ile over-emitting'i karşılaştır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Energy per delivered packet'in oranını hesapla: 114.98 / 33.47.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Hayır, enerji kaybolmadı, yer değiştirdi. Receiver'ların idle listening'i 16.10 s'den 1.02 s'ye indi (on kat az check). Ama sender'ın preamble'ı on kat uzadı (yaklaşık 53 ms'den 503 ms'ye), over-emitting 1.11 s'den 12.31 s'ye çıktı. Overhearing crowd'da her komşu uzun preamble'ları dinledi. Toplamda energy per delivered packet yaklaşık 3.4 katına çıktı (33.47 → 114.98 mJ).</p>
+      <p><strong>Sınav cevabı:</strong> "No. Idle listening fell from 16.1 s to 1.0 s, but the cost moved to the sender and the neighbours: B-MAC's preamble must cover a ten times longer interval (over-emitting 1.1 → 12.3 s) and every neighbour that wakes during it overhears. Energy per delivered packet rose about 3.4× (33.5 → 115.0 mJ)."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W4-lab-expC-duty"><span class="box__label">W4 lab <span lang="en">Experiment C</span>, senin tablon · <span lang="en">"explain this result"</span></span>
+    <p>Aynı tabloda radio duty cycle 50 ms'de %7.0, 500 ms'de %24.6. Receiver daha seyrek uyandığı hâlde duty cycle neden <em>arttı</em>?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bench'in "radio duty cycle" sayacı kimin radio'sunu sayıyor: sadece receiver'ın mı, bütün mote'ların mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Trade-off widget'ında B-MAC'i seç, 5 komşu ver ve $T_w$'yi 500 ms'ye yakın tut. Hangi terim baskın?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Duty cycle bütün mote'ların radio-on zamanının oranı. 500 ms'de receiver'ların check'lerinden kazanılan süre küçük (idle listening zaten saniyeler düzeyinde), ama her paket için sender ≈ 500 ms TX yapıyor ve uyanan her komşu ortalama yarım interval preamble dinliyor. Overhearing crowd'da beş komşu var; overhearing ve over-emitting terimleri $T_w$ ile doğrusal büyüdüğü için toplam radio-on süresi arttı. Bu topolojide B-MAC için 500 ms, optimumun uzun tarafında kalıyor.</p>
+      <p><strong>Sınav cevabı:</strong> "Duty cycle counts all motes. A longer interval saves only the receivers' short checks, but every packet now costs ~500 ms of preamble at the sender and up to ~T_w/2 of overhearing at each of the five neighbours, so total radio-on time grew."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W4-lab-tut-Q9"><span class="box__label">W4 lab <span lang="en">tutorial</span> Q9 <span lang="en">(<span lang="en">Experiment C</span>)</span> · çıkmış soru</span>
+    <p>"Q9. Which setting would you choose for rare monitoring traffic? For urgent alarms?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Receiver'ın check maliyeti her zaman ödenir, sender'ın rendezvous maliyeti sadece paket olduğunda. Rare traffic'te hangisi baskın?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Hafta 3 slayt 25: "A soil-moisture sensor can sleep aggressively. A safety alarm may justify higher radio duty cycle."</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Rare monitoring (örneğin toprak nemi, birkaç dakikada bir okuma): uzun wake interval. Paket seyrek olduğu için sender'ın uzun rendezvous'u nadiren ödenir; receiver'ın sık check'inden kazanılan enerji ise sürekli birikir. Gecikme bu uygulamada önemli değil. Urgent alarm: kısa wake interval. Latency $\approx T_w$ (B-MAC) ya da $\approx T_w/2$ (X-MAC) ve hop sayısıyla çarpılır; alarmın saniyeler içinde sink'e ulaşması için receiver'ların daha sık uyanması, yani daha yüksek duty cycle kabul edilir.</p>
+      <p><strong>Sınav cevabı:</strong> "Rare monitoring: a long wake interval (e.g. the 500 ms setting): the receivers' saving is continuous while the long rendezvous is paid only for rare packets, and delay is tolerable. Urgent alarms: a short interval (50 ms): per-hop delay ≈ T_w (B-MAC) or T_w/2 grows with every hop, so a higher duty cycle is justified."</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-to-lambda">
+    <p class="quiz__q">Bir ağda trafik dakikada 1 paketten 10 pakete çıkıyor. Enerjiyi minimize eden wake interval için ne beklersin?</p>
+    <button class="quiz__opt">Değişmez; $T_w$ sadece receiver'ın check süresine bağlıdır.<span class="why">Receiver terimi trafiğe bağlı değil, ama sender'ın rendezvous terimi paket sayısıyla büyür. Denge noktası kayar.</span></button>
+    <button class="quiz__opt" data-correct>Daha kısa olur; sık paket varken sender'ın uzun rendezvous'u daha sık ödenir.<span class="why">Doğru. Basit modelde optimum $T_w \propto 1/\sqrt{\lambda}$; 10 kat trafik, optimumu yaklaşık $\sqrt{10} \approx 3.2$ kat kısaltır.</span></button>
+    <button class="quiz__opt">Daha uzun olur; daha çok paket daha çok enerji demek, receiver daha çok uyumalı.<span class="why">Receiver'ı daha çok uyutmak sender'ın her paketteki rendezvous'unu uzatır. Paket sayısı arttığında bu terim büyüdüğü için tersi doğru.</span></button>
+  </div>
+  <!-- Kaynak: W4 slayt 33 (receiver side), 48 (energy–latency trade-off) · W3 slayt 24 (I_avg = Σ D_i I_i, 19 mA / 17 mA), 25 (soil-moisture vs safety alarm) · tutorial slayt 16–17 (Experiment C, Q7–Q9) · worksheet Q7–Q8 · video-script.md Part 4. Örnek değerler ve oranlar python ile kontrol edildi (579, 297, 819 ms; 0.978, 0.328, 0.614 mA; 114.98/33.47 ≈ 3.44). -->
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="receiver-initiated" data-min="5">
+  <h2>Receiver-initiated: RI-MAC ve A-MAC</h2>
+  <p>Rendezvous'u ters çevir: receiver müsait olduğunu kendisi duyursun. <strong>Receiver-initiated MAC</strong> sırası: receiver uyanır → beacon/probe gönderir → sender duyar → DATA → ACK.</p>
+  <ul>
+    <li>Receiver uyanmadan önce uzun bir sender preamble'ı yok. Ne zaman müsait olduğunu receiver kontrol eder.</li>
+    <li>Ama sender, beacon'ı yakalamak için bir wake-up interval'a kadar dinleyebilir.</li>
+    <li>Birden fazla sender aynı beacon'a cevap verebilir.</li>
+  </ul>
+  <h3>RI-MAC: receiver beacon, sender response</h3>
+  <p>R beacon gönderir → S DATA gönderir → R bir ACK/beacon gönderir → isteyen bir sonraki DATA'yı gönderebilir. Aynı receiver'a verisi olan birden fazla sender (A, B, C) varsa hepsi aynı beacon'dan sonra cevap verebilir: <strong>contention beacon'dan sonraki zamana taşınır</strong>.</p>
+  <div class="box box--example"><span class="box__label">Kitapta · RI-MAC ayrıntısı</span>
+    <p>Dargie &amp; Poellabauer (6.5.8): receiver uyanınca kanal boşsa beacon yayınlar. Gönderecek verisi olan node uyanık kalıp hedefinin beacon'ını dinler, duyar duymaz DATA'yı yollar. Receiver'ın ikinci beacon'ı iki iş görür: önceki DATA'yı onaylar ve yeni gönderimleri davet eder. Birden fazla sender varsa beacon'daki <strong>backoff window (BW)</strong> alanı devreye girer: ilk beacon'da BW yoktur, sender'lar hemen gönderir; receiver çakışma görürse sonraki beacon'da BW verir ve büyütür, sender'lar bu pencerede rastgele backoff seçer.</p>
+  </div>
+  <p class="w-lpl-mac-protocols-guess"><b>Önce tahmin et:</b> RI-MAC'te R'nin fazını sağa çek. Sender'ın TX süresi değişir mi, radio-on süresi değişir mi?</p>
+  <div class="w-lpl-mac-protocols-box" data-w-lpl-tl data-protos="xmac rimac" data-start="rimac" data-tw="100" data-phi="0.55" data-phin="0.25"></div>
+  <h3>A-MAC: receiver probe'ları rendezvous fırsatı olarak</h3>
+  <p>A-MAC'te receiver uyanır, bir <strong>probe</strong> gönderir, kısa bir alma fırsatı açar ve uyur. Probe receiver'ın kimliğini, zamanlamasını ve link-layer durumunu taşıyabilir. A-MAC "receiver uyanık" bilgisini, "hangi sender gönderecek ve contention nasıl çözülecek" ayrıntısından ayırır.</p>
+  <p class="src">Not: Lab bench'inde A-MAC şöyle modellenmiş: bekleyen sender, hedefinin probe'una hardware auto-ACK ile cevap veriyor. Aynı anda gelen auto-ACK'ler birebir aynı olduğu için çakışmak yerine üst üste biniyor (superpose), probe yine de bekleyen sender olduğunu anlıyor. Sonra backoff ile DATA geliyor.</p>
+  <div class="box box--rule"><span class="box__label">Kural · sender-initiated vs receiver-initiated</span>
+    <p><strong>Sender-initiated</strong> (B-MAC, X-MAC, ContikiMAC): sender, receiver uyanana kadar preamble, strobe ya da tekrarlanan data gönderir.</p>
+    <p><strong>Receiver-initiated</strong> (RI-MAC, A-MAC): receiver periyodik olarak beacon/probe gönderir, sender dinler ve cevap verir.</p>
+    <p>Hiçbiri her durumda üstün değil. Asıl soru: rendezvous maliyeti çoğunlukla sender'ın <em>göndermesiyle</em> mi, yoksa sender'ın receiver beacon'ını <em>dinlemesiyle</em> mi ödensin?</p>
+  </div>
+  <div class="box box--trap"><span class="box__label">Tuzak · "Receiver-initiated MAC eliminates contention"</span>
+    <p>Hayır. Aynı beacon'ı bekleyen sender'lar beacon'dan hemen sonra birlikte gönderip çakışabilir. Birbirini duymayan (hidden) sender'lar CCA ile bunu fark edemez. Backoff, retry ve contention window yine gerekir. Ayrıca receiver, trafik olmasa da her interval'da beacon gönderir: bu da bir maliyet.</p>
+  </div>
+  <div class="box box--example"><span class="box__label">Kitap alıştırması · D&amp;P 6.32</span>
+    <p>"What is the advantage of having the receiver (instead of the sender) in control over the timing of transmissions (e.g., as in the RI-MAC protocol)? How does the RI-MAC protocol handle multiple contending senders?"</p>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Receiver ne zaman uyanık olduğunu bildiği için kanal, uzun preamble'larla hedef belli olmadan işgal edilmez; komşuların overhearing'i azalır ve receiver çakışmaları kendisi fark edip toparlayabilir. Birden fazla sender için: ilk beacon BW içermez; çakışma olursa receiver BW'li yeni bir beacon gönderir, sender'lar $[0, BW]$ içinde rastgele backoff seçer, çakışma sürerse BW büyür. Birkaç beacon boyunca hiçbir paket alınamazsa receiver uyur. Bedeli: sender'lar beacon'ı beklerken dinler (idle listening), çakışmada latency artar.</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-ri-pays">
+    <p class="quiz__q">RI-MAC'te rendezvous maliyetini esas olarak kim, nasıl öder?</p>
+    <button class="quiz__opt">Receiver, uzun beacon'lar göndererek.<span class="why">Beacon kısa bir frame. Receiver'ın her interval'daki beacon maliyeti küçük ve sabit; bekleme ise sender tarafında.</span></button>
+    <button class="quiz__opt" data-correct>Sender, beacon'ı yakalayana kadar radio'su açık dinleyerek.<span class="why">Doğru. Sender'ın TX'i sadece DATA kadar, ama beklemesi (ortalama $T_w/2$) idle listening olarak ödeniyor.</span></button>
+    <button class="quiz__opt">Kimse; receiver kendini duyurduğu için bekleme ortadan kalkar.<span class="why">Receiver'ın beacon'ı ne zaman gelecek, sender yine bilmez. Bekleme ortadan kalkmaz, gönderme yerine dinleme olur.</span></button>
+  </div>
+  <!-- Kaynak: W4 slayt 49 (receiver-initiated MAC), 50 (RI-MAC), 51 (A-MAC), 52 (sender vs receiver), 58 (misconception 5) · D&P 6.5.8 ve Figure 6.15, alıştırma 6.32 · lab bench'in A-MAC açıklaması (auto-ACK superposition) tutorial slayt 6 protocol selector ile birlikte. -->
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="traffic" data-min="6">
+  <h2>Traffic pattern, hidden terminal, multi-hop ve kayıplı link'ler</h2>
+  <h3>Traffic pattern önemlidir</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Trafik</th><th>Ne olur</th></tr>
+    <tr><td>Rare unicast</td><td>Agresif receiver sleep işe yarar. Arada bir ödenen yüksek rendezvous maliyeti kabul edilebilir.</td></tr>
+    <tr><td>Frequent unicast</td><td>Tekrarlanan rendezvous pahalılaşır. Phase prediction ve batching (paketleri biriktirip birlikte gönderme) yardımcı olur.</td></tr>
+    <tr><td>Broadcast / many-to-one</td><td>Receiver'lar farklı zamanlarda uyanır. Sink'e yakın relay'ler contention point olur.</td></tr>
+  </table></div>
+  <h3>Hidden/exposed terminal'ler LPL altında kaybolmaz</h3>
+  <p>Duty cycling zamanlamayı değiştirir, interference'ı ortadan kaldırmaz.</p>
+  <ul>
+    <li>B-MAC: hidden sender'ların long preamble'ları çakışabilir.</li>
+    <li>X-MAC: strobe train'ler ya da early ACK'ler çakışabilir.</li>
+    <li>ContikiMAC: tekrarlanan data frame'leri çakışabilir.</li>
+    <li>RI-MAC/A-MAC: birden fazla hidden sender aynı receiver beacon'ına cevap verebilir.</li>
+  </ul>
+  <p>Hepsinde backoff, retry ve contention window yine gerekli.</p>
+  <div class="box box--rule"><span class="box__label">Kural · multi-hop delay ve retransmission</span>
+    <p>Rendezvous gecikmesi her hop'ta tekrar eder. $H$ hop'luk bir yolda, retry'lar hariç beklenen rendezvous bileşeni:</p>
+    $$\text{delay}_{rdv} \approx H \times \frac{T_w}{2}$$
+    <p>Bir deneme $p$ olasılıkla başarılıysa beklenen deneme sayısı:</p>
+    $$E[\text{attempts}] \approx \frac{1}{p}$$
+    <p>Her başarısız deneme yeni bir wake-up ya da contention gerektiriyorsa enerji hızla artar: kayıplı link'ler rendezvous enerjisini çarpar. Hocanın örneği: $p = 0.8$ → 1.25 deneme; $p = 0.4$ → 2.5 deneme.</p>
+    <p>Her deneme ortalama $T_w/2$ süren yeni bir rendezvous sayılırsa delay de aynı oranda büyür: $\text{delay}_{rdv} \approx H \times \frac{T_w}{2p}$ (B-MAC'te $H \times T_w/p$).</p>
+  </div>
+  <div class="box box--trap"><span class="box__label">Tuzak</span>
+    <p>$H \times T_w/2$ sadece rendezvous bileşenidir. B-MAC'te her hop $\approx T_w$ olduğu için bileşen $\approx H \times T_w$ olur. Ayrıca DATA/ACK süreleri, backoff ve retry'lar buna eklenir.</p>
+  </div>
+  <p class="w-lpl-mac-protocols-guess"><b>Önce tahmin et:</b> 6 hop, $T_w$ = 200 ms, her hop'ta $p$ = 0.5. Retry'lar hariç ve retry'lar dahil rendezvous gecikmesi, toplam beklenen gönderim sayısı ne olur?</p>
+  <div class="w-lpl-mac-protocols-box" id="w-lpl-mh"></div>
+  <div class="box box--exam" data-exam="W4-s55-multihop"><span class="box__label">W4 slayt 55 · hocanın formülü</span>
+    <p>Slayttaki şekil: node 1 → 2 → 3 → 4 → Sink, "Expected rendezvous component ≈ H × T_w / 2". Soru biçimine çevirdik: Bu yolda ContikiMAC, Contiki 3.0'ın varsayılanı olan 8 Hz channel check rate ile çalışıyor. Beklenen rendezvous gecikmesi nedir?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Şekilde kaç hop var? Node sayısı değil, link sayısı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>8 Hz → $T_w$ = ?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>1→2, 2→3, 3→4, 4→Sink: $H = 4$. $T_w = 1/8$ s = 125 ms. Delay $\approx 4 \times 125/2 = 250$ ms. Phase lock olmadan, sadece rendezvous bileşeni.</p>
+      <p><strong>Sınav cevabı:</strong> "H = 4 hops, T_w = 1/8 s = 125 ms, expected rendezvous delay ≈ H·T_w/2 = 4 × 62.5 = 250 ms (plus DATA/ACK time and any retries)."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W4-s56-attempts"><span class="box__label">W4 slayt 56 · hocanın örneği</span>
+    <p>"If one attempt succeeds with probability p, expected attempts ≈ 1 / p." Slayttaki örnek: $p$ = 0.8 ve $p$ = 0.4. Beklenen deneme sayıları ve enerjiye etkisi?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Geometric distribution'ın ortalaması $1/p$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her deneme yeni bir rendezvous ise enerji, deneme sayısıyla aynı oranda büyür.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$1/0.8 = 1.25$, $1/0.4 = 2.5$. Link kalitesi yarıya inince deneme sayısı iki katına çıkıyor. Duty-cycled MAC'te her başarısız deneme yeniden bir rendezvous (preamble, strobe train ya da beacon bekleme) demek, yani rendezvous enerjisi de yaklaşık 2 kat.</p>
+      <p><strong>Sınav cevabı:</strong> "Expected attempts 1/0.8 = 1.25 and 1/0.4 = 2.5. If each failed attempt needs a new wake-up/rendezvous, energy per delivered packet scales the same way, so the poor link costs about twice as much."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W4-lab-tut-Q15"><span class="box__label">W4 lab <span lang="en">tutorial</span> Q15 <span lang="en">(Experiment E)</span> · çıkmış soru</span>
+    <p>"Q15. In the funnel topology, why can the sink-side receiver become a contention point?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Preset: Funnel, 4 senders → 1 sink, synchronised traffic açık. Bütün paketler hangi node'dan geçmek zorunda?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sink'in iki yanındaki sender'lar birbirini duyuyor mu? CCA onları korur mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Many-to-one trafikte her paket tek bir receiver'a gidiyor ve receiver'ın her uyanması tek bir rendezvous fırsatı. Dört sender aynı anda paket üretiyor, hepsi sink'in aynı uyanmasını hedefliyor. Sink'in karşı taraflarındaki sender'lar birbirini duymuyor (hidden), CCA'ları boş kanal görüyor ve frame'leri sink'te çakışıyor. Senin tablonda beş protokolün hepsi paket kaybetti; X-MAC'te strobe train'ler sink'te çakıştığı için hidden losses 2757'ye çıktı. Receiver-initiated'da da aynı beacon'a cevap veren sender'lar çakışıyor.</p>
+      <p><strong>Sınav cevabı:</strong> "All four senders target the same receiver and the same wake-up/beacon, so their preambles, strobes, copies or responses overlap there; senders on opposite sides cannot hear each other (hidden terminals), so carrier sensing does not prevent the collisions at the sink."</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-tr-hops">
+    <p class="quiz__q">5 hop'luk bir yolda X-MAC, $T_w$ = 300 ms. Rendezvous gecikmesi kabaca ne kadar?</p>
+    <button class="quiz__opt">150 ms<span class="why">Bu tek bir hop'un beklemesi. Rendezvous her hop'ta tekrar eder.</span></button>
+    <button class="quiz__opt" data-correct>750 ms<span class="why">Doğru: $5 \times 300/2 = 750$ ms.</span></button>
+    <button class="quiz__opt">1500 ms<span class="why">Bu $H \times T_w$, yani B-MAC'e uygun tahmin. X-MAC receiver uyanınca durur, hop başına ortalama $T_w/2$.</span></button>
+  </div>
+  <!-- Kaynak: W4 slayt 53 (traffic pattern), 54 (hidden/exposed under LPL), 55 (multi-hop), 56 (1/p, p = 0.8 / 0.4) · tutorial slayt 20–21 (Experiment E, Q15) · video-script.md Part 6 (funnel açıklaması, hidden losses). Widget varsayılanı python ile: 6 × 200/2 = 600 ms, 6 × 200/(2 × 0.5) = 1200 ms, 6/0.5 = 12 gönderim; RI-MAC idle (1 + 5)/100 = %6. -->
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="bench" data-min="6">
+  <h2>Lab: model varsayımları ve beş MAC'i karşılaştırma</h2>
+  <p>Duty-Cycle MAC Bench, hocanın tek HTML dosyalık simülatörü. Amaç React öğrenmek değil, aleti bir ölçü cihazı gibi kullanmak: <strong>predict → run → observe → explain</strong>. Her cevap görünür bir kanıta dayanmalı: bir sayaç değeri, bir event-log satırı, timeline'daki bir desen ya da topolojideki bir ilişki.</p>
+  <h3>Sayaçlar</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Counter</th><th>Anlamı</th></tr>
+    <tr><td>PDR</td><td>delivered / generated paket</td></tr>
+    <tr><td>Hidden-terminal losses</td><td>birbirini duymayan sender'ların ortak receiver'da çakışması</td></tr>
+    <tr><td>Exposed deferrals</td><td>güvenle gönderebilecekken bekleyen sender</td></tr>
+    <tr><td>Overhearing</td><td>başkasına giden trafik için uyanık kalma</td></tr>
+    <tr><td>Over-emitting</td><td>hedef uyurken ya da meşgulken TX yapma</td></tr>
+    <tr><td>Idle listening</td><td>radio açık, kanal boş</td></tr>
+    <tr><td>Radio duty cycle</td><td>radio'nun aktif olduğu zaman oranı</td></tr>
+  </table></div>
+  <div class="box box--rule"><span class="box__label">Kural · model varsayımları (<span lang="en">tutorial</span> slayt 8)</span>
+    <ul>
+      <li><strong>Unit-disk radio:</strong> menzil içindeki node frame'i duyar, dışındaki duymaz.</li>
+      <li><strong>Carrier-sense range = communication range.</strong></li>
+      <li><strong>No capture effect:</strong> üst üste binen frame'ler alımı bozar.</li>
+      <li><strong>1 ms slot'lar;</strong> DATA, ACK, strobe, beacon, probe için basitleştirilmiş süreler.</li>
+      <li><strong>No clock drift;</strong> ContikiMAC phase lock bir deneme başarısız olana kadar geçerli.</li>
+      <li><strong>Simplified CC2420 current model.</strong></li>
+    </ul>
+    <p>Hocanın sonucu: simülatörü mekanizmaları ve trade-off'ları açıklamak için kullan; bir protokolün gerçek deployment'larda evrensel olarak en iyi olduğunu iddia etme.</p>
+  </div>
+  <div class="box box--trap"><span class="box__label">Tuzak · hocanın "common mistakes" listesi</span>
+    <ul>
+      <li>"En iyi" hücreyi okuyup mekanizmayı açıklamamak.</li>
+      <li>Aynı anda birden çok parametreyi değiştirip hangisinin etkilediğini bilmemek.</li>
+      <li>Hidden-terminal collision ile exposed-terminal deferral'ı karıştırmak.</li>
+      <li>React bench'i gerçek fiziksel radio sonucu gibi sunmak.</li>
+      <li>Sadece PDR raporlayıp latency, duty cycle ve energy per delivered packet'i yok saymak.</li>
+      <li>Protokolleri karşılaştırmadan önce reset'i unutmak.</li>
+    </ul>
+  </div>
+  <h3>Experiment E: Funnel, 4 senders → 1 sink</h3>
+  <p>Senin tablon (wake 100 ms, range 21 m, packet interval 1200 ms, retry 3, synchronised traffic açık, phase lock açık, Run 60 s comparison):</p>
+  <div class="table-wrap"><table>
+    <tr><th>MAC</th><th>PDR</th><th>Mean latency</th><th>Duty cycle</th><th>Energy / pkt</th><th>Hidden losses</th></tr>
+    <tr><td>B-MAC</td><td>50.5 %</td><td>714 ms</td><td>37.5 %</td><td>59.65 mJ</td><td>268</td></tr>
+    <tr><td>X-MAC</td><td>48.0 %</td><td>347 ms</td><td>27.0 %</td><td>46.25 mJ</td><td>2757</td></tr>
+    <tr><td>ContikiMAC</td><td>36.0 %</td><td>563 ms</td><td>30.5 %</td><td>68.04 mJ</td><td>712</td></tr>
+    <tr><td>RI-MAC</td><td>52.5 %</td><td>110 ms</td><td>12.5 %</td><td>19.99 mJ</td><td>215</td></tr>
+    <tr><td>A-MAC</td><td>29.0 %</td><td>272 ms</td><td>16.8 %</td><td>48.74 mJ</td><td>285</td></tr>
+  </table></div>
+  <div class="box box--exam" data-exam="W4-lab-ws-Q11"><span class="box__label">W4 lab çalışma kâğıdı Q11 <span lang="en">(Experiment E)</span> · çıkmış soru</span>
+    <p>"Q11. Which protocol has the highest PDR? Is it also the lowest-energy protocol? <em>What to write: Write the protocol name(s) and use the numbers from your comparison table.</em>"</p>
+    <p class="src">Tutorial deck Q13 aynı soru: "Which protocol had the highest PDR? Was it also lowest energy per delivered packet?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>PDR sütununda en büyük değer, energy/pkt sütununda en küçük değer hangi satırda?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bu topolojide neden receiver-initiated bir protokol öne çıkıyor olabilir? Kim rendezvous'u başlatıyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>En yüksek PDR RI-MAC'te: %52.5. Bu funnel'da en düşük energy per delivered packet (19.99 mJ) ve en düşük latency (110 ms) de RI-MAC'te. Sebep: sink uyandığında beacon gönderiyor, dört sender ona uzun preamble ya da strobe train göndermek yerine beacon'ı bekleyip hemen DATA yolluyor. Ama "her zaman en iyi" sonucu çıkmaz: bu tek bir topoloji ve tek bir parametre seti, ve PDR'ı bile %52.5'te kalıyor.</p>
+      <p><strong>Sınav cevabı:</strong> "RI-MAC had the highest PDR (52.5 %) and, in this funnel, also the lowest energy per delivered packet (19.99 mJ) and latency (110 ms): the sink's beacon tells the senders when to transmit, so they do not need preambles or strobe trains towards it. This holds for this topology and settings only."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W4-lab-ws-Q12"><span class="box__label">W4 lab çalışma kâğıdı Q12 <span lang="en">(Experiment E)</span> · çıkmış soru</span>
+    <p>"Q12. Give one example of a trade-off between two metrics. <em>What to write: Example structure: Protocol X has lower latency but higher duty cycle than Protocol Y; therefore the better choice depends on the application.</em>"</p>
+    <p class="src">Tutorial deck Q14: "Pick one protocol that is good on one metric but bad on another. Explain the trade-off."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Duty cycle'ı düşük ama PDR'ı da düşük bir satır var mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>X-MAC ile B-MAC'in latency ve hidden losses sütunlarını karşılaştır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>A-MAC'in duty cycle'ı düşük (%16.8) ama PDR'ı en düşük (%29.0). B-MAC daha çok teslim ediyor (%50.5) ama radio'su iki katından fazla açık (%37.5, yaklaşık 2.2 kat). Ya da: X-MAC'in latency'si B-MAC'in yaklaşık yarısı (347'ye 714 ms) ama hidden losses'ı yaklaşık 10 kat (2757'ye 268), çünkü çok sayıda kısa strobe sink'te çakışıyor. Hangisinin daha iyi olduğu uygulamanın önceliğine bağlı.</p>
+      <p><strong>Sınav cevabı:</strong> "X-MAC has about half the latency of B-MAC (347 vs 714 ms) but about ten times more hidden-terminal losses (2757 vs 268) because its many strobes collide at the sink; A-MAC has a lower duty cycle than B-MAC (16.8 vs 37.5 %) but a lower PDR (29.0 vs 50.5 %). The better choice depends on whether the application values delay, energy or reliability."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W4-lab-ws-Q13"><span class="box__label">W4 lab çalışma kâğıdı Q13 <span lang="en">(model limitations)</span> · çıkmış soru</span>
+    <p>"Q13. Why should these results not be presented as real-world performance measurements? <em>What to write: Mention at least three simulator assumptions, such as unit-disk radio, equal carrier-sense and communication range, no capture effect, simplified 1 ms timing, no clock drift, fixed current model or small queue depth.</em>"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Hafta 2'de link'in "a probability of delivery, not a binary edge" olduğunu gördün. Unit-disk model bununla nasıl çelişiyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her varsayım için gerçekte ne olduğunu bir cümleyle söyle: varsayım + neden sonuç değişir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(1) Unit-disk radio: gerçekte link'ler olasılıksal, transitional region'da PRR %0 ile %100 arasında değişir, asymmetry var. (2) Carrier-sense range = communication range: gerçekte CCA eşiği ve interference menzili farklıdır, hidden/exposed ilişkileri değişir. (3) No capture effect: gerçekte güçlü frame zayıf olanı yenip alınabilir, bench kayıpları abartabilir. (4) 1 ms slot ve basitleştirilmiş frame süreleri: gerçek turnaround ve frame süreleri farklı. (5) No clock drift: phase lock gerçekte bu kadar temiz çalışmaz. (6) Sabit CC2420 akım modeli: gerçek enerji pil, sıcaklık ve donanıma bağlı. Bench mekanizmaları ve trade-off'ları açıklamak için, protokolleri gerçek bir deployment için sıralamak için değil.</p>
+      <p><strong>Sınav cevabı:</strong> "The bench is a teaching model: a unit-disk radio (a link is either perfect or absent, no transitional region), carrier-sense range equal to communication range, no capture effect (any overlap destroys both frames), 1 ms slots with simplified frame times, no clock drift (phase lock looks too clean), and a fixed simplified CC2420 current model. It explains mechanisms and trade-offs; it does not measure real performance."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W4-lab-tut-Q16"><span class="box__label">W4 lab <span lang="en">tutorial</span> Q16 <span lang="en">(Experiment E)</span> · çıkmış soru</span>
+    <p>"Q16. Based on your table, why is there no universally best duty-cycled MAC?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Tablodaki her sütun bir metriği ödüllendiriyor (PDR: reliability, latency: hız, duty cycle: düşük aktif zaman, energy/pkt: verimli teslim). Her sütunun kazananı aynı mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Experiment B'deki overhearing crowd'da sıralama aynı mıydı? Hoca protocol seçiminin neye bağlı olduğunu söylüyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Her protokol rendezvous maliyetini farklı bir yere koyuyor: B-MAC sender'ın TX'ine ve komşuların overhearing'ine, X-MAC strobe'lara (çakışmaya açık), ContikiMAC tekrarlanan data'ya, RI-MAC ve A-MAC sender'ın dinlemesine ve beacon sonrası contention'a. Bu yüzden metrik değişince kazanan değişir; topoloji değişince de değişir (overhearing crowd'da X-MAC B-MAC'i açık farkla geçiyordu, funnel'da hidden losses'ta çok geride). Protocol seçimi traffic rate'e, yöne (unicast, broadcast, many-to-one), latency toleransına, topoloji yoğunluğuna ve enerji bütçesine bağlı.</p>
+      <p><strong>Sınav cevabı:</strong> "Each MAC pays the rendezvous cost in a different place (sender TX, strobes, repeated data, sender listening, post-beacon contention), so the winner changes with the metric and the topology. Choice depends on traffic rate, direction, latency tolerance, topology density and energy budget."</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W4-lab-submission"><span class="box__label">W4 lab çalışma kâğıdı · Submission Checklist ve video · notlu lab görevi (midterm puanı)</span>
+    <p>Çalışma kâğıdının başı: "A, B, C, E are for 15 points and D is bonus 5 points. All will be added to Midterm." Submission Checklist: "Experiment A completed; hidden-terminal evidence shown. Experiment B completed; B-MAC and X-MAC compared. Experiment C completed; two wake/check intervals compared. Experiment D completed; ContikiMAC phase-lock OFF/ON compared. Experiment E completed; five-protocol table recorded. Questions Q1-Q13 answered in your own words. All copied numerical values include units where appropriate. At least one screenshot (or equivalent on-screen video evidence) is provided for each required evidence box." Video guide: "about 10-12 minutes. Do not record a long silent screen capture. Show the required experiment, state the settings you used, point to the measured result, and explain why it changed."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Tutorial slayt 26'daki rubric'te en büyük pay hangi bileşende? Videonun zamanını buna göre böl.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her deney için aynı üçlü: settings (preset, protokol, parametre) → evidence (sayaç, log satırı, timeline) → mechanism (neden böyle oldu).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Rubric (tutorial slayt 26): correct experiments %20, reading the evidence %20, explanations %35, five-protocol comparison %15, model limitations %10. Puanın yarıdan fazlası açıklamada ve karşılaştırmada; sayıyı göstermek tek başına yetmez.</p>
+      <div class="table-wrap"><table>
+        <tr><th>Bölüm (süre)</th><th>Settings</th><th>Evidence (senin değerlerin)</th><th>Sorular</th></tr>
+        <tr><td>Giriş (1–2 dk)</td><td>Ad, öğrenci numarası, sayfanın kontrolleri</td><td>Wake 100 ms, range 21 m, packet interval 1200 ms, retry 3</td><td>—</td></tr>
+        <tr><td>A · hidden terminal (2 dk)</td><td>Hidden terminal preset, ContikiMAC, synchronised traffic ON, en az 3 burst</td><td>Event log'da "HIDDEN TERMINAL — R1 lost S1's DATA + S2's DATA" ve R1'in timeline'ındaki çakışma (evidence A1)</td><td>Q1–Q3</td></tr>
+        <tr><td>B · B-MAC vs X-MAC (2 dk)</td><td>Overhearing crowd, aynı ayarlar, arada Reset</td><td>Duty cycle 7.2 % / 3.7 %, overhearing ≈ 7100 ms / ≈ 135 ms, over-emitting ≈ 1300 ms / ≈ 650 ms; iki timeline (evidence B1)</td><td>Q4–Q6</td></tr>
+        <tr><td>C · wake interval (2 dk)</td><td>Sadece wake interval değişir: 50 ms ve 500 ms</td><td>B-MAC: latency 62 ms → 512 ms, duty cycle 7.0 % → 24.6 %, energy/pkt 33.47 mJ → 114.98 mJ</td><td>Q7–Q8</td></tr>
+        <tr><td>D · phase lock, bonus (1–2 dk)</td><td>ContikiMAC, phase lock OFF sonra ON</td><td>Over-emitting 1.90 s → 0.26 s; "learned … wake-up phase" log satırı (evidence D1)</td><td>Q9–Q10</td></tr>
+        <tr><td>E · compare all five (2 dk)</td><td>Funnel preset, Run 60 s comparison</td><td>Tablonun tamamı (evidence E1); RI-MAC PDR 52.5 %, 19.99 mJ, 110 ms</td><td>Q11–Q12</td></tr>
+        <tr><td>Kapanış</td><td>—</td><td>En az üç model varsayımı</td><td>Q13</td></tr>
+      </table></div>
+      <p>Her sayıyı birimiyle söyle (%, ms, mJ, frames). A ve B'deki canlı sayaçlar zamanlamaya bağlı; kendi ekranında gördüğünü söyle. Compare all five sabit seed kullandığı için tekrarlanabilir.</p>
+      <p>Tutorial slayt 24'teki cevap şablonu her soru için iyi bir iskelet: What happened? Why did it happen? Which MAC concept explains it? What limitation of the simulator should we remember?</p>
+    </div></details>
+    <!-- Kaynak: Week_4_Duty_Cycle_MAC_Bench_Lab_Worksheet_FINAL2.docx (başlık notu, Submission Checklist, Video submission guide; origin/main'de yok, link verilmedi) · tutorial slayt 22–24, 26 · weeks/04 ## Submission · assignments/2026-2027-fall-efe/week4/video-script.md (Part 1–6 değerleri). -->
+  </div>
+  <div class="box box--rule"><span class="box__label">Kural · ana MAC design trade-off'ları (slayt 57)</span>
+    <p>Energy vs latency · receiver energy vs sender energy · simplicity vs efficiency · control overhead vs collision reduction · throughput vs duty cycling · unicast vs broadcast · low traffic vs high traffic · stable links vs lossy links. Application ve traffic modeli olmadan "en iyi" MAC yok.</p>
+  </div>
+  <p>Slayt 59 Cooja lab'ı için ölçülecekleri de listeliyor: senaryolar (direct link, hidden-sender topology, multi-hop path, farklı wake-up interval'ları, unicast vs broadcast) ve ölçümler (PRR, missing ACK, retransmission, radio TX/listen time, latency, estimated energy).</p>
+  <div class="quiz" id="q-bench-capture">
+    <p class="quiz__q">Bench'in "no capture effect" varsayımı sonuçları hangi yöne kaydırabilir?</p>
+    <button class="quiz__opt" data-correct>Çakışmalardan kaynaklanan kayıpları gerçeğe göre abartabilir.<span class="why">Doğru. Gerçekte güçlü frame zayıfın üstüne çıkıp alınabilir; bench her üst üste binmede iki frame'i de kaybediyor.</span></button>
+    <button class="quiz__opt">Overhearing'i olduğundan az gösterir.<span class="why">Capture effect alımın çakışmada ne olacağıyla ilgili, komşunun ne kadar uyanık kaldığıyla değil.</span></button>
+    <button class="quiz__opt">Clock drift'i modellemediği için phase lock'u kötü gösterir.<span class="why">İki ayrı varsayımı karıştırıyorsun. Clock drift'in olmaması phase lock'u olduğundan <em>iyi</em> gösterir, capture ile ilgisi yok.</span></button>
+  </div>
+  <!-- Kaynak: tutorial slayt 2 (numbers alone are not enough), 7 (counter glossary), 8 (model assumptions), 9 (evidence rule), 20–21 (Experiment E, Q13–Q16), 25 (common mistakes), 26 (rubric: explanations 35 %), 28 (takeaways) · worksheet Experiment E, Q11–Q13 · W4 slayt 57, 59, 60 · video-script.md Part 6. Oranlar python ile: 37.5/16.8 ≈ 2.23, 2757/268 ≈ 10.3, 714/347 ≈ 2.06. -->
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="5">
+  <h2>Son kontrol</h2>
+  <p>Önce timeline'dan protokolü tanı, sonra soruları kâğıt kalemle çöz.</p>
+  <p class="w-lpl-mac-protocols-guess"><b>Önce tahmin et:</b> Aşağıdaki timeline'da bütün gönderimler aynı renkte, etiket yok. Sadece desene bakarak protokolü seç.</p>
+  <div class="w-lpl-mac-protocols-box" id="w-lpl-game"></div>
+  <div class="box box--exam" data-exam="W4-s58-misconceptions"><span class="box__label">W4 slayt 58 · <span lang="en">"exam-trap style misunderstandings"</span></span>
+    <p>Hocanın listesindeki bu derse ait dört cümle. Her birini düzelt ve bir cümleyle gerekçelendir:</p>
+    <ol>
+      <li>"Lower receiver duty cycle always saves network energy."</li>
+      <li>"B-MAC preamble carries data."</li>
+      <li>"ContikiMAC is just X-MAC."</li>
+      <li>"Receiver-initiated MAC eliminates contention."</li>
+    </ol>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her biri için ilgili bölümdeki "Tuzak" kutusuna bak: maliyet nereye gidiyor, preamble'ın içinde ne var, wake-up sinyali ne, beacon'dan sonra ne oluyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Hocanın cevapları kısa: "Cost may move to sender and delay", "data follows the long preamble", "repeated data frames, not short strobes", "senders may collide after a beacon".</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>Yanlış. Maliyet sender'a (daha uzun preamble/strobe/kopya), komşulara (overhearing) ve gecikmeye kayabilir. Senin Experiment C tablon: 500 ms'de energy/pkt 3.4 kat arttı.</li>
+        <li>Yanlış. B-MAC preamble'ı adres ve veri taşımaz; data long preamble'dan sonra gelir.</li>
+        <li>Yanlış. ContikiMAC kısa strobe'lar değil, tekrarlanan tam data frame'leri gönderir; durduran ACK teslimatı doğrular.</li>
+        <li>Yanlış. Aynı beacon'a cevap veren sender'lar çakışabilir; backoff, retry ve contention window yine gerekir.</li>
+      </ol>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Bir timeline'da sender önce kısa adresli frame'ler gönderiyor, receiver bir gap'te kısa bir cevap veriyor, sonra sender DATA gönderiyor. Bu hangisi?</p>
+    <button class="quiz__opt">ContikiMAC<span class="why">ContikiMAC'te tekrarlanan frame'ler DATA'nın kendisi, ayrıca DATA gönderilmez ve durduran ACK teslimattan sonra gelir.</span></button>
+    <button class="quiz__opt" data-correct>X-MAC<span class="why">Doğru: addressed strobes + early ACK + DATA.</span></button>
+    <button class="quiz__opt">RI-MAC<span class="why">RI-MAC'te ilk konuşan receiver'dır (beacon). Burada ilk gönderen sender.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Bir ağda çoğu trafik broadcast (örneğin bir komutun bütün node'lara dağıtılması). Sender-initiated bir LPL MAC için en doğru ifade hangisi?</p>
+    <button class="quiz__opt">Phase lock ile broadcast maliyeti ortadan kalkar.<span class="why">Phase lock tek bir komşunun fazını hedefler. Broadcast'te farklı fazlardaki bütün komşular kapsanmalı.</span></button>
+    <button class="quiz__opt">X-MAC'in early ACK'i broadcast'i de erken bitirir.<span class="why">Bir komşunun early ACK'i diğer komşuların uyandığını göstermez. Slayt 39: broadcast cannot rely on one early ACK.</span></button>
+    <button class="quiz__opt" data-correct>Her broadcast yaklaşık bir tam $T_w$ boyunca tekrar edilmek zorunda; uzun $T_w$ bu trafikte pahalı.<span class="why">Doğru. X-MAC'te ve faz bilgisi olmayan ContikiMAC'te unicast ortalama yaklaşık $T_w/2$'de biter, B-MAC unicast zaten $\approx T_w$ öder. Broadcast ise üçünde de $\approx T_w$ öder.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Receiver'ın wake-up interval'ı 100 ms'den 1000 ms'ye çıkarılıyor, trafik ve topoloji aynı. Hangisi <em>kesin</em> doğrudur?</p>
+    <button class="quiz__opt">Network'ün toplam enerjisi azalır.<span class="why">Receiver'ın check maliyeti azalır, ama sender'ın rendezvous'u ve komşuların overhearing'i artar. Toplamın ne olacağı trafiğe ve topolojiye bağlı.</span></button>
+    <button class="quiz__opt" data-correct>Boştaki receiver'ın duty cycle'ı 10 kat düşer, hop başına rendezvous gecikmesi yaklaşık 10 kat artar.<span class="why">Doğru. $T_c$ sabitken $T_c/T_w$, $T_w$ ile ters orantılıdır (10 kat düşer); $T_w/2$ ve B-MAC'te $T_w$ doğru orantılıdır (10 kat artar). Kesin olan bunlar.</span></button>
+    <button class="quiz__opt">Hidden terminal çakışmaları ortadan kalkar, çünkü node'lar daha az uyanık.<span class="why">Duty cycling zamanlamayı değiştirir, interference'ı kaldırmaz. Uzun preamble'lar çakışma penceresini büyütebilir bile.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Bir link'in tek deneme başarı olasılığı 0.5'ten 0.25'e düşüyor. Duty-cycled bir MAC'te bu link'teki rendezvous enerjisi kabaca nasıl değişir?</p>
+    <button class="quiz__opt">Değişmez; rendezvous sadece $T_w$'ye bağlı.<span class="why">Bir rendezvous'un maliyeti $T_w$'ye bağlı, ama kaç rendezvous gerektiği $1/p$'ye bağlı.</span></button>
+    <button class="quiz__opt">Yarıya iner.<span class="why">Başarı olasılığı düşünce deneme sayısı artar, azalmaz.</span></button>
+    <button class="quiz__opt" data-correct>Yaklaşık iki katına çıkar: beklenen deneme 2'den 4'e.<span class="why">Doğru: $1/0.5 = 2$, $1/0.25 = 4$. Her başarısız deneme yeni bir rendezvous demek.</span></button>
+  </div>
+  <!-- Kaynak: W4 slayt 39, 45, 54, 56, 58, 60 (key takeaways) · tutorial slayt 28. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+/* ===== LPL rendezvous engine: one packet S → R, one bystander N. Times in ms. ===== */
+const LPL = (function () {
+  const D = { Tw: 100, Tc: 5, Td: 4, Ta: 1, s: 1, g: 1, gc: 1, G: 3, b: 1 };
+  const EPS = 1e-9;
+  const ceilDiv = (x, p) => Math.max(0, Math.ceil(x / p - EPS));
+  const fmt = (x) => (Math.round(x * 10) / 10).toString();
+
+  function sim(proto, P, phi, phiN, lock) {
+    const seg = [], air = [], ev = [];
+    const tx = (row, kind, t0, t1, addr) => { seg.push({ row, kind, t0, t1 }); air.push({ kind, t0, t1, addr: addr !== false }); };
+    const rx = (row, t0, t1) => { if (t1 > t0 + EPS) seg.push({ row, kind: "rx", t0, t1 }); };
+    let lat, sOn, sTx, rOn, sIdle = 0, start = 0;
+    const { Tw, Tc, Td, Ta, s, g, gc, G, b } = P;
+    if (proto === "bmac") {
+      const TP = Tw + G;
+      tx("S", "pre", 0, TP, false); tx("S", "data", TP, TP + Td); rx("S", TP + Td, TP + Td + Ta);
+      rx("R", phi, TP + Td); tx("R", "ack", TP + Td, TP + Td + Ta);
+      lat = TP + Td + Ta; sOn = lat; sTx = TP + Td; rOn = lat - phi;
+      ev.push({ t: 0, txt: `S'nin paketi hazır. Receiver'ın ne zaman uyanacağını bilmediği için ${fmt(TP)} ms'lik long preamble'a başlıyor ($T_w$ + guard).` });
+      ev.push({ t: phi, txt: `R ${fmt(phi)} ms'de uyanıyor, CCA kanalı meşgul buluyor. Preamble'da adres yok, bu yüzden DATA gelene kadar uyanık bekliyor.` });
+      ev.push({ t: TP, txt: `Preamble ${fmt(TP)} ms'de bitti, DATA başlıyor. R uyandığından beri ${fmt(TP - phi)} ms preamble dinledi.` });
+      ev.push({ t: TP + Td, txt: "DATA bitti, R ACK gönderiyor." });
+    } else if (proto === "xmac") {
+      const p = s + g, k = ceilDiv(phi, p);
+      for (let i = 0; i <= k; i++) { tx("S", "strobe", i * p, i * p + s); if (i < k) rx("S", i * p + s, (i + 1) * p); }
+      const e0 = k * p + s, e1 = e0 + Ta;
+      rx("R", phi, e0); tx("R", "eack", e0, e1); rx("S", e0, e1);
+      tx("S", "data", e1, e1 + Td); rx("R", e1, e1 + Td); tx("R", "ack", e1 + Td, e1 + Td + Ta); rx("S", e1 + Td, e1 + Td + Ta);
+      lat = e1 + Td + Ta; sOn = lat; sTx = (k + 1) * s + Td; rOn = lat - phi;
+      ev.push({ t: 0, txt: `S, R'nin adresini taşıyan kısa strobe'lar gönderiyor. Her strobe'dan sonra ${fmt(g)} ms'lik gap'te dinliyor.` });
+      ev.push({ t: phi, txt: `R ${fmt(phi)} ms'de uyanıyor ve bir sonraki tam strobe'u bekliyor.` });
+      ev.push({ t: e0, txt: `R, ${k + 1}. strobe'da kendi adresini okudu ve gap içinde early ACK gönderdi.` });
+      ev.push({ t: e1, txt: `S strobe'ları kesip hemen DATA'yı gönderiyor. Toplam ${k + 1} strobe gitti.` });
+      ev.push({ t: e1 + Td, txt: "DATA bitti, R ACK gönderiyor." });
+    } else if (proto === "cmac") {
+      const q = Td + gc;
+      start = lock ? Math.max(0, phi - G) : 0;
+      const k = ceilDiv(phi - start, q);
+      for (let i = 0; i <= k; i++) { tx("S", "data", start + i * q, start + i * q + Td); if (i < k) rx("S", start + i * q + Td, start + (i + 1) * q); }
+      const c1 = start + k * q + Td;
+      rx("R", phi, c1); tx("R", "ack", c1, c1 + Ta); rx("S", c1, c1 + Ta);
+      lat = c1 + Ta; sOn = lat - start; sTx = (k + 1) * Td; rOn = lat - phi;
+      if (lock) {
+        ev.push({ t: 0, txt: `S, R'nin fazını önceki ACK'ten biliyor. Radio kapalı bekliyor; kopyalara tahmin edilen uyanmadan guard (${fmt(G)} ms) kadar önce, ${fmt(start)} ms'de başlayacak.` });
+        if (start > 0) ev.push({ t: start, txt: `S ${fmt(start)} ms'de kopyalara başlıyor.` });
+      } else ev.push({ t: 0, txt: `S tam DATA frame'ini tekrar tekrar gönderiyor. Kopyalar arasındaki ${fmt(gc)} ms'lik gap'te ACK bekliyor.` });
+      ev.push({ t: phi, txt: `R ${fmt(phi)} ms'de uyanıyor, iki CCA enerji görüyor, uyanık kalıyor.` });
+      ev.push({ t: c1, txt: `R ${k + 1}. kopyayı eksiksiz aldı: veri teslim edildi. ACK gönderiyor, S tekrarı kesiyor.` });
+    } else if (proto === "rimac") {
+      rx("S", 0, phi); tx("R", "beacon", phi, phi + b); rx("S", phi, phi + b);
+      tx("S", "data", phi + b, phi + b + Td); rx("R", phi + b, phi + b + Td);
+      tx("R", "beacon", phi + b + Td, phi + 2 * b + Td); rx("S", phi + b + Td, phi + 2 * b + Td);
+      rx("R", phi + 2 * b + Td, phi + 2 * b + Td + Tc);
+      lat = phi + 2 * b + Td; sOn = lat; sTx = Td; sIdle = phi; rOn = 2 * b + Td + Tc;
+      ev.push({ t: 0, txt: "S'nin paketi hazır. Hiçbir şey göndermiyor: radio'yu açıp R'nin beacon'ını dinliyor (idle listening)." });
+      ev.push({ t: phi, txt: `R ${fmt(phi)} ms'de uyanıyor ve "uyanığım, gönder" diyen beacon'ı yayınlıyor.` });
+      ev.push({ t: phi + b, txt: `S beacon'ı duydu, DATA'yı hemen gönderiyor. ${fmt(phi)} ms dinleyerek bekledi.` });
+      ev.push({ t: phi + b + Td, txt: "R ikinci bir beacon gönderiyor: bu hem DATA'nın ACK'i hem de yeni gönderenlere davet." });
+    }
+    const horizon = Math.max(Tw + G + Td + 2 * Ta + 6, lat + 2);
+    const nRes = bystander(proto, P, air, phiN, horizon, seg, ev);
+    for (let t = phi + Tw; t < horizon; t += Tw) {
+      if (proto === "rimac") { seg.push({ row: "R", kind: "beacon", t0: t, t1: t + b }); rx("R", t + b, t + b + Tc); }
+      else seg.push({ row: "R", kind: "chk", t0: t, t1: t + Tc });
+    }
+    ev.push({ t: lat, txt: `Teslim tamam: latency ${fmt(lat)} ms, sender radio-on ${fmt(sOn)} ms.` });
+    ev.sort((a, c) => a.t - c.t);
+    return { seg, ev, horizon, start, m: { lat, sOn, sTx, rOn, sIdle, nOver: nRes.over, nOn: nRes.on } };
+  }
+
+  // N wakes at phiN + k*Tw. If it senses activity in its check window it stays on
+  // until the end of the first complete addressed frame that starts after it woke.
+  function bystander(proto, P, air, phiN, horizon, seg, ev) {
+    let over = 0, on = 0, until = -1;
+    for (let w = phiN; w < horizon; w += P.Tw) {
+      if (w < until) continue;
+      if (proto === "rimac") {
+        seg.push({ row: "N", kind: "beacon", t0: w, t1: w + P.b });
+        const lo = w + P.b, hi = lo + P.Tc;
+        const busy = air.filter((f) => f.t0 < hi && f.t1 > lo);
+        let end = hi;
+        if (busy.length) {
+          const nxt = air.filter((f) => f.addr && f.t0 >= lo - EPS).sort((a, c) => a.t0 - c.t0)[0];
+          const cur = Math.max(...busy.map((f) => f.t1));
+          end = Math.max(hi, nxt && nxt.t0 < hi ? nxt.t1 : cur);
+          over += end - hi;
+        }
+        seg.push({ row: "N", kind: "rx", t0: lo, t1: end }); on += P.b + (end - lo); until = end;
+        if (w === phiN) ev.push({ t: w, txt: `N de kendi programıyla ${fmt(w)} ms'de uyanıp kendi beacon'ını yayınlıyor, kısa bir süre dinleyip uyuyor.${busy.length ? "" : " Overhearing yok."}` });
+        continue;
+      }
+      const lo = w, hi = w + P.Tc;
+      const busy = air.filter((f) => f.t0 < hi && f.t1 > lo);
+      if (!busy.length) {
+        seg.push({ row: "N", kind: "chk", t0: lo, t1: hi }); on += P.Tc;
+        if (w === phiN) ev.push({ t: w, txt: `N ${fmt(w)} ms'de uyanıyor, kanal boş, hemen uyuyor.` });
+        continue;
+      }
+      const nxt = air.filter((f) => f.addr && f.t0 >= lo - EPS).sort((a, c) => a.t0 - c.t0)[0];
+      const end = nxt ? nxt.t1 : Math.max(...busy.map((f) => f.t1));
+      seg.push({ row: "N", kind: "rx", t0: lo, t1: end }); over += end - lo; on += end - lo; until = end;
+      const what = proto === "bmac" ? "Preamble'da adres olmadığı için DATA'nın başlığını okuyana kadar uyanık kalıyor"
+        : (nxt && nxt.kind === "strobe") ? "Bir strobe'u okuyup hedefin R olduğunu görüyor ve hemen uyuyor"
+        : "Bir tam frame'i okuyup kendisine olmadığını görünce uyuyor";
+      ev.push({ t: w, txt: `N ${fmt(w)} ms'de uyanıyor ve kanalda trafik görüyor. ${what}: ${fmt(end - lo)} ms overhearing.` });
+    }
+    return { over, on };
+  }
+
+  function rng(seed) { // mulberry32
+    let a = seed >>> 0;
+    return function () { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+
+  function monteCarlo(P, n, seed) {
+    const r = rng(seed), out = {}, phases = [];
+    for (let i = 0; i < n; i++) phases.push([r() * P.Tw, r() * P.Tw]);
+    for (const [pr, lk] of [["bmac", false], ["xmac", false], ["cmac", false], ["cmac", true], ["rimac", false]]) {
+      const acc = { lat: [], sOn: [], sTx: [], nOver: [] };
+      for (const [a, c] of phases) { const m = sim(pr, P, a, c, lk).m; acc.lat.push(m.lat); acc.sOn.push(m.sOn); acc.sTx.push(m.sTx); acc.nOver.push(m.nOver); }
+      const st = {};
+      for (const k in acc) { const v = acc[k]; st[k] = { mean: v.reduce((x, y) => x + y, 0) / v.length, max: Math.max(...v) }; }
+      out[pr + (lk ? "L" : "")] = st;
+    }
+    return out;
+  }
+  return { D, sim, monteCarlo, rng, fmt, ceilDiv };
+})();
+
+/* ===== Shared drawing ===== */
+const W_LPL = {
+  NAMES: { bmac: "B-MAC", xmac: "X-MAC", cmac: "ContikiMAC", rimac: "RI-MAC" },
+  COL: { pre: "--w-lpl-pre", strobe: "--w-lpl-strobe", data: "--w-lpl-data", ack: "--w-lpl-ack", eack: "--w-lpl-ack", beacon: "--w-lpl-beacon", rx: "--w-lpl-rx", chk: "--w-lpl-chk", tx: "--w-lpl-tx" },
+  niceStep(span) { const raw = span / 5, p = Math.pow(10, Math.floor(Math.log10(raw))); const f = raw / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p; },
+  // rows: [{key, label}], seg: [{row, kind, t0, t1}]
+  svg(rows, seg, horizon, tNow, neutral) {
+    const Wd = 640, left = 34, right = 8, rowH = 40, top = 6, H = top + rows.length * rowH + 30;
+    const x = (t) => left + (t / horizon) * (Wd - left - right);
+    let out = `<svg class="w-lpl-mac-protocols-svg" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="radio timeline">`;
+    rows.forEach((r, i) => {
+      const y = top + i * rowH;
+      out += `<line x1="${left}" y1="${y + rowH - 6}" x2="${Wd - right}" y2="${y + rowH - 6}" style="stroke:var(--border)" />`;
+      out += `<text x="2" y="${y + rowH - 9}" style="font:700 17px 'JetBrains Mono',monospace;fill:var(--fg-brand)">${r.label}</text>`;
+    });
+    for (const sg of seg) {
+      if (sg.t0 >= tNow) continue;
+      const i = rows.findIndex((r) => r.key === sg.row); if (i < 0) continue;
+      const y = top + i * rowH, t1 = Math.min(sg.t1, tNow);
+      const isTx = !(sg.kind === "rx" || sg.kind === "chk");
+      const kind = neutral && isTx ? "tx" : sg.kind;
+      const h = isTx ? 24 : 10, yy = isTx ? y + rowH - 6 - h : y + rowH - 6 - h;
+      const w = Math.max(0.8, x(t1) - x(sg.t0));
+      out += `<rect x="${x(sg.t0).toFixed(2)}" y="${yy}" width="${w.toFixed(2)}" height="${h}" rx="1" style="fill:var(${W_LPL.COL[kind]})" />`;
+    }
+    const st = W_LPL.niceStep(horizon), yAx = top + rows.length * rowH + 4;
+    for (let t = 0; t <= horizon + 1e-9; t += st) {
+      out += `<line x1="${x(t)}" y1="${yAx - 4}" x2="${x(t)}" y2="${yAx}" style="stroke:var(--fg-faint)" />`;
+      out += `<text x="${x(t)}" y="${yAx + 17}" text-anchor="middle" style="font:15px 'JetBrains Mono',monospace;fill:var(--fg-subtle)">${Math.round(t)}</text>`;
+    }
+    out += `<text x="${Wd - right}" y="${yAx + 17}" text-anchor="end" style="font:15px 'JetBrains Mono',monospace;fill:var(--fg-subtle)">ms</text>`;
+    if (tNow < horizon) out += `<line x1="${x(tNow)}" y1="${top}" x2="${x(tNow)}" y2="${yAx}" style="stroke:var(--accent);stroke-width:1.5;stroke-dasharray:3 2" />`;
+    return out + "</svg>";
+  },
+  legend(neutral) {
+    const items = neutral ? [["tx", "gönderim (TX)"], ["rx", "dinleme / alma"], ["chk", "boş check"]]
+      : [["pre", "preamble"], ["strobe", "strobe"], ["data", "DATA"], ["ack", "ACK / early ACK"], ["beacon", "beacon"], ["rx", "dinleme / alma"], ["chk", "boş check"]];
+    return `<div class="w-lpl-mac-protocols-legend">${items.map(([k, l]) => `<span><i style="background:var(${W_LPL.COL[k]})"></i>${l}</span>`).join("")}</div>`;
+  },
+  parse(v) { const t = String(v).trim().replace(",", "."); if (!/^-?\d+(\.\d+)?$/.test(t)) return NaN; return parseFloat(t); }
+};
+
+/* ===== 1. Timeline instances ===== */
+document.querySelectorAll("[data-w-lpl-tl]").forEach((box, idx) => {
+  const protos = box.dataset.protos.split(" ");
+  let proto = box.dataset.start || protos[0];
+  let Tw = +box.dataset.tw, fPhi = +box.dataset.phi, fN = +box.dataset.phin, lock = false;
+  const hasLock = box.dataset.lock === "1";
+  const id = "w-lpl-tl" + idx;
+  box.innerHTML = `
+    <div class="w-lpl-mac-protocols-ctl">
+      ${protos.length > 1 ? protos.map((p) => `<button class="btn btn--sm" data-p="${p}">${W_LPL.NAMES[p]}</button>`).join("") : `<b style="min-width:0">${W_LPL.NAMES[proto]}</b>`}
+      ${hasLock ? `<label><input type="checkbox" id="${id}-lock" /> phase lock</label>` : ""}
+    </div>
+    <div class="w-lpl-mac-protocols-ctl">
+      <label>$T_w$ <input type="range" id="${id}-tw" min="20" max="500" step="5" value="${Tw}" /><b id="${id}-twv"></b></label>
+      <label>R fazı <input type="range" id="${id}-phi" min="0" max="99" value="${Math.round(fPhi * 100)}" /><b id="${id}-phiv"></b></label>
+      <label>N fazı <input type="range" id="${id}-pn" min="0" max="99" value="${Math.round(fN * 100)}" /><b id="${id}-pnv"></b></label>
+      <button class="btn btn--sm" id="${id}-rnd">Rastgele fazlar</button>
+    </div>
+    <div id="${id}-st"></div>
+    ${W_LPL.legend(false)}
+    <div class="w-lpl-mac-protocols-out table-wrap" id="${id}-m"></div>`;
+  const $ = (s) => box.querySelector("#" + id + s);
+  function run() {
+    const P = Object.assign({}, LPL.D, { Tw });
+    const phi = fPhi * Tw, phiN = fN * Tw;
+    $("-twv").textContent = Tw + " ms"; $("-phiv").textContent = LPL.fmt(phi) + " ms"; $("-pnv").textContent = LPL.fmt(phiN) + " ms";
+    box.querySelectorAll("[data-p]").forEach((b) => b.classList.toggle("is-on", b.dataset.p === proto));
+    const r = LPL.sim(proto, P, phi, phiN, lock);
+    const rows = [{ key: "S", label: "S" }, { key: "R", label: "R" }, { key: "N", label: "N" }];
+    const frames = r.ev.map((e) => ({ t: e.t + 1e-6, caption: `<b>t = ${LPL.fmt(e.t)} ms.</b> ${e.txt}` }));
+    frames.push({ t: r.horizon + 1, caption: "Bütün timeline. ⏮ ile başa dönüp ▶ ile olay olay izle. Aşağıdaki tablo bu tek teslimatın maliyeti." });
+    const stp = Lab.stepper($("-st"), { title: W_LPL.NAMES[proto] + (proto === "cmac" && lock ? " + phase lock" : "") + ` · $T_w$ = ${Tw} ms`, interval: 1500, frames,
+      render(f, i, stage) { stage.innerHTML = W_LPL.svg(rows, r.seg, r.horizon, f.t, false); } });
+    stp.go(frames.length - 1);
+    const m = r.m;
+    $("-m").innerHTML = `<table>
+      <tr><th>Latency (paket hazır → ACK)</th><td>${LPL.fmt(m.lat)} ms</td></tr>
+      <tr><th>Sender radio-on</th><td>${LPL.fmt(m.sOn)} ms (TX ${LPL.fmt(m.sTx)} ms${m.sIdle ? ", beacon beklerken dinleme " + LPL.fmt(m.sIdle) + " ms" : ""})</td></tr>
+      <tr><th>R'nin bu teslim için radio-on'u</th><td>${LPL.fmt(m.rOn)} ms</td></tr>
+      <tr><th>N'nin overhearing'i</th><td>${LPL.fmt(m.nOver)} ms</td></tr>
+      <tr><th>Boştaki receiver duty cycle</th><td>${proto === "rimac" ? `(beacon ${LPL.D.b} + listen ${LPL.D.Tc}) / ${Tw} = ${LPL.fmt(100 * (LPL.D.b + LPL.D.Tc) / Tw)}` : `check ${LPL.D.Tc} / ${Tw} = ${LPL.fmt(100 * LPL.D.Tc / Tw)}`} %</td></tr></table>
+      <p class="src">Model: DATA 4 ms, ACK 1 ms, strobe 1 ms + gap 1 ms, ContikiMAC gap 1 ms, beacon 1 ms, guard 3 ms, check 5 ms. Tek sender, çakışma yok.</p>`;
+    Lab.renderMath(box);
+  }
+  box.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-p]"); if (b) { proto = b.dataset.p; run(); }
+    if (e.target.id === id + "-rnd") { fPhi = Math.random() * 0.99; fN = Math.random() * 0.99; $("-phi").value = Math.round(fPhi * 100); $("-pn").value = Math.round(fN * 100); run(); }
+  });
+  $("-tw").addEventListener("input", (e) => { Tw = +e.target.value; run(); });
+  $("-phi").addEventListener("input", (e) => { fPhi = +e.target.value / 100; run(); });
+  $("-pn").addEventListener("input", (e) => { fN = +e.target.value / 100; run(); });
+  if (hasLock) $("-lock").addEventListener("change", (e) => { lock = e.target.checked; run(); });
+  run();
+});
+
+/* ===== 2. Monte Carlo over random phases ===== */
+(function () {
+  const go = document.getElementById("w-lpl-mc-go"), err = document.getElementById("w-lpl-mc-err"), out = document.getElementById("w-lpl-mc-out");
+  go.addEventListener("click", () => {
+    const Tw = W_LPL.parse(document.getElementById("w-lpl-mc-tw").value);
+    if (!(Tw >= 10 && Tw <= 2000)) { err.textContent = "T_w için 10 ile 2000 arasında bir sayı yaz (ms)."; return; }
+    err.textContent = "";
+    const P = Object.assign({}, LPL.D, { Tw }), r = LPL.monteCarlo(P, 1000, 427);
+    const f = LPL.fmt;
+    const rows = [["bmac", "B-MAC"], ["xmac", "X-MAC"], ["cmac", "ContikiMAC"], ["cmacL", "ContikiMAC + phase lock"], ["rimac", "RI-MAC"]];
+    let h = `<div class="table-wrap"><table><tr><th>MAC</th><th>ort. latency</th><th>en kötü latency</th><th>ort. sender radio-on</th><th>ort. sender TX</th><th>ort. N overhearing</th></tr>`;
+    for (const [k, n] of rows) { const s = r[k]; h += `<tr><td>${n}</td><td>${f(s.lat.mean)} ms</td><td>${f(s.lat.max)} ms</td><td>${f(s.sOn.mean)} ms</td><td>${f(s.sTx.mean)} ms</td><td>${f(s.nOver.mean)} ms</td></tr>`; }
+    h += "</table></div>";
+    const fb = [];
+    for (const [id, k, n] of [["w-lpl-mc-gb", "bmac", "B-MAC"], ["w-lpl-mc-gx", "xmac", "X-MAC"]]) {
+      const g = W_LPL.parse(document.getElementById(id).value);
+      if (!isNaN(g)) { const real = r[k].lat.mean, e = Math.abs(g - real) / real; fb.push(`${n}: tahminin ${f(g)} ms, ölçülen ${f(real)} ms ${e < 0.1 ? '<span class="w-lpl-mac-protocols-ok">(yakın)</span>' : "(farkı düşün: sender durabiliyor mu?)"}`); }
+    }
+    h += `<p>${fb.length ? fb.join("<br>") + "<br>" : ""}Karşılaştır: $T_w$ = ${f(Tw)} ms, $T_w/2$ = ${f(Tw / 2)} ms. B-MAC ≈ $T_w$ + 8 ms, X-MAC ve ContikiMAC ≈ $T_w/2$ + birkaç ms. Phase lock latency'yi değil, sender radio-on süresini düşürüyor.</p>`;
+    out.innerHTML = h; Lab.renderMath(out);
+  });
+})();
+
+/* ===== 3. Broadcast vs unicast (ContikiMAC) ===== */
+(function () {
+  const box = document.getElementById("w-lpl-bc");
+  let Tw = 125, Td = 4, n = 3, mode = "bc", seed = 7, phases = [];
+  box.innerHTML = `
+    <div class="w-lpl-mac-protocols-ctl">
+      <button class="btn btn--sm" data-m="bc">broadcast</button><button class="btn btn--sm" data-m="uc">unicast → R1</button>
+      <button class="btn btn--sm" id="w-lpl-bc-rnd">Yeni fazlar</button>
+    </div>
+    <div class="w-lpl-mac-protocols-ctl">
+      <label>$T_w$ <input type="range" id="w-lpl-bc-tw" min="50" max="500" step="5" value="125" /><b id="w-lpl-bc-twv"></b></label>
+      <label>frame <input type="range" id="w-lpl-bc-td" min="1" max="8" step="0.5" value="4" /><b id="w-lpl-bc-tdv"></b></label>
+      <label>receiver <input type="range" id="w-lpl-bc-n" min="1" max="5" value="3" /><b id="w-lpl-bc-nv"></b></label>
+    </div>
+    <div id="w-lpl-bc-svg"></div>${W_LPL.legend(false)}
+    <div class="w-lpl-mac-protocols-out" id="w-lpl-bc-out"></div>`;
+  function newPhases() { const r = LPL.rng(seed++); phases = []; for (let i = 0; i < 5; i++) phases.push(r()); }
+  function run() {
+    const gc = 1, q = Td + gc, ph = phases.slice(0, n).map((f) => f * Tw), seg = [];
+    document.getElementById("w-lpl-bc-twv").textContent = Tw + " ms";
+    document.getElementById("w-lpl-bc-tdv").textContent = Td + " ms";
+    document.getElementById("w-lpl-bc-nv").textContent = n;
+    box.querySelectorAll("[data-m]").forEach((b) => b.classList.toggle("is-on", b.dataset.m === mode));
+    let copies, sEnd;
+    if (mode === "bc") { const K = LPL.ceilDiv(Tw, q); copies = K + 1; sEnd = K * q + Td; }
+    else { const k = LPL.ceilDiv(ph[0], q); copies = k + 1; sEnd = k * q + Td + 1; }
+    for (let i = 0; i < copies; i++) { seg.push({ row: "S", kind: "data", t0: i * q, t1: i * q + Td }); if (i < copies - 1) seg.push({ row: "S", kind: "rx", t0: i * q + Td, t1: (i + 1) * q }); }
+    const lines = [];
+    ph.forEach((p, i) => {
+      const row = "R" + (i + 1), k = LPL.ceilDiv(p, q), end = k * q + Td;
+      if (k < copies) {
+        seg.push({ row, kind: "rx", t0: p, t1: end });
+        if (mode === "uc" && i === 0) { seg.push({ row, kind: "ack", t0: end, t1: end + 1 }); seg.push({ row: "S", kind: "rx", t0: end, t1: end + 1 }); lines.push(`R1 ${LPL.fmt(p)} ms'de uyandı, ${k + 1}. kopyayı aldı ve ACK verdi.`); }
+        else lines.push(`${row} ${LPL.fmt(p)} ms'de uyandı, ${k + 1}. kopyayı aldı${mode === "uc" ? " (hedef değil, overhearing)" : ""}.`);
+      } else { seg.push({ row, kind: "chk", t0: p, t1: p + 5 }); lines.push(`${row} ${LPL.fmt(p)} ms'de uyandı, kanal boştu: ${mode === "uc" ? "unicast zaten bitmişti" : "kopya kaçırıldı"}.`); }
+    });
+    const horizon = Tw + Td + 8;
+    const rows = [{ key: "S", label: "S" }].concat(ph.map((_, i) => ({ key: "R" + (i + 1), label: "R" + (i + 1) })));
+    document.getElementById("w-lpl-bc-svg").innerHTML = W_LPL.svg(rows, seg, horizon, horizon + 1, false);
+    document.getElementById("w-lpl-bc-out").innerHTML = `<p><b>${copies} kopya</b>, sender radio-on ≈ ${LPL.fmt(sEnd)} ms. ${mode === "bc" ? `Broadcast'te kopya sayısı receiver sayısına bağlı değil: tam $T_w$'yi kapsamak için $\\lceil T_w / (T_{frame} + gap) \\rceil + 1$ = ${copies}.` : "Unicast, R1'in ACK'iyle bitti; ortalama $T_w/2$."}</p><p class="src">${lines.join("<br>")}</p>`;
+    Lab.renderMath(box);
+  }
+  box.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-m]"); if (b) { mode = b.dataset.m; run(); }
+    if (e.target.id === "w-lpl-bc-rnd") { newPhases(); run(); }
+  });
+  document.getElementById("w-lpl-bc-tw").addEventListener("input", (e) => { Tw = +e.target.value; run(); });
+  document.getElementById("w-lpl-bc-td").addEventListener("input", (e) => { Td = +e.target.value; run(); });
+  document.getElementById("w-lpl-bc-n").addEventListener("input", (e) => { n = +e.target.value; run(); });
+  newPhases(); run();
+})();
+
+/* ===== 4. Wake-interval trade-off curve ===== */
+(function () {
+  const box = document.getElementById("w-lpl-to");
+  box.innerHTML = `
+    <div class="w-lpl-mac-protocols-ctl">
+      <button class="btn btn--sm" data-k="bmac">B-MAC</button><button class="btn btn--sm" data-k="xmac">X-MAC</button>
+    </div>
+    <div class="w-lpl-mac-protocols-ctl">
+      <label>$T_c$ (ms) <input type="text" id="w-lpl-to-tc" value="5" inputmode="decimal" /></label>
+      <label>paket / dk <input type="text" id="w-lpl-to-lam" value="1" inputmode="decimal" /></label>
+      <label>komşu $n$ <input type="text" id="w-lpl-to-n" value="0" inputmode="numeric" /></label>
+      <label>$I_{RX}$ (mA) <input type="text" id="w-lpl-to-irx" value="19" inputmode="decimal" /></label>
+      <label>$I_{TX}$ (mA) <input type="text" id="w-lpl-to-itx" value="17" inputmode="decimal" /></label>
+    </div>
+    <div class="w-lpl-mac-protocols-err" id="w-lpl-to-err" aria-live="polite"></div>
+    <div id="w-lpl-to-svg"></div>
+    <div class="w-lpl-mac-protocols-legend"><span><i style="background:#2b8a3e"></i>receiver check</span><span><i style="background:var(--w-lpl-pre)"></i>sender rendezvous</span><span><i style="background:var(--w-lpl-beacon)"></i>overhearing</span><span><i style="background:var(--fg-brand)"></i>toplam</span></div>
+    <div class="w-lpl-mac-protocols-out" id="w-lpl-to-out"></div>`;
+  let proto = "bmac";
+  const val = (id) => W_LPL.parse(document.getElementById(id).value);
+  function terms(Tw, p) {
+    const lam = p.lam / 60000, k = proto === "bmac" ? 1 : 0.5, o = proto === "bmac" ? Tw / 2 : 2;
+    const a = p.irx * p.tc / Tw, b = lam * k * Tw * p.itx, c = p.n * lam * o * p.irx;
+    return [a, b, c, a + b + c];
+  }
+  function run() {
+    box.querySelectorAll("[data-k]").forEach((b) => b.classList.toggle("is-on", b.dataset.k === proto));
+    const p = { tc: val("w-lpl-to-tc"), lam: val("w-lpl-to-lam"), n: val("w-lpl-to-n"), irx: val("w-lpl-to-irx"), itx: val("w-lpl-to-itx") };
+    const err = document.getElementById("w-lpl-to-err");
+    if (!(p.tc > 0 && p.tc <= 50) || !(p.lam > 0 && p.lam <= 600) || !(p.n >= 0 && p.n <= 20 && Number.isInteger(p.n)) || !(p.irx > 0 && p.irx < 100) || !(p.itx > 0 && p.itx < 100)) {
+      err.textContent = "Geçerli değerler: 0 < T_c ≤ 50, 0 < paket/dk ≤ 600, komşu 0–20 tam sayı, akımlar 0–100 mA."; return;
+    }
+    err.textContent = "";
+    const lo = Math.log10(5), hi = Math.log10(5000), N = 3000, pts = [];
+    for (let i = 0; i <= N; i++) { const Tw = Math.pow(10, lo + (hi - lo) * i / N); pts.push([Tw, terms(Tw, p)]); }
+    let best = pts[0]; for (const q of pts) if (q[1][3] < best[1][3]) best = q;
+    const yMax = Math.min(Math.max(...pts.map((q) => q[1][3])), best[1][3] * 4);
+    const Wd = 640, H = 260, L = 56, R = 10, T = 14, B = 40;
+    const X = (Tw) => L + (Math.log10(Tw) - lo) / (hi - lo) * (Wd - L - R), Y = (v) => T + (1 - Math.min(v, yMax * 3) / (yMax * 1.05)) * (H - T - B);
+    const path = (j) => "M" + pts.map((q) => X(q[0]).toFixed(1) + "," + Y(q[1][j]).toFixed(1)).join("L");
+    let s = `<svg class="w-lpl-mac-protocols-svg" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="sender, receiver ve komşu akımlarının toplamı ve wake interval">`;
+    s += `<defs><clipPath id="w-lpl-to-clip"><rect x="${L}" y="${T}" width="${Wd - L - R}" height="${H - T - B}" /></clipPath></defs>`;
+    for (const t of [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000]) s += `<line x1="${X(t)}" y1="${T}" x2="${X(t)}" y2="${H - B}" style="stroke:var(--border)" /><text x="${X(t)}" y="${H - B + 18}" text-anchor="${t === 5000 ? "end" : "middle"}" style="font:14px 'JetBrains Mono',monospace;fill:var(--fg-subtle)">${t}</text>`;
+    s += `<text x="${Wd - R}" y="${H - 3}" text-anchor="end" style="font:13px 'JetBrains Mono',monospace;fill:var(--fg-subtle)">T_w (ms, log)</text>`;
+    const yStep = W_LPL.niceStep(yMax);
+    for (let v = 0; v <= yMax * 1.05; v += yStep) s += `<line x1="${L}" y1="${Y(v)}" x2="${Wd - R}" y2="${Y(v)}" style="stroke:var(--stone-100)" /><text x="${L - 4}" y="${Y(v) + 3}" text-anchor="end" style="font:14px 'JetBrains Mono',monospace;fill:var(--fg-subtle)">${+v.toFixed(3)}</text>`;
+    s += `<text x="4" y="${T + 2}" style="font:13px 'JetBrains Mono',monospace;fill:var(--fg-subtle)">mA</text>`;
+    s += `<g clip-path="url(#w-lpl-to-clip)"><path d="${path(0)}" style="fill:none;stroke:#2b8a3e;stroke-width:1.5" /><path d="${path(1)}" style="fill:none;stroke:var(--w-lpl-pre);stroke-width:1.5" />`;
+    if (p.n > 0) s += `<path d="${path(2)}" style="fill:none;stroke:var(--w-lpl-beacon);stroke-width:1.5" />`;
+    s += `<path d="${path(3)}" style="fill:none;stroke:var(--fg-brand);stroke-width:2.5" />`;
+    s += `<circle cx="${X(best[0])}" cy="${Y(best[1][3])}" r="5" style="fill:var(--accent)" /></g></svg>`;
+    document.getElementById("w-lpl-to-svg").innerHTML = s;
+    const f = (v) => v < 0.01 ? v.toFixed(4) : v.toFixed(3);
+    const at = (Tw) => terms(Tw, p)[3];
+    const latk = proto === "bmac" ? 1 : 0.5;
+    document.getElementById("w-lpl-to-out").innerHTML = `<p>Minimum: $T_w \\approx$ <b>${Math.round(best[0])} ms</b>, $I_\\Sigma \\approx$ <b>${f(best[1][3])} mA</b> (sender + receiver + ${p.n} komşu toplamı; check ${f(best[1][0])} + sender ${f(best[1][1])} + overhearing ${f(best[1][2])}). Bu noktada hop başına rendezvous latency'si ≈ ${Math.round(latk * best[0])} ms.</p>
+      <p class="src">50 ms: ${f(at(50))} mA, latency ≈ ${Math.round(latk * 50)} ms · 500 ms: ${f(at(500))} mA, latency ≈ ${Math.round(latk * 500)} ms. Model: B-MAC'te sender $T_w$, komşu ortalama $T_w/2$ öder; X-MAC'te sender $T_w/2$, komşu ≈ 2 ms. DATA/ACK ve sleep akımı ihmal edildi.</p>`;
+    Lab.renderMath(box);
+  }
+  box.addEventListener("click", (e) => { const b = e.target.closest("[data-k]"); if (b) { proto = b.dataset.k; run(); } });
+  box.querySelectorAll("input").forEach((i) => i.addEventListener("input", run));
+  run();
+})();
+
+/* ===== 5. Multi-hop delay and 1/p ===== */
+(function () {
+  const box = document.getElementById("w-lpl-mh");
+  box.innerHTML = `
+    <div class="w-lpl-mac-protocols-ctl">
+      <label>hop $H$ <input type="range" id="w-lpl-mh-h" min="1" max="10" value="6" /><b id="w-lpl-mh-hv"></b></label>
+      <label>$T_w$ <input type="range" id="w-lpl-mh-tw" min="20" max="1000" step="10" value="200" /><b id="w-lpl-mh-twv"></b></label>
+      <label>$p$ <input type="range" id="w-lpl-mh-p" min="5" max="100" step="5" value="50" /><b id="w-lpl-mh-pv"></b></label>
+    </div>
+    <div id="w-lpl-mh-svg"></div>
+    <div class="w-lpl-mac-protocols-out" id="w-lpl-mh-out"></div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:10px 0" />
+    <p><b>Kendin hesapla:</b> <span id="w-lpl-mh-q"></span></p>
+    <div class="w-lpl-mac-protocols-ctl">
+      <label>delay (ms) <input type="text" id="w-lpl-mh-a1" inputmode="decimal" /></label>
+      <label>toplam gönderim <input type="text" id="w-lpl-mh-a2" inputmode="decimal" /></label>
+      <button class="btn btn--sm btn--accent" id="w-lpl-mh-chk">Kontrol et</button>
+      <button class="btn btn--sm" id="w-lpl-mh-new">Yeni soru</button>
+    </div>
+    <div class="w-lpl-mac-protocols-err" id="w-lpl-mh-fb" aria-live="polite"></div>`;
+  const g = (s) => document.getElementById("w-lpl-mh-" + s);
+  function run() {
+    const H = +g("h").value, Tw = +g("tw").value, p = +g("p").value / 100;
+    g("hv").textContent = H; g("twv").textContent = Tw + " ms"; g("pv").textContent = p.toFixed(2);
+    const Wd = 640, Hh = 60, step = (Wd - 40) / H;
+    let s = `<svg class="w-lpl-mac-protocols-svg" viewBox="0 0 ${Wd} ${Hh}" role="img" aria-label="multi-hop yol">`;
+    for (let i = 0; i <= H; i++) {
+      const x = 20 + i * step;
+      if (i < H) s += `<line x1="${x}" y1="22" x2="${x + step}" y2="22" style="stroke:var(--border-strong);stroke-width:2" /><text x="${x + step / 2}" y="54" text-anchor="middle" style="font:14px 'JetBrains Mono',monospace;fill:var(--fg-subtle)">${LPL.fmt(Tw / 2)}</text>`;
+      s += `<circle cx="${x}" cy="22" r="12" style="fill:${i === H ? "var(--accent)" : "var(--blue-600)"}" /><text x="${x}" y="27" text-anchor="middle" style="font:700 13px 'JetBrains Mono',monospace;fill:#fff">${i === H ? "S" : i + 1}</text>`;
+    }
+    g("svg").innerHTML = s + "</svg>";
+    g("out").innerHTML = `<p>Retry hariç baseline: $H \\times T_w/2$ = ${H} × ${LPL.fmt(Tw / 2)} = ${LPL.fmt(H * Tw / 2)} ms (B-MAC: $H \\times T_w$ = ${LPL.fmt(H * Tw)} ms). Hop başına beklenen deneme $1/p$ = ${(1 / p).toFixed(2)}, toplam beklenen gönderim $H/p$ = <b>${(H / p).toFixed(2)}</b>. Her deneme ortalama $T_w/2$'lik yeni bir rendezvous ise retry'lar dahil rendezvous delay'i $H \\times T_w/(2p)$ = <b>${LPL.fmt(H * Tw / (2 * p))} ms</b> (B-MAC: $H \\times T_w/p$ = ${LPL.fmt(H * Tw / p)} ms); rendezvous enerjisi de $1/p$ = ${(1 / p).toFixed(2)} katına çıkar.</p>`;
+    Lab.renderMath(g("out"));
+  }
+  let cur = null, qn = 1;
+  function newQ() {
+    const r = LPL.rng(1000 + qn++), Hs = [2, 3, 4, 5, 6, 7], Tws = [100, 125, 160, 200, 250, 400], ps = [0.5, 0.8, 0.25, 0.4, 0.2, 1];
+    cur = { H: Hs[Math.floor(r() * Hs.length)], Tw: Tws[Math.floor(r() * Tws.length)], p: ps[Math.floor(r() * ps.length)] };
+    g("q").innerHTML = `X-MAC, ${cur.H} hop, $T_w$ = ${cur.Tw} ms, her hop'ta $p$ = ${cur.p}. Her deneme ortalama $T_w/2$'lik yeni bir rendezvous ise retry'lar dahil beklenen rendezvous delay'i ve toplam beklenen gönderim sayısı?`;
+    g("a1").value = ""; g("a2").value = ""; g("fb").textContent = "";
+    Lab.renderMath(g("q"));
+  }
+  g("chk").addEventListener("click", () => {
+    const a1 = W_LPL.parse(g("a1").value), a2 = W_LPL.parse(g("a2").value), fb = g("fb");
+    if (isNaN(a1) || isNaN(a2)) { fb.className = "w-lpl-mac-protocols-err"; fb.textContent = "İki kutuya da sayı yaz (ondalık için nokta ya da virgül)."; return; }
+    const d = cur.H * cur.Tw / (2 * cur.p), n = cur.H / cur.p, ok1 = Math.abs(a1 - d) <= 0.005 * d + 0.01, ok2 = Math.abs(a2 - n) <= 0.01 * n + 0.01;
+    fb.className = ok1 && ok2 ? "w-lpl-mac-protocols-ok" : "w-lpl-mac-protocols-err";
+    fb.textContent = ok1 && ok2 ? `Doğru: ${cur.H} × ${cur.Tw} / (2 × ${cur.p}) = ${LPL.fmt(d)} ms ve ${cur.H} / ${cur.p} = ${LPL.fmt(n)}.`
+      : `${ok1 ? "Delay doğru." : `Delay: ${cur.H} × ${cur.Tw} / (2 × ${cur.p}) = ${LPL.fmt(d)} ms (retry hariç ${cur.H} × ${cur.Tw}/2 = ${LPL.fmt(cur.H * cur.Tw / 2)} ms, her hop 1/p deneme yapar).`} ${ok2 ? "Gönderim sayısı doğru." : `Gönderim: hop başına 1/p = ${LPL.fmt(1 / cur.p)}, toplam ${cur.H} / ${cur.p} = ${LPL.fmt(n)}.`}`;
+  });
+  g("new").addEventListener("click", newQ);
+  ["h", "tw", "p"].forEach((k) => g(k).addEventListener("input", run));
+  run(); newQ();
+})();
+
+/* ===== 6. "Hangi MAC?" timeline game ===== */
+(function () {
+  const box = document.getElementById("w-lpl-game");
+  const opts = ["bmac", "xmac", "cmac", "rimac"];
+  let score = 0, total = 0, cur = null, round = 1, answered = false;
+  const WHY = {
+    bmac: "Sender'da tek, uzun ve kesintisiz bir TX bar'ı, ardından DATA: long preamble. Komşu da DATA'ya kadar uyanık.",
+    xmac: "Sender'da çok ince bir tarak (1 ms strobe'lar) ve receiver uyanınca hemen kesiliyor; receiver kısa bir early ACK veriyor, sonra DATA.",
+    cmac: "Sender'da daha kalın, eşit aralıklı frame'ler (tam DATA kopyaları); receiver bir kopyayı aldıktan sonra ACK veriyor.",
+    rimac: "İlk TX receiver'dan geliyor (beacon). Sender o ana kadar sadece dinliyor, sonra tek bir DATA gönderiyor."
+  };
+  box.innerHTML = `<div id="w-lpl-game-svg"></div>${W_LPL.legend(true)}
+    <div class="w-lpl-mac-protocols-ctl">${opts.map((p) => `<button class="btn btn--sm" data-g="${p}">${W_LPL.NAMES[p]}</button>`).join("")}
+      <button class="btn btn--sm btn--accent" id="w-lpl-game-next">Yeni timeline</button><span class="w-lpl-mac-protocols-score" id="w-lpl-game-sc"></span></div>
+    <div class="w-lpl-mac-protocols-err" id="w-lpl-game-fb" aria-live="polite"></div>`;
+  function next() {
+    const r = LPL.rng(4270 + round++);
+    const proto = opts[Math.floor(r() * 4)], Tw = [60, 80, 100, 120][Math.floor(r() * 4)];
+    const res = LPL.sim(proto, Object.assign({}, LPL.D, { Tw }), (0.15 + 0.8 * r()) * Tw, r() * Tw, false);
+    cur = proto; answered = false;
+    document.getElementById("w-lpl-game-svg").innerHTML = W_LPL.svg([{ key: "S", label: "S" }, { key: "R", label: "R" }, { key: "N", label: "N" }], res.seg, res.horizon, res.horizon + 1, true);
+    document.getElementById("w-lpl-game-fb").textContent = "";
+    document.getElementById("w-lpl-game-sc").textContent = `${score} / ${total}`;
+  }
+  box.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-g]");
+    if (b && !answered) {
+      answered = true; total++;
+      const ok = b.dataset.g === cur; if (ok) score++;
+      const fb = document.getElementById("w-lpl-game-fb");
+      fb.className = ok ? "w-lpl-mac-protocols-ok" : "w-lpl-mac-protocols-err";
+      fb.textContent = (ok ? "Doğru: " : `Bu ${W_LPL.NAMES[cur]}. `) + WHY[cur];
+      document.getElementById("w-lpl-game-sc").textContent = `${score} / ${total}`;
+    }
+    if (e.target.id === "w-lpl-game-next") next();
+  });
+  next();
+})();
+</script>
+</body>
+</html>

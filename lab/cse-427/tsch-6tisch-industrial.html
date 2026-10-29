@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 427: TSCH cell, slotframe ve ASN, channel hopping formülü, cell türleri, senkronizasyon, Orchestra, 6TiSCH (6top, 6P, MSF), WirelessHART, ISA100.11a ve collision-free schedule'un neden yetmediği." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>TSCH, channel hopping ve 6TiSCH · CSE 427 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-tsch-6tisch-industrial-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-tsch-6tisch-industrial-box { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; margin: 10px 0; background: var(--paper); min-width: 0; }
+    .w-tsch-6tisch-industrial-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-tsch-6tisch-industrial-ctl label { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+    .w-tsch-6tisch-industrial-ctl input[type="text"] { width: 84px; }
+    .w-tsch-6tisch-industrial-ctl input.w-tsch-6tisch-industrial-wide { width: 100%; max-width: 420px; box-sizing: border-box; }
+    .w-tsch-6tisch-industrial-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-tsch-6tisch-industrial-ok { color: #2b8a3e; font-weight: 600; }
+    .w-tsch-6tisch-industrial-bad { color: var(--orange-700); font-weight: 600; }
+    .w-tsch-6tisch-industrial-out { font-family: 'JetBrains Mono', monospace; font-size: .88rem; line-height: 1.6; }
+    .w-tsch-6tisch-industrial-out b { color: var(--fg-brand); }
+    .w-tsch-6tisch-industrial-grid { border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: .72rem; }
+    .w-tsch-6tisch-industrial-grid th, .w-tsch-6tisch-industrial-grid td { border: 1px solid var(--border); padding: 0; width: 20px; min-width: 20px; height: 18px; text-align: center; }
+    .w-tsch-6tisch-industrial-grid th { background: var(--stone-050); font-weight: 600; padding: 0 3px; }
+    .w-tsch-6tisch-industrial-grid td.is-jam { background: var(--orange-100); }
+    .w-tsch-6tisch-industrial-grid td.is-cur { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .w-tsch-6tisch-industrial-l0 { color: #1c7ed6; font-weight: 700; }
+    .w-tsch-6tisch-industrial-l1 { color: #2b8a3e; font-weight: 700; }
+    .w-tsch-6tisch-industrial-l2 { color: #ae3ec9; font-weight: 700; }
+    .w-tsch-6tisch-industrial-hit { color: var(--orange-700); font-weight: 800; }
+    .w-tsch-6tisch-industrial-bar { flex: 1; min-width: 60px; background: var(--stone-200); border-radius: 4px; height: 12px; overflow: hidden; }
+    .w-tsch-6tisch-industrial-bar > div { height: 100%; transition: width .4s; }
+    .w-tsch-6tisch-industrial-brow { display: flex; align-items: center; gap: 8px; font-size: .85rem; font-family: 'JetBrains Mono', monospace; margin: 4px 0; }
+    .w-tsch-6tisch-industrial-brow > span:first-child { min-width: 120px; }
+    .w-tsch-6tisch-industrial-brow > span:last-child { min-width: 56px; text-align: right; }
+    .w-tsch-6tisch-industrial-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: start; }
+    .w-tsch-6tisch-industrial-sched { border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: .74rem; }
+    .w-tsch-6tisch-industrial-sched th, .w-tsch-6tisch-industrial-sched td { border: 1px solid var(--border); width: 22px; min-width: 22px; height: 20px; text-align: center; padding: 0; }
+    .w-tsch-6tisch-industrial-sched th { background: var(--stone-050); }
+    .w-tsch-6tisch-industrial-sched td.is-busy { background: var(--stone-200); color: var(--fg-muted); }
+    .w-tsch-6tisch-industrial-sched td.is-cand { outline: 2px dashed var(--accent); outline-offset: -3px; }
+    .w-tsch-6tisch-industrial-sched td.is-new { background: #d3f9d8; color: #2b8a3e; font-weight: 800; }
+    .w-tsch-6tisch-industrial-sched td.is-lock { background: var(--orange-100); color: var(--orange-700); font-weight: 700; }
+    .w-tsch-6tisch-industrial-msg { border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 6px 8px; margin: 8px 0 0; font-family: 'JetBrains Mono', monospace; font-size: .8rem; background: var(--stone-050); overflow-wrap: anywhere; }
+    .w-tsch-6tisch-industrial-st { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+    .w-tsch-6tisch-industrial-st p { margin: 0 0 6px; }
+    .w-tsch-6tisch-industrial-st .btn { margin: 2px 2px 2px 0; }
+    .w-tsch-6tisch-industrial-st .w-tsch-6tisch-industrial-fb { font-size: .9rem; margin-top: 4px; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 427</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 427</a> / TSCH, channel hopping ve 6TiSCH</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W5 Part 4-7</span><span class="chip chip--exam">Vize kapsamı</span><span class="src">~63 dk · 12 bölüm</span></div>
+          <h1>TSCH, channel hopping ve 6TiSCH</h1>
+          <p class="lead">TDMA dersinde zamanı slot'lara bölmeyi ve bir schedule kurmayı gördün. Bu derste aynı fikrin IEEE 802.15.4'teki hâlini, <strong>TSCH</strong>'i (Time-Slotted Channel Hopping), ve onun üstünde duran isimleri göreceksin: <strong>Orchestra</strong>, <strong>6TiSCH</strong>, <strong>WirelessHART</strong>, <strong>ISA100.11a</strong>. Haftanın ana cümlesi slayt 1'de: <em>"Schedule execution is not the same as schedule design."</em> Schedule'u çalıştırmak bir iş, schedule'u tasarlamak başka bir iş.</p>
+          <p class="src">Not: Week 5 slaytları repoda henüz yok. Bu ders, Week 5 dosyasının (<code>Week_5_WSN_MAC_II_Self_Study.pptx</code>) 60 lecture slaytından anlatıldı; slayt numaraları o dosyadaki "NN/60" numaralarıdır. Aynı dosyadaki "In plain words" kartları, konuşmacı notları, cheat sheet ve self-check soruları sonradan eklenmiş, hocanın değil. Bu sayfada onlardan alınan her şey ayrıca belirtildi.</p>
+          <!-- Kaynak: /Users/efe/Downloads/Week_5_WSN_MAC_II_Self_Study.pptx, xml slayt 1 (big idea), 28-37 (Part 4 TSCH), 38-46 (Part 5 Orchestra, 6TiSCH), 47-53 (Part 6 industrial), 54-60 (Part 7); self-study eki: slayt 74 (cheat sheet), 76 ve 78 (self-check 6-10), 75 ve 77 (self-check 3) · Karl & Willig Ch. 5.5 (s. 139-145, PDF s. 166-172) · Hidden & Exposed Terminals in Real WSNs.pptx slayt 13 · W2 slayt 53 (Contiki 3.0 toolchain). TDMA, guard time, conflict graph, coloring ve slayt 59 örneği tdma-scheduling dersinde. -->
+        </header>
+
+        <article class="lesson" data-course="cse-427" data-lesson="tsch-6tisch-industrial">
+
+<!-- 1 -->
+<section class="lsec" id="tsch" data-min="4">
+  <h2>TSCH: schedule'u çalıştıran MAC modu</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · tarife ve makinist</span>
+    <p>Bir tren hattını düşün. Tarifeyi bir planlama ofisi hazırlar: hangi tren hangi saatte hangi perondan kalkacak. Makinist tarifeyi yazmaz, sadece saati gelince treni kaldırır. Tren gelmezse bir sonraki seferi bekler.</p>
+    <p>TSCH bu makinisttir. Her node'a "şu slot'ta şu komşuya gönder, şu slot'ta dinle, kalan slot'larda uyu" listesi verilir ve TSCH bu listeyi saniye saniye uygular. Listeyi kimin, nasıl hazırladığı TSCH'in işi değildir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · TSCH definition (slayt 28)</span>
+    <p><strong>Time-Slotted Channel Hopping</strong>, IEEE 802.15.4'ün bir MAC mode'udur ve beş parçayı birleştirir:</p>
+    <ol>
+      <li><strong>time synchronization</strong>: bütün node'lar slot sınırlarında anlaşır,</li>
+      <li><strong>scheduled cells</strong>: her node bir cell listesine göre çalışır,</li>
+      <li><strong>channel hopping</strong>: aynı cell her tekrarında başka bir frekansa düşer,</li>
+      <li><strong>ACKs</strong>: receiver her unicast frame'i onaylar,</li>
+      <li><strong>link-layer retransmissions</strong>: ACK gelmezse frame sonraki uygun cell'de tekrar gönderilir.</li>
+    </ol>
+    <ul>
+      <li><strong>TSCH executes a schedule.</strong> Schedule'u hesaplayan tek, evrensel bir algoritma tanımlamaz.</li>
+      <li>Cell'ler <strong>dedicated</strong> (tek bir link'e ayrılmış) ya da <strong>shared</strong> (birkaç node'un yarıştığı) olabilir.</li>
+      <li>Channel hopping, zaman bölmeye <strong>frequency diversity</strong> ekler.</li>
+    </ul>
+    <p>Slaytın son cümlesi: <em>"TSCH is schedule execution, not schedule policy."</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Arka plan · TSCH'ten önceki 802.15.4 MAC</span>
+    <p>802.15.4 standardı 2003'te çıktı ve hem PHY'ı hem MAC'i tanımlar. Klasik MAC'te bir <strong>PAN coordinator</strong> vardır. <strong>Beacon-enabled mode</strong>'da coordinator bir <strong>superframe</strong> yayınlar:</p>
+    <ul>
+      <li><strong>Active period</strong>: 16 slot. İlki beacon, sonra <strong>CAP</strong> (Contention Access Period, slotted CSMA-CA ile yarışma), sonra en fazla 7 <strong>GTS</strong> (Guaranteed Time Slot, bir cihaza ayrılmış slot).</li>
+      <li><strong>Inactive period</strong>: herkes, coordinator dahil, uyuyabilir.</li>
+      <li><strong>Nonbeacon mode</strong>'da beacon ve GTS yoktur; cihazlar unslotted CSMA-CA kullanır.</li>
+    </ul>
+    <p>Bu MAC aynı anda <strong>tek bir channel</strong> kullanır, multichannel değildir. Yapısı da bir yıldız (star) ağına göre kurulmuştur. TSCH ise multi-hop bir mesh'te her link'e zaman ve frekans verir ve her slot'ta channel değiştirir. TSCH sonradan 802.15.4e amendment'ıyla geldi; W4 okuma slaytları da onu "TSCH (802.15.4e) schedules" diye anar.</p>
+    <p class="src">Not: Bu kutu ders kitabından (Karl &amp; Willig §5.5); W5 slaytlarında yok. TSCH ile farkı görmek için verildi, ayrıntıları sınavda beklenmeyebilir. <a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/books/karl-willig-protocols-and-architectures-for-wireless-sensor-networks.pdf">Kitap (PDF s. 166-172)</a></p>
+  </div>
+  <!-- Kaynak: W5 slayt 1 ("Big idea"), 28 (definition, beş parça, "schedule execution, not schedule policy") · K&W §5.5 s. 139-145 (2003, coordinator, superframe 16 slot, CAP, ≤7 GTS, nonbeacon, "it is not a multichannel protocol") · Hidden & Exposed deck slayt 13 ("TSCH (802.15.4e) schedules … Dedicated cells per link plus channel hopping: contention mostly gone" / "Schedule upkeep, sync and join overhead"). -->
+  <div class="box box--example">
+    <span class="box__label">Bağlantı · hidden terminal'e bir çare</span>
+    <p>W4 okumasındaki smart-meter örneğinde (Hidden &amp; Exposed Terminals deck, slayt 13) TSCH schedule'ları bir çare olarak geçiyor: <em>"Dedicated cells per link plus channel hopping: contention mostly gone."</em> Bedeli de yazıyor: <em>"Schedule upkeep, sync and join overhead."</em> Yani yarışmayı ortadan kaldırırsın ama schedule'u kurmak, saatleri eşit tutmak ve yeni node'ları almak için ayrıca iş yaparsın. Bu dersin geri kalanı tam olarak bu bedelle ilgili.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"TSCH cell'leri hangi algoritmayla dağıtır?" sorusunun cevabı: <strong>hiçbiriyle</strong>. Dağıtımı Orchestra, 6TiSCH'in MSF'i, merkezi bir manager ya da statik bir konfigürasyon yapar (slayt 58: <em>"TSCH does not define the scheduling algorithm."</em>).</li>
+      <li>Channel hopping "aynı anda birçok channel'ı dinlemek" değildir. Node'un tek radio'su her slot'ta tek bir channel'dadır; değişen, slot'tan slot'a channel'dır.</li>
+      <li>Bu dersin lab ortamı Contiki 3.0. W2 slayt 53 "New TSCH tutorials" ve "Contiki-NG APIs" için "Avoid" diyor. Orchestra Contiki-NG'de yazıldığı için bu kursun lab'larında TSCH çalıştırmayacaksın; konu teorik.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-tsch-1">
+    <p class="quiz__q">Hangisi TSCH'in tanımındaki beş parçadan biri <strong>değildir</strong>?</p>
+    <button class="quiz__opt">Channel hopping<span class="why">Adın içinde: Time-Slotted <em>Channel Hopping</em>. Beş parçadan biri.</span></button>
+    <button class="quiz__opt">Link-layer retransmission<span class="why">ACK gelmezse frame'i sonraki cell'de tekrar göndermek TSCH'in kendi işi. Beş parçadan biri.</span></button>
+    <button class="quiz__opt" data-correct>Cell'leri trafiğe göre dağıtan bir scheduling algoritması<span class="why">Doğru. TSCH schedule'u çalıştırır, hesaplamaz. Hesaplama daha üst bir katmanın (Orchestra, MSF, manager) işi.</span></button>
+    <button class="quiz__opt">Time synchronization<span class="why">Slot sınırlarında anlaşmadan hiçbir cell çalışmaz. Beş parçanın ilki.</span></button>
+  </div>
+  <div class="quiz" id="q-tsch-2">
+    <p class="quiz__q">Klasik 802.15.4 beacon-enabled MAC'e göre TSCH'in getirdiği en belirgin fark hangisi?</p>
+    <button class="quiz__opt">Garantili slot fikri. Klasik MAC'te hiç ayrılmış slot yoktur.<span class="why">Klasik MAC'te de GTS (Guaranteed Time Slot) var, en fazla 7 tane. Ayrılmış slot fikri TSCH'le gelmedi.</span></button>
+    <button class="quiz__opt" data-correct>Her slot'ta channel değiştirmesi ve mesh'teki her link'e (slot, channel) cell'leri vermesi.<span class="why">Doğru. Klasik MAC aynı anda tek bir channel kullanır ve coordinator merkezli bir star yapısıdır. TSCH channel hopping ekler ve schedule'u multi-hop link'ler üzerine kurar.</span></button>
+    <button class="quiz__opt">CSMA-CA'yı tamamen kaldırması.<span class="why">TSCH'te de shared cell'ler var ve orada yarışma (backoff) sürer. Slayt 58: "shared cell safe" yanlış, "contention remains".</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="cell-asn" data-min="5">
+  <h2>Cell, slotframe ve ASN</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · haftalık ders programı</span>
+    <p>Okulun haftalık programı her hafta aynen tekrarlanır. "Salı 3. saat" programdaki bir yerdir. Okul açıldığından beri geçen toplam ders saatini sayan bir sayaç da düşün: 1234. ders saati. Bu sayacı haftadaki ders saati sayısına bölersen, kalan sana "haftanın kaçıncı saatindeyiz" sorusunun cevabını verir.</p>
+    <p>TSCH'te program <strong>slotframe</strong>, programdaki yer <strong>slot offset</strong>, sayaç da <strong>ASN</strong>'dir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · TSCH terminology (slayt 29)</span>
+    <ul>
+      <li>Bir TSCH <strong>cell</strong>'i bir çiftle tanımlanır: <strong>(slotOffset, channelOffset)</strong>.</li>
+      <li><strong>Slot offset</strong>: cell'in slotframe içindeki yeri (0'dan başlar).</li>
+      <li><strong>Channel offset</strong>: ASN ve hopping sequence ile birlikte kullanılan <em>logical</em> bir channel index'i. Fiziksel channel değildir (sonraki bölüm).</li>
+      <li><strong>Slotframe</strong>: kendini tekrarlayan cell koleksiyonu. Uzunluğuna $L$ diyeceğiz.</li>
+      <li>Farklı trafik sınıfları için <strong>birden fazla slotframe</strong> yan yana çalışabilir.</li>
+    </ul>
+    <p><em>"A cell is a time–frequency opportunity, not merely a time slot."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Absolute Slot Number (slayt 30)</span>
+    <ul>
+      <li><strong>ASN</strong>, TSCH ağı başladığından beri geçen timeslot sayısıdır. Her slot'ta bir artar ve slotframe bitince sıfırlanmaz.</li>
+      <li>Dört kullanımı var: <strong>time identification</strong>, <strong>channel calculation</strong>, <strong>security nonce</strong>'ları ve <strong>slotframe position</strong>.</li>
+      <li>Senkron node'lar aynı logical ASN ilerleyişini paylaşır. Senkronizasyonunu kaybeden bir node yanlış slot'ta gönderebilir.</li>
+    </ul>
+    $$\text{slotOffset} = \text{ASN} \bmod L$$
+    <p><em>"ASN is the heartbeat of a TSCH network."</em></p>
+    <p>Standartta ASN 5 byte'lık (40 bit) bir sayaçtır. 10 ms'lik slot'larla $2^{40}$ slot yaklaşık 348 yıl eder, yani pratikte hiç taşmaz.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · bir ASN, iki slotframe</span>
+    <p>ASN = 2345 ve $L = 101$ ise $2345 = 23 \cdot 101 + 22$, yani node slotframe'in 22. slot'unda (slotOffset 22).</p>
+    <p>Aynı node'da uzunlukları 17 ve 31 olan iki slotframe daha çalışıyorsa, aynı anda birincide $2345 \bmod 17 = 16$, ikincide $2345 \bmod 31 = 20$ numaralı slot'tadır. Her slotframe kendi kalanını hesaplar; ASN ortaktır. İki slotframe'in o anda birer cell'i varsa öncelik kuralı birini seçer (genelde handle'ı küçük olan slotframe).</p>
+  </div>
+  <!-- Kaynak: W5 slayt 29 (cell = (slotOffset, channelOffset), slotframe, multiple slotframes, "time–frequency opportunity"), 30 (ASN tanımı, dört kullanım, sync kaybı, "heartbeat"). 5 byte, öncelik kuralı ve ASN mod L formülü self-study notlarında ve 802.15.4 standardında; slayt gövdesinde formül yok, cheat sheet'te var. Sayılar verify/nums.py ile kontrol edildi. -->
+  <div class="box box--exam" data-exam="W5-cheat-slotoffset">
+    <span class="box__label">W5 cheat sheet · "Current slot offset" satırı (self-study eki)</span>
+    <p>Satır aynen: <em>"Current slot offset · ASN mod slotframe length · ASN 1010, length 101 → offset 0"</em> (sütunlar: Quantity · Formula / rule · Example). Soru olarak: ASN = 1010 ve slotframe length 101 iken node slotframe'in hangi slot'unda? Aynı slot offset'e düşen bir önceki ve bir sonraki ASN hangisi?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>101'i 1010'un içine kaç kez sığdırabilirsin? Kalan ne?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Aynı slot offset, ASN'in tam $L$ kadar ileri ya da geri gitmesiyle tekrar gelir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$1010 = 10 \cdot 101 + 0$, yani $1010 \bmod 101 = 0$: node 11. slotframe tekrarının ilk slot'unda (slotOffset 0). Aynı offset bir slotframe önce ASN 909'da, bir slotframe sonra ASN 1111'de gelir.</p>
+      <p><strong>Exam answer:</strong> slotOffset = ASN mod L = 1010 mod 101 = 0. The same cell position recurs every L = 101 slots, at ASN 909 and ASN 1111.</p>
+    </div></details>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>ASN ile slot offset'i karıştırmak. ASN hiç sıfırlanmaz; slot offset her slotframe'de 0'dan $L-1$'e döner.</li>
+      <li>Slot'ları 1'den saymak. $\text{ASN} \bmod L$ 0 ile $L-1$ arasında bir sayı verir.</li>
+      <li>Cell'i sadece bir zaman dilimi sanmak. Aynı slot offset'te farklı channel offset'li iki cell, aynı anda iki ayrı link'i taşıyabilir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-asn-1">
+    <p class="quiz__q">ASN = 777, slotframe length $L = 17$. slotOffset kaçtır?</p>
+    <button class="quiz__opt">45<span class="why">45 bölümün kendisi ($777 = 45 \cdot 17 + 12$), yani kaçıncı slotframe tekrarında olduğun. Slot offset kalandır.</span></button>
+    <button class="quiz__opt" data-correct>12<span class="why">Doğru: $45 \cdot 17 = 765$, $777 - 765 = 12$.</span></button>
+    <button class="quiz__opt">13<span class="why">Slot'ları 1'den saymak. Offset 0'dan başlar; kalan 12 ise cell 13. sırada ama offset'i 12.</span></button>
+    <button class="quiz__opt">777<span class="why">ASN slot offset değildir. ASN hiç sıfırlanmayan sayaçtır; offset onun $L$'ye göre kalanı.</span></button>
+  </div>
+  <div class="quiz" id="q-asn-2">
+    <p class="quiz__q">Slayt 30'a göre ASN hangisi için <strong>kullanılmaz</strong>?</p>
+    <button class="quiz__opt">Security nonce<span class="why">Slayt 30 bunu açıkça sayıyor: her frame'in nonce'u ASN içerdiği için farklıdır.</span></button>
+    <button class="quiz__opt">Channel calculation<span class="why">Hopping formülü $F[(\text{ASN} + \text{channelOffset}) \bmod N_c]$; ASN içinde.</span></button>
+    <button class="quiz__opt" data-correct>Bir sonraki parent'ı seçmek<span class="why">Doğru. Parent seçimi routing'in (RPL) işi. ASN zaman, slotframe position, channel ve security nonce için kullanılır.</span></button>
+    <button class="quiz__opt">Slotframe position<span class="why">$\text{ASN} \bmod L$ tam olarak slotframe içindeki yeri verir.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="channel" data-min="6">
+  <h2>Channel offset'ten physical channel'a</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · kayan tablo</span>
+    <p>Channel offset sabit bir frekans değil, bir tablodaki sıra numarasıdır. Tablo ($F$) fiziksel channel'ları karışık bir sırada listeler. Her slot'ta ASN bir arttığı için okunan satır da bir kayar. Böylece aynı cell bir sonraki tekrarında tablonun başka bir satırına, yani başka bir frekansa düşer.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · hopping formülü (slayt 31)</span>
+    $$\text{channel} = F\big[(\text{ASN} + \text{channelOffset}) \bmod N_c\big]$$
+    <ul>
+      <li>$F$: <strong>hopping sequence</strong>, fiziksel channel'ların listesi. $N_c$: listedeki channel sayısı (2.4 GHz'te 16 channel: 11-26).</li>
+      <li>Aynı logical cell farklı tekrarlarında farklı fiziksel frekansları kullanır.</li>
+      <li>Bu yüzden channel offset, IEEE 802.15.4 channel numarasıyla aynı şey değildir.</li>
+      <li>İki komşu ASN'i ve cell'in channel offset'ini bildiği için aynı frekansı hesaplar. Ek mesaj gerekmez.</li>
+    </ul>
+    <p><em>"Logical cell stays stable; physical channel rotates."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · $L$ ile $N_c$ ortak böleni</span>
+    <p>Aynı cell bir slotframe sonra ASN'i $L$ kadar büyümüş olarak gelir. Index de $L \bmod N_c$ kadar kayar. Cell'in uğradığı farklı channel sayısı:</p>
+    $$\frac{N_c}{\gcd(L, N_c)}$$
+    <ul>
+      <li>$L = 101$, $N_c = 16$: $\gcd = 1$, cell 16 slotframe'de 16 channel'ın hepsini gezer.</li>
+      <li>$L = 16$: $\gcd = 16$, cell <strong>her seferinde aynı channel'a</strong> düşer; hopping kaybolur.</li>
+      <li>$L = 20$: $\gcd = 4$, cell sadece 4 channel arasında döner.</li>
+    </ul>
+    <p>Bu yüzden slotframe uzunluğu olarak 17, 31, 101 gibi asal sayılar sık seçilir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · tek cell, iki tekrar</span>
+    <p>$F$ = [17, 23, 12, 26, 19, 14, 21, 11, 24, 16, 13, 22, 18, 25, 15, 20] (index 0'dan 15'e), $N_c = 16$, $L = 101$, cell'in channelOffset'i 5.</p>
+    <ul>
+      <li>ASN 5000: $(5000 + 5) \bmod 16 = 5005 \bmod 16 = 13$ ⇒ $F[13] = 25$. Channel 25.</li>
+      <li>Bir slotframe sonra ASN 5101: $5106 \bmod 16 = 2$ ⇒ $F[2] = 12$. Channel 12.</li>
+      <li>$L = 16$ olsaydı bir sonraki tekrar ASN 5016 olurdu: $5021 \bmod 16 = 13$ ⇒ yine channel 25.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W5 slayt 31 (formül, "same logical cell … different physical frequencies", "not the same as IEEE 802.15.4 channel number", takeaway). gcd kuralı ve asal L tavsiyesi self-study notlarında (slayt 29, 31, 74 notları); formülden doğrudan çıkar. Örnek sayılar ve F listesi bu ders için seçildi, verify/nums.py ile kontrol edildi. -->
+  <h3>Hesapla ve kendini dene</h3>
+  <p class="w-tsch-6tisch-industrial-guess"><b>Önce tahmin et:</b> ASN = 5000, $L = 101$, channelOffset = 5. Bir slotframe sonra index kaç basamak kayar? Cevabı bulduktan sonra $L$'yi 16 ve 20 yapıp tabloya bak.</p>
+  <div class="w-tsch-6tisch-industrial-box">
+    <div class="w-tsch-6tisch-industrial-ctl">
+      <label>ASN <input id="wa-asn" type="text" inputmode="numeric" value="5000" class="btn btn--sm" /></label>
+      <label>$L$ <input id="wa-L" type="text" inputmode="numeric" value="101" class="btn btn--sm" /></label>
+      <label>channelOffset <input id="wa-off" type="text" inputmode="numeric" value="5" class="btn btn--sm" /></label>
+    </div>
+    <div class="w-tsch-6tisch-industrial-ctl">
+      <label style="width:100%">$F$ (hopping sequence, virgülle) <input id="wa-F" type="text" class="btn btn--sm w-tsch-6tisch-industrial-wide" value="17, 23, 12, 26, 19, 14, 21, 11, 24, 16, 13, 22, 18, 25, 15, 20" /></label>
+    </div>
+    <div class="w-tsch-6tisch-industrial-err" id="wa-err" aria-live="polite"></div>
+    <div class="w-tsch-6tisch-industrial-out" id="wa-out"></div>
+    <hr />
+    <p><b>Kendin hesapla.</b> Rastgele bir durum üret, üç kutuyu doldur, kontrol et. Hopping sequence yukarıdaki $F$'tir.</p>
+    <div class="w-tsch-6tisch-industrial-ctl"><button class="btn btn--sm" id="wa-new">Yeni soru</button></div>
+    <div class="w-tsch-6tisch-industrial-out" id="wa-q"></div>
+    <div class="w-tsch-6tisch-industrial-ctl">
+      <label>slotOffset <input id="wa-a1" type="text" inputmode="numeric" class="btn btn--sm" /></label>
+      <label>index <input id="wa-a2" type="text" inputmode="numeric" class="btn btn--sm" /></label>
+      <label>channel <input id="wa-a3" type="text" inputmode="numeric" class="btn btn--sm" /></label>
+      <button class="btn btn--sm btn--accent" id="wa-chk">Kontrol et</button>
+    </div>
+    <div class="w-tsch-6tisch-industrial-out" id="wa-fb" aria-live="polite"></div>
+  </div>
+  <div class="box box--exam" data-exam="W5-selfcheck-Q3">
+    <span class="box__label">W5 self-check S3 · self-study ekindeki soru</span>
+    <p><em>"Nc = 16, ASN = 1000, channelOffset = 3. Which hopping-sequence index is used? Is it the same one slotframe (101 slots) later?"</em></p>
+    <p class="src">Not: Self-check soruları Week 5 dosyasının self-study sürümüne eklenmiş, hoca yazmadı. Formül hocanın slaytında (slayt 31) olduğu için soru tipi sınava çok yakın.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce ASN ile channelOffset'i topla, sonra 16'ya böl ve kalanı al. 16'nın 1000'e yakın bir katını bul.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"One slotframe later" ASN'in 101 artması demek. 101 ile 16'nın ortak böleni var mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$1000 + 3 = 1003$. $16 \cdot 62 = 992$, $1003 - 992 = 11$ ⇒ index 11, yani channel $F[11]$.</p>
+      <p>Bir slotframe sonra ASN = 1101: $1101 + 3 = 1104 = 16 \cdot 69$ ⇒ kalan 0 ⇒ $F[0]$. Index değişti, dolayısıyla fiziksel channel da (hopping sequence'te aynı channel iki kez yoksa) farklı.</p>
+      <p>Neden değişti: her slotframe'de index $101 \bmod 16 = 5$ basamak kayar. $\gcd(101, 16) = 1$ olduğu için cell 16 slotframe içinde bütün channel'ları gezer.</p>
+      <p><strong>Exam answer:</strong> index = (ASN + channelOffset) mod Nc = 1003 mod 16 = 11, so the cell uses F[11]. One slotframe later ASN = 1101 and (1101 + 3) mod 16 = 0, so it uses F[0]: a different physical channel. The logical cell is the same; the physical channel rotates because 101 and 16 share no common factor.</p>
+    </div></details>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Channel offset sabit bir physical channel değildir</strong> (slayt 58). "channelOffset 3 ⇒ channel 14" gibi bir hesap ($11 + 3$) yanlış.</li>
+      <li>Formülde $\bmod L$ değil $\bmod N_c$ var. $L$ slot offset'i, $N_c$ channel index'ini belirler.</li>
+      <li>Index'i bulduktan sonra durma. Soru "physical channel" diyorsa $F[\text{index}]$'i tablodan okumalısın.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ch-1">
+    <p class="quiz__q">$N_c = 16$ ve slotframe length $L = 32$. Bir cell slotframe tekrarları boyunca kaç farklı physical channel'a uğrar?</p>
+    <button class="quiz__opt">16<span class="why">Bu, $\gcd(L, N_c) = 1$ olsaydı doğru olurdu. $32 \bmod 16 = 0$: index her slotframe'de aynı kalıyor.</span></button>
+    <button class="quiz__opt">2<span class="why">$32 / 16 = 2$ ile karıştırma. Belirleyici olan $L \bmod N_c$ kayması: 0.</span></button>
+    <button class="quiz__opt" data-correct>1<span class="why">Doğru: $\gcd(32, 16) = 16$, $16/16 = 1$. Cell hep aynı channel'a düşer ve hopping'in faydası kaybolur.</span></button>
+  </div>
+  <div class="quiz" id="q-ch-2">
+    <p class="quiz__q">Aynı slot offset'te iki cell var: channelOffset 0 ve channelOffset 8 ($N_c = 16$). Bu iki cell aynı ASN'de aynı physical channel'a düşebilir mi?</p>
+    <button class="quiz__opt">Evet, hopping rastgele olduğu için bazen çakışırlar.<span class="why">Hopping rastgele değil, deterministik bir formül. Aynı ASN'de index'ler arasındaki fark hep 8'dir.</span></button>
+    <button class="quiz__opt" data-correct>Hayır. Aynı ASN'de index'leri hep 8 farklıdır; $F$'te bir channel iki kez yoksa channel'ları da farklıdır.<span class="why">Doğru. Channel offset'ler farklı olduğu sürece aynı slot'taki cell'ler farklı frekanslarda kalır. Hopping hepsini birlikte kaydırır.</span></button>
+    <button class="quiz__opt">Sadece $L$ ile $N_c$ ortak bölen paylaşırsa.<span class="why">$L$ aynı slot'taki iki cell'in arasındaki farkı etkilemez; ikisi de aynı ASN'i kullanır. $L$ sadece bir cell'in tekrarlar arası kaymasını belirler.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="hopping" data-min="5">
+  <h2>Channel hopping neden işe yarar?</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · frequency diversity (slayt 32)</span>
+    <p>Channel hopping, tekrarlanan transmission'ları farklı frekanslara yayar ve tek bir kötü channel'a bağımlılığı azaltır. Yardım ettiği durumlar:</p>
+    <ul>
+      <li><strong>narrowband interference</strong> (sadece birkaç frekansı etkileyen gürültü),</li>
+      <li><strong>frequency-selective fading</strong> (multipath yansımaların bazı frekanslarda sinyali söndürmesi),</li>
+      <li><strong>Wi-Fi overlap</strong>,</li>
+      <li><strong>persistent channel noise</strong>.</li>
+    </ul>
+    <p>Kötü bir physical channel, bir logical cell'in sadece <strong>bazı tekrarlarını</strong> bozar. Başarısız bir frame sonraki cell'de büyük ihtimalle başka bir channel'da tekrar denenir.</p>
+    <p>Hopping şunları <strong>engellemez</strong>: <strong>broad-spectrum interference</strong> (bütün bandı kaplayan gürültü), <strong>poor schedules</strong> ve <strong>synchronization failure</strong>. ASN'de anlaşamayan iki node farklı channel hesaplar ve hiç buluşamaz.</p>
+    <p><em>"Channel hopping improves robustness, not certainty."</em></p>
+  </div>
+  <p>Aşağıdaki ızgarada satırlar fiziksel channel'lar, sütunlar slotframe tekrarları. Üç link var: A→B (slotOffset 0, channelOffset 0), C→D (slotOffset 0, channelOffset 8), E→F (slotOffset 5, channelOffset 6). Her adımda bir tekrar daha eklenir ve her link'in o tekrarda kullandığı channel formülle hesaplanır. Bozuk (jammed) channel'lar turuncu satırdır.</p>
+  <p class="w-tsch-6tisch-industrial-guess"><b>Önce tahmin et:</b> Channel 23 bozuk ve $L = 17$. 16 tekrarda A→B kaç kez bozuk channel'a düşer? $L = 16$ yapınca ne olur?</p>
+  <div class="w-tsch-6tisch-industrial-box">
+    <div class="w-tsch-6tisch-industrial-ctl">
+      <label>$L$ <input id="wb-L" type="text" inputmode="numeric" value="17" class="btn btn--sm" /></label>
+      <label>bozuk channel'lar <input id="wb-jam" type="text" value="23" class="btn btn--sm" /></label>
+      <button class="btn btn--sm btn--accent" id="wb-go">Kur</button>
+      <span class="src">hazır $L$:</span>
+      <button class="btn btn--sm" data-wbl="16">16</button>
+      <button class="btn btn--sm" data-wbl="17">17</button>
+      <button class="btn btn--sm" data-wbl="20">20</button>
+      <button class="btn btn--sm" data-wbl="101">101</button>
+    </div>
+    <div class="w-tsch-6tisch-industrial-ctl">
+      <label style="width:100%">$F$ (hopping sequence; channel silersen blacklisting olur) <input id="wb-F" type="text" class="btn btn--sm w-tsch-6tisch-industrial-wide" value="17, 23, 12, 26, 19, 14, 21, 11, 24, 16, 13, 22, 18, 25, 15, 20" /></label>
+    </div>
+    <div class="w-tsch-6tisch-industrial-err" id="wb-err" aria-live="polite"></div>
+    <div id="wb-stepper"></div>
+  </div>
+  <!-- Kaynak: W5 slayt 32 (definition, dört problem, "affects only some repetitions", hopping'in çözmediği üç şey, takeaway). Izgara ve link'ler bu ders için; hesap formülden. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Hopping varsa dedicated cell hiç başarısız olmaz." Yanlış: slayt 58, <em>"Dedicated cells can still fail."</em> Fading, dış interference ve senkronizasyon kaybı hâlâ var.</li>
+      <li>Hopping bütün bandı kaplayan bir gürültüye ya da kendisi de channel değiştiren bir jammer'a karşı yardım etmez.</li>
+      <li>$L$ ile $N_c$ ortak bölen paylaşırsa hopping kâğıt üstünde vardır ama bir cell hep aynı birkaç channel'ı kullanır. Izgarada $L = 16$ ile dene.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-hop-1">
+    <p class="quiz__q">Bir Wi-Fi access point 16 channel'dan 4'ünü sürekli bozuyor. $L = 101$, $N_c = 16$. Bir dedicated cell'in tekrarlarının yaklaşık ne kadarı bozuk channel'a düşer?</p>
+    <button class="quiz__opt">Hepsi ya da hiçbiri; cell'in hangi channel'da olduğuna bağlı.<span class="why">Bu, hopping olmasaydı (ya da $L = 16$ olsaydı) doğru olurdu. $\gcd(101, 16) = 1$ olduğu için cell 16 channel'ın hepsini sırayla gezer.</span></button>
+    <button class="quiz__opt" data-correct>Yaklaşık %25 (her 16 tekrarda 4).<span class="why">Doğru. Kötü channel'lar tekrarların sadece bir kısmını bozar ve retry büyük ihtimalle iyi bir channel'a düşer.</span></button>
+    <button class="quiz__opt">%0, çünkü TSCH bozuk channel'ları otomatik atlar.<span class="why">TSCH'in kendisi channel kalitesine bakmaz; formülü uygular. Bozuk channel'ı listeden çıkarmak (blacklisting) ayrı bir yönetim kararıdır, örneğin WirelessHART'ta network manager yapar.</span></button>
+  </div>
+  <div class="quiz" id="q-hop-2">
+    <p class="quiz__q">İki node'un ASN'leri birbirinden 1 farklı. Channel hopping bu durumda ne yapar?</p>
+    <button class="quiz__opt">Farkı tolere eder, çünkü hopping robustness sağlar.<span class="why">Slayt 32: hopping synchronization failure'ı çözmez. Robustness frekansla ilgili; zaman anlaşmasını telafi etmez.</span></button>
+    <button class="quiz__opt" data-correct>İşleri daha da bozar: iki node farklı index ve büyük ihtimalle farklı channel hesaplar, birbirini hiç duymaz.<span class="why">Doğru. Formülde ASN var; ASN farklıysa hesaplanan channel da farklı. Senkronizasyon her şeyin ön şartı.</span></button>
+    <button class="quiz__opt">Hiçbir şey; channel sadece channelOffset'e bağlı.<span class="why">Channel offset'i fiziksel channel sanmak. Fiziksel channel ASN'e de bağlı.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="cells" data-min="6">
+  <h2>Cell türleri, slotframe uzunluğu ve senkronizasyon</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · TSCH cell types (slayt 33)</span>
+    <ul>
+      <li><strong>Transmit (TX) cell</strong>: node belirli bir komşuya gönderir.</li>
+      <li><strong>Receive (RX) cell</strong>: node belirli bir komşuyu dinler.</li>
+      <li><strong>Dedicated cell</strong>: tek bir link'e ayrılmış.</li>
+      <li><strong>Shared cell</strong>: planlanmış bu fırsatın içinde birden fazla node yarışabilir.</li>
+    </ul>
+    <div class="table-wrap"><table>
+      <tr><th>Cell</th><th>Main use</th><th>Risk</th></tr>
+      <tr><td>TX</td><td>send frame</td><td>wasted if no packet</td></tr>
+      <tr><td>RX</td><td>listen for neighbour</td><td>idle wakeup</td></tr>
+      <tr><td>Dedicated</td><td>predictable data</td><td>schedule overhead</td></tr>
+      <tr><td>Shared</td><td>joining/control/bursts</td><td>collisions</td></tr>
+    </table></div>
+    <p>TX/RX ile dedicated/shared iki ayrı eksendir: "dedicated TX cell" de olur, "shared TX cell" de. Shared bir TX cell'de birden fazla node gönderebileceği için backoff kullanılır.</p>
+    <p><em>"Cell type controls both predictability and flexibility."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · slotframe length trade-off (slayt 34)</span>
+    <p>Slotframe uzunluğu delay'i, kapasiteyi, uyuma fırsatlarını ve schedule'a yer kalıp kalmadığını etkiler.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Slotframe</th><th>Strength</th><th>Cost</th></tr>
+      <tr><td>Short</td><td>low delay</td><td>higher activity</td></tr>
+      <tr><td>Long</td><td>more positions</td><td>longer waiting</td></tr>
+      <tr><td>Multiple</td><td>traffic classes</td><td>priority handling</td></tr>
+    </table></div>
+    <ul>
+      <li>Kısa slotframe: sık fırsat, düşük delay, hızlı retry ve hızlı control. Ama duty cycle yükselir ve büyük schedule'lara yer kalmaz.</li>
+      <li>Uzun slotframe: daha çok cell yeri ve uyku. Ama bekleme süresi uzar ve hata sonrası toparlanma yavaşlar.</li>
+    </ul>
+    <p><em>"Longer is not automatically more energy-efficient."</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · uzun slotframe neden enerji kazandırmayabilir</span>
+    <p>Slot 10 ms, bir node saniyede yaklaşık 1 packet gönderiyor. $L = 101$ (1.01 s) ile her slotframe'de 1 TX cell yeter: saniyede $1 / 1.01 \approx 0.99$ aktif cell. $L = 505$ (5.05 s) yaparsan aynı trafiği taşımak için her slotframe'de 5 cell gerekir: saniyede $5 / 5.05 \approx 0.99$ aktif cell. Enerji aynı kaldı, ama packet'ler artık bir cell'i daha uzun bekleyebilir. Enerjiyi belirleyen slotframe uzunluğu değil, <strong>saniyedeki aktif cell sayısıdır</strong>.</p>
+  </div>
+  <!-- Kaynak: W5 slayt 33 (dört tür, tablo, takeaway), 34 (definition, kısa/uzun, tablo, "Longer is not automatically more energy-efficient"). TX/RX ve dedicated/shared'in iki eksen olması 802.15.4 link options'tan (self-study notu). Örnek sayılar bu ders için, nums.py ile kontrol edildi. -->
+  <div class="quiz" id="q-cell-1">
+    <p class="quiz__q">Bir node'un 10 RX cell'i var ama komşuları nadiren gönderiyor. Tablodaki hangi risk bu node'u en çok etkiler?</p>
+    <button class="quiz__opt">Collisions<span class="why">Collision shared cell'in riski. Burada sorun gönderenin çok olması değil, hiç gelmemesi.</span></button>
+    <button class="quiz__opt" data-correct>Idle wakeup<span class="why">Doğru. RX cell'de radio her seferinde açılır ve bir şey gelmezse o enerji boşa gider.</span></button>
+    <button class="quiz__opt">Wasted if no packet<span class="why">Bu TX cell'in riski: gönderecek packet yoksa cell boş geçer. Soru RX cell'leri soruyor.</span></button>
+  </div>
+  <div class="quiz" id="q-cell-2">
+    <p class="quiz__q">Bir ağda hem sık giden control mesajları hem de nadir ama büyük veri raporları var. Slayt 34'e göre en uygun seçim hangisi?</p>
+    <button class="quiz__opt">Tek ve çok uzun bir slotframe, çünkü uzun slotframe enerji kazandırır.<span class="why">"Longer is not automatically more energy-efficient." Ayrıca control mesajları uzun bekler.</span></button>
+    <button class="quiz__opt">Tek ve çok kısa bir slotframe.<span class="why">Delay düşer ama duty cycle artar ve büyük schedule'a yer kalmaz.</span></button>
+    <button class="quiz__opt" data-correct>Birden fazla slotframe: her trafik sınıfına uygun uzunluk, çakışmada öncelik kuralı.<span class="why">Doğru. Tablodaki "Multiple" satırı: strength = traffic classes, cost = priority handling.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · TSCH synchronization (slayt 35)</span>
+    <p>Bir TSCH node'u, planlanmış cell'leri doğru kullanabilmek için önce yerel saatini ağa hizalamalıdır.</p>
+    <ol>
+      <li><strong>scan</strong>: yeni node radio'sunu açar ve dinler,</li>
+      <li><strong>beacon</strong>: ağ ve zaman bilgisi taşıyan bir <strong>Enhanced Beacon</strong> (EB) yakalar,</li>
+      <li><strong>align ASN</strong>: EB'deki ASN ve geliş zamanıyla nerede olduğunu öğrenir,</li>
+      <li><strong>join</strong>: ağa katılır (gerekiyorsa kimliğini doğrulatır),</li>
+      <li><strong>sync</strong>: bundan sonra saatini düzeltmeye devam eder.</li>
+    </ol>
+    <ul>
+      <li>Saat düzeltmesi frame timing, ACK timing, beacon'lar ya da seçilmiş bir <strong>time source</strong> komşusu ile yapılır. Uzun süre trafik yoksa sırf düzeltme almak için bir <strong>keep-alive</strong> frame'i gönderilir.</li>
+      <li>Sık senkronizasyon hatayı azaltır ama radio ve control yükü getirir.</li>
+    </ul>
+    <p><em>"Synchronization is both a reliability tool and an energy cost."</em> Saat kaymasının (drift) guard time'a nasıl dönüştüğünü TDMA dersinde gördün.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · mechanism versus guarantee (slayt 36)</span>
+    <p>TSCH rastgeleliği dört araçla azaltır: <strong>time isolation</strong>, <strong>channel diversity</strong>, <strong>scheduled retries</strong> ve <strong>controlled queue service</strong> (packet'ler kuyruktan sadece bilinen cell'lerde çıkar).</p>
+    <ul>
+      <li>Dedicated cell'lerde collision olasılığını düşürebilir.</li>
+      <li><strong>Determinism</strong> için şunlara yetecek kaynak gerekir: application data, routing, retries, joining ve topology changes.</li>
+      <li>Kötü bir schedule yine de queue overflow, uzun delay, kullanılmayan kapasite ya da bottleneck üretir.</li>
+    </ul>
+    <p><em>"TSCH supplies tools; the schedule determines performance."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · hybrid operation inside TSCH (slayt 37)</span>
+    <p>Pratikteki TSCH schedule'ları <strong>dedicated</strong> ve <strong>shared</strong> cell'leri karıştırır. Slayttaki örnek slotframe: shared, dedicated, dedicated, shared, sleep, retry.</p>
+    <ul>
+      <li>Dedicated cell'ler düzenli data ve kararlı latency için.</li>
+      <li>Shared cell'ler joining, beacon'lar, recovery, negotiation ve beklenmeyen packet'ler için.</li>
+      <li>Tamamen dedicated bir schedule sadece trafik ve topoloji biliniyorsa verimlidir; yeni bir node ya da ani bir trafik artışı için yer kalmaz.</li>
+      <li>Tamamen shared bir schedule'da yarışma (contention) geri gelir.</li>
+    </ul>
+    <p><em>"Hybrid scheduling is the practical middle ground."</em></p>
+  </div>
+  <!-- Kaynak: W5 slayt 35 (definition, EB, dört düzeltme yolu, maliyet, diyagram: scan-beacon-align ASN-join-sync), 36 (dört araç, determinism için kaynaklar, kötü schedule sonuçları, takeaway), 37 (karışım, diyagram, iki aşırı uç, takeaway). Keep-alive ve time source terimleri slayt 35 notlarında. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>RX cell'in bedava olduğunu sanmak. Hiçbir şey gelmese de radio her tekrarda açılır (idle wakeup). Çok RX cell'i olan bir parent çok enerji harcar.</li>
+      <li>"Shared cell güvenli" demek. Slayt 58: <em>"shared cell safe" → "contention remains"</em>.</li>
+      <li>Slotframe'i uzatmanın enerjiyi kendiliğinden azalttığını sanmak (yukarıdaki örnek).</li>
+      <li>"Dedicated cell = garanti." Slayt 36'nın ana fikri tersi: mekanizma bir sonucu mümkün kılar, söz vermez. Slayt 58: <em>"Most wrong answers confuse mechanism with guarantee."</em></li>
+      <li>Scan aşamasını ucuz sanmak. Yeni node bir EB duyana kadar radio'su açık kalır; bu ağa katılmanın en pahalı kısmıdır.</li>
+      <li>Shared cell'leri gereksiz sanmak. Onlar olmazsa yeni bir node ilk mesajını gönderecek yer bulamaz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sync-1">
+    <p class="quiz__q">Yeni açılan bir TSCH node'u ilk olarak ne yapmalı?</p>
+    <button class="quiz__opt">Kendi dedicated TX cell'inde parent'ına data göndermeli.<span class="why">Henüz ASN'i bilmiyor; hangi slot'ta olduğunu ve hangi channel'ı kullanacağını hesaplayamaz.</span></button>
+    <button class="quiz__opt" data-correct>Dinleyip bir Enhanced Beacon yakalamalı, ASN'i ve ağ bilgisini oradan öğrenmeli.<span class="why">Doğru. Slayt 35'teki sıra: scan, beacon, align ASN, join, sync.</span></button>
+    <button class="quiz__opt">ASN'i 0'dan başlatıp kendi slotframe'ini kurmalı.<span class="why">ASN ağın ortak sayacı. Kendi sayacını başlatan bir node ağla aynı slot'u ve channel'ı hesaplayamaz.</span></button>
+  </div>
+  <div class="quiz" id="q-sync-2">
+    <p class="quiz__q">Bir mühendis "Bütün cell'leri dedicated yapalım, collision olmaz" diyor. Slayt 37'ye göre en doğru itiraz hangisi?</p>
+    <button class="quiz__opt">Dedicated cell'lerde collision çok olur.<span class="why">Tersi: dedicated cell'ler collision'ı azaltır. Sorun başka yerde.</span></button>
+    <button class="quiz__opt" data-correct>Yeni node'lar, beacon'lar, recovery, negotiation ve beklenmeyen packet'ler için yer kalmaz; bu ancak trafik ve topoloji hiç değişmiyorsa işler.<span class="why">Doğru. Hybrid schedule bu yüzden pratik orta yol.</span></button>
+    <button class="quiz__opt">Dedicated cell'ler TSCH'te tanımlı değildir.<span class="why">Tanımlı: slayt 28 ve 33, cell'ler dedicated ya da shared olabilir.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="orchestra" data-min="6">
+  <h2>Orchestra: mesajsız, hash ile schedule</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · buluşma yerini isimden çıkarmak</span>
+    <p>İki arkadaş "her gün, ismimin harf sayısı kadar saatte buluşalım" diye anlaşırsa hiç telefonlaşmadan aynı saatte aynı yerde olurlar. Ama başka iki arkadaşın isimleri de aynı uzunluktaysa onlar da aynı saate düşer. Orchestra cell'leri böyle bulur: ortak bir kural ve iki tarafın da bildiği bir ID.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Orchestra motivation (slayt 38)</span>
+    <ul>
+      <li>Orchestra yerel TSCH schedule'unu, network stack'te <strong>zaten var olan bilgiden</strong> hesaplar (kendi adresi, RPL parent'ı ve child'ları, komşu adresleri).</li>
+      <li>Dinamik IPv6/RPL ağları için tasarlandı.</li>
+      <li>Merkezi scheduling'den ve link başına negotiation'dan kaçınır.</li>
+      <li>Routing parent'ları ve topoloji değiştikçe uyum sağlar.</li>
+      <li>Kalitesi kullanılan otonom kurallara bağlıdır.</li>
+    </ul>
+    <p><em>"Orchestra reduces signaling by making schedules predictable from state."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · traffic planes (slayt 39)</span>
+    <p>Orchestra farklı trafik türleri için ayrı kurallar, yani ayrı slotframe'ler tutar.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Traffic plane</th><th>Example scheduling</th></tr>
+      <tr><td>Beacon (EB, joining ve sync)</td><td>shared/node-specific</td></tr>
+      <tr><td>RPL control (routing bakımı)</td><td>shared rule</td></tr>
+      <tr><td>Unicast data (application forwarding)</td><td>per-neighbour cells</td></tr>
+      <tr><td>Application</td><td>custom rule</td></tr>
+    </table></div>
+    <p>Ayrı slotframe'ler, tek bir trafik türünün bütün schedule'u belirlemesini önler. <em>"Multiple planes make scheduling modular."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · hash-based slot assignment (slayt 40)</span>
+    $$\text{slotOffset} = \text{hash}(\text{ID}) \bmod L$$
+    <ul>
+      <li>Bir node, receiver, sender ya da link ID'sini hash'leyerek slot ve channel offset'i türetir.</li>
+      <li>İki uç aynı ID'yi hash'lerse aynı cell'i bulur. Açık bir negotiation gerekmez.</li>
+      <li><strong>Hash collision</strong>'lar alakasız node'ları aynı kaynağa atayabilir.</li>
+      <li>Uzun slotframe collision olasılığını düşürür ama latency'yi artırır.</li>
+    </ul>
+    <p><em>"Hashing saves control traffic but cannot promise uniqueness."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · collision olasılığı</span>
+    <p>Hash'in sonuçları $M$ olası cell'e eşit dağılıyor gibi davransın ($M = L \times$ channel offset sayısı). İki link için: $P \approx 1/M$. $n$ link için en az bir çakışma olasılığı (birthday problem):</p>
+    $$P(\text{en az bir collision}) = 1 - \prod_{i=0}^{n-1}\left(1 - \frac{i}{M}\right)$$
+    <p>$n$ arttıkça bu olasılık sezgiden çok daha hızlı büyür: 17 slot ve tek channel offset ile 10 link'te yaklaşık %96.5.</p>
+  </div>
+  <!-- Kaynak: W5 slayt 38 (motivation, beş madde, takeaway), 39 (planes, tablo, takeaway), 40 (hash definition, beş madde, takeaway). hash(ID) mod L, 1/L ve birthday sezgisi self-study notlarında ve cheat sheet'te; olasılık formülü birthday problem'in tam ifadesi, nums.py ile kontrol edildi (10/17 → 0.965). -->
+  <p class="w-tsch-6tisch-industrial-guess"><b>Önce tahmin et:</b> 10 link, $L = 17$, tek channel offset. En az bir collision olasılığı %20 mi, %50 mi, %95 mi? Sonra $L$'yi 101 yap: kaça iner?</p>
+  <div class="w-tsch-6tisch-industrial-box">
+    <div class="w-tsch-6tisch-industrial-ctl">
+      <label>link sayısı $n$ <input id="wc-n" type="text" inputmode="numeric" value="10" class="btn btn--sm" /></label>
+      <label>$L$ <input id="wc-L" type="text" inputmode="numeric" value="17" class="btn btn--sm" /></label>
+      <label>channel offset sayısı <input id="wc-C" type="text" inputmode="numeric" value="1" class="btn btn--sm" /></label>
+      <button class="btn btn--sm btn--accent" id="wc-run">Simüle et</button>
+    </div>
+    <div class="w-tsch-6tisch-industrial-err" id="wc-err" aria-live="polite"></div>
+    <div class="w-tsch-6tisch-industrial-out" id="wc-out"></div>
+    <p class="src">Simülasyon her denemede $n$ link'e rastgele cell atar ve en az iki link'in aynı cell'e düşüp düşmediğine bakar. Gerçek Orchestra ID'leri hash'ler; burada hash'in eşit dağıldığı varsayılıyor.</p>
+  </div>
+  <div class="box box--exam" data-exam="W5-cheat-hash">
+    <span class="box__label">W5 cheat sheet · "Hash collision, 2 links" satırı (self-study eki)</span>
+    <p>Satır aynen: <em>"Hash collision, 2 links · ≈ 1 ÷ number of possible cells · 17 slots → ≈ 6%"</em>. Soru olarak: iki link 17 slot'luk bir slotframe'e (tek channel offset) hash ile yerleşiyor. Aynı slot'a düşme olasılığı nedir? Link sayısı 10'a çıkınca ne olur?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Birinci link bir yere düştü. İkincinin tam o slot'a düşme olasılığı kaç?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Çok link'te "her çiftin" çakışma ihtimali toplanır; $n$ link'te $n(n-1)/2$ çift var.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>İkinci link 17 slot'tan birine eşit olasılıkla düşer: $P = 1/17 \approx 0.059$, yani yaklaşık %6.</p>
+      <p>10 link'te 45 çift var. Tam hesap: $1 - \prod_{i=0}^{9}(1 - i/17) \approx 0.965$. Neredeyse kesin bir çakışma. Çare: daha uzun slotframe (101 slot ile ≈ 0.37) ya da daha çok channel offset; bedeli her link'in saniyedeki fırsatının azalması, yani latency.</p>
+      <p><strong>Exam answer:</strong> With 2 links and M = 17 possible cells, P(collision) ≈ 1/M = 1/17 ≈ 6%. With many links the birthday effect applies: P = 1 − Π(1 − i/M); for 10 links in 17 slots this is ≈ 96%. Longer slotframes reduce it but increase latency, so hashing cannot promise uniqueness.</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-orch-1">
+    <p class="quiz__q">Orchestra'da iki komşu aynı cell'de nasıl buluşur?</p>
+    <button class="quiz__opt">Parent bir 6P ADD mesajıyla child'a cell önerir.<span class="why">Bu 6TiSCH'in negotiation yolu. Orchestra'nın amacı tam olarak bu mesajlardan kaçınmak.</span></button>
+    <button class="quiz__opt" data-correct>İkisi de aynı ID'yi (örneğin receiver'ın adresini) aynı kuralla hash'ler ve aynı cell'i bulur.<span class="why">Doğru. Slayt 40: "If both endpoints hash the same identifier, they derive the same cell."</span></button>
+    <button class="quiz__opt">Merkezi bir manager cell'leri dağıtır.<span class="why">Orchestra merkezi scheduling'den kaçınır (slayt 38). Merkezi manager WirelessHART ve ISA100.11a'nın yolu.</span></button>
+  </div>
+  <div class="quiz" id="q-orch-2">
+    <p class="quiz__q">Hash collision'ları azaltmak için slotframe'i 17'den 101'e çıkardın. Bedeli ne?</p>
+    <button class="quiz__opt">Bedeli yok; daha uzun slotframe her açıdan daha iyi.<span class="why">Slayt 40: "Longer slotframes reduce collision probability but increase latency."</span></button>
+    <button class="quiz__opt" data-correct>Her link'in cell'i daha seyrek gelir, packet'ler daha uzun bekler (latency artar).<span class="why">Doğru. 17 slot'ta cell her 17 slot'ta bir, 101 slot'ta her 101 slot'ta bir gelir.</span></button>
+    <button class="quiz__opt">Collision'lar tamamen kalkar, ama enerji artar.<span class="why">Collision olasılığı azalır, sıfır olmaz: "cannot promise uniqueness". Enerji de uzunlukla kendiliğinden artmaz.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="orch-rules" data-min="5">
+  <h2>Orchestra kuralları ve sınırları</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · receiver-, sender- ve link-based (slayt 41)</span>
+    <p>Otonom kurallar, cell'i hangi kimliğin belirlediğine göre ayrılır.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Rule</th><th>Benefit</th><th>Cost</th></tr>
+      <tr><td>Receiver-based</td><td>small state</td><td>receiver bottleneck</td></tr>
+      <tr><td>Sender-based</td><td>less child contention</td><td>more RX cells</td></tr>
+      <tr><td>Link-based</td><td>better isolation</td><td>more state</td></tr>
+    </table></div>
+    <ul>
+      <li><strong>Receiver-based</strong>: cell receiver'ın ID'sinden. Parent'ın tek RX cell'i var ve bütün child'lar orada gönderir; çok sender o cell'i bilir, bottleneck oluşabilir.</li>
+      <li><strong>Sender-based</strong>: cell sender'ın ID'sinden. Her child'ın kendi cell'i var, child'lar arası yarışma azalır; ama receiver birçok cell'de dinlemek zorunda kalır.</li>
+      <li><strong>Link-based</strong>: cell sender–receiver çiftinden. İzolasyon en iyi; ama daha çok state tutulur ve slotframe çok küçük parçalara bölünür (fragmentation).</li>
+    </ul>
+    <p><em>"The rule chooses where contention and duty cycle appear."</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · 4 child'lı bir parent</span>
+    <p>Receiver-based: parent'ın unicast için 1 RX cell'i var, 4 child bu cell'de yarışır. Her child bir slotframe'de 0.3 olasılıkla packet'e sahipse, aynı cell'de en az iki child'ın gönderme isteği olasılığı $1 - 0.7^4 - 4 \cdot 0.3 \cdot 0.7^3 \approx 0.35$.</p>
+    <p>Sender-based: dört child'ın hash sonucu farklı, çakışmayan slotOffset'lere düştüğünü varsay. O zaman parent her slotframe'de 4 RX cell'inde uyanır ve child'lar yarışmaz. İki child'ın hash'i aynı cell'e düşerse o cell yine paylaşılır. Bedeli parent'ın duty cycle'ı. Bu bedel root'a yakın, çok child'lı node'larda en yüksektir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · adaptation and limitations (slayt 42)</span>
+    <p>Orchestra RPL parent değişince schedule'u günceller: <strong>old parent → RPL change → remove cells → compute cells → use new</strong>. Açık bir negotiation gerekmez.</p>
+    <ul>
+      <li>Hash collision'lar ve <strong>traffic imbalance</strong> yine de olabilir: kurallar yükten habersizdir, çok trafik taşıyan bir node da az taşıyan bir leaf de aynı cell'leri alır.</li>
+      <li><strong>Orchestra bir scheduler'dır; IEEE standardı değildir ve tam 6TiSCH değildir.</strong> Contiki-NG'de yazıldı (slayt 53).</li>
+    </ul>
+    <p><em>"Orchestra is practical and low-overhead, not globally optimized."</em> Başlıktaki uyarı da aynı: <em>"Autonomous does not mean deterministic."</em></p>
+  </div>
+  <!-- Kaynak: W5 slayt 41 (definition, üç kural, tablo, takeaway), 42 (definition, diyagram, collision ve imbalance, "scheduler, not an IEEE standard and not full 6TiSCH", takeaway). 4 child örneği ve olasılık hesabı bu ders için (self-study notundaki 5 child örneğinin yerine), nums.py ile kontrol edildi. -->
+  <div class="box box--exam" data-exam="W5-selfcheck-Q7">
+    <span class="box__label">W5 self-check S7 · self-study ekindeki soru</span>
+    <p><em>"Receiver-based vs sender-based Orchestra rules: where does the cost show up in each?"</em></p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Receiver-based'de parent'ın kaç RX cell'i var ve kaç child o cell'i biliyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sender-based'de her child'ın kendi cell'i varsa, parent kaç cell'de uyanmak zorunda?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Receiver-based: maliyet <strong>child'larda ve paylaşılan cell'de</strong> görünür. Parent'ın tek RX cell'i var; bütün child'lar orada yarışır, cell pratikte shared bir cell gibi davranır ve collision ile backoff gelir (receiver bottleneck). Kazancı küçük state.</p>
+      <p>Sender-based: maliyet <strong>parent'ta</strong> görünür. Her child kendi cell'inde gönderir, yarışma azalır; ama parent her child'ın cell'inde dinlemek zorunda. Daha çok RX cell, daha çok idle listening, daha yüksek duty cycle; en çok da root'a yakın node'larda.</p>
+      <p><strong>Exam answer:</strong> Receiver-based: the parent has one RX cell that all its children share, so the cost appears as contention and collisions in that cell (a receiver bottleneck), while state stays small. Sender-based: each child has its own TX cell, so child contention drops, but the parent must listen in many RX cells, so the cost appears as idle listening and a higher duty cycle at the parent. The rule chooses where contention and duty cycle appear.</p>
+    </div></details>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Otonom" kelimesini "garantili" sanmak. Orchestra mesaj göndermez ama trafiğe bakmaz ve çakışmayı engelleyemez.</li>
+      <li>Orchestra'yı bir standart sanmak. TSCH IEEE standardıdır; Orchestra bir scheduler'dır.</li>
+      <li>Sender-based'i her zaman daha iyi sanmak. Yarışmayı child'lardan alıp parent'ın enerjisine yükler.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-orch-3">
+    <p class="quiz__q">Root'a bir hop uzaklıktaki bir node'un 12 child'ı var ve pili kısıtlı. Child'lar nadiren gönderiyor. Hangi kural bu node'un enerjisine en az yük getirir?</p>
+    <button class="quiz__opt">Sender-based<span class="why">Node 12 child'ın her birinin cell'inde uyanmak zorunda kalır: hash'ler çakışmazsa 12 RX cell, çoğu boş. En yüksek duty cycle.</span></button>
+    <button class="quiz__opt" data-correct>Receiver-based<span class="why">Doğru. Tek RX cell'de uyanır. Bedeli o cell'deki yarışma; trafik seyrek olduğu için çakışma da seyrek.</span></button>
+    <button class="quiz__opt">Link-based<span class="why">Her child ile ayrı bir cell demek; RX cell sayısı sender-based kadar çok ve daha fazla state.</span></button>
+  </div>
+  <div class="quiz" id="q-orch-4">
+    <p class="quiz__q">RPL bir node'un parent'ını değiştirdi. Orchestra ne yapar?</p>
+    <button class="quiz__opt">Yeni parent'la 6P transaction'ı başlatır.<span class="why">Orchestra negotiation yapmaz. 6P, 6TiSCH'in protokolü.</span></button>
+    <button class="quiz__opt" data-correct>Eski parent'ın cell'lerini siler, yeni parent'ın ID'sinden yeni cell'leri hesaplar ve kullanmaya başlar.<span class="why">Doğru. Slayt 42'deki sıra: old parent, RPL change, remove cells, compute cells, use new.</span></button>
+    <button class="quiz__opt">Hiçbir şey; cell'ler sadece node'un kendi ID'sine bağlı.<span class="why">Receiver-based kuralda unicast cell'i parent'ın ID'sinden gelir, parent değişince cell de değişir. Sender-based kuralda bile yeni parent'ın o cell'de dinlemeye başlaması gerekir. Her iki durumda schedule güncellenir.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="sixtisch" data-min="6">
+  <h2>6TiSCH: IPv6 over TSCH, 6top, 6P ve MSF</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · 6TiSCH architecture (slayt 43)</span>
+    <ul>
+      <li>6TiSCH, IPv6 networking'i IEEE 802.15.4 TSCH ile birleştirir.</li>
+      <li>TSCH, IPv6, 6LoWPAN, RPL, scheduling, joining ve security'yi bir araya getirir.</li>
+      <li>Amaç: planlanmış low-power mesh'ler üzerinde <strong>interoperable IPv6 connectivity</strong>.</li>
+      <li>Mimari birden fazla scheduling modelini destekler.</li>
+    </ul>
+    <div class="table-wrap"><table>
+      <tr><th>Data packet'in geçtiği katman (yukarıdan aşağı)</th><th>Yanında çalışan kontrol</th></tr>
+      <tr><td>Application / CoAP</td><td></td></tr>
+      <tr><td>UDP</td><td></td></tr>
+      <tr><td>IPv6</td><td><strong>RPL</strong>: IPv6'nın routing control protocol'ü. Mesajları ICMPv6 olarak IPv6 üstünden gider; parent'ı ve route'u seçer.</td></tr>
+      <tr><td>6LoWPAN</td><td></td></tr>
+      <tr><td>6top (6P)</td><td><strong>Scheduling Function</strong> (SF, örneğin MSF): hangi cell'in ekleneceğine karar verir.</td></tr>
+      <tr><td>TSCH MAC</td><td></td></tr>
+      <tr><td>802.15.4 PHY</td><td></td></tr>
+    </table></div>
+    <p class="src">Not: Slayt 43'teki diyagram kutuları şu sırayla dizer: Application, UDP / CoAP, IPv6, 6LoWPAN, RPL, 6top, TSCH MAC, 802.15.4 PHY. RPL orada 6LoWPAN'ın altında ayrı bir kutu gibi duruyor, ama packet'leri taşıyan bir katman değildir: data packet'i 6LoWPAN'dan doğrudan 6top'a iner. RPL, IPv6'nın yanında çalışan routing control protocol'üdür (RFC 9030, 6TiSCH Stack bölümü).</p>
+    <!-- Kaynak: RFC 9030 §3.7 Figure 3: RPL ICMPv6'nın, ICMPv6 IPv6'nın üstünde; Scheduling Functions 6LoWPAN HC'nin yanında, 6top'un üstünde. -->
+    <p><em>"6TiSCH is an architecture; TSCH is one layer inside it."</em> 6TiSCH bir IETF çalışma grubudur. 6LoWPAN'ı <a href="naming-6lowpan.html">naming-6lowpan</a>, RPL'i <a href="collection-rpl.html">collection-rpl</a> dersinde göreceksin.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · 6top ve 6P (slayt 44)</span>
+    <p><strong>6top</strong> (6TiSCH Operation Sublayer), scheduling kararlarını TSCH schedule'una bağlayan katmandır. İçinde iki rol var:</p>
+    <ul>
+      <li><strong>Scheduling Function (SF)</strong>: kaynakların <em>neden</em> ve <em>ne zaman</em> değişeceğine karar verir.</li>
+      <li><strong>6top Protocol (6P)</strong>: komşuların cell'leri <em>nasıl</em> değiştireceğini yürütür. Komutlar: <strong>ADD, DELETE, RELOCATE, COUNT, LIST, CLEAR</strong>.</li>
+      <li>Transaction'lar iki komşunun schedule state'ini <strong>tutarlı</strong> tutmalıdır.</li>
+    </ul>
+    <p>Slayttaki ADD akışı: ADD req → candidate cells → response → install → use.</p>
+    <p><em>"SF decides policy; 6P performs neighbour transaction."</em> Bu, "TSCH çalıştırır, scheduler karar verir" ayrımının bir kat yukarıdaki hâli.</p>
+  </div>
+  <p>Aşağıda bir 6P ADD transaction'ı adım adım çalışıyor. İki tablo A ve B'nin schedule'ları (sütun slotOffset, satır channelOffset); gri cell'ler başka komşularla zaten kullanılıyor. Bir node'un tek radio'su var: bir timeslot'ta yalnızca bir cell kullanabilir. Bu yüzden aranan şey boş cell değil, boş slotOffset'tir. A adaylarını hiç cell'inin olmadığı slotOffset'lerden seçiyor (MSF'in kuralı da bu). B de adaylar arasından, o slotOffset'te kendisinin de hiç cell'i olmayan ilk adayı seçiyor.</p>
+  <p class="w-tsch-6tisch-industrial-guess"><b>Önce tahmin et:</b> A üç aday öneriyor. B'nin tablosuna sütun sütun bak: hangi adayların timeslot'unda B zaten meşgul? B hangisini seçer? Response kaybolursa iki tarafın schedule'ı ve SeqNum'ı aynı kalır mı?</p>
+  <div class="w-tsch-6tisch-industrial-box">
+    <div class="w-tsch-6tisch-industrial-ctl">
+      <button class="btn btn--sm" id="we-new">Yeni senaryo</button>
+      <label><input type="checkbox" id="we-lost" /> Response kaybolsun</label>
+    </div>
+    <div id="we-stepper"></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Scheduling Functions ve MSF (slayt 45)</span>
+    <ul>
+      <li>Bir SF, TSCH cell'lerini ekleme, silme ya da taşıma <strong>policy</strong>'sini tanımlar.</li>
+      <li>Girdileri: <strong>queue occupancy</strong>, <strong>packet rate</strong>, <strong>cell utilization</strong>, <strong>link reliability</strong> ve <strong>routing parent</strong>.</li>
+      <li>Farklı uygulamalar energy'yi, latency'yi ya da reliability'yi öne alabilir.</li>
+      <li><strong>Minimal Scheduling Function (MSF)</strong> kaynakları dağıtık olarak yönetir; trafiğe, collision'lara ve parent değişimine tepki verir.</li>
+    </ul>
+    <div class="table-wrap"><table>
+      <tr><th>Input</th><th>Policy action</th></tr>
+      <tr><td>queue high</td><td>add cells</td></tr>
+      <tr><td>low utilization</td><td>delete cells</td></tr>
+      <tr><td>collision</td><td>relocate</td></tr>
+      <tr><td>parent change</td><td>adapt cells</td></tr>
+    </table></div>
+    <p><em>"A scheduling function turns measurements into schedule changes."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · minimal schedule, Tracks ve secure joining (slayt 46)</span>
+    <ul>
+      <li><strong>Minimal 6TiSCH schedule</strong> temel shared kaynakları verir: joining, security bootstrapping, routing formation ve ilk bağlantı için.</li>
+      <li>Tek bir shared cell, trafik büyüdükçe bottleneck olabilir.</li>
+      <li><strong>Tracks</strong> hop'lar boyunca cell'leri ayırır (A→B, B→C, C→D sırasıyla): bounded delay, low jitter ve isolation için.</li>
+      <li><strong>Secure joining</strong> kimliği, anahtarları, senkronizasyonu ve ilk kaynakları kurar.</li>
+    </ul>
+    <p><em>"Minimal connectivity is not the same as deterministic service."</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Arka plan · ilgili RFC'ler</span>
+    <div class="table-wrap"><table>
+      <tr><th>Parça</th><th>RFC</th></tr>
+      <tr><td>Minimal 6TiSCH configuration (tek shared cell)</td><td>RFC 8180</td></tr>
+      <tr><td>6P (6top Protocol)</td><td>RFC 8480</td></tr>
+      <tr><td>6TiSCH architecture</td><td>RFC 9030</td></tr>
+      <tr><td>Secure join (Constrained Join Protocol, CoJP)</td><td>RFC 9031</td></tr>
+      <tr><td>MSF</td><td>RFC 9033</td></tr>
+    </table></div>
+    <p class="src">Not: RFC numaraları slaytlarda yok; ezberlemen gerekmeyebilir. Kaynağı aramak istersen diye verildi.</p>
+  </div>
+  <!-- Kaynak: W5 slayt 43 (definition, stack diyagramı, takeaway), 44 (6top, SF, 6P, altı komut, tutarlılık, ADD diyagramı, takeaway), 45 (SF definition, girdiler, MSF, tablo, takeaway), 46 (minimal schedule, Tracks, secure joining, takeaway). RFC numaraları self-study notlarında; RFC başlıklarıyla eşleşiyor. 6P akışı RFC 8480'e göre sadeleştirildi: §3.1.1 (2-step transaction, A adayları response'a kadar, B seçtiğini response'un L2 ACK'ine kadar kilitler), §3.4.4 (6P Timeout), §3.4.6 (A request'i L2 ACK aldıysa transaction bitince, B response'un L2 ACK'ini alınca SeqNum'ı artırır), §3.4.6.2 Figure 33 (response'ta max retransmission, B inconsistency tespit eder; beklenmeyen SeqNum ⇒ RC_ERR_SEQNUM). Aday kuralı RFC 9033 §8 (her aday farklı slotOffset; node'un o slotOffset'te hiç cell'i olmamalı); RC_ERR_SEQNUM ⇒ clear RFC 9033 Table 1. -->
+  <div class="box box--exam" data-exam="W5-selfcheck-Q8">
+    <span class="box__label">W5 self-check S8 · self-study ekindeki soru</span>
+    <p><em>"In 6TiSCH, what does the Scheduling Function do, and what does 6P do?"</em></p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Biri "neden ve ne zaman", öteki "nasıl" sorusuna cevap verir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>SF'in girdilerini (queue, utilization, reliability, parent) ve 6P'nin altı komutunu say.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>SF policy'dir: ölçümlere bakar ve karar verir. Queue doluyorsa cell ekle, utilization düşükse cell sil, bir cell'de collision görülüyorsa onu taşı, parent değiştiyse yeni parent'la cell kur. MSF varsayılan SF'tir.</p>
+      <p>6P protokoldür: kararı komşuyla birlikte uygular. ADD, DELETE, RELOCATE, COUNT, LIST, CLEAR mesajlarıyla iki tarafın schedule'ına aynı değişikliği yazar ve iki tarafın tutarlı kalmasını sağlar.</p>
+      <p><strong>Exam answer:</strong> The Scheduling Function is the policy: it decides why and when cells should be added, deleted or relocated, using inputs such as queue occupancy, cell utilization, link reliability and the routing parent (MSF is the default SF). 6P is the protocol that carries out each change with the neighbour through ADD, DELETE, RELOCATE, COUNT, LIST and CLEAR transactions, keeping both schedules consistent.</p>
+    </div></details>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"6P cell eklemeye karar verir." Hayır: kararı SF verir, 6P taşır.</li>
+      <li>6TiSCH'i TSCH'in yeni adı sanmak. 6TiSCH bir mimari; TSCH onun içindeki bir katman.</li>
+      <li>Minimal schedule'u deterministik servis sanmak. Sadece başlangıç bağlantısı içindir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-6t-1">
+    <p class="quiz__q">Bir node'un queue'su sürekli doluyor. 6TiSCH'te ne olur?</p>
+    <button class="quiz__opt">TSCH MAC kendiliğinden yeni bir cell açar.<span class="why">TSCH schedule'u değiştirmez, sadece çalıştırır.</span></button>
+    <button class="quiz__opt" data-correct>SF (örneğin MSF) "add cells" kararı verir, 6P ADD transaction'ı ile komşuyla yeni cell kurulur.<span class="why">Doğru: policy SF'te, transaction 6P'de.</span></button>
+    <button class="quiz__opt">RPL yeni bir parent seçer.<span class="why">RPL routing kararı verir; cell sayısını SF yönetir. Parent değişimi SF'in girdilerinden biri, çıktısı değil.</span></button>
+  </div>
+  <div class="quiz" id="q-6t-2">
+    <p class="quiz__q">Bir fabrika hattında belirli bir sensörün verisi her seferinde 3 hop'u kesin bir süre içinde geçmeli. 6TiSCH'te hangi kavram bunun için?</p>
+    <button class="quiz__opt">Minimal schedule<span class="why">Minimal schedule sadece ilk bağlantı için tek bir shared cell verir. "Minimal connectivity is not the same as deterministic service."</span></button>
+    <button class="quiz__opt" data-correct>Track<span class="why">Doğru. Track hop'lar boyunca sıralı cell'ler ayırır: bounded delay, low jitter, isolation.</span></button>
+    <button class="quiz__opt">Shared cell'ler<span class="why">Shared cell'de yarışma var; kesin bir süre garanti edilemez.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="industrial" data-min="5">
+  <h2>WirelessHART ve ISA100.11a</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · WirelessHART (slayt 47-49)</span>
+    <ul>
+      <li>Process automation'da güvenli, planlanmış mesh iletişimi için <strong>complete industrial wireless protocol suite</strong>. Standardı <strong>IEC 62591</strong>.</li>
+      <li>Parçaları: field devices, adapters, access points, gateway, <strong>network manager</strong>, security manager.</li>
+      <li>Time-synchronized communication, scheduled channel access, channel hopping ve mesh networking kullanır.</li>
+      <li>Fabrikalar zor ortamlardır: metal, hareketli makineler, duvarlar, çalışanlar, electromagnetic interference. Gateway'e doğrudan yol güvenilmez olabilir.</li>
+      <li><strong>Managed mesh routing</strong>: forwarding graph'larında birden fazla kabul edilebilir komşu olur. Redundant routing reliability'yi artırır ama schedule cell'i ve enerji harcar.</li>
+      <li><strong>Channel blacklisting</strong>: uygun olmayan channel'lar network manager kontrolünde aktif kullanımdan çıkarılır. Manager schedule'u ve channel planını bütün cihazlarda tutarlı tutar.</li>
+    </ul>
+    <p><em>"WirelessHART is a managed industrial system, not merely a MAC mode."</em> · <em>"Reliability is engineered through routes, schedule, hopping and management."</em> · <em>"Industrial predictability often comes from central operational control."</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · blacklisting formülde ne değiştirir?</span>
+    <p>Blacklisting hopping sequence'ten channel silmek demek: $N_c$ küçülür. 16 channel'dan Wi-Fi ile çakışan 4'ü silinirse $N_c = 12$ olur. Kötü channel'lara artık hiç düşülmez, ama frekans çeşitliliği azalır ve aynı slot'ta paralel kullanılabilecek channel offset sayısı da 12'ye iner. Bölüm 4'teki ızgarada $F$'ten channel silip dene; bu durumda $L$'nin 12 ile ortak böleni de önem kazanır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · ISA100.11a (slayt 50-51)</span>
+    <ul>
+      <li>Industrial automation ve process-control uygulamaları için wireless iletişim tanımlar. <strong>ANSI/ISA-100.11a-2011</strong> ve <strong>IEC 62734:2014</strong>.</li>
+      <li>Enerji kısıtlı, düşük data-rate'li cihazlar için tasarlandı.</li>
+      <li>Parçaları: field devices, routing devices, backbone routers, gateway, <strong>system manager</strong>, security manager.</li>
+      <li><strong>IPv6-oriented</strong>: IPv6/6LoWPAN mekanizmalarıyla IP tabanlı sistemlere entegre olur.</li>
+      <li>System manager zaman/frekans kaynaklarını reporting period, priority, reliability, role, route, bandwidth ve energy'ye göre ayırır.</li>
+      <li><strong>Contract</strong>'lar update rate, maximum delay, reliability, priority ve burst behavior'u tarif edebilir.</li>
+    </ul>
+    <p><em>"ISA100.11a is also a complete protocol suite, not a synonym for TSCH."</em> · <em>"ISA100.11a treats industrial flows as managed service requirements."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · WirelessHART versus ISA100.11a (slayt 52)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Property</th><th>WirelessHART</th><th>ISA100.11a</th></tr>
+      <tr><td>Domain</td><td>process automation</td><td>industrial automation</td></tr>
+      <tr><td>Standard</td><td>IEC 62591</td><td>IEC 62734</td></tr>
+      <tr><td>Manager</td><td>network manager</td><td>system manager</td></tr>
+      <tr><td>IP view</td><td>HART-oriented</td><td>IPv6-oriented</td></tr>
+    </table></div>
+    <ul>
+      <li>İkisi de central management, scheduling, mesh desteği, channel diversity ve security kullanır.</li>
+      <li>Ama <strong>interoperable değiller</strong>: aynı IEEE 802.15.4 radio ailesini paylaşmak tam protocol interoperability demek değildir.</li>
+    </ul>
+    <p><em>"Architecture and application layers matter as much as the radio."</em></p>
+  </div>
+  <!-- Kaynak: W5 slayt 47 (WirelessHART purpose, parçalar, IEC 62591, takeaway), 48 (zor ortam, forwarding graph, redundancy bedeli, takeaway), 49 (channel diversity, blacklisting, manager tutarlılığı, takeaway), 50 (ISA100.11a, standartlar, parçalar, takeaway), 51 (IPv6, system manager girdileri, contract'lar, takeaway), 52 (tablo, benzerlikler, interoperability). Blacklisting'in N_c'yi küçültmesi formülden; örnek bu ders için. Slayt 51'deki stack diyagramı 6TiSCH stack'inin aynısı; self-study notu bunun sadece IPv6 fikrini gösterdiğini, ISA100.11a'nın kendi data link ve management mekanizmaları olduğunu söylüyor. -->
+  <div class="box box--exam" data-exam="W5-selfcheck-Q10">
+    <span class="box__label">W5 self-check S10 · self-study ekindeki soru</span>
+    <p><em>"WirelessHART and ISA100.11a both use IEEE 802.15.4 radios. Can a WirelessHART device join an ISA100.11a network?"</em></p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Radio sadece bit taşır. Bitlerin anlamını hangi katmanlar belirler?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Slayt 52'deki tablonun "Manager" ve "IP view" satırlarına bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Hayır. Aynı radio ailesini kullanıyorlar ama üst katmanlar farklı: WirelessHART HART-oriented ve kendi adreslemesini kullanır, ISA100.11a IPv6/6LoWPAN-oriented. Yönetim de farklı: biri network manager, öteki system manager ve contract'lar. Application layer'ları da farklı. Bu yüzden biri ötekinin ağına katılamaz; iki ağ ancak tesis seviyesinde gateway'lerle bağlanır.</p>
+      <p><strong>Exam answer:</strong> No. They share the IEEE 802.15.4 radio family, but their network, management and application layers differ (HART-oriented with a network manager vs IPv6/6LoWPAN-oriented with a system manager and contracts). A shared radio does not imply protocol interoperability.</p>
+    </div></details>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Aynı radio = birlikte çalışır." Slayt 58: <em>"same radio = interop" → "stack matters"</em>.</li>
+      <li>Manager isimlerini karıştırmak: WirelessHART'ta <strong>network</strong> manager, ISA100.11a'da <strong>system</strong> manager.</li>
+      <li>Redundant routing'i bedava sanmak. Her alternatif yol için cell ayrılır; daha çok dinleme, daha çok enerji.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ind-1">
+    <p class="quiz__q">Bir cihaz ağa katılmadan önce "her 1 s'de bir rapor, en fazla 200 ms delay" diye bir istek yapıyor ve merkezi bir yönetici buna göre kaynak ayırıyor. Hangi sistem?</p>
+    <button class="quiz__opt">WirelessHART<span class="why">WirelessHART da merkezi yönetimli ama "contract" kavramı ve IPv6 yönelimi slaytta ISA100.11a için anlatılıyor.</span></button>
+    <button class="quiz__opt" data-correct>ISA100.11a<span class="why">Doğru. Slayt 51: contracts update rate, maximum delay, reliability, priority ve burst behavior'u tarif eder; system manager kaynak ayırır.</span></button>
+    <button class="quiz__opt">Orchestra<span class="why">Orchestra merkezi değildir ve trafik isteğine bakmaz; cell'leri ID'lerden hesaplar.</span></button>
+  </div>
+  <div class="quiz" id="q-ind-2">
+    <p class="quiz__q">WirelessHART'ta her cihazın birden fazla kabul edilebilir next hop'u olmasının bedeli nedir?</p>
+    <button class="quiz__opt">Reliability düşer.<span class="why">Tersi: redundant routing reliability'yi artırır.</span></button>
+    <button class="quiz__opt" data-correct>Daha çok schedule cell'i ve enerji harcanır.<span class="why">Doğru. Slayt 48: "Redundant routing improves reliability but consumes schedule cells and energy."</span></button>
+    <button class="quiz__opt">Channel hopping kapatılmak zorunda kalır.<span class="why">İkisi birlikte çalışır; slayt 48'in sonucu "routes, schedule, hopping and management" birlikte.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="floors" data-min="5">
+  <h2>Kat kat: hangi isim neyi yapar?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · aynı bina, farklı katlar</span>
+    <p>Bu haftanın beş ismi aynı mahallede ama aynı katta değil. Birini ötekinin yerine koymak, en sık yapılan hata.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · architectural levels compared (slayt 53)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Technology</th><th>What it is</th><th>Main function</th></tr>
+      <tr><td>TSCH</td><td>MAC mode (IEEE)</td><td>time/channel execution</td></tr>
+      <tr><td>Orchestra</td><td>scheduler (Contiki-NG'de)</td><td>derive cells</td></tr>
+      <tr><td>6TiSCH</td><td>architecture (IETF)</td><td>IPv6 over TSCH</td></tr>
+      <tr><td>WirelessHART / ISA100</td><td>systems</td><td>industrial operation</td></tr>
+    </table></div>
+    <p><em>"Same neighborhood, different floors of the building."</em></p>
+  </div>
+  <p>Her cümleyi doğru kata koy. Bir düğmeye bastığında neden doğru ya da yanlış olduğu yazar.</p>
+  <div class="w-tsch-6tisch-industrial-box">
+    <p class="w-tsch-6tisch-industrial-guess" style="margin-top:0"><b>Önce tahmin et:</b> On cümleden kaçını ilk denemede doğru koyabilirsin? Bir sayı aklında tut, sonra başla.</p>
+    <div id="wf-list"></div>
+    <div class="w-tsch-6tisch-industrial-out" id="wf-score" aria-live="polite"></div>
+    <div class="w-tsch-6tisch-industrial-ctl"><button class="btn btn--sm" id="wf-reset">Sıfırla</button></div>
+  </div>
+  <!-- Kaynak: W5 slayt 53 (definition, dört madde, tablo, takeaway), 58 (EXAM TRAPS). "Which floor?" cümleleri bu ders için yazıldı, her biri slayt 28-52'den bir cümleye dayanıyor. -->
+  <div class="box box--exam" data-exam="W5-s53-levels">
+    <span class="box__label">W5 slayt 53 · hocanın karşılaştırma tablosu</span>
+    <p>Slaytın tanım cümlesi: <em>"TSCH, Orchestra, 6TiSCH, WirelessHART and ISA100.11a occupy different architectural levels."</em> Başlığı: <em>"Do not collapse the terms."</em> Sınav tarzı soru: bu beş ismin her biri için "what it is" ve "main function" yaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce kurumları eşle: IEEE, IETF, Contiki-NG, IEC.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her biri için bir fiil seç: execute, derive, integrate (IPv6 over), operate (industrial).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ul>
+        <li><strong>TSCH</strong>: IEEE 802.15.4 MAC mode. Zaman ve channel'ı çalıştırır (time/channel execution): slot'lar, ASN, hopping, ACK, retry. Schedule'a karar vermez.</li>
+        <li><strong>Orchestra</strong>: Contiki-NG'de yazılmış otonom bir scheduler. Cell'leri yerel bilgiden ve hash'ten türetir (derive cells). Standart değildir.</li>
+        <li><strong>6TiSCH</strong>: IETF'in mimarisi ve protokolleri. IPv6 over TSCH: 6top, 6P, MSF, minimal schedule, secure join; 6LoWPAN ve RPL'i kullanır.</li>
+        <li><strong>WirelessHART / ISA100.11a</strong>: complete industrial wireless systems. Radio'dan application'a kadar her şeyi, merkezi manager, security ve gateway ile tanımlar; birbiriyle interoperable değildir.</li>
+      </ul>
+      <p><strong>Exam answer:</strong> TSCH is an IEEE 802.15.4 MAC mode that executes a schedule (time and channel). Orchestra is an autonomous scheduler implemented in Contiki-NG that derives cells from local state; it is not a standard. 6TiSCH is the IETF architecture for IPv6 over TSCH (6top/6P, MSF, minimal schedule, secure join). WirelessHART and ISA100.11a are complete, non-interoperable industrial systems with central managers.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W5-selfcheck-Q6">
+    <span class="box__label">W5 self-check S6 · self-study ekindeki soru</span>
+    <p><em>"True or false: 'TSCH uses Orchestra to compute its schedule.' Explain."</em></p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Tabloda TSCH'in "main function" sütununa bak. Orada hesaplama var mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Orchestra olmadan bir TSCH ağı schedule'unu başka nereden alabilir? En az üç yol say.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Yanlış. TSCH schedule'u sadece çalıştırır; hesaplama yöntemini tanımlamaz. Orchestra, TSCH'in üstünde çalışabilen isteğe bağlı schedulerlardan biridir. Aynı TSCH ağı schedule'unu 6TiSCH'in MSF + 6P'sinden, merkezi bir manager'dan ya da statik bir konfigürasyondan da alabilir.</p>
+      <p><strong>Exam answer:</strong> False. TSCH (IEEE 802.15.4) only executes a schedule: slots, ASN, hopping, ACKs and retries. It does not define how the schedule is computed. Orchestra is one optional autonomous scheduler running on top of TSCH; others are MSF with 6P, a central manager or a static schedule.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="W5-s58-traps-tsch">
+    <span class="box__label">W5 slayt 58 · hocanın "EXAM TRAPS" slaytı (TSCH kısmı)</span>
+    <p>Slaytın bu derse ait satırları:</p>
+    <ul>
+      <li><em>"TSCH does not define the scheduling algorithm."</em></li>
+      <li><em>"Channel offset is not a fixed physical channel."</em></li>
+      <li><em>"Dedicated cells can still fail."</em></li>
+      <li><em>"WirelessHART and ISA100.11a are not simply TSCH under different names."</em></li>
+      <li>Tablo: <em>"TSCH = scheduler → scheduler separate"</em>, <em>"shared cell safe → contention remains"</em>, <em>"same radio = interop → stack matters"</em>.</li>
+    </ul>
+    <p>Kalan iki satır ("TDMA does not mean only one node transmits", "communication graph is not the conflict graph") <a href="tdma-scheduling.html">tdma-scheduling</a> dersinde. Sınav tarzı soru: her ifade için neden yanlış olduğunu bir cümleyle açıkla.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her yanlış inanç bir mekanizmayı bir garantiyle karıştırıyor. Hangi mekanizma, hangi garanti?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Channel offset için formülü, dedicated cell için slayt 32'nin "hopping şunları engellemez" listesini hatırla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ul>
+        <li><strong>TSCH = scheduler</strong>: yanlış. TSCH cell'leri çalıştırır; Orchestra, MSF ya da bir manager karar verir.</li>
+        <li><strong>Channel offset = fixed channel</strong>: yanlış. Frekans $F[(\text{ASN} + \text{channelOffset}) \bmod N_c]$ ve her tekrarda değişir.</li>
+        <li><strong>Dedicated cell asla başarısız olmaz</strong>: yanlış. Dış interference, fading, desynchronization ya da yanlış bir conflict modeli dedicated cell'i de bozar.</li>
+        <li><strong>Shared cell güvenli</strong>: yanlış. Birden fazla node aynı cell'de gönderebilir; contention ve collision sürer.</li>
+        <li><strong>Aynı radio = interoperable</strong>, <strong>WirelessHART/ISA100.11a = başka isimli TSCH</strong>: yanlış. İkisi de radio'dan application'a kadar ayrı, tam sistemler; üst katmanlar farklı.</li>
+      </ul>
+      <p>Slaytın birleştirici cümlesi: <em>"Most wrong answers confuse mechanism with guarantee."</em></p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-floor-1">
+    <p class="quiz__q">"Orchestra 6TiSCH'in bir parçasıdır." Bu ifade için en doğru yorum hangisi?</p>
+    <button class="quiz__opt">Doğru; ikisi de IPv6/RPL ağlarında TSCH üzerinde çalışır.<span class="why">Aynı ortamda çalışmaları onları aynı şey yapmaz. Slayt 42: "not full 6TiSCH".</span></button>
+    <button class="quiz__opt" data-correct>Yanlış. Orchestra ayrı bir otonom scheduler; 6TiSCH'in dağıtık scheduling yolu MSF + 6P.<span class="why">Doğru. İkisi de TSCH üzerinde ve IPv6/RPL ağlarında çalışabilir ama ayrı tasarımlar.</span></button>
+    <button class="quiz__opt">Yanlış, çünkü Orchestra IPv6 kullanmaz.<span class="why">Orchestra dinamik IPv6/RPL ağları için tasarlandı (slayt 38). Ayrılık başka yerde: Orchestra negotiation yapmaz, 6TiSCH'in protokolleri (6P, MSF) değildir.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="determinism" data-min="6">
+  <h2>Collision-free yetmez: queue, repair ve security</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · determinism beyond collision freedom (slayt 54)</span>
+    <p>Collision-free bir schedule bir application deadline'ını <strong>kendiliğinden garanti etmez</strong>:</p>
+    <ul>
+      <li>packet'ler queue'larda bekleyebilir,</li>
+      <li>forwarding cell'leri eksik ya da kötü sıralı olabilir,</li>
+      <li>retransmission'lar, route değişimleri, clock kaybı ve schedule repair delay ekler.</li>
+    </ul>
+    <p>Uçtan uca determinism, bütün yol boyunca koordineli kaynak ister. <em>"Deadline guarantees are path properties, not single-cell properties."</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · 3 hop, bir retry</span>
+    <p>Slot 10 ms, $L = 101$ (slotframe 1.01 s). A→B, B→C, C→D cell'leri slot 0, 1, 2'de, yani pipeline sırasında. Packet slot 0'ın başında A'da hazır.</p>
+    <ul>
+      <li>Hiç hata yoksa D'ye 30 ms'de ulaşır.</li>
+      <li>B→C bir kez başarısız olursa bir sonraki B→C cell'i bir slotframe sonra gelir: toplam $1.01 + 0.03 = 1.04$ s.</li>
+      <li>Cell'ler ters sıradaysa (C→D slot 0, B→C slot 1, A→B slot 2) hiç hata olmadan bile 2.03 s.</li>
+    </ul>
+    <p>Bütün slot'lar çakışmasız; deadline'ı belirleyen yolun tamamı. Cell sırasının etkisini TDMA dersinde ayrıntılı gördün.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · utilization, queues, root bottlenecks (slayt 55)</span>
+    <ul>
+      <li><strong>Schedule utilization</strong>: ayrılmış cell'lerin gerçekten packet taşıyan kesri. Düşükse uyanmalar ve schedule yeri boşa gider; çok yüksekse burst, retry, control ve route değişimine yer kalmaz.</li>
+      <li><strong>Queue stability</strong>: service rate arrival rate'e yetişmelidir. Packet'ler planlanmış servisten hızlı gelirse queue büyür.</li>
+      <li>Collection root'una yakın node'lar leaf'lerden daha çok cell ister.</li>
+    </ul>
+    $$\text{TX cells} \times \text{success rate} \ \ge\ \text{arrivals (own + forwarded)}$$
+    <div class="table-wrap"><table>
+      <tr><th>Condition</th><th>Meaning</th><th>Action</th></tr>
+      <tr><td>arrival &gt; service</td><td>queue grows</td><td>add cells</td></tr>
+      <tr><td>low utilization</td><td>wasted cells</td><td>remove cells</td></tr>
+      <tr><td>near root</td><td>forwarding load</td><td>allocate more</td></tr>
+    </table></div>
+    <p><em>"Conflict-free is not necessarily traffic-feasible."</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · bir relay'in kaç cell'e ihtiyacı var?</span>
+    <p>Bir node'un 3 child'ı var, her biri slotframe başına 2 packet gönderiyor; node'un kendisi de 1 packet üretiyor: slotframe başına 7 arrival. Parent'a giden link'in başarısı 0.8. Gereken TX cell: $7 / 0.8 = 8.75$, yukarı yuvarla: <strong>en az 9 cell</strong>, üstüne burst ve control için pay. 12 cell ayrılıp ortalama 3'ü kullanılıyorsa utilization $3/12 = 25\%$: SF cell silmeyi düşünür.</p>
+    <p>Hocanın slayt 59'daki çözümlü örneği (A→B→D, C→B, E→D; B'ye iki forwarding cell) ve self-check S9 <a href="tdma-scheduling.html">tdma-scheduling</a> dersinde.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · schedules age (slayt 56)</span>
+    <p>Schedule, topoloji, trafik ya da interference değişince geçersiz olabilen bir <strong>operational state</strong>'tir.</p>
+    <ul>
+      <li>Sebepler: node failure, parent change, link degradation, new interference, traffic increase, joining, clock loss, battery depletion.</li>
+      <li>Repair şunları gerektirebilir: route repair, cell relocation, temporary shared cells, versioning, rollback, rejoining.</li>
+      <li>Slayttaki akış: <strong>detect → repair route → relocate → shared fallback → commit</strong>.</li>
+    </ul>
+    <p><em>"The schedule must evolve with the network."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · security considerations (slayt 57)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Threat</th><th>Effect</th></tr>
+      <tr><td>sync attack (zamanı bozup slot kaçırtmak, rejoin'e zorlamak)</td><td>missed slots</td></tr>
+      <tr><td>schedule manipulation (kritik cell'leri silmek)</td><td>bottleneck</td></tr>
+      <tr><td>replay (eski timing ya da schedule mesajını tekrar kullanmak)</td><td>stale state</td></tr>
+      <tr><td>selective jamming (kritik cell, channel offset, beacon ya da gateway RX slot'unu hedeflemek)</td><td>critical cell loss</td></tr>
+    </table></div>
+    <p>Bir de <strong>resource exhaustion</strong>: aşırı cell ayırma ya da negotiation tetiklemek. ASN'in security nonce'una girmesi (slayt 30) eski bir frame'in tekrar kabul edilmesini zorlaştırır.</p>
+    <p><em>"Predictability helps management; it can also help attackers."</em></p>
+  </div>
+  <!-- Kaynak: W5 slayt 54 (definition, dört madde, A-B-C-D pipeline diyagramı, takeaway), 55 (utilization ve queue stability tanımı, tablo, takeaway; "TX cells × success rate ≥ arrivals" cheat sheet satırı), 56 (sebepler, repair, diyagram, takeaway), 57 (beş tehdit, tablo, takeaway). 3 hop ve 7 arrival örnekleri bu ders için, nums.py ile kontrol edildi. Slayt 59 ve self-check S9 tdma-scheduling dersine yerleştirildi. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Collision yok, o hâlde deadline tutar." Queue, sıra, retry ve repair hâlâ delay ekler.</li>
+      <li>Gereken cell sayısını aşağı yuvarlamak. 8.75 cell olmaz; 8 cell'le queue her slotframe biraz büyür.</li>
+      <li>Arrival'a sadece node'un kendi packet'lerini yazmak. Child'lardan gelenler de servis bekler.</li>
+      <li>Öngörülebilirliği sadece avantaj sanmak. Saldırgan da hangi cell'i, hangi channel offset'te bozacağını bilir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-det-1">
+    <p class="quiz__q">Bir relay'e slotframe başına 4 packet geliyor (kendi packet'i dahil). Link başarısı 0.9. Queue'nun büyümemesi için en az kaç TX cell gerekir?</p>
+    <button class="quiz__opt">4<span class="why">Başarı %100 olsaydı yeterdi. $4 \times 0.9 = 3.6 &lt; 4$: queue her slotframe ortalama 0.4 packet büyür.</span></button>
+    <button class="quiz__opt" data-correct>5<span class="why">Doğru: $4 / 0.9 \approx 4.44$, yukarı yuvarla: 5. Burst ve control için biraz daha pay bırakılır.</span></button>
+    <button class="quiz__opt">3.6<span class="why">Bu $4 \times 0.9$; yön ters. Ayrıca cell sayısı tam sayı olmalı.</span></button>
+  </div>
+  <div class="quiz" id="q-det-2">
+    <p class="quiz__q">Selective jamming TSCH'te neden ucuz ve etkili bir saldırı olabilir?</p>
+    <button class="quiz__opt">Çünkü TSCH channel değiştirmez.<span class="why">TSCH channel değiştirir; ama formül deterministik olduğu için schedule'u bilen biri channel'ı da hesaplayabilir.</span></button>
+    <button class="quiz__opt" data-correct>Çünkü schedule öngörülebilir: saldırgan beacon'ları ya da gateway'in RX cell'lerini bilip sadece onları bozabilir.<span class="why">Doğru. Slayt 57: "Predictability helps management; it can also help attackers."</span></button>
+    <button class="quiz__opt">Çünkü TSCH'te hiç security yoktur.<span class="why">Var: secure joining, anahtarlar ve ASN'li nonce. Saldırı, şifreyi kırmadan sadece belirli cell'leri bozarak çalışır.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Haftanın son cümlesi (slayt 60): <em>"A schedule is not a magic wand; it is a resource-management contract."</em> Schedule her link'e belirli fırsatlar vaat eder; deadline'ın tutması o fırsatların yeterli, doğru sıralı ve güncel olmasına bağlıdır. Önce kâğıda çöz, sonra seç.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">ASN = 7000, channelOffset = 9, $N_c = 16$. Hopping sequence'in hangi index'i kullanılır?</p>
+    <button class="quiz__opt">8<span class="why">Bu $7000 \bmod 16$; channelOffset'i eklemeyi unuttun.</span></button>
+    <button class="quiz__opt" data-correct>1<span class="why">Doğru: $7009 = 438 \cdot 16 + 1$.</span></button>
+    <button class="quiz__opt">9<span class="why">Channel offset'i doğrudan index sanmak. ASN de formülde.</span></button>
+    <button class="quiz__opt">31<span class="why">Bu $7000 \bmod 101$, yani slotOffset ($L = 101$ ise). Channel index'i $\bmod N_c$ ile bulunur.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Sender-based Orchestra'da 6 child'lı bir parent, unicast data plane'inde slotframe başına kaç RX cell'inde uyanır? Altı child'ın hash sonucu farklı, çakışmayan slotOffset'lere düştüğünü varsay.</p>
+    <button class="quiz__opt">1<span class="why">Bu receiver-based kural: parent'ın tek RX cell'i olur.</span></button>
+    <button class="quiz__opt" data-correct>6<span class="why">Doğru. Her child'ın kendi cell'i var; parent hepsinde dinler. Child yarışması azalır, parent'ın duty cycle'ı artar.</span></button>
+    <button class="quiz__opt">0, çünkü Orchestra mesaj göndermez.<span class="why">Orchestra negotiation mesajı göndermez; data için cell'ler yine vardır ve parent onlarda dinler.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">6TiSCH stack'inde schedule'u yöneten ve SF ile 6P'yi içeren katman hangisi?</p>
+    <button class="quiz__opt">TSCH MAC<span class="why">TSCH MAC schedule'u çalıştırır, yönetmez.</span></button>
+    <button class="quiz__opt">RPL<span class="why">RPL, IPv6'nın routing control protocol'ü; parent seçer, cell yönetmez.</span></button>
+    <button class="quiz__opt" data-correct>6top<span class="why">Doğru: 6TiSCH Operation Sublayer. SF policy'yi, 6P komşu transaction'ını sağlar.</span></button>
+    <button class="quiz__opt">6LoWPAN<span class="why">6LoWPAN IPv6 header'larını sıkıştıran adaptation layer'dır; schedule ile ilgisi yok.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Bir schedule'da hiç conflict yok ama root'a yakın bir node'un queue'su sürekli büyüyor. İlk yapılacak şey?</p>
+    <button class="quiz__opt">Slotframe'i uzatmak.<span class="why">Uzun slotframe her cell'i daha seyrek yapar; aynı cell sayısıyla servis daha da azalır.</span></button>
+    <button class="quiz__opt" data-correct>O node'a yeni forwarding (TX) cell'leri eklemek.<span class="why">Doğru. Slayt 55: arrival &gt; service ⇒ add cells; near root ⇒ allocate more. Conflict-free olmak traffic-feasible olmak değil.</span></button>
+    <button class="quiz__opt">Bütün cell'leri shared yapmak.<span class="why">Yarışma geri gelir ve servis daha da öngörülemez olur.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Hangisi doğru?</p>
+    <button class="quiz__opt">WirelessHART ve ISA100.11a aynı 802.15.4 radio'yu kullandığı için cihazları birbirinin ağına katılabilir.<span class="why">"same radio = interop" slayt 58'deki tuzak; "stack matters".</span></button>
+    <button class="quiz__opt">ISA100.11a, TSCH'in endüstriyel adıdır.<span class="why">ISA100.11a ayrı ve tam bir protocol suite; "not a synonym for TSCH" (slayt 50).</span></button>
+    <button class="quiz__opt" data-correct>WirelessHART HART-oriented ve network manager'lı; ISA100.11a IPv6-oriented ve system manager'lı.<span class="why">Doğru. Slayt 52'deki tablonun iki satırı.</span></button>
+  </div>
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+(function () {
+  const P = "w-tsch-6tisch-industrial-";
+  const $ = id => document.getElementById(id);
+  const render = el => { if (window.Lab && Lab.renderMath) Lab.renderMath(el); };
+  function freshHost(el) { const n = document.createElement("div"); n.id = el.id; el.replaceWith(n); return n; }
+  function gcd(a, b) { while (b) { [a, b] = [b, a % b]; } return a; }
+  function readInt(raw) { const s = String(raw).trim(); return /^\d+$/.test(s) ? Number(s) : null; }
+  function parseF(raw) {
+    const parts = String(raw).split(/[\s,;]+/).filter(Boolean);
+    if (!parts.length) return { e: "$F$ boş. 11 ile 26 arası channel numaralarını virgülle yaz." };
+    const v = [];
+    for (const p of parts) {
+      if (!/^\d+$/.test(p)) return { e: `"${p}" bir channel numarası değil.` };
+      const c = Number(p);
+      if (c < 11 || c > 26) return { e: `${c} geçersiz: 2.4 GHz'te 802.15.4 channel'ları 11-26 arası.` };
+      if (v.includes(c)) return { e: `${c} iki kez yazılmış. Bu widget'ta her channel bir kez olsun.` };
+      v.push(c);
+    }
+    return { v };
+  }
+  function parseJam(raw) {
+    const parts = String(raw).split(/[\s,;]+/).filter(Boolean);
+    const v = [];
+    for (const p of parts) {
+      if (!/^\d+$/.test(p)) return { e: `Bozuk channel listesinde "${p}" bir sayı değil.` };
+      const c = Number(p);
+      if (c < 11 || c > 26) return { e: `Bozuk channel ${c} geçersiz: 11-26 arası yaz.` };
+      if (!v.includes(c)) v.push(c);
+    }
+    return { v };
+  }
+
+  /* ── Widget A: ASN → slotOffset → index → channel ── */
+  (function () {
+    const asnI = $("wa-asn"), LI = $("wa-L"), offI = $("wa-off"), FI = $("wa-F"), err = $("wa-err"), out = $("wa-out");
+    let cur = null;
+    function read() {
+      const errs = [];
+      const asn = readInt(asnI.value), L = readInt(LI.value), off = readInt(offI.value), Fr = parseF(FI.value);
+      if (asn === null) errs.push("ASN 0 ya da pozitif bir tam sayı olmalı.");
+      else if (asn > 2 ** 40 - 1) errs.push("ASN 5 byte'lık bir sayaç: en fazla $2^{40} - 1$.");
+      if (L === null || L < 1 || L > 1000) errs.push("$L$ (slotframe length) 1 ile 1000 arası bir tam sayı olsun.");
+      if (Fr.e) errs.push(Fr.e);
+      const Nc = Fr.v ? Fr.v.length : 16;
+      if (off === null) errs.push("channelOffset 0 ya da pozitif bir tam sayı olmalı.");
+      else if (Fr.v && off >= Nc) errs.push(`channelOffset 0 ile $N_c - 1 = ${Nc - 1}$ arasında olmalı.`);
+      return { errs, asn, L, off, F: Fr.v, Nc };
+    }
+    function upd() {
+      const r = read();
+      if (r.errs.length) { err.innerHTML = r.errs.join("<br>"); out.innerHTML = ""; render(err); return; }
+      err.innerHTML = "";
+      const { asn, L, off, F, Nc } = r;
+      let h = `<div class="table-wrap"><table><tr><th>tekrar</th><th>ASN</th><th>slotOffset</th><th>(ASN + ${off}) mod ${Nc}</th><th>channel</th></tr>`;
+      for (let k = 0; k < 5; k++) {
+        const a = asn + k * L, idx = (a + off) % Nc;
+        h += `<tr><td>${k === 0 ? "şimdi" : "+" + k}</td><td>${a}</td><td>${a % L}</td><td>${idx}</td><td><b>${F[idx]}</b></td></tr>`;
+      }
+      h += `</table></div>`;
+      const g = gcd(L, Nc), shift = L % Nc;
+      h += `Her slotframe'de index $L \\bmod N_c = ${L} \\bmod ${Nc} = ${shift}$ basamak kayar. $\\gcd(${L}, ${Nc}) = ${g}$ ⇒ bu cell <b>${Nc / g}</b> farklı channel'a uğrar` +
+        (g === 1 ? " (hepsine)." : g === Nc ? ": hep aynı channel, hopping yok." : `: ${Nc} channel'ın sadece bir kısmı.`);
+      out.innerHTML = h; render(out);
+    }
+    [asnI, LI, offI, FI].forEach(i => i.addEventListener("input", upd));
+    upd();
+
+    const q = $("wa-q"), fb = $("wa-fb"), a1 = $("wa-a1"), a2 = $("wa-a2"), a3 = $("wa-a3");
+    function newQ() {
+      const Fr = parseF(FI.value);
+      if (Fr.e) { q.innerHTML = `<span class="${P}bad">Önce yukarıdaki $F$'i düzelt.</span>`; render(q); cur = null; return; }
+      const Ls = [7, 17, 31, 101], Nc = Fr.v.length;
+      let asn, off;
+      do { asn = 2000 + Math.floor(Math.random() * 8000); off = Math.floor(Math.random() * Nc); } while (asn === 1003);
+      const L = Ls[Math.floor(Math.random() * Ls.length)];
+      cur = { asn, off, L, F: Fr.v.slice(), Nc };
+      q.innerHTML = `ASN = <b>${asn}</b>, $L$ = <b>${L}</b>, channelOffset = <b>${off}</b>, $N_c$ = ${Nc}.`;
+      a1.value = a2.value = a3.value = ""; fb.innerHTML = ""; render(q);
+    }
+    function check() {
+      if (!cur) { fb.innerHTML = "Önce \"Yeni soru\"ya bas."; return; }
+      const vals = [a1, a2, a3].map(x => readInt(x.value));
+      if (vals.some(v => v === null)) { fb.innerHTML = `<span class="${P}bad">Üç kutuya da 0 ya da pozitif tam sayı yaz.</span>`; return; }
+      const so = cur.asn % cur.L, idx = (cur.asn + cur.off) % cur.Nc, ch = cur.F[idx];
+      const ok = [vals[0] === so, vals[1] === idx, vals[2] === ch];
+      const m = [];
+      m.push(ok[0] ? `<span class="${P}ok">✓ slotOffset ${so}</span>` : `<span class="${P}bad">✗ slotOffset: ${cur.asn} mod ${cur.L} = ${so}</span>` + (vals[0] === Math.floor(cur.asn / cur.L) ? " (sen bölümü yazdın, kalan lazım)" : ""));
+      m.push(ok[1] ? `<span class="${P}ok">✓ index ${idx}</span>` : `<span class="${P}bad">✗ index: (${cur.asn} + ${cur.off}) mod ${cur.Nc} = ${idx}</span>` + (vals[1] === cur.asn % cur.Nc ? " (channelOffset'i eklemeyi unuttun)" : vals[1] === (cur.asn + cur.off) % cur.L ? " (mod $L$ değil, mod $N_c$)" : ""));
+      m.push(ok[2] ? `<span class="${P}ok">✓ channel ${ch}</span>` : `<span class="${P}bad">✗ channel: F[${idx}] = ${ch}</span>` + (vals[2] === 11 + idx ? " (index'i 11'e eklemek yanlış; tablodan oku)" : ""));
+      fb.innerHTML = m.join("<br>"); render(fb);
+    }
+    $("wa-new").addEventListener("click", newQ);
+    newQ();
+    $("wa-chk").addEventListener("click", check);
+    [a1, a2, a3].forEach(x => x.addEventListener("keydown", e => { if (e.key === "Enter") check(); }));
+  })();
+
+  /* ── Widget B: hopping grid over slotframe repetitions ── */
+  (function () {
+    const LI = $("wb-L"), jamI = $("wb-jam"), FI = $("wb-F"), err = $("wb-err");
+    const LINKS = [
+      { name: "A→B", tag: "A", s: 0, c: 0 },
+      { name: "C→D", tag: "C", s: 0, c: 8 },
+      { name: "E→F", tag: "E", s: 5, c: 6 }
+    ];
+    const REPS = 16, FRAME0 = 50;
+    function build() {
+      const errs = [];
+      const L = readInt(LI.value), Fr = parseF(FI.value), Jr = parseJam(jamI.value);
+      if (L === null || L < 6 || L > 300) errs.push("$L$ 6 ile 300 arası bir tam sayı olsun (E→F'nin slotOffset'i 5).");
+      if (Fr.e) errs.push(Fr.e);
+      else if (Fr.v.length < 9) errs.push("$F$'te en az 9 channel bırak: C→D'nin channelOffset'i 8.");
+      if (Jr.e) errs.push(Jr.e);
+      let host = freshHost($("wb-stepper"));
+      if (errs.length) { err.innerHTML = errs.join("<br>"); render(err); return; }
+      err.innerHTML = "";
+      const F = Fr.v, Nc = F.length, jam = new Set(Jr.v);
+      const rows = F.slice().sort((a, b) => a - b);
+      /* real run: repetition k of a cell sits at ASN = (FRAME0 + k)·L + slotOffset */
+      const hist = LINKS.map(lk => {
+        const arr = [];
+        for (let k = 0; k < REPS; k++) {
+          const asn = (FRAME0 + k) * L + lk.s, idx = (asn + lk.c) % Nc;
+          arr.push({ asn, idx, ch: F[idx], bad: jam.has(F[idx]) });
+        }
+        return arr;
+      });
+      const frames = [];
+      for (let k = 0; k < REPS; k++) {
+        const cap = `Tekrar ${k}: ` + LINKS.map((lk, j) => {
+          const x = hist[j][k];
+          return `<span class="${P}l${j}">${lk.name}</span> ASN ${x.asn} → (${x.asn} + ${lk.c}) mod ${Nc} = ${x.idx} → ch ${x.ch}${x.bad ? ` <span class="${P}hit">✗</span>` : ""}`;
+        }).join(" · ");
+        frames.push({ k, caption: cap });
+      }
+      const g = gcd(L, Nc);
+      const summ = LINKS.map((lk, j) => {
+        const distinct = new Set(hist[j].map(x => x.ch)).size, fails = hist[j].filter(x => x.bad).length;
+        return `<span class="${P}l${j}">${lk.name}</span>: ${distinct} farklı channel, ${fails}/${REPS} tekrar bozuk channel'da`;
+      }).join("<br>");
+      frames.push({ k: REPS - 1, final: true, caption: `<b>Özet</b> ($L = ${L}$, $N_c = ${Nc}$, $\\gcd = ${g}$, her cell en fazla $${Nc}/${g} = ${Nc / g}$ channel gezer):<br>${summ}` +
+        (jam.size ? "" : "<br>Bozuk channel yok; bir tane yazıp tekrar kur.") });
+      Lab.stepper(host, {
+        title: `Hopping ızgarası, L = ${L}, Nc = ${Nc}`,
+        interval: 700,
+        frames,
+        render(f, i, el) {
+          let h = `<div class="table-wrap"><table class="${P}grid"><tr><th>ch</th>`;
+          for (let k = 0; k < REPS; k++) h += `<th>${k}</th>`;
+          h += `</tr>`;
+          rows.forEach(ch => {
+            h += `<tr><th>${ch}</th>`;
+            for (let k = 0; k < REPS; k++) {
+              let txt = "";
+              if (k <= f.k) LINKS.forEach((lk, j) => { if (hist[j][k].ch === ch) txt += `<span class="${P}l${j}${jam.has(ch) ? " " + P + "hit" : ""}">${lk.tag}</span>`; });
+              const cls = [jam.has(ch) ? "is-jam" : "", k === f.k && !f.final ? "is-cur" : ""].filter(Boolean).join(" ");
+              h += `<td${cls ? ` class="${cls}"` : ""}>${txt}</td>`;
+            }
+            h += `</tr>`;
+          });
+          h += `</table></div><div class="src">Satır: physical channel · sütun: slotframe tekrarı · harf: o tekrarda o channel'ı kullanan link (A, C, E sender'ı gösterir).</div>`;
+          el.innerHTML = h;
+        }
+      });
+    }
+    $("wb-go").addEventListener("click", build);
+    [LI, jamI, FI].forEach(i => i.addEventListener("keydown", e => { if (e.key === "Enter") build(); }));
+    document.querySelectorAll("[data-wbl]").forEach(b => b.addEventListener("click", () => { LI.value = b.dataset.wbl; build(); }));
+    build();
+  })();
+
+  /* ── Widget C: hash collision Monte Carlo vs birthday formula ── */
+  (function () {
+    const nI = $("wc-n"), LI = $("wc-L"), CI = $("wc-C"), err = $("wc-err"), out = $("wc-out");
+    function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+    let seed = 427;
+    function bar(frac, col) { return `<div class="${P}bar"><div style="width:${Math.max(0.5, Math.min(100, 100 * frac))}%;background:${col}"></div></div>`; }
+    function run() {
+      const errs = [];
+      const n = readInt(nI.value), L = readInt(LI.value), C = readInt(CI.value);
+      if (n === null || n < 2 || n > 60) errs.push("Link sayısı 2 ile 60 arası bir tam sayı olsun.");
+      if (L === null || L < 1 || L > 500) errs.push("$L$ 1 ile 500 arası bir tam sayı olsun.");
+      if (C === null || C < 1 || C > 16) errs.push("Channel offset sayısı 1 ile 16 arası olsun.");
+      if (errs.length) { err.innerHTML = errs.join("<br>"); out.innerHTML = ""; render(err); return; }
+      err.innerHTML = "";
+      const M = L * C, T = 5000, rnd = mulberry32(seed++);
+      let hit = 0, pairs = 0;
+      for (let t = 0; t < T; t++) {
+        const used = new Map(); let any = false;
+        for (let i = 0; i < n; i++) {
+          const cell = Math.floor(rnd() * M), c = used.get(cell) || 0;
+          if (c) { any = true; pairs += c; }
+          used.set(cell, c + 1);
+        }
+        if (any) hit++;
+      }
+      let prodv = 1; for (let i = 0; i < n; i++) prodv *= Math.max(0, 1 - i / M);
+      const exact = 1 - prodv, sim = hit / T, two = 1 / M, epairs = n * (n - 1) / (2 * M);
+      const pct = x => (100 * x).toFixed(1) + "%";
+      out.innerHTML =
+        `$M = L \\times C = ${L} \\times ${C} = ${M}$ olası cell, ${n} link, ${T} deneme.<br>` +
+        `<div class="${P}brow"><span>simülasyon</span>${bar(sim, "var(--blue-600)")}<span>${pct(sim)}</span></div>` +
+        `<div class="${P}brow"><span>birthday formülü</span>${bar(exact, "var(--accent)")}<span>${pct(exact)}</span></div>` +
+        `İki link için yaklaşık değer $1/M$ = ${pct(two)}. ${n} link'te ${n * (n - 1) / 2} çift var; beklenen çakışan çift sayısı $\\binom{${n}}{2}/M \\approx ${epairs.toFixed(2)}$ (simülasyonda ortalama ${(pairs / T).toFixed(2)}).` +
+        (M < n ? `<br>$M &lt; n$: cell sayısı link sayısından az, çakışma kesin.` : "");
+      render(out);
+    }
+    $("wc-run").addEventListener("click", run);
+    [nI, LI, CI].forEach(i => i.addEventListener("keydown", e => { if (e.key === "Enter") run(); }));
+    run();
+  })();
+
+  /* ── Widget E: 6P ADD transaction ── */
+  (function () {
+    const L = 7, CO = 3, K = 3;
+    let seed = 8480;
+    function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+    const key = (s, c) => s + "," + c;
+    /* one radio: the channelOffset a node already uses at slotOffset s, or -1 if that timeslot is free */
+    function usedAt(busy, s) { for (let c = 0; c < CO; c++) if (busy.has(key(s, c))) return c; return -1; }
+    function scenario(rnd, first) {
+      if (first) {
+        /* hand-made start: B is busy in the timeslots of A's first two candidates, so B must take the third */
+        return { busyA: new Set(["0,0", "1,0", "4,2", "6,0"]), busyB: new Set(["2,0", "1,1", "5,2", "0,2", "6,1"]), cands: [[2, 0], [5, 1], [3, 2]], seq: 4 };
+      }
+      const fill = p => { const b = new Set(); for (let s = 0; s < L; s++) if (rnd() < p) b.add(key(s, Math.floor(rnd() * CO))); return b; };
+      let busyA, freeS;
+      do {
+        busyA = fill(0.45);
+        /* MSF: slotOffset 0 belongs to the minimal cell and is never a candidate */
+        freeS = []; for (let s = 1; s < L; s++) if (usedAt(busyA, s) < 0) freeS.push(s);
+      } while (freeS.length < 2);
+      for (let i = freeS.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [freeS[i], freeS[j]] = [freeS[j], freeS[i]]; }
+      const cands = freeS.slice(0, K).map(s => [s, Math.floor(rnd() * CO)]);
+      return { busyA, busyB: fill(0.5), cands, seq: 1 + Math.floor(rnd() * 200) };
+    }
+    function table(title, busy, marks) {
+      let h = `<div><b>${title}</b><div class="table-wrap"><table class="${P}sched"><tr><th></th>`;
+      for (let s = 0; s < L; s++) h += `<th>${s}</th>`;
+      h += `</tr>`;
+      for (let c = 0; c < CO; c++) {
+        h += `<tr><th>${c}</th>`;
+        for (let s = 0; s < L; s++) {
+          const k = key(s, c), m = marks[k] || "";
+          const cls = [busy.has(k) ? "is-busy" : "", m.includes("cand") ? "is-cand" : "", m.includes("new") ? "is-new" : "", m.includes("lock") ? "is-lock" : ""].filter(Boolean).join(" ");
+          h += `<td${cls ? ` class="${cls}"` : ""}>${busy.has(k) ? "■" : m.includes("new") || m.includes("lock") ? (m.includes("tx") ? "TX" : "RX") : ""}</td>`;
+        }
+        h += `</tr>`;
+      }
+      return h + `</table></div></div>`;
+    }
+    const fmt = ([s, c]) => `(${s},${c})`;
+    function build(sd) {
+      const host = freshHost($("we-stepper"));
+      const sc = scenario(mulberry32(sd === null ? 1 : sd), sd === null);
+      const lost = $("we-lost").checked;
+      const checks = sc.cands.map(([s, c]) => { const u = usedAt(sc.busyB, s); return { cell: [s, c], free: u < 0, held: [s, u] }; });
+      const pick = checks.find(x => x.free);
+      const ch = pick ? pick.cell : null;
+      const candMarks = {}; sc.cands.forEach(([s, c]) => { candMarks[key(s, c)] = "cand"; });
+      const frames = [];
+      const S = sc.seq;
+      const req = `6P ADD Request  A → B  NumCells=1  CellList=[${sc.cands.map(fmt).join(" ")}]  SeqNum=${S}`;
+      frames.push({ a: {}, b: {}, seqA: S, seqB: S, msg: "", caption: `Başlangıç. Sütun slotOffset (0-${L - 1}), satır channelOffset (0-${CO - 1}); ■ başka komşularla kullanılan cell. Tek radio olduğu için her sütunda en fazla bir ■ var. İki tarafın da bu komşuluk için SeqNum'ı ${S}.` });
+      frames.push({ a: {}, b: {}, seqA: S, seqB: S, msg: "", caption: "SF (A tarafında): A'nın B'ye giden queue'su doluyor, cell utilization yüksek ⇒ <b>1 cell ekle</b>. Bu karar policy'dir; 6P henüz devrede değil." });
+      frames.push({ a: candMarks, b: {}, seqA: S, seqB: S, msg: "", caption: `A, kendisinde hiç cell olmayan slotOffset'lerden ${sc.cands.length} aday seçer: ${sc.cands.map(fmt).join(", ")} (kesikli çerçeve). Response gelene kadar bu adayları kilitli tutar.` });
+      frames.push({ a: candMarks, b: candMarks, seqA: S, seqB: S, msg: req, caption: "6P ADD request B'ye gider ve B request'i L2 ACK ile onaylar. A bu ACK'i alınca 6P Timeout'u başlatır. Aday listesi B'nin tablosunda da çerçeveli." });
+      frames.push({ a: candMarks, b: candMarks, seqA: S, seqB: S, msg: req,
+        caption: "B her adayın timeslot'una bakar: " + checks.map(x => x.free ? `${fmt(x.cell)} uygun, B o slotOffset'te boş` : `${fmt(x.cell)} olmaz, B'nin aynı timeslot'unda zaten ${fmt(x.held)} var`).join("; ") + (ch ? `. İlk uygun aday: <b>${fmt(ch)}</b>.` : ". Hiçbiri uygun değil.") });
+      if (!ch) {
+        frames.push({ a: {}, b: {}, seqA: S + 1, seqB: S + 1, msg: `6P Response  B → A  CellList=[]  SeqNum=${S}`, caption: "Response boş liste taşır: cell kurulmadı. SF daha sonra yeni bir aday listesiyle tekrar dener. İki taraf yine tutarlı." });
+      } else if (!lost) {
+        const aM = { [key(...ch)]: "new tx" }, bM = { [key(...ch)]: "new rx" }, bLock = { [key(...ch)]: "lock rx" };
+        frames.push({ a: candMarks, b: bLock, seqA: S, seqB: S, msg: `6P Response  B → A  SUCCESS  CellList=[${fmt(ch)}]  SeqNum=${S}`, caption: `B seçtiği cell'i kilitler (turuncu) ve response ile bildirir: ${fmt(ch)}. B bu cell'i ancak response'un L2 ACK'i gelince kurar.` });
+        frames.push({ a: aM, b: bM, seqA: S + 1, seqB: S + 1, msg: "", caption: `Install: A response'u alır ve L2 ACK gönderir; A'da ${fmt(ch)} = TX→B kurulur. ACK B'ye ulaşınca B de ${fmt(ch)} = RX←A cell'ini kurar. Transaction bitti, iki tarafın SeqNum'ı ${S + 1}; schedule'lar tutarlı.` });
+        frames.push({ a: aM, b: bM, seqA: S + 1, seqB: S + 1, msg: "", caption: `Use: ASN mod ${L} = ${ch[0]} olan her slot'ta A, $F[(\\text{ASN} + ${ch[1]}) \\bmod N_c]$ channel'ında B'ye gönderir. Bundan sonrası TSCH'in işi.` });
+      } else {
+        const bLock = { [key(...ch)]: "lock rx" };
+        frames.push({ a: candMarks, b: bLock, seqA: S, seqB: S, msg: `6P Response  B → A  SUCCESS  CellList=[${fmt(ch)}]  SeqNum=${S}   ✗ kayboldu`, caption: `B seçtiği cell'i kilitledi (turuncu) ve response'u gönderdi, ama response A'ya ulaşmadı. L2 ACK gelmediği için B response'u tekrar gönderir; tekrarların hiçbiri ulaşmaz.` });
+        frames.push({ a: {}, b: {}, seqA: S + 1, seqB: S, msg: "", caption: `A'nın 6P Timeout'u doldu: A transaction'ı iptal eder ve adayların kilidini açar. Request'i L2 ACK almıştı, bu yüzden transaction bitince SeqNum'ı ${S + 1} yapar. B maximum retransmission sayısına ulaştı: transaction başarısız, kilitli cell serbest kalır, hiçbir cell kurulmaz. Response'un L2 ACK'ini hiç almadığı için B'nin SeqNum'ı ${S} kalır.` });
+        frames.push({ a: {}, b: {}, seqA: S + 1, seqB: S, msg: "", caption: `Schedule'lar aynı, iki tarafta da yeni cell yok. Ama SeqNum'lar ayrıştı: A ${S + 1}, B ${S}. B durumu inconsistency sayar, çünkü kendi tarafından sadece ACK'in gelmediğini görür. Response mu kayboldu, yoksa yalnızca A'nın ACK'i mi, bilemez. İkinci durumda A response'u almış ve TX cell'ini kurmuş olurdu; B'de RX cell'i olmadığı için A'nın o cell'deki packet'leri boşa giderdi.` });
+        frames.push({ a: {}, b: {}, seqA: S + 1, seqB: S, msg: `6P ADD Request  A → B  SeqNum=${S + 1}<br>6P Response  B → A  RC_ERR_SEQNUM  SeqNum=${S + 1}`, caption: `A'nın sonraki request'i SeqNum ${S + 1} taşır, B ise ${S} bekliyordu. B beklenmeyen SeqNum'ı görünce RC_ERR_SEQNUM ile cevap verir.` });
+        frames.push({ a: {}, b: {}, seqA: 0, seqB: 0, msg: `6P CLEAR  A → B`, caption: "MSF'te RC_ERR_SEQNUM'un karşılığı CLEAR: A CLEAR ister, iki taraf bu komşuyla olan bütün cell'leri siler ve SeqNum'ı 0 yapar. SF cell'leri baştan kurar." });
+      }
+      Lab.stepper(host, {
+        title: "6P ADD transaction",
+        interval: 1500,
+        frames,
+        render(f, i, el) {
+          el.innerHTML = `<div class="${P}two">${table(`A (SeqNum ${f.seqA})`, sc.busyA, f.a)}${table(`B (SeqNum ${f.seqB})`, sc.busyB, f.b)}</div>` +
+            (f.msg ? `<div class="${P}msg">${f.msg}</div>` : "");
+        }
+      });
+    }
+    let curSeed = null;
+    $("we-new").addEventListener("click", () => { curSeed = seed++; build(curSeed); });
+    $("we-lost").addEventListener("change", () => build(curSeed));
+    build(curSeed);
+  })();
+
+  /* ── Widget F: which floor? ── */
+  (function () {
+    const OPTS = ["TSCH", "Orchestra", "SF / MSF", "6P", "WirelessHART", "ISA100.11a"];
+    const ITEMS = [
+      { t: "Her slot'ta $F[(\\text{ASN} + \\text{channelOffset}) \\bmod N_c]$ ile channel'ı hesaplar ve cell'i çalıştırır.", a: "TSCH", why: "Time/channel execution TSCH'in işi (slayt 31, 53)." },
+      { t: "Receiver'ın ID'sini hash'leyip unicast RX cell'ini bulur; hiç scheduling mesajı göndermez.", a: "Orchestra", why: "Hash ile otonom cell türetmek Orchestra (slayt 40)." },
+      { t: "Queue doluyor ve cell utilization yüksek: bir cell daha eklenmesine karar verir.", a: "SF / MSF", why: "Ölçümü karara çeviren policy SF'tir (slayt 45)." },
+      { t: "ADD request ve response ile iki komşunun schedule'ına aynı cell'i yazar.", a: "6P", why: "Komşu transaction'ı 6P (slayt 44)." },
+      { t: "HART komutlarını taşır; network manager route, cell ve channel'ları merkezden atar. IEC 62591.", a: "WirelessHART", why: "HART-oriented, network manager, IEC 62591 (slayt 47, 52)." },
+      { t: "Cihaz bir contract ister (update rate, maximum delay); system manager kaynak ayırır. IEC 62734.", a: "ISA100.11a", why: "Contract, system manager, IEC 62734 (slayt 51, 52)." },
+      { t: "ACK gelmezse frame'i aynı komşuya giden sonraki cell'de tekrar gönderir.", a: "TSCH", why: "Link-layer retransmission TSCH tanımındaki beş parçadan biri (slayt 28)." },
+      { t: "Contiki-NG'de yazılmıştır, standart değildir; RPL parent değişince cell'leri yeniden hesaplar.", a: "Orchestra", why: "Slayt 42: scheduler, not an IEEE standard and not full 6TiSCH." },
+      { t: "Bir cell'de collision görünce onu taşıma kararı verir.", a: "SF / MSF", why: "Tablodaki satır: collision → relocate. Kararı SF verir; taşımayı 6P RELOCATE ile yapar." },
+      { t: "RELOCATE mesajıyla bir cell'i komşuyla birlikte başka bir yere taşır.", a: "6P", why: "RELOCATE altı 6P komutundan biri; mesajı taşıyan protokol 6P." }
+    ];
+    const list = $("wf-list"), score = $("wf-score");
+    let state;
+    function draw() {
+      state = ITEMS.map(() => ({ tries: 0, done: false }));
+      list.innerHTML = ITEMS.map((it, i) => `<div class="${P}st" data-i="${i}"><p>${i + 1}. ${it.t}</p>` +
+        OPTS.map(o => `<button class="btn btn--sm" data-o="${o}">${o}</button>`).join("") + `<div class="${P}fb"></div></div>`).join("");
+      render(list); paint();
+    }
+    function paint() {
+      const done = state.filter(s => s.done).length, first = state.filter(s => s.done && s.tries === 1).length;
+      score.innerHTML = `Yerleşen: ${done}/${ITEMS.length} · ilk denemede doğru: ${first}`;
+    }
+    list.addEventListener("click", e => {
+      const b = e.target.closest("[data-o]"); if (!b) return;
+      const box = b.closest("[data-i]"), i = Number(box.dataset.i), it = ITEMS[i], st = state[i];
+      if (st.done) return;
+      st.tries++;
+      const fb = box.querySelector("." + P + "fb");
+      if (b.dataset.o === it.a) {
+        st.done = true;
+        fb.innerHTML = `<span class="${P}ok">✓ ${it.a}.</span> ${it.why}`;
+        box.querySelectorAll("[data-o]").forEach(x => { x.disabled = true; if (x.dataset.o === it.a) x.classList.add("btn--accent"); });
+      } else {
+        fb.innerHTML = `<span class="${P}bad">✗ ${b.dataset.o} değil.</span> ` + hint(b.dataset.o, it.a);
+        b.disabled = true;
+      }
+      paint();
+    });
+    function hint(chosen, right) {
+      const H = {
+        "TSCH": "TSCH sadece çalıştırır: karar vermez, mesajla pazarlık etmez.",
+        "Orchestra": "Orchestra mesaj göndermez ve trafiğe bakmaz; ID'den cell türetir.",
+        "SF / MSF": "SF karar verir ama mesajı kendisi taşımaz.",
+        "6P": "6P mesajı taşır ama neden ve ne zaman sorusunun cevabı SF'te.",
+        "WirelessHART": "WirelessHART tam bir endüstriyel sistem: HART-oriented, network manager.",
+        "ISA100.11a": "ISA100.11a tam bir endüstriyel sistem: IPv6-oriented, system manager, contract'lar."
+      };
+      return H[chosen] || "";
+    }
+    $("wf-reset").addEventListener("click", draw);
+    draw();
+  })();
+})();
+</script>
+</body>
+</html>

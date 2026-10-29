@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 427: wireless sensor network nedir, altı constraint, reporting pattern ve domain taxonomy, greenhouse mini case, mote anatomy, Sky mote, Contiki 3.0 process/protothread/etimer ve Cooja pencereleri." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>WSN nedir ve mote anatomy · CSE 427 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=6" />
+  <style>
+    .w-intro-hardware-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-intro-hardware-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-intro-hardware-ctl input[type="text"], .w-intro-hardware-ctl input[type="number"] { width: 84px; }
+    .w-intro-hardware-ctl input.w-intro-hardware-wide { width: 100%; max-width: 560px; font-family: 'JetBrains Mono', monospace; font-size: .85rem; }
+    .w-intro-hardware-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-intro-hardware-box { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; margin: 12px 0; background: var(--bg-elevated); }
+    .w-intro-hardware-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+    .w-intro-hardware-card { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px; background: var(--paper); min-width: 0; }
+    .w-intro-hardware-card h4 { margin: 0 0 6px; font-size: .95rem; color: var(--fg-brand); }
+    .w-intro-hardware-card select { width: 100%; font: inherit; font-size: .9rem; padding: 4px; margin: 4px 0; }
+    .w-intro-hardware-card label { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; font-size: .88rem; }
+    .w-intro-hardware-card.is-ok { border-color: #2b8a3e; background: #ebf7ee; }
+    .w-intro-hardware-card.is-bad { border-color: #c92a2a; background: #fdecec; }
+    .w-intro-hardware-fb { font-size: .86rem; margin-top: 6px; color: var(--fg-muted); }
+    .w-intro-hardware-blocks { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+    .w-intro-hardware-blocks button.is-used { opacity: .45; }
+    .w-intro-hardware-blocks button.is-pick { border-color: var(--blue-600); background: var(--blue-100); }
+    .w-intro-hardware-svg { display: block; width: 100%; height: auto; max-width: 640px; }
+    .w-intro-hardware-msg { padding: 8px 12px; border-radius: var(--radius-md); background: var(--stone-050); font-size: .95rem; min-height: 2.4em; }
+    .w-intro-hardware-state { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; font-size: .88rem; }
+    .w-intro-hardware-state > div { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; background: var(--paper); min-width: 0; }
+    .w-intro-hardware-state b { display: block; font-size: .78rem; color: var(--fg-subtle); font-weight: 600; }
+    .w-intro-hardware-lpm { color: #2b8a3e; font-weight: 700; }
+    .w-intro-hardware-act { color: var(--orange-700); font-weight: 700; }
+    .w-intro-hardware-out { font-family: 'JetBrains Mono', monospace; font-size: .8rem; background: var(--ink-900); color: #e8ebf1; border-radius: var(--radius-sm); padding: 6px 8px; min-height: 2.2em; white-space: pre-wrap; overflow-x: auto; }
+    .w-intro-hardware-tok { display: inline-block; margin: 3px 4px 3px 0; padding: 2px 8px; border-radius: var(--radius-full); font-family: 'JetBrains Mono', monospace; font-size: .82rem; border: 1px solid var(--border-strong); background: var(--paper); }
+    .w-intro-hardware-tok.k-sec { border-color: #6741d9; background: #efeaff; }
+    .w-intro-hardware-tok.k-mac { border-color: var(--blue-600); background: var(--blue-100); }
+    .w-intro-hardware-tok.k-rdc { border-color: var(--accent); background: var(--orange-100); }
+    .w-intro-hardware-tok.k-num { border-color: #2b8a3e; background: #ebf7ee; }
+    .w-intro-hardware-tok.k-unk { border-color: #c92a2a; background: #fdecec; }
+    .w-intro-hardware-tl { display: flex; height: 18px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); margin: 4px 0 2px; }
+    .w-intro-hardware-tl i { display: block; height: 100%; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 427</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 427</a> / WSN nedir ve mote anatomy</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">W1</span><span class="chip chip--exam">Vize kapsamı</span><span class="chip">W1 lab</span><span class="src">~55 dk · 12 bölüm</span></div>
+          <h1>WSN nedir, constraint'ler ve mote anatomy</h1>
+          <p class="lead">Dersin temeli: bir wireless sensor network (WSN) nedir, tasarımı hangi altı constraint zorlar, bir application nasıl sınıflanır, bir mote'un içinde hangi bloklar vardır ve Contiki 3.0 ile Cooja'da ilk simülasyon nasıl kurulur. Hepsi W1 slaytlarının sırasıyla.</p>
+          <p class="src">Not: Hocanın W1 hedefi, slayt 2: "Evaluation in Week 1 should check vocabulary, mental model, and tool readiness." Yani bu haftadan kelimeleri doğru kullanmak, bir ölçümün yolunu anlatabilmek ve Cooja'yı tanımak beklenir. Vizenin formatı henüz açıklanmadı; sorular İngilizce olacak. Bu sayfadaki "slayt N" numaraları PowerPoint'teki sıradır; slaytın alt köşesinde yazan numara 3 fazladır (slayt 26 = sayfa 29).</p>
+          <!-- Kaynak: resources/2026-2027-fall/Week_1_WSN_Introduction_Hardware_Anatomy.pptm (xml slayt 1–57; sayfa altındaki numara = xml + 3) · weeks/01-introduction-and-hardware-anatomy.md (Key concepts, Lab, Practice, Notes — Efe: Lab ve Exam-worthy) · assignments/2026-2027-fall-efe/week1 (README, Week1-Hello.csc, Week1-Broadcast.csc, video-script.md) · course-info.md · Karl & Willig Ch.1 (1.3, 1.4) ve Ch.2.1 · Dargie & Poellabauer Ch.3 (3.3) ve Ch.4 (4.1.7, 4.3.3) · W3 lab tutorial slayt 27 (akım modeli). -->
+        </header>
+
+        <article class="lesson" data-course="cse-427" data-lesson="intro-hardware">
+
+<!-- 1 -->
+<section class="lsec" id="wsn" data-min="5">
+  <h2>WSN nedir: fiziksel dünyaya bağlı hesaplama</h2>
+  <div class="quiz" id="q-wsn-local">
+    <p class="quiz__q">Bir fabrikada 40 mote titreşim ölçüyor ve verileri radyo ile yerel bir kontrol bilgisayarına taşıyor. Internet bağlantısı hiç yok. Bu sistem bir WSN mi?</p>
+    <button class="quiz__opt" data-correct>Evet. WSN sensing ve wireless embedded networking ile tanımlanır; Internet'e çıkması gerekmez.<span class="why">Doğru. Slayt 8: "A WSN may be part of an IoT or CPS architecture, but it can also operate locally."</span></button>
+    <button class="quiz__opt">Hayır. Internet'e bağlanmayan bir sensör sistemi WSN değildir.<span class="why">Bu WSN ile IoT'yi karıştırmak. Internet servislerine bağlamak IoT'nin tanımıdır; WSN yerel de çalışabilir.</span></button>
+    <button class="quiz__opt">Hayır. Bir WSN'de mutlaka cloud bulunur.<span class="why">Reference architecture'da cloud olabilir ama tanımın parçası değildir. Tanım: sense, process, communicate wirelessly.</span></button>
+    <button class="quiz__opt">Sadece mote'lar multi-hop çalışıyorsa.<span class="why">Multi-hop yaygın bir yapıdır ama tanım şartı değildir. Tek hop'la gateway'e konuşan mote'lar da bir WSN oluşturur.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · WSN mindset</span>
+    <p>Hocanın ilk cümlesi (slayt 6): <em>"A sensor network is not a normal network made smaller. It is computation attached to a physical environment."</em> Bir WSN, laptop ağının küçültülmüş hali değildir. Her node bir fiziksel büyüklüğe (sıcaklık, nem, titreşim) bağlıdır ve pille çalışır. Ağın amacı bit taşımak değil, o fiziksel büyüklüğü ölçmektir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanım · slayt 7</span>
+    <ul>
+      <li><strong>Wireless Sensor Network (WSN):</strong> "spatially distributed embedded nodes that sense, process, and communicate wirelessly." Üç fiil: <strong>sense, process, communicate</strong>.</li>
+      <li>Node'lara <strong>sensor node</strong> ya da <strong>mote</strong> denir.</li>
+      <li>Bir <strong>sink</strong>, <strong>gateway</strong> ya da <strong>border router</strong> veriyi toplar ve WSN'i kullanıcılara ya da başka ağlara bağlar.</li>
+      <li>Trafik çoğunlukla <strong>küçük</strong>, <strong>periodic ya da event-driven</strong> ve <strong>energy</strong> ile sıkı biçimde sınırlıdır.</li>
+      <li>WSN'i bir <strong>measurement infrastructure</strong> olarak düşün, genel amaçlı mobil cihazlar olarak değil.</li>
+    </ul>
+  </div>
+  <h3>WSN, IoT ve CPS</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Terim</th><th>Odak (slayt 8)</th><th>Kısaca</th></tr>
+    <tr><td>WSN</td><td>sensing and wireless embedded networking</td><td>Ölçümlerin doğduğu yer: <strong>field layer</strong>.</td></tr>
+    <tr><td>IoT</td><td>connects physical devices to Internet services and applications</td><td>Cihazları Internet servislerine bağlar.</td></tr>
+    <tr><td>Cyber-physical system (CPS)</td><td>digital computation monitors or controls a physical process</td><td>Hesaplama fiziksel bir süreci izler ya da kontrol eder.</td></tr>
+  </table></div>
+  <p>Bir WSN bir IoT ya da CPS mimarisinin parçası olabilir ama yerel olarak da çalışabilir. Üçü iç içe geçer; WSN en alttaki, ölçümün yapıldığı katmandır.</p>
+  <h3>Reference architecture · slayt 9</h3>
+  <svg class="w-intro-hardware-svg" viewBox="0 0 640 170" role="img" aria-label="Sensor node'lar S1 ve S2, multi-hop ile R1 üzerinden gateway'e, gateway'den cloud'a">
+    <defs><marker id="ih-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--fg-muted)"/></marker></defs>
+    <g font-family="Inter Tight, sans-serif" font-size="13" text-anchor="middle">
+      <circle cx="50" cy="45" r="20" fill="var(--blue-100)" stroke="var(--blue-600)"/><text x="50" y="50">S1</text>
+      <circle cx="50" cy="115" r="20" fill="var(--blue-100)" stroke="var(--blue-600)"/><text x="50" y="120">S2</text>
+      <circle cx="200" cy="80" r="20" fill="var(--blue-100)" stroke="var(--blue-600)"/><text x="200" y="85">R1</text>
+      <rect x="320" y="58" width="70" height="44" rx="8" fill="var(--orange-100)" stroke="var(--accent)"/><text x="355" y="85">GW</text>
+      <rect x="500" y="58" width="90" height="44" rx="22" fill="var(--stone-100)" stroke="var(--border-strong)"/><text x="545" y="85">Cloud</text>
+      <line x1="70" y1="50" x2="178" y2="74" stroke="var(--fg-muted)" stroke-dasharray="4 3" marker-end="url(#ih-arr)"/>
+      <line x1="70" y1="110" x2="178" y2="86" stroke="var(--fg-muted)" stroke-dasharray="4 3" marker-end="url(#ih-arr)"/>
+      <line x1="220" y1="80" x2="316" y2="80" stroke="var(--fg-muted)" stroke-dasharray="4 3" marker-end="url(#ih-arr)"/>
+      <line x1="390" y1="80" x2="496" y2="80" stroke="var(--fg-muted)" marker-end="url(#ih-arr)"/>
+      <text x="50" y="160" font-size="11" fill="var(--fg-subtle)">sensor nodes</text>
+      <text x="200" y="135" font-size="11" fill="var(--fg-subtle)">multi-hop forwarding</text>
+      <text x="355" y="135" font-size="11" fill="var(--fg-subtle)">gateway / sink</text>
+      <text x="545" y="135" font-size="11" fill="var(--fg-subtle)">application / cloud</text>
+      <text x="445" y="70" font-size="10" fill="var(--fg-subtle)">kablolu / IP</text>
+      <text x="130" y="30" font-size="10" fill="var(--fg-subtle)">low-power radio</text>
+    </g>
+  </svg>
+  <p>Kesikli oklar düşük güçlü radyo hop'larıdır. Gateway'den sonrası sıradan bilgisayar altyapısıdır. Hocanın cümlesi: <em>"The gateway is the translation point between constrained wireless networking and ordinary computing infrastructure."</em></p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"WSN = IoT" değil. IoT, Internet servislerine bağlanmayı anlatır. WSN, sahada ölçen ve radyo ile konuşan küçük node'ları anlatır.</li>
+      <li>Gateway sadece "en yakın mote" değildir. İki dünya arasında çeviri yapar: düşük güçlü radyo protokolleri bir tarafta, sıradan IP ağı diğer tarafta.</li>
+      <li>"Mote = sensör" değil. Mote, üstünde sensör olan bir bilgisayardır (Bölüm 7).</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W1 xml slayt 6 (WSN mindset), 7 (definition), 8 (WSN/IoT/CPS), 9 (reference architecture). Şekil özgün çizim. -->
+  <div class="quiz" id="q-wsn-gw">
+    <p class="quiz__q">Reference architecture'da gateway'in asıl görevi hangisi?</p>
+    <button class="quiz__opt">Ağdaki en güçlü sensörü taşımak.<span class="why">Gateway'in rolü ölçmek değil. Sensor node'lar ölçer; gateway toplar ve iletir.</span></button>
+    <button class="quiz__opt" data-correct>Kısıtlı wireless ağ ile sıradan bilgisayar altyapısı arasında çeviri noktası olmak.<span class="why">Doğru. Slayt 9'un ana cümlesi bu. Mote'ların protokollerini dış dünyanın protokollerine bağlar.</span></button>
+    <button class="quiz__opt">Mote'ların pillerini şarj etmek.<span class="why">Gateway bir veri köprüsüdür, güç kaynağı değil. Energy harvesting ayrı bir konu (power subsystem, W3).</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="path" data-min="4">
+  <h2>Bir ölçümün yolu ve temel kelimeler</h2>
+  <div class="quiz" id="q-path-dc">
+    <p class="quiz__q">Bir mote'un radyosu her 2 saniyede 20 ms açık kalıyor, geri kalan zamanda kapalı. Radio'nun duty cycle'ı kaç?</p>
+    <button class="quiz__opt">%0.1<span class="why">Birim hatası: 20 ms / 2 s = 20 / 2000 = 0.01, yani %1. ms'yi s'ye çevirmeden oran kurma.</span></button>
+    <button class="quiz__opt" data-correct>%1<span class="why">Doğru. Duty cycle = aktif süre / toplam süre = 20 ms / 2000 ms = 0.01.</span></button>
+    <button class="quiz__opt">0.5 Hz<span class="why">0.5 Hz uyanma sıklığı (her 2 s'de bir). Duty cycle bir frekans değil, zamanın kesridir.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · mental model, slayt 10</span>
+    <p>Tek bir sıcaklık değerinin kullanıcıya ulaşana kadar geçtiği beş adım:</p>
+    <ol>
+      <li>Bir <strong>sensor</strong> fiziksel bir büyüklüğü örnekler (sample).</li>
+      <li><strong>Microcontroller</strong> değeri dönüştürür, filtreler ya da formatlar.</li>
+      <li><strong>Radio</strong> küçük bir frame'i bir neighbor'a ya da gateway'e gönderir.</li>
+      <li>Aradaki mote'lar değeri <strong>forward</strong> eder ya da <strong>aggregate</strong> eder.</li>
+      <li><strong>Sink</strong> sonucu bir database'e, dashboard'a ya da controller'a aktarır.</li>
+    </ol>
+    <p>Hocanın vurgusu: <em>"Every step has an energy, delay, reliability, and security cost."</em> Örneğin 3. adımda radyo enerji harcar, frame kaybolabilir, havadaki frame dinlenebilir. 4. adımda her hop gecikme ekler.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Core vocabulary · slayt 11</span>
+    <div class="table-wrap"><table>
+      <tr><th>Term</th><th>Meaning</th></tr>
+      <tr><td>Mote</td><td>Small embedded sensor node with computation and radio</td></tr>
+      <tr><td>Sink / gateway</td><td>Collection point or bridge to another network</td></tr>
+      <tr><td>Neighbor</td><td>Node reachable over a wireless link</td></tr>
+      <tr><td>Topology</td><td>Current connectivity and forwarding structure</td></tr>
+      <tr><td>Duty cycle</td><td>Fraction of time a component is active</td></tr>
+      <tr><td>Event</td><td>Physical condition that triggers reporting</td></tr>
+    </table></div>
+    <p>Duty cycle formülü: $D = \dfrac{t_\text{active}}{t_\text{total}}$. Hoca bunu W3'te her component için ayrı kullanacak.</p>
+    <p>Slaytın uyarısı: <em>"Precise vocabulary prevents 'node, server, sensor, router' soup."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Dersin çalışma biçimi · slayt 5</span>
+    <p><strong>Theory → simulation → evidence.</strong> Theory: mekanizmayı ve varsayımlarını adlandır. Simulation: Cooja'da kontrollü bir durum kur. Measurement: log'lara, paketlere, zamanlamaya ve topology'ye bak. Reflection: neyin neden değiştiğini açıkla.</p>
+    <p><em>"A simulation screenshot is not a result; an interpreted measurement is a result."</em> Lab videolarında da notlandırılan şey budur.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Neighbor</strong> "fiziksel olarak en yakın node" değildir, wireless link ile ulaşılabilen node'dur. Duvarın arkasındaki yakın node neighbor olmayabilir.</li>
+      <li><strong>Topology</strong> sabit bir çizim değildir: "current" kelimesine dikkat. Link'ler değiştikçe topology de değişir.</li>
+      <li><strong>Event</strong> bu tabloda fiziksel bir koşuldur (duman, titreşim). Contiki'de "event" kelimesi bir de yazılım anlamında geçer (bir process'e gönderilen mesaj, Bölüm 10). İkisini karıştırma.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W1 xml slayt 5 (workflow), 10 (path of one measurement), 11 (core vocabulary). -->
+  <div class="quiz" id="q-path-step">
+    <p class="quiz__q">Bir ara mote, iki çocuğundan gelen sıcaklıkların ortalamasını alıp tek bir frame olarak gönderiyor. Ölçümün yolundaki hangi adım bu?</p>
+    <button class="quiz__opt">Sampling<span class="why">Sampling, sensörün fiziksel büyüklüğü ölçmesidir (1. adım). Burada ara node başkalarının değerini işliyor.</span></button>
+    <button class="quiz__opt" data-correct>Aggregation (4. adım: intermediate motes forward or aggregate)<span class="why">Doğru. Birden çok değeri tek değere indirip göndermek aggregation'dır; frame sayısını, yani radio enerjisini azaltır.</span></button>
+    <button class="quiz__opt">Sink'in export etmesi<span class="why">Export, sink'in veriyi ağın dışına (database, dashboard) çıkarmasıdır. Ara mote sink değil.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="constraints-a" data-min="5">
+  <h2>Constraint 1–3: energy, memory/CPU, lossy links</h2>
+  <div class="quiz" id="q-cons-energy">
+    <p class="quiz__q">Hiç paket gelmeyen bir gecede, radyosu sürekli dinlemede kalan bir mote'ta enerjiyi en çok ne tüketir?</p>
+    <button class="quiz__opt">Sensör örneklemesi<span class="why">Sensörler de akım çeker ama kısa sürelidir. Asıl sorun hiçbir şey olmazken açık kalan bileşen.</span></button>
+    <button class="quiz__opt" data-correct>Radyonun idle listening'i<span class="why">Doğru. Slayt 13: "The radio can dominate consumption, especially through idle listening." Paket gelmese de dinlemek, alım kadar akım çeker.</span></button>
+    <button class="quiz__opt">Hiçbir şey; paket yoksa radyo enerji harcamaz.<span class="why">En yaygın yanılgı. Dinlemede bekleyen radyo, gelecek paketi yakalamak için alıcı devresini açık tutar; boş beklemek de enerji yer.</span></button>
+    <button class="quiz__opt">LED'ler<span class="why">LED akım çeker (slayt 36) ama çoğu firmware'de sürekli yanmaz. Sürekli açık dinleyen radyo çok daha baskındır.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · constraint landscape, slayt 12</span>
+    <p>Altı baskı aynı anda çalışır: <strong>Energy, Radio loss, Memory, Scale, Deployment, Security</strong>. <em>"WSN design is multi-objective: improving one dimension often hurts another."</em> Radyoyu daha az açarsan pil uzar ama gecikme artar. Güvenlik eklersen byte, RAM ve enerji harcarsın. Her kararı bu altı eksende tartacaksın.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Constraint 1: energy · slayt 13</span>
+    <ul>
+      <li>Radio tüketimi domine edebilir, özellikle <strong>idle listening</strong> yüzünden.</li>
+      <li>Pil değiştirmek imkânsız, tehlikeli ya da node'dan pahalı olabilir.</li>
+      <li><strong>Sleeping</strong> enerji kazandırır ama <strong>latency</strong>'yi ve <strong>rendezvous complexity</strong>'yi artırır: uyuyan iki node, birbirinin ne zaman uyanık olduğunu bilmeden konuşamaz.</li>
+      <li>Energy optimization yararlı sensing'i korumalı, node'u susturmak hedef değil.</li>
+    </ul>
+    <p><em>"A mote that never wakes has excellent lifetime and zero usefulness."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Constraint 2: small memory and CPU · slayt 14</span>
+    <ul>
+      <li>RAM'i packet buffer'lar, routing table'lar, stack'ler, queue'lar ve application state paylaşır.</li>
+      <li>Code size önemlidir: firmware sınırlı program memory'ye sığmalı.</li>
+      <li>Cryptography, routing ve logging bedava değildir.</li>
+      <li>Tasarımcılar ağır abstraction yerine kompakt <strong>state machine</strong>'leri tercih eder.</li>
+    </ul>
+    <p>Her yeni özellikte sorulacak soru: <strong>"Where does this state live?"</strong></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Constraint 3: lossy wireless links · slayt 15</span>
+    <ul>
+      <li>Received power mesafeye, engellere, antenna yönüne ve interference'a göre değişir.</li>
+      <li>Link'ler <strong>asymmetric</strong> olabilir: A, B'yi duyar ama B, A'yı güvenilir biçimde duymayabilir.</li>
+      <li><strong>Transitional region</strong>'da packet delivery olasılıksaldır: bazı paketler gelir, bazıları gelmez.</li>
+      <li>Routing kararları geometriye değil, ölçülmüş <strong>link quality</strong>'ye dayanmalı.</li>
+    </ul>
+    <p><em>"Distance is a clue, not a routing metric."</em> Bu fikirler W2'de (radio-propagation ve link-metrics dersleri) sayılarla gelecek.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Daha çok uyut, daha iyi" yanlış. Uyku latency'yi artırır ve gönderici ile alıcının buluşmasını (rendezvous) zorlaştırır. Hiç uyanmayan mote işe yaramaz.</li>
+      <li>Asymmetric link "A↔B çalışıyor" demek değildir. Bir yön iyi, diğer yön kötü olabilir; ACK dönmez, iletişim yarım kalır.</li>
+      <li>"En yakın node en iyi parent'tır" yanlış. Mesafe sadece bir ipucu; link quality ölçülmeli.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W1 xml slayt 12–15. -->
+  <div class="quiz" id="q-cons-state">
+    <p class="quiz__q">Bir öğrenci routing protokolüne "son 50 paketin tamamını sakla" özelliği eklemek istiyor. Hocanın hangi sorusu bu fikri hemen sınar?</p>
+    <button class="quiz__opt" data-correct>"Where does this state live?"<span class="why">Doğru. 50 paketlik buffer RAM'de yaşar ve RAM'i neighbor table, queue ve stack ile paylaşır. Küçük mote'ta bu tek karar sığmama sebebi olabilir.</span></button>
+    <button class="quiz__opt">"Is distance a routing metric?"<span class="why">Bu lossy link constraint'inin sorusu; konu bellek, link seçimi değil.</span></button>
+    <button class="quiz__opt">"Does the mote ever wake?"<span class="why">Bu energy constraint'inin şakası. Buradaki sorun RAM'de yer kaplayan state.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="constraints-b" data-min="5">
+  <h2>Constraint 4–6: dynamic topology, scale, reliability/timing/security</h2>
+  <div class="quiz" id="q-cons-scale">
+    <p class="quiz__q">Her node'un her paketi tüm ağa yeniden yayınladığı (flooding) bir protokol 5 node'da sorunsuz çalışıyor. 500 node'da en olası sorun ne?</p>
+    <button class="quiz__opt">Hiçbir sorun olmaz; protokol aynı protokol.<span class="why">Slayt 17: "A protocol that works with 5 nodes can fail with 500 nodes." Ölçek, davranışı değiştirir.</span></button>
+    <button class="quiz__opt" data-correct>Broadcast'ler patlar: overhearing, collision ve duplicate'ler artar, enerji erir.<span class="why">Doğru. Flooding'de her node her paketi tekrarlar; yoğun ağda aynı bilgi defalarca duyulur ve çakışır.</span></button>
+    <button class="quiz__opt">Mote'ların RAM'i otomatik büyür.<span class="why">Donanım ağa göre büyümez. Tersine, global state tutmak RAM'i daha hızlı doldurur.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Constraint 4: dynamic topology · slayt 16</span>
+    <ul>
+      <li>Node'lar fail edebilir, reboot olabilir, gücünü kaybedebilir ya da deployment'tan sonra eklenebilir.</li>
+      <li>Bir link insanlar, araçlar, kapılar, hava ya da interference yüzünden bozulabilir. Node'lar hareket etmese bile.</li>
+      <li>Protokoller neighbor'larını keşfetmeli ve elle yeniden ayar yapılmadan toparlanmalı.</li>
+      <li>Sık topology repair enerji harcar ve routing'i kararsız hale getirebilir.</li>
+    </ul>
+    <p><em>"Self-organization is not luxury; it is survival."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Constraint 5: scale and density · slayt 17</span>
+    <ul>
+      <li>5 node'da çalışan bir protokol 500 node'da çökebilir.</li>
+      <li>Flooding, broadcast ve global state hızla pahalılaşır.</li>
+      <li>Yoğun deployment'lar overhearing, collision ve duplicate bilgiyi artırır.</li>
+      <li>Büyük ağlar <strong>hierarchy, aggregation, suppression</strong> ya da <strong>localized control</strong> ister.</li>
+    </ul>
+    <p><em>"Scalability means limiting who must know, hear, store, and forward what."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Constraint 6: reliability, timing, and security · slayt 18</span>
+    <ul>
+      <li>Environmental monitoring gecikmeye ve ara sıra eksik değere tolerans gösterebilir.</li>
+      <li>Industrial alarm'lar hızlı ve güvenilir teslim ister.</li>
+      <li>Actuation link'leri daha güçlü <strong>safety</strong> ve <strong>authentication</strong> ister.</li>
+      <li>Security mekanizmaları computation, byte, state ve key-management karmaşıklığı ekler.</li>
+    </ul>
+    <p><em>"There is no universal 'best WSN protocol'."</em> Çünkü her application bu altı ekseni farklı tartar.</p>
+  </div>
+  <details class="reveal"><summary>Ders kitabından ek: Karl &amp; Willig'in requirement listesi (slaytta yok)</summary><div>
+    <p>K&amp;W §1.4 aynı baskıları "characteristic requirements" olarak sayar. Slaytlara eklenen fikirler:</p>
+    <ul>
+      <li><strong>Type of service:</strong> WSN bit taşımak için değil, anlamlı bilgi üretmek için vardır: "People want answers, not numbers."</li>
+      <li><strong>Fault tolerance:</strong> node ölümüne karşı <strong>redundant deployment</strong>, yani gerekenden fazla node.</li>
+      <li><strong>Lifetime</strong>'ın tek tanımı yoktur: ilk node'un ölmesi, ağın parçalara ayrılması, node'ların %50'sinin ölmesi ya da bölgede ilk kez bir noktanın hiç kapsanmaması.</li>
+      <li><strong>Wide range of densities, programmability, maintainability.</strong></li>
+    </ul>
+    <p>Gerekli mekanizmalar: multihop communication, energy-efficient operation, auto-configuration, collaboration ve <strong>in-network processing</strong>, <strong>data-centric</strong> tasarım (hangi node'un söylediği değil, değerin kendisi önemli), <strong>locality</strong> (state'i sadece komşular hakkında tut) ve trade-off'ları bilinçli kullanmak.</p>
+  </div></details>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Topology ne kadar sık onarılırsa o kadar iyi" yanlış. Repair de enerji yer ve routing'i sallar.</li>
+      <li>"Statik node'lar = statik topology" yanlış. Kapı açılır, biri geçer, link değişir.</li>
+      <li>Security'yi "bir flag aç" diye düşünme: her paket büyür, RAM'de key tutulur, CPU şifreler.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W1 xml slayt 16–18 · Karl & Willig §1.4.1–1.4.2 (s. 7–10). -->
+  <div class="quiz" id="q-cons-best">
+    <p class="quiz__q">Bir arkadaşın "en iyi WSN protokolünü bulup her projede onu kullanacağım" diyor. Hocanın cevabı ne olurdu?</p>
+    <button class="quiz__opt">Doğru yaklaşım; en düşük enerjili protokolü seç.<span class="why">En düşük enerji tek hedef değil. Industrial alarm'da hız ve reliability enerjiden önce gelir (slayt 24).</span></button>
+    <button class="quiz__opt" data-correct>Böyle bir protokol yok; tasarım multi-objective ve application'a bağlı.<span class="why">Doğru. Slayt 12 ve 18: bir ekseni iyileştirmek diğerini bozar; her application ağırlıkları farklı koyar.</span></button>
+    <button class="quiz__opt">En güvenli protokolü seç; security her şeyden önce gelir.<span class="why">Security byte, state ve enerji ister. Basit bir environmental monitoring ağında bu yük gereksiz olabilir.</span></button>
+  </div>
+  <div class="quiz" id="q-cons-scale-fix">
+    <p class="quiz__q">Slayt 17'ye göre büyük bir ağı ölçeklenebilir yapmak için hangisi önerilmez?</p>
+    <button class="quiz__opt">Hierarchy<span class="why">Önerilen dört yoldan biri: node'ları gruplamak, herkesin her şeyi bilmesini engeller.</span></button>
+    <button class="quiz__opt">Aggregation<span class="why">Önerilen yollardan biri: değerleri birleştirip daha az frame göndermek.</span></button>
+    <button class="quiz__opt" data-correct>Her node'da tüm ağın global state'ini tutmak<span class="why">Doğru, bu önerilmez. Slayt 17 global state'i hızla pahalılaşan şeyler arasında sayar.</span></button>
+    <button class="quiz__opt">Suppression<span class="why">Önerilen yollardan biri: gereksiz tekrar mesajları bastırmak.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="taxonomy" data-min="5">
+  <h2>Application taxonomy: reporting pattern ve domain</h2>
+  <div class="quiz" id="q-tax-301">
+    <p class="quiz__q">Bir dashboard kullanıcısı "301 numaralı odanın şu anki sıcaklığı kaç?" diye soruyor ve mote cevap veriyor. Reporting pattern hangisi?</p>
+    <button class="quiz__opt">Periodic<span class="why">Periodic'te mote sabit aralıkla kendiliğinden gönderir. Burada gönderimi uygulamanın sorusu başlatıyor.</span></button>
+    <button class="quiz__opt">Event-driven<span class="why">Event-driven'da tetikleyici fiziksel bir koşuldur (duman, titreşim). Burada tetikleyici bir istek.</span></button>
+    <button class="quiz__opt" data-correct>Query-driven<span class="why">Doğru. Slayt 20'deki örneğin ta kendisi: "Current temperature of room 301." Uygulama gerektiğinde sorar.</span></button>
+  </div>
+  <p>Slayt 19'un kuralı: <em>"Classify the application before choosing protocols."</em> Trafik deseni ve fiziksel domain tasarımı şekillendirir.</p>
+  <div class="box box--rule">
+    <span class="box__label">Taxonomy by reporting pattern · slayt 20</span>
+    <div class="table-wrap"><table>
+      <tr><th>Pattern</th><th>Description</th><th>Example</th></tr>
+      <tr><td>Periodic</td><td>Sensor reports every fixed interval</td><td>Soil moisture every 10 minutes</td></tr>
+      <tr><td>Event-driven</td><td>Node reports when condition occurs</td><td>Smoke, vibration spike, intrusion</td></tr>
+      <tr><td>Query-driven</td><td>Application asks for data when needed</td><td>Current temperature of room 301</td></tr>
+      <tr><td>Hybrid</td><td>Combines periodic, event, and query behavior</td><td>Machine status + alarm + diagnostics</td></tr>
+    </table></div>
+    <p><strong>"Reporting pattern determines duty cycle, latency, and buffer requirements."</strong> Neden:</p>
+    <ul>
+      <li><strong>Periodic:</strong> ne zaman konuşulacağı baştan bellidir; radyo o anlar dışında uyuyabilir. Duty cycle düşük ve tahmin edilebilir.</li>
+      <li><strong>Event-driven:</strong> trafik seyrek ama olay olunca hızlı gitmeli. Latency hedefi, node'ların ne sıklıkla uyanması gerektiğini belirler. Bir olay patlaması (birçok node aynı dumanı görür) buffer ister.</li>
+      <li><strong>Query-driven:</strong> mote, sorunun geldiğini duyabilmeli; yani radyosu belirli aralıklarla dinlemeli. Gönderim ucuz olsa bile dinleme maliyeti vardır.</li>
+    </ul>
+  </div>
+  <h3>Taxonomy by domain · slayt 21–24</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Domain</th><th>Örnekler (slayt 21)</th><th>Baskın constraint</th><th>Hocanın cümlesi</th></tr>
+    <tr><td>Environmental monitoring</td><td>weather, forests, rivers, air quality</td><td>Pil ömrü, hava koruması, seyrek connectivity. Genelde periodic, dakikalar ya da saatler arayla. Latency gevşek; ama yangın ya da sel gibi bir tehlike algılanırsa değil. Yakın sensörlerin tekrar eden verisi aggregation ile azaltılır.</td><td>"Design goal: survive long enough to make trends visible."</td></tr>
+    <tr><td>Agriculture</td><td>soil moisture, irrigation, livestock, greenhouse control</td><td>Solar beslemeli node'lar; toz, su, ısı. Tarlada seyrek topology, gateway kenarda. Valve gibi kontrol aksiyonları rutin ölçümden daha güçlü reliability ister.</td><td>"A missed temperature value is annoying; a wrong valve command is a problem."</td></tr>
+    <tr><td>Industrial systems / smart grid</td><td>predictive maintenance, vibration, process monitoring; current, voltage, equipment state</td><td>Interference ve metal yapılar radyoyu zorlaştırır. Safety ve availability, minimum enerjiden önemli olabilir. Veri operasyon kararlarını etkilediği için security gereksinimi artar.</td><td>"Industrial WSNs are where 'just send a packet' has many formalities."</td></tr>
+    <tr><td>Buildings and cities</td><td>occupancy, lighting, traffic, waste, infrastructure</td><td colspan="2">Slaytta ayrıntılı örnek yok; listede geçiyor.</td></tr>
+    <tr><td>Energy systems</td><td>smart meters, grid monitoring, renewable integration</td><td colspan="2">Slaytta ayrıntılı örnek yok; listede geçiyor.</td></tr>
+  </table></div>
+  <p><em>"The same sensor platform can need very different protocols in different domains."</em></p>
+  <details class="reveal"><summary>Ders kitabından ek: K&amp;W'nin interaction pattern'leri (slaytta yok)</summary><div>
+    <p>Karl &amp; Willig §1.3 source (veriyi ölçen node) ile sink (verinin teslim edildiği yer) arasındaki desenleri şöyle sayar: <strong>event detection</strong> (eşik aşımı gibi basit ya da birkaç sensörün birlikte karar verdiği bileşik olaylar), <strong>periodic measurements</strong>, <strong>function approximation and edge detection</strong> (sıcaklığı bir konum fonksiyonu gibi haritalamak, örneğin yangının sınırını bulmak) ve <strong>tracking</strong> (hareket eden bir olay kaynağının konumunu raporlamak). Tek seferlik isteklere <strong>one-shot query</strong> der. Slayttaki dört pattern bunların sadeleştirilmiş hali.</p>
+  </div></details>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Event-driven node hiç uyanmaz" yanlış. Raporlama olaya bağlıdır ama olayı fark etmek için sensörün yine örneklemesi gerekir. Sampling ile reporting ayrı şeylerdir.</li>
+      <li>"Query-driven en ucuzudur, çünkü sadece sorulunca gönderir" eksik. Soruyu duymak için radyonun dinlemesi gerekir; idle listening maliyeti buradan gelir.</li>
+      <li>Domain'i değil, desenini sor: aynı serada hem periodic sıcaklık hem event alarm hem control komutu vardır (sonraki bölüm).</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W1 xml slayt 19–24 · Karl & Willig §1.3 (s. 6–7). -->
+  <div class="quiz" id="q-tax-hybrid">
+    <p class="quiz__q">Bir fabrikadaki makine node'u her dakika durum gönderiyor, titreşim eşiği aşılınca anında alarm atıyor ve operatör isteyince detaylı teşhis verisi yolluyor. Pattern?</p>
+    <button class="quiz__opt">Event-driven, çünkü alarm en önemli mesaj.<span class="why">En önemli mesaja göre etiketlemek hatalı; node üç davranışı birden gösteriyor.</span></button>
+    <button class="quiz__opt" data-correct>Hybrid<span class="why">Doğru. Slayt 20: "Machine status + alarm + diagnostics" hybrid'in örneği. Periodic + event + query bir arada.</span></button>
+    <button class="quiz__opt">Periodic, çünkü çoğu mesaj dakikalık.<span class="why">Mesaj sayısının çoğunluğu pattern'i belirlemez; alarm ve teşhis davranışı da tasarımı (latency, buffer) etkiler.</span></button>
+  </div>
+  <div class="quiz" id="q-tax-env">
+    <p class="quiz__q">Bir orman sıcaklık ağında latency ne zaman artık gevşek tutulamaz?</p>
+    <button class="quiz__opt">Hiçbir zaman; environmental monitoring her zaman gecikmeye toleranslıdır.<span class="why">Slayt 22 istisnayı söyler: "unless the system detects hazards such as fire or flood."</span></button>
+    <button class="quiz__opt" data-correct>Sistem yangın ya da sel gibi bir tehlike algıladığında.<span class="why">Doğru. Rutin trend verisi bekleyebilir ama tehlike raporu bekleyemez.</span></button>
+    <button class="quiz__opt">Gateway cloud'a bağlandığında.<span class="why">Latency ihtiyacını uygulamanın amacı belirler, gateway'in bağlantı tipi değil.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="greenhouse" data-min="6">
+  <h2>Monitoring vs control ve greenhouse mini case</h2>
+  <div class="quiz" id="q-gh-control">
+    <p class="quiz__q">Bir serada aşağıdakilerden hangisi kaybolursa ya da sahtesi gelirse en büyük zarar oluşur?</p>
+    <button class="quiz__opt">Bir dakikalık sıcaklık okuması<span class="why">Bir dakika sonra yenisi gelir. Slayt 23: "A missed temperature value is annoying."</span></button>
+    <button class="quiz__opt" data-correct>"Sulamayı başlat" komutu<span class="why">Doğru. Control mesajı fiziksel durumu değiştirir: "a wrong valve command is a problem." Yanlış ya da sahte komut fiziksel hasar verir.</span></button>
+    <button class="quiz__opt">Batarya seviyesi sorgusunun cevabı<span class="why">Operatör tekrar sorabilir; kayıp sadece bir gecikmedir.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Monitoring versus control · slayt 25</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Monitoring</th><th>Control / actuation</th></tr>
+      <tr><td>Ne yapar</td><td>Observe physical state</td><td>Change physical state</td></tr>
+      <tr><td>Hata olursa</td><td>Missing data may be tolerable</td><td>Incorrect commands can cause damage</td></tr>
+      <tr><td>Örnek</td><td>temperature, humidity, vibration logs</td><td>valve, relay, motor, alarm</td></tr>
+    </table></div>
+    <p><em>"The moment a sensor network controls actuators, security and safety stop being 'extra topics.'"</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · greenhouse WSN, slayt 26</span>
+    <ul>
+      <li><strong>Periodic:</strong> temperature and humidity every minute.</li>
+      <li><strong>Event-driven:</strong> report overheating or irrigation failure immediately.</li>
+      <li><strong>Query-driven:</strong> operator requests current battery level or last 24-hour trend.</li>
+      <li><strong>Control:</strong> actuator nodes open vents or start irrigation.</li>
+      <li><strong>Gateway:</strong> forwards measurements to a dashboard and logs commands.</li>
+    </ul>
+    <p>Slaytta "Control" ayrı bir satır olarak geçiyor. Bu bir reporting pattern değil, ters yönde (gateway'den mote'a) giden komut trafiği.</p>
+  </div>
+  <h3>Serada mesaj ayırma</h3>
+  <p class="w-intro-hardware-guess"><b>Önce tahmin et:</b> Sekiz mesajdan kaç tanesinde authentication zorunlu, kaç tanesinde sadece isteğe bağlı? Cevabını aklında tut, sonra kartları doldur.</p>
+  <div class="w-intro-hardware-box" id="gh-widget">
+    <p><b>Varsayımlar.</b> Saldırgan radyodan sahte frame gönderebilir. Sahte bir ölçüm ya da rapor yanlış bir karara yol açabilir, ama fiziksel durumu kendisi değiştirmez. Sahte bir komut ise valve'ı ya da vent'i doğrudan oynatır. Her kartın altındaki satır o mesajın deadline'ını ve eksiksiz gelmesi gerekip gerekmediğini söyler.</p>
+    <p class="src">Her kart için pattern'i seç ve bu varsayımlarla gereken ihtiyaçları işaretle. "Kontrol et" seçimini kartta yazan varsayımlarla ve slayt 18, 23, 25'teki ilkelerle karşılaştırır, nedenini yazar. Tek doğru tablo yok: varsayım değişirse cevap da değişir. Authentication'ın isteğe bağlı olduğu kartlarda iki seçim de kabul edilir.</p>
+    <div class="w-intro-hardware-cards" id="gh-cards"></div>
+    <div class="w-intro-hardware-ctl" style="margin-top:10px">
+      <button class="btn btn--sm btn--accent" id="gh-check">Kontrol et</button>
+      <button class="btn btn--sm" id="gh-reset">Sıfırla</button>
+      <span id="gh-score" class="src" aria-live="polite"></span>
+    </div>
+  </div>
+  <div class="box box--exam" data-exam="W1-s26-greenhouse"><span class="box__label">W1 slayt 26 + weeks/01 Practice · slayt sorusu</span>
+    <p>Slayt 26'nın sorusu: "Mini case: greenhouse WSN. Periodic: temperature and humidity every minute. Event-driven: report overheating or irrigation failure immediately. Query-driven: operator requests current battery level or last 24-hour trend. Control: actuator nodes open vents or start irrigation. Gateway: forwards measurements to a dashboard and logs commands. <strong>Which messages need reliability, low latency, or authentication?</strong>"</p>
+    <p>weeks/01 Practice listesindeki karşılığı: "Classify a greenhouse WSN's messages: periodic, event-driven, query-driven, control — which need reliability, low latency or authentication?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her mesaj için iki soru sor: "Bu kaybolursa ne olur?" (reliability) ve "Bu geç gelirse ne olur?" (latency). Sonra yönüne bak: mote'tan gateway'e mi (ölçüm), gateway'den mote'a mı (komut)?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Authentication, sahte bir mesajın fiziksel bir şeyi değiştirebildiği yerde zorunlu hale gelir (slayt 18: "Actuation links need stronger safety and authentication requirements"). Gateway'in komutları logladığını da unutma.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Sınavda şöyle yazılabilir (tek doğru tablo yoktur; gerekçe puanlanır):</p>
+      <div class="table-wrap"><table>
+        <tr><th>Message</th><th>Pattern</th><th>Reliability</th><th>Low latency</th><th>Authentication</th></tr>
+        <tr><td>Temperature / humidity every minute</td><td>Periodic</td><td>Not critical</td><td>No</td><td>Not critical</td></tr>
+        <tr><td>Overheating report</td><td>Event-driven</td><td><strong>Yes</strong></td><td><strong>Yes</strong></td><td>Desirable</td></tr>
+        <tr><td>Irrigation failure report</td><td>Event-driven</td><td><strong>Yes</strong></td><td><strong>Yes</strong></td><td>Desirable</td></tr>
+        <tr><td>Battery level query + reply</td><td>Query-driven</td><td>Low (operator can ask again)</td><td>No</td><td>Not critical</td></tr>
+        <tr><td>Last 24-hour trend query + reply</td><td>Query-driven</td><td><strong>Yes</strong> (multi-packet reply must be complete)</td><td>No</td><td>Not critical</td></tr>
+        <tr><td>Open vents command</td><td>Control</td><td><strong>Yes</strong></td><td><strong>Yes</strong> (overheating is happening now)</td><td><strong>Yes</strong></td></tr>
+        <tr><td>Start irrigation command</td><td>Control</td><td><strong>Yes</strong></td><td>Moderate</td><td><strong>Yes</strong></td></tr>
+      </table></div>
+      <p><strong>Answer.</strong> "Periodic readings tolerate loss and delay: a missed value is replaced one minute later (monitoring, slide 25). Event reports (overheating, irrigation failure) need reliability and low latency because they are rare and time-critical. Queries need a correct reply but no tight deadline; the operator can repeat the query. Control commands (open vents, start irrigation) need reliability and, above all, authentication: a forged or wrong valve command changes the physical state and can cause damage. That is why the gateway also logs commands."</p>
+      <p>Neden: soru hocanın "monitoring vs control" ayrımını test ediyor. Puanın çoğu şu cümleden gelir: control mesajları authentication ister, çünkü fiziksel durumu değiştirir.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/2026-2027-fall/Week_1_WSN_Introduction_Hardware_Anatomy.pptm">Orijinal slayt (W1, slayt 26; sayfa altında 29)</a> · <a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/weeks/01-introduction-and-hardware-anatomy.md">weeks/01 Practice</a></p>
+    <!-- Kaynak: W1 xml slayt 26 (alt köşe 29) · weeks/01 ## Practice ilk madde. Referans cevap yok; tablo slayt 18, 23, 25'ten türetildi. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Her mesaja reliability + authentication koy" cevabı puan almaz. Soru, hangisinin <em>neden</em> ihtiyaç duyduğunu ayırt etmeni istiyor; her şeyi korumak enerji ve byte israfıdır.</li>
+      <li>Control'ü bir reporting pattern sanma. Raporlar mote'tan sink'e gider; komut ters yöne, actuator node'a gider.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-gh-log">
+    <p class="quiz__q">Slayt 26'da gateway'in "logs commands" görevi neden var?</p>
+    <button class="quiz__opt" data-correct>Fiziksel durumu değiştiren komutların sonradan izlenebilmesi için; control trafiğinde hesap verebilirlik gerekir.<span class="why">Doğru. Monitoring verisi kaybolabilir ama "vanayı kim, ne zaman açtı?" sorusunun cevabı kaybolmamalı.</span></button>
+    <button class="quiz__opt">Mote'ların RAM'i dolmasın diye.<span class="why">Loglama gateway'de yapılıyor ama amaç mote belleğini boşaltmak değil; komutların kaydını tutmak.</span></button>
+    <button class="quiz__opt">Periodic ölçümleri sıkıştırmak için.<span class="why">Slayt ölçümler için "forwards measurements" der; "logs" sadece komutlar için geçiyor.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="anatomy" data-min="5">
+  <h2>Mote anatomy: block diagram</h2>
+  <div class="quiz" id="q-anat-adc">
+    <p class="quiz__q">Analog bir nem sensörünün çıkışı MCU'ya ulaşmadan önce hangi bloktan geçer?</p>
+    <button class="quiz__opt">Radio<span class="why">Radio, MCU'nun hazırladığı frame'i gönderir. Sensör verisi önce MCU'ya gelmeli.</span></button>
+    <button class="quiz__opt" data-correct>ADC (analog-to-digital converter)<span class="why">Doğru. MCU sayılarla çalışır; analog voltajı önce ADC sayıya çevirir. Slayt 29: Sensors → ADC → MCU.</span></button>
+    <button class="quiz__opt">Antenna<span class="why">Antenna radyonun ucundadır, zincirin en sonunda.</span></button>
+    <button class="quiz__opt">Memory<span class="why">Memory veri akış zincirinde değil; MCU'nun yanında durur ve kod, buffer, tablo saklar.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · slayt 27–28</span>
+    <p>"A mote is a whole embedded system: sensing, computation, radio, memory, power, and physical interfaces." Ve hocanın en çok tekrarladığı cümle: <em>"A mote is not 'a sensor'; it is a constrained networked computer with sensors attached."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">What is inside a mote? · slayt 28</span>
+    <ul>
+      <li><strong>Sensor interface:</strong> converts a physical signal into data.</li>
+      <li><strong>Microcontroller:</strong> runs the OS, application, and protocol stack.</li>
+      <li><strong>Radio transceiver:</strong> sends and receives wireless frames.</li>
+      <li><strong>Memory:</strong> stores code, buffers, tables, and measurements.</li>
+      <li><strong>Power subsystem:</strong> battery, regulation, sleep states, and sometimes harvesting.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Mote block diagram · slayt 29</span>
+    <svg class="w-intro-hardware-svg" viewBox="0 0 640 200" role="img" aria-label="Sensors, ADC, MCU, Radio, Antenna zinciri; Memory MCU'ya bağlı; Power tüm bloklara">
+      <g font-family="Inter Tight, sans-serif" font-size="13" text-anchor="middle">
+        <rect x="10" y="60" width="90" height="40" rx="6" fill="var(--blue-100)" stroke="var(--blue-600)"/><text x="55" y="85">Sensors</text>
+        <rect x="140" y="60" width="70" height="40" rx="6" fill="var(--blue-100)" stroke="var(--blue-600)"/><text x="175" y="85">ADC</text>
+        <rect x="250" y="60" width="80" height="40" rx="6" fill="var(--blue-100)" stroke="var(--blue-600)"/><text x="290" y="85">MCU</text>
+        <rect x="370" y="60" width="80" height="40" rx="6" fill="var(--orange-100)" stroke="var(--accent)" stroke-width="2"/><text x="410" y="85">Radio</text>
+        <rect x="490" y="60" width="90" height="40" rx="6" fill="var(--blue-100)" stroke="var(--blue-600)"/><text x="535" y="85">Antenna</text>
+        <rect x="250" y="5" width="80" height="34" rx="6" fill="var(--stone-100)" stroke="var(--border-strong)"/><text x="290" y="27">Memory</text>
+        <rect x="10" y="150" width="570" height="34" rx="6" fill="var(--orange-100)" stroke="var(--accent)" stroke-width="2"/><text x="295" y="172">Power (battery, regulator, sleep states, harvesting)</text>
+        <g stroke="var(--fg-muted)" fill="none">
+          <line x1="100" y1="80" x2="138" y2="80"/><line x1="210" y1="80" x2="248" y2="80"/><line x1="330" y1="80" x2="368" y2="80"/><line x1="450" y1="80" x2="488" y2="80"/>
+          <line x1="290" y1="39" x2="290" y2="58"/>
+          <line x1="55" y1="148" x2="55" y2="102" stroke-dasharray="3 3"/><line x1="175" y1="148" x2="175" y2="102" stroke-dasharray="3 3"/><line x1="290" y1="148" x2="290" y2="102" stroke-dasharray="3 3"/><line x1="410" y1="148" x2="410" y2="102" stroke-dasharray="3 3"/>
+        </g>
+        <text x="600" y="130" font-size="10" fill="var(--fg-subtle)" text-anchor="end">turuncu: lifetime'ı domine eden iki blok</text>
+      </g>
+    </svg>
+    <ul>
+      <li><strong>Sensors create raw evidence.</strong></li>
+      <li><strong>The MCU decides when and what to transmit.</strong></li>
+      <li><strong>The radio and power subsystem dominate lifetime questions.</strong></li>
+    </ul>
+    <p>Karl &amp; Willig (Fig. 2.1) aynı şeyi beş bileşenle çizer: controller, memory, sensors/actuators, communication device, power supply. Memory controller'a bağlıdır; power supply herkesi besler.</p>
+  </div>
+  <h3>Block diagram'ı kendin kur</h3>
+  <p class="w-intro-hardware-guess"><b>Önce tahmin et:</b> Yedi bloktan ikisi veri akış zincirinin dışında kalıyor. Hangileri, ve neden?</p>
+  <div class="w-intro-hardware-box" id="bd-widget">
+    <div class="w-intro-hardware-msg" id="bd-msg" aria-live="polite"></div>
+    <div class="w-intro-hardware-blocks" id="bd-btns"></div>
+    <svg class="w-intro-hardware-svg" id="bd-svg" viewBox="0 0 640 200" role="img" aria-label="Kurduğun block diagram"></svg>
+    <div class="w-intro-hardware-ctl"><button class="btn btn--sm" id="bd-reset">Baştan</button><span class="src" id="bd-step"></span></div>
+  </div>
+  <div class="box box--exam" data-exam="W1-practice-block-diagram"><span class="box__label">weeks/01 Practice · ödev sorusu</span>
+    <p>"Draw the mote block diagram from memory." (Slayt 2'deki öğrenme hedefi: "Draw and explain a mote hardware architecture.")</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce veri akışını soldan sağa yaz: fiziksel dünyadan havaya. Beş blok.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sonra zincirin dışında kalan iki bloğu ekle: biri MCU'nun yanında, biri hepsinin altında. "Explain" kısmı için her bloğa bir cümle ve lifetime cümlesi.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Çizim: <code>Sensors → ADC → MCU → Radio → Antenna</code>, MCU'ya bağlı <code>Memory</code>, altta hepsini besleyen <code>Power</code>.</p>
+      <p><strong>Answer.</strong> "Sensors convert a physical quantity into an electrical signal. The ADC turns the analog signal into numbers. The MCU runs the OS, the application and the protocol stack, and decides when and what to transmit. The radio transceiver sends and receives frames (states: TX, RX, idle, sleep) through the antenna. Memory holds the firmware (flash) and the runtime state: buffers, queues, neighbor and routing tables (RAM). The power subsystem (battery, regulator, sometimes a harvester) feeds every block. The radio and the power subsystem dominate lifetime: the radio is the largest consumer, especially in idle listening, and the battery fixes the energy budget."</p>
+    </div></details>
+    <!-- Kaynak: weeks/01 ## Practice ikinci madde · W1 xml slayt 2, 28, 29, 33. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Antenna'yı radio ile birleştirip atlama: slayt onu ayrı blok olarak çizer, çünkü yerleşimi ve yönü link'i değiştirir (slayt 34).</li>
+      <li>Power'ı sadece radyoya bağlama: her blok akım çeker.</li>
+      <li>"Lifetime'ı CPU belirler" yanlış. Slayt: radio ve power subsystem.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W1 xml slayt 27–29 · Karl & Willig §2.1.1 Fig. 2.1. Şekiller özgün çizim. -->
+  <div class="quiz" id="q-anat-life">
+    <p class="quiz__q">Slayt 29'a göre "bu mote kaç ay dayanır?" sorusunu hangi iki blok domine eder?</p>
+    <button class="quiz__opt">MCU ve Memory<span class="why">MCU çoğu zaman low-power mode'da uyur; memory de küçük bir tüketicidir. Slayt bu ikisini saymaz.</span></button>
+    <button class="quiz__opt" data-correct>Radio ve power subsystem<span class="why">Doğru: "The radio and power subsystem dominate lifetime questions." Biri en büyük tüketici, diğeri bütçenin kendisi.</span></button>
+    <button class="quiz__opt">Sensors ve ADC<span class="why">Sensör örneklemesi kısa sürer. Bazı ağır sensörler istisna olabilir ama slaytın genel kuralı radio ve power.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="blocks" data-min="6">
+  <h2>Blok blok: MCU, memory, sensor/ADC, radio, antenna, power, interfaces</h2>
+  <div class="quiz" id="q-blk-ram">
+    <p class="quiz__q">Bir mote'un neighbor table'ı çalışma sırasında sürekli güncelleniyor. Bu tablo hangi memory'de yaşar?</p>
+    <button class="quiz__opt">Flash/ROM, çünkü kalıcı olması gerekir.<span class="why">Flash/ROM firmware'i ve sabit veriyi tutar. Sürekli değişen tabloyu flash'a yazmak hem yavaş hem enerji pahalıdır (K&amp;W §2.1.3).</span></button>
+    <button class="quiz__opt" data-correct>RAM<span class="why">Doğru. Slayt 31: RAM "stacks, packet buffers, queues, neighbor tables, and routing state" tutar.</span></button>
+    <button class="quiz__opt">Radio'nun içinde<span class="why">Radio frame gönderir ve alır; ağ tablolarını MCU'nun RAM'inde firmware tutar.</span></button>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Blok</th><th>Slaytın söyledikleri</th><th>Akılda kalacak cümle</th></tr>
+    <tr><td><strong>Microcontroller</strong> (slayt 30)</td><td>Contiki process'lerini, driver'ları, protocol logic'i ve application code'u çalıştırır. Sensörleri, timer'ları, radyoyu, LED'leri ve peripheral interface'leri kontrol eder. Hazır task yokken <strong>low-power mode</strong>'a geçer. Sınırlı clock hızı ve RAM, dikkatli C ve <strong>bounded buffer</strong> ister.</td><td>"The MCU is powerful enough for networking, not powerful enough for waste."</td></tr>
+    <tr><td><strong>Memory</strong> (slayt 31)</td><td><strong>Flash/ROM:</strong> firmware ve sabit veri. <strong>RAM:</strong> stack'ler, packet buffer'lar, queue'lar, neighbor table'lar, routing state. Tek bir büyük debug string ya da packet buffer küçük mote'ta fark yaratır. Routing, fragmentation ve security state tüketir.</td><td>"In WSN programming, memory is a design parameter."</td></tr>
+    <tr><td><strong>Sensors and ADC</strong> (slayt 32)</td><td>Sensörler fiziksel olayı elektriksel ya da dijital sinyale çevirir. Analog sensörler ADC ister. Örnekleme warm-up süresi, calibration, filtering ve unit conversion gerektirebilir. Accuracy, noise ve <strong>drift</strong> uygulamanın güvenilirliğini etkiler.</td><td>"A precise network cannot fix a badly measured physical value."</td></tr>
+    <tr><td><strong>Radio transceiver</strong> (slayt 33)</td><td>Dört state: <strong>transmit, receive, idle, sleep</strong>. Reception ve idle listening, yararlı paket olmasa bile büyük enerji harcar. Paket başarısı link quality'ye, interference'a, timing'e ve MAC davranışına bağlıdır. Radio ayarları range, energy ve <strong>coexistence</strong>'ı etkiler.</td><td>"Week 2 starts here: radio links are probabilistic."</td></tr>
+    <tr><td><strong>Antenna and placement</strong> (slayt 34)</td><td>Antenna yönü received power'ı ve link asymmetry'yi etkiler. Yakındaki metal, insan vücudu, duvarlar ve kutular yayılımı değiştirir. Dış ortamda montaj yüksekliği ve line-of-sight önemlidir. Aynı iki mote kurulumdan sonra farklı davranabilir.</td><td>"Physical deployment is part of the protocol stack."</td></tr>
+    <tr><td><strong>Power subsystem</strong> (slayt 35)</td><td>Kaynak pil, USB, adaptör ya da harvester olabilir. <strong>Voltage regulator</strong>'lar kayıp ve minimum çalışma eşiği ekler. Pil kapasitesinin tamamı her yükte ve sıcaklıkta kullanılamaz. Harvesting problemi "sınırlı enerji"den "değişken enerji geliri"ne çevirir.</td><td>"Week 3 gives equations of these."</td></tr>
+    <tr><td><strong>Interfaces, debugging, actuators</strong> (slayt 36)</td><td>Interface'ler: <strong>UART, SPI, I²C, GPIO, USB, JTAG</strong>. LED'ler ve serial output debug için yararlıdır ama timing'i ve enerjiyi bozabilir. Relay, motor, buzzer, valve gibi actuator'lar fiziksel sonuç doğurur. Debug görünürlüğü simülasyonda kolay, fiziksel mote'ta zordur.</td><td>"A flashing LED is useful, but it is still current draw."</td></tr>
+  </table></div>
+  <details class="reveal"><summary>Ders kitabından ek: SPI ve I²C, MCU seçimi (slaytta yok)</summary><div>
+    <ul>
+      <li><strong>SPI</strong> (Dargie &amp; Poellabauer §3.3.1): master-slave, full-duplex seri bus; clock, iki veri hattı (MOSI, MISO) ve her slave için bir select hattı. Sky'da radio MCU'ya SPI ile bağlıdır.</li>
+      <li><strong>I²C</strong> (§3.3.2): iki hat (data ve clock), cihazlar adresle seçilir; yavaştır ama az pin ister. Dijital sensörler çoğu zaman I²C ile bağlanır ve kendi ADC'lerini içerir.</li>
+      <li>Neden microcontroller (K&amp;W §2.1.2)? Masaüstü işlemciler çok fazla enerji yer. DSP, FPGA ve ASIC'in karşısında microcontroller esnek programlanır, sleep state'lere girebilir, belleği ve peripheral bağlantıları içindedir. Genelde MMU'ları yoktur; bu yüzden virtual memory ve memory protection zordur.</li>
+    </ul>
+  </div></details>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Almak ucuz, göndermek pahalı" yanlış. W3 lab'ındaki Sky akım modeli (W3 lab tutorial, slayt 27): TX 17.4 mA, <strong>listen 18.8 mA</strong>. Dinlemek göndermekten bile pahalı olabilir. Bu yüzden idle listening W3 ve W4'ün ana düşmanı.</li>
+      <li>"printf zararsızdır" yanlış. Serial output ve LED timing'i ve enerjiyi bozar; ölçüm yaparken bunu hesaba kat.</li>
+      <li>Drift'i noise ile karıştırma: noise her okumada rastgele saçılma, drift zamanla yavaşça kayan hata. İkisini de ağ düzeltemez.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W1 xml slayt 30–36 · Dargie & Poellabauer §3.3 · Karl & Willig §2.1.2–2.1.3 · W3 lab tutorial (Week_3_Energy_Lab_Tutorial…pptx) slayt 27 akım modeli. -->
+  <div class="quiz" id="q-blk-antenna">
+    <p class="quiz__q">Aynı firmware'i çalıştıran iki özdeş mote kurulumdan sonra çok farklı PRR veriyor. Slayt 34'ün açıklaması hangisi?</p>
+    <button class="quiz__opt">Biri bozuk üretilmiştir.<span class="why">Olabilir ama slaytın mesajı başka: kurulum yeri ve antenna yönü tek başına bu farkı yaratır.</span></button>
+    <button class="quiz__opt" data-correct>Antenna yönü, yakındaki metal/duvar/insan ve montaj yüksekliği link'i değiştirir.<span class="why">Doğru: "Two identical motes can behave differently after installation." Fiziksel deployment protocol stack'in parçası.</span></button>
+    <button class="quiz__opt">Firmware iki mote'ta farklı derlenmiştir.<span class="why">Soruda firmware aynı. Fark donanımın içinde değil, çevresinde.</span></button>
+  </div>
+  <div class="quiz" id="q-blk-harvest">
+    <p class="quiz__q">Slayt 35'e göre energy harvesting problemi nasıl değiştirir?</p>
+    <button class="quiz__opt">Enerjiyi sınırsız yapar, lifetime problemi ortadan kalkar.<span class="why">Güneş geceleri yoktur, bulutlu günler olur. Gelir değişkendir; problem kalkmaz, şekil değiştirir.</span></button>
+    <button class="quiz__opt" data-correct>"Finite energy"den "variable energy income"a çevirir.<span class="why">Doğru. Artık soru "pil ne zaman biter?" değil, "gelir ile harcama dengede mi?" olur. Ayrıntısı battery-lifetime-harvesting dersinde.</span></button>
+    <button class="quiz__opt">Regulator kayıplarını sıfırlar.<span class="why">Regulator kaybı kaynaktan bağımsızdır; harvester'lı sistemde de vardır.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="platforms" data-min="4">
+  <h2>Platform'lar, Sky mote ve hardware-to-software mapping</h2>
+  <div class="quiz" id="q-plat-sky">
+    <p class="quiz__q">Sky mote'un (TelosB) iki ana çipi hangileri?</p>
+    <button class="quiz__opt" data-correct>MSP430 MCU + CC2420 radio (IEEE 802.15.4, 2.4 GHz)<span class="why">Doğru. Slayt 37: "MSP430 + IEEE 802.15.4 radio"; radyonun adı CC2420.</span></button>
+    <button class="quiz__opt">ARM Cortex-M + Wi-Fi radio<span class="why">Bu daha yeni IoT kartlarının tipi. Sky, eski ve düşük güçlü MSP430 tabanlı bir platform.</span></button>
+    <button class="quiz__opt">MSP430 + Bluetooth radio<span class="why">MCU doğru ama radyo yanlış: Sky'ın radyosu IEEE 802.15.4 konuşur.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Mote platforms in old Cooja · slayt 37</span>
+    <div class="table-wrap"><table>
+      <tr><th>Platform</th><th>Role</th></tr>
+      <tr><td>Sky / TelosB class</td><td>Classic Contiki/Cooja teaching platform using MSP430 + IEEE 802.15.4 radio</td></tr>
+      <tr><td>Z1 / Wismote</td><td>Other common WSN research platforms with different MCU/radio details</td></tr>
+      <tr><td>Cooja mote</td><td>Software-level simulated mote; useful but not identical to hardware emulation</td></tr>
+      <tr><td>Emulated Sky mote</td><td>Common Week 1 choice in old Cooja for observing firmware-like behavior</td></tr>
+    </table></div>
+    <p><em>"Use one reference mote type early; variety can come after students understand the tool."</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Reference mote: Sky · slayt 38</span>
+    <p>Sky/TelosB legacy Contiki/Cooja örneklerinde yaygındır. MCU, radio, LED, serial output ve kısıtlı bellek fikrini gösterir. hello-world, Rime örnekleri ve birçok giriş simülasyonu için uygundur. <strong>Sky'daki sayıların her fiziksel sensor node için geçerli olduğunu varsayma.</strong> <em>"A reference platform is a teaching lens, not the whole universe."</em></p>
+    <p class="src">Not: Datasheet bilgisi, slaytta yok: Tmote Sky'daki MCU MSP430F1611'dir (10 kB RAM, 48 kB flash); CC2420 2.4 GHz'de 250 kbps hızla konuşur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Hardware-to-software mapping · slayt 39</span>
+    <div class="table-wrap"><table>
+      <tr><th>Donanım</th><th>Contiki'de nasıl görünür</th></tr>
+      <tr><td>Sensors</td><td>drivers or platform-specific APIs</td></tr>
+      <tr><td>Radio behavior</td><td>network stack and <strong>MAC/RDC drivers</strong></td></tr>
+      <tr><td>Timers</td><td>scheduled work and sleep-friendly waiting</td></tr>
+      <tr><td>Serial output</td><td>Cooja <strong>Mote Output</strong> window</td></tr>
+      <tr><td>Platform support</td><td>compile target (<code>TARGET=sky</code>) decides what is included</td></tr>
+    </table></div>
+    <p><em>"The same C source can behave differently when the target platform changes."</em></p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Efe'nin W1 lab'ı</span>
+    <p><strong>Cross-compilation:</strong> Cooja, Sky mote type oluştururken <code>make hello-world.sky TARGET=sky</code> çalıştırır. <code>msp430-gcc</code> VM'in x86 işlemcisinde çalışır ama MSP430 için kod üretir. Çıkan <code>.sky</code> dosyası gerçek karta yüklenebilecek firmware'dir.</p>
+    <p><strong>Emulation vs simulation:</strong> Sky mote'ta <strong>MSPSim</strong> gerçek MSP430'u ve CC2420'yi instruction instruction <strong>emulate</strong> eder. <strong>Cooja</strong> ise radyo ortamını <strong>simulate</strong> eder (UDGM bir yaklaşımdır). Yani firmware gerçek, radyo dünyası modeldir. Bir Cooja parametresinden gerçek dünyadaki range hakkında iddiada bulunma.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Cooja mote</strong> ile <strong>emulated Sky mote</strong> aynı şey değil. Cooja mote kodu host bilgisayar için derler: hızlıdır ama MSP430 timing'ini, belleğini ve radyo sürücüsünü taklit etmez.</li>
+      <li>"MSPSim simüle eder" deme; MSPSim <em>emulate</em> eder (gerçek makine kodunu çalıştırır). Simülasyon yapan Cooja'nın radio medium'udur.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W1 xml slayt 37–39 · weeks/01 Notes — Efe (Exam-worthy: MSPSim emulation vs simulation, cross-compilation) · video-script.md Part 5. Datasheet değerleri Moteiv Tmote Sky datasheet'inden, slaytta yok. -->
+  <div class="quiz" id="q-plat-faithful">
+    <p class="quiz__q">CPU'nun bir işlemde ne kadar süre aktif kaldığını Sky donanımına en yakın biçimde ölçmek istiyorsun. Hangi mote type?</p>
+    <button class="quiz__opt" data-correct>Sky mote (MSPSim ile emulate edilen)<span class="why">Doğru. Gerçek MSP430 makine kodu instruction instruction çalışır; timing donanıma yakındır.</span></button>
+    <button class="quiz__opt">Cooja mote, çünkü daha hızlı<span class="why">Hız simülasyonu hızlandırır ama Cooja mote "less hardware-faithful": kod host CPU'da çalışır, MSP430 timing'i yoktur.</span></button>
+    <button class="quiz__opt">Java mote<span class="why">Java mote'un davranışı Java'da yazılmıştır; firmware bile çalışmaz. Özel simülasyonlar içindir.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="contiki" data-min="6">
+  <h2>Contiki 3.0: process, protothread ve etimer</h2>
+  <div class="quiz" id="q-ct-static">
+    <p class="quiz__q">Bir Contiki process'inde <code>int count = 0;</code> local variable'ı <code>PROCESS_BEGIN()</code>'den önce tanımlı ve her <code>PROCESS_WAIT_EVENT_UNTIL</code>'den sonra <code>count++</code> yapılıyor. Ne olur?</p>
+    <button class="quiz__opt">count 1, 2, 3, … diye artar.<span class="why">Bu <code>static</code> ile olur. Protothread her wait'te fonksiyondan çıkar; local variable'ın stack'teki değeri korunmaz.</span></button>
+    <button class="quiz__opt" data-correct>Her uyanışta count yeniden 0 olur, hep 1 basılır.<span class="why">Doğru. Process her event'te fonksiyon baştan çağrılır; <code>PROCESS_BEGIN</code>'den önceki satırlar her seferinde yeniden çalışır ve count = 0 olur. Bir sonraki adımda widget'ta bunu izleyeceksin.</span></button>
+    <button class="quiz__opt">Derleme hatası verir.<span class="why">C açısından kod geçerlidir; hata çalışma zamanında, mantıkta ortaya çıkar. Tehlikeli olan da bu.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Contiki OS 3.0 · slayt 41</span>
+    <ul>
+      <li>Küçük, ağa bağlı embedded sistemler için open-source operating system.</li>
+      <li>C application'lar, <strong>event-driven execution</strong> ve <strong>protothreads</strong>.</li>
+      <li>Ders için önemli networking stack'leri: Rime, uIP/uIPv6, 6LoWPAN, RPL örnekleri.</li>
+      <li>Cooja simulator'ı Contiki'nin <code>tools</code> dizininde gelir.</li>
+    </ul>
+    <p>Derste "Contiki 3.0" de; Contiki-NG ile açıkça karşılaştırmıyorsan.</p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · neden event-driven?</span>
+    <p>Dargie &amp; Poellabauer §4.1.7 iki modeli karşılaştırır. <strong>Thread-based</strong> modelde her thread'in kendi stack'i vardır, paylaşılan veriyi lock'larla korursun; küçük RAM için ağırdır. <strong>Event-based</strong> modelde kernel bir döngüde event'leri bekler ve ilgili handler'ı çağırır; handler işini bitirip kontrolü geri verir. Contiki'nin kernel'ı event-driven'dır; multithreading isteğe bağlı bir kütüphane olarak eklenebilir (§4.3.3). <strong>Protothread</strong>, event-driven kodu "bekle, sonra devam et" diye sıralı yazmanı sağlar ama her process için ayrı stack tutmaz.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Contiki programming model · slayt 51</span>
+<pre><code>PROCESS(example_process, "Example process");
+AUTOSTART_PROCESSES(&amp;example_process);
+
+PROCESS_THREAD(example_process, ev, data)
+{
+  PROCESS_BEGIN();
+  /* event-driven application logic */
+  PROCESS_END();
+}</code></pre>
+    <ul>
+      <li><code>PROCESS(name, "string")</code>: process'i tanımlar (adı ve okunur açıklaması).</li>
+      <li><code>AUTOSTART_PROCESSES(&amp;name)</code>: mote açılınca (boot) bu process başlatılır.</li>
+      <li><code>PROCESS_THREAD(name, ev, data)</code>: process'in gövdesi. <code>ev</code> gelen event'in türü, <code>data</code> ona eşlik eden veri.</li>
+      <li><code>PROCESS_BEGIN()</code> / <code>PROCESS_END()</code>: protothread'in başı ve sonu. Aradaki kod "bloklanıyormuş gibi" yazılır.</li>
+    </ul>
+    <p>Slaytın dört noktası: processes are event-driven, not heavy desktop threads; protothreads provide blocking-looking code with low memory overhead; applications should <strong>yield</strong> control instead of spinning forever; timers schedule future work. Hoca W1 için: "recognize the structure", sözdizimini ezberlemek değil.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Timers · slayt 52</span>
+<pre><code>static struct etimer timer;
+etimer_set(&amp;timer, CLOCK_SECOND * 5);
+PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&amp;timer));</code></pre>
+    <ul>
+      <li>Timer'lar <strong>busy waiting olmadan</strong> periodic sensing sağlar.</li>
+      <li>Clock tick'leri platforma özgüdür; Contiki'nin zaman soyutlamasını (<code>CLOCK_SECOND</code>) kullan.</li>
+      <li>Periodic task'lar timer'ı bilinçli olarak yeniden kurmalı (reset).</li>
+      <li>Sonraki energy lab'ları busy waiting'in neden pahalı olduğunu gösterecek.</li>
+    </ul>
+    <p><em>"Timer-based design is the bridge from Week 1 hardware to Week 3 energy."</em></p>
+  </div>
+  <h3>Protothread'i adım adım çalıştır</h3>
+  <p>Aşağıdaki stepper, Contiki'nin protothread kuralını küçük bir modelle gerçekten çalıştırıyor: kernel process'i her event'te fonksiyonun başından çağırır, <code>PROCESS_BEGIN</code> kaydedilmiş satıra atlar, <code>PROCESS_WAIT_EVENT_UNTIL</code> koşul yanlışsa satırı kaydedip fonksiyondan çıkar. Üç sürümü dene.</p>
+  <p class="w-intro-hardware-guess"><b>Önce tahmin et:</b> <code>static</code> olmayan sürümde 15. saniyede Mote Output'ta ne yazacak? Busy-wait sürümünde MCU kaç saniye low-power mode'da kalacak?</p>
+  <div class="w-intro-hardware-ctl">
+    <label for="pt-var">Sürüm:</label>
+    <select id="pt-var" class="btn btn--sm">
+      <option value="static">static int sent (doğru)</option>
+      <option value="local">int sent (static değil)</option>
+      <option value="busy">busy wait (etimer yok)</option>
+    </select>
+  </div>
+  <div id="pt-stepper"></div>
+  <h3>Busy wait'in bedeli</h3>
+  <p>W3 lab'ındaki Sky akım modeliyle (CPU active 1.8 mA, LPM 0.0545 mA) bir sürenin toplam charge'ını hesapla. etimer sürümünde CPU her uyanışta kısa bir iş yapar, kalan zamanda LPM'dedir; busy wait sürümünde CPU hiç uyumaz. Radio'yu dışarıda bırakıyoruz.</p>
+  <div class="w-intro-hardware-box">
+    <div class="w-intro-hardware-ctl">
+      <label>Period P (s) <input id="bw-p" type="text" inputmode="decimal" value="5" /></label>
+      <label>Uyanış başına iş w (ms) <input id="bw-w" type="text" inputmode="decimal" value="1" /></label>
+      <label>Süre T (s) <input id="bw-t" type="text" inputmode="decimal" value="60" /></label>
+    </div>
+    <div class="w-intro-hardware-err" id="bw-err" aria-live="polite"></div>
+    <div id="bw-out"></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Networking options in Contiki 3.0 · slayt 53</span>
+    <div class="table-wrap"><table>
+      <tr><th>Component</th><th>Role</th></tr>
+      <tr><td>Rime</td><td>Lightweight Contiki communication stack used in many old examples</td></tr>
+      <tr><td>uIP / uIPv6</td><td>IP networking support for constrained nodes</td></tr>
+      <tr><td>6LoWPAN</td><td>Adapts IPv6 to small IEEE 802.15.4 frames</td></tr>
+      <tr><td>RPL</td><td>IPv6 routing for low-power and lossy networks</td></tr>
+      <tr><td>RDC / MAC drivers</td><td>Control radio duty cycling and channel access behavior</td></tr>
+    </table></div>
+    <p>W1 sadece haritayı verir; sonraki haftalar her parçayı deneyle açar (6LoWPAN ve RPL: W6–W7, MAC/RDC: W4–W5).</p>
+  </div>
+  <h3>Boot satırını çöz</h3>
+  <p>Sky mote açılırken Mote Output'a hangi network stack'in derlendiğini yazar. Efe'nin W1 lab'ında görülen satır aşağıda; kendi lab çıktını da yapıştırabilirsin.</p>
+  <p class="w-intro-hardware-guess"><b>Önce tahmin et:</b> "ContikiMAC" bir MAC protokolü mü, yoksa başka bir katman mı?</p>
+  <div class="w-intro-hardware-box">
+    <div class="w-intro-hardware-ctl"><input id="bl-in" class="w-intro-hardware-wide btn btn--sm" type="text" value="nullsec CSMA ContikiMAC, channel check rate 8 Hz, radio channel 26" aria-label="Boot satırı" /><button class="btn btn--sm btn--accent" id="bl-go">Çöz</button></div>
+    <div class="w-intro-hardware-err" id="bl-err" aria-live="polite"></div>
+    <div id="bl-out"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><code>static</code>'i unutmak: wait'ten sonra da lazım olan her variable (timer dahil) <code>static</code> olmalı. Protothread'in stack'i yoktur.</li>
+      <li><code>while(!etimer_expired(&amp;t)) {}</code> bir busy wait'tir: CPU uyuyamaz ve Contiki cooperative olduğu için bu sürede başka hiçbir process çalışamaz.</li>
+      <li>Periodic iş için timer'ı döngüde yeniden kurmayı unutma. Contiki'de <code>etimer_reset()</code> bir sonraki süreyi önceki bitiş anından sayar, kaymayı (drift) önler; <code>etimer_set()</code> ise "şimdi"den sayar.</li>
+      <li>Rime "channel 129" ile radio channel 26'yı karıştırma: biri yazılım seviyesinde bir bağlantı numarası, diğeri IEEE 802.15.4 fiziksel kanalı.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W1 xml slayt 41, 51–53 · Dargie & Poellabauer §4.1.7, §4.3.3 · weeks/01 Notes — Efe (boot line, Exam-worthy) · video-script.md Part 4 (example-broadcast.c, Rime channel 129, etimer 4–8 s) · W3 lab tutorial slayt 27 (CPU 1.8 mA, LPM 0.0545 mA). Stepper'daki kod sense_process özgün bir örnek. -->
+  <div class="quiz" id="q-ct-wait">
+    <p class="quiz__q">Process <code>PROCESS_WAIT_EVENT_UNTIL(…)</code> satırına geldi; koşul <code>etimer_expired(&amp;timer)</code> henüz yanlış. Ne olur?</p>
+    <button class="quiz__opt">CPU timer dolana kadar döngüde koşul kontrol eder.<span class="why">Bu busy waiting olurdu. Makro tam tersini yapar: koşul yanlışsa process kontrolü kernel'a geri verir.</span></button>
+    <button class="quiz__opt" data-correct>Process yield eder; başka hazır iş yoksa MCU low-power mode'a girer, timer event'i gelince process kaldığı satırdan devam eder.<span class="why">Doğru. Slayt 51: "Applications should yield control instead of spinning forever." Enerjinin kazanıldığı yer burası.</span></button>
+    <button class="quiz__opt">Mote yeniden başlar (reboot).<span class="why">Hiçbir şey sıfırlanmaz; sadece process duraklar. Ama static olmayan local'ler kaybolur.</span></button>
+  </div>
+  <div class="quiz" id="q-ct-boot">
+    <p class="quiz__q">Boot satırındaki <code>nullsec CSMA ContikiMAC</code> için hangisi doğru?</p>
+    <button class="quiz__opt">Üçü de MAC protokolüdür ve ard arda denenir.<span class="why">Üçü farklı katmanlardır: link-layer security, MAC, RDC. Aynı anda, üst üste çalışırlar.</span></button>
+    <button class="quiz__opt" data-correct>nullsec: link-layer security yok · CSMA: MAC, göndermeden önce dinler · ContikiMAC: RDC, radyoyu çoğu zaman kapalı tutar.<span class="why">Doğru. Efe'nin Exam-worthy notlarındaki açıklama bu.</span></button>
+    <button class="quiz__opt">nullsec: hata var demek, mote güvenli değil ve çalışmaz.<span class="why">nullsec bir hata değil, seçilmiş bir driver: frame'lere şifreleme/authentication eklenmez. Lab için varsayılan.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="cooja" data-min="6">
+  <h2>Instant Contiki ve Cooja: ilk simülasyon</h2>
+  <div class="quiz" id="q-cj-output">
+    <p class="quiz__q">Firmware'deki <code>printf("Hello, world\n")</code> satırının çıktısını Cooja'nın hangi penceresinde görürsün?</p>
+    <button class="quiz__opt">Network<span class="why">Network mote'ların konumlarını ve radyo link'lerini gösterir, metin değil.</span></button>
+    <button class="quiz__opt" data-correct>Mote Output<span class="why">Doğru. Slayt 47: "Displays serial/log output from motes." Slayt 39: serial output → Mote Output.</span></button>
+    <button class="quiz__opt">Radio Messages<span class="why">Radio Messages havadaki frame'leri gösterir. printf radyoya değil, serial porta yazar.</span></button>
+    <button class="quiz__opt">Timeline<span class="why">Timeline radyo, LED ve çalışma aktivitesini zaman ekseninde gösterir; metin satırı göstermez.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Instant Contiki 3.0 ve VMware · slayt 42–45</span>
+    <ul>
+      <li><strong>Neden VM:</strong> Contiki, Cooja, Java/Ant ve build tool'ları hazır bir Linux. Windows, macOS ve Linux host farklarını ortadan kaldırır, eski bağımlılıkları dondurur, herkese aynı path'leri ve aynı compiler davranışını verir. "Legacy software is easiest to teach when the environment is frozen."</li>
+      <li><strong>Kurulum:</strong> VM'i VMware'de aç; Java tabanlı Cooja için yeterli RAM ve CPU ver; herkes aynı image'ı kullansın; toolchain dosyalarını değiştirmeden önce <strong>snapshot</strong> al. "The best debugging tool for Week 1 is a clean VM snapshot."</li>
+      <li><strong>Başlatma:</strong> VM'in terminalinde (Windows host'unda değil) <code>cd ~/contiki/tools/cooja</code> ve <code>ant run</code>. İlk çalışmada derleme sürer. Hata olursa bir şey değiştirmeden önce tam hata mesajını kaydet: <strong>path, command, error message</strong>. "No 'it did not work' reports."</li>
+    </ul>
+<pre><code>~/contiki/
+├── core/        OS core and networking code
+├── cpu/         CPU-specific support
+├── platform/    Board/platform definitions
+├── examples/    hello-world/, rime/, ipv6/
+└── tools/
+    └── cooja/   Cooja simulator</code></pre>
+    <p>Slayt 44: örneklerin nerede olduğunu bil; Cooja <code>tools/cooja</code>'dan başlatılır; platform dosyaları target'ın neden önemli olduğunu açıklar; W1'de core dosyalarını düzenleme. "Folder literacy saves more lab time than heroic terminal guessing."</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Cooja · slayt 46–49</span>
+    <p>Cooja, Contiki ile gelen network simulator'dır. Tek deneyde birden çok mote çalıştırır; topology'yi, mote output'u, radio event'lerini ve timing'i gösterir. Fiziksel node'larla karışık olacak koşulları kontrol altına alır. Mekanizmaları anlamak için yararlıdır, gerçek deployment davranışının garantisi değildir. <em>"Cooja gives visibility; real deployments give humility."</em></p>
+    <div class="table-wrap"><table>
+      <tr><th>Window</th><th>Purpose (slayt 47)</th></tr>
+      <tr><td>Network</td><td>Shows mote positions and radio links visually</td></tr>
+      <tr><td>Mote Output</td><td>Displays serial/log output from motes</td></tr>
+      <tr><td>Timeline</td><td>Shows radio, LED, and execution activity over time</td></tr>
+      <tr><td>Simulation Control</td><td>Starts, pauses, and controls simulation speed</td></tr>
+      <tr><td>Radio Messages</td><td>Inspects transmitted packets when enabled</td></tr>
+    </table></div>
+    <p><strong>Mote type'lar (slayt 48):</strong> Sky mote: yaygın legacy öğretim seçimi. Cooja mote: daha hızlı, yazılım seviyesinde, ama "less hardware-faithful". Java mote: davranışı Java'da yazılır, özel simülasyonlar için. Farklı tipler karışabilir ama W1'de sade kal; lab sheet aksini demiyorsa Sky.</p>
+    <p><strong>Workflow (slayt 49):</strong> File → New Simulation (anlamlı isim) → Motes → Add Motes → Create New Mote Type → examples'tan bir Contiki application seç → seçilen mote type için compile → birkaç mote ekle ve Network'te yerleştir → Start, Mote Output'u incele. Kısaca: <strong>create mote type → add motes → run → observe</strong>.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Ne gözlemlenmeli · slayt 50, 54, 56</span>
+    <p><strong>hello-world</strong> (<code>~/contiki/examples/hello-world</code>): amaç toolchain'i ve serial output'u doğrulamak. Beklenen: her mote Mote Output'a mesaj basar. "This lab is not about networking yet." Çalışınca simülasyonu kaydet. "Do not start Week 1 with a complex RPL experiment. First, prove the simulator works."</p>
+    <p>Cooja'da sadece Start'a basma, şunlara bak (slayt 54):</p>
+    <ol>
+      <li>Kaç mote var ve hangi programı çalıştırıyorlar?</li>
+      <li>Her mote ne basıyor ve ne zaman?</li>
+      <li>Mote'lar birbirinin communication range'i içinde mi?</li>
+      <li>Hangi radio medium modeli seçili?</li>
+      <li>Simülasyon kaydedilip aynı biçimde yeniden açılabiliyor mu?</li>
+    </ol>
+    <p>"A good lab report describes observations, not merely screenshots." Lab hedefleri (slayt 56): VMware ve Instant Contiki açılıyor, Cooja başlıyor, simülasyon kurulup kaydediliyor, Sky mote type derleniyor, mote output okunup koda bağlanabiliyor. "The first lab is an environment validation lab disguised as a WSN lab."</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Efe'nin W1 lab gözlemleri</span>
+    <ul>
+      <li><strong>Week1-Hello</strong> (3 Sky mote, hello-world): boot satırları, sonra bir kez "Hello, world". Radyo trafiği yok; compiler + MSPSim + Cooja çalışıyor demek.</li>
+      <li><strong>Week1-Broadcast</strong> (3 Sky mote, <code>examples/rime/example-broadcast.c</code>, UDGM): kod <code>CLOCK_SECOND * 4 + random_rand() % (CLOCK_SECOND * 4)</code> ile bekler, yani her 4–8 saniyede bir "Hello" broadcast eder. Dosyadaki "2-4 seconds" yorumu yanlış.</li>
+      <li>Network penceresinin <strong>Mote IDs</strong>, <strong>Radio environment (UDGM)</strong> ve <strong>Radio traffic</strong> görünümleri varsayılan olarak kapalı; View menüsünden tek tek açılıyor.</li>
+      <li>UDGM'de yeşil daire <strong>transmission range</strong> (paket alınabilir), gri daire <strong>interference range</strong> (paket çözülemez ama başka bir alımı bozabilir; W4'teki hidden terminal'in kökü). Mote'u yeşil dairenin dışına sürükleyince bağlantı tamamen kesiliyor, geri getirince hemen dönüyor: UDGM'de transitional region yok.</li>
+      <li><strong>Broadcast'te ACK yok:</strong> gönderen kimin aldığını hiç öğrenmez. Unicast ACK'lenir.</li>
+      <li><strong>Radio Messages</strong>'ta <code>11418+36</code> gibi satırlar: aynı frame'in tekrarları. ContikiMAC bir broadcast'i bütün bir wake-up interval boyunca tekrarlar ki uyuyan komşular bir uyanışlarında yakalasın. 8 Hz channel check, $1/8$ s = 125 ms interval demek.</li>
+      <li><strong>Timeline</strong>: her mote'ta kısa ve periyodik channel check'ler (8 Hz), sadece gönderende uzun bir transmit patlaması.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="W1-practice-cooja-windows"><span class="box__label">weeks/01 Practice + slayt 47 · slayt sorusu</span>
+    <p>"Point to each Cooja window and say what it shows." Slayt 47: "Ask students to point to each window before starting the lab task."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Beş pencere var. Her biri için "ne görürüm?" sorusunun tek kelimelik cevabını düşün: konum, metin, zaman, kontrol, paket.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Efe'nin lab gözlemlerini pencerelere eşle: range daireleri hangisinde, "broadcast message sent" hangisinde, 8 Hz channel check'ler hangisinde, <code>11418+36</code> hangisinde?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Answer.</strong> "<em>Network</em> shows mote positions and radio links (with the UDGM view: the green transmission range and the grey interference range). <em>Mote Output</em> shows each mote's serial/printf output, e.g. 'broadcast message sent'. <em>Timeline</em> shows radio, LED and execution activity over time; with ContikiMAC it shows the short 8 Hz channel checks. <em>Simulation Control</em> starts and pauses the simulation and sets its speed. <em>Radio Messages</em> lists the frames on the air with source, destination and payload bytes."</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/weeks/01-introduction-and-hardware-anatomy.md">weeks/01 Practice</a></p>
+    <!-- Kaynak: weeks/01 ## Practice üçüncü madde · W1 xml slayt 47 (alt köşe 50) · weeks/01 Notes — Efe → Lab. -->
+  </div>
+  <div class="box box--exam" data-exam="W1-lab-video"><span class="box__label">W1 lab teslimi (bonus puan) · lab görevi</span>
+    <p>Teams'teki görev (weeks/01 Submission'dan): "A video showing your work: VMware installation, Instant Contiki 3.0, the configuration. A basic Sky mote project that <strong>sends packets while the simulation is running</strong>." Video kuralları: en az 10 dakika, tam ekran, kamerada sen, "how you completed the task and why you got your results" İngilizce anlatılacak.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>hello-world paket göndermez; sadece bir kez basar. Paket gönderen hazır bir örnek gerek: <code>examples/rime/</code> klasörüne bak.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Why you got your results" kısmı puanın asıl yeri: her gözlemi bir mekanizmaya bağla (UDGM range, broadcast'te ACK olmaması, ContikiMAC tekrarları, duty cycling).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>VM ayarları: Cooja Java ile çalışır ve her Sky mote tam bir MSP430 emulation'ı olduğu için RAM/CPU artırılır (Efe: 4 GB, 2 vCPU). Sky mote menüde yoksa MSPSim submodule'ü boştur; course-info.md'deki düzeltmeyle <code>tools/mspsim</code> doldurulup <code>ant jar</code> çalıştırılır.</li>
+        <li>Önce hello-world ile toolchain doğrulanır (3 Sky mote, "Hello, world" bir kez).</li>
+        <li>Yeni simülasyon, UDGM. Mote type: Sky, kaynak <code>examples/rime/example-broadcast.c</code>, compile, 3 mote. Network'te Mote IDs, Radio environment, Radio traffic açılır; mote'lar yeşil dairenin içine yerleştirilir.</li>
+        <li>Start. Mote Output: "broadcast message sent" ve diğer mote'larda "broadcast message received from X.0: 'Hello'". Radio Messages: payload <code>48 65 6C 6C 6F</code> = "Hello". Timeline: kısa periodic channel check'ler.</li>
+        <li>Deney: bir mote yeşil dairenin dışına sürüklenir; göndermeye devam eder ama kimse almaz. Geri getirilince alım döner. Açıklama: UDGM'de range keskin bir sınırdır, gerçek link'lerde ise transitional region vardır (W2).</li>
+        <li>Simülasyon kaydedilir (<code>.csc</code>) ve yeniden açılabildiği gösterilir.</li>
+      </ol>
+      <p>Anlatım cümlesi örneği: "One 'Hello' appears as many frames in Radio Messages because ContikiMAC repeats a broadcast for a whole wake-up interval, so that every sleeping neighbor catches it during one of its channel checks. A broadcast is never acknowledged, so the sender cannot know who received it."</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/assignments/2026-2027-fall-efe/week1/Week1-Broadcast.csc">Efe'nin Week1-Broadcast.csc dosyası</a> · <a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/weeks/01-introduction-and-hardware-anatomy.md">weeks/01 Lab ve Submission</a></p>
+    <!-- Kaynak: weeks/01 ## Submission ve ## Lab · assignments/2026-2027-fall-efe/week1/README.md ve video-script.md · course-info.md Known issues. W1 lab ve devamı bonus sayıldı (weeks/01 üst not). -->
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · kaydedilmiş dosyadan kim kimi duyar?</span>
+    <p>Efe'nin <code>Week1-Broadcast.csc</code> dosyasında UDGM ayarları: transmitting range 50 m, interference range 100 m, success ratio 1.0. Kayıtlı konumlar: mote 1 (50.4, 44.0), mote 2 (24.5, 61.1), mote 3 (−21.2, 55.8). Uzaklıklar:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Çift</th><th>Uzaklık</th><th>UDGM sonucu</th></tr>
+      <tr><td>1–2</td><td>31.06 m</td><td>≤ 50 m: birbirini duyar</td></tr>
+      <tr><td>2–3</td><td>46.04 m</td><td>≤ 50 m: birbirini duyar</td></tr>
+      <tr><td>1–3</td><td>72.62 m</td><td>50–100 m: duyamaz, ama birbirinin alımlarını bozabilir</td></tr>
+    </table></div>
+    <p>Mote 1 ile mote 3 birbirini duymuyor ama ikisi de mote 2'ye ulaşıyor. W4'te bu yerleşimin adı hidden terminal olacak.</p>
+    <p class="src">Not: weeks/01 notlarında "her gönderimden sonra diğer iki mote alıyor" yazıyor. Kaydedilen dosyadaki konumlarda bu sadece mote 2 için doğru; notlar büyük olasılıkla mote'lar kaydedilmeden önceki yerleşime ait.</p>
+    <!-- Kaynak: assignments/2026-2027-fall-efe/week1/Week1-Broadcast.csc <radiomedium> ve <mote> Position; uzaklıklar python ile hesaplandı. -->
+  </div>
+  <div class="box box--exam" data-exam="W1-s54-observe"><span class="box__label">W1 slayt 54 + weeks/01 Lab · lab sorusu</span>
+    <p>Slayt 54, "What students should observe in Cooja": "How many motes are present and what program they run. What each mote prints and when it prints it. Whether motes are positioned within communication range. Which radio medium model is selected. Whether the simulation can be saved and reopened reproducibly." Slaytın son cümlesi: "A good lab report describes observations, not merely screenshots."</p>
+    <p>Beş soruyu Efe'nin iki simülasyonu için cevapla: <code>Week1-Hello.csc</code> ve <code>Week1-Broadcast.csc</code>.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>"Ne zaman basıyor" için koda bak. hello-world'de bir döngü var mı? <code>example-broadcast.c</code>'deki <code>etimer</code> kaç saniye bekliyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Range içinde mi" sorusunu göz kararıyla değil, kayıtlı konumlardan ve UDGM'in 50 m / 100 m ayarından hesapla. Hello simülasyonunda range'in bir önemi var mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Soru</th><th>Week1-Hello</th><th>Week1-Broadcast</th></tr>
+        <tr><td>Kaç mote, hangi program?</td><td>3 Sky mote, <code>examples/hello-world/hello-world.c</code></td><td>3 Sky mote, <code>examples/rime/example-broadcast.c</code></td></tr>
+        <tr><td>Ne basıyor, ne zaman?</td><td>Boot'ta "Rime started…" ve "nullsec CSMA ContikiMAC" satırları, sonra bir kez "Hello, world". Sonra hiçbir şey: kodda döngü yok.</td><td>Boot satırları, sonra her 4–8 saniyede bir "broadcast message sent". Menzildeki komşular "broadcast message received from X.0: 'Hello'" basar.</td></tr>
+        <tr><td>Communication range içinde mi?</td><td>Uzaklıklar 1–2: 102.1 m, 1–3: 15.6 m, 2–3: 111.0 m. Sadece 1–3 çifti 50 m'nin içinde. hello-world paket göndermediği için sonucu değiştirmez.</td><td>1–2: 31.1 m ve 2–3: 46.0 m, birbirini duyar. 1–3: 72.6 m, duymaz ama interference range'in (100 m) içinde.</td></tr>
+        <tr><td>Radio medium?</td><td colspan="2">İkisinde de UDGM: Distance Loss, transmitting range 50 m, interference range 100 m, TX ve RX success ratio 1.0.</td></tr>
+        <tr><td>Kaydedilip yeniden açılıyor mu?</td><td colspan="2">Evet: File → Save simulation ile <code>.csc</code>, File → Open simulation ile aynı mote type'lar, konumlar ve radio medium geri gelir. Dosya random seed'i de tutar (123456), bu yüzden aynı çalıştırma tekrarlanabilir. Firmware yolu Contiki'nin <code>/home/user/contiki</code>'de olduğunu varsayar; başka bir kurulumda yolu düzeltmek gerekir.</td></tr>
+      </table></div>
+      <p><strong>Answer (English):</strong> "Both simulations have three Sky motes in UDGM (50 m range, 100 m interference, success ratios 1.0). In Week1-Hello every mote prints its boot lines and 'Hello, world' once, then nothing, because the program has no loop and sends no packets. In Week1-Broadcast every mote prints 'broadcast message sent' every 4 to 8 seconds, and neighbours inside 50 m print 'received from X.0'. In the saved positions motes 1 and 3 are 72.6 m apart, so they cannot hear each other, but both reach mote 2. The .csc file stores the motes, positions, radio medium and random seed, so the run can be reopened and repeated."</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/resources/2026-2027-fall/Week_1_WSN_Introduction_Hardware_Anatomy.pptm">W1 deck</a> · <a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/assignments/2026-2027-fall-efe/week1/Week1-Hello.csc">Week1-Hello.csc</a> · <a href="https://github.com/AkdenizOS/CSE-427-Wireless-Sensor-Networks/blob/main/assignments/2026-2027-fall-efe/week1/Week1-Broadcast.csc">Week1-Broadcast.csc</a></p>
+    <!-- Kaynak: W1 xml slayt 54 (alt köşe 57) · weeks/01 ## Lab "Observe:" satırı · assignments/2026-2027-fall-efe/week1/*.csc (radiomedium, randomseed, Position) ve README.md · video-script.md Part 5–6. Uzaklıklar python ile: Hello 102.1 / 15.6 / 111.0 m, Broadcast 31.1 / 72.6 / 46.0 m. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Screenshot = sonuç" değil. Rapor gözlem + mekanizma ister.</li>
+      <li>UDGM'nin keskin dairesini gerçek sanma. Gerçekte arada paketlerin bir kısmının geldiği bir bölge vardır.</li>
+      <li>Radio Messages'ta tek "Hello" için onlarca frame görmek hata değildir; ContikiMAC'in broadcast tekrarıdır.</li>
+      <li>Cooja'yı host'un (Windows) terminalinden çalıştırmaya çalışma; VM'in terminalinden çalışır.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: W1 xml slayt 42–50, 54–57 · weeks/01 ## Lab ve Notes — Efe · course-info.md Lab environment. -->
+  <div class="quiz" id="q-cj-interf">
+    <p class="quiz__q">UDGM'de bir mote, göndericinin yeşil dairesinin dışında ama gri dairesinin içinde. Ne olur?</p>
+    <button class="quiz__opt">Paketi alır ama yavaş.<span class="why">Yeşil dairenin dışında paket çözülemez. Hız bir ölçüt değil; UDGM'de alım ya vardır ya yoktur.</span></button>
+    <button class="quiz__opt" data-correct>Paketi çözemez, ama gönderici aynı anda yayın yaparsa o mote'un başka bir alımını bozabilir.<span class="why">Doğru. Interference range: "cannot be decoded but can corrupt other receptions". Hidden terminal'in kökü.</span></button>
+    <button class="quiz__opt">Hiçbir etkisi yoktur; gri daire sadece görsel.<span class="why">Gri daire bir model parametresidir (Efe'nin dosyasında 100 m); çakışmaları belirler.</span></button>
+  </div>
+  <div class="quiz" id="q-cj-ack">
+    <p class="quiz__q">Bir mote broadcast gönderiyor ve hiçbir komşu almıyor. Gönderen bunu nasıl öğrenir?</p>
+    <button class="quiz__opt">ACK gelmez, gönderen tekrar dener.<span class="why">Broadcast'te zaten ACK beklenmez; tekrar deneme mekanizması ACK üstüne kuruludur ve burada devreye girmez.</span></button>
+    <button class="quiz__opt" data-correct>Öğrenemez; broadcast ACK'lenmez.<span class="why">Doğru. Efe'nin Exam-worthy notu: "Broadcast has no ACK — the sender never learns whether anyone received it. Unicast is acknowledged."</span></button>
+    <button class="quiz__opt">Mote Output'ta "no neighbors" yazar.<span class="why">example-broadcast.c böyle bir şey basmaz; menzil dışındaki mote "broadcast message sent" basmaya devam eder.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Önce cevabı kendin söyle, sonra seç.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">"A mote is not a sensor." Hocanın bu cümleyle anlatmak istediği nedir?</p>
+    <button class="quiz__opt">Mote'larda sensör bulunmaz.<span class="why">Bulunur; cümle sensörün tek başına mote olmadığını söylüyor.</span></button>
+    <button class="quiz__opt" data-correct>Mote, sensörleri takılı, kısıtlı ve ağa bağlı bir bilgisayardır: MCU, radio, memory ve power ile birlikte.<span class="why">Doğru. Slayt 28'in tam cümlesi: "a constrained networked computer with sensors attached."</span></button>
+    <button class="quiz__opt">Mote sadece veri ileten bir router'dır.<span class="why">"Node, server, sensor, router soup" tam olarak budur. Mote ölçer, işler ve iletir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Bir öğrenci Contiki'de 5 saniye beklemek için <code>while(clock_time() &lt; end) {}</code> yazıyor. En doğru eleştiri hangisi?</p>
+    <button class="quiz__opt">Doğru çalışır ve etimer ile aynı enerjiyi harcar.<span class="why">Zamanlama doğru olabilir ama enerji çok farklıdır: CPU 5 saniye boyunca active mode'da kalır. Yukarıdaki hesapta oran ≈ 33 kat.</span></button>
+    <button class="quiz__opt" data-correct>Busy wait: CPU low-power mode'a giremez ve bu sırada başka process'ler çalışamaz; etimer + PROCESS_WAIT_EVENT_UNTIL kullanılmalı.<span class="why">Doğru. Slayt 52: "Timers allow periodic sensing without busy waiting."</span></button>
+    <button class="quiz__opt">Sorun yok, çünkü radyo kapalı.<span class="why">Radyo kapalı olsa da CPU 1.8 mA çekmeye devam eder; LPM'de 0.0545 mA olurdu.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Reporting pattern hangi üç tasarım gereksinimini belirler (slayt 20)?</p>
+    <button class="quiz__opt">Range, data rate, channel<span class="why">Bunlar radyo/PHY parametreleri (W2). Slayt 20'nin cümlesi uygulama trafiğiyle ilgili.</span></button>
+    <button class="quiz__opt" data-correct>Duty cycle, latency, buffer requirements<span class="why">Doğru: "Reporting pattern determines duty cycle, latency, and buffer requirements."</span></button>
+    <button class="quiz__opt">Security, cost, size<span class="why">Bunlar domain ve donanım kararları; slayt 20 başka üçlü sayar.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Sky mote'ta firmware'i hangisi çalıştırır, radyo yayılımını hangisi modeller?</p>
+    <button class="quiz__opt">İkisini de Cooja simulate eder.<span class="why">Sky mote'ta firmware'i MSPSim emulate eder; Cooja radio medium'u (UDGM) simulate eder. İş bölümü var.</span></button>
+    <button class="quiz__opt" data-correct>MSPSim firmware'i emulate eder; Cooja'nın radio medium'u (UDGM) yayılımı simulate eder.<span class="why">Doğru. Bu yüzden firmware davranışına güvenebilirsin ama Cooja range'inden gerçek dünya iddiası çıkaramazsın.</span></button>
+    <button class="quiz__opt">msp430-gcc ikisini de yapar.<span class="why">msp430-gcc bir cross-compiler: sadece firmware'i derler, hiçbir şey çalıştırmaz.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Seradaki "open vents" komutu için hangi gereksinim, periodic sıcaklık okumasında olmayıp burada zorunludur?</p>
+    <button class="quiz__opt">Düşük duty cycle<span class="why">Duty cycle bir enerji tasarım kararıdır; mesajın gereksinimi değil.</span></button>
+    <button class="quiz__opt" data-correct>Authentication<span class="why">Doğru. Komut fiziksel durumu değiştirir; sahtesi hasar verir. Slayt 18 ve 25.</span></button>
+    <button class="quiz__opt">Aggregation<span class="why">Aggregation çok sayıda ölçümü birleştirir; tek bir komutta anlamı yoktur.</span></button>
+  </div>
+  <!-- Sıradaki konu: radio-propagation (dBm, link budget, path loss). -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=6"></script>
+<script src="../assets/lab.js?v=6"></script>
+<script>
+/* 1. Greenhouse message sorter: pattern + needs, checked against the assumptions stated on each card (W1 slides 18, 23, 25, 26) */
+(function () {
+  const PAT = ["Periodic", "Event-driven", "Query-driven", "Control"];
+  const NEEDS = [["rel", "reliability"], ["lat", "low latency"], ["auth", "authentication"]];
+  const MSG = [
+    { t: "Temperature + humidity, every minute", p: "Periodic", rel: false, lat: false, auth: "opt",
+      ctx: "Dashboard'daki trend için. Bir sonraki okuma 60 s sonra gelir; birkaç saniyelik gecikme fark edilmez.",
+      why: "Monitoring: kayıp bir değer bir dakika sonra yenisiyle gelir (slayt 23, 25). Reliability ve low latency gerekmez. Authentication isteğe bağlı: sahte bir okuma trend'i bozar ama kendisi hiçbir şeyi değiştirmez." },
+    { t: "Overheating report", p: "Event-driven", rel: true, lat: true, auth: "opt",
+      ctx: "Seyrek gelir. Operatör ya da kontrol mantığı birkaç saniye içinde vent açmalı.",
+      why: "Seyrek ve acil bir olay: kaybolursa ya da geç gelirse bitkiler zarar görür. Authentication isteğe bağlı: sahte bir rapor gereksiz bir vent açtırabilir, bu yüzden istenebilir; ama slayt 18 daha güçlü authentication şartını actuation link'lerine koyar." },
+    { t: "Irrigation failure report", p: "Event-driven", rel: true, lat: true, auth: "opt",
+      ctx: "Slayt 26: 'report … immediately'. Arıza fark edilene kadar bitkiler susuz kalır.",
+      why: "Kaybolmamalı ve hemen gelmeli. Authentication isteğe bağlı: rapor kendisi bir şeyi değiştirmez, ama sahtesi operatörü yanıltabilir." },
+    { t: "Operator asks: current battery level", p: "Query-driven", rel: false, lat: false, auth: "opt",
+      ctx: "Operatör cevabı acil beklemiyor. Cevap kaybolursa sorguyu tekrarlar.",
+      why: "Uygulama gerektiğinde sorar. Cevap kaybolursa operatör tekrar sorar; birkaç saniyelik gecikme sorun değil. Authentication isteğe bağlı." },
+    { t: "Operator asks: last 24-hour trend", p: "Query-driven", rel: true, lat: false, auth: "opt",
+      ctx: "Cevap çok paketli. Analiz için trend eksiksiz gelmeli; operatör birkaç dakika bekleyebilir.",
+      why: "Eksik paket trend'de delik bırakır, o yüzden reliability gerekir. Acelesi yok. Authentication isteğe bağlı." },
+    { t: "Command: open vents", p: "Control", rel: true, lat: true, auth: true,
+      ctx: "Sera şu an aşırı ısınıyor; vent birkaç saniye içinde açılmalı.",
+      why: "Control: fiziksel durumu değiştirir (slayt 25). Sahte ya da yanlış komut hasar verir, authentication şart. Aşırı ısınma şu an olduğu için gecikmemeli de." },
+    { t: "Command: start irrigation", p: "Control", rel: true, lat: false, auth: true,
+      ctx: "Planlı sulama. Birkaç saniye geç başlaması bitkiye zarar vermez.",
+      why: "'A wrong valve command is a problem' (slayt 23): reliability ve authentication şart. Planlı olduğu için low latency gerekmez." },
+    { t: "Humidity every minute, from a second sensor in the same row", p: "Periodic", rel: false, lat: false, auth: "opt",
+      ctx: "İlk kartla aynı: dashboard trend'i, 60 s'de bir yeni değer.",
+      why: "İlk kartla aynı monitoring trafiği. Yakın sensörler zaten benzer değer verir; aggregation bu tekrarları azaltabilir (slayt 22). Authentication isteğe bağlı." }
+  ];
+  const box = document.getElementById("gh-cards"), score = document.getElementById("gh-score");
+  function render() {
+    box.innerHTML = MSG.map((m, i) => `
+      <div class="w-intro-hardware-card" id="gh-c${i}">
+        <h4>${i + 1}. ${m.t}</h4>
+        <p class="src">${m.ctx}</p>
+        <select id="gh-p${i}" aria-label="Pattern ${i + 1}"><option value="">pattern seç…</option>${PAT.map(p => `<option>${p}</option>`).join("")}</select>
+        <div>${NEEDS.map(([k, l]) => `<label><input type="checkbox" id="gh-${k}${i}" /> ${l}</label>`).join("")}</div>
+        <div class="w-intro-hardware-fb" id="gh-f${i}"></div>
+      </div>`).join("");
+    score.textContent = "";
+  }
+  function check() {
+    let ok = 0, empty = 0;
+    MSG.forEach((m, i) => {
+      const card = document.getElementById("gh-c" + i), fb = document.getElementById("gh-f" + i);
+      const p = document.getElementById("gh-p" + i).value;
+      card.classList.remove("is-ok", "is-bad");
+      if (!p) { empty++; fb.textContent = "Önce bir pattern seç."; return; }
+      const errs = [];
+      if (p !== m.p) errs.push(`Pattern: ${m.p} olmalı.`);
+      NEEDS.forEach(([k, l]) => {
+        if (m[k] === "opt") return;
+        const v = document.getElementById("gh-" + k + i).checked;
+        if (v !== m[k]) errs.push(m[k] ? `${l} gerekiyor.` : `${l} zorunlu değil.`);
+      });
+      if (!errs.length) { ok++; card.classList.add("is-ok"); fb.textContent = "✓ " + m.why; }
+      else { card.classList.add("is-bad"); fb.textContent = "✗ " + errs.join(" ") + " " + m.why; }
+    });
+    const req = MSG.map((m, i) => m.auth === true ? i + 1 : 0).filter(Boolean);
+    score.textContent = empty ? `${empty} kart boş. ` : "";
+    score.textContent += `${ok} / ${MSG.length} kart bu varsayımlarla doğru. Authentication'ın zorunlu olduğu kartlar: ${req.join(" ve ")} (control komutları). Diğerlerinde authentication bir tasarım tercihi.`;
+  }
+  document.getElementById("gh-check").addEventListener("click", check);
+  document.getElementById("gh-reset").addEventListener("click", render);
+  render();
+})();
+
+/* 2. Mote block-diagram builder: chain order, then Memory, Power and the lifetime question */
+(function () {
+  const CHAIN = ["Sensors", "ADC", "MCU", "Radio", "Antenna"];
+  const ALL = ["Radio", "Memory", "Sensors", "Antenna", "Power", "MCU", "ADC"];
+  const POS = { Sensors: [10, 90], ADC: [140, 70], MCU: [250, 80], Radio: [370, 80], Antenna: [490, 90] };
+  const WRONG = {
+    "start": "Zincir fiziksel dünyadan başlar: önce ölçen blok gelir.",
+    "Sensors>MCU": "Analog sensörün voltajını MCU doğrudan okuyamaz; araya bir çevirici girer.",
+    "Sensors>Radio": "Ham sinyal radyoya gitmez: önce sayıya çevrilmeli ve MCU ne gönderileceğine karar vermeli.",
+    "ADC>Radio": "ADC'nin ürettiği sayıları radyoya kim verecek? 'The MCU decides when and what to transmit.'",
+    "MCU>Antenna": "Antenna sadece bir iletkendir; frame'i modüle edip gönderen ara blok eksik.",
+    "default": "Bu blok zincirde burada durmaz. Veri hangi sırayla akar: ölç, çevir, karar ver, gönder, yay."
+  };
+  const btns = document.getElementById("bd-btns"), msg = document.getElementById("bd-msg"),
+    svg = document.getElementById("bd-svg"), stepEl = document.getElementById("bd-step");
+  let st;
+  function reset() { st = { phase: "chain", chain: [], mem: null, pow: null, life: [], tries: 0 }; draw(); }
+  function rect(x, y, w, h, label, hot) {
+    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${hot ? "var(--orange-100)" : "var(--blue-100)"}" stroke="${hot ? "var(--accent)" : "var(--blue-600)"}" stroke-width="${hot ? 2 : 1}"/><text x="${x + w / 2}" y="${y + h / 2 + 5}" text-anchor="middle" font-size="13" font-family="Inter Tight, sans-serif">${label}</text>`;
+  }
+  function picture() {
+    const hot = n => st.phase === "done" && (n === "Radio" || n === "Power");
+    let s = "";
+    st.chain.forEach((n, i) => {
+      const [x, w] = POS[n];
+      s += rect(x, 60, w, 40, n, hot(n));
+      if (i > 0) { const [px, pw] = POS[st.chain[i - 1]]; s += `<line x1="${px + pw}" y1="80" x2="${x - 2}" y2="80" stroke="var(--fg-muted)"/>`; }
+    });
+    if (st.mem) s += rect(250, 5, 80, 34, "Memory", false) + `<line x1="290" y1="39" x2="290" y2="58" stroke="var(--fg-muted)"/>`;
+    if (st.pow) {
+      s += rect(10, 150, 570, 34, "Power", hot("Power"));
+      CHAIN.slice(0, 4).forEach(n => { const [x, w] = POS[n]; s += `<line x1="${x + w / 2}" y1="148" x2="${x + w / 2}" y2="102" stroke="var(--fg-muted)" stroke-dasharray="3 3"/>`; });
+    }
+    svg.innerHTML = s;
+  }
+  function button(label, on, extra) { return `<button class="btn btn--sm ${extra || ""}" data-b="${label}">${label}</button>`; }
+  function draw() {
+    picture();
+    if (st.phase === "chain") {
+      stepEl.textContent = `Adım 1/4 · zincir: ${st.chain.length}/5`;
+      if (!st.chain.length && !msg.dataset.keep) msg.textContent = "Veri akış sırasına göre blokları tıkla: fiziksel dünyadan havaya.";
+      btns.innerHTML = ALL.map(n => button(n, true, st.chain.includes(n) ? "is-used" : "")).join("");
+    } else if (st.phase === "mem") {
+      stepEl.textContent = "Adım 2/4";
+      msg.textContent = "Zincir tamam. Memory hangi bloğa bağlanır?";
+      btns.innerHTML = CHAIN.map(n => button(n)).join("");
+    } else if (st.phase === "pow") {
+      stepEl.textContent = "Adım 3/4";
+      btns.innerHTML = ["Sadece MCU", "Sadece Radio", "Bütün bloklar"].map(n => button(n)).join("");
+    } else if (st.phase === "life") {
+      stepEl.textContent = "Adım 4/4";
+      btns.innerHTML = ALL.map(n => button(n, true, st.life.includes(n) ? "is-pick" : "")).join("") + ` <button class="btn btn--sm btn--accent" data-b="__ok">Onayla</button>`;
+    } else {
+      stepEl.textContent = "Bitti";
+      btns.innerHTML = "";
+    }
+    delete msg.dataset.keep;
+  }
+  btns.addEventListener("click", e => {
+    const b = e.target.closest("[data-b]"); if (!b) return;
+    const n = b.dataset.b;
+    if (st.phase === "chain") {
+      if (st.chain.includes(n)) return;
+      if (n === "Memory" || n === "Power") { msg.textContent = `${n} veri akış zincirinde değil: veri ${n === "Memory" ? "memory'den geçip ilerlemez, MCU onu kullanır" : "power'dan geçmez, power herkesi besler"}. Zinciri bitir, sonra bağlayacağız.`; msg.dataset.keep = 1; draw(); return; }
+      const want = CHAIN[st.chain.length];
+      if (n !== want) {
+        const prev = st.chain.length ? st.chain[st.chain.length - 1] : null;
+        msg.textContent = "✗ " + (prev ? (WRONG[prev + ">" + n] || WRONG.default) : WRONG.start);
+        msg.dataset.keep = 1; draw(); return;
+      }
+      st.chain.push(n);
+      msg.textContent = "✓ " + ({ Sensors: "Sensors create raw evidence.", ADC: "Analog sinyal sayıya çevrilir.", MCU: "The MCU decides when and what to transmit.", Radio: "Radio frame'i modüle eder ve gönderir.", Antenna: "Antenna sinyali havaya verir." })[n];
+      msg.dataset.keep = 1;
+      if (st.chain.length === 5) { st.phase = "mem"; delete msg.dataset.keep; }
+      draw();
+    } else if (st.phase === "mem") {
+      if (n === "MCU") { st.mem = "MCU"; st.phase = "pow"; draw(); msg.textContent = "✓ Memory MCU'ya bağlı: kod (flash) ve buffer/tablolar (RAM) MCU'nun kullanımında. Power nereye gider?"; }
+      else msg.textContent = `✗ ${n} belleği doğrudan kullanmaz. Firmware'i çalıştıran ve tabloları tutan blok hangisi?`;
+    } else if (st.phase === "pow") {
+      if (n === "Bütün bloklar") { st.pow = true; st.phase = "life"; draw(); msg.textContent = "✓ Her blok akım çeker; power subsystem hepsini besler. Son soru: lifetime'ı domine eden iki bloğu seç ve onayla."; }
+      else msg.textContent = `✗ ${n.replace("Sadece ", "")} tek tüketici değil: sensörler, ADC ve LED'ler de akım çeker (slayt 36).`;
+    } else if (st.phase === "life") {
+      if (n === "__ok") {
+        const pick = st.life.slice().sort().join("+");
+        if (pick === "Power+Radio") { st.phase = "done"; draw(); msg.textContent = "✓ 'The radio and power subsystem dominate lifetime questions.' Radio en büyük tüketici (özellikle idle listening), power ise bütçenin kendisi."; }
+        else if (st.life.length !== 2) msg.textContent = "Tam iki blok seç.";
+        else msg.textContent = `✗ ${st.life.join(" + ")} değil. İpucu: biri harcamanın, biri bütçenin tarafında.`;
+        return;
+      }
+      const k = st.life.indexOf(n);
+      if (k >= 0) st.life.splice(k, 1); else if (st.life.length < 2) st.life.push(n);
+      const keep = msg.textContent; draw(); msg.textContent = keep;
+    }
+  });
+  document.getElementById("bd-reset").addEventListener("click", () => { msg.textContent = ""; reset(); });
+  reset();
+})();
+
+/* 3. Protothread stepper: a small model of Contiki's local-continuation semantics, run for real */
+(function () {
+  const CODE = {
+    static: [
+      "PROCESS_THREAD(sense_process, ev, data)",
+      "{",
+      "  static struct etimer timer;",
+      "  static int sent = 0;",
+      "  PROCESS_BEGIN();",
+      "  while(1) {",
+      "    etimer_set(&timer, CLOCK_SECOND * 5);",
+      "    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));",
+      "    sent++;",
+      "    printf(\"reading %d\\n\", sent);",
+      "  }",
+      "  PROCESS_END();",
+      "}"
+    ],
+    busy: [
+      "PROCESS_THREAD(sense_process, ev, data)",
+      "{",
+      "  static clock_time_t end;",
+      "  static int sent = 0;",
+      "  PROCESS_BEGIN();",
+      "  while(1) {",
+      "    end = clock_time() + CLOCK_SECOND * 5;",
+      "    while(clock_time() < end) { }  /* busy wait */",
+      "    sent++;",
+      "    printf(\"reading %d\\n\", sent);",
+      "  }",
+      "  PROCESS_END();",
+      "}"
+    ]
+  };
+  CODE.local = CODE.static.slice();
+  CODE.local[3] = "  int sent = 0;           /* static değil */";
+  const PERIOD = 5, HORIZON = 15;
+
+  /* Run the model and record one frame per executed line. */
+  function run(variant) {
+    const frames = [];
+    const isStatic = variant !== "local";
+    let sent = isStatic ? 0 : undefined;  /* static: initialised once at load */
+    let lc = 0, expiry = null, t = 0, out = [], cpuOn = 0, lpm = 0;
+    const push = (line, mcu, cap) => frames.push({ line, t, mcu, sent, out: out.slice(), cpuOn, lpm, caption: cap });
+    if (variant === "busy") {
+      push(4, "active", "t = 0 s: boot. Kernel process'i <code>PROCESS_INIT</code> event'iyle çağırır.");
+      push(6, "active", "Bitiş zamanı hesaplanır: şimdi + 5 s.");
+      for (let k = 1; k * PERIOD <= HORIZON; k++) {
+        const from = t;
+        for (let s = from + 1; s <= k * PERIOD; s++) {
+          t = s; cpuOn = t;
+          push(7, "active", `t = ${t} s: CPU döngüde <code>clock_time()</code>'ı tekrar tekrar okuyor. Uyuyamaz ve başka hiçbir process çalışamaz.`);
+        }
+        sent++;
+        push(8, "active", `Süre doldu, sent = ${sent}.`);
+        out.push(`reading ${sent}`);
+        push(9, "active", `Mote Output: "reading ${sent}".`);
+        if ((k + 1) * PERIOD <= HORIZON) push(6, "active", "Yeni bitiş zamanı. Döngü yine başlıyor.");
+      }
+      frames.push({ line: -1, t, mcu: "active", sent, out: out.slice(), cpuOn: t, lpm: 0, final: true,
+        caption: `${HORIZON} saniyenin <b>${HORIZON} saniyesi</b> CPU active, LPM'de <b>0 s</b>. Sayaç doğru ama bedeli enerji.` });
+      return frames;
+    }
+    /* one kernel call of the protothread function, as Contiki's switch-based local continuation does it */
+    function call(evName) {
+      if (!isStatic) { sent = 0; push(3, "active", `t = ${t} s: kernel process'i <code>${evName}</code> ile çağırdı. Fonksiyon baştan girildi: <code>int sent = 0;</code> yeniden çalıştı, sent = 0.`); }
+      else push(4, "active", `t = ${t} s: kernel process'i <code>${evName}</code> ile çağırdı. Fonksiyon baştan girildi; <code>static</code> sent korunuyor (sent = ${sent}).`);
+      push(4, "active", lc === 0 ? "<code>PROCESS_BEGIN</code>: kayıtlı satır yok, en baştan devam." : `<code>PROCESS_BEGIN</code>: kayıtlı satır ${lc + 1}'e atla (local continuation).`);
+      let line = lc === 0 ? 5 : lc;
+      while (true) {
+        if (line === 5) { line = 6; continue; }
+        if (line === 6) { expiry = t + PERIOD; push(6, "active", `etimer ${expiry} s'de dolacak şekilde kuruldu.`); line = 7; continue; }
+        if (line === 7) {
+          if (expiry !== null && t >= expiry) { push(7, "active", "Koşul doğru: timer doldu. Wait'in altından devam."); expiry = null; line = 8; continue; }
+          lc = 7;
+          push(7, "LPM", "Koşul yanlış: satır kaydedildi, process yield etti. Hazır iş yok, MCU low-power mode'a girdi.");
+          return;
+        }
+        if (line === 8) { sent = sent + 1; push(8, "active", `sent++ ⇒ sent = ${sent}.`); line = 9; continue; }
+        if (line === 9) { out.push(`reading ${sent}`); push(9, "active", `Mote Output: "reading ${sent}".`); line = 5; continue; }
+      }
+    }
+    call("PROCESS_EVENT_INIT");
+    for (let k = 1; k * PERIOD <= HORIZON; k++) {
+      lpm += PERIOD; t = k * PERIOD;
+      call("PROCESS_EVENT_TIMER");
+    }
+    frames.push({ line: -1, t, mcu: "LPM", sent, out: out.slice(), cpuOn, lpm, final: true,
+      caption: isStatic
+        ? `${HORIZON} s boyunca CPU sadece uyanışlarda birkaç satır çalıştı, kalan zamanda LPM'deydi. Sayaç 1, 2, 3 diye doğru arttı.`
+        : `Enerji aynı derecede iyi, ama sayaç her seferinde <b>1</b>: local variable wait'ten sonra yaşamıyor. Çözüm: <code>static int sent</code>.` });
+    return frames;
+  }
+  const sel = document.getElementById("pt-var"), host = document.getElementById("pt-stepper");
+  function build() {
+    const v = sel.value, code = CODE[v], frames = run(v);
+    Lab.stepper(host, {
+      title: v === "busy" ? "Busy wait sürümü, 15 s" : v === "local" ? "static olmayan sent, 15 s" : "etimer + static, 15 s",
+      interval: 1000,
+      frames,
+      render(f, i, el) {
+        const pct = Math.min(100, 100 * f.t / HORIZON);
+        el.innerHTML = Lab.codeView(code, f.line) +
+          `<div class="w-intro-hardware-state">
+             <div><b>Saat</b>${f.t} s</div>
+             <div><b>MCU</b><span class="${f.mcu === "LPM" ? "w-intro-hardware-lpm" : "w-intro-hardware-act"}">${f.mcu === "LPM" ? "LPM (uyuyor)" : "active"}</span></div>
+             <div><b>sent</b>${f.sent === undefined ? "—" : f.sent}</div>
+           </div>
+           <div class="w-intro-hardware-tl" aria-hidden="true"><i style="width:${pct}%;background:${v === "busy" ? "var(--accent)" : "#2b8a3e"}"></i></div>
+           <div class="src">Zaman çubuğu: ${v === "busy" ? "turuncu = CPU active" : "yeşil = çoğunlukla LPM"}</div>
+           <div class="w-intro-hardware-out">${f.out.length ? f.out.join("\n") : "Mote Output boş"}</div>`;
+      }
+    });
+  }
+  sel.addEventListener("change", build);
+  build();
+})();
+
+/* 4. Busy-wait vs etimer charge, W3 lab current model (CPU 1.8 mA, LPM 0.0545 mA) */
+(function () {
+  const I_CPU = 1.8, I_LPM = 0.0545;
+  const $ = id => document.getElementById(id);
+  const fmt = (v, d) => { const r = Number(v.toFixed(d)); return String(r); };
+  function read(id, name, lo, hi) {
+    const raw = $(id).value.trim().replace(",", ".");
+    if (raw === "") return { e: `${name} boş. Bir sayı yaz.` };
+    const v = Number(raw);
+    if (!Number.isFinite(v)) return { e: `${name} bir sayı olmalı.` };
+    if (v <= lo) return { e: `${name} ${lo}'dan büyük olmalı.` };
+    if (v > hi) return { e: `${name} en fazla ${hi} olsun.` };
+    return { v };
+  }
+  function upd() {
+    const P = read("bw-p", "P", 0, 3600), W = read("bw-w", "w", 0, 60000), T = read("bw-t", "T", 0, 86400);
+    const errs = [P, W, T].filter(x => x.e).map(x => x.e);
+    if (!errs.length && W.v / 1000 > P.v) errs.push("Bu model kısa periyodik iş içindir: uyanış başına iş (w) period'dan (P) uzun olmasın.");
+    if (!errs.length && P.v > T.v) errs.push("Süre T en az bir period kadar olmalı.");
+    if (errs.length) { $("bw-err").textContent = errs.join(" "); $("bw-out").innerHTML = ""; return; }
+    $("bw-err").textContent = "";
+    const p = P.v, w = W.v, t = T.v;
+    /* Displayed loop: etimer_set runs after the work, so wake k starts at k·P + (k−1)·w and works for w; clip to [0, T). */
+    const ws = w / 1000, start = k => k * p + (k - 1) * ws;
+    let wakes = Math.max(0, Math.ceil((t + ws) / (p + ws)) - 1);
+    while (wakes > 0 && start(wakes) >= t) wakes--;
+    while (start(wakes + 1) < t) wakes++;
+    const lastLen = wakes ? Math.min(ws, t - start(wakes)) : 0, clipped = wakes > 0 && lastLen < ws;
+    const act = wakes ? (wakes - 1) * ws + lastLen : 0;
+    const qE = I_CPU * act + I_LPM * (t - act), qB = I_CPU * t;
+    const iE = qE / t, ratio = qB / qE;
+    $("bw-out").innerHTML = `<div class="table-wrap"><table>
+      <tr><th></th><th>CPU active süresi</th><th>Charge</th><th>Ortalama akım</th></tr>
+      <tr><td>etimer + wait</td><td>${wakes} uyanış${clipped ? ` (son iş T'de kesildi: ${fmt(lastLen * 1000, 3)} ms)` : ` × ${fmt(w, 3)} ms`} = ${fmt(act, 4)} s</td><td>${fmt(qE, 4)} mA·s</td><td>${fmt(iE, 6)} mA</td></tr>
+      <tr><td>busy wait</td><td>${fmt(t, 3)} s (hepsi)</td><td>${fmt(qB, 4)} mA·s</td><td>${fmt(I_CPU, 4)} mA</td></tr>
+    </table></div>
+    <p>etimer sürümü:</p>$$Q = 1.8 \\cdot ${fmt(act, 4)} + 0.0545 \\cdot ${fmt(t - act, 4)} = ${fmt(qE, 4)}\\ \\text{mA}\\cdot\\text{s}$$<p>Busy wait, etimer sürümünün <b>${fmt(ratio, 2)} katı</b> charge harcıyor. CPU'nun duty cycle'ı etimer'da %${fmt(100 * act / t, 4)}, busy wait'te %100.</p>
+    <p class="src">Uyanışlar yukarıdaki etimer döngüsünden hesaplanır: <code>etimer_set</code> işten sonra çağrıldığı ve "şimdi"den saydığı için k. uyanış t = kP + (k−1)w anında başlar. Her uyku ve iş aralığı [0, T) içine kırpılır; boot'taki kısa ilk çalışma sayılmıyor. Akım değerleri W3 lab tutorial'ındaki örnek model.</p>`;
+    Lab.renderMath($("bw-out"));
+  }
+  ["bw-p", "bw-w", "bw-t"].forEach(id => $(id).addEventListener("input", upd));
+  upd();
+})();
+
+/* 5. Boot-line decoder: label each token of Contiki's network-stack line */
+(function () {
+  const DICT = {
+    nullsec: ["sec", "LLSEC driver: link-layer security yok. Frame'ler şifrelenmez ve authenticate edilmez."],
+    noncoresec: ["sec", "LLSEC driver: anahtarla basit link-layer security."],
+    csma: ["mac", "MAC driver: göndermeden önce kanalı dinler (carrier sense), çakışma ya da ACK yoksa tekrar dener."],
+    nullmac: ["mac", "MAC driver: hiçbir kanal erişim mantığı yok, frame'i doğrudan RDC'ye verir."],
+    contikimac: ["rdc", "RDC (radio duty cycling) driver: radyo çoğu zaman kapalı, periyodik kısa channel check'lerle uyanır. Broadcast'i bir wake-up interval boyunca tekrarlar."],
+    nullrdc: ["rdc", "RDC driver: duty cycling yok, radyo hep açık. Basit ama enerji pahalı."],
+    "cx-mac": ["rdc", "RDC driver: X-MAC'in Contiki sürümü (kısa preamble/strobe'lar). Ayrıntı lpl-mac-protocols dersinde."]
+  };
+  const KIND = { sec: "security (LLSEC)", mac: "MAC", rdc: "RDC" };
+  const $ = id => document.getElementById(id);
+  function go() {
+    const line = $("bl-in").value.trim();
+    const err = $("bl-err"), out = $("bl-out");
+    if (!line) { err.textContent = "Bir boot satırı yapıştır."; out.innerHTML = ""; return; }
+    const [head, ...rest] = line.split(",").map(s => s.trim());
+    const toks = head.split(/\s+/).filter(Boolean);
+    const rows = [], warn = [];
+    const seen = {};
+    toks.forEach(tk => {
+      const d = DICT[tk.toLowerCase()];
+      if (d) { seen[d[0]] = (seen[d[0]] || 0) + 1; rows.push(`<div><span class="w-intro-hardware-tok k-${d[0]}">${tk}</span> <b>${KIND[d[0]]}</b>: ${d[1]}</div>`); }
+      else { rows.push(`<div><span class="w-intro-hardware-tok k-unk">${tk.replace(/[<>&]/g, "")}</span> Tanınmadı. Contiki 3.0'ın bilinen driver adlarından biri değil (yazımı kontrol et).</div>`); warn.push(tk); }
+    });
+    let rate = null;
+    rest.forEach(part => {
+      let m = part.match(/^channel check rate\s+([0-9]+(?:\.[0-9]+)?)\s*Hz$/i);
+      if (m) {
+        rate = Number(m[1]);
+        if (rate <= 0) { rows.push(`<div><span class="w-intro-hardware-tok k-unk">${part}</span> Rate pozitif olmalı.</div>`); return; }
+        rows.push(`<div><span class="w-intro-hardware-tok k-num">${part}</span> Saniyede ${rate} channel check ⇒ wake-up interval $1/${rate}$ s = <b>${Number((1000 / rate).toFixed(3))} ms</b>. Bir broadcast'in bütün komşulara ulaşması için bu süre boyunca tekrarlanması gerekir.</div>`);
+        return;
+      }
+      m = part.match(/^radio channel\s+([0-9]+)$/i);
+      if (m) {
+        const ch = Number(m[1]);
+        if (ch < 11 || ch > 26) { rows.push(`<div><span class="w-intro-hardware-tok k-unk">${part}</span> 2.4 GHz'de IEEE 802.15.4 kanalları 11–26 arasıdır; ${ch} bu aralıkta değil.</div>`); return; }
+        rows.push(`<div><span class="w-intro-hardware-tok k-num">${part}</span> IEEE 802.15.4 fiziksel kanalı ${ch}: merkez frekans $2405 + 5(${ch} - 11)$ = <b>${2405 + 5 * (ch - 11)} MHz</b>. Rime'ın "channel 129"u ile karıştırma.</div>`);
+        return;
+      }
+      rows.push(`<div><span class="w-intro-hardware-tok k-unk">${part.replace(/[<>&]/g, "")}</span> Tanınmadı. Beklenen biçim: "channel check rate 8 Hz" ya da "radio channel 26".</div>`);
+    });
+    const missing = ["sec", "mac", "rdc"].filter(k => !seen[k]).map(k => KIND[k]);
+    err.textContent = missing.length ? `Satırda şu katman eksik: ${missing.join(", ")}. Contiki 3.0 boot satırı sırasıyla security, MAC ve RDC driver'ını yazar.` : "";
+    out.innerHTML = rows.join("") + (missing.length ? "" : `<p class="src">Katmanlar yukarıdan aşağı: LLSEC → MAC → RDC → radio. MAC "ne zaman göndereyim", RDC "radyo ne zaman açık" sorusunu cevaplar.</p>`);
+    Lab.renderMath(out);
+  }
+  $("bl-go").addEventListener("click", go);
+  $("bl-in").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+  go();
+})();
+</script>
+</body>
+</html>
