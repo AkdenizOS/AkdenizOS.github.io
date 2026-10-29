@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 413: tableau simplex adım adım. Kenar boyunca yürüme fikri, cⱼ − zⱼ ile price, ratio test, pivot row operation'ları, final tableau'yu okumak, z-row convention'ı, min problem'leri ve Lab 3 simplex kodu." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Tableau simplex adım adım · CSE 413 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-simplex-wrap { margin: 12px 0; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); min-width: 0; }
+    .w-simplex-guess { margin: 0 0 8px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-simplex-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-simplex-ctl select { max-width: 100%; }
+    .w-simplex-ctl label { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .92rem; }
+    .w-simplex-custom { margin: 6px 0; }
+    .w-simplex-custom textarea, .w-simplex-custom input[type="text"] { font-family: 'JetBrains Mono', monospace; font-size: .9rem; width: 100%; max-width: 340px; box-sizing: border-box; }
+    .w-simplex-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-simplex-tab { border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: .84rem; margin: 4px 0; }
+    .w-simplex-tab th, .w-simplex-tab td { padding: 3px 7px; text-align: center; border: 1px solid var(--border); white-space: nowrap; }
+    .w-simplex-tab th { background: var(--bg-muted); }
+    .w-simplex-tab .w-simplex-cj th { background: transparent; border: none; color: var(--fg-muted); }
+    .w-simplex-tab .w-simplex-zj td, .w-simplex-tab .w-simplex-zr td { background: var(--blue-050); font-weight: 700; }
+    .w-simplex-tab .w-simplex-red td { background: var(--stone-100); font-weight: 700; }
+    .w-simplex-tab .is-col { background: var(--orange-100); }
+    .w-simplex-tab tr.is-row td { background: var(--blue-100); }
+    .w-simplex-tab td.is-piv { background: var(--accent); color: var(--fg-on-accent); font-weight: 800; }
+    .w-simplex-tab tr.is-new td { background: #e3f4e6; }
+    .w-simplex-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: start; }
+    @media (min-width: 760px) { .w-simplex-grid.has-plot { grid-template-columns: minmax(0, 1fr) 270px; } }
+    .w-simplex-plot svg { display: block; width: 100%; max-width: 300px; height: auto; margin: 0 auto; }
+    .w-simplex-ops { font-family: 'JetBrains Mono', monospace; font-size: .8rem; margin: 4px 0 6px; padding: 6px 8px; background: var(--bg-muted); border-radius: var(--radius-sm); overflow-x: auto; }
+    .w-simplex-ops div { white-space: nowrap; }
+    .w-simplex-sub { font-size: .8rem; font-weight: 700; color: var(--fg-muted); margin: 6px 0 2px; }
+    .w-simplex-wrap[data-conv="slide"] .w-simplex-only-zrow, .w-simplex-wrap[data-conv="zrow"] .w-simplex-only-slide { display: none; }
+    .w-simplex-prompt { font-weight: 700; margin: 6px 0; }
+    .w-simplex-fb { min-height: 1.4em; margin: 6px 0; padding: 6px 10px; border-radius: var(--radius-sm); }
+    .w-simplex-fb.is-ok { background: #e3f4e6; }
+    .w-simplex-fb.is-bad { background: var(--orange-100); }
+    .w-simplex-click th[data-col], .w-simplex-click tr[data-row] td, .w-simplex-click td[data-kind] { cursor: pointer; }
+    .w-simplex-click th[data-col]:hover, .w-simplex-click tr[data-row]:hover td, .w-simplex-click td[data-kind]:hover { outline: 2px solid var(--blue-400); outline-offset: -2px; }
+    .w-simplex-cellbtn { all: unset; box-sizing: border-box; display: block; width: 100%; cursor: pointer; text-align: center; }
+    .w-simplex-cellbtn:focus-visible { outline: 2px solid var(--blue-600); outline-offset: 2px; border-radius: 2px; }
+    .w-simplex-zin { width: 90px; font-family: 'JetBrains Mono', monospace; }
+    .w-simplex-score { font-size: .88rem; color: var(--fg-muted); }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 413</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 413</a> / Tableau simplex adım adım</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L5</span><span class="chip">Week 3</span><span class="chip chip--exam">Vize: elle tableau</span><span class="chip">HW 2</span><span class="src">~58 dk · 12 bölüm</span></div>
+          <h1>Tableau simplex adım adım: price, ratio test, pivot</h1>
+          <p class="lead">Bir önceki derste LP'nin optimum'unun bir vertex'te olduğunu gördün. <strong>Simplex method</strong> bu vertex'leri tek tek denemez: bir vertex'ten başlar, daha iyi bir komşuya bir kenar boyunca yürür, daha iyi komşu kalmayınca durur. Bu derste hocanın tableau'sunu (cⱼ satırı, c_B sütunu, zⱼ ve cⱼ − zⱼ) her pivot'uyla elle doldurmayı, final tableau'dan çözümü ve shadow price'ları okumayı, Lab 3'teki z-row convention'ını ve min problem'lerini öğreneceksin.</p>
+          <!-- Kaynak: Week_03.pdf s.11–20, 24–26 (Part II: The Simplex Method) · Winston, Operations Research §4.2, §4.5, §4.6 (pdf s.146–169) ve problem'leri · Nocedal & Wright Ch.13 (matris formu) · Lab01.ipynb'deki LP · weeks/03-linear-programming-simplex.md. Bütün tableau'lar kesirli aritmetikle python'da yeniden hesaplandı (verify.py, build.py). -->
+        </header>
+
+        <article class="lesson" data-course="cse-413" data-lesson="simplex">
+
+<!-- 1 -->
+<section class="lsec" id="walk" data-min="4">
+  <h2>Fikir: kenar boyunca yürü, her adımda iyileş</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · job-mix LP</span>
+    <p>Haftanın tek örneği hep aynı LP: bir kampüs cluster'ı iki servis satıyor, $x_1$ batch compute (birim kâr 3 k₺), $x_2$ interactive compute (birim kâr 5 k₺).</p>
+    $$\max\ z = 3x_1 + 5x_2 \quad \text{s.t.}\quad x_1 \le 4\ \text{(accelerator)},\quad 2x_2 \le 12\ \text{(memory)},\quad 3x_1 + 2x_2 \le 18\ \text{(CPU)},\quad x_1, x_2 \ge 0$$
+    <p>Feasible region beş köşeli bir polygon. Simplex şöyle yürür:</p>
+    <ul>
+      <li><strong>Başla:</strong> origin $(0,0)$. Bütün kaynaklar boşta, yani hepsi slack. $z = 0$.</li>
+      <li><strong>Adım 1:</strong> bir kenar boyunca $(0,6)$'ya. $z$: $0 \to 30$.</li>
+      <li><strong>Adım 2:</strong> bir kenar boyunca $(2,6)$'ya. $z$: $30 \to 36$.</li>
+      <li>$(2,6)$'nın hiçbir komşusu daha iyi değil, <strong>dur</strong>: $(2,6)$ optimal.</li>
+    </ul>
+    <div class="w-simplex-plot" id="w-simplex-walk" aria-label="Job-mix feasible region ve simplex'in yürüdüğü yol"></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Dantzig, 1947</span>
+    <p>Bir vertex'ten başla, daha iyi bir komşu vertex'e yürü, böyle bir komşu kalmayınca dur.</p>
+    <ul>
+      <li><strong>Basis ⇄ vertex:</strong> basis, sütunları nonsingular bir $m \times m$ matris $B$ oluşturan $m$ değişkendir (burada $m = 3$ constraint var). Geri kalan nonbasic değişkenler 0'da oturur: $x_N = 0$, $x_B = B^{-1}b$. Bu bir basic solution'dır; $x_B \ge 0$ ise basic feasible solution (BFS) olur. Her BFS bir vertex'tir ve her vertex en az bir basis ile temsil edilir.</li>
+      <li><strong>Komşu vertex:</strong> her adım tam <strong>bir</strong> aktif sınırı değiştirir. Komşu iki vertex'in basis'leri bir değişken dışında aynıdır (Winston buna adjacent BFS der: $m - 1$ basic variable ortak).</li>
+      <li><strong>Degenerate pivot:</strong> bir basic variable 0'daysa ratio test $t^* = 0$ verebilir. O pivot'ta basis değişir ama vertex ve $z$ aynı kalır (Winston §4.5 Problem 6, 3. bölüm). Yukarıdaki "her adımda iyileş" anlatımı nondegenerate pivot'lar için; genel kural $z$'nin hiç azalmamasıdır.</li>
+      <li><strong>Neden yerel durmak yeter:</strong> feasible region convex ve objective linear. Bu yüzden "hiçbir komşu daha iyi değil" demek "hiçbir nokta daha iyi değil" demektir.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Simplex bütün vertex'leri denemez. Job-mix'te 5 BFS var, simplex sadece 3'üne uğradı. Hepsini denemek $\binom{n+m}{n}$ kadar iş ister, $n = m = 50$ için yaklaşık $10^{29}$.</li>
+      <li>Simplex region'un içinden geçmez, hep sınırda kenar boyunca gider. İçinden geçen yöntemler interior-point method'larıdır.</li>
+      <li>"Daha iyi komşu" en iyi komşu demek değildir. Kural z'yi artıran bir komşu seçer; hangisini seçeceğini 4. bölümdeki rule belirler.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.4 (job-mix LP), s.8 (10^29), s.11 (Dantzig 1947), s.12 (walk the edges, figure), Winston §4.2 (adjacent bfs). -->
+  <div class="quiz" id="q-walk">
+    <p class="quiz__q">Simplex bir iteration'da ne yapar?</p>
+    <button class="quiz__opt" data-correct>Bir basic variable çıkar, bir nonbasic variable girer; $z$ azalmaz. Degenerate pivot'ta vertex ve $z$ değişmeyebilir.<span class="why">Doğru. Adım boyu $t^* &gt; 0$ ise pivot bir kenar boyunca $z$'yi artıran komşu vertex'e yürür. $t^* = 0$ ise (Winston §4.5 Problem 6'nın 2. pivot'u) sadece basis değişir.</span></button>
+    <button class="quiz__opt">Bütün vertex'lerde z'yi hesaplar ve en büyüğünü seçer.<span class="why">Bu enumeration. Vertex sayısı $\binom{n+m}{n}$ ile patlar; simplex tam da bunu yapmamak için var.</span></button>
+    <button class="quiz__opt">Region'un içinden c yönünde düz bir çizgide ilerler.<span class="why">Bu interior-point ya da gradient fikri. Simplex hep sınırda, vertex'ten vertex'e gider.</span></button>
+    <button class="quiz__opt">Komşu vertex'lerin hepsine bakar ve z'yi en çok artıranı seçer.<span class="why">Slayttaki kural en büyük cⱼ − zⱼ'yi, yani birim başına en dik artışı seçer. Toplam artışı en büyük olan komşu farklı olabilir (Winston §4.5 Problem 7, 11. bölüm).</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="iteration" data-min="4">
+  <h2>Bir iteration: price, ratio test, pivot</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · bir iteration'ın dört adımı (slayt s.13)</span>
+    <ol>
+      <li><strong>Bir BFS'ten başla.</strong> Basis $m$ değişkendir, gerisi 0'dır. Slack'ler bedava bir başlangıç verir.</li>
+      <li><strong>Price the columns.</strong> Her nonbasic değişkenin reduced cost'unu hesapla: içeri girerse birim başına kâr. İyileştiren birini seç (max problem'de en büyük pozitif $c_j - z_j$).</li>
+      <li><strong>Ratio test.</strong> Giren değişkeni, ilk basic variable 0'a değene kadar artır: en küçük rhs / sütun oranı. 0'a değen değişken basis'ten çıkar.</li>
+      <li><strong>Pivot ve tekrar.</strong> Row operation'larla giren değişkenin sütununu unit vector yap. Yeni basis; adım boyu $t^* &gt; 0$ ise yeni vertex ve daha iyi $z$. Degenerate pivot'ta ($t^* = 0$) vertex ve $z$ aynı kalır. 2. adıma dön.</li>
+    </ol>
+    <p><strong>Sözlük:</strong> basis ⇄ vertex · pivot ⇄ bir kenar yürümek · bütün $c_j - z_j \le 0$ ⇄ iyileştiren kenar yok ⇄ OPTIMAL.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Winston'ın beş adımlık özeti</span>
+    <p>Winston aynı algoritmayı şöyle yazar: (1) LP'yi standard form'a çevir. (2) Bir BFS bul. (3) BFS optimal mi diye bak. (4) Değilse hangi nonbasic değişkenin gireceğine, hangi basic değişkenin çıkacağına karar ver. (5) Elementary row operation'larla (ERO) yeni BFS'i bul, 3. adıma dön. Hocanın dört adımı bunun aynısı; Winston sadece standard form'a çevirmeyi ayrı bir adım olarak sayıyor.</p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · başlangıç neden bedava</span>
+    <p>Her constraint $\le$ ve sağ tarafı $b_i \ge 0$ ise her satıra bir slack ekle: $3x_1 + 2x_2 + s_3 = 18$. $x = 0$ koyunca slack'ler tam olarak $b$'ye eşit olur: $s_1 = 4$, $s_2 = 12$, $s_3 = 18$. Hepsi $\ge 0$, yani bu bir BFS. Basis = slack'ler, vertex = origin.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak</span>
+    <p>Bu bedava başlangıç her LP'de yok. $\ge$ constraint'te bir excess (surplus) değişken çıkarırsın: $7x_1 + 2x_2 - e_1 = 28$. $x = 0$ koyunca $e_1 = -28$ olur, feasible değil. Böyle LP'lerde başlangıç BFS'ini Big-M ya da two-phase method bulur; bunlar bir sonraki dersin konusu.</p>
+  </div>
+  <div class="box box--exam" data-exam="winston-4.5-P4"><span class="box__label">Winston §4.5 Problem 4 · ödev sorusu</span>
+    <p>"Suppose you want to solve the Dorian problem (Example 2 in Chapter 3) by the simplex algorithm. What difficulty would occur?"</p>
+    <p>Dorian problem'i (Winston Ch.3, Example 2): $\min z = 50x_1 + 100x_2$ s.t. $7x_1 + 2x_2 \ge 28$, $2x_1 + 12x_2 \ge 24$, $x_1, x_2 \ge 0$.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İki constraint'i de equality'ye çevir. $\ge$ satırına ne eklersin, ne çıkarırsın?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$x_1 = x_2 = 0$ koy. Yeni değişkenler hangi değeri alıyor? İşaretleri uygun mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Standard form: $7x_1 + 2x_2 - e_1 = 28$, $2x_1 + 12x_2 - e_2 = 24$, bütün değişkenler $\ge 0$.</p>
+      <p>Slack'li LP'lerde başlangıç BFS'i $x = 0$ koyarak bulunur. Burada $x = 0$ koyunca $e_1 = -28$, $e_2 = -24$ çıkar ve $e \ge 0$ bozulur. Origin feasible değil, yani hazır bir başlangıç BFS'i <strong>yok</strong>. Excess değişkenlerin katsayısı $-1$ olduğu için onları basis'e koyup "rhs'e eşit" diyemezsin.</p>
+      <p>Çözüm yolu: Big-M ya da two-phase simplex (Winston §4.12–4.13) önce yapay (artificial) değişkenlerle bir BFS bulur. Bu, sonraki dersin (Simplex'in özel durumları) konusu.</p>
+    </div></details>
+    <!-- Kaynak: Winston pdf s.165 (book p.148) Problem 4; Dorian modeli pdf s.77–78. Referans çözüm yok; cevap §4.5 "If no bfs is readily apparent, then use the techniques discussed in Sections 4.12 and 4.13" cümlesine dayanıyor. -->
+  </div>
+  <div class="quiz" id="q-iteration">
+    <p class="quiz__q">Job-mix LP'de başlangıç BFS'i neden hesap yapmadan elde ediliyor?</p>
+    <button class="quiz__opt" data-correct>Bütün constraint'ler $\le$ ve $b \ge 0$; $x = 0$ koyunca her slack kendi $b_i$'sine eşit ve nonnegative oluyor.<span class="why">Doğru. Basis = $\{s_1, s_2, s_3\}$, vertex = $(0,0)$.</span></button>
+    <button class="quiz__opt">Çünkü $(0,0)$ zaten optimal.<span class="why">$(0,0)$'da $z = 0$, optimal $z^* = 36$. Başlangıç noktası sadece feasible olmak zorunda, optimal olmak zorunda değil.</span></button>
+    <button class="quiz__opt">Çünkü her LP'de origin feasible.<span class="why">Yanlış genelleme. $\ge$ constraint'li Dorian problem'inde origin feasible değil.</span></button>
+    <button class="quiz__opt">Çünkü simplex başlangıç vertex'ini rastgele seçer ve şans eseri feasible çıktı.<span class="why">Rastgelelik yok: slack basis'i bilinçli bir seçim. Feasible olduğu $b \ge 0$'dan gelir.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="tableau" data-min="5">
+  <h2>Tableau'yu kurmak: cⱼ, c_B, b, zⱼ ve cⱼ − zⱼ</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · tableau bir muhasebe defteri</span>
+    <p>Standard form'u slack'lerle yaz:</p>
+    $$\max\ z = 3x_1 + 5x_2 + 0s_1 + 0s_2 + 0s_3 \quad \text{s.t.}\quad x_1 + s_1 = 4,\quad 2x_2 + s_2 = 12,\quad 3x_1 + 2x_2 + s_3 = 18,\quad \text{hepsi} \ge 0$$
+    <p>Tableau bu sistemi bir tabloya döker ve iki satır ekler: $z_j$ ve $c_j - z_j$. Hocanın düzeni şu (slayt s.14):</p>
+    <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>3</th><th>5</th><th>0</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th>s₃</th></tr><tr><td>0</td><td>s₁</td><td>4</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td></tr><tr><td>0</td><td>s₂</td><td>12</td><td>0</td><td>2</td><td>0</td><td>1</td><td>0</td></tr><tr><td>0</td><td>s₃</td><td>18</td><td>3</td><td>2</td><td>0</td><td>0</td><td>1</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>3</td><td>5</td><td>0</td><td>0</td><td>0</td></tr></table></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · her satır ve sütunun anlamı</span>
+    <ul>
+      <li><strong>cⱼ satırı:</strong> her değişkenin kârı (3, 5 ve slack'ler için 0).</li>
+      <li><strong>c_B sütunu:</strong> şu an basis'te olan değişkenlerin kârı, satır sırasıyla.</li>
+      <li><strong>b sütunu:</strong> basic variable'ların şu anki değerleri, yani vertex. Burada $(0,0)$, her şey slack.</li>
+      <li>$z_j = \sum_i c_{B,i}\, a_{ij}$: $x_j$ bir birim artarsa basis'in kendini ayarlarken <strong>kaybettirdiği</strong> kâr.</li>
+      <li>$c_j - z_j$: birim başına net kazanç, yani <strong>reduced cost</strong>. Pozitifse o değişkeni artırmaya değer.</li>
+      <li>$z = \sum_i c_{B,i}\, b_i$: zⱼ satırında b'nin altına yazılan sayı, şu anki objective değeri. Burada 0.</li>
+    </ul>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · zⱼ neden "kaybedilen kâr"</span>
+    <p>Bir satır $x_B + a_{ij}x_j + \dots = b_i$ diyor. $x_j$'yi 1 artırırsan o satırın basic variable'ı $a_{ij}$ kadar azalmak zorunda. O değişken birim başına $c_{B,i}$ kazandırıyordu, yani $c_{B,i}\,a_{ij}$ kadar kâr kaybedersin. Bütün satırlar üzerinden topla: $z_j$. $x_j$'nin kendi kârı $c_j$ olduğu için net etki $c_j - z_j$.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>c_B'yi basis değişince güncellemeyi unutmak. c_B her zaman o satırdaki basic variable'ın $c_j$'sidir.</li>
+      <li>Basic bir sütunun $z_j$'si her zaman kendi $c_j$'sine eşittir, yani $c_j - z_j = 0$. Basic bir sütunda sıfırdan farklı $c_j - z_j$ görürsen bir hesap hatası var.</li>
+      <li>$z$ değerini $c_j - z_j$ satırına yazmak. Hocanın düzeninde $z$, <strong>zⱼ satırında</strong> b sütununun altında durur; $c_j - z_j$ satırının b hücresi boştur.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.14 "Setting Up the Simplex Tableau" ve "How to read it" kutusu. -->
+  <div class="quiz" id="q-tableau">
+    <p class="quiz__q">Bir tableau'da basis $\{s_1, x_2, s_3\}$, yani $c_B = (0, 5, 0)$. $s_2$ sütunu yukarıdan aşağı $(0,\ 1/2,\ -1)$. $s_2$'nin $z_j$'si kaç?</p>
+    <button class="quiz__opt" data-correct>$5/2$<span class="why">Doğru: $0\cdot 0 + 5\cdot\tfrac12 + 0\cdot(-1) = \tfrac52$. Slayt s.16'daki değer bu.</span></button>
+    <button class="quiz__opt">$0$<span class="why">Eski c_B'yi, yani $(0,0,0)$'ı kullandın. $x_2$ basis'e girince ikinci satırın c_B'si 5 oldu.</span></button>
+    <button class="quiz__opt">$-5/2$<span class="why">Bu $c_j - z_j = 0 - \tfrac52$. Soru $z_j$'yi soruyor.</span></button>
+    <button class="quiz__opt">$1/2$<span class="why">$x_2$ satırındaki girdiyi aldın ama c_B ile çarpmadın. $z_j$ ağırlıklı bir toplam: her girdi kendi satırının c_B'siyle çarpılır, $5\cdot\tfrac12$.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="enter-leave" data-min="5">
+  <h2>Kim girer, kim çıkar: entering variable ve ratio test</h2>
+  <div class="box box--example">
+    <span class="box__label">Örnek · iteration 1 (slayt s.15)</span>
+    <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>3</th><th class="is-col">5</th><th>0</th><th>0</th><th>0</th><th></th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th class="is-col">x₂</th><th>s₁</th><th>s₂</th><th>s₃</th><th>ratio b / aᵢⱼ</th></tr><tr><td>0</td><td>s₁</td><td>4</td><td>1</td><td class="is-col">0</td><td>1</td><td>0</td><td>0</td><td>— (a ≤ 0)</td></tr><tr class="is-row"><td>0</td><td>s₂</td><td>12</td><td class="is-row">0</td><td class="is-col is-row is-piv">2</td><td class="is-row">0</td><td class="is-row">1</td><td class="is-row">0</td><td>6 ◄ min</td></tr><tr><td>0</td><td>s₃</td><td>18</td><td>3</td><td class="is-col">2</td><td>0</td><td>0</td><td>1</td><td>9</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>0</td><td>0</td><td class="is-col">0</td><td>0</td><td>0</td><td>0</td><td></td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>3</td><td class="is-col">5</td><td>0</td><td>0</td><td>0</td><td></td></tr></table></div>
+    <p><strong>Entering:</strong> en büyük $c_j - z_j$. $x_1$: 3, $x_2$: 5, yani <strong>$x_2$ girer</strong> (birim başına en dik kâr).</p>
+    <p><strong>Leaving:</strong> giren sütunda minimum-ratio test, sadece pozitif girdiler:</p>
+    <ul>
+      <li>$s_1$: $a = 0$, $x_2$'yi asla durdurmaz.</li>
+      <li>$s_2$: $12/2 = 6$ ◄ en küçük.</li>
+      <li>$s_3$: $18/2 = 9$.</li>
+    </ul>
+    <p><strong>$s_2$ çıkar.</strong> Giren sütunla çıkan satırın kesiştiği 2, <strong>pivot element</strong>. Geometride: $(0,0)$'dan $x_2$ kenarı boyunca yukarı yürü, memory duvarı $x_2 = 6$'da seni durdurur.</p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · neden en küçük oran</span>
+    <p>$x_2 = t$ kadar artır, öteki nonbasic'ler 0'da kalsın. Basic variable'lar şöyle değişir: $s_2 = 12 - 2t$, $s_3 = 18 - 2t$, $s_1$ değişmez. İlk sıfıra değen $s_2$, $t = 6$'da. $t$ 6'dan büyük olursa $s_2$ negatif olur, infeasible. Ratio test sadece şunu sorar: <em>polyhedron'dan çıkmadan ne kadar yürüyebiliriz?</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki seçim kuralı (max problem, slayt convention'ı)</span>
+    <ul>
+      <li><strong>Entering variable:</strong> $c_j - z_j$'si en büyük pozitif olan nonbasic değişken. Hiç pozitif yoksa dur, tableau optimal.</li>
+      <li><strong>Leaving variable:</strong> giren sütunda $a_{ie} &gt; 0$ olan satırlar için $b_i / a_{ie}$ oranını hesapla. En küçük oranın satırındaki basic variable çıkar.</li>
+      <li><strong>Pivot element:</strong> $a_{\text{leave},\,\text{enter}}$. Her zaman pozitiftir.</li>
+      <li><strong>Adım boyu:</strong> en küçük oran $t^*$, giren değişkenin yeni değeridir. $z$ tam olarak $(c_e - z_e)\cdot t^*$ kadar artar.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Neden başka satır olmaz · Winston'ın argümanı</span>
+    <p>Satır $k$ üzerinde pivot yaparsan başka bir satır $j$'nin yeni rhs'i $b_j - \dfrac{b_k\, a_{je}}{a_{ke}}$ olur. $a_{je} &gt; 0$ ise bunun $\ge 0$ kalması $\dfrac{b_j}{a_{je}} \ge \dfrac{b_k}{a_{ke}}$ demektir: $k$ ratio test'i kazanmış olmalı. $a_{je} \le 0$ ise yeni rhs zaten büyür ya da aynı kalır. Bu yüzden negatif ya da sıfır girdili satırlar ratio test'e girmez.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Negatif girdili satırı ratio test'e katmak. $b_i / a_{ie} &lt; 0$ "en küçük" gibi görünür ama o satırın basic variable'ı $t$ artınca <strong>büyür</strong>, hiçbir zaman sıfıra değmez.</li>
+      <li>Oranı ters almak: $a / b$ değil, $b / a$.</li>
+      <li>En büyük girdiyi pivot seçmek. Pivot satırını girdinin büyüklüğü değil, oran belirler.</li>
+      <li>İki satırın oranı eşitse (tie) birini seç; pivot sonrası öteki satırın basic variable'ı 0 olur. Buna degeneracy denir, sonraki derste.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-4.5-P6"><span class="box__label">Winston §4.5 Problem 6 · ödev sorusu</span>
+    <p>"Use the simplex algorithm to solve the following LP: max $z = x_1 + x_2 + x_3$ s.t. $x_1 + 2x_2 + 2x_3 \le 20$, $2x_1 + x_2 + 2x_3 \le 20$, $2x_1 + 2x_2 + x_3 \le 20$, $x_1, x_2, x_3 \ge 0$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İlk adımda üç $c_j - z_j$ de 1. Eşitlikte en küçük index'i al ($x_1$). Ratio test'te de iki satır eşit çıkacak: üstteki satırı seç ve ne olduğuna bak.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İkinci pivot'ta bir oran 0 çıkıyor. O pivot'tan sonra $z$ değişiyor mu? Yine de devam et: üçüncü pivot optimal'e götürür.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Slayt convention'ı, en büyük $c_j - z_j$ girer, eşitlikte küçük index.</p>
+      <p><strong>Iteration 1:</strong> $x_1$ girer. Oranlar: $s_1$: 20/1 = 20, $s_2$: 20/2 = 10, $s_3$: 20/2 = 10. <strong>Tie</strong>; $s_2$'yi seç. Pivot 2. Sonra $s_3 = 0$ olarak basis'te kalır (degenerate BFS). $z = 10$.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>1</th><th class="is-col">1</th><th>1</th><th>0</th><th>0</th><th>0</th><th></th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th class="is-col">x₂</th><th>x₃</th><th>s₁</th><th>s₂</th><th>s₃</th><th>ratio b / aᵢⱼ</th></tr><tr><td>0</td><td>s₁</td><td>10</td><td>0</td><td class="is-col">3/2</td><td>1</td><td>1</td><td>−1/2</td><td>0</td><td>20/3</td></tr><tr><td>1</td><td>x₁</td><td>10</td><td>1</td><td class="is-col">1/2</td><td>1</td><td>0</td><td>1/2</td><td>0</td><td>20</td></tr><tr class="is-row"><td>0</td><td>s₃</td><td>0</td><td class="is-row">0</td><td class="is-col is-row is-piv">1</td><td class="is-row">−1</td><td class="is-row">0</td><td class="is-row">−1</td><td class="is-row">1</td><td>0 ◄ min</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>10</td><td>1</td><td class="is-col">1/2</td><td>1</td><td>0</td><td>1/2</td><td>0</td><td></td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td class="is-col">1/2</td><td>0</td><td>0</td><td>−1/2</td><td>0</td><td></td></tr></table></div>
+      <p><strong>Iteration 2:</strong> $x_2$ girer ($c_j - z_j = 1/2$). Oranlar: $s_1$: $10/(3/2) = 20/3$, $x_1$: $10/(1/2) = 20$, $s_3$: $0/1 = 0$ ◄. $s_3$ çıkar, ama adım boyu 0: vertex değişmez, $z = 10$ kalır.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>1</th><th>1</th><th class="is-col">1</th><th>0</th><th>0</th><th>0</th><th></th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th class="is-col">x₃</th><th>s₁</th><th>s₂</th><th>s₃</th><th>ratio b / aᵢⱼ</th></tr><tr class="is-row"><td>0</td><td>s₁</td><td>10</td><td class="is-row">0</td><td class="is-row">0</td><td class="is-col is-row is-piv">5/2</td><td class="is-row">1</td><td class="is-row">1</td><td class="is-row">−3/2</td><td>4 ◄ min</td></tr><tr><td>1</td><td>x₁</td><td>10</td><td>1</td><td>0</td><td class="is-col">3/2</td><td>0</td><td>1</td><td>−1/2</td><td>20/3</td></tr><tr><td>1</td><td>x₂</td><td>0</td><td>0</td><td>1</td><td class="is-col">−1</td><td>0</td><td>−1</td><td>1</td><td>— (a ≤ 0)</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>10</td><td>1</td><td>1</td><td class="is-col">1/2</td><td>0</td><td>0</td><td>1/2</td><td></td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td>0</td><td class="is-col">1/2</td><td>0</td><td>0</td><td>−1/2</td><td></td></tr></table></div>
+      <p><strong>Iteration 3:</strong> $x_3$ girer ($1/2$). Oranlar: $s_1$: $10/(5/2) = 4$ ◄, $x_1$: $10/(3/2) = 20/3$, $x_2$ satırında $a = -1$, atla. $s_1$ çıkar, $z = 10 + \tfrac12\cdot 4 = 12$.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>1</th><th>1</th><th>1</th><th>0</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>x₃</th><th>s₁</th><th>s₂</th><th>s₃</th></tr><tr><td>1</td><td>x₃</td><td>4</td><td>0</td><td>0</td><td>1</td><td>2/5</td><td>2/5</td><td>−3/5</td></tr><tr><td>1</td><td>x₁</td><td>4</td><td>1</td><td>0</td><td>0</td><td>−3/5</td><td>2/5</td><td>2/5</td></tr><tr><td>1</td><td>x₂</td><td>4</td><td>0</td><td>1</td><td>0</td><td>2/5</td><td>−3/5</td><td>2/5</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>12</td><td>1</td><td>1</td><td>1</td><td>1/5</td><td>1/5</td><td>1/5</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td>0</td><td>0</td><td>−1/5</td><td>−1/5</td><td>−1/5</td></tr></table></div>
+      <p>Bütün $c_j - z_j \le 0$: optimal. $\boxed{x^* = (4, 4, 4),\ z^* = 12}$. Üç constraint de binding; her birinin shadow price'ı (slack'lerin altındaki $z_j$) $1/5$.</p>
+      <p><strong>Kontrol:</strong> $4 + 8 + 8 = 20$ (üç satır için de aynı) ✓.</p>
+    </div></details>
+    <a class="src" href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, pdf s.165</a>
+    <!-- Kaynak: Winston pdf s.165 (book p.148) Problem 6. Referans çözüm yok; build.py'deki kesirli simplex ile hesaplandı. -->
+  </div>
+  <div class="quiz" id="q-enter-leave">
+    <p class="quiz__q">Giren sütun $(2,\ -1,\ 4)$, b sütunu $(6,\ 3,\ 8)$. Hangi satır çıkar?</p>
+    <button class="quiz__opt" data-correct>3. satır (oran 2)<span class="why">Doğru. Pozitif girdiler: 1. satır $6/2 = 3$, 3. satır $8/4 = 2$. En küçük 2.</span></button>
+    <button class="quiz__opt">2. satır (oran −3)<span class="why">Negatif girdili satır ratio test'e girmez: o satırın basic variable'ı $t$ artınca büyür, sıfıra hiç değmez.</span></button>
+    <button class="quiz__opt">1. satır (oran 3)<span class="why">3, en küçük pozitif oran değil. 3. satırın oranı 2 ve önce o sıfıra değer.</span></button>
+    <button class="quiz__opt">3. satır, çünkü sütundaki en büyük girdi 4<span class="why">Sonuç tesadüfen aynı ama gerekçe yanlış. Pivot satırını girdinin büyüklüğü değil, $b_i / a_{ie}$ oranı belirler.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="pivot" data-min="6">
+  <h2>Pivot: row operation'lar ve alt satırları yeniden hesaplamak</h2>
+  <div class="box box--example">
+    <span class="box__label">Örnek · iteration 1, 2 üzerinde pivot (slayt s.16)</span>
+    <p>Sütunlar $x_1, x_2, s_1, s_2, s_3$, en sağda b:</p>
+    <div class="w-simplex-ops">
+      <div>R2 ← R2 / 2         : (0, 2, 0, 1, 0 | 12) / 2              = (0, 1, 0, 1/2, 0 | 6)   ← yeni x₂ satırı</div>
+      <div>R1 ← R1 − 0·R2(yeni) : x₂ girdisi zaten 0, değişmez           = (1, 0, 1, 0, 0 | 4)</div>
+      <div>R3 ← R3 − 2·R2(yeni) : (3, 2, 0, 0, 1 | 18) − 2·(0, 1, 0, 1/2, 0 | 6) = (3, 0, 0, −1, 1 | 6)</div>
+    </div>
+    <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>3</th><th>5</th><th>0</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th>s₃</th></tr><tr><td>0</td><td>s₁</td><td>4</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td></tr><tr class="is-new"><td>5</td><td>x₂</td><td>6</td><td class="is-new">0</td><td class="is-new">1</td><td class="is-new">0</td><td class="is-new">1/2</td><td class="is-new">0</td></tr><tr><td>0</td><td>s₃</td><td>6</td><td>3</td><td>0</td><td>0</td><td>−1</td><td>1</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>30</td><td>0</td><td>5</td><td>0</td><td>5/2</td><td>0</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>3</td><td>0</td><td>0</td><td>−5/2</td><td>0</td></tr></table></div>
+    <p><strong>Alt satırları yeniden hesapla.</strong> Yeni basis $\{s_1, x_2, s_3\}$, yani $c_B = (0, 5, 0)$.</p>
+    <ul>
+      <li>$s_2$ için $z_j$: $0\cdot 0 + 5\cdot\tfrac12 + 0\cdot(-1) = \tfrac52$. $x_2$ için: $5\cdot 1 = 5$.</li>
+      <li>$z = \sum c_B\, b = 0\cdot 4 + 5\cdot 6 + 0\cdot 6 = 30$. Vertex artık $(0, 6)$.</li>
+      <li>$c_j - z_j$: $x_1$ için $3 - 0 = 3$ (hâlâ pozitif), $s_2$ için $0 - \tfrac52 = -\tfrac52$.</li>
+      <li>$-\tfrac52$'yi oku: boşta memory'yi geri almak blok başına 2.5'e <strong>mal olur</strong>. Bu bir shadow price, bir hafta erken.</li>
+      <li>Optimal değil: $x_1$'in $c_j - z_j$'si $3 &gt; 0$. Bir iteration daha.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · pivot tarifi</span>
+    <ol>
+      <li><strong>Pivot satırı:</strong> $R_p \leftarrow R_p / a_{pe}$. Pivot element 1 olur.</li>
+      <li><strong>Öteki her satır:</strong> $R_i \leftarrow R_i - a_{ie}\cdot R_p(\text{yeni})$. Giren sütunun geri kalanı 0 olur. $a_{ie} = 0$ ise satır değişmez; $a_{ie} &lt; 0$ ise çıkarma toplamaya döner.</li>
+      <li><strong>Basis ve c_B:</strong> pivot satırının etiketi giren değişken olur, c_B hücresine onun $c_j$'si yazılır.</li>
+      <li><strong>Alt satırlar:</strong> $z_j = \sum_i c_{B,i} a_{ij}$, $z = \sum_i c_{B,i} b_i$, sonra $c_j - z_j$.</li>
+      <li><strong>Kontrol:</strong> yeni $z$ = eski $z$ + $(c_e - z_e)\cdot t^*$. Burada $0 + 5\cdot 6 = 30$ ✓. Bütün b'ler $\ge 0$ olmalı.</li>
+    </ol>
+  </div>
+  <p>Aşağıdaki lab simplex'i kesirli aritmetikle gerçekten çalıştırır ve her kareyi o koşudan üretir. Turuncu sütun giren değişken, mavi satır çıkan, dolu hücre pivot element, yeşil satır az önce yeniden yazılan pivot satırı. 2 değişkenli LP'lerde sağdaki çizim aynı adımı geometride gösterir: kesikli çizgi şu anki $z$'nin iso-profit line'ı. "Gösterim" menüsü aynı koşuyu 8. bölümdeki z-row düzeninde de gösterir.</p>
+  <div class="w-simplex-wrap" id="w-simplex-lab" data-conv="slide">
+    <p class="w-simplex-guess"><b>Önce tahmin et:</b> Job-mix'te ikinci iteration'da hangi değişken girer, hangisi çıkar? Lab01'deki LP'de ($\max 3x_1 + 4x_2$) kaç pivot gerekir, ikinci pivot element bir tam sayı mı?</p>
+    <div class="w-simplex-ctl">
+      <label>LP <select id="w-simplex-preset" class="btn btn--sm"></select></label>
+      <label>Gösterim <select id="w-simplex-conv" class="btn btn--sm">
+        <option value="slide">cⱼ − zⱼ (slayt)</option>
+        <option value="zrow">z-row (Lab 3, Winston)</option>
+        <option value="both">İkisi birlikte</option>
+      </select></label>
+    </div>
+    <details class="w-simplex-custom"><summary>Kendi LP'ni yaz (max, ≤, b ≥ 0)</summary>
+      <p class="src">Objective katsayıları bir satırda; her constraint ayrı satırda "katsayılar &lt;= b". Kesir ve ondalık olur: <code>3/2</code>, <code>1.5</code>. En fazla 4 değişken, 5 constraint.</p>
+      <label>c: <input type="text" id="w-simplex-c" value="3 5" /></label>
+      <textarea id="w-simplex-A" rows="4">1 0 &lt;= 4
+0 2 &lt;= 12
+3 2 &lt;= 18</textarea>
+      <div class="w-simplex-ctl"><button class="btn btn--sm btn--accent" id="w-simplex-run">Çalıştır</button></div>
+      <div class="w-simplex-err" id="w-simplex-err" aria-live="polite"></div>
+    </details>
+    <div id="w-simplex-stepper"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Öteki satırlardan <strong>eski</strong> pivot satırını çıkarmak. Önce pivot satırını böl, sonra bölünmüş haliyle çıkar.</li>
+      <li>Çarpanı pivot element sanmak. $R_3$'ten $2\cdot R_2$ çıkarıldı çünkü $R_3$'ün kendi $x_2$ girdisi 2. Çarpan her satırın kendi giren-sütun girdisidir.</li>
+      <li>c_B'yi güncellemeyip eski $z_j$ satırıyla devam etmek. Pivot'tan sonra iki alt satır baştan hesaplanır.</li>
+      <li>b sütununda negatif bir sayı çıktıysa ratio test'te ya da bir row operation'da hata var. Constraint satırlarının rhs'i hiçbir zaman negatif olmaz.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.16 "Pivot on the 2 — Row Operations in Full" ve "Recompute the bottom rows". Winston §4.5 ERO 1–4 ve "Canonical form 1 z-value = initial z-value + 4(60)". Lab01 LP: Lab01.ipynb hücre 22. -->
+  <div class="quiz" id="q-pivot">
+    <p class="quiz__q">Iteration 1'de $x_2$'nin $c_j - z_j$'si 5 ve en küçük oran $t^* = 6$. Pivot'tan sonra $z$ kaç olur (önce $z = 0$)?</p>
+    <button class="quiz__opt" data-correct>30<span class="why">Doğru: $z_{\text{yeni}} = 0 + 5\cdot 6$. Tableau'da da $\sum c_B b = 5\cdot 6 = 30$.</span></button>
+    <button class="quiz__opt">36<span class="why">Bu optimal değer. Bir pivot sadece bir kenar yürür; 36'ya ikinci pivot'ta varılır.</span></button>
+    <button class="quiz__opt">11<span class="why">$c_j - z_j$ ile oranı topladın. Artış birim başına kazanç <strong>çarpı</strong> kaç birim yürüdüğün.</span></button>
+    <button class="quiz__opt">6<span class="why">6, $x_2$'nin yeni değeri ($t^*$). $z$ için bunu birim başına kazançla çarp.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="iter2" data-min="5">
+  <h2>Iteration 2 ve STOP</h2>
+  <div class="box box--example">
+    <span class="box__label">Örnek · iteration 2, kim girer, kim çıkar (slayt s.17)</span>
+    <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th class="is-col">3</th><th>5</th><th>0</th><th>0</th><th>0</th><th></th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th class="is-col">x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th>s₃</th><th>ratio b / aᵢⱼ</th></tr><tr><td>0</td><td>s₁</td><td>4</td><td class="is-col">1</td><td>0</td><td>1</td><td>0</td><td>0</td><td>4</td></tr><tr><td>5</td><td>x₂</td><td>6</td><td class="is-col">0</td><td>1</td><td>0</td><td>1/2</td><td>0</td><td>— (a ≤ 0)</td></tr><tr class="is-row"><td>0</td><td>s₃</td><td>6</td><td class="is-col is-row is-piv">3</td><td class="is-row">0</td><td class="is-row">0</td><td class="is-row">−1</td><td class="is-row">1</td><td>2 ◄ min</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>30</td><td class="is-col">0</td><td>5</td><td>0</td><td>5/2</td><td>0</td><td></td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td class="is-col">3</td><td>0</td><td>0</td><td>−5/2</td><td>0</td><td></td></tr></table></div>
+    <ul>
+      <li><strong>Entering:</strong> sadece $x_1$ pozitif (3), <strong>$x_1$ girer</strong>.</li>
+      <li><strong>Leaving:</strong> $x_1$ sütununda: $s_1$: $4/1 = 4$; $x_2$: $a = 0$, $x_1$'den etkilenmez; $s_3$: $6/3 = 2$ ◄. <strong>$s_3$ çıkar</strong>, pivot element 3.</li>
+      <li><strong>Yürüyüşü kontrol et:</strong> $x_2 = 6$ sabitken $x_1 = t$: $s_1 = 4 - t$, $s_3 = 6 - 3t$. Önce CPU slack'i $s_3$ sıfıra değer, $t = 2$'de. Accelerator kotası (4) daha geç durdururdu. Yeni vertex $(2, 6)$ olacak: memory ve CPU tight, $s_1 = 2$ accelerator boşta.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · 3 üzerinde pivot (slayt s.18)</span>
+    <div class="w-simplex-ops">
+      <div>R3 ← R3 / 3         : (3, 0, 0, −1, 1 | 6) / 3                 = (1, 0, 0, −1/3, 1/3 | 2)  ← yeni x₁ satırı</div>
+      <div>R1 ← R1 − 1·R3(yeni) : (1, 0, 1, 0, 0 | 4) − (1, 0, 0, −1/3, 1/3 | 2) = (0, 0, 1, 1/3, −1/3 | 2)</div>
+      <div>R2 ← R2 − 0·R3(yeni) : x₁ girdisi zaten 0, değişmez             = (0, 1, 0, 1/2, 0 | 6)</div>
+    </div>
+    <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>3</th><th>5</th><th>0</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th>s₃</th></tr><tr><td>0</td><td>s₁</td><td>2</td><td>0</td><td>0</td><td>1</td><td>1/3</td><td>−1/3</td></tr><tr><td>5</td><td>x₂</td><td>6</td><td>0</td><td>1</td><td>0</td><td>1/2</td><td>0</td></tr><tr class="is-new"><td>3</td><td>x₁</td><td>2</td><td class="is-new">1</td><td class="is-new">0</td><td class="is-new">0</td><td class="is-new">−1/3</td><td class="is-new">1/3</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>36</td><td>3</td><td>5</td><td>0</td><td>3/2</td><td>1</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td>0</td><td>0</td><td>−3/2</td><td>−1</td></tr></table></div>
+    <p>Yeni basis $\{s_1, x_2, x_1\}$, $c_B = (0, 5, 3)$.</p>
+    <ul>
+      <li>$s_2$ için $z_j$: $0\cdot\tfrac13 + 5\cdot\tfrac12 + 3\cdot(-\tfrac13) = \tfrac32$. $s_3$ için: $0\cdot(-\tfrac13) + 5\cdot 0 + 3\cdot\tfrac13 = 1$.</li>
+      <li>$x_1$ için $3\cdot 1 = 3$, $x_2$ için $5\cdot 1 = 5$, $s_1$ için 0.</li>
+      <li>$z = 0\cdot 2 + 5\cdot 6 + 3\cdot 2 = 36$. Kontrol: $30 + 3\cdot 2 = 36$ ✓.</li>
+      <li>$c_j - z_j = (0, 0, 0, -\tfrac32, -1)$: pozitif bir şey kalmadı. <strong>STOP</strong>, tableau optimal.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Negatif $c_j - z_j$'lerden "mutlak değeri en büyük olanı" girdirmek. Max problem'de negatif reduced cost o değişkeni artırınca $z$'nin <strong>düştüğünü</strong> söyler.</li>
+      <li>Bütün $c_j - z_j$ sıfır olana kadar devam etmek. Durma şartı $\le 0$; slack sütunlarındaki negatif sayılar kalır ve anlamlıdır (bir sonraki bölüm).</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Lab01'deki LP, bu kez tableau ile</span>
+    <p>Lab01'de $\max 3x_1 + 4x_2$ s.t. $x_1 + x_2 \le 4$, $x_1 + 3x_2 \le 6$, $x \ge 0$ LP'si köşeleri tek tek deneyerek çözülmüştü: optimum $(3, 1)$, $z = 13$. Aynı sonucu simplex ile bul.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İlk girecek değişken $c_j - z_j$'si 4 olan $x_2$. Oranlar $4/1$ ve $6/3$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İkinci pivot element $2/3$. Satırı $2/3$'e bölmek $3/2$ ile çarpmak demek.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p class="w-simplex-sub">Düzen: cⱼ − zⱼ satırı (slayt). Max problem: en büyük pozitif cⱼ − zⱼ girer.</p>
+      <p><strong>Iteration 1:</strong> $x_2$ girer (4). Oranlar $s_1$: 4, $s_2$: 2 ◄. $s_2$ çıkar, pivot 3. $R_2 \leftarrow R_2/3$, $R_1 \leftarrow R_1 - 1\cdot R_2$. $z = 8$.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th class="is-col">3</th><th>4</th><th>0</th><th>0</th><th></th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th class="is-col">x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th>ratio b / aᵢⱼ</th></tr><tr class="is-row"><td>0</td><td>s₁</td><td>2</td><td class="is-col is-row is-piv">2/3</td><td class="is-row">0</td><td class="is-row">1</td><td class="is-row">−1/3</td><td>3 ◄ min</td></tr><tr><td>4</td><td>x₂</td><td>2</td><td class="is-col">1/3</td><td>1</td><td>0</td><td>1/3</td><td>6</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>8</td><td class="is-col">4/3</td><td>4</td><td>0</td><td>4/3</td><td></td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td class="is-col">5/3</td><td>0</td><td>0</td><td>−4/3</td><td></td></tr></table></div>
+      <p><strong>Iteration 2:</strong> $x_1$ girer ($c_j - z_j = 5/3$). Oranlar $s_1$: $2/(2/3) = 3$ ◄, $x_2$: $2/(1/3) = 6$. $s_1$ çıkar, pivot $2/3$. $R_1 \leftarrow \tfrac32 R_1$, $R_2 \leftarrow R_2 - \tfrac13 R_1$. $z = 8 + \tfrac53\cdot 3 = 13$.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>3</th><th>4</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th></tr><tr><td>3</td><td>x₁</td><td>3</td><td>1</td><td>0</td><td>3/2</td><td>−1/2</td></tr><tr><td>4</td><td>x₂</td><td>1</td><td>0</td><td>1</td><td>−1/2</td><td>1/2</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>13</td><td>3</td><td>4</td><td>5/2</td><td>1/2</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td>0</td><td>−5/2</td><td>−1/2</td></tr></table></div>
+      <p>Bütün $c_j - z_j \le 0$: $\boxed{x^* = (3, 1),\ z^* = 13}$, Lab01'deki vertex kontrolüyle aynı. İki constraint de binding; shadow price'lar $5/2$ ve $1/2$.</p>
+    </div></details>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.17–18. Lab01.ipynb hücre 22 (verts ve objective). Lab01 LP'sinin tableau'ları build.py ile hesaplandı. -->
+  <div class="quiz" id="q-iter2">
+    <p class="quiz__q">Max problem'de bir tableau'nun alt satırı $c_j - z_j = (0, 0, 0, -3/2, -1)$. Ne yaparsın?</p>
+    <button class="quiz__opt" data-correct>Dururum: hiçbir $c_j - z_j$ pozitif değil, tableau optimal.<span class="why">Doğru. Bu, slayt s.18'deki final tableau'nun satırı.</span></button>
+    <button class="quiz__opt">$s_2$'yi girdiririm, çünkü $|-3/2|$ en büyük.<span class="why">Max problem'de negatif reduced cost $z$'yi düşürür. Mutlak değere bakmak min ile max kurallarını karıştırmak demek.</span></button>
+    <button class="quiz__opt">Bütün girdiler 0 olana kadar pivot yaparım.<span class="why">Durma şartı $\le 0$, $= 0$ değil. Nonbasic slack'lerin negatif değerleri optimal tableau'da kalır.</span></button>
+    <button class="quiz__opt">$x_1$'i tekrar girdiririm, 0 en büyük değer.<span class="why">$x_1$ zaten basic, $c_j - z_j = 0$ olması bundan. Giren değişkenin reduced cost'u kesin pozitif olmalı.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="read" data-min="6">
+  <h2>Final tableau'yu okumak: çözüm, slack'ler, shadow price ve stopping rule</h2>
+  <div class="box box--example">
+    <span class="box__label">Örnek · final tableau (slayt s.19)</span>
+    <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>3</th><th>5</th><th>0</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th>s₃</th></tr><tr><td>0</td><td>s₁</td><td>2</td><td>0</td><td>0</td><td>1</td><td>1/3</td><td>−1/3</td></tr><tr><td>5</td><td>x₂</td><td>6</td><td>0</td><td>1</td><td>0</td><td>1/2</td><td>0</td></tr><tr><td>3</td><td>x₁</td><td>2</td><td>1</td><td>0</td><td>0</td><td>−1/3</td><td>1/3</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>36</td><td>3</td><td>5</td><td>0</td><td>3/2</td><td>1</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td>0</td><td>0</td><td>−3/2</td><td>−1</td></tr></table></div>
+    <ul>
+      <li><strong>Plan:</strong> basic satırların b'si: $x_1 = 2$, $x_2 = 6$, $s_1 = 2$. Nonbasic olanlar sıfır: $s_2 = s_3 = 0$. $z = 36$. Vertex $(2,6)$, yol $(0,0) \to (0,6) \to (2,6)$.</li>
+      <li><strong>Kaynaklar:</strong> $s_2 = 0$, $s_3 = 0$: memory ve CPU tükendi, bu constraint'ler <strong>binding</strong>. $s_1 = 2$: iki accelerator birimi boşta, o constraint <strong>slack</strong>. Yönetime gidecek bilgi doğrudan b sütununda.</li>
+      <li><strong>Gizemli sayılar:</strong> slack'lerin altındaki $z_j$'ler $(0, 3/2, 1)$. Bir birim daha memory 1.5 değerinde, bir birim daha CPU 1, bir birim daha accelerator 0. Bunlar <strong>shadow price</strong>'lar, yani dual çözüm. Nedenini Week 4 (LP duality) anlatır.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · stopping rule (max problem)</span>
+    <p>Optimality test: <strong>her $c_j - z_j \le 0$</strong> ⟺ hiçbir komşu vertex daha iyi değil ⟺ bu vertex optimal.</p>
+    <ul>
+      <li>Nonbasic bir değişkenin reduced cost'u, o değişken bir birim girerse $z$'deki değişimdir.</li>
+      <li>Pozitif bir $c_j - z_j$ → iyileştiren bir kenar var, pivot'a devam.</li>
+      <li>Hepsi $\le 0$ → dur. Convexity "daha iyi komşu yok"u "global optimal"e yükseltir.</li>
+      <li>Optimal tableau'da nonbasic bir değişkenin reduced cost'u <strong>sıfırsa</strong> bu bir alternative optima <strong>adayı</strong>dır; o sütunda ratio test yap. Minimum ratio $t^* &gt; 0$ ise pivot aynı $z$'li farklı bir optimal vertex'e götürür. Sütunda pozitif girdi yoksa optimal noktalar bir ray boyunca sınırsız uzanır (başka vertex yok). $t^* = 0$ ise (degenerate) adım sıfırdır ve bu tek başına başka bir optimum göstermez (sonraki ders).</li>
+      <li>Bütün nonbasic reduced cost'lar kesin negatifse optimum tektir. Bu yeterli bir şarttır, gerekli değil.</li>
+      <li>Final $c_j - z_j$ satırı bir <strong>certificate</strong>'tır: solver'ı yeniden çalıştırmadan herkes kontrol edebilir.</li>
+    </ul>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · certificate neden kanıt</span>
+    <p>Final tableau'nun objective satırı $z = 36 - \tfrac32 s_2 - 1\cdot s_3$ der. Her feasible noktada $s_2, s_3 \ge 0$, yani $z \le 36$. Şu anki noktada $z = 36$. Daha iyisi olamaz. Winston aynı argümanı Dakota örneğinde kurar: $z = 280 - 5x_2 - 10s_2 - 10s_3$ ⇒ $z \le 280$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Sözlük · geometri ⇄ cebir (slayt s.25)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Kavram</th><th>Geometri</th><th>Cebir (tableau)</th></tr>
+      <tr><td>Feasible region</td><td>Polyhedron $\{x : Ax \le b,\ x \ge 0\}$</td><td>Tableau'nun satırları (slack'lerle)</td></tr>
+      <tr><td>Köşe / vertex</td><td>Polyhedron'un extreme point'i</td><td>Basic feasible solution (bir basis)</td></tr>
+      <tr><td>Komşuya geçmek</td><td>Bir kenar yürümek</td><td>Bir pivot (entering ⇄ leaving)</td></tr>
+      <tr><td>Yön iyi mi?</td><td>Kenar yokuş yukarı</td><td>Pozitif bir $c_j - z_j$ (reduced cost)</td></tr>
+      <tr><td>Optimality</td><td>Bu vertex'ten yukarı giden kenar yok</td><td>Her yerde $c_j - z_j \le 0$ (certificate)</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Matris formu (ileri okuma)</span>
+    <p>Basis matrisine $B$, giren sütuna $a_j$ dersen tableau'daki sütun $B^{-1}a_j$, b sütunu $B^{-1}b$ ve $z_j = c_B^\top B^{-1} a_j$ olur. Reduced cost'ların hepsi birden $c_N^\top - c_B^\top B^{-1} N$. Nocedal &amp; Wright Ch.13 simplex'i bu dille anlatır; elle sınavda tableau yeterli.</p>
+  </div>
+  <p>Aşağıda final tableau'nun hücrelerine tıklayarak okumayı dene. Her görev bir hücre ister; yanlış hücreye tıklarsan o hücrenin aslında ne olduğunu söyler.</p>
+  <div class="w-simplex-wrap" id="w-simplex-reader">
+    <p class="w-simplex-guess"><b>Önce tahmin et:</b> CPU'nun shadow price'ı hangi satırda durur, $z_j$'de mi, $c_j - z_j$'de mi? İşareti ne?</p>
+    <div class="w-simplex-prompt" id="w-simplex-rtask"></div>
+    <div class="table-wrap w-simplex-click" id="w-simplex-rtab"></div>
+    <div class="w-simplex-fb" id="w-simplex-rfb" aria-live="polite"></div>
+    <div class="w-simplex-ctl"><button class="btn btn--sm" id="w-simplex-rnext">Sonraki görev</button><span class="w-simplex-score" id="w-simplex-rscore"></span></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Satır etiketine bakmadan b'yi okumak. $s_1$ satırındaki 2, $x_1 = 2$ değil; ikisi tesadüfen aynı sayı.</li>
+      <li>Shadow price'ı $c_j - z_j$ satırından işaretiyle okumak. Slayt düzeninde shadow price slack sütunundaki $z_j$'dir ($3/2$); $c_j - z_j = -3/2$ onun eksi işaretlisidir.</li>
+      <li>Shadow price'ı "sınırsız geçerli" sanmak. "Bir birim daha CPU 1 getirir" demek basis değişmediği sürece doğru; ne kadar gidebileceğini sensitivity dersi gösterir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-4.5-P5"><span class="box__label">Winston §4.5 Problem 5 · ödev sorusu</span>
+    <p>"Use the simplex algorithm to solve the following LP: max $z = x_1 + x_2$ s.t. $4x_1 + x_2 \le 100$, $x_1 + x_2 \le 80$, $x_1 \le 40$, $x_1, x_2 \ge 0$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İlk adımda $c_j - z_j$'ler eşit (1 ve 1). Küçük index'i, $x_1$'i al. Oranlar 25, 80, 40.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Final tableau'da nonbasic değişkenlerin $c_j - z_j$'sine tek tek bak. Biri sıfır mı? Bu ne anlatır?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p class="w-simplex-sub">Düzen: cⱼ − zⱼ satırı (slayt). Max problem: en büyük pozitif cⱼ − zⱼ girer.</p>
+      <p><strong>Iteration 1:</strong> $x_1$ girer. Oranlar $s_1$: $100/4 = 25$ ◄, $s_2$: 80, $s_3$: 40. Pivot 4, $z = 25$.</p>
+      <p><strong>Iteration 2:</strong> $c_j - z_j$: $x_2$ için $3/4$, $s_1$ için $-1/4$. $x_2$ girer. Oranlar $x_1$: $25/(1/4) = 100$, $s_2$: $55/(3/4) = 220/3$ ◄, $s_3$ satırında $a = -1/4$, atla. Pivot $3/4$.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>1</th><th>1</th><th>0</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th>s₃</th></tr><tr><td>1</td><td>x₁</td><td>20/3</td><td>1</td><td>0</td><td>1/3</td><td>−1/3</td><td>0</td></tr><tr><td>1</td><td>x₂</td><td>220/3</td><td>0</td><td>1</td><td>−1/3</td><td>4/3</td><td>0</td></tr><tr><td>0</td><td>s₃</td><td>100/3</td><td>0</td><td>0</td><td>−1/3</td><td>1/3</td><td>1</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>80</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td>0</td><td>0</td><td>−1</td><td>0</td></tr></table></div>
+      <p>Bütün $c_j - z_j \le 0$: optimal. $\boxed{z^* = 80}$, bulunan nokta $x = (20/3,\ 220/3)$, $s_3 = 100/3$.</p>
+      <p><strong>Dikkat:</strong> nonbasic $s_1$'in $c_j - z_j$'si <strong>0</strong>. Yani $s_1$'i girdirmek $z$'yi değiştirmeden başka bir vertex'e götürür: $(0, 80)$ da $z = 80$ verir. Bu LP'nin alternative optima'sı var; $x_1 + x_2 = 80$ kenarındaki $(0,80)$ ile $(20/3, 220/3)$ arasındaki her nokta optimal. Eşitlik bozulmasında $x_2$'yi önce girdirseydin simplex doğrudan $(0, 80)$'de dururdu. Ayrıntı sonraki derste.</p>
+      <p><strong>Kontrol:</strong> $4\cdot\tfrac{20}{3} + \tfrac{220}{3} = 100$ ✓, $\tfrac{20}{3} + \tfrac{220}{3} = 80$ ✓.</p>
+    </div></details>
+    <a class="src" href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, pdf s.165</a>
+    <!-- Kaynak: Winston pdf s.165 (book p.148) Problem 5. Referans çözüm yok; build.py ile hesaplandı. -->
+  </div>
+  <!-- Kaynak: Week_03.pdf s.19 (Reading the final tableau), s.20 (Stopping rule), s.25 (dictionary). Winston §4.5 (12) ve Remarks 1–2. Nocedal & Wright Ch.13 (pdf s.374), weeks/03 "Reduced costs c̄ = c_N − c_Bᵀ B⁻¹ N". -->
+  <div class="quiz" id="q-read">
+    <p class="quiz__q">Job-mix final tableau'sunda bir birim daha CPU (18 yerine 19 core) olsaydı $z$ yaklaşık ne kadar artardı?</p>
+    <button class="quiz__opt" data-correct>1<span class="why">Doğru. CPU'nun slack'i $s_3$; onun sütunundaki $z_j = 1$, CPU'nun shadow price'ı.</span></button>
+    <button class="quiz__opt">3/2<span class="why">Bu memory'nin ($s_2$) shadow price'ı. Sütunu constraint'in slack'iyle eşleştir.</span></button>
+    <button class="quiz__opt">−1<span class="why">Bu $s_3$'ün $c_j - z_j$'si. Shadow price slayt düzeninde $z_j$ satırında, pozitif.</span></button>
+    <button class="quiz__opt">0<span class="why">0 accelerator'ün shadow price'ı: o kaynak zaten boşta ($s_1 = 2$). CPU ise binding.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="zrow" data-min="5">
+  <h2>Öbür convention: z-row (row 0)</h2>
+  <p class="src">Not: Hocanın slaytları cⱼ − zⱼ satırını kullanıyor, ama kendi Lab 3 iskeleti (slayt s.24) ve Winston z-row kullanıyor. Sınavda hangisinin isteneceği duyurulmadı. İkisini de bil ve kâğıtta tableau'nun üstüne hangisini kullandığını yaz.</p>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · objective'i de bir satır yap</span>
+    <p>Winston objective'i bir denklem olarak yazar: $z - 3x_1 - 5x_2 = 0$. Buna <strong>row 0</strong> (z-row) denir. Tableau'nun en üstüne bu satır, katsayılarıyla girer: $(-3, -5, 0, 0, 0 \mid 0)$. Pivot'larda bu satır da öteki satırlar gibi row operation'la güncellenir; $z_j$ ayrıca hesaplanmaz.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki convention arasındaki eşleme</span>
+    <p>$$\text{z-row girdisi} = z_j - c_j = -(c_j - z_j), \qquad \text{z-row'un rhs'i} = z$$</p>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Slayt (cⱼ − zⱼ satırı)</th><th>z-row (Lab 3, Winston)</th></tr>
+      <tr><td>Başlangıç satırı</td><td>$c_j - z_j = c_j$, yani $(3, 5, 0, 0, 0)$</td><td>$-c_j$, yani $(-3, -5, 0, 0, 0 \mid 0)$</td></tr>
+      <tr><td>Entering (max)</td><td>en büyük pozitif</td><td>en negatif</td></tr>
+      <tr><td>Optimal (max)</td><td>hepsi $\le 0$</td><td>hepsi $\ge 0$</td></tr>
+      <tr><td>$z$ nerede</td><td>zⱼ satırında, b'nin altında</td><td>row 0'ın rhs'inde</td></tr>
+      <tr><td>Shadow price</td><td>slack sütunundaki $z_j$</td><td>slack sütunundaki row 0 girdisi</td></tr>
+      <tr><td>Ratio test, pivot</td><td colspan="2">aynı: sadece pozitif girdiler, en küçük $b_i / a_{ie}$</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · aynı job-mix koşusu, z-row düzeninde</span>
+    <p class="w-simplex-sub">Başlangıç: en negatif $-5$, $x_2$ girer.</p>
+    <div class="table-wrap"><table class="w-simplex-tab"><tr><th>Row</th><th>Basis</th><th>x₁</th><th class="is-col">x₂</th><th>s₁</th><th>s₂</th><th>s₃</th><th>rhs</th><th>ratio</th></tr><tr class="w-simplex-zr"><td>0</td><td>z</td><td>−3</td><td class="is-col">−5</td><td>0</td><td>0</td><td>0</td><td>0</td><td></td></tr><tr><td>1</td><td>s₁</td><td>1</td><td class="is-col">0</td><td>1</td><td>0</td><td>0</td><td>4</td><td>—</td></tr><tr class="is-row"><td>2</td><td>s₂</td><td class="is-row">0</td><td class="is-col is-row is-piv">2</td><td class="is-row">0</td><td class="is-row">1</td><td class="is-row">0</td><td>12</td><td>6 ◄ min</td></tr><tr><td>3</td><td>s₃</td><td>3</td><td class="is-col">2</td><td>0</td><td>0</td><td>1</td><td>18</td><td>9</td></tr></table></div>
+    <p class="w-simplex-sub">Iteration 1'den sonra: en negatif $-3$, $x_1$ girer.</p>
+    <div class="table-wrap"><table class="w-simplex-tab"><tr><th>Row</th><th>Basis</th><th class="is-col">x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th>s₃</th><th>rhs</th><th>ratio</th></tr><tr class="w-simplex-zr"><td>0</td><td>z</td><td class="is-col">−3</td><td>0</td><td>0</td><td>5/2</td><td>0</td><td>30</td><td></td></tr><tr><td>1</td><td>s₁</td><td class="is-col">1</td><td>0</td><td>1</td><td>0</td><td>0</td><td>4</td><td>4</td></tr><tr><td>2</td><td>x₂</td><td class="is-col">0</td><td>1</td><td>0</td><td>1/2</td><td>0</td><td>6</td><td>—</td></tr><tr class="is-row"><td>3</td><td>s₃</td><td class="is-col is-row is-piv">3</td><td class="is-row">0</td><td class="is-row">0</td><td class="is-row">−1</td><td class="is-row">1</td><td>6</td><td>2 ◄ min</td></tr></table></div>
+    <p class="w-simplex-sub">Final: row 0'da negatif kalmadı, optimal.</p>
+    <div class="table-wrap"><table class="w-simplex-tab"><tr><th>Row</th><th>Basis</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th>s₃</th><th>rhs</th></tr><tr class="w-simplex-zr"><td>0</td><td>z</td><td>0</td><td>0</td><td>0</td><td>3/2</td><td>1</td><td>36</td></tr><tr><td>1</td><td>s₁</td><td>0</td><td>0</td><td>1</td><td>1/3</td><td>−1/3</td><td>2</td></tr><tr><td>2</td><td>x₂</td><td>0</td><td>1</td><td>0</td><td>1/2</td><td>0</td><td>6</td></tr><tr><td>3</td><td>x₁</td><td>1</td><td>0</td><td>0</td><td>−1/3</td><td>1/3</td><td>2</td></tr></table></div>
+    <p>Final row 0 $(0, 0, 0, 3/2, 1 \mid 36)$. Slayttaki $c_j - z_j = (0,0,0,-3/2,-1)$ satırının tam eksi işaretlisi; shadow price'lar burada doğrudan, pozitif görünüyor. 5. bölümdeki lab'da "Gösterim" menüsünden aynı karşılaştırmayı her adımda görebilirsin.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Kuralı convention'la birlikte değiştirmemek: z-row'da "en büyük pozitif"i seçmek $z$'yi düşüren değişkeni girdirir.</li>
+      <li>"Reduced cost" kelimesi iki kitapta farklı işaretle kullanılıyor. Slayt $c_j - z_j$'ye reduced cost diyor; Winston row 0 katsayısına. Sayıyı yazarken hangi satırdan okuduğunu söyle.</li>
+      <li>Slayt düzeninde z-row'un rhs'i gibi $z$'yi $c_j - z_j$ satırına yazmak. Her düzenin $z$ hücresi farklı yerde.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.24 (Lab 3 iskeleti: "while (T[0, :-1] < -1e-9).any()", "Dantzig: most negative reduced cost") · Winston §4.5 "row 0 version", "Determine the Entering Variable", "Is a Canonical Form Optimal", Table 8 (simplex tableau). -->
+  <div class="quiz" id="q-zrow">
+    <p class="quiz__q">Max problem, z-row düzeni. Row 0: $x_1: -2$, $x_2: 0$, $s_1: 3$, $s_2: -4$, $s_3: 0$, rhs $17$. Kim girer?</p>
+    <button class="quiz__opt" data-correct>$s_2$<span class="why">Doğru. z-row'da en negatif girdi girer: $-4$. Slayt düzeninde bu $c_j - z_j = +4$ olurdu.</span></button>
+    <button class="quiz__opt">$s_1$<span class="why">Slayt kuralını (en büyük pozitif) z-row'a uyguladın. z-row'daki $+3$, slayt düzeninde $-3$ demek: $z$'yi düşürür.</span></button>
+    <button class="quiz__opt">$x_1$<span class="why">$x_1$ de iyileştirir ($-2$), ama Dantzig kuralı en negatif olanı ister. İlk negatifi almak Bland's rule'a yakın, slayttaki kural değil.</span></button>
+    <button class="quiz__opt">Hiçbiri, tableau optimal.<span class="why">z-row'da optimal olmak için bütün girdiler $\ge 0$ olmalı. Burada iki negatif var.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="min" data-min="5">
+  <h2>Min problem'leri: iki yol</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · min problem'i simplex ile çözmek</span>
+    <ul>
+      <li><strong>Yol 1 (max'a çevir):</strong> $\min z$ ile $\max\,(-z)$ aynı noktada çözülür. $c$'yi negatifle, max simplex'i çalıştır, sonunda işareti geri çevir: $z_{\min} = -(\text{max değeri})$.</li>
+      <li><strong>Yol 2 (kuralı çevir):</strong> slayt düzeninde <strong>en negatif</strong> $c_j - z_j$'yi girdir; bütün $c_j - z_j \ge 0$ olunca dur. z-row düzeninde bunun karşılığı: en pozitif row 0 girdisi girer, hepsi $\le 0$ olunca dur.</li>
+      <li>Ratio test ve pivot iki yolda da hiç değişmez.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Winston LP 2: $\min z = 2x_1 - 3x_2$ s.t. $x_1 + x_2 \le 4$, $x_1 - x_2 \le 6$, $x \ge 0$</span>
+    <p><strong>Yol 2</strong>, slayt düzeni ($c_j = 2, -3, 0, 0$). En negatif $c_j - z_j$: $-3$, $x_2$ girer. Ratio test: $s_1$: $4/1 = 4$; $s_2$ satırında $a = -1$, atla.</p>
+    <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>2</th><th class="is-col">−3</th><th>0</th><th>0</th><th></th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th class="is-col">x₂</th><th>s₁</th><th>s₂</th><th>ratio b / aᵢⱼ</th></tr><tr class="is-row"><td>0</td><td>s₁</td><td>4</td><td class="is-row">1</td><td class="is-col is-row is-piv">1</td><td class="is-row">1</td><td class="is-row">0</td><td>4 ◄ min</td></tr><tr><td>0</td><td>s₂</td><td>6</td><td>1</td><td class="is-col">−1</td><td>0</td><td>1</td><td>— (a ≤ 0)</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>0</td><td>0</td><td class="is-col">0</td><td>0</td><td>0</td><td></td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>2</td><td class="is-col">−3</td><td>0</td><td>0</td><td></td></tr></table></div>
+    <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>2</th><th>−3</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th></tr><tr class="is-new"><td>−3</td><td>x₂</td><td>4</td><td class="is-new">1</td><td class="is-new">1</td><td class="is-new">1</td><td class="is-new">0</td></tr><tr><td>0</td><td>s₂</td><td>10</td><td>2</td><td>0</td><td>1</td><td>1</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>−12</td><td>−3</td><td>−3</td><td>−3</td><td>0</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>5</td><td>0</td><td>3</td><td>0</td></tr></table></div>
+    <p>$c_j - z_j = (5, 0, 3, 0) \ge 0$: min problem için optimal. $x^* = (0, 4)$, $s_2 = 10$, $\boxed{z^* = -12}$. Kontrol: $2\cdot 0 - 3\cdot 4 = -12$ ✓.</p>
+    <p><strong>Yol 1:</strong> $\max\,(-z) = -2x_1 + 3x_2$ ile aynı pivot olur, final $c_j - z_j = (-5, 0, -3, 0)$ ve $-z = 12$, yani $z = -12$. Winston'ın Table 10 ve Table 12'si bu iki yolun z-row halleri; row 0'ları $(5, 0, 3, 0 \mid 12)$ ve $(-5, 0, -3, 0 \mid -12)$.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Yol 1'de sonucu geri çevirmeyi unutmak: tableau 12 der, cevap $z^* = -12$.</li>
+      <li>İki yolu karıştırmak: $c$'yi negatifleyip <em>bir de</em> en negatifi girdirmek. Ya problemi çevir ya kuralı, ikisini birden değil.</li>
+      <li>Row 0'ın rhs'i (z) negatif olabilir, bu normal. Constraint satırlarının rhs'i ise hiçbir zaman negatif olmaz.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-4.6-P1"><span class="box__label">Winston §4.6 Problem 1 · ödev sorusu</span>
+    <p>"Use the simplex algorithm to find the optimal solution to the following LP: min $z = 4x_1 - x_2$ s.t. $2x_1 + x_2 \le 8$, $x_2 \le 5$, $x_1 - x_2 \le 4$, $x_1, x_2 \ge 0$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Yol 2 ile: başlangıçta $c_j - z_j = c_j = (4, -1, 0, 0, 0)$. Hangisi negatif?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$x_2$ sütunu $(1, 1, -1)$. Üçüncü satır ratio test'e girer mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Yol 2 (en negatif $c_j - z_j$ girer):</strong> $x_2$ girer ($-1$). Oranlar: $s_1$: $8/1 = 8$, $s_2$: $5/1 = 5$ ◄, $s_3$: $a = -1$, atla. $s_2$ çıkar, pivot 1. $R_1 \leftarrow R_1 - R_2$, $R_3 \leftarrow R_3 + R_2$.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>4</th><th>−1</th><th>0</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th>s₃</th></tr><tr><td>0</td><td>s₁</td><td>3</td><td>2</td><td>0</td><td>1</td><td>−1</td><td>0</td></tr><tr class="is-new"><td>−1</td><td>x₂</td><td>5</td><td class="is-new">0</td><td class="is-new">1</td><td class="is-new">0</td><td class="is-new">1</td><td class="is-new">0</td></tr><tr><td>0</td><td>s₃</td><td>9</td><td>1</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>−5</td><td>0</td><td>−1</td><td>0</td><td>−1</td><td>0</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>4</td><td>0</td><td>0</td><td>1</td><td>0</td></tr></table></div>
+      <p>$c_j - z_j = (4, 0, 0, 1, 0) \ge 0$: optimal. $\boxed{x^* = (0, 5),\ z^* = -5}$; $s_1 = 3$, $s_3 = 9$.</p>
+      <p><strong>Yol 1 ile kontrol:</strong> $\max\,(-z) = -4x_1 + x_2$ aynı pivot'u yapar, $-z = 5$ ⇒ $z = -5$ ✓. Geometride de anlamlı: $x_1$ maliyeti artırıyor, 0'da kalmalı; $x_2$'yi $x_2 \le 5$ sınırına kadar büyüt.</p>
+    </div></details>
+    <a class="src" href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, pdf s.168</a>
+    <!-- Kaynak: Winston pdf s.168 (book p.152) §4.6 Problem 1. Referans çözüm yok; build.py ile iki yoldan hesaplandı. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-4.6-P2"><span class="box__label">Winston §4.6 Problem 2 · ödev sorusu</span>
+    <p>"Use the simplex algorithm to find the optimal solution to the following LP: min $z = -x_1 - x_2$ s.t. $x_1 - x_2 \le 1$, $x_1 + x_2 \le 2$" ($x_1, x_2 \ge 0$)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Yol 2 ile başla: iki $c_j - z_j$ de $-1$. Eşitlikte küçük index'i al.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İkinci iteration'da $x_2$ sütununun ilk girdisi negatif olacak; ratio test'te tek aday kalıyor.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p class="w-simplex-sub">Düzen: cⱼ − zⱼ satırı (slayt), Yol 2. Min problem: en negatif cⱼ − zⱼ girer, hepsi ≥ 0 olunca dur.</p>
+      <p><strong>Iteration 1:</strong> $x_1$ girer. Oranlar $s_1$: 1 ◄, $s_2$: 2. Pivot 1, $R_2 \leftarrow R_2 - R_1$. $z = -1$.</p>
+      <p><strong>Iteration 2:</strong> $c_B = (-1, 0)$. $x_2$ için $z_j = (-1)(-1) + 0\cdot 2 = 1$, $c_j - z_j = -1 - 1 = -2$; $s_1$ için $z_j = -1$, $c_j - z_j = 1$. $x_2$ girer. Oranlar: $x_1$ satırında $a = -1$, atla; $s_2$: $1/2$ ◄. Pivot 2.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>−1</th><th>−1</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th></tr><tr><td>−1</td><td>x₁</td><td>3/2</td><td>1</td><td>0</td><td>1/2</td><td>1/2</td></tr><tr class="is-new"><td>−1</td><td>x₂</td><td>1/2</td><td class="is-new">0</td><td class="is-new">1</td><td class="is-new">−1/2</td><td class="is-new">1/2</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>−2</td><td>−1</td><td>−1</td><td>0</td><td>−1</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td>0</td><td>0</td><td>1</td></tr></table></div>
+      <p>$c_j - z_j = (0, 0, 0, 1) \ge 0$: optimal. $\boxed{z^* = -2}$, bulunan nokta $x = (3/2,\ 1/2)$.</p>
+      <p><strong>Dikkat:</strong> nonbasic $s_1$'in $c_j - z_j$'si 0. $x_1 + x_2 = 2$ kenarı üzerinde $(3/2, 1/2)$'den $(0, 2)$'ye kadar her nokta $z = -2$ verir; bu LP'nin alternative optima'sı var. Simplex bunlardan birini döndürür.</p>
+    </div></details>
+    <a class="src" href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, pdf s.168</a>
+    <!-- Kaynak: Winston pdf s.168 (book p.152) §4.6 Problem 2. Sayfada sign restriction satırı görünmüyor; kitabın bütün problemlerindeki gibi x ≥ 0 varsayıldı. build.py ile hesaplandı. -->
+  </div>
+  <!-- Kaynak: Week_03.pdf s.5 (min ⇄ max: negate c). Winston §4.6 Method 1 ve Method 2, Table 9–12. -->
+  <div class="quiz" id="q-min">
+    <p class="quiz__q">Bir <strong>min</strong> problem'ini Yol 2 ile çözüyorsun (slayt düzeni). $c_j - z_j = (2, -3, 0, 0)$. Kim girer?</p>
+    <button class="quiz__opt" data-correct>$x_2$<span class="why">Doğru. Min problem'de en negatif $c_j - z_j$ girer: $x_2$'yi artırmak birim başına $z$'yi 3 düşürür.</span></button>
+    <button class="quiz__opt">$x_1$<span class="why">Max kuralını (en büyük pozitif) uyguladın. Min problem'de $x_1$'i artırmak $z$'yi 2 artırır.</span></button>
+    <button class="quiz__opt">Kimse, tableau optimal.<span class="why">Min problem'de optimal olmak için bütün $c_j - z_j \ge 0$ olmalı. $-3$ var.</span></button>
+    <button class="quiz__opt">$s_1$<span class="why">$s_1$ basic ve $c_j - z_j$'si 0; girecek değişken nonbasic olmalı ve $z$'yi düşürmeli.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="drive" data-min="7">
+  <h2>Sen sür: elle iki iteration</h2>
+  <p>Hocanın Week 3 kapanışında verdiği ödev "modeling + two simplex iterations by hand". Sınavda da aynı iş beklenir: kesirlerle, her pivot'u yazarak. Aşağıdaki pratikte tableau'yu sen sürersin: giren sütunun başlığına, sonra çıkan satıra tıkla, sonra yeni $z$'yi yaz. Yanlış seçimde hatanın adını söyler. Rastgele LP'ler küçük tam sayılarla ve dostça kesirlerle üretilir.</p>
+  <div class="w-simplex-wrap" id="w-simplex-drive">
+    <p class="w-simplex-guess"><b>Önce tahmin et:</b> Rastgele bir LP'de en büyük $c_j - z_j$'li sütunun en büyük girdisi her zaman pivot satırını mı verir? Birkaç LP'de dene ve bak.</p>
+    <div class="w-simplex-ctl">
+      <button class="btn btn--sm btn--accent" id="w-simplex-dnew">Yeni rastgele LP</button>
+      <button class="btn btn--sm" id="w-simplex-djob">Job-mix (slayt)</button>
+      <span class="w-simplex-score" id="w-simplex-dscore"></span>
+    </div>
+    <div id="w-simplex-dlp"></div>
+    <div class="w-simplex-prompt" id="w-simplex-dprompt"></div>
+    <div class="table-wrap w-simplex-click" id="w-simplex-dtab"></div>
+    <div class="w-simplex-ctl" id="w-simplex-dzrow" hidden>
+      <label>Yeni $z$ = <input type="text" class="w-simplex-zin" id="w-simplex-dzin" inputmode="text" placeholder="ör. 30 ya da 32/3" /></label>
+      <button class="btn btn--sm btn--accent" id="w-simplex-dzok">Kontrol et</button>
+      <button class="btn btn--sm" id="w-simplex-dzshow">Göster</button>
+    </div>
+    <div class="w-simplex-ctl"><button class="btn btn--sm" id="w-simplex-dstop">Hepsi ≤ 0: STOP</button></div>
+    <div class="w-simplex-fb" id="w-simplex-dfb" aria-live="polite"></div>
+  </div>
+  <div class="box box--exam" data-exam="w3-HW2"><span class="box__label">Week 3 slayt s.26, HW 2 · ödev sorusu</span>
+    <p>Slayttaki duyuru: "HW 2 out: modeling + two simplex iterations by hand". Ödevin metni repoda yok; aşağıdaki problem aynı biçimde, yeni sayılarla yazıldı.</p>
+    <p>"A small 3D-printing lab sells two products: PLA parts ($x_1$ batches, profit 4 k₺ per batch) and resin parts ($x_2$ batches, profit 5 k₺ per batch). Printer time: every batch of either kind takes 1 hour and 9 hours are available. Post-processing: a PLA batch needs 1 hour, a resin batch 2 hours; 14 hours are available. Material: a PLA batch uses 3 kg, a resin batch 1 kg; 21 kg are available. (a) Formulate the LP. (b) Set up the initial simplex tableau and carry out two iterations by hand, showing every row operation and the $z_j$ and $c_j - z_j$ rows. (c) Is the final tableau optimal? Read off $x^*$, $z^*$, the binding constraints and the $z_j$ values under the slacks."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) Üç kaynak, üç $\le$ constraint. Her satırda katsayı = bir batch'in o kaynaktan kullandığı miktar. (b) İlk giren $c_j - z_j$'si 5 olan $x_2$. Oranlar 9, 7, 21.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İlk pivot'tan sonra $x_1$'in $c_j - z_j$'si $3/2$. İkinci ratio test'te pivot element $1/2$ çıkıyor: o satırı 2 ile çarp.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $\max z = 4x_1 + 5x_2$ s.t. $x_1 + x_2 \le 9$ (printer), $x_1 + 2x_2 \le 14$ (post-processing), $3x_1 + x_2 \le 21$ (material), $x_1, x_2 \ge 0$.</p>
+      <p><strong>(b) Iteration 1</strong> (slayt düzeni). Slack'ler $s_1, s_2, s_3$ ile başlangıç BFS'i $(0,0)$, $z = 0$. $x_2$ girer (5). Oranlar $s_1$: 9, $s_2$: 7 ◄, $s_3$: 21. $s_2$ çıkar, pivot 2.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>4</th><th class="is-col">5</th><th>0</th><th>0</th><th>0</th><th></th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th class="is-col">x₂</th><th>s₁</th><th>s₂</th><th>s₃</th><th>ratio b / aᵢⱼ</th></tr><tr><td>0</td><td>s₁</td><td>9</td><td>1</td><td class="is-col">1</td><td>1</td><td>0</td><td>0</td><td>9</td></tr><tr class="is-row"><td>0</td><td>s₂</td><td>14</td><td class="is-row">1</td><td class="is-col is-row is-piv">2</td><td class="is-row">0</td><td class="is-row">1</td><td class="is-row">0</td><td>7 ◄ min</td></tr><tr><td>0</td><td>s₃</td><td>21</td><td>3</td><td class="is-col">1</td><td>0</td><td>0</td><td>1</td><td>21</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>0</td><td>0</td><td class="is-col">0</td><td>0</td><td>0</td><td>0</td><td></td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>4</td><td class="is-col">5</td><td>0</td><td>0</td><td>0</td><td></td></tr></table></div>
+      <div class="w-simplex-ops">
+        <div>R2 ← R2 / 2         : (1, 2, 0, 1, 0 | 14) / 2                = (1/2, 1, 0, 1/2, 0 | 7)</div>
+        <div>R1 ← R1 − 1·R2(yeni) : (1, 1, 1, 0, 0 | 9) − (1/2, 1, 0, 1/2, 0 | 7) = (1/2, 0, 1, −1/2, 0 | 2)</div>
+        <div>R3 ← R3 − 1·R2(yeni) : (3, 1, 0, 0, 1 | 21) − (1/2, 1, 0, 1/2, 0 | 7) = (5/2, 0, 0, −1/2, 1 | 14)</div>
+      </div>
+      <p>$c_B = (0, 5, 0)$, $z = 5\cdot 7 = 35$ (kontrol: $0 + 5\cdot 7$ ✓). $c_j - z_j = (3/2, 0, 0, -5/2, 0)$.</p>
+      <p><strong>Iteration 2.</strong> $x_1$ girer ($3/2$). Oranlar $s_1$: $2/(1/2) = 4$ ◄, $x_2$: $7/(1/2) = 14$, $s_3$: $14/(5/2) = 28/5$. $s_1$ çıkar, pivot $1/2$.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th class="is-col">4</th><th>5</th><th>0</th><th>0</th><th>0</th><th></th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th class="is-col">x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th>s₃</th><th>ratio b / aᵢⱼ</th></tr><tr class="is-row"><td>0</td><td>s₁</td><td>2</td><td class="is-col is-row is-piv">1/2</td><td class="is-row">0</td><td class="is-row">1</td><td class="is-row">−1/2</td><td class="is-row">0</td><td>4 ◄ min</td></tr><tr><td>5</td><td>x₂</td><td>7</td><td class="is-col">1/2</td><td>1</td><td>0</td><td>1/2</td><td>0</td><td>14</td></tr><tr><td>0</td><td>s₃</td><td>14</td><td class="is-col">5/2</td><td>0</td><td>0</td><td>−1/2</td><td>1</td><td>28/5</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>35</td><td class="is-col">5/2</td><td>5</td><td>0</td><td>5/2</td><td>0</td><td></td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td class="is-col">3/2</td><td>0</td><td>0</td><td>−5/2</td><td>0</td><td></td></tr></table></div>
+      <div class="w-simplex-ops">
+        <div>R1 ← R1 / (1/2)        : 2·(1/2, 0, 1, −1/2, 0 | 2)               = (1, 0, 2, −1, 0 | 4)</div>
+        <div>R2 ← R2 − (1/2)·R1(yeni) : (1/2, 1, 0, 1/2, 0 | 7) − (1/2, 0, 1, −1/2, 0 | 2) = (0, 1, −1, 1, 0 | 5)</div>
+        <div>R3 ← R3 − (5/2)·R1(yeni) : (5/2, 0, 0, −1/2, 1 | 14) − (5/2, 0, 5, −5/2, 0 | 10) = (0, 0, −5, 2, 1 | 4)</div>
+      </div>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>4</th><th>5</th><th>0</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th>s₃</th></tr><tr class="is-new"><td>4</td><td>x₁</td><td>4</td><td class="is-new">1</td><td class="is-new">0</td><td class="is-new">2</td><td class="is-new">−1</td><td class="is-new">0</td></tr><tr><td>5</td><td>x₂</td><td>5</td><td>0</td><td>1</td><td>−1</td><td>1</td><td>0</td></tr><tr><td>0</td><td>s₃</td><td>4</td><td>0</td><td>0</td><td>−5</td><td>2</td><td>1</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>41</td><td>4</td><td>5</td><td>3</td><td>1</td><td>0</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td>0</td><td>−3</td><td>−1</td><td>0</td></tr></table></div>
+      <p><strong>(c)</strong> $c_j - z_j = (0, 0, -3, -1, 0) \le 0$: optimal. $\boxed{x^* = (4, 5),\ z^* = 41}$ (kontrol: $35 + \tfrac32\cdot 4 = 41$ ✓). $s_1 = s_2 = 0$: printer ve post-processing binding. $s_3 = 4$: 4 kg malzeme artıyor. Slack'lerin altındaki $z_j$: $(3, 1, 0)$; bir saat daha printer 3 k₺, bir saat daha post-processing 1 k₺ değerinde, malzeme 0.</p>
+      <p><strong>Kontrol:</strong> $4 + 5 = 9$ ✓, $4 + 10 = 14$ ✓, $12 + 5 = 17 \le 21$ ✓.</p>
+    </div></details>
+    <!-- Kaynak: Week_03.pdf s.26 "HW 2 out: modeling + two simplex iterations by hand". Sayılar yeni (twin); build.py ve NumPy çözücüsüyle kontrol edildi. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-4.5-P1"><span class="box__label">Winston §4.5 Problem 1 (Giapetto) · ödev sorusu</span>
+    <p>"Use the simplex algorithm to solve the Giapetto problem (Example 1 in Chapter 3)."</p>
+    <p>Giapetto (Winston Ch.3): $\max z = 3x_1 + 2x_2$ s.t. $2x_1 + x_2 \le 100$ (finishing), $x_1 + x_2 \le 80$ (carpentry), $x_1 \le 40$ (soldier demand), $x_1, x_2 \ge 0$.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bu LP üç pivot sürer. İlk ratio test'te oranlar 50, 80, 40.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İkinci pivot'tan sonra pozitif $c_j - z_j$ bir <strong>slack</strong>'te çıkıyor. Şaşırma: basis'ten çıkmış bir slack geri girebilir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p class="w-simplex-sub">Düzen: cⱼ − zⱼ satırı (slayt). Max problem: en büyük pozitif cⱼ − zⱼ girer.</p>
+      <p><strong>Iteration 1:</strong> $x_1$ girer (3). Oranlar 50, 80, 40 ◄: $s_3$ çıkar, pivot 1. $z = 120$, vertex $(40, 0)$.</p>
+      <p><strong>Iteration 2:</strong> $c_j - z_j = (0, 2, 0, 0, -3)$, $x_2$ girer. Oranlar $s_1$: $20/1 = 20$ ◄, $s_2$: $40/1 = 40$, $x_1$ satırında $a = 0$. $s_1$ çıkar. $z = 160$, vertex $(40, 20)$.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>3</th><th>2</th><th>0</th><th>0</th><th class="is-col">0</th><th></th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th class="is-col">s₃</th><th>ratio b / aᵢⱼ</th></tr><tr><td>2</td><td>x₂</td><td>20</td><td>0</td><td>1</td><td>1</td><td>0</td><td class="is-col">−2</td><td>— (a ≤ 0)</td></tr><tr class="is-row"><td>0</td><td>s₂</td><td>20</td><td class="is-row">0</td><td class="is-row">0</td><td class="is-row">−1</td><td class="is-row">1</td><td class="is-col is-row is-piv">1</td><td>20 ◄ min</td></tr><tr><td>3</td><td>x₁</td><td>40</td><td>1</td><td>0</td><td>0</td><td>0</td><td class="is-col">1</td><td>40</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>160</td><td>3</td><td>2</td><td>2</td><td>0</td><td class="is-col">−1</td><td></td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td>0</td><td>−2</td><td>0</td><td class="is-col">1</td><td></td></tr></table></div>
+      <p><strong>Iteration 3:</strong> $c_j - z_j = (0, 0, -2, 0, 1)$: $s_3$ girer (1). Oranlar: $x_2$ satırında $a = -2$, atla; $s_2$: $20/1 = 20$ ◄; $x_1$: $40/1 = 40$. $s_2$ çıkar. $z = 160 + 1\cdot 20 = 180$.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>3</th><th>2</th><th>0</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th><th>s₃</th></tr><tr><td>2</td><td>x₂</td><td>60</td><td>0</td><td>1</td><td>−1</td><td>2</td><td>0</td></tr><tr class="is-new"><td>0</td><td>s₃</td><td>20</td><td class="is-new">0</td><td class="is-new">0</td><td class="is-new">−1</td><td class="is-new">1</td><td class="is-new">1</td></tr><tr><td>3</td><td>x₁</td><td>20</td><td>1</td><td>0</td><td>1</td><td>−1</td><td>0</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>180</td><td>3</td><td>2</td><td>1</td><td>1</td><td>0</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td>0</td><td>−1</td><td>−1</td><td>0</td></tr></table></div>
+      <p>Bütün $c_j - z_j \le 0$: $\boxed{x^* = (20, 60),\ z^* = 180}$. Finishing ve carpentry binding (shadow price 1 ve 1), demand slack: $s_3 = 20$ soldier talebi karşılanmıyor ve gerek de yok. Yol $(0,0) \to (40,0) \to (40,20) \to (20,60)$.</p>
+    </div></details>
+    <a class="src" href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, pdf s.165 (model pdf s.68–70)</a>
+    <!-- Kaynak: Winston pdf s.165 Problem 1; Giapetto modeli pdf s.69–70 (constraint (2)–(4)). Kitaptaki grafik çözüm de (20, 60), z = 180. build.py ile hesaplandı. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-4.5-P2"><span class="box__label">Winston §4.5 Problem 2 · ödev sorusu</span>
+    <p>"Use the simplex algorithm to solve the following LP: max $z = 2x_1 + 3x_2$ s.t. $x_1 + 2x_2 \le 6$, $2x_1 + x_2 \le 8$, $x_1, x_2 \ge 0$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$x_2$ girer, oranlar 3 ve 8.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İkinci pivot element $3/2$; sonuç kesirli çıkıyor, bu normal.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p class="w-simplex-sub">Düzen: cⱼ − zⱼ satırı (slayt). Max problem: en büyük pozitif cⱼ − zⱼ girer.</p>
+      <p><strong>Iteration 1:</strong> $x_2$ girer (3). Oranlar $s_1$: $6/2 = 3$ ◄, $s_2$: $8/1 = 8$. Pivot 2. $z = 9$, $c_j - z_j = (1/2, 0, -3/2, 0)$.</p>
+      <p><strong>Iteration 2:</strong> $x_1$ girer ($1/2$). Oranlar $x_2$: $3/(1/2) = 6$, $s_2$: $5/(3/2) = 10/3$ ◄. Pivot $3/2$.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>2</th><th>3</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>s₁</th><th>s₂</th></tr><tr><td>3</td><td>x₂</td><td>4/3</td><td>0</td><td>1</td><td>2/3</td><td>−1/3</td></tr><tr class="is-new"><td>2</td><td>x₁</td><td>10/3</td><td class="is-new">1</td><td class="is-new">0</td><td class="is-new">−1/3</td><td class="is-new">2/3</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>32/3</td><td>2</td><td>3</td><td>4/3</td><td>1/3</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td>0</td><td>−4/3</td><td>−1/3</td></tr></table></div>
+      <p>Optimal: $\boxed{x^* = (10/3,\ 4/3),\ z^* = 32/3}$. Kontrol: $9 + \tfrac12\cdot\tfrac{10}{3} = \tfrac{32}{3}$ ✓; $\tfrac{10}{3} + \tfrac83 = 6$ ✓, $\tfrac{20}{3} + \tfrac43 = 8$ ✓.</p>
+    </div></details>
+    <a class="src" href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, pdf s.165</a>
+    <!-- Kaynak: Winston pdf s.165 Problem 2. build.py ile hesaplandı. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-4.5-P3"><span class="box__label">Winston §4.5 Problem 3 · ödev sorusu</span>
+    <p>"Use the simplex algorithm to solve the following problem: max $z = 2x_1 - x_2 + x_3$ s.t. $3x_1 + x_2 + x_3 \le 60$, $x_1 - x_2 + 2x_3 \le 10$, $x_1 + x_2 - x_3 \le 20$, $x_1, x_2, x_3 \ge 0$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$x_1$ girer; oranlar 20, 10, 20. Negatif katsayılı bir objective olması hiçbir şeyi değiştirmez, $c_j$ satırına $-1$ yazarsın.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İkinci iteration'da $x_2$'nin $c_j - z_j$'si $-1 - (-2) = 1$. Ratio test'te $x_1$ satırının girdisi negatif.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p class="w-simplex-sub">Düzen: cⱼ − zⱼ satırı (slayt). Max problem: en büyük pozitif cⱼ − zⱼ girer.</p>
+      <p><strong>Iteration 1:</strong> $x_1$ girer (2). Oranlar $s_1$: 20, $s_2$: 10 ◄, $s_3$: 20. Pivot 1. $z = 20$, $c_j - z_j = (0, 1, -3, 0, -2, 0)$.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>2</th><th class="is-col">−1</th><th>1</th><th>0</th><th>0</th><th>0</th><th></th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th class="is-col">x₂</th><th>x₃</th><th>s₁</th><th>s₂</th><th>s₃</th><th>ratio b / aᵢⱼ</th></tr><tr><td>0</td><td>s₁</td><td>30</td><td>0</td><td class="is-col">4</td><td>−5</td><td>1</td><td>−3</td><td>0</td><td>15/2</td></tr><tr><td>2</td><td>x₁</td><td>10</td><td>1</td><td class="is-col">−1</td><td>2</td><td>0</td><td>1</td><td>0</td><td>— (a ≤ 0)</td></tr><tr class="is-row"><td>0</td><td>s₃</td><td>10</td><td class="is-row">0</td><td class="is-col is-row is-piv">2</td><td class="is-row">−3</td><td class="is-row">0</td><td class="is-row">−1</td><td class="is-row">1</td><td>5 ◄ min</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>20</td><td>2</td><td class="is-col">−2</td><td>4</td><td>0</td><td>2</td><td>0</td><td></td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td class="is-col">1</td><td>−3</td><td>0</td><td>−2</td><td>0</td><td></td></tr></table></div>
+      <p><strong>Iteration 2:</strong> $x_2$ girer (1). Oranlar $s_1$: $30/4 = 15/2$, $x_1$ satırı $a = -1$ (atla), $s_3$: $10/2 = 5$ ◄. Pivot 2.</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>2</th><th>−1</th><th>1</th><th>0</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>x₁</th><th>x₂</th><th>x₃</th><th>s₁</th><th>s₂</th><th>s₃</th></tr><tr><td>0</td><td>s₁</td><td>10</td><td>0</td><td>0</td><td>1</td><td>1</td><td>−1</td><td>−2</td></tr><tr><td>2</td><td>x₁</td><td>15</td><td>1</td><td>0</td><td>1/2</td><td>0</td><td>1/2</td><td>1/2</td></tr><tr class="is-new"><td>−1</td><td>x₂</td><td>5</td><td class="is-new">0</td><td class="is-new">1</td><td class="is-new">−3/2</td><td class="is-new">0</td><td class="is-new">−1/2</td><td class="is-new">1/2</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>25</td><td>2</td><td>−1</td><td>5/2</td><td>0</td><td>3/2</td><td>1/2</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td>0</td><td>−3/2</td><td>0</td><td>−3/2</td><td>−1/2</td></tr></table></div>
+      <p>Optimal: $\boxed{x^* = (15, 5, 0),\ z^* = 25}$, $s_1 = 10$. Kontrol: $30 - 5 + 0 = 25$ ✓; $45 + 5 = 50 \le 60$, $15 - 5 = 10$ ✓, $15 + 5 = 20$ ✓.</p>
+    </div></details>
+    <a class="src" href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, pdf s.165</a>
+    <!-- Kaynak: Winston pdf s.165 Problem 3 (iki sütuna bölünmüş; ikinci ve üçüncü constraint sağ sütunun başında). build.py ile hesaplandı. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Kesirleri ondalığa çevirmek: $1/3$ ondalıkla taşındıkça hata birikir ve final tableau'da $c_j - z_j$ "neredeyse sıfır" çıkar. Sınavda kesirle çalış.</li>
+      <li>Her pivot'tan sonra $\Delta z = (c_e - z_e)\,t^*$ kontrolünü atlamak. Bu tek satırlık kontrol aritmetik hatalarının çoğunu yakalar.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-drive">
+    <p class="quiz__q">Bir pivot'tan sonra b sütununda $-2$ gördün. Bu ne demek?</p>
+    <button class="quiz__opt" data-correct>Ratio test'te ya da bir row operation'da hata yaptım.<span class="why">Doğru. Ratio test doğru yapılırsa her constraint satırının rhs'i $\ge 0$ kalır (4. bölümdeki argüman).</span></button>
+    <button class="quiz__opt">LP infeasible.<span class="why">Infeasibility böyle anlaşılmaz; slack basis'iyle başlayan bir LP zaten feasible. Negatif rhs bir hesap hatasının izi.</span></button>
+    <button class="quiz__opt">LP unbounded.<span class="why">Unbounded, giren sütunda hiç pozitif girdi olmamasıyla görünür, negatif rhs ile değil.</span></button>
+    <button class="quiz__opt">Min problem'lerde bu normaldir.<span class="why">Min problem'de negatif olabilen tek şey $z$ (row 0'ın rhs'i). Constraint satırları her iki türde de nonnegative kalır.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="code" data-min="6">
+  <h2>Kendi simplex'ini yaz: Lab 3</h2>
+  <p class="src">Not: Lab 3 notebook'u repoda yok. Görevler Week 3 slaytındaki (s.24) listeden alındı. Staffing LP $\ge$ kısıtlı olduğu için bu iskeletle başlayamaz; Winston verisiyle <a href="simplex-special.html#twophase">simplex-special dersinin two-phase bölümünde</a>.</p>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · hocanın iskeleti (slayt s.24)</span>
+<pre><code>def simplex_solve(c, A, b):         # max c@x s.t. A@x &lt;= b, x &gt;= 0
+    T, basis = build_tableau(c, A, b)  # slacks give a free starting BFS
+    while (T[0, :-1] &lt; -1e-9).any():   # any improving column?
+        j = entering(T)                # Dantzig: most negative reduced cost
+        i = ratio_test(T, j)           # first basic variable to hit zero
+        pivot(T, basis, i, j)          # walk one edge to the next vertex
+    return read_solution(T, basis)     # x*, z*, and the final reduced costs</code></pre>
+    <p>İskelet z-row convention'ında: <code>T[0]</code> row 0, en negatif girdi girer, döngü row 0'da negatif kalmayınca biter. Her satır bu derste elle yaptığın bir adım.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kod · ~40 satır NumPy, iskeletin doldurulmuş hali</span>
+<pre><code>import numpy as np
+
+def build_tableau(c, A, b):
+    m, n = A.shape
+    T = np.zeros((m + 1, n + m + 1))
+    T[0, :n] = -c                      # row 0 = z-row: z - c x = 0
+    T[1:, :n] = A
+    T[1:, n:n + m] = np.eye(m)         # slack columns
+    T[1:, -1] = b
+    basis = list(range(n, n + m))      # slacks form the starting BFS
+    return T, basis
+
+def entering(T):
+    return int(np.argmin(T[0, :-1]))   # Dantzig: most negative z-row entry
+
+def ratio_test(T, j):
+    col, rhs = T[1:, j], T[1:, -1]
+    ratios = np.full(col.shape, np.inf)
+    pos = col &gt; 1e-9                   # only positive entries can block
+    ratios[pos] = rhs[pos] / col[pos]
+    if np.isinf(ratios).all():
+        raise ValueError("unbounded: no positive entry in the entering column")
+    return int(np.argmin(ratios)) + 1  # +1 because row 0 is the z-row
+
+def pivot(T, basis, i, j):
+    T[i] /= T[i, j]                    # pivot element becomes 1
+    for r in range(T.shape[0]):
+        if r != i:
+            T[r] -= T[r, j] * T[i]     # zero out the rest of column j
+    basis[i - 1] = j
+
+def read_solution(T, basis, n):
+    x = np.zeros(T.shape[1] - 1)
+    for r, k in enumerate(basis, start=1):
+        x[k] = T[r, -1]
+    return x[:n], T[0, -1], T[0, :-1]  # x*, z*, final z-row (z_j - c_j)
+
+def simplex_solve(c, A, b):            # max c@x s.t. A@x &lt;= b, x &gt;= 0
+    c, A, b = (np.asarray(v, dtype=float) for v in (c, A, b))
+    T, basis = build_tableau(c, A, b)
+    while (T[0, :-1] &lt; -1e-9).any():
+        j = entering(T)
+        i = ratio_test(T, j)
+        pivot(T, basis, i, j)
+    return read_solution(T, basis, len(c))</code></pre>
+    <p>Job-mix'te <code>simplex_solve([3,5], [[1,0],[0,2],[3,2]], [4,12,18])</code> → <code>x = [2, 6]</code>, <code>z = 36</code>, final row 0 <code>[0, 0, 0, 1.5, 1]</code>: shadow price'lar doğrudan.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><code>&lt; 0</code> yerine <code>&lt; -1e-9</code>: float ile $1/3$ gibi sayılar tam sıfır çıkmaz. Tolerans olmazsa döngü $-10^{-16}$ yüzünden bir pivot daha yapmaya çalışabilir.</li>
+      <li>Ratio test'te <code>col &gt; 0</code> yerine <code>col != 0</code> yazmak negatif girdileri içeri alır: rhs negatif olur, BFS bozulur.</li>
+      <li><code>basis[i - 1]</code>: row 0 basis listesinde yok, satır index'i bir kayar.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab3-simplex"><span class="box__label">Lab 3 (Week 3 slayt s.24) · lab görevi</span>
+    <p>"Implement tableau simplex (~40 lines of NumPy) — watch every pivot. Validate against scipy.optimize.linprog + random fuzz LPs." (görev listesinin bu bölümle ilgili kısmı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Yukarıdaki dört fonksiyonu yaz; "watch every pivot" için <code>pivot</code>'tan önce <code>T</code>'yi yazdır. Job-mix'te slayt s.15–18'deki tableau'ların z-row hallerini görmelisin.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p><code>linprog</code> minimize eder: <code>linprog(-c, A_ub=A, b_ub=b, bounds=[(0, None)]*n)</code>, sonra <code>-res.fun</code>'u senin $z$'inle karşılaştır. Fuzz LP'lerin bounded olması için A'nın bir satırını tamamen pozitif yap.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+<pre><code>from scipy.optimize import linprog
+rng = np.random.default_rng(0)
+bad = 0
+for t in range(300):
+    m, n = rng.integers(2, 6), rng.integers(2, 6)
+    A = rng.integers(0, 8, (m, n)).astype(float)
+    b = rng.integers(1, 30, m).astype(float)
+    c = rng.integers(1, 10, n).astype(float)
+    A[0] = np.maximum(A[0], 1)         # every x_j appears in row 1, so the LP is bounded
+    x, z, _ = simplex_solve(c, A, b)
+    r = linprog(-c, A_ub=A, b_ub=b, bounds=[(0, None)] * n, method="highs")
+    if abs(-r.fun - z) &gt; 1e-7:
+        bad += 1
+print("mismatches:", bad)</code></pre>
+      <p>Bu derste aynı kod ve aynı test çalıştırıldı: job-mix → $(2, 6)$, $z = 36$; 300 rastgele LP'de linprog ile <strong>0</strong> uyuşmazlık. $x$'leri değil $z$'leri karşılaştır: alternative optima olan bir LP'de iki solver farklı ama ikisi de optimal noktalar döndürebilir.</p>
+    </div></details>
+    <!-- Kaynak: Week_03.pdf s.24. Kod ve fuzz testi numpy 2.0.2 / scipy 1.13.1 ile çalıştırıldı (test_lab3.py). -->
+  </div>
+  <div class="box box--exam" data-exam="lab3-bandwidth"><span class="box__label">Lab 3 (Week 3 slayt s.23–24) · lab görevi</span>
+    <p>"Solve the bandwidth-allocation case with YOUR solver." Model (slayt s.23): max $f_1 + f_2 + f_3$ s.t. $f_1 + f_3 \le 10$ (SRC→R1), $f_2 \le 8$ (SRC→R2), $f_1 \le 7$ (R1→DST), $f_2 + f_3 \le 9$ (R2→DST), $f_3 \le 4$ (R1→R2), $f \ge 0$. Slayttaki cevap: $f^* = (7, 8, 1)$, 16 Gbps.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Beş constraint, beş slack. Çözücüye <code>c = [1,1,1]</code> ve 5×3'lük A'yı ver. Kaç pivot sürüyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Final row 0'da (ya da $c_j - z_j$ satırında) nonbasic bir değişkenin değeri 0 mı? O değişkeni girdirince ne değişir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p class="w-simplex-sub">Düzen: cⱼ − zⱼ satırı (slayt). Max problem: en büyük pozitif cⱼ − zⱼ girer.</p>
+      <p>Dantzig kuralı ve eşitlikte küçük index ile üç pivot: $f_1$ girer ($s_3$ çıkar, $z = 7$), $f_2$ girer ($s_2$ çıkar, $z = 15$), $f_3$ girer ($s_4$ çıkar, $z = 16$).</p>
+      <div class="table-wrap"><table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th><th>1</th><th>1</th><th>1</th><th>0</th><th>0</th><th>0</th><th>0</th><th>0</th></tr><tr><th>c_B</th><th>Basis</th><th>b</th><th>f₁</th><th>f₂</th><th>f₃</th><th>s₁</th><th>s₂</th><th>s₃</th><th>s₄</th><th>s₅</th></tr><tr><td>0</td><td>s₁</td><td>2</td><td>0</td><td>0</td><td>0</td><td>1</td><td>1</td><td>−1</td><td>−1</td><td>0</td></tr><tr><td>1</td><td>f₂</td><td>8</td><td>0</td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td></tr><tr><td>1</td><td>f₁</td><td>7</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td></tr><tr><td>1</td><td>f₃</td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>−1</td><td>0</td><td>1</td><td>0</td></tr><tr><td>0</td><td>s₅</td><td>3</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td><td>−1</td><td>1</td></tr><tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>16</td><td>1</td><td>1</td><td>1</td><td>0</td><td>0</td><td>1</td><td>1</td><td>0</td></tr><tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>−1</td><td>−1</td><td>0</td></tr></table></div>
+      <p>Sonuç: $f = (7, 8, 1)$, $\boxed{z^* = 16}$ Gbps, slayttaki değer. Bu vertex'te üç link dolu: SRC→R2 ($f_2 = 8$, $s_2 = 0$), R1→DST ($f_1 = 7$) ve R2→DST ($f_2 + f_3 = 9$). Shadow price'lar (slack'lerin altındaki $z_j$): R1→DST ve R2→DST için 1, öteki üç link için 0. SRC→R2 dolu olduğu halde shadow price'ı 0: SRC→R2'ye bir Gbps daha eklemek toplamı artırmaz, çünkü R2→DST ($f_2 + f_3 \le 9$) hâlâ dolu; fazladan $f_2$ ancak $f_3$'ün yerini alır.</p>
+      <p><strong>Ama (7, 8, 1) tek optimum değil.</strong> Nonbasic $s_2$'nin (SRC→R2 slack'i) $c_j - z_j$'si 0. Optimal küme: $f_1 = 7$, $f_2 + f_3 = 9$, $f_3 \in [1, 3]$. Alt sınır $f_2 \le 8$'den, üst sınır $f_1 + f_3 \le 10$'dan gelir. Örneğin $(7, 6, 3)$ da 16 Gbps verir. Senin çözücün ya da linprog bu aralıktan başka bir nokta döndürürse hata yok; karşılaştırmayı $z$ üzerinden yap.</p>
+    </div></details>
+    <!-- Kaynak: Week_03.pdf s.23 (bandwidth LP, f* = (7,8,1)), s.24 (lab görevi). Alternative optima build.py ve NumPy çözücüsüyle kontrol edildi: (7,8,1) ve (7,6,3) ikisi de feasible, z = 16. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-4.5-P7"><span class="box__label">Winston §4.5 Problem 7 (Group B) · ödev sorusu</span>
+    <p>"It has been suggested that at each iteration of the simplex algorithm, the entering variable should be (in a maximization problem) the variable that would bring about the greatest increase in the objective function. Although this usually results in fewer pivots than the rule of entering the most negative row 0 entry, the greatest increase rule is hardly ever used. Why not?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bir değişkeni girdirmenin $z$'ye toplam katkısı nedir? Bunun için hangi iki sayıyı bilmen gerekir?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Dantzig kuralı için sadece row 0'a bakman yeter. Greatest increase için kaç sütunda ratio test yapman gerekir?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$x_j$ girerse $z$ tam olarak $(c_j - z_j)\cdot t_j^*$ kadar artar; $t_j^*$ o sütunun minimum ratio'su. Greatest increase kuralı bu çarpımı her aday için ister, yani <strong>her iyileştiren sütunda ayrı bir ratio test</strong> (her biri $m$ bölme). Dantzig kuralı ise sadece row 0'ı tarar ve tek bir ratio test yapar.</p>
+      <p>Büyük LP'lerde (binlerce sütun) iteration başına bu ek iş, kazanılan birkaç pivot'tan çok daha pahalıdır. Üstelik daha az pivot garanti değil; bu kuralın da kötü örnekleri var. Pratikte solver'lar ucuz fiyatlama kurallarını tercih eder.</p>
+      <p>Job-mix'te örnek: iteration 1'de $x_1$ girseydi artış $3\cdot 4 = 12$, $x_2$ girdiğinde $5\cdot 6 = 30$. Burada iki kural aynı seçimi yapıyor, ama bunu bilmek için iki ratio test gerekti.</p>
+    </div></details>
+    <a class="src" href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, pdf s.165</a>
+    <!-- Kaynak: Winston pdf s.165 Group B Problem 7. Referans çözüm yok. -->
+  </div>
+  <p>Lab 3'ün öteki görevleri (job-mix'i çizip bütün basic solution'ları saymak, Bland's rule, alternative optima ve Klee–Minty) bir önceki ve bir sonraki derste.</p>
+  <div class="quiz" id="q-code">
+    <p class="quiz__q">İskeletteki <code>while (T[0, :-1] &lt; -1e-9).any():</code> satırı neyi kontrol eder?</p>
+    <button class="quiz__opt" data-correct>Row 0'da (rhs hariç) negatif bir girdi, yani iyileştiren bir sütun kaldı mı.<span class="why">Doğru. z-row'da negatif girdi = slayt düzeninde pozitif $c_j - z_j$. Kalmadıysa tableau optimal.</span></button>
+    <button class="quiz__opt">b sütununda negatif bir sayı var mı.<span class="why"><code>T[0, :-1]</code> ilk satır, son sütun hariç: objective satırı. b sütunu <code>T[1:, -1]</code>.</span></button>
+    <button class="quiz__opt">$z$ negatif mi.<span class="why">$z$, <code>T[0, -1]</code>'de; <code>:-1</code> onu özellikle dışarıda bırakıyor.</span></button>
+    <button class="quiz__opt">Unbounded olup olmadığını.<span class="why">Unbounded'ı ratio test yakalar: giren sütunda pozitif girdi yoksa. Bu satır sadece optimality'ye bakar.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Slayt düzeninde bir slack sütununun $c_j - z_j$'si $-3/2$. Aynı tableau z-row düzeninde yazılsa o hücrede ne olur?</p>
+    <button class="quiz__opt" data-correct>$3/2$<span class="why">Doğru: z-row girdisi $= z_j - c_j = -(c_j - z_j)$.</span></button>
+    <button class="quiz__opt">$-3/2$<span class="why">İki düzen aynı sayıyı tutmaz; z-row işaret değiştirir.</span></button>
+    <button class="quiz__opt">$0$<span class="why">Sıfır basic sütunlarda olur. Bu sütun nonbasic ve reduced cost'u sıfır değil.</span></button>
+    <button class="quiz__opt">$2/3$<span class="why">Eşleme bir işaret değişimi, ters alma değil.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Max problem. Giren değişkenin $c_j - z_j$'si $3/2$, minimum ratio $4$, şu anki $z = 35$. Pivot'tan sonra $z$?</p>
+    <button class="quiz__opt" data-correct>41<span class="why">Doğru: $35 + \tfrac32\cdot 4 = 41$.</span></button>
+    <button class="quiz__opt">$40.5$<span class="why">Oranla reduced cost'u topladın: $35 + 4 + \tfrac32$. Artış çarpım.</span></button>
+    <button class="quiz__opt">35<span class="why">Adım boyu 0 olsaydı (degenerate pivot) doğru olurdu. Burada $t^* = 4 &gt; 0$.</span></button>
+    <button class="quiz__opt">$52.5$<span class="why">$z$'yi $\tfrac32$ ile çarptın. Artış eklenir: $z + (c_e - z_e)t^*$.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Max problem'de giren sütunun bütün girdileri $\le 0$. Ne olur?</p>
+    <button class="quiz__opt" data-correct>Hiçbir basic variable sıfıra değmez: giren değişken sınırsız artabilir, LP unbounded.<span class="why">Doğru. Ratio test'te aday kalmaz; Lab 3 kodu burada <code>ValueError</code> atar. Ayrıntı sonraki derste.</span></button>
+    <button class="quiz__opt">Tableau optimal, dur.<span class="why">Optimality $c_j - z_j$ satırına bakar. Bu sütunun $c_j - z_j$'si pozitif, yani iyileştiren bir yön var.</span></button>
+    <button class="quiz__opt">Mutlak değeri en küçük negatif oranın satırı çıkar.<span class="why">Negatif girdili satırlar ratio test'e hiç girmez; onların basic variable'ı $t$ ile büyür.</span></button>
+    <button class="quiz__opt">LP infeasible.<span class="why">Şu an bir BFS'teyiz, yani feasible bir nokta var. Sorun yukarıdan sınır olmaması.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Final tableau'da (max) $c_j - z_j = (0, 0, 0, 0, -1)$ ve dördüncü sütun nonbasic bir slack. Hangisi doğru?</p>
+    <button class="quiz__opt" data-correct>Tableau optimal; başka optimal noktalar olup olmadığı bu bilgilerle kesinleşmez.<span class="why">Doğru. Reduced cost 0, dördüncü sütunu girdirmenin $z$'yi değiştirmediğini söyler. Farklı bir optimum için o sütunda pozitif bir adım gerekir: minimum ratio $t^* &gt; 0$ (başka bir optimal vertex) ya da hiç pozitif girdi olmaması (optimal ray). Degenerate tableau'da $t^* = 0$ çıkabilir. Örnek: $\max x_1$ s.t. $x_2 \le 0$, $x_1 + x_2 \le 1$, $x_1 \le 1$, $x \ge 0$. Basis $\{s_1, x_2, x_1\}$ tam bu satırı verir, $s_2$ sütununun tek pozitif girdisi $x_2$ satırında ve oran $0/1 = 0$. Tek optimum $(1, 0)$.</span></button>
+    <button class="quiz__opt">Optimal değil, dördüncü sütun girmeli.<span class="why">Girmek için $c_j - z_j &gt; 0$ gerekir. 0 iyileştirmez, sadece $z$'yi aynı tutar.</span></button>
+    <button class="quiz__opt">Optimal ve çözüm tek.<span class="why">Bu da kesin değil. Kesin negatif nonbasic reduced cost'lar tekliği garanti eder; burada bir 0 var. Bandwidth LP'sinde sıfır reduced cost pozitif bir adıma izin veriyor ve (7, 8, 1) tek optimum değil.</span></button>
+    <button class="quiz__opt">Tableau optimal ve başka optimal vertex'ler kesin var (alternative optima).<span class="why">Sıfır reduced cost sadece bir aday. Ratio test $t^* = 0$ verirse pivot aynı vertex'te kalır; $\max x_1$ s.t. $x_2 \le 0$, $x_1 + x_2 \le 1$, $x_1 \le 1$ bu satırı basis $\{s_1, x_2, x_1\}$ ile verir, ama tek optimum $(1, 0)$. Sütunda hiç pozitif girdi yoksa da başka vertex değil, bir optimal ray çıkar.</span></button>
+    <button class="quiz__opt">LP degenerate.<span class="why">Degeneracy b sütunundaki sıfır basic variable ile görünür. Burada bakılan satır $c_j - z_j$ ve b sütunu verilmedi.</span></button>
+  </div>
+  <!-- Sıradaki konu: Simplex'in özel durumları. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+(function () {
+  "use strict";
+  /* ---------- exact fractions ---------- */
+  function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { const t = a % b; a = b; b = t; } return a || 1; }
+  class Fr {
+    constructor(n, d) { if (d === undefined) d = 1; if (d < 0) { n = -n; d = -d; } const g = gcd(n, d); this.n = n / g; this.d = d / g; }
+    static of(v) { return v instanceof Fr ? v : new Fr(v, 1); }
+    add(o) { o = Fr.of(o); return new Fr(this.n * o.d + o.n * this.d, this.d * o.d); }
+    sub(o) { o = Fr.of(o); return new Fr(this.n * o.d - o.n * this.d, this.d * o.d); }
+    mul(o) { o = Fr.of(o); return new Fr(this.n * o.n, this.d * o.d); }
+    div(o) { o = Fr.of(o); return new Fr(this.n * o.d, this.d * o.n); }
+    neg() { return new Fr(-this.n, this.d); }
+    sign() { return Math.sign(this.n); }
+    cmp(o) { o = Fr.of(o); return Math.sign(this.n * o.d - o.n * this.d); }
+    val() { return this.n / this.d; }
+    str() { const a = Math.abs(this.n); return (this.n < 0 ? "−" : "") + (this.d === 1 ? String(a) : a + "/" + this.d); }
+  }
+  function parseFr(s) {
+    s = String(s).trim().replace(/−/g, "-").replace(",", ".");
+    let m = s.match(/^([+-]?\d{1,7})\s*\/\s*(\d{1,7})$/);
+    if (m) return +m[2] === 0 ? null : new Fr(+m[1], +m[2]);
+    m = s.match(/^([+-]?)(\d{0,7})\.(\d{1,5})$/);
+    if (m) { const d = Math.pow(10, m[3].length); const n = (+(m[2] || "0")) * d + (+m[3]); return new Fr(m[1] === "-" ? -n : n, d); }
+    if (/^[+-]?\d{1,7}$/.test(s)) return new Fr(+s, 1);
+    return null;
+  }
+  const SUB = "₀₁₂₃₄₅₆₇₈₉";
+  const sub = (k) => String(k).split("").map((ch) => SUB[+ch]).join("");
+  const sum = (arr) => arr.reduce((s, v) => s.add(v), new Fr(0));
+
+  /* ---------- tableau simplex (max, A x <= b, b >= 0), slide convention ---------- */
+  function runSimplex(c, A, b, vn) {
+    const n = c.length, m = A.length, N = n + m;
+    const names = [];
+    for (let j = 0; j < n; j++) names.push((vn || "x") + sub(j + 1));
+    for (let i = 0; i < m; i++) names.push("s" + sub(i + 1));
+    const cj = c.concat(Array.from({ length: m }, () => new Fr(0)));
+    let T = A.map((row, i) => row.concat(Array.from({ length: m }, (_, k) => new Fr(k === i ? 1 : 0))));
+    let B = b.slice();
+    let basis = Array.from({ length: m }, (_, i) => n + i);
+    const snaps = [];
+    let status = "cap";
+    const seen = new Map();
+    for (let it = 0; it < 15; it++) {
+      const cB = basis.map((k) => cj[k]);
+      const zj = Array.from({ length: N }, (_, j) => sum(T.map((r, i) => cB[i].mul(r[j]))));
+      const z = sum(B.map((v, i) => cB[i].mul(v)));
+      const red = cj.map((v, j) => v.sub(zj[j]));
+      const x = Array.from({ length: N }, () => new Fr(0));
+      basis.forEach((k, i) => { x[k] = B[i]; });
+      const s = { T: T.map((r) => r.slice()), B: B.slice(), basis: basis.slice(), cB, zj, z, red, x };
+      snaps.push(s);
+      // Dantzig'in kuralı deterministik: aynı basis'e dönmek aynı pivot'ları sonsuza kadar tekrar etmek demek.
+      const key = basis.slice().sort((p, q) => p - q).join(",");
+      if (seen.has(key)) { status = "cycle"; s.cycleFrom = seen.get(key); break; }
+      seen.set(key, snaps.length - 1);
+      let e = -1;
+      red.forEach((v, j) => { if (v.sign() > 0 && (e < 0 || v.cmp(red[e]) > 0)) e = j; });
+      if (e < 0) { status = "optimal"; break; }
+      s.enter = e;
+      s.ratios = T.map((r, i) => (r[e].sign() > 0 ? B[i].div(r[e]) : null));
+      let l = -1;
+      s.ratios.forEach((q, i) => { if (q && (l < 0 || q.cmp(s.ratios[l]) < 0)) l = i; });
+      if (l < 0) { status = "unbounded"; break; }
+      s.leave = l;
+      const p = T[l][e];
+      const ops = [];
+      const newPivot = T[l].map((v) => v.div(p));
+      const newB = B[l].div(p);
+      const vec = (row, rhs) => "(" + row.map((v) => v.str()).join(", ") + " | " + rhs.str() + ")";
+      ops.push(`R${l + 1} ← R${l + 1} / ${p.str()} : ${vec(T[l], B[l])} / ${p.str()} = ${vec(newPivot, newB)}  ← yeni ${names[e]} satırı`);
+      const T2 = T.map((r) => r.slice()), B2 = B.slice();
+      T2[l] = newPivot; B2[l] = newB;
+      for (let i = 0; i < m; i++) {
+        if (i === l) continue;
+        const f = T[i][e];
+        if (f.sign() === 0) { ops.push(`R${i + 1} ← R${i + 1} − 0·R${l + 1}(yeni) : ${names[e]} girdisi zaten 0, değişmez`); continue; }
+        T2[i] = T[i].map((v, j) => v.sub(f.mul(newPivot[j])));
+        B2[i] = B[i].sub(f.mul(newB));
+        const op = f.sign() > 0 ? `− ${f.str()}·R${l + 1}(yeni)` : `+ ${f.neg().str()}·R${l + 1}(yeni)`;
+        ops.push(`R${i + 1} ← R${i + 1} ${op} = ${vec(T2[i], B2[i])}`);
+      }
+      s.ops = ops;
+      T = T2; B = B2; basis = basis.slice(); basis[l] = e;
+    }
+    return { n, m, N, names, cj, snaps, status, c, A, b };
+  }
+
+  /* ---------- tableau HTML ---------- */
+  function tableHTML(run, s, hl, conv, opts) {
+    opts = opts || {};
+    const { m, N, names, cj } = run;
+    const showR = hl && hl.ratio;
+    const col = hl && hl.col !== undefined ? hl.col : -1;
+    const row = hl && hl.row !== undefined ? hl.row : -1;
+    const nrow = hl && hl.newRow !== undefined ? hl.newRow : -1;
+    const cc = (i, j) => {
+      const c = [];
+      if (j === col) c.push("is-col");
+      if (i === row && j === col) c.push("is-piv");
+      return c.length ? ` class="${c.join(" ")}"` : "";
+    };
+    const rc = (i) => (i === row ? ' class="is-row"' : i === nrow ? ' class="is-new"' : "");
+    const ratioCell = (i) => {
+      if (!showR) return "";
+      const q = s.ratios[i];
+      return `<td>${q ? q.str() + (i === row ? " ◄ min" : "") : "— (a ≤ 0)"}</td>`;
+    };
+    let h = '<table class="w-simplex-tab">';
+    if (conv === "zrow") {
+      h += "<tr><th>Row</th><th>Basis</th>" + names.map((nm, j) => `<th${cc(-1, j)}>${nm}</th>`).join("") + "<th>rhs</th>" + (showR ? "<th>ratio</th>" : "") + "</tr>";
+      h += '<tr class="w-simplex-zr"><td>0</td><td>z</td>' + s.red.map((v, j) => `<td${cc(-1, j)}>${v.neg().str()}</td>`).join("") + `<td>${s.z.str()}</td>` + (showR ? "<td></td>" : "") + "</tr>";
+      for (let i = 0; i < m; i++) {
+        h += `<tr${rc(i)}><td>${i + 1}</td><td>${names[s.basis[i]]}</td>` + s.T[i].map((v, j) => `<td${cc(i, j)}>${v.str()}</td>`).join("") + `<td>${s.B[i].str()}</td>` + ratioCell(i) + "</tr>";
+      }
+    } else {
+      h += '<tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th>' + cj.map((v, j) => `<th${cc(-1, j)}>${v.str()}</th>`).join("") + (showR ? "<th></th>" : "") + "</tr>";
+      h += "<tr><th>c_B</th><th>Basis</th><th>b</th>" + names.map((nm, j) => `<th${cc(-1, j)}${opts.colAttr ? ` data-col="${j}"` : ""}>${opts.colAttr ? `<button type="button" class="w-simplex-cellbtn" aria-label="Giren sütun olarak seç: ${nm}, cⱼ − zⱼ = ${s.red[j].str()}">${nm}</button>` : nm}</th>`).join("") + (showR ? "<th>ratio b / aᵢⱼ</th>" : "") + "</tr>";
+      for (let i = 0; i < m; i++) {
+        const bn = names[s.basis[i]];
+        const bcell = opts.rowAttr ? `<button type="button" class="w-simplex-cellbtn" aria-label="Çıkan satır olarak seç: satır ${i + 1}, basic ${bn}, b = ${s.B[i].str()}">${bn}</button>` : bn;
+        h += `<tr${rc(i)}${opts.rowAttr ? ` data-row="${i}"` : ""}><td>${s.cB[i].str()}</td><td>${bcell}</td><td>${s.B[i].str()}</td>` + s.T[i].map((v, j) => `<td${cc(i, j)}>${v.str()}</td>`).join("") + ratioCell(i) + "</tr>";
+      }
+      h += `<tr class="w-simplex-zj"><td></td><td>zⱼ</td><td>${opts.hideZ ? "?" : s.z.str()}</td>` + s.zj.map((v, j) => `<td${cc(-1, j)}>${v.str()}</td>`).join("") + (showR ? "<td></td>" : "") + "</tr>";
+      h += '<tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td>' + s.red.map((v, j) => `<td${cc(-1, j)}>${v.str()}</td>`).join("") + (showR ? "<td></td>" : "") + "</tr>";
+    }
+    return h + "</table>";
+  }
+
+  /* ---------- 2-D plot of the feasible region and the walk ---------- */
+  function plotSVG(run, upto) {
+    const A = run.A.map((r) => r.map((v) => v.val())), b = run.b.map((v) => v.val()), c = run.c.map((v) => v.val());
+    const lines = A.map((r, i) => ({ a: r, b: b[i] })).concat([{ a: [-1, 0], b: 0 }, { a: [0, -1], b: 0 }]);
+    const feas = (p) => lines.every((L) => L.a[0] * p[0] + L.a[1] * p[1] <= L.b + 1e-9);
+    const V = [];
+    for (let i = 0; i < lines.length; i++) for (let k = i + 1; k < lines.length; k++) {
+      const [a1, a2] = [lines[i].a, lines[k].a], det = a1[0] * a2[1] - a1[1] * a2[0];
+      if (Math.abs(det) < 1e-12) continue;
+      const p = [(lines[i].b * a2[1] - a1[1] * lines[k].b) / det, (a1[0] * lines[k].b - lines[i].b * a2[0]) / det];
+      if (feas(p) && !V.some((q) => Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]) < 1e-9)) V.push(p);
+    }
+    const cx = V.reduce((s, p) => s + p[0], 0) / V.length, cy = V.reduce((s, p) => s + p[1], 0) / V.length;
+    V.sort((p, q) => Math.atan2(p[1] - cy, p[0] - cx) - Math.atan2(q[1] - cy, q[0] - cx));
+    const X = Math.max(1, ...V.map((p) => p[0])) * 1.3, Y = Math.max(1, ...V.map((p) => p[1])) * 1.3;
+    const W = 270, H = 230, P = 30;
+    const sx = (x) => P + (x / X) * (W - P - 10), sy = (y) => H - P - (y / Y) * (H - P - 10);
+    const clip = (a, bb) => {
+      const pts = [];
+      const tryP = (p) => { if (p[0] >= -1e-9 && p[0] <= X + 1e-9 && p[1] >= -1e-9 && p[1] <= Y + 1e-9) pts.push(p); };
+      if (Math.abs(a[1]) > 1e-12) { tryP([0, bb / a[1]]); tryP([X, (bb - a[0] * X) / a[1]]); }
+      if (Math.abs(a[0]) > 1e-12) { tryP([bb / a[0], 0]); tryP([(bb - a[1] * Y) / a[0], Y]); }
+      return pts.length >= 2 ? pts.slice(0, 2) : null;
+    };
+    let g = `<svg viewBox="0 0 ${W} ${H}" role="img" xmlns="http://www.w3.org/2000/svg">`;
+    g += `<polygon points="${V.map((p) => sx(p[0]) + "," + sy(p[1])).join(" ")}" style="fill:var(--blue-100);stroke:var(--blue-600);stroke-width:1.5"/>`;
+    A.forEach((r, i) => {
+      const seg = clip(r, b[i]);
+      if (seg) g += `<line x1="${sx(seg[0][0])}" y1="${sy(seg[0][1])}" x2="${sx(seg[1][0])}" y2="${sy(seg[1][1])}" style="stroke:var(--ink-400);stroke-width:1"/>`;
+    });
+    g += `<line x1="${sx(0)}" y1="${sy(0)}" x2="${sx(X)}" y2="${sy(0)}" style="stroke:var(--fg);stroke-width:1"/><line x1="${sx(0)}" y1="${sy(0)}" x2="${sx(0)}" y2="${sy(Y)}" style="stroke:var(--fg);stroke-width:1"/>`;
+    g += `<text x="${W - 14}" y="${sy(0) + 16}" style="fill:var(--fg);font-size:11px">x₁</text><text x="${sx(0) - 22}" y="16" style="fill:var(--fg);font-size:11px">x₂</text>`;
+    [[X, 0], [0, Y]].forEach(([u, v]) => {
+      const t = Math.max(1, Math.round((u || v) / 1.3 / 2));
+      for (let k = t; k < (u || v); k += t) {
+        if (u) g += `<text x="${sx(k)}" y="${sy(0) + 12}" text-anchor="middle" style="fill:var(--fg-muted);font-size:9px">${k}</text>`;
+        else g += `<text x="${sx(0) - 4}" y="${sy(k) + 3}" text-anchor="end" style="fill:var(--fg-muted);font-size:9px">${k}</text>`;
+      }
+    });
+    const path = run.snaps.slice(0, upto + 1).map((s) => [s.x[0].val(), s.x[1].val(), s.z.str()]);
+    const cur = path[path.length - 1];
+    const zc = c[0] * cur[0] + c[1] * cur[1];
+    if (zc > 1e-9) {
+      const seg = clip(c, zc);
+      if (seg) g += `<line x1="${sx(seg[0][0])}" y1="${sy(seg[0][1])}" x2="${sx(seg[1][0])}" y2="${sy(seg[1][1])}" style="stroke:var(--accent);stroke-width:1.2;stroke-dasharray:4 3"/>`;
+    }
+    for (let k = 1; k < path.length; k++) g += `<line x1="${sx(path[k - 1][0])}" y1="${sy(path[k - 1][1])}" x2="${sx(path[k][0])}" y2="${sy(path[k][1])}" style="stroke:var(--orange-600);stroke-width:3"/>`;
+    path.forEach((p, k) => {
+      const last = k === path.length - 1;
+      g += `<circle cx="${sx(p[0])}" cy="${sy(p[1])}" r="${last ? 6 : 4}" style="fill:${last ? "var(--orange-600)" : "var(--blue-700)"};stroke:var(--paper);stroke-width:1.5"/>`;
+      g += `<text x="${sx(p[0]) + 7}" y="${sy(p[1]) - 6}" style="fill:var(--fg);font-size:10px;font-weight:700">z=${p[2]}</text>`;
+    });
+    return g + "</svg>";
+  }
+
+  const F = (v) => new Fr(v);
+  const mk = (c, A, b) => ({ c: c.map(F), A: A.map((r) => r.map(F)), b: b.map(F) });
+  const PRESETS = [
+    { name: "Job-mix (slayt s.14–18)", ...mk([3, 5], [[1, 0], [0, 2], [3, 2]], [4, 12, 18]) },
+    { name: "Lab01 LP: max 3x₁ + 4x₂", ...mk([3, 4], [[1, 1], [1, 3]], [4, 6]) },
+    { name: "Giapetto (Winston §4.5 P1)", ...mk([3, 2], [[2, 1], [1, 1], [1, 0]], [100, 80, 40]) },
+    { name: "Winston LP 2 (min 2x₁ − 3x₂ → max −z)", ...mk([-2, 3], [[1, 1], [1, -1]], [4, 6]) },
+    { name: "Bandwidth LP (slayt s.23, 3 değişken)", ...mk([1, 1, 1], [[1, 0, 1], [0, 1, 0], [1, 0, 0], [0, 1, 1], [0, 0, 1]], [10, 8, 7, 9, 4]), vn: "f" }
+  ];
+
+  /* ---------- section 1: the walk ---------- */
+  (function () {
+    const el = document.getElementById("w-simplex-walk");
+    if (!el) return;
+    const run = runSimplex(PRESETS[0].c, PRESETS[0].A, PRESETS[0].b);
+    el.innerHTML = plotSVG({ ...run, A: PRESETS[0].A, b: PRESETS[0].b, c: PRESETS[0].c }, run.snaps.length - 1);
+  })();
+
+  /* ---------- widget 1: stepper with convention toggle and plot ---------- */
+  (function () {
+    const root = document.getElementById("w-simplex-lab");
+    if (!root) return;
+    const sel = document.getElementById("w-simplex-preset"), conv = document.getElementById("w-simplex-conv");
+    const box = document.getElementById("w-simplex-stepper"), err = document.getElementById("w-simplex-err");
+    sel.innerHTML = PRESETS.map((p, i) => `<option value="${i}">${p.name}</option>`).join("") + '<option value="custom" disabled>Kendi LP\'n</option>';
+    let last = null;
+    const both = (slide, zrow) => `<span class="w-simplex-only-slide">${slide}</span><span class="w-simplex-only-zrow">${zrow}</span>`;
+    function build(lp, title) {
+      const run = runSimplex(lp.c, lp.A, lp.b, lp.vn);
+      const nm = run.names;
+      const frames = [];
+      run.snaps.forEach((s, k) => {
+        const vertex = run.n === 2 ? `(${s.x[0].str()}, ${s.x[1].str()})` : "(" + s.x.slice(0, run.n).map((v) => v.str()).join(", ") + ")";
+        const basisTxt = "{" + s.basis.map((j) => nm[j]).join(", ") + "}";
+        if (k === 0) frames.push({ k, ph: "tab", caption: `Başlangıç tableau'su. Basis ${basisTxt} (slack'ler), vertex ${vertex}, $z = ${s.z.str()}$.` });
+        else {
+          const p = run.snaps[k - 1];
+          frames.push({ k, ph: "pivot", ops: p.ops, caption: `Pivot bitti. Yeni basis ${basisTxt}, c_B = (${s.cB.map((v) => v.str()).join(", ")}). Alt satırlar yeniden hesaplandı: $z = ${s.z.str()}$, vertex ${vertex}. Kontrol: $${p.z.str().replace("−", "-")} + (${p.red[p.enter].str().replace("−", "-")})\\cdot ${p.ratios[p.leave].str().replace("−", "-")} = ${s.z.str().replace("−", "-")}$.` });
+        }
+        if (s.enter !== undefined) {
+          const e = s.enter;
+          frames.push({ k, ph: "enter", caption: "Price: " + both(`$c_j - z_j$ satırında en büyük pozitif değer ${nm[e]}'nin (${s.red[e].str()}). <b>${nm[e]} girer.</b>`, `z-row'da en negatif değer ${nm[e]}'nin (${s.red[e].neg().str()}). <b>${nm[e]} girer.</b>`) });
+          if (s.leave === undefined) {
+            frames.push({ k, ph: "ratio", caption: `Ratio test: ${nm[e]} sütununda pozitif girdi yok. Hiçbir basic variable sıfıra değmiyor; ${nm[e]} sınırsız artabilir. <b>LP unbounded</b> (sonraki ders).` });
+          } else {
+            const parts = s.T.map((r, i) => {
+              const bv = nm[s.basis[i]];
+              if (r[e].sign() <= 0) return `${bv}: a = ${r[e].str()}, blok etmez`;
+              return `${bv} = ${s.B[i].str()} − ${r[e].cmp(1) === 0 ? "" : r[e].str()}t → t ≤ ${s.ratios[i].str()}${i === s.leave ? " ◄" : ""}`;
+            });
+            frames.push({ k, ph: "ratio", caption: `Ratio test, ${nm[e]} = t: ${parts.join("; ")}. <b>${nm[s.basis[s.leave]]} çıkar</b>, pivot element ${s.T[s.leave][e].str()}.` });
+          }
+        }
+      });
+      const fin = run.snaps[run.snaps.length - 1];
+      if (run.status === "optimal") {
+        const xs = fin.x.slice(0, run.n).map((v, j) => `${nm[j]} = ${v.str()}`).join(", ");
+        const sp = fin.zj.slice(run.n).map((v) => v.str()).join(", ");
+        // Sıfır reduced cost sadece aday: farklı bir optimum için o sütunda pozitif bir adım gerekir.
+        const zeroNB = fin.red.map((v, j) => (v.sign() === 0 && !fin.basis.includes(j) ? j : -1)).filter((j) => j >= 0).map((j) => {
+          const qs = fin.T.map((r, i) => (r[j].sign() > 0 ? fin.B[i].div(r[j]) : null)).filter(Boolean);
+          if (!qs.length) return `${nm[j]}: sütunda pozitif girdi yok, aynı $z$ ile bir optimal ray boyunca sınırsız gidilir`;
+          const t = qs.reduce((a, q) => (q.cmp(a) < 0 ? q : a));
+          if (t.sign() > 0) return `${nm[j]}: minimum ratio ${t.str()} &gt; 0, onu girdirmek aynı $z$'li başka bir optimal vertex'e götürür`;
+          return `${nm[j]}: minimum ratio 0 (degenerate), adım sıfır; bu tableau başka bir optimum göstermez`;
+        });
+        frames.push({ k: run.snaps.length - 1, ph: "stop", caption: both("Bütün $c_j - z_j \\le 0$", "z-row'da negatif girdi kalmadı") + `: <b>STOP</b>. ${xs}, $z^* = ${fin.z.str().replace("−", "-")}$. Slack'lerin altındaki ` + both("$z_j$", "row 0 girdileri") + ` (shadow price'lar): (${sp}).` + (zeroNB.length ? ` Nonbasic reduced cost'u 0 olanlar alternative optima adayı. ${zeroNB.join("; ")}.` : " Bütün nonbasic reduced cost'lar kesin negatif: optimum tek.") });
+      } else if (run.status === "cycle") {
+        frames.push({ k: run.snaps.length - 1, ph: "stop", caption: `<b>Cycling.</b> Basis {${fin.basis.map((j) => nm[j]).join(", ")}} ${fin.cycleFrom === 0 ? "başlangıç basis'inin" : fin.cycleFrom + ". pivot'tan sonraki basis'in"} aynısı. Kural aynı olduğu için aynı pivot'lar sonsuza kadar tekrar eder; $z = ${fin.z.str().replace("−", "-")}$ değişmedi. Optimum doğrulanmadı. Çare Bland's rule (sonraki ders).` });
+      } else if (run.status === "cap") {
+        frames.push({ k: run.snaps.length - 1, ph: "stop", caption: `<b>Adım sınırına ulaşıldı; optimum henüz doğrulanmadı.</b> Bu lab en fazla 15 tableau gösterir. Son tableau'da hâlâ pozitif bir ` + both("$c_j - z_j$", "negatif bir row 0 girdisi") + ` var (${nm[fin.enter]}).` });
+      }
+      Lab.stepper(box, {
+        title,
+        interval: 1600,
+        frames,
+        render(f, idx, el) {
+          last = { f, el, run };
+          draw();
+        }
+      });
+    }
+    function draw() {
+      if (!last) return;
+      const { f, el, run } = last;
+      const s = run.snaps[f.k];
+      const hl = {};
+      if (f.ph === "enter" || f.ph === "ratio") hl.col = s.enter;
+      if (f.ph === "ratio" && s.leave !== undefined) { hl.row = s.leave; hl.ratio = true; }
+      if (f.ph === "pivot") hl.newRow = run.snaps[f.k - 1].leave;
+      const mode = conv.value;
+      let h = "";
+      if (f.ph === "pivot") h += `<div class="w-simplex-ops">${f.ops.map((o) => `<div>${o}</div>`).join("")}</div>`;
+      if (mode === "both") {
+        h += `<div class="w-simplex-sub">cⱼ − zⱼ (slayt)</div><div class="table-wrap">${tableHTML(run, s, hl, "slide")}</div>`;
+        h += `<div class="w-simplex-sub">z-row (Lab 3, Winston)</div><div class="table-wrap">${tableHTML(run, s, hl, "zrow")}</div>`;
+      } else h += `<div class="table-wrap">${tableHTML(run, s, hl, mode)}</div>`;
+      const plot = run.n === 2 ? `<div class="w-simplex-plot">${plotSVG(run, f.k)}</div>` : "";
+      el.innerHTML = `<div class="w-simplex-grid${plot ? " has-plot" : ""}"><div style="min-width:0">${h}</div>${plot}</div>`;
+    }
+    sel.addEventListener("change", () => { const p = PRESETS[+sel.value]; err.textContent = ""; build(p, p.name); });
+    conv.addEventListener("change", () => { root.dataset.conv = conv.value; draw(); });
+    document.getElementById("w-simplex-run").addEventListener("click", () => {
+      const cs = document.getElementById("w-simplex-c").value.trim().split(/[\s;]+/).filter(Boolean);
+      const c = cs.map(parseFr);
+      if (c.length < 2 || c.length > 4 || c.some((v) => !v)) { err.textContent = "c satırında 2–4 sayı olmalı (tam sayı, 3/2 ya da 1.5 gibi)."; return; }
+      const rows = document.getElementById("w-simplex-A").value.split("\n").map((r) => r.trim()).filter(Boolean);
+      if (rows.length < 1 || rows.length > 5) { err.textContent = "1 ile 5 arası constraint yaz, her biri ayrı satırda."; return; }
+      const A = [], b = [];
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (/>=|≥/.test(r)) { err.textContent = `Satır ${i + 1}: ≥ constraint slack ile başlayamaz (excess değişken negatif çıkar). Big-M / two-phase sonraki derste; burada sadece ≤ kullan.`; return; }
+        const m = r.split(/<=|≤/);
+        if (m.length !== 2) { err.textContent = `Satır ${i + 1}: "katsayılar <= b" biçiminde olmalı.`; return; }
+        const coef = m[0].trim().split(/\s+/).filter(Boolean).map(parseFr), bb = parseFr(m[1]);
+        if (coef.length !== c.length || coef.some((v) => !v)) { err.textContent = `Satır ${i + 1}: ${c.length} katsayı bekleniyordu.`; return; }
+        if (!bb) { err.textContent = `Satır ${i + 1}: sağ taraf okunamadı.`; return; }
+        if (bb.sign() < 0) { err.textContent = `Satır ${i + 1}: b negatif. Slack'li başlangıç BFS'i için b ≥ 0 gerekir.`; return; }
+        A.push(coef); b.push(bb);
+      }
+      err.textContent = "";
+      sel.value = "custom";
+      build({ c, A, b }, "Kendi LP'n");
+    });
+    build(PRESETS[0], PRESETS[0].name);
+  })();
+
+  /* ---------- widget 2: final tableau reader ---------- */
+  (function () {
+    const tabEl = document.getElementById("w-simplex-rtab");
+    if (!tabEl) return;
+    const run = runSimplex(PRESETS[0].c, PRESETS[0].A, PRESETS[0].b);
+    const s = run.snaps[run.snaps.length - 1];
+    const nm = run.names;
+    // Her seçilebilir hücre bir button: klavyeyle de seçilebilsin, ekran okuyucu satır ve sütunu söylesin.
+    const pick = (tag, attrs, label, txt) => `<${tag} ${attrs}><button type="button" class="w-simplex-cellbtn" aria-label="${label}: ${txt}">${txt}</button></${tag}>`;
+    let h = '<table class="w-simplex-tab"><tr class="w-simplex-cj"><th></th><th></th><th>cⱼ →</th>' + run.cj.map((v, j) => pick("th", `data-kind="cj" data-c="${j}"`, `cⱼ satırı, ${nm[j]} sütunu`, v.str())).join("") + "</tr>";
+    h += "<tr><th>c_B</th><th>Basis</th><th>b</th>" + nm.map((x) => `<th>${x}</th>`).join("") + "</tr>";
+    s.T.forEach((r, i) => {
+      const bn = nm[s.basis[i]];
+      h += "<tr>" + pick("td", `data-kind="cb" data-r="${i}"`, `${bn} satırı, c_B sütunu`, s.cB[i].str()) + pick("td", `data-kind="basis" data-r="${i}"`, `${bn} satırı, Basis sütunu`, bn) + pick("td", `data-kind="b" data-r="${i}"`, `${bn} satırı, b sütunu`, s.B[i].str()) + r.map((v, j) => pick("td", `data-kind="a" data-r="${i}" data-c="${j}"`, `${bn} satırı, ${nm[j]} sütunu`, v.str())).join("") + "</tr>";
+    });
+    h += '<tr class="w-simplex-zj"><td></td><td>zⱼ</td>' + pick("td", 'data-kind="z"', "zⱼ satırı, b sütunu", s.z.str()) + s.zj.map((v, j) => pick("td", `data-kind="zj" data-c="${j}"`, `zⱼ satırı, ${nm[j]} sütunu`, v.str())).join("") + "</tr>";
+    h += '<tr class="w-simplex-red"><td></td><td>cⱼ − zⱼ</td><td></td>' + s.red.map((v, j) => pick("td", `data-kind="red" data-c="${j}"`, `cⱼ − zⱼ satırı, ${nm[j]} sütunu`, v.str())).join("") + "</tr></table>";
+    tabEl.innerHTML = h;
+    const rowOf = (name) => s.basis.findIndex((k) => nm[k] === name);
+    const TASKS = [
+      { q: "$x_1^*$'ın değerini gösteren hücreye tıkla.", ok: (d) => d.kind === "b" && +d.r === rowOf("x₁"), why: "x₁ satırının b'si: $x_1^* = 2$." },
+      { q: "$z^*$'ı gösteren hücreye tıkla.", ok: (d) => d.kind === "z", why: "zⱼ satırında, b sütununun altında: $z^* = 36$." },
+      { q: "Memory constraint'inin ($s_2$) shadow price'ını gösteren hücreye tıkla.", ok: (d) => d.kind === "zj" && +d.c === 3, why: "$s_2$ sütunundaki $z_j = 3/2$: bir blok daha memory $z$'yi 1.5 artırır." },
+      { q: "CPU constraint'inin ($s_3$) shadow price'ını gösteren hücreye tıkla.", ok: (d) => d.kind === "zj" && +d.c === 4, why: "$s_3$ sütunundaki $z_j = 1$." },
+      { q: "Binding olmayan constraint'te ne kadar kaynak boşta kaldığını gösteren hücreye tıkla.", ok: (d) => d.kind === "b" && +d.r === rowOf("s₁"), why: "$s_1$ satırının b'si: 2 accelerator birimi boşta." },
+      { q: "Tableau'nun optimal olduğunu kanıtlayan satırdan herhangi bir hücreye tıkla.", ok: (d) => d.kind === "red", why: "$c_j - z_j$ satırı: hepsi $\\le 0$, bu satır certificate." }
+    ];
+    function explain(d) {
+      if (d.kind === "a") return `Bu bir tableau katsayısı ($a_{ij}$ = ${s.T[+d.r][+d.c].str()}), bir değişkenin değeri ya da fiyatı değil. Değerler b sütununda, fiyatlar zⱼ satırında.`;
+      if (d.kind === "b") return `Bu ${nm[s.basis[+d.r]]} = ${s.B[+d.r].str()}. Satırın etiketine bak: değer o satırın basic variable'ına ait.`;
+      if (d.kind === "cb" || d.kind === "cj") return "Bu bir objective katsayısı ($c_j$). Problemden gelir, çözümden bir şey söylemez.";
+      if (d.kind === "basis") return "Bu satırın etiketi: hangi değişkenin basic olduğunu söyler, değerini değil.";
+      if (d.kind === "zj") return `Bu ${nm[+d.c]} sütununun $z_j$'si (${s.zj[+d.c].str()}). ${+d.c >= run.n ? "Slack sütunundaki $z_j$ o constraint'in shadow price'ı." : "Basic bir değişkenin $z_j$'si kendi $c_j$'sine eşit."}`;
+      if (d.kind === "red") return `Bu ${nm[+d.c]}'nin $c_j - z_j$'si (${s.red[+d.c].str()}). Shadow price'ın eksi işaretlisi; slayt düzeninde shadow price $z_j$ satırında.`;
+      if (d.kind === "z") return "Bu $z^* = 36$, objective'in optimal değeri.";
+      return "";
+    }
+    const taskEl = document.getElementById("w-simplex-rtask"), fb = document.getElementById("w-simplex-rfb"), score = document.getElementById("w-simplex-rscore");
+    let t = 0, done = 0, firstTry = 0, tried = false, answered = false;
+    function show() {
+      taskEl.innerHTML = `Görev ${t + 1} / ${TASKS.length}: ${TASKS[t].q}`;
+      Lab.renderMath(taskEl);
+      tried = false;
+      answered = false;
+      score.textContent = `İlk denemede doğru: ${firstTry} / ${done}`;
+    }
+    tabEl.addEventListener("click", (e) => {
+      const cell = e.target.closest("[data-kind]");
+      if (!cell || answered) return;
+      const d = cell.dataset;
+      if (TASKS[t].ok(d)) {
+        if (!tried) firstTry++;
+        done++;
+        answered = true;
+        fb.className = "w-simplex-fb is-ok";
+        fb.innerHTML = "Doğru. " + TASKS[t].why;
+        score.textContent = `İlk denemede doğru: ${firstTry} / ${done}`;
+      } else {
+        tried = true;
+        fb.className = "w-simplex-fb is-bad";
+        fb.innerHTML = "Bu değil. " + explain(d);
+      }
+      Lab.renderMath(fb);
+    });
+    document.getElementById("w-simplex-rnext").addEventListener("click", () => { t = (t + 1) % TASKS.length; fb.className = "w-simplex-fb"; fb.innerHTML = ""; show(); });
+    show();
+  })();
+
+  /* ---------- widget 3: you drive ---------- */
+  (function () {
+    const tabEl = document.getElementById("w-simplex-dtab");
+    if (!tabEl) return;
+    const lpEl = document.getElementById("w-simplex-dlp"), prompt = document.getElementById("w-simplex-dprompt"), fb = document.getElementById("w-simplex-dfb");
+    const zrow = document.getElementById("w-simplex-dzrow"), zin = document.getElementById("w-simplex-dzin"), score = document.getElementById("w-simplex-dscore");
+    let run, k, stage, pts = 0, tries = 0, bad = false;
+    const ri = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+    function friendly(r) {
+      if (r.status !== "optimal" || r.snaps.length < 3 || r.snaps.length > 4) return false;
+      for (const s of r.snaps) {
+        const all = s.T.flat().concat(s.B, s.zj, [s.z]);
+        if (all.some((v) => v.d > 6 || Math.abs(v.n) > 400)) return false;
+        if (s.enter !== undefined) {
+          if (s.red.filter((v) => v.cmp(s.red[s.enter]) === 0).length > 1) return false;
+          if (s.ratios.filter((q) => q && q.cmp(s.ratios[s.leave]) === 0).length > 1) return false;
+          if (s.ratios[s.leave].sign() === 0) return false;
+        }
+      }
+      return true;
+    }
+    function randomLP() {
+      for (let tryN = 0; tryN < 3000; tryN++) {
+        const n = 2, m = 3;
+        const c = [ri(1, 6), ri(1, 6)];
+        const A = Array.from({ length: m }, () => [ri(0, 4), ri(0, 4)]);
+        if (A.some((r) => r[0] + r[1] === 0) || A.every((r) => r[0] === 0) || A.every((r) => r[1] === 0)) continue;
+        const b = A.map(() => ri(4, 24));
+        const r = runSimplex(c.map(F), A.map((x) => x.map(F)), b.map(F));
+        if (friendly(r)) return r;
+      }
+      return runSimplex(PRESETS[0].c, PRESETS[0].A, PRESETS[0].b);
+    }
+    function start(r) {
+      run = r; k = 0; stage = "enter";
+      const terms = (row) => row.map((v, j) => ({ v, j })).filter((t) => t.v.sign() !== 0).map((t, i) => `${i && t.v.sign() > 0 ? "+" : ""}${t.v.cmp(1) === 0 ? "" : t.v.cmp(-1) === 0 ? "-" : t.v.str().replace("−", "-")}x_${t.j + 1}`).join(" ");
+      lpEl.innerHTML = `$$\\max\\ z = ${terms(run.c)} \\quad\\text{s.t.}\\quad ` + run.A.map((r, i) => `${terms(r)} \\le ${run.b[i].str()}`).join(",\\ ") + `,\\ x \\ge 0$$`;
+      Lab.renderMath(lpEl);
+      fb.className = "w-simplex-fb"; fb.innerHTML = "";
+      render();
+    }
+    function render() {
+      const s = run.snaps[k];
+      const hl = {};
+      if (stage === "leave") hl.col = s.enter;
+      if (stage === "z") { const p = run.snaps[k - 1]; hl.newRow = p.leave; }
+      tabEl.innerHTML = tableHTML(run, s, hl, "slide", { colAttr: stage === "enter", rowAttr: stage === "leave", hideZ: stage === "z" });
+      zrow.hidden = stage !== "z";
+      const msg = { enter: "Adım 1: giren değişkenin sütun başlığına tıkla (ya da optimal ise STOP'a bas).", leave: `Adım 2: ${run.names[s.enter]} girdi. Çıkan satıra tıkla.`, z: "Adım 3: pivot yapıldı. Yeni z kaç? (zⱼ satırında b'nin altında “?” var.)", done: "Bitti. Yeni bir LP dene." }[stage];
+      prompt.textContent = msg;
+      score.textContent = `İlk denemede doğru adım: ${pts} / ${tries}`;
+    }
+    function judge(ok, html) {
+      if (ok) { tries++; if (!bad) pts++; bad = false; } else bad = true;
+      fb.className = "w-simplex-fb " + (ok ? "is-ok" : "is-bad");
+      fb.innerHTML = html;
+      Lab.renderMath(fb);
+    }
+    // Klavyeyle seçilince (detail 0) tablo yeniden çizilir; odağı bir sonraki adımın kontrolüne taşı.
+    const refocus = (kb) => { if (!kb) return; const el = stage === "z" ? zin : tabEl.querySelector(".w-simplex-cellbtn"); if (el) el.focus(); };
+    tabEl.addEventListener("click", (e) => {
+      const s = run.snaps[k], kb = e.detail === 0;
+      const th = e.target.closest("th[data-col]"), tr = e.target.closest("tr[data-row]");
+      if (stage === "enter" && th) {
+        const j = +th.dataset.col, v = s.red[j], nm = run.names[j];
+        if (s.enter === undefined) return judge(false, `Hiçbir $c_j - z_j$ pozitif değil: tableau optimal. STOP'a bas.`);
+        if (s.basis.includes(j)) return judge(false, `${nm} zaten basic; $c_j - z_j$'si 0. Giren değişken nonbasic olmalı.`);
+        if (v.sign() <= 0) return judge(false, `${nm}'nin $c_j - z_j$'si ${v.str()}: pozitif değil. Bu yönde yürümek $z$'yi artırmaz${v.sign() < 0 ? ", düşürür" : ""}.`);
+        if (j !== s.enter) return judge(false, `${nm} pozitif ($${v.str().replace("−", "-")}$) ama en büyük değil. Slayttaki kural en büyük $c_j - z_j$'yi ister: ${run.names[s.enter]} (${s.red[s.enter].str()}).`);
+        judge(true, `Doğru: ${nm}, $c_j - z_j = ${v.str()}$, en büyük pozitif.`);
+        stage = "leave"; render(); refocus(kb); return;
+      }
+      if (stage === "leave" && tr) {
+        const i = +tr.dataset.row, a = s.T[i][s.enter], bv = run.names[s.basis[i]];
+        if (a.sign() <= 0) return judge(false, `${bv} satırında giren sütunun girdisi ${a.str()} ≤ 0: ${bv} t artınca azalmaz, ratio test'e girmez.`);
+        if (i !== s.leave) return judge(false, `${bv} satırının oranı ${s.B[i].str()} / ${a.str()} = ${s.ratios[i].str()}, ama en küçük oran ${s.ratios[s.leave].str()} (${run.names[s.basis[s.leave]]} satırı). t = ${s.ratios[i].str()} olsaydı ${run.names[s.basis[s.leave]]} negatif olurdu.`);
+        judge(true, `Doğru: ${bv} çıkar, oran ${s.ratios[i].str()} en küçük. Pivot element ${a.str()}. Row operation'lar:<div class="w-simplex-ops">${s.ops.map((o) => `<div>${o}</div>`).join("")}</div>`);
+        k++; stage = "z"; zin.value = ""; render(); refocus(kb);
+      }
+    });
+    document.getElementById("w-simplex-dzok").addEventListener("click", () => {
+      if (stage !== "z") return;
+      const v = parseFr(zin.value), s = run.snaps[k], p = run.snaps[k - 1];
+      if (!v) return judge(false, "Sayı okunamadı. Tam sayı, kesir (32/3) ya da ondalık yaz.");
+      if (v.cmp(s.z) !== 0) return judge(false, `Değil. İpucu: $z_{\\text{yeni}} = z_{\\text{eski}} + (c_e - z_e)\\,t^* = ${p.z.str().replace("−", "-")} + ${p.red[p.enter].str()}\\cdot ${p.ratios[p.leave].str()}$, ya da $\\sum c_B\\, b$.`);
+      judge(true, `Doğru: $z = ${s.z.str().replace("−", "-")}$.`);
+      stage = "enter"; render();
+    });
+    document.getElementById("w-simplex-dzshow").addEventListener("click", () => {
+      if (stage !== "z") return;
+      const s = run.snaps[k], p = run.snaps[k - 1];
+      tries++; bad = false;
+      fb.className = "w-simplex-fb is-bad";
+      fb.innerHTML = `$z = ${p.z.str().replace("−", "-")} + ${p.red[p.enter].str()}\\cdot ${p.ratios[p.leave].str()} = ${s.z.str().replace("−", "-")}$.`;
+      Lab.renderMath(fb);
+      stage = "enter"; render();
+    });
+    document.getElementById("w-simplex-dstop").addEventListener("click", () => {
+      if (stage !== "enter") return;
+      const s = run.snaps[k];
+      if (s.enter !== undefined) return judge(false, `Hâlâ pozitif bir $c_j - z_j$ var: ${run.names[s.enter]} (${s.red[s.enter].str()}). Durmak için hepsi $\\le 0$ olmalı.`);
+      const xs = s.x.slice(0, run.n).map((v, j) => `x${sub(j + 1)} = ${v.str()}`).join(", ");
+      judge(true, `Doğru, optimal. ${xs}, $z^* = ${s.z.str().replace("−", "-")}$. Slack'lerin altındaki $z_j$ (shadow price'lar): (${s.zj.slice(run.n).map((v) => v.str()).join(", ")}).`);
+      stage = "done"; render();
+    });
+    document.getElementById("w-simplex-dnew").addEventListener("click", () => start(randomLP()));
+    document.getElementById("w-simplex-djob").addEventListener("click", () => start(runSimplex(PRESETS[0].c, PRESETS[0].A, PRESETS[0].b)));
+    start(runSimplex(PRESETS[0].c, PRESETS[0].A, PRESETS[0].b));
+  })();
+})();
+</script>
+</body>
+</html>

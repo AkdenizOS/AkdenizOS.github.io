@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 413: vector, inner product, ℓ1/ℓ2/ℓ∞ norm'ları, unit ball, nearest server, mean/median/midrange, gradient, directional derivative, gradient cookbook, chain rule, finite differences, gradient checker, V-curve ve complex step." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Norm'lar, gradient ve gradient checker · CSE 413 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-norms-gradients-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-norms-gradients-card { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px; margin: 8px 0 14px; background: var(--paper); min-width: 0; }
+    .w-norms-gradients-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+    .w-norms-gradients-ctl input[type="text"] { width: 150px; max-width: 100%; font-family: 'JetBrains Mono', monospace; }
+    .w-norms-gradients-ctl input[type="range"] { flex: 1 1 140px; min-width: 120px; accent-color: var(--blue-600); }
+    .w-norms-gradients-ctl select { max-width: 100%; }
+    .w-norms-gradients-ctl .is-on { background: var(--blue-600); color: #fff; border-color: var(--blue-600); }
+    .w-norms-gradients-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 2px 0; }
+    .w-norms-gradients-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+    @media (max-width: 640px) { .w-norms-gradients-split { grid-template-columns: minmax(0, 1fr); } }
+    .w-norms-gradients-split svg, .w-norms-gradients-plot svg { display: block; width: 100%; height: auto; max-width: 380px; margin: 0 auto; touch-action: none; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; }
+    .w-norms-gradients-plot svg { max-width: 520px; touch-action: auto; }
+    .w-norms-gradients-canvas { display: block; width: 100%; max-width: 380px; height: auto; margin: 0 auto; touch-action: none; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+    .w-norms-gradients-out { font-size: .93rem; min-width: 0; }
+    .w-norms-gradients-out table { font-size: .9rem; }
+    .w-norms-gradients-mono { font-family: 'JetBrains Mono', monospace; font-size: .88rem; overflow-wrap: anywhere; }
+    .w-norms-gradients-ok { color: #2b8a3e; font-weight: 700; }
+    .w-norms-gradients-bad { color: var(--orange-700); font-weight: 700; }
+    .w-norms-gradients-meh { color: #a0700b; font-weight: 700; }
+    .w-norms-gradients-hl { background: var(--blue-050); font-weight: 700; }
+    .w-norms-gradients-dial { position: relative; height: 16px; background: linear-gradient(90deg, #f6d7c3, var(--stone-200) 50%, #cfe0f2); border-radius: 8px; margin: 6px 0 2px; }
+    .w-norms-gradients-dial i { position: absolute; top: -3px; width: 4px; height: 22px; margin-left: -2px; background: var(--blue-800); border-radius: 2px; }
+    .w-norms-gradients-dial b { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--stone-500); }
+    .w-norms-gradients-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: .85rem; margin: 4px 0; }
+    .w-norms-gradients-legend span::before { content: ""; display: inline-block; width: 14px; height: 4px; border-radius: 2px; margin-right: 5px; vertical-align: middle; background: var(--c); }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 413</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 413</a> / Norm'lar, gradient ve gradient checker</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">Week 2</span><span class="chip chip--exam">Vize kapsamında</span><span class="chip">Lab02</span><span class="src">~55 dk · 12 bölüm</span></div>
+          <h1>Norm'lar, gradient ve gradient checker</h1>
+          <p class="lead">Optimization'da iki soru sürekli karşına çıkar: "Bu vector ne kadar büyük?" ve "Fonksiyon hangi yöne doğru artıyor?" Birincisinin cevabı bir <em>norm</em>, ikincisinin cevabı <em>gradient</em>. Bu derste üç norm'u, norm seçiminin cevabı nasıl değiştirdiğini, gradient'i elle ve kurallarla almayı, sonra da elle bulduğun gradient'i bilgisayarla kontrol etmeyi (gradient checker) göreceksin.</p>
+          <p class="src">Not: Week 2 slaytları repoda yok. Konu hocanın Lab02 notebook'u (notebook "every number that appeared on a lecture slide gets recomputed here" diyor, yani slaytlardaki sayıların hepsi orada), Lab01 Section 2, Boyd Appendix A.1 ve A.4 ve Nocedal §8.1 üzerinden anlatıldı.</p>
+          <!-- Kaynak: resources/2026-2027-fall/27G_CSE413_5013_OptimizationTheory_Lab02.ipynb Section 1–3, Section 8 (floating point, cancellation, log-sum-exp, V-curve hücreleri), Exercise 1 ve 4 · Lab01.ipynb Section 2 (numerical_gradient) · Week_01.pdf s.8 (gradient yönünde contour kaydırma) · Week_03.pdf (L1-norm fitting uygulaması) · Boyd App. A.1 (pdf s.647), A.4 (pdf s.654) · Nocedal §8.1 (pdf s.213) · weeks/02-mathematical-foundations.md, "## Notes — Efe" norm tablosu. Lab01/Lab02 origin/main'de yok (untracked), bu yüzden link verilmedi. -->
+        </header>
+
+        <article class="lesson" data-course="cse-413" data-lesson="norms-gradients">
+
+<!-- 1 -->
+<section class="lsec" id="vectors-norms" data-min="6">
+  <h2>Vector, inner product ve üç norm</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Week 1'de decision variable'ları bir vector'de topladık: $x = (x_1, \dots, x_n) \in \mathbb{R}^n$. Şimdi bu vector'lerle iki şey yapacağız. İki vector'ün birbirine göre nasıl durduğunu <strong>inner product</strong> ile ölçeceğiz. Bir vector'ün ne kadar "büyük" olduğunu da bir <strong>norm</strong> ile ölçeceğiz.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · inner product ve açı</span>
+    <p>$$x^Ty = \sum_{i=1}^n x_i y_i, \qquad \|x\|_2 = \sqrt{x^Tx}, \qquad \angle(x,y) = \cos^{-1}\!\left(\frac{x^Ty}{\|x\|_2\,\|y\|_2}\right) \in [0, \pi]$$</p>
+    <ul>
+      <li><strong>Cauchy–Schwarz inequality:</strong> $|x^Ty| \le \|x\|_2\,\|y\|_2$. Bu yüzden kesir hep $[-1, 1]$ içindedir.</li>
+      <li><strong>Orthogonal</strong> (perpendicular): $x^Ty = 0$, açı $90^\circ$.</li>
+      <li><strong>Parallel:</strong> $|x^Ty| = \|x\|_2\|y\|_2$, yani Cauchy–Schwarz eşitlikle sağlanıyor. Açı $0^\circ$ (aynı yön) ya da $180^\circ$ (ters yön).</li>
+    </ul>
+    <p>Boyd matrix'ler için de aynı fikri verir: $\operatorname{tr}(X^TY) = \sum_{i,j} X_{ij}Y_{ij}$ ve <strong>Frobenius norm</strong> $\|X\|_F = \big(\sum_{i,j} X_{ij}^2\big)^{1/2}$. Matrix'i uzun bir vector gibi düşünmek yeterli.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Lab02 Section 1</span>
+    <p>$x = (3,4)$, $y = (4,-3)$, $z = (6,8)$, $e_1 = (1,0)$.</p>
+    <ul>
+      <li>$x^Ty = 12 - 12 = 0$ ⇒ $x$ ile $y$ perpendicular.</li>
+      <li>$x^Tz = 18 + 32 = 50$ ve $\|x\|_2\|z\|_2 = 5 \cdot 10 = 50$ ⇒ parallel. Gerçekten $z = 2x$.</li>
+      <li>$\cos\angle(x, e_1) = \dfrac{3}{5 \cdot 1} = 0.6$ ⇒ açı $\approx 53.13^\circ$. Bu bildiğin 3-4-5 üçgeni.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · norm nedir?</span>
+    <p>$f:\mathbb{R}^n \to \mathbb{R}$ şu dört şartı sağlıyorsa bir <strong>norm</strong>'dur ve $\|x\|$ diye yazılır:</p>
+    <ol>
+      <li><strong>nonnegative:</strong> $\|x\| \ge 0$</li>
+      <li><strong>definite:</strong> $\|x\| = 0$ sadece $x = 0$ iken</li>
+      <li><strong>homogeneous:</strong> $\|tx\| = |t|\,\|x\|$</li>
+      <li><strong>triangle inequality:</strong> $\|x + y\| \le \|x\| + \|y\|$</li>
+    </ol>
+    <p>İki vector arasındaki <strong>distance</strong>: $\operatorname{dist}(x,y) = \|x - y\|$. Norm değişirse distance da değişir.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Norm</th><th>Formül</th><th>Başka adı</th><th>$v = (3,-4)$</th></tr>
+      <tr><td>$\|x\|_1$</td><td>$|x_1| + \dots + |x_n|$</td><td>Manhattan distance, sum-absolute-value</td><td>$|3| + |-4| = \mathbf{7}$</td></tr>
+      <tr><td>$\|x\|_2$</td><td>$\sqrt{x_1^2 + \dots + x_n^2}$</td><td>Euclidean distance</td><td>$\sqrt{9 + 16} = \mathbf{5}$</td></tr>
+      <tr><td>$\|x\|_\infty$</td><td>$\max_i |x_i|$</td><td>Chebyshev, "en büyük olanı al"</td><td>$\max(3, 4) = \mathbf{4}$</td></tr>
+    </table></div>
+    <p>Üçü de <strong>ℓp-norm</strong> ailesinden: $\|x\|_p = \big(|x_1|^p + \dots + |x_n|^p\big)^{1/p}$, $p \ge 1$. $p = 1$ ve $p = 2$ yukarıdakiler; $p \to \infty$ limitinde en büyük $|x_i|$ kalır.</p>
+    <p><strong>Her zaman:</strong> $$\|x\|_\infty \le \|x\|_2 \le \|x\|_1 \le \sqrt n\,\|x\|_2 \le n\,\|x\|_\infty$$</p>
+    <p>Neden: $\|x\|_2^2 = \sum x_i^2 \ge \max_i x_i^2$ (soldaki eşitsizlik). $\|x\|_1^2 = \sum x_i^2 + 2\sum_{i&lt;j}|x_i||x_j| \ge \|x\|_2^2$ (ortadaki). Sağdaki iki eşitsizlik, norm'ların birbirinden en fazla $\sqrt n$ kat uzaklaşabildiğini söyler (Boyd: "equivalence of norms"). Eşitlik: tek bir component sıfırdan farklıysa, örneğin $(0,-5)$ için üçü de 5.</p>
+  </div>
+  <!-- Kaynak: Lab02 Section 1 ilk hücre (x, y, z, e1, v ve assert'ler) · Boyd A.1.1–A.1.4 (pdf s.647–650) · weeks/02 "## Notes — Efe" tablosu (7/5/4 ve sıralama notu). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>ℓ1'de mutlak değeri unutma: $3 + (-4) = -1$ bir norm olamaz, norm negatif çıkmaz.</li>
+      <li>$\|v\|_2 = 5$, $\|v\|_2^2 = 25$. Soru hangisini istiyor, dikkat et.</li>
+      <li>Alt indis yoksa ($\|x\|$) genelde ℓ2 kastedilir. Sınavda emin değilsen indisi yaz.</li>
+      <li>$p &lt; 1$ için formül norm vermez, triangle inequality bozulur: $p = \tfrac12$ ile $\|(1,0) + (0,1)\|_{1/2} = (1 + 1)^2 = 4 &gt; 1 + 1$.</li>
+      <li>Açı formülünde ℓ2 norm'u kullanılır, ℓ1 değil. Hesap makinesi radian veriyorsa $0.9273$ rad $= 53.13^\circ$.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s1-vectors"><span class="box__label">Lab02 Section 1 · lab görevi</span>
+    <p>"compute inner products, angles and the three norms" (notebook'un hedef listesinden). Hücre şu vector'leri kullanıyor: <code>x, y, z, e1 = (3, 4), (4, -3), (6, 8), (1, 0)</code> ve <code>v = (3, -4)</code>; sonra <code>assert x @ y == 0</code>, açının 53.13 olduğunu ve <code>(L1, L2, Linf) == (7, 5, 4)</code> olduğunu kontrol ediyor.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Perpendicular için $x^Ty$'yi, parallel için $x^Tz$'yi $\|x\|_2\|z\|_2$ ile karşılaştır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\cos\theta = \dfrac{x^Te_1}{\|x\|_2\|e_1\|_2}$ ve $\|e_1\|_2 = 1$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>$x^Ty = 3\cdot4 + 4\cdot(-3) = 0$ ⇒ <strong>perpendicular</strong>.</li>
+        <li>$x^Tz = 3\cdot6 + 4\cdot8 = 50$, $\|x\|_2 = 5$, $\|z\|_2 = 10$, $5 \cdot 10 = 50$ ⇒ Cauchy–Schwarz eşitlikle sağlanıyor ⇒ <strong>parallel</strong> ($z = 2x$).</li>
+        <li>$\cos\theta = 3/5$ ⇒ $\theta = \cos^{-1}(0.6) \approx \mathbf{53.13^\circ}$.</li>
+        <li>$v = (3,-4)$: $\|v\|_1 = 7$, $\|v\|_2 = 5$, $\|v\|_\infty = 4$. Sıra $4 \le 5 \le 7$, yani $\|v\|_\infty \le \|v\|_2 \le \|v\|_1$.</li>
+      </ol>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-vec-angle">
+    <p class="quiz__q">$x = (3,4)$ ile $w = (-6,-8)$ arasındaki açı kaç derece?</p>
+    <button class="quiz__opt">$0^\circ$<span class="why">$w = -2x$: aynı doğru üzerinde ama ters yönde. $x^Tw = -50$ negatif, açı $0^\circ$ olsaydı pozitif çıkardı.</span></button>
+    <button class="quiz__opt" data-correct>$180^\circ$<span class="why">Doğru. $\cos\theta = \dfrac{-18 - 32}{5 \cdot 10} = -1$. Parallel ama ters yönde.</span></button>
+    <button class="quiz__opt">$90^\circ$<span class="why">Perpendicular için $x^Tw = 0$ gerekir. Burada $x^Tw = -50$. "Parallel" ile "perpendicular"ı karıştırma.</span></button>
+    <button class="quiz__opt">$53.13^\circ$<span class="why">Bu, $x$ ile $e_1$ arasındaki açı. $w$'nin yönü $x$'in tam tersi.</span></button>
+  </div>
+  <div class="quiz" id="q-norm-calc">
+    <p class="quiz__q">$u = (1, -2, 2)$ için $(\|u\|_1, \|u\|_2, \|u\|_\infty)$ hangisi?</p>
+    <button class="quiz__opt" data-correct>$(5, 3, 2)$<span class="why">Doğru. $1 + 2 + 2 = 5$, $\sqrt{1 + 4 + 4} = 3$, $\max = 2$. Sıra $2 \le 3 \le 5$.</span></button>
+    <button class="quiz__opt">$(1, 3, 2)$<span class="why">$1 - 2 + 2 = 1$: ℓ1'de mutlak değer unutulmuş.</span></button>
+    <button class="quiz__opt">$(5, 9, 2)$<span class="why">9, $\|u\|_2^2$. Karekökü almayı unutma.</span></button>
+    <button class="quiz__opt">$(5, 3, 1)$<span class="why">ℓ∞ en büyük <strong>mutlak</strong> değeri alır: $|-2| = 2$, ilk component değil.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="balls" data-min="5">
+  <h2>Unit ball: diamond, circle, square</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Bir norm'u resimle görmenin en kolay yolu: "uzunluğu en fazla 1 olan" bütün noktaları boya. Çıkan şekle o norm'un <strong>unit ball</strong>'u denir. Üç norm, $\mathbb{R}^2$'de üç ayrı şekil verir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · unit ball</span>
+    <p>$$B = \{x \in \mathbb{R}^n \mid \|x\| \le 1\}$$</p>
+    <div class="table-wrap"><table>
+      <tr><th>Norm</th><th>$\mathbb{R}^2$'de $B$</th><th>Köşeler / sınır</th></tr>
+      <tr><td>$\|x\|_1 \le 1$</td><td><strong>diamond</strong> (45° dönmüş kare)</td><td>köşeler $(\pm1, 0)$, $(0, \pm1)$; birinci bölgede kenar $x_1 + x_2 = 1$</td></tr>
+      <tr><td>$\|x\|_2 \le 1$</td><td><strong>circle</strong> (disk)</td><td>$x_1^2 + x_2^2 = 1$</td></tr>
+      <tr><td>$\|x\|_\infty \le 1$</td><td><strong>square</strong> $[-1,1]^2$</td><td>köşeler $(\pm1, \pm1)$</td></tr>
+    </table></div>
+    <p>Sıralamadan ($\|x\|_\infty \le \|x\|_2 \le \|x\|_1$) hemen çıkar: <strong>diamond ⊂ circle ⊂ square</strong>. $\|x\|_1 \le 1$ ise $\|x\|_2 \le 1$, o da $\|x\|_\infty \le 1$ demek.</p>
+    <p>Her unit ball origin'e göre symmetric'tir ($x \in B \Leftrightarrow -x \in B$), <strong>convex</strong>'tir, closed ve bounded'dır (Boyd A.1.2). Merkezi $c$, yarıçapı $r$ olan ball: $\{x \mid \|x - c\| \le r\}$.</p>
+  </div>
+  <p>Aşağıda $p$'yi 1'den 2'ye, oradan $\infty$'a kaydır. Kalın çizgi $\|x\|_p = 1$ eğrisi, kesikli çizgiler üç referans şekil. Şekle tıklayarak ya da sürükleyerek bir nokta koy; üç norm'u ve sıralamayı canlı hesaplıyor.</p>
+  <p class="w-norms-gradients-guess"><b>Önce tahmin et:</b> $(0.6,\ 0.6)$ noktası diamond, circle ve square'den hangilerinin içinde?</p>
+  <div class="w-norms-gradients-card" id="nb">
+    <div class="w-norms-gradients-ctl">
+      <label for="nb-p">p</label><input type="range" id="nb-p" min="0" max="100" step="1" value="0" aria-label="p slider" /><b id="nb-pv" class="w-norms-gradients-mono">p = 1</b>
+    </div>
+    <div class="w-norms-gradients-ctl">
+      <button class="btn btn--sm" data-nbp="0">p = 1</button>
+      <button class="btn btn--sm" data-nbp="50">p = 2</button>
+      <button class="btn btn--sm" data-nbp="75">p = 4</button>
+      <button class="btn btn--sm" data-nbp="100">p = ∞</button>
+    </div>
+    <div class="w-norms-gradients-ctl">
+      <label for="nb-pt">nokta</label><input id="nb-pt" type="text" value="0.6, 0.6" class="btn btn--sm" /><button class="btn btn--sm" id="nb-go">Koy</button>
+    </div>
+    <div class="w-norms-gradients-err" id="nb-err" aria-live="polite"></div>
+    <div class="w-norms-gradients-split">
+      <svg id="nb-svg" viewBox="0 0 300 300" role="img" aria-label="Unit ball çizimi"></svg>
+      <div class="w-norms-gradients-out" id="nb-out"></div>
+    </div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Boyd'dan ek · quadratic norm ve dual norm</span>
+    <ul>
+      <li><strong>Quadratic norm:</strong> $P \succ 0$ için $\|x\|_P = \sqrt{x^TPx}$. Unit ball'u bir ellipse (ellipsoid) olur. Hessian dersinde level set'lerin neden ellipse olduğunu bununla göreceksin.</li>
+      <li><strong>Dual norm:</strong> $\|z\|_* = \sup\{z^Tx \mid \|x\| \le 1\}$, ve her zaman $z^Tx \le \|x\|\,\|z\|_*$. ℓ∞'un dual'ı ℓ1, ℓ1'in dual'ı ℓ∞, ℓ2 kendisinin dual'ı. Örnek: $z = (2,-1,3)$ için square üzerinde $z^Tx$ en büyük değerini köşede, $x = (1,-1,1)$'de alır: $2 + 1 + 3 = 6 = \|z\|_1$.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Boyd A.1.2 (unit ball özellikleri), A.1.3 (ℓp ailesi, quadratic norm), A.1.6 (dual norm) · weeks/02 "Key concepts: dual norms; norm balls" ve "Implement: Norm-ball visualizer for p = 1, 2, ∞". -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>En sık karışan çift: ℓ1 ball <strong>diamond</strong>, ℓ∞ ball <strong>square</strong>. Hatırlatma: ℓ1 ball'un köşeleri eksenlerin üstünde, $(1,0)$ ve $(0,1)$.</li>
+      <li>$(0.5, 0.5)$ diamond'un içinde değil, tam sınırında: $0.5 + 0.5 = 1$.</li>
+      <li>$p &lt; 1$ için "ball" içe göçük bir yıldız şekli olur ve convex değildir. Bu, o formülün norm olmadığının resimdeki karşılığı.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s1-norms-twin"><span class="box__label">Lab02 Section 1 ikizi, yeni sayılar · lab görevi</span>
+    <p>(a) $x = (6, -2, -9)$ için $\|x\|_1$, $\|x\|_2$ ve $\|x\|_\infty$'u hesapla ve $\|x\|_\infty \le \|x\|_2 \le \|x\|_1$ sıralamasını kontrol et. (b) $\mathbb{R}^2$'de $\{x \mid \|x\|_1 \le 1\}$ kümesini çiz; köşeleri ve birinci bölgedeki kenarın denklemini yaz. $(0.5, 0.5)$ bu kümenin neresinde?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) $36 + 4 + 81$'in karekökü tam sayı çıkıyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b) Birinci bölgede $|x_1| + |x_2| = x_1 + x_2$. Diğer üç bölge işaretlerle elde edilir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $\|x\|_1 = 6 + 2 + 9 = \mathbf{17}$, $\|x\|_2 = \sqrt{36 + 4 + 81} = \sqrt{121} = \mathbf{11}$, $\|x\|_\infty = \max(6, 2, 9) = \mathbf{9}$. $9 \le 11 \le 17$ ✓. Sağ taraftaki sınırlar da tutuyor: $17 \le \sqrt3 \cdot 11 \approx 19.05$ ve $11 \le \sqrt 3 \cdot 9 \approx 15.59$.</p>
+      <p><strong>(b)</strong> Kümede $|x_1| + |x_2| \le 1$. Dört kenar: $x_1 + x_2 = 1$ (birinci bölge), $-x_1 + x_2 = 1$, $-x_1 - x_2 = 1$, $x_1 - x_2 = 1$. Köşeler $(1,0)$, $(0,1)$, $(-1,0)$, $(0,-1)$. Şekil 45° dönmüş bir kare, yani <strong>diamond</strong>. $(0.5, 0.5)$ için $0.5 + 0.5 = 1$: nokta birinci bölgedeki kenarın tam üstünde, yani sınırda.</p>
+    </div></details>
+    <!-- Kaynak: Lab02 Section 1 (v = (3, −4) norm hücresi) ve weeks/02 "Norm-ball visualizer for p = 1, 2, ∞" görevinin yeni sayılarla ikizi; Boyd A.1.2 unit ball. Python ile doğrulandı. -->
+  </div>
+  <div class="quiz" id="q-ball">
+    <p class="quiz__q">$(0.9,\ 0.5)$ noktası hangi unit ball'ların içinde?</p>
+    <button class="quiz__opt">Üçünün de<span class="why">$\|(0.9, 0.5)\|_1 = 1.4 &gt; 1$, diamond'un dışında. Tek tek hesapla.</span></button>
+    <button class="quiz__opt">Circle ve square<span class="why">$\|\cdot\|_2 = \sqrt{0.81 + 0.25} = \sqrt{1.06} \approx 1.03 &gt; 1$. Kıl payı circle'ın dışında.</span></button>
+    <button class="quiz__opt" data-correct>Sadece square<span class="why">Doğru. $\|\cdot\|_\infty = 0.9 \le 1$, ama $\|\cdot\|_2 \approx 1.03$ ve $\|\cdot\|_1 = 1.4$.</span></button>
+    <button class="quiz__opt">Sadece diamond<span class="why">Diamond en küçük şekil. Bir nokta diamond'un içindeyse circle ve square'in de içindedir; "sadece diamond" olamaz.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="servers" data-min="5">
+  <h2>Norm'u seçmek objective'i seçmektir</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · "the nearest server depends on the ruler"</span>
+    <p>Client origin'de duruyor, üç server var. "En yakın server hangisi?" sorusunun cevabı hangi cetveli (norm'u) kullandığına bağlı. Norm'u değiştirince problemin optimal cevabı değişiyor. Hocanın notebook'undaki cümle: <em>"choosing the norm IS choosing the objective"</em>.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Server</th><th>konum</th><th>$\|\cdot\|_1$</th><th>$\|\cdot\|_2$</th><th>$\|\cdot\|_\infty$</th></tr>
+    <tr><td>A</td><td>$(5, 0)$</td><td class="w-norms-gradients-hl">5.00</td><td>5.00</td><td>5.00</td></tr>
+    <tr><td>B</td><td>$(3.6, 3.6)$</td><td>7.20</td><td>5.09</td><td class="w-norms-gradients-hl">3.60</td></tr>
+    <tr><td>C</td><td>$(4.5, 1.5)$</td><td>6.00</td><td class="w-norms-gradients-hl">4.74</td><td>4.50</td></tr>
+  </table></div>
+  <p>ℓ1 ile A, ℓ2 ile C, ℓ∞ ile B en yakın. Üç norm, üç farklı cevap.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · hangi norm neyi ölçer?</span>
+    <ul>
+      <li><strong>ℓ1:</strong> component'lerin toplamı. Izgara gibi sokaklarda yürüme mesafesi. Her farkı aynı ağırlıkla toplar.</li>
+      <li><strong>ℓ2:</strong> düz çizgi mesafesi. Kareler büyük farkları ağır cezalandırır.</li>
+      <li><strong>ℓ∞:</strong> sadece en kötü component. Diğerleri ne olursa olsun, en büyük fark kazanır.</li>
+    </ul>
+    <p><strong>Outlier örneği (Lab02, "slide 6"):</strong> iki hata vector'ü düşün: $e = (1,1,1,1,10)$, bir büyük hata ve dört küçük; $e' = (3,3,3,3,3)$, hepsi orta.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Norm</th><th>$e$</th><th>$e'$</th><th>Hangisini tercih eder?</th></tr>
+      <tr><td>ℓ1</td><td>14</td><td>15</td><td>$e$: outlier'ı affeder</td></tr>
+      <tr><td>ℓ2</td><td>10.2</td><td>6.7</td><td>$e'$</td></tr>
+      <tr><td>ℓ∞</td><td>10</td><td>3</td><td>$e'$</td></tr>
+    </table></div>
+    <p>Bu yüzden veri uydururken ℓ1 outlier'a karşı dayanıklıdır. Week 3 slaytındaki uygulama tablosunda "L1-norm fitting" bir LP uygulaması olarak geçiyor.</p>
+  </div>
+  <!-- Kaynak: Lab02 Section 1, ikinci hücre (servers sözlüğü, nearest assert'i, "the outlier example from slide 6") · Week_03.pdf uygulama tablosu "ML & analytics: L1-norm fitting". -->
+  <p>Aşağıdaki haritada düzlemin her noktası, ona en yakın server'ın rengine boyanıyor (seçtiğin norm ile). Siyah nokta client. Server'ları ya da client'ı sürükleyebilirsin.</p>
+  <p class="w-norms-gradients-guess"><b>Önce tahmin et:</b> ℓ∞'a geçince client'ın bulunduğu bölge hangi server'ın rengine döner? Bölge sınırları neden çizgi parçalarından oluşuyor?</p>
+  <div class="w-norms-gradients-card" id="sv">
+    <div class="w-norms-gradients-ctl">
+      <button class="btn btn--sm" data-svn="1">ℓ1</button>
+      <button class="btn btn--sm" data-svn="2">ℓ2</button>
+      <button class="btn btn--sm" data-svn="inf">ℓ∞</button>
+      <button class="btn btn--sm" id="sv-reset">Lab02 konumları</button>
+    </div>
+    <div class="w-norms-gradients-split">
+      <canvas id="sv-cv" class="w-norms-gradients-canvas" width="320" height="320" aria-label="Nearest server haritası"></canvas>
+      <div class="w-norms-gradients-out" id="sv-out"></div>
+    </div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Farklı norm'lardaki sayıları birbiriyle karşılaştırma. "A'nın ℓ1 mesafesi 5, C'nin ℓ2 mesafesi 4.74, demek ki C daha yakın" yanlış bir akıl yürütme. Karşılaştırmayı hep aynı norm içinde yap.</li>
+      <li>$\|x\|_2$ ile $\|x\|_2^2$ aynı noktayı en küçük yapar, çünkü kare almak sırayı bozmaz. Ama "hataların karelerinin toplamı" ile "hataların toplamı" farklı problemlerdir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s1-servers"><span class="box__label">Lab02 Section 1 · lab görevi</span>
+    <p>"<strong>The nearest server depends on the ruler.</strong> Client at the origin, three servers:" <code>A = (5.0, 0.0)</code>, <code>B = (3.6, 3.6)</code>, <code>C = (4.5, 1.5)</code>. Her norm için en yakın server'ı bul (<code>assert nearest == {"L1": "A", "L2": "C", "Linf": "B"}</code>). Sonra "the outlier example from slide 6": <code>e = (1, 1, 1, 1, 10)</code>, <code>e' = (3, 3, 3, 3, 3)</code>; her norm hangisini tercih ediyor?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Client origin'de olduğu için mesafe = server vector'ünün norm'u.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\|(3.6, 3.6)\|_2 = 3.6\sqrt 2$ ve $\|(4.5, 1.5)\|_2 = 1.5\sqrt{10}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ul>
+        <li>ℓ1: A $= 5$, B $= 7.2$, C $= 6$ ⇒ <strong>A</strong>.</li>
+        <li>ℓ2: A $= 5$, B $= 3.6\sqrt2 \approx 5.09$, C $= \sqrt{22.5} \approx 4.74$ ⇒ <strong>C</strong>.</li>
+        <li>ℓ∞: A $= 5$, B $= 3.6$, C $= 4.5$ ⇒ <strong>B</strong>.</li>
+        <li>Outlier: ℓ1 $14 &lt; 15$ ⇒ $e$ (outlier'ı affeder). ℓ2 $\sqrt{104} \approx 10.2 &gt; \sqrt{45} \approx 6.71$ ⇒ $e'$. ℓ∞ $10 &gt; 3$ ⇒ $e'$.</li>
+      </ul>
+      <p>Sonuç: aynı veri, üç norm, üç farklı cevap. Norm seçimi objective'in bir parçası.</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-server">
+    <p class="quiz__q">$e = (1,1,1,1,10)$ ile $e' = (3,3,3,3,3)$ arasında seçim yaparken ℓ1 hangisini seçer ve neden?</p>
+    <button class="quiz__opt" data-correct>$e$, çünkü $14 &lt; 15$: ℓ1 tek bir büyük hatayı ağır cezalandırmaz<span class="why">Doğru. ℓ1 hataları olduğu gibi toplar; 10'luk hata sadece 10 birim sayılır.</span></button>
+    <button class="quiz__opt">$e'$, çünkü en büyük hatası daha küçük<span class="why">"En büyük hata" ölçütü ℓ∞'tur. ℓ1 toplama bakar.</span></button>
+    <button class="quiz__opt">$e'$, çünkü kareler toplamı daha küçük<span class="why">Bu ℓ2'nin ölçütü ($45 &lt; 104$). Norm'ları karıştırma.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="summarize" data-min="5">
+  <h2>Mean, median, midrange: aynı veri, üç norm</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Veriyi tek bir sayıyla özetlemek de bir optimization problem'idir: $a = (a_1, \dots, a_m)$ verisini en iyi temsil eden $x$'i ara. "En iyi"yi bir norm tanımlıyor: hata vector'ü $x\mathbf{1} - a = (x - a_1, \dots, x - a_m)$, onun norm'unu küçült.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Lab02 Exercise 1</span>
+    <div class="table-wrap"><table>
+      <tr><th>Minimize</th><th>Cevap</th><th>Neden</th><th>$a = (1,2,3,4,100)$</th></tr>
+      <tr><td>$\sum (x - a_i)^2$ (ℓ2)</td><td><strong>mean</strong></td><td>türev $2\sum(x - a_i) = 0$ ⇒ $x = \frac1m\sum a_i$</td><td>22</td></tr>
+      <tr><td>$\sum |x - a_i|$ (ℓ1)</td><td><strong>median</strong></td><td>eğim = (soldaki nokta sayısı) − (sağdaki nokta sayısı); ikisi dengelenince sıfır</td><td>3</td></tr>
+      <tr><td>$\max_i |x - a_i|$ (ℓ∞)</td><td><strong>midrange</strong> $\frac{\min + \max}{2}$</td><td>sadece iki uç nokta önemli; ortaları en iyisi</td><td>50.5</td></tr>
+    </table></div>
+    <p>Outlier (100) mean'i 22'ye çekiyor, median'ı 3'te bırakıyor. Hocanın notu: <em>"L1 forgives outliers, L2 chases them."</em> ℓ∞ ise outlier'a tamamen teslim oluyor: midrange 50.5.</p>
+  </div>
+  <!-- Kaynak: Lab02 Exercise 1 (brute-force grid search, assert'ler) ve "Your turn" kutusu (L∞ summary, "think about the two extreme data points"). -->
+  <p>Aşağıda veriyi değiştir ya da en büyük noktayı slider ile kaydır. Üç loss eğrisi gerçekten hesaplanıyor (her biri kendi maksimumuna bölünerek aynı yüksekliğe getirildi), minimizer'lar grid search ile bulunuyor ve formülle karşılaştırılıyor.</p>
+  <p class="w-norms-gradients-guess"><b>Önce tahmin et:</b> 100'ü 1000'e çıkarırsan median değişir mi? Mean ne olur?</p>
+  <div class="w-norms-gradients-card" id="sm">
+    <div class="w-norms-gradients-ctl">
+      <label for="sm-data">veri</label><input id="sm-data" type="text" value="1, 2, 3, 4, 100" class="btn btn--sm" style="width:200px" /><button class="btn btn--sm" id="sm-go">Kur</button>
+    </div>
+    <div class="w-norms-gradients-ctl">
+      <label for="sm-outl">en büyük nokta</label><input type="range" id="sm-outl" min="-20" max="200" step="1" value="100" aria-label="outlier slider" /><b id="sm-outv" class="w-norms-gradients-mono">100</b>
+    </div>
+    <div class="w-norms-gradients-err" id="sm-err" aria-live="polite"></div>
+    <div class="w-norms-gradients-legend"><span style="--c:#0063AA">ℓ2 (kareler)</span><span style="--c:#F47524">ℓ1 (mutlak)</span><span style="--c:#2b8a3e">ℓ∞ (max)</span></div>
+    <div class="w-norms-gradients-plot"><svg id="sm-svg" viewBox="0 0 360 200" role="img" aria-label="Loss eğrileri"></svg></div>
+    <div class="w-norms-gradients-out" id="sm-res"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Veri sayısı çiftse ℓ1'in minimizer'ı tek değil: iki ortanca değer arasındaki her $x$ aynı loss'u verir. $(1,2,3,4)$ için $[2, 3]$ aralığındaki her nokta optimal. Bilinen "median = 2.5" bu aralıktan bir seçim.</li>
+      <li>ℓ∞ özeti ortadaki noktalara hiç bakmaz. $(1, 50, 100)$ ile $(1, 2, 100)$ aynı midrange'i verir.</li>
+      <li>"ℓ1 minimizer'ı mutlak değerlerin ortalamasıdır" yanlış. Cevap median.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-ex1-mean-median"><span class="box__label">Lab02 Exercise 1 · lab görevi</span>
+    <p>"<strong>Exercise 1 — Mean vs median: the norm decides the answer.</strong> Summarize the data $a = (1, 2, 3, 4, 100)$ by one number $x$. Minimizing the L₂ error $\sum (x-a_i)^2$ and the L₁ error $\sum |x-a_i|$ give different answers — find them by brute-force search, then recognize them."</p>
+    <p>"Your turn: Add the L∞ summary: minimize <code>max |x − aᵢ|</code> on the same grid. Which familiar statistic is it? (Hint: think about the two extreme data points.)"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>ℓ2: türevi al ve sıfıra eşitle. ℓ1: $x$'i bir veri noktasının üstünden geçirince eğim nasıl değişiyor?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>ℓ∞: $\max_i |x - a_i| = \max(x - 1,\ 100 - x)$. İki doğrunun kesiştiği yer?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>ℓ2:</strong> $\frac{d}{dx}\sum(x - a_i)^2 = 2\sum(x - a_i) = 2(5x - 110) = 0$ ⇒ $x = 22$ = <strong>mean</strong>. Loss $7610$.</li>
+        <li><strong>ℓ1:</strong> $x$ veri noktaları arasındayken eğim = (solda kalan nokta sayısı) − (sağda kalan nokta sayısı). $x &lt; 3$ iken solda en fazla 2, sağda en az 3 nokta: eğim negatif. $x &gt; 3$ iken eğim pozitif. Minimum $x = 3$ = <strong>median</strong>. Loss $2 + 1 + 0 + 1 + 97 = 101$.</li>
+        <li><strong>ℓ∞:</strong> $\max(x - 1, 100 - x)$ en küçük, iki terim eşitken: $x - 1 = 100 - x$ ⇒ $x = 50.5$ = <strong>midrange</strong> $\frac{1 + 100}{2}$. Loss $49.5$.</li>
+      </ol>
+      <p>Grid search ($[0, 100]$, adım $0.001$) aynı üç sayıyı veriyor: 22, 3, 50.5.</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-summ">
+    <p class="quiz__q">Veri $(2, 3, 5, 6, 24)$. ℓ∞ özeti, yani $\max_i |x - a_i|$'yi en küçük yapan $x$ kaç?</p>
+    <button class="quiz__opt">8<span class="why">8 mean, yani ℓ2'nin cevabı.</span></button>
+    <button class="quiz__opt">5<span class="why">5 median, yani ℓ1'in cevabı.</span></button>
+    <button class="quiz__opt" data-correct>13<span class="why">Doğru. $\frac{2 + 24}{2} = 13$, midrange. En uzak iki nokta 11 birim uzakta kalıyor.</span></button>
+    <button class="quiz__opt">12<span class="why">$24/2$: minimum noktasını unutmuşsun. Midrange $\frac{\min + \max}{2}$.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="gradient" data-min="5">
+  <h2>Gradient: partial derivative'lerin vector'ü</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Tek değişkenli fonksiyonda türev "x'i biraz artırınca f ne kadar artar?" sorusunu cevaplar. $n$ değişkende her değişken için ayrı bir türev var. Hepsini bir vector'e koyunca <strong>gradient</strong> çıkar. Week 1'deki 2-D resimde optimumu bulmak için contour'u "improving direction (the gradient)" yönünde kaydırmıştık; o yön budur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · gradient ve first-order approximation</span>
+    <p>$$\nabla f(x) = \begin{pmatrix} \partial f/\partial x_1 \\ \vdots \\ \partial f/\partial x_n \end{pmatrix}, \qquad f(z) \approx f(x) + \nabla f(x)^T (z - x)$$</p>
+    <p>$\nabla f(x)$ bir <strong>column vector</strong>. Boyd'da derivative $Df(x)$ bir row vector, $\nabla f(x) = Df(x)^T$. Partial derivative alırken diğer değişkenleri constant gibi düşün.</p>
+    <p><strong>Geometri:</strong> $\nabla f(x)$, $x$'ten geçen <strong>contour</strong>'a (level set, $f$'in sabit olduğu eğri) <strong>perpendicular</strong>'dır. Neden: contour boyunca $f$ değişmiyor, yani contour'un tangent yönü $t$ için $\nabla f^Tt = 0$.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · dersin running example'ı</span>
+    <p>$f(x,y) = x^2 + xy + 2y^2$, $P = (1, 2)$.</p>
+    <ul>
+      <li>$f(P) = 1 + 2 + 8 = \mathbf{11}$.</li>
+      <li>$\partial f/\partial x = 2x + y$ ⇒ $2 + 2 = 4$. $\partial f/\partial y = x + 4y$ ⇒ $1 + 8 = 9$. Yani $\nabla f(P) = \mathbf{(4, 9)}$, $\|\nabla f(P)\|_2 = \sqrt{97} \approx 9.849$.</li>
+      <li>Contour'un $P$'deki tangent yönü: $(4,9)$'u 90° döndür ⇒ $(-9, 4)$. Kontrol: $4 \cdot (-9) + 9 \cdot 4 = 0$.</li>
+      <li>First-order approximation: $f(1.1, 2) \approx 11 + (4, 9)^T(0.1, 0) = 11.4$. Gerçek değer $1.21 + 2.2 + 8 = 11.41$. Küçük adımda çok yakın.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Lab02 Section 2 ilk hücre (f, grad_f, P = (1, 2), assert f(P) == 11 ve grad = [4, 9]) · Boyd A.4.1 (gradient, first-order approximation) · Week_01.pdf s.8 ("Slide the contour in the improving direction (the gradient)") · Lab01 Section 4 ipucu ("Points on one contour all share the same objective value"). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$\partial(xy)/\partial x = y$, $\partial(xy)/\partial y = x$. Çarpım term'ini iki component'te de unutma.</li>
+      <li>Gradient bir noktada hesaplanınca sayılardan oluşan bir vector olur. "$\nabla f(P) = (2x + y, x + 4y)$" yazıp bırakmak eksik cevap.</li>
+      <li>Gradient, grafiğin (surface) üstünde değil, domain'de ($x$-$y$ düzleminde) yaşar. Contour çiziminde ok düzlemde çizilir.</li>
+      <li>$\nabla f = 0$ olan nokta her zaman minimum değildir; saddle da olabilir. Bunu bir sonraki derste Hessian ile ayıracağız.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s2-gradient"><span class="box__label">Lab02 Section 2 · lab görevi</span>
+    <p>"Gradients: by hand, by cookbook, by chain rule." <code>f = x² + x·y + 2y²</code>, <code>P = (1.0, 2.0)</code>: <code>assert f(P) == 11 and np.allclose(g, [4, 9])</code>. Ardından "directional derivatives at P (slope along unit direction u = grad . u)" for <code>e1</code>, <code>e2</code>, gradient direction, contour tangent <code>(-9, 4)/sqrt(97)</code>, <code>-gradient</code> direction.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce iki partial derivative'i genel olarak yaz, sonra $P$'yi yerine koy.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Directional derivative için bir sonraki bölümdeki kuralı kullan: $\nabla f^Tu$, $u$ unit vector.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$f(P) = 11$, $\nabla f(P) = (4, 9)$, $\|\nabla f(P)\| = \sqrt{97} \approx 9.849$.</p>
+      <div class="table-wrap"><table>
+        <tr><th>$u$</th><th>$\nabla f(P)^Tu$</th></tr>
+        <tr><td>$e_1 = (1,0)$</td><td>4</td></tr>
+        <tr><td>$e_2 = (0,1)$</td><td>9</td></tr>
+        <tr><td>$(4,9)/\sqrt{97}$ (gradient yönü)</td><td>$\sqrt{97} \approx 9.849$ (en büyük)</td></tr>
+        <tr><td>$(-9,4)/\sqrt{97}$ (contour tangent)</td><td>0</td></tr>
+        <tr><td>$-(4,9)/\sqrt{97}$</td><td>$-9.849$ (en küçük)</td></tr>
+      </table></div>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-grad-partial">
+    <p class="quiz__q">$f(x,y) = x^2 + xy + 2y^2$ için $\partial f/\partial y$ hangisi?</p>
+    <button class="quiz__opt" data-correct>$x + 4y$<span class="why">Doğru. $x^2$'nin $y$'ye göre türevi 0, $xy$'nin $x$, $2y^2$'nin $4y$.</span></button>
+    <button class="quiz__opt">$4y$<span class="why">$xy$ term'i $y$'ye bağlı. $x$'i constant gibi düşününce türevi $x$ olur.</span></button>
+    <button class="quiz__opt">$2x + y$<span class="why">Bu $\partial f/\partial x$. Değişkenleri karıştırma.</span></button>
+    <button class="quiz__opt">$y + 4y$<span class="why">$\partial(xy)/\partial y = x$, $y$ değil. Türev aldığın değişken kaybolur, diğeri kalır.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="directional" data-min="5">
+  <h2>Directional derivative ve steepest descent</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · directional derivative</span>
+    <p>$u$ bir <strong>unit vector</strong> ($\|u\|_2 = 1$) olsun. $f$'in $x$'te $u$ yönündeki eğimi:</p>
+    <p>$$D_u f(x) = \frac{d}{dt} f(x + tu)\Big|_{t=0} = \nabla f(x)^T u$$</p>
+    <p>Cauchy–Schwarz: $-\|\nabla f\|_2 \le \nabla f^Tu \le \|\nabla f\|_2$.</p>
+    <ul>
+      <li>En büyük eğim $u = \nabla f/\|\nabla f\|$'de: <strong>steepest ascent</strong>, değeri $\|\nabla f\|_2$.</li>
+      <li>En küçük eğim $u = -\nabla f/\|\nabla f\|$'de: <strong>steepest descent</strong>, değeri $-\|\nabla f\|_2$.</li>
+      <li>Eğim sıfır: contour tangent'ı boyunca.</li>
+      <li>$\nabla f^Td &lt; 0$ olan her $d$ bir <strong>descent direction</strong>'dır. Gradient descent dersinin başlangıç noktası bu.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Lab02 Section 2 (directional derivative tablosu) · Boyd A.4.2 ("f̃(t) = f(x + tv) ... The scalar f̃′(0) is the directional derivative") · weeks/05 "Descent direction; steepest descent in a general norm". -->
+  <p>Aşağıda $f = x^2 + xy + 2y^2$'nin contour'ları var. Bir noktaya tıkla: koyu ok $\nabla f$ (kısaltılmış), kesikli çizgi contour tangent'ı. Turuncu ok seçtiğin unit direction $u$; altındaki gösterge $\nabla f^Tu$'yu $-\|\nabla f\|$ ile $+\|\nabla f\|$ arasında gösteriyor.</p>
+  <p class="w-norms-gradients-guess"><b>Önce tahmin et:</b> $P = (1,2)$'de $u$'yu bir tur döndürürsen $\nabla f^Tu$'nun en büyük değeri kaç olur? Hangi açıda sıfır olur?</p>
+  <div class="w-norms-gradients-card" id="ct">
+    <div class="w-norms-gradients-ctl">
+      <label for="ct-pt">nokta</label><input id="ct-pt" type="text" value="1, 2" class="btn btn--sm" /><button class="btn btn--sm" id="ct-go">Koy</button>
+    </div>
+    <div class="w-norms-gradients-ctl">
+      <label for="ct-th">u açısı</label><input type="range" id="ct-th" min="0" max="359" step="1" value="0" aria-label="u açısı" /><b id="ct-thv" class="w-norms-gradients-mono">0°</b>
+    </div>
+    <div class="w-norms-gradients-ctl">
+      <button class="btn btn--sm" data-ctu="g">u = ∇f yönü</button>
+      <button class="btn btn--sm" data-ctu="-g">u = −∇f yönü</button>
+      <button class="btn btn--sm" data-ctu="t">u = tangent</button>
+    </div>
+    <div class="w-norms-gradients-err" id="ct-err" aria-live="polite"></div>
+    <div class="w-norms-gradients-split">
+      <svg id="ct-svg" viewBox="0 0 300 300" role="img" aria-label="Contour ve gradient"></svg>
+      <div class="w-norms-gradients-out" id="ct-out"></div>
+    </div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$u$ unit olmalı. "$(3,4)$ yönünde" deniyorsa önce $u = (0.6, 0.8)$ yap. Normalize etmezsen cevap 5 kat büyük çıkar.</li>
+      <li>Steepest <strong>descent</strong> yönü $-\nabla f$. İşareti unutursan fonksiyonu artırırsın.</li>
+      <li>"Steepest" burada ℓ2'ye göre. Başka bir norm'la adım boyunu ölçersen en dik yön değişir (Week 5: steepest descent in a general norm).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s2-dirderiv-twin"><span class="box__label">Lab02 Section 2 ikizi, yeni sayılar · lab görevi</span>
+    <p>$f(x,y) = x^2y + 3y^2$, $Q = (2, 1)$. (a) $f(Q)$ ve $\nabla f(Q)$'yu hesapla. (b) $(3, 4)$ yönündeki directional derivative'i bul. (c) $Q$'da steepest descent yönünü (unit vector olarak) ve bu yöndeki eğimi yaz. (d) Birinci mertebede $f$'in değişmediği bir yön ver.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$\partial(x^2y)/\partial x = 2xy$, $\partial(x^2y)/\partial y = x^2$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b) yönü normalize et: $\|(3,4)\| = 5$. (d) gradient'i 90° döndür.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol type="a">
+        <li>$f(Q) = 4 \cdot 1 + 3 = \mathbf{7}$. $\nabla f = (2xy,\ x^2 + 6y)$ ⇒ $\nabla f(Q) = \mathbf{(4, 10)}$.</li>
+        <li>$u = (0.6, 0.8)$, $D_uf(Q) = 4 \cdot 0.6 + 10 \cdot 0.8 = 2.4 + 8 = \mathbf{10.4}$.</li>
+        <li>$\|\nabla f(Q)\| = \sqrt{116} = 2\sqrt{29} \approx 10.770$. Steepest descent yönü $-\dfrac{(4,10)}{\sqrt{116}} = -\dfrac{(2,5)}{\sqrt{29}} \approx (-0.371, -0.928)$, eğim $-\sqrt{116} \approx \mathbf{-10.770}$.</li>
+        <li>$(-10, 4)$ ya da normalize edilmiş $(-5, 2)/\sqrt{29}$: $4 \cdot (-10) + 10 \cdot 4 = 0$. Bu yön, $Q$'dan geçen contour'un tangent'ı.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: Lab02 Section 2 directional derivative tablosunun (P = (1, 2), e1, e2, gradient yönü, tangent, −gradient) yeni sayılarla ikizi. Python ile doğrulandı. -->
+  </div>
+  <div class="quiz" id="q-dir">
+    <p class="quiz__q">$\nabla f(P) = (4, 9)$. $u = (1,1)/\sqrt2$ yönündeki directional derivative kaç?</p>
+    <button class="quiz__opt">13<span class="why">$(1,1)$ unit değil, uzunluğu $\sqrt2$. Önce normalize et.</span></button>
+    <button class="quiz__opt" data-correct>$13/\sqrt2 \approx 9.19$<span class="why">Doğru. $(4 + 9)/\sqrt2$. Bu değer $\sqrt{97} \approx 9.85$'ten küçük, çünkü $u$ gradient yönünde değil.</span></button>
+    <button class="quiz__opt">$\sqrt{97} \approx 9.85$<span class="why">Bu en büyük değer ve sadece $u = \nabla f/\|\nabla f\|$ iken çıkar.</span></button>
+    <button class="quiz__opt">$6.5$<span class="why">$13/2$: $\sqrt 2$ yerine 2'ye bölmüşsün.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="cookbook" data-min="6">
+  <h2>Gradient cookbook ve least squares</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Her seferinde partial derivative'leri tek tek almak yerine, sık geçen kalıpların gradient'ini ezbere bil. Tek değişkenli türev kurallarının vector hâli gibi: $(cx)' = c$, $(x^2)' = 2x$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · cookbook</span>
+    <div class="table-wrap"><table>
+      <tr><th>$f(x)$</th><th>$\nabla f(x)$</th><th>Not</th></tr>
+      <tr><td>$c^Tx$</td><td>$c$</td><td>linear</td></tr>
+      <tr><td>$x^TQx$</td><td>$(Q + Q^T)x$</td><td>$Q$ symmetric ise $2Qx$</td></tr>
+      <tr><td>$\tfrac12 x^TPx + q^Tx + r$</td><td>$Px + q$</td><td>$P$ symmetric (Boyd)</td></tr>
+      <tr><td>$\|x\|_2^2 = x^Tx$</td><td>$2x$</td><td></td></tr>
+      <tr><td>$\|Ax - b\|_2^2$</td><td>$2A^T(Ax - b)$</td><td>least squares</td></tr>
+      <tr><td>$\log \sum_i e^{x_i}$ (log-sum-exp)</td><td>$\dfrac{e^{x}}{\sum_i e^{x_i}}$ = <strong>softmax</strong>$(x)$</td><td>component'leri pozitif, toplamı 1</td></tr>
+    </table></div>
+    <p><strong>Least squares türetmesi:</strong> $\|Ax - b\|^2 = x^TA^TAx - 2b^TAx + b^Tb$. $A^TA$ symmetric, o yüzden ilk term'in gradient'i $2A^TAx$; ikincisinin $-2A^Tb$. Toplam $2A^T(Ax - b)$. Sıfıra eşitleyince <strong>normal equations</strong>: $A^TAx = A^Tb$.</p>
+    <p><strong>Log-sum-exp:</strong> $\dfrac{\partial}{\partial x_k}\log\sum_i e^{x_i} = \dfrac{e^{x_k}}{\sum_i e^{x_i}}$. Örnek: $x = (0,0,0)$ ⇒ softmax $= (\tfrac13, \tfrac13, \tfrac13)$; $x = (1,2,3)$ ⇒ $\approx (0.090, 0.245, 0.665)$.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · running example'ı cookbook ile al</span>
+    <p>$x^2 + xy + 2y^2 = \tfrac12 x^THx$, $H = \begin{pmatrix} 2 & 1 \\ 1 & 4 \end{pmatrix}$ ⇒ $\nabla f = Hx = (2x + y,\ x + 4y)$. Elle bulduğumuzla aynı.</p>
+    <p>Aynı fonksiyonu symmetric olmayan $Q = \begin{pmatrix} 1 & 1 \\ 0 & 2 \end{pmatrix}$ ile $x^TQx$ diye de yazabilirsin. Doğru kural $(Q + Q^T)x = Hx$ yine $(4, 9)$ verir. Yanlış kural $2Qx$ ise $P$'de $(6, 8)$ verir.</p>
+  </div>
+  <!-- Kaynak: Lab02 Section 2 ikinci hücre ("cookbook: least squares -- fit a line through (1,1), (2,2), (3,2)") · Lab02 Section 3 (lse/softmax satırı) · Boyd A.4.1 (quadratic Px + q), Example A.2 (log-sum-exp gradient). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>2 çarpanını unutmak: $\nabla\|Ax - b\|^2 = A^T(Ax - b)$ yazarsan gradient checker relative error'ı tam $1/3$ verir (Bölüm 10).</li>
+      <li>Boyut kontrolü: $A$ $m \times n$, $Ax - b$ $m$ elemanlı, $A^T(Ax - b)$ $n$ elemanlı. $(Ax - b)A^T$ gibi bir ifade boyut olarak tutmaz.</li>
+      <li>$Q$ symmetric değilse $\nabla x^TQx = 2Qx$ yanlış.</li>
+      <li>$\tfrac12 x^TPx$'teki $\tfrac12$, gradient'teki 2'yi götürmek için var. $x^TPx$ ile $\tfrac12x^TPx$'i karıştırma.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s2-least-squares"><span class="box__label">Lab02 Section 2 · lab görevi</span>
+    <p>"cookbook: least squares -- fit a line through (1,1), (2,2), (3,2)". <code>A = [[1, 1], [1, 2], [1, 3]]</code>, <code>b = [1, 2, 2]</code>, <code>grad_ls = 2 A.T @ (A @ x - b)</code>. "gradient at x = 0", sonra "normal equations: grad = 0": <code>assert np.allclose(grad_ls(0), [-10, -22]) and np.allclose(x_star, [2/3, 0.5])</code>.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Model $y \approx x_1 + x_2 t$. $A$'nın ilk sütunu intercept için 1'ler, ikinci sütunu $t$ değerleri. $x = 0$'da $Ax - b = -b$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$A^TA$ ve $A^Tb$'yi hesapla, sonra $2 \times 2$ sistemi Cramer ile çöz.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li>$A^Tb = (1 + 2 + 2,\ 1 + 4 + 6) = (5, 11)$. $x = 0$'da $\nabla = 2A^T(0 - b) = -2(5, 11) = \mathbf{(-10, -22)}$.</li>
+        <li>$A^TA = \begin{pmatrix} 3 & 6 \\ 6 & 14 \end{pmatrix}$, $\det = 42 - 36 = 6$.</li>
+        <li>$x_1^* = \dfrac{14 \cdot 5 - 6 \cdot 11}{6} = \dfrac{4}{6} = \mathbf{\tfrac23}$, $x_2^* = \dfrac{3 \cdot 11 - 6 \cdot 5}{6} = \dfrac36 = \mathbf{\tfrac12}$.</li>
+        <li>Fit: $y = \tfrac23 + \tfrac12 t$, tahminler $\tfrac76, \tfrac53, \tfrac{13}6$, hata kareleri toplamı $\tfrac16$. $x^*$'da gradient sıfır (Python: $\approx 10^{-15}$).</li>
+      </ol>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-cook">
+    <p class="quiz__q">$(0,1)$, $(1,1)$, $(2,4)$ noktalarına $y \approx x_1 + x_2t$ doğrusunu uyduruyoruz. $\|Ax - b\|^2$'nin $x = 0$'daki gradient'i nedir?</p>
+    <button class="quiz__opt" data-correct>$(-12, -18)$<span class="why">Doğru. $A^Tb = (1 + 1 + 4,\ 0 + 1 + 8) = (6, 9)$ ve $\nabla = 2A^T(0 - b) = -2(6, 9)$.</span></button>
+    <button class="quiz__opt">$(-6, -9)$<span class="why">2 çarpanı eksik. $\nabla\|r\|^2 = 2r$'den gelen 2'yi unutma.</span></button>
+    <button class="quiz__opt">$(12, 18)$<span class="why">İşaret ters. $Ax - b = -b$, yani gradient $-2A^Tb$.</span></button>
+    <button class="quiz__opt">$(-2, -2, -8)$<span class="why">Bu $2(Ax - b)$, yani $m = 3$ elemanlı residual. Gradient $n = 2$ elemanlı olmalı: önce $A^T$ ile çarp.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="chain" data-min="5">
+  <h2>Chain rule: $\nabla h = J^T \nabla f$</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · chain rule</span>
+    <p>$F:\mathbb{R}^n \to \mathbb{R}^m$, $g:\mathbb{R}^m \to \mathbb{R}$ ve $h(x) = g(F(x))$ olsun. $F$'in <strong>Jacobian</strong>'ı $J$ bir $m \times n$ matrix: $J_{ij} = \partial F_i/\partial x_j$.</p>
+    <p>$$Dh(x) = Dg(F(x))\,DF(x) \quad\Longrightarrow\quad \nabla h(x) = J(x)^T\,\nabla g\big(F(x)\big)$$</p>
+    <ul>
+      <li>İç fonksiyon skalerse ($F:\mathbb{R}^n\to\mathbb{R}$, $g:\mathbb{R}\to\mathbb{R}$): $\nabla h = g'(F(x))\,\nabla F(x)$.</li>
+      <li><strong>Affine composition:</strong> $h(x) = g(Ax + b)$ ⇒ $\nabla h = A^T\nabla g(Ax + b)$. Least squares bunun özel hâli: $g(r) = \|r\|^2$, $\nabla g = 2r$ ⇒ $2A^T(Ax - b)$. Boyd'un log-sum-exp örneği de öyle: $\nabla \log\sum e^{a_i^Tx + b_i} = A^T\,\text{softmax}(Ax + b)$.</li>
+      <li><strong>Bir doğruya kısıtlama:</strong> $\tilde f(t) = f(x + tv)$ ⇒ $\tilde f'(0) = \nabla f(x)^Tv$. Directional derivative'in nereden geldiği bu.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Lab02 chain rule hücresi</span>
+    <p>$F(x,y) = (x^2y,\ 5x + \sin y)$, dış fonksiyon $g(u,v) = u + v^2$, nokta $p_0 = (1, 0)$.</p>
+    <ol>
+      <li>İç fonksiyonun değeri: $F(p_0) = (0,\ 5)$.</li>
+      <li>Jacobian: $J = \begin{pmatrix} 2xy & x^2 \\ 5 & \cos y \end{pmatrix}$ ⇒ $J(p_0) = \begin{pmatrix} 0 & 1 \\ 5 & 1 \end{pmatrix}$.</li>
+      <li>Dış gradient <strong>$F(p_0)$'da</strong>: $\nabla g = (1,\ 2v) = (1,\ 10)$.</li>
+      <li>$\nabla h = J^T(1, 10) = \begin{pmatrix} 0 & 5 \\ 1 & 1 \end{pmatrix}\begin{pmatrix} 1 \\ 10\end{pmatrix} = \mathbf{(50, 11)}$.</li>
+    </ol>
+    <p><strong>Kontrol:</strong> $h = x^2y + (5x + \sin y)^2$. $\partial h/\partial x = 2xy + 10(5x + \sin y) = 0 + 50$, $\partial h/\partial y = x^2 + 2(5x + \sin y)\cos y = 1 + 10$. Aynı sonuç.</p>
+  </div>
+  <!-- Kaynak: Lab02 Section 2 ikinci hücre ("chain rule: h = f_outer(F(x, y)), grad h = J^T grad f_outer", assert grad_h == [50, 11]) · Boyd A.4.2 (A.5, A.6, composition with affine function, Example A.2). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$J^T$ yerine $J$ ile çarpmak: $J(1,10) = (10, 15)$ çıkar, yanlış.</li>
+      <li>Dış gradient'i $p_0$'da almak: $\nabla g(1, 0) = (1, 0)$ ⇒ $J^T(1, 0) = (0, 1)$, yanlış. Dış fonksiyon, iç fonksiyonun <strong>çıktısında</strong> değerlendirilir.</li>
+      <li>Jacobian'ın satırı = bir çıktı, sütunu = bir değişken. Satır/sütunu ters yazarsan $J^T$ ile $J$ yer değiştirir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s2-chain-rule"><span class="box__label">Lab02 Section 2 · lab görevi</span>
+    <p>"chain rule: h = f_outer(F(x, y)), grad h = J^T grad f_outer". <code>F = (x²·y, 5x + sin(y))</code>, <code>f_outer(u, v) = u + v²</code>, <code>p0 = (1.0, 0.0)</code>; <code>assert np.allclose(grad_h, [50, 11])</code>.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce $F(p_0)$'ı bul; dış gradient orada hesaplanacak.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$J(p_0)$'ın satırları $\nabla F_1^T$ ve $\nabla F_2^T$. Sonra $J^T$ ile çarp.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$F(p_0) = (0, 5)$. $J(p_0) = \begin{pmatrix} 0 & 1 \\ 5 & 1\end{pmatrix}$. $\nabla f_{\text{outer}}(0, 5) = (1, 10)$. $\nabla h(p_0) = J^T(1, 10) = (0 \cdot 1 + 5 \cdot 10,\ 1 \cdot 1 + 1 \cdot 10) = \mathbf{(50, 11)}$. Doğrudan türevle ve central difference ile ($\approx (50.0000, 11.0000)$) kontrol edildi.</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-chain">
+    <p class="quiz__q">Bir öğrenci bu örnekte $\nabla h = (10, 15)$ buldu. Hatası ne?</p>
+    <button class="quiz__opt" data-correct>$J^T$ yerine $J$ ile çarptı<span class="why">Doğru. $J(1,10) = (0 + 10,\ 5 + 10) = (10, 15)$.</span></button>
+    <button class="quiz__opt">Dış gradient'i $p_0$'da hesapladı<span class="why">O hata $(1, 0)$ ile çarpmaya ve $(0, 1)$ sonucuna götürür.</span></button>
+    <button class="quiz__opt">$\cos 0$ yerine $\sin 0$ kullandı<span class="why">O zaman $J_{22} = 0$ olur ve $J^T(1,10) = (50, 1)$ çıkar. $(10, 15)$ ile uyuşmuyor.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="finite-diff" data-min="5">
+  <h2>Finite differences: forward ve central</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Lab01: "When we don't have it in closed form, we can approximate it with finite differences." Türevin tanımında limit var; bilgisayarda limiti alamayız ama küçük bir $h$ ile yaklaşırız. Her seferinde <strong>tek bir coordinate</strong>'ı oynatırız: $e_i$ yönünde.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki formül</span>
+    <p>$$\text{forward: } \frac{\partial f}{\partial x_i} \approx \frac{f(x + he_i) - f(x)}{h}, \qquad \text{central: } \frac{\partial f}{\partial x_i} \approx \frac{f(x + he_i) - f(x - he_i)}{2h}$$</p>
+    <p><strong>Neden çalışıyor (Taylor):</strong> $f(x + h) = f + hf' + \tfrac{h^2}{2}f'' + \tfrac{h^3}{6}f''' + \dots$</p>
+    <ul>
+      <li>Forward: $\frac{f(x+h) - f(x)}{h} = f' + \tfrac h2 f'' + \dots$ ⇒ hata $O(h)$, yaklaşık $\tfrac h2|f''|$.</li>
+      <li>Central: $f(x+h) - f(x-h) = 2hf' + \tfrac{h^3}{3}f''' + \dots$; $h^2$ term'leri birbirini götürür ⇒ hata $O(h^2)$, yaklaşık $\tfrac{h^2}{6}|f'''|$.</li>
+    </ul>
+    <p><strong>Maliyet</strong> ($n$ değişken): forward $n + 1$ function evaluation, central $2n$ (Nocedal $f(x)$'i de sayıp $2n + 1$ der). Central yaklaşık iki kat pahalı ama çok daha doğru.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · $f = x^2 + xy + 2y^2$, $P = (1,2)$, $h = 0.1$</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>forward</th><th>central</th><th>gerçek</th></tr>
+      <tr><td>$\partial f/\partial x$</td><td>4.1</td><td>4.0</td><td>4</td></tr>
+      <tr><td>$\partial f/\partial y$</td><td>9.2</td><td>9.0</td><td>9</td></tr>
+    </table></div>
+    <p>Central burada tam doğru çıktı, çünkü $f$ quadratic: $f''' = 0$, hata term'i yok. Bu her fonksiyon için geçerli değil.</p>
+  </div>
+  <p>Şimdi quadratic olmayan bir fonksiyonda hatanın $h$ ile nasıl küçüldüğüne bak: $f(x) = e^x$, $x = 1$, gerçek türev $e$. Her adımda $h$ yarıya iniyor; oranlar gerçek hesaptan geliyor.</p>
+  <div id="fd-stepper"></div>
+  <!-- Kaynak: Lab01 Section 2 (numerical_gradient, central, h = 1e-5) · Nocedal §8.1 (8.1)–(8.7), maliyet n + 1 ve 2n + 1 · Lab02 Section 8 V-curve hücresi (e^x at 1). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Central'da payda $2h$, $h$ değil. $h$'ye bölersen cevap iki katı çıkar.</li>
+      <li>Bütün coordinate'ları aynı anda oynatmak ($x + h\mathbf 1$) partial derivative vermez; $\nabla f^T\mathbf 1$ yönünde bir directional derivative verir.</li>
+      <li>"$h$ ne kadar küçükse o kadar iyi" sadece kâğıt üstünde doğru. Bilgisayarda çok küçük $h$ round-off yüzünden kötüleşir (Bölüm 11).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab01-s2-numerical-gradient"><span class="box__label">Lab01 Section 2 · lab görevi</span>
+    <p>"Objectives as Python functions &amp; their gradients": <code>f_bowl(p) = x² + y²</code>, <code>numerical_gradient(func, p, h=1e-5)</code> "Approximate the gradient of `func` at point `p` by central differences." <code>p0 = (1.5, -1.0)</code>: <code>f(p0)</code>, numeric grad ve "exact grad = [2x, 2y]" yazdırılıyor.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kod her $i$ için <code>step[i] = h</code> koyuyor, yani sadece bir coordinate'ı oynatıyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$f$ quadratic, central difference tam doğru olmalı (round-off hariç).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$f(p_0) = 2.25 + 1 = \mathbf{3.25}$. Exact: $(2x, 2y) = \mathbf{(3, -2)}$.</p>
+      <p>Central: $\dfrac{(1.5 + h)^2 - (1.5 - h)^2}{2h} = \dfrac{6h}{2h} = 3$ ve $\dfrac{(-1 + h)^2 - (-1 - h)^2}{2h} = \dfrac{-4h}{2h} = -2$. Bilgisayar $(3.00000, -2.00000)$ yazıyor; fark $10^{-11}$ civarında, sadece round-off.</p>
+      <pre><code>def numerical_gradient(func, p, h=1e-5):
+    p = np.asarray(p, dtype=float)
+    g = np.zeros_like(p)
+    for i in range(p.size):
+        step = np.zeros_like(p); step[i] = h
+        g[i] = (func(p + step) - func(p - step)) / (2 * h)
+    return g</code></pre>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-fd">
+    <p class="quiz__q">$h$'yi yarıya indirince (round-off'tan uzak bölgede) central difference'ın hatası yaklaşık ne olur?</p>
+    <button class="quiz__opt">Yarıya iner<span class="why">Bu forward difference: hata $O(h)$.</span></button>
+    <button class="quiz__opt" data-correct>Dörtte birine iner<span class="why">Doğru. Hata $O(h^2)$: $(h/2)^2 = h^2/4$. Yukarıdaki tabloda oran $\approx 4$.</span></button>
+    <button class="quiz__opt">Değişmez<span class="why">Sadece quadratic fonksiyonda (hata zaten sıfır) böyle görünür. Genelde hata $h^2$ ile küçülür.</span></button>
+    <button class="quiz__opt">Sekizde birine iner<span class="why">$O(h^3)$ olurdu. Central'da $h^3$ term'i $2h$'ye bölününce $h^2$ kalır.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="checker" data-min="6">
+  <h2>Gradient checker</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · "keep this function all term"</span>
+    <p>Elle türettiğin gradient yanlışsa program hata vermez. Hocanın cümlesiyle: <em>"A wrong hand-derived gradient fails silently: the optimizer just converges somewhere wrong."</em> Çare: gradient'ini central difference ile karşılaştırmak. Bu fonksiyonu bundan sonraki her lab'da kullanacaksın.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · relative error</span>
+    <p>$$\text{rel. error} = \frac{\|g - \hat g\|}{\|g\| + \|\hat g\|}, \qquad \hat g_i = \frac{f(x + he_i) - f(x - he_i)}{2h}$$</p>
+    <ul>
+      <li>$&lt; 10^{-6}$: gradient doğru.</li>
+      <li>$&gt; 10^{-3}$: bug var.</li>
+      <li>Arada: şüpheli. Başka bir $h$ ve başka noktalar dene.</li>
+    </ul>
+    <p><strong>Hatanın büyüklüğü de ipucu</strong> (Lab02 Tip): bir constant factor eksikse ($g = \hat g/2$) sonuç $\frac{1/2}{1/2 + 1} = \mathbf{1/3}$; sign error ($g = -\hat g$) tam $\frac{2}{2} = \mathbf{1.0}$. Genel olarak $g = c\,\hat g$ ($c &gt; 0$) ise $\frac{|c - 1|}{c + 1}$; örneğin $c = 3$ için $0.5$.</p>
+    <p>Neden relative: gradient'in büyüklüğü $10^{6}$ ise $10^{-4}$'lük mutlak fark önemsiz, $10^{-6}$ ise çok büyük. Relative error ölçekten bağımsız. Payda $\|g\| + \|\hat g\|$ olduğu için sonuç hep $[0, 1]$ içinde.</p>
+  </div>
+  <!-- Kaynak: Lab02 Section 3 (markdown formülü, grad_check(f, grad, x, h=6e-6), random noktalar rng(0), log-sum-exp/softmax, "forgot the factor 2!", Tip: 1/3 ve 1.0) · weeks/02 Checklist "Gradient checker works (relative error < 1e-6)". -->
+  <p>Bir fonksiyon ve "iddia edilen" gradient seç (bazıları bilerek bozuk). Stepper her coordinate için $f(x \pm he_i)$'yi ve $\hat g_i$'yi gerçekten hesaplıyor, son karede relative error'ı veriyor.</p>
+  <p class="w-norms-gradients-guess"><b>Önce tahmin et:</b> "işaret hatası" seçeneği hangi relative error'ı verir? "Component'ler yer değiştirmiş" seçeneği her noktada aynı sayıyı mı verir?</p>
+  <div class="w-norms-gradients-card" id="gc">
+    <div class="w-norms-gradients-ctl">
+      <label for="gc-f">f</label>
+      <select id="gc-f" class="btn btn--sm">
+        <option value="run">x² + xy + 2y² (running example)</option>
+        <option value="ls">‖Ax − b‖² (Lab02 least squares)</option>
+        <option value="lse">log-sum-exp (3 değişken)</option>
+        <option value="rosen">Rosenbrock (1 − x)² + 100(y − x²)²</option>
+      </select>
+    </div>
+    <div class="w-norms-gradients-ctl">
+      <label for="gc-g">iddia edilen gradient</label>
+      <select id="gc-g" class="btn btn--sm">
+        <option value="ok">doğru formül</option>
+        <option value="half">×2 unutulmuş (yarısı)</option>
+        <option value="neg">işaret hatası</option>
+        <option value="swap">component'ler yer değiştirmiş</option>
+        <option value="triple">fazladan ×3</option>
+      </select>
+    </div>
+    <div class="w-norms-gradients-ctl">
+      <label for="gc-x">x</label><input id="gc-x" type="text" value="1, 2" class="btn btn--sm" />
+      <label for="gc-h">h</label>
+      <select id="gc-h" class="btn btn--sm">
+        <option value="1e-2">1e-2</option>
+        <option value="1e-4">1e-4</option>
+        <option value="6e-6" selected>6e-6 (Lab02)</option>
+        <option value="1e-8">1e-8</option>
+        <option value="1e-10">1e-10</option>
+        <option value="1e-13">1e-13</option>
+      </select>
+      <button class="btn btn--sm" id="gc-go">Kontrol et</button>
+    </div>
+    <div class="w-norms-gradients-err" id="gc-err" aria-live="polite"></div>
+    <div id="gc-stepper"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Tek ve "özel" bir noktada kontrol etmek. Örneğin $x = 0$'da birçok yanlış gradient de sıfır verir. Lab02 random noktalar kullanıyor.</li>
+      <li>$g$ ve $\hat g$ ikisi de sıfırsa payda sıfır olur. O noktayı kullanma.</li>
+      <li>$h$'yi çok küçük seçmek: $10^{-13}$ ile doğru gradient bile "şüpheli" çıkabilir. Yukarıda dene; sebebi bir sonraki bölümde.</li>
+      <li>Rosenbrock gibi dik fonksiyonlarda $h = 10^{-2}$ truncation yüzünden doğru gradient'e bile büyük hata verir. Küçük hatayı "bug" sanmadan önce $h$'yi değiştir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s3-grad-check"><span class="box__label">Lab02 Section 3 · lab görevi</span>
+    <p>"The gradient checker — keep this function all term." <code>grad_check(f, grad, x, h=6e-6)</code>: "Relative error between an analytic gradient and central differences." Running example, least squares ve "log-sum-exp ... whose gradient is softmax" kontrol ediliyor; sonra <code>buggy = A.T @ (A @ x - b)  # forgot the factor 2!</code> ve <code>assert grad_check(ls, grad_ls, np.ones(2)) &lt; 1e-6 and err &gt; 1e-3</code>.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Doğru gradient'lerde central difference $\hat g$ ile $g$ arasındaki fark sadece truncation + round-off. $h = 6\cdot10^{-6}$ için bu çok küçük.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Buggy gradient tam olarak $\hat g/2$. Formülde $g = \tfrac12\hat g$ koy.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <pre><code>def grad_check(f, grad, x, h=6e-6):
+    x = np.asarray(x, float)
+    g, g_hat = grad(x), np.zeros_like(x)
+    for i in range(x.size):
+        e = np.zeros_like(x); e[i] = h      # perturb ONE coordinate
+        g_hat[i] = (f(x + e) - f(x - e)) / (2 * h)
+    return np.linalg.norm(g - g_hat) / (np.linalg.norm(g) + np.linalg.norm(g_hat))</code></pre>
+      <ul>
+        <li>Running example, least squares, log-sum-exp: relative error $10^{-11}$ civarında (noktaya göre biraz değişir) ⇒ hepsi $&lt; 10^{-6}$, doğru.</li>
+        <li>Buggy: $\dfrac{\|\hat g/2 - \hat g\|}{\|\hat g/2\| + \|\hat g\|} = \dfrac{1/2}{3/2} = \mathbf{0.33}$ ⇒ $&gt; 10^{-3}$, "caught".</li>
+      </ul>
+      <p>$h = 6\cdot10^{-6}$ rastgele değil: bu, central difference için en iyi $h \approx \text{eps}^{1/3}$ (Bölüm 11).</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-gc">
+    <p class="quiz__q">Gradient checker tam olarak $1.0$ döndürdü. En olası bug hangisi?</p>
+    <button class="quiz__opt">2 çarpanı unutulmuş<span class="why">O durumda sonuç $1/3$ olur.</span></button>
+    <button class="quiz__opt" data-correct>İşaret hatası, $g = -\hat g$<span class="why">Doğru. $\frac{\|-\hat g - \hat g\|}{\|\hat g\| + \|\hat g\|} = \frac{2\|\hat g\|}{2\|\hat g\|} = 1$.</span></button>
+    <button class="quiz__opt">$h$ çok küçük seçilmiş<span class="why">Round-off hatası sonucu bozar ama tam 1.0 gibi "temiz" bir sayı vermez.</span></button>
+    <button class="quiz__opt">Gradient doğru<span class="why">Doğru gradient $10^{-6}$'nın altında bir değer verir. 1.0 en kötü değer.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="numerics" data-min="6">
+  <h2>Numerical reality: V-curve ve complex step</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · "break it on purpose"</span>
+    <p>Bilgisayar gerçek sayılarla değil, sınırlı sayıda basamakla çalışır. Birbirine çok yakın iki sayıyı çıkarınca basamakların çoğu kaybolur (<strong>cancellation</strong>). Finite difference tam olarak bunu yapıyor: $f(x + h) - f(x)$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · floating point gerçekleri (Lab02 Section 8)</span>
+    <ul>
+      <li><code>0.1 + 0.2 = 0.30000000000000004</code>, yani <code>0.1 + 0.2 == 0.3</code> False. Float'ları <code>==</code> ile değil, <code>math.isclose</code> ile karşılaştır.</li>
+      <li><strong>Machine epsilon:</strong> $\text{eps} = 2.22 \cdot 10^{-16}$ (double precision). Nocedal'ın "unit roundoff" $u \approx 1.1\cdot10^{-16}$ bunun yarısı.</li>
+      <li><strong>Cancellation:</strong> $x = 10^{-8}$'de $(1 - \cos x)/x^2$ naive hesapla $0.0$ çıkıyor (gerçek değer 0.5). Aynı ifadenin cancellation'sız hâli $2\sin^2(x/2)/x^2 = 0.5$.</li>
+      <li><strong>Log-sum-exp overflow:</strong> $\log(e^{1000} + e^{1000})$ naive hesapla <code>inf</code>. Shift trick: $m = \max_i z_i$, $\log\sum e^{z_i} = m + \log\sum e^{z_i - m} = 1000 + \log 2 \approx 1000.6931$.</li>
+      <li><strong>Vectorization:</strong> $10^6$ sayının dot product'ı Python loop'uyla, <code>a @ b</code>'den kat kat yavaş (notebook en az 20 kat olduğunu assert ediyor; tam oran makineye bağlı).</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · V-curve</span>
+    <p>Hatayı $h$'ye karşı log-log çizince V şekli çıkar: <em>"too small: round-off | too big: truncation"</em>.</p>
+    <ul>
+      <li>Büyük $h$: truncation hatası. Forward $\approx \tfrac{L}{2}h$, central $\approx C h^2$.</li>
+      <li>Küçük $h$: round-off hatası $\approx \dfrac{\text{eps}\cdot|f|}{h}$. $h$ küçüldükçe <strong>büyür</strong>.</li>
+      <li>Forward toplam hata $\tfrac L2 h + \tfrac{2uL_f}{h}$ (Nocedal 8.5), en küçük değeri $h \approx \sqrt{\text{eps}} \approx 1.5\cdot10^{-8}$ civarında, hata $\approx 10^{-8}$.</li>
+      <li>Central: en iyi $h \approx \text{eps}^{1/3} \approx 6\cdot10^{-6}$, hata $\approx \text{eps}^{2/3}$ mertebesinde. Lab02'de $e^x$, $x = 1$ için ölçülen: forward en iyi $h \approx 1.5\cdot10^{-8}$, hata $\approx 6\cdot10^{-9}$; central en iyi $h \approx 6\cdot10^{-6}$, hata $\approx 7\cdot10^{-13}$.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Lab02 Section 8 (0.1 + 0.2, machine epsilon, (1 − cos x)/x², log-sum-exp shift, vectorization, V-curve hücresi, assert cen.min() < fwd.min()/100) · Nocedal §8.1 (8.5), (8.6), central için u^(1/3) ve u^(2/3). Conditioning hücresi Hessian dersinde. -->
+  <p>Aşağıdaki çizim tarayıcıda gerçekten hesaplanıyor (JavaScript de double precision kullanır). Slider ile bir $h$ seç ve üç yöntemin hatasını oku.</p>
+  <p class="w-norms-gradients-guess"><b>Önce tahmin et:</b> $h = 10^{-12}$'de forward mı central mı daha iyi? Complex step'in eğrisi nasıl görünür?</p>
+  <div class="w-norms-gradients-card" id="vc">
+    <div class="w-norms-gradients-ctl">
+      <label for="vc-f">f</label>
+      <select id="vc-f" class="btn btn--sm">
+        <option value="exp">e^x (Lab02 V-curve)</option>
+        <option value="expsin">e^x · sin x (Lab02 Exercise 4)</option>
+      </select>
+      <label for="vc-x">x₀</label><input id="vc-x" type="text" value="1" class="btn btn--sm" style="width:70px" /><button class="btn btn--sm" id="vc-go">Çiz</button>
+    </div>
+    <div class="w-norms-gradients-ctl">
+      <label for="vc-h">log₁₀ h</label><input type="range" id="vc-h" min="-15" max="-1" step="0.1" value="-8" aria-label="h slider" /><b id="vc-hv" class="w-norms-gradients-mono">h = 1e-8</b>
+    </div>
+    <div class="w-norms-gradients-err" id="vc-err" aria-live="polite"></div>
+    <div class="w-norms-gradients-legend"><span style="--c:#F47524">forward</span><span style="--c:#1D366A">central</span><span style="--c:#2b8a3e">complex step</span></div>
+    <div class="w-norms-gradients-plot"><svg id="vc-svg" viewBox="0 0 360 240" role="img" aria-label="V-curve"></svg></div>
+    <div class="w-norms-gradients-out" id="vc-out"></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Stretch · complex step</span>
+    <p>$$f'(x) \approx \frac{\operatorname{Im} f(x + ih)}{h}$$</p>
+    <p>Taylor: $f(x + ih) = f(x) + ihf'(x) - \tfrac{h^2}{2}f''(x) - \dots$ ⇒ imaginary kısım $hf'(x) + O(h^3)$. Formülde <strong>çıkarma yok</strong>, o yüzden cancellation yok, V-curve yok. $h = 10^{-200}$ bile çalışır. Şart: $f$ complex sayılarla hesaplanabilen (analytic) bir ifade olmalı; <code>abs</code> ya da <code>max</code> içeren kod bunu bozar. Notebook'un notu: automatic differentiation (Week 11) bu fikri genelleştiriyor.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Daha küçük $h$ her zaman daha iyi" yanlış. V'nin sol kolunda $h$ küçüldükçe hata artar.</li>
+      <li>Central'ın en iyi $h$'si forward'unkinden <strong>büyük</strong> ($6\cdot10^{-6}$ ve $1.5\cdot10^{-8}$). Central'ı $10^{-8}$ ile kullanırsan avantajını kaybedersin: $e^x$'te ikisi de $\approx 7\cdot10^{-9}$ hata verir.</li>
+      <li>Python'da <code>(f(x + 1e-200) - f(x)) / 1e-200</code> sıfır ya da saçma bir sayı verir, çünkü $x + 10^{-200} = x$. Bu kadar küçük $h$ sadece complex step'te anlamlı.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s8-cancellation"><span class="box__label">Lab02 Section 8 · lab görevi</span>
+    <p>"Numerical reality: break it on purpose." Hücre: <code>0.1 + 0.2 == 0.3 ?</code>, <code>machine epsilon</code>, "(1 - cos x)/x^2 at x = 1e-8: naive = ... stable = ... (truth 0.5)" (<code>assert naive == 0.0 and abs(stable - 0.5) &lt; 1e-12</code>), "log-sum-exp([1000, 1000]): naive = ... shift trick = ...".</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$x = 10^{-8}$ iken $\cos x$ double precision'da tam 1'e yuvarlanıyor. $1 - \cos x$ ne olur?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$1 - \cos x = 2\sin^2(x/2)$ özdeşliği çıkarmayı ortadan kaldırıyor. Log-sum-exp için en büyük terimi dışarı çek.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ul>
+        <li><code>0.1 + 0.2</code> $= 0.30000000000000004$; <code>== 0.3</code> False, <code>isclose</code> True. $\text{eps} = 2.220446\cdot10^{-16}$.</li>
+        <li>$\cos(10^{-8}) = 1 - 5\cdot10^{-17}$; bu fark eps'in yarısından küçük, sayı 1'e yuvarlanır ⇒ $1 - \cos x = 0$ ⇒ naive $= \mathbf{0.0}$. Stable: $2\sin^2(5\cdot10^{-9})/10^{-16} = \mathbf{0.5}$.</li>
+        <li>$e^{1000}$ overflow ⇒ naive <code>inf</code>. Shift: $1000 + \log(e^0 + e^0) = 1000 + \log 2 = \mathbf{1000.6931}$.</li>
+      </ul>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s8-vcurve"><span class="box__label">Lab02 Section 8 · lab görevi</span>
+    <p>"the finite-difference V-curve": <code>hs = np.logspace(-15, -1, 120)</code>, forward ve central hatası $e^x$ için $x = 1$'de; en iyi $h$'yi <code>sqrt(eps)</code> ve <code>eps^(1/3)</code> ile karşılaştır; <code>assert cen.min() &lt; fwd.min() / 100</code>. Grafik başlığı: "too small: round-off | too big: truncation".</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Toplam hata ≈ truncation + round-off. Biri $h$ ile artıyor, diğeri $1/h$ ile.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$ah + b/h$'nin minimumu $h = \sqrt{b/a}$'da. Central için $ah^2 + b/h$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Forward:</strong> $E(h) \approx \tfrac{e}{2}h + \tfrac{\text{eps}\cdot e}{h}$ mertebesinde; türev sıfır ⇒ $h \sim \sqrt{\text{eps}} = 1.49\cdot10^{-8}$. Ölçülen: en iyi $h \approx 1.5\cdot10^{-8}$, hata $\approx 6.3\cdot10^{-9}$.</p>
+      <p><strong>Central:</strong> $E(h) \approx \tfrac{e}{6}h^2 + \tfrac{\text{eps}\cdot e}{h}$ mertebesinde ⇒ $h \sim \text{eps}^{1/3} = 6.06\cdot10^{-6}$. Ölçülen: en iyi $h \approx 5.8\cdot10^{-6}$, hata $\approx 7.4\cdot10^{-13}$.</p>
+      <p>$7.4\cdot10^{-13} &lt; 6.3\cdot10^{-9}/100$ ⇒ assert geçer. Central, en iyi noktasında forward'dan yaklaşık 4 basamak daha doğru.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="lab02-ex4-complex-step"><span class="box__label">Lab02 Exercise 4 (stretch) · lab görevi</span>
+    <p>"<strong>Exercise 4 (stretch) — The complex-step trick: derivatives with no V-curve.</strong> Finite differences subtract nearly equal numbers. The complex-step formula $f'(x) \approx \operatorname{Im} f(x + ih)/h$ has no subtraction at all — so $h$ can be $10^{-200}$ and the answer is exact to machine precision." Fonksiyon <code>fx = exp(t) * sin(t)</code>, $x = 1$, <code>h in (1e-4, 1e-8, 1e-12, 1e-100, 1e-200)</code>.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Gerçek türev: $(e^x\sin x)' = e^x(\sin x + \cos x)$, $x = 1$'de $\approx 3.7560$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Central'ın hatası $h = 10^{-12}$'de neden büyüyor? Complex step'te hangi işlem yok?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>$h$</th><th>central hatası</th><th>complex-step hatası</th></tr>
+        <tr><td>$10^{-4}$</td><td>$2.7\cdot10^{-9}$</td><td>$2.7\cdot10^{-9}$</td></tr>
+        <tr><td>$10^{-8}$</td><td>$1.0\cdot10^{-10}$</td><td>$0$ (makine hassasiyetinde)</td></tr>
+        <tr><td>$10^{-12}$</td><td>$5.7\cdot10^{-5}$</td><td>$0$</td></tr>
+        <tr><td>$10^{-100}$</td><td>hesaplanamaz</td><td>$0$</td></tr>
+        <tr><td>$10^{-200}$</td><td>hesaplanamaz</td><td>$0$</td></tr>
+      </table></div>
+      <p>$h = 10^{-4}$'te ikisi de $O(h^2)$ truncation'dan aynı hatayı veriyor. $h$ küçülünce central round-off yüzünden bozuluyor; complex step'te çıkarma olmadığı için bozulmuyor. Notebook bu hücrede $10^{-50}$'den küçük $h$ için central'ı hiç hesaplamıyor (<code>nan</code>).</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-num">
+    <p class="quiz__q">Forward difference için en küçük hatayı veren $h$ yaklaşık kaçtır (double precision, iyi ölçeklenmiş $f$)?</p>
+    <button class="quiz__opt">$10^{-16}$<span class="why">Bu eps mertebesi. O kadar küçük $h$'de $f(x + h) - f(x)$'in neredeyse bütün basamakları kaybolur.</span></button>
+    <button class="quiz__opt" data-correct>$10^{-8}$ civarı, $\sqrt{\text{eps}}$<span class="why">Doğru. Truncation $\propto h$ ile round-off $\propto \text{eps}/h$ burada dengeleniyor.</span></button>
+    <button class="quiz__opt">$6\cdot10^{-6}$, $\text{eps}^{1/3}$<span class="why">Bu central difference'ın en iyi $h$'si.</span></button>
+    <button class="quiz__opt">$10^{-1}$<span class="why">Bu V'nin sağ kolu: truncation hatası $\approx 0.14$.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Client origin'de. Server'lar: A $= (4, 0)$, B $= (2.9, 2.9)$, C $= (3.6, 1.2)$. ℓ1, ℓ2 ve ℓ∞'a göre en yakın server'lar sırasıyla hangileri?</p>
+    <button class="quiz__opt" data-correct>A, C, B<span class="why">Doğru. ℓ1: 4, 5.8, 4.8. ℓ2: 4, 4.10, 3.79. ℓ∞: 4, 2.9, 3.6. Lab02'deki desenin aynısı.</span></button>
+    <button class="quiz__opt">A, A, B<span class="why">ℓ2'de C: $\sqrt{3.6^2 + 1.2^2} = \sqrt{14.4} \approx 3.79 &lt; 4$.</span></button>
+    <button class="quiz__opt">C, C, B<span class="why">ℓ1'de C'nin mesafesi $3.6 + 1.2 = 4.8 &gt; 4$. ℓ1'de iki component toplanır.</span></button>
+    <button class="quiz__opt">B, C, A<span class="why">Sıralamayı ters çevirmişsin. ℓ∞ en büyük component'e bakar: B'nin en büyük component'i 2.9, en küçük bu.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">$Q = \begin{pmatrix} 1 & 2 \\ 0 & 3 \end{pmatrix}$ ve $f(x) = x^TQx$. $\nabla f(1, 1)$ nedir?</p>
+    <button class="quiz__opt">$(6, 6)$<span class="why">Bu $2Qx$. $Q$ symmetric değil, bu kural geçersiz.</span></button>
+    <button class="quiz__opt" data-correct>$(4, 8)$<span class="why">Doğru. $Q + Q^T = \begin{pmatrix} 2 & 2 \\ 2 & 6 \end{pmatrix}$, çarpı $(1,1)$ = $(4, 8)$. Kontrol: $f = x^2 + 2xy + 3y^2$, $\nabla = (2x + 2y,\ 2x + 6y)$.</span></button>
+    <button class="quiz__opt">$(3, 3)$<span class="why">Bu $Qx$; hem 2 çarpanı hem $Q^T$ eksik.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Bir öğrencinin gradient'i her noktada doğru gradient'in tam 3 katı. Gradient checker ne döndürür?</p>
+    <button class="quiz__opt">$1/3$<span class="why">$1/3$, gradient'in yarısı ($c = \tfrac12$) için çıkar.</span></button>
+    <button class="quiz__opt" data-correct>$0.5$<span class="why">Doğru. $\frac{|3 - 1|}{3 + 1} = \frac{2}{4}$.</span></button>
+    <button class="quiz__opt">$2$<span class="why">Relative error bu formülle 1'i geçemez: pay, triangle inequality'den dolayı paydadan büyük olamaz.</span></button>
+    <button class="quiz__opt">$10^{-6}$'dan küçük<span class="why">Yön doğru ama büyüklük yanlış. Checker büyüklüğü de kontrol eder.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Veri $(1, 2, 3, 4)$. $\sum |x - a_i|$'yi en küçük yapan $x$ değerleri hangileri?</p>
+    <button class="quiz__opt">Sadece $2.5$<span class="why">2.5 optimal ama tek değil. $[2, 3]$ aralığında eğim $2 - 2 = 0$.</span></button>
+    <button class="quiz__opt" data-correct>$[2, 3]$ aralığının hepsi<span class="why">Doğru. Aralığın içinde solda 2, sağda 2 nokta var; loss sabit $= 4$.</span></button>
+    <button class="quiz__opt">Sadece $2$ ve $3$<span class="why">Loss aralık boyunca sabit; sadece uçlar değil, aradaki her nokta optimal.</span></button>
+    <button class="quiz__opt">$2.5$, çünkü mean<span class="why">Mean'in burada median'a eşit olması tesadüf. ℓ1'in cevabı median (veya median aralığı).</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">$f(x, y) = 3x - y^2$. $(1, 2)$'de steepest descent unit direction'ı hangisi?</p>
+    <button class="quiz__opt">$(3, -4)/5$<span class="why">$\nabla f = (3, -2y) = (3, -4)$; bu steepest <strong>ascent</strong>.</span></button>
+    <button class="quiz__opt" data-correct>$(-3, 4)/5$<span class="why">Doğru. $-\nabla f/\|\nabla f\| = -(3,-4)/5$. Bu yöndeki eğim $-5$.</span></button>
+    <button class="quiz__opt">$(-3, 4)$<span class="why">Yön doğru ama unit değil; uzunluğu 5.</span></button>
+    <button class="quiz__opt">$(4, 3)/5$<span class="why">Bu contour tangent'ı: $\nabla f^Tu = (12 - 12)/5 = 0$. Fonksiyon bu yönde değişmiyor.</span></button>
+  </div>
+  <!-- Sıradaki konu: Hessian, Taylor modeli ve convexity. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* Small helpers shared by this lesson's widgets */
+const NG = {
+  num(v, d) {
+    if (!isFinite(v)) return v > 0 ? "∞" : v < 0 ? "−∞" : "—";
+    if (Number.isInteger(v)) return String(v).replace("-", "−");
+    const r = Number(v.toFixed(d === undefined ? 3 : d));
+    return String(r).replace("-", "−");
+  },
+  sci(v) {
+    if (v === 0) return "0";
+    if (!isFinite(v)) return "—";
+    const e = v.toExponential(1).replace("e", "·10^").replace("+", "");
+    const [m, ex] = e.split("·10^");
+    return `${m}·10<sup>${ex.replace("-", "−")}</sup>`;
+  },
+  vec(a, d) { return "(" + a.map((x) => NG.num(x, d)).join(", ") + ")"; },
+  parse(str, n, lim) {
+    const parts = String(str).replace(/[()\[\]]/g, "").replace(/−/g, "-").split(/[,;\s]+/).filter((s) => s.length);
+    if (n && parts.length !== n) return { err: `${n} sayı gir (virgülle ayır).` };
+    const v = parts.map(Number);
+    if (v.some((x) => !isFinite(x))) return { err: "Sadece sayı gir, örneğin 1, 2" };
+    if (lim && v.some((x) => Math.abs(x) > lim)) return { err: `Değerler −${lim} ile ${lim} arasında olmalı.` };
+    return { v };
+  },
+  pnorm(a, p) {
+    if (p === Infinity) return Math.max(...a.map(Math.abs));
+    return Math.pow(a.reduce((s, x) => s + Math.pow(Math.abs(x), p), 0), 1 / p);
+  },
+  n2(a) { return Math.sqrt(a.reduce((s, x) => s + x * x, 0)); },
+  sub(a, b) { return a.map((x, i) => x - b[i]); },
+  path(pts) { return pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ") + "Z"; },
+  svgPoint(svg, e, vb) {
+    const r = svg.getBoundingClientRect();
+    return [(e.clientX - r.left) / r.width * vb[0], (e.clientY - r.top) / r.height * vb[1]];
+  }
+};
+
+/* 1. Unit ball morph */
+(function () {
+  const svg = document.getElementById("nb-svg"), out = document.getElementById("nb-out");
+  const sl = document.getElementById("nb-p"), pv = document.getElementById("nb-pv");
+  const inp = document.getElementById("nb-pt"), err = document.getElementById("nb-err");
+  const S = 300, R = 1.5, sc = S / (2 * R);
+  const X = (x) => S / 2 + x * sc, Y = (y) => S / 2 - y * sc;
+  let pt = [0.6, 0.6];
+  const pOf = (s) => (s <= 50 ? 1 + s / 50 : s >= 100 ? Infinity : 2 / (1 - (s - 50) / 50));
+  function ball(p) {
+    const pts = [];
+    for (let k = 0; k < 720; k++) {
+      const t = (2 * Math.PI * k) / 720, d = [Math.cos(t), Math.sin(t)], r = 1 / NG.pnorm(d, p);
+      pts.push([X(r * d[0]), Y(r * d[1])]);
+    }
+    return NG.path(pts);
+  }
+  const refs = [[1, "#F47524", "ℓ1"], [2, "#0063AA", "ℓ2"], [Infinity, "#2b8a3e", "ℓ∞"]];
+  function draw() {
+    const p = pOf(+sl.value);
+    pv.textContent = p === Infinity ? "p = ∞" : "p = " + NG.num(p, 2);
+    let h = `<line x1="0" y1="${S / 2}" x2="${S}" y2="${S / 2}" style="stroke:#D8DBE0"/><line x1="${S / 2}" y1="0" x2="${S / 2}" y2="${S}" style="stroke:#D8DBE0"/>`;
+    for (const t of [-1, 1]) h += `<text x="${X(t) - 4}" y="${S / 2 + 14}" style="font-size:11px;fill:#6A6F7A">${t}</text><text x="${S / 2 + 4}" y="${Y(t) + 4}" style="font-size:11px;fill:#6A6F7A">${t}</text>`;
+    refs.forEach(([q, c]) => { h += `<path d="${ball(q)}" style="fill:none;stroke:${c};stroke-width:1.2;stroke-dasharray:4 3;opacity:.75"/>`; });
+    h += `<path d="${ball(p)}" style="fill:rgba(0,99,170,.10);stroke:#1D366A;stroke-width:2.5"/>`;
+    h += `<circle cx="${X(pt[0])}" cy="${Y(pt[1])}" r="6" style="fill:#F47524;stroke:#fff;stroke-width:2"/>`;
+    svg.innerHTML = h;
+    const n1 = NG.pnorm(pt, 1), n2 = NG.pnorm(pt, 2), ni = NG.pnorm(pt, Infinity), np = NG.pnorm(pt, p);
+    const io = (v) => (v <= 1 + 1e-12 ? `<span class="w-norms-gradients-ok">içinde</span>` : `<span class="w-norms-gradients-bad">dışında</span>`);
+    const ord = ni <= n2 + 1e-12 && n2 <= n1 + 1e-12;
+    out.innerHTML = `<p class="w-norms-gradients-mono">x = ${NG.vec(pt, 3)}</p>
+      <div class="table-wrap"><table><tr><th>norm</th><th>değer</th><th>unit ball</th></tr>
+      <tr><td>‖x‖₁</td><td>${NG.num(n1)}</td><td>diamond ${io(n1)}</td></tr>
+      <tr><td>‖x‖₂</td><td>${NG.num(n2)}</td><td>circle ${io(n2)}</td></tr>
+      <tr><td>‖x‖∞</td><td>${NG.num(ni)}</td><td>square ${io(ni)}</td></tr>
+      ${[1, 2, Infinity].includes(p) ? "" : `<tr class="w-norms-gradients-hl"><td>‖x‖<sub>p</sub></td><td>${NG.num(np)}</td><td>p-ball ${io(np)}</td></tr>`}
+      </table></div>
+      <p>Sıralama ‖x‖∞ ≤ ‖x‖₂ ≤ ‖x‖₁: ${NG.num(ni)} ≤ ${NG.num(n2)} ≤ ${NG.num(n1)} ${ord ? '<span class="w-norms-gradients-ok">✓</span>' : '<span class="w-norms-gradients-bad">✗</span>'}</p>`;
+  }
+  sl.addEventListener("input", draw);
+  document.querySelectorAll("[data-nbp]").forEach((b) => b.addEventListener("click", () => { sl.value = b.dataset.nbp; draw(); }));
+  function setFrom(e) {
+    const [sx, sy] = NG.svgPoint(svg, e, [S, S]);
+    pt = [Math.max(-R, Math.min(R, (sx - S / 2) / sc)), Math.max(-R, Math.min(R, (S / 2 - sy) / sc))];
+    pt = pt.map((v) => Math.round(v * 100) / 100);
+    inp.value = pt.join(", "); err.textContent = ""; draw();
+  }
+  let down = false;
+  svg.addEventListener("pointerdown", (e) => { down = true; svg.setPointerCapture(e.pointerId); setFrom(e); });
+  svg.addEventListener("pointermove", (e) => { if (down) setFrom(e); });
+  svg.addEventListener("pointerup", () => { down = false; });
+  function fromInput() {
+    const r = NG.parse(inp.value, 2, 1.5);
+    if (r.err) { err.textContent = r.err; return; }
+    err.textContent = ""; pt = r.v; draw();
+  }
+  document.getElementById("nb-go").addEventListener("click", fromInput);
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") fromInput(); });
+  draw();
+})();
+
+/* 2. Nearest-server map */
+(function () {
+  const cv = document.getElementById("sv-cv"), out = document.getElementById("sv-out");
+  const ctx = cv.getContext("2d"), W = 320;
+  const X0 = -1, X1 = 6.5, Y0 = -1.5, Y1 = 6, sc = W / (X1 - X0);
+  const tx = (x) => (x - X0) * sc, ty = (y) => (Y1 - y) * sc;
+  const LAB = { A: [5, 0], B: [3.6, 3.6], C: [4.5, 1.5] };
+  let srv, client, norm = 1;
+  const reset = () => { srv = JSON.parse(JSON.stringify(LAB)); client = [0, 0]; };
+  reset();
+  const COL = { A: [0, 99, 170], B: [244, 117, 36], C: [43, 138, 62] };
+  const names = ["A", "B", "C"];
+  const nm = (p) => (p === Infinity ? "ℓ∞" : "ℓ" + p);
+  function nearest(q, p) {
+    let best = null, bd = Infinity;
+    for (const k of names) { const d = NG.pnorm([q[0] - srv[k][0], q[1] - srv[k][1]], p); if (d < bd - 1e-12) { bd = d; best = k; } }
+    return best;
+  }
+  function draw() {
+    const img = ctx.createImageData(W, W), cell = 4;
+    for (let j = 0; j < W; j += cell) for (let i = 0; i < W; i += cell) {
+      const q = [X0 + (i + cell / 2) / sc, Y1 - (j + cell / 2) / sc], c = COL[nearest(q, norm)];
+      for (let dj = 0; dj < cell; dj++) for (let di = 0; di < cell; di++) {
+        const o = ((j + dj) * W + (i + di)) * 4;
+        img.data[o] = 255 - (255 - c[0]) * 0.22; img.data[o + 1] = 255 - (255 - c[1]) * 0.22; img.data[o + 2] = 255 - (255 - c[2]) * 0.22; img.data[o + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    ctx.strokeStyle = "#B4BCCC"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(tx(X0), ty(0)); ctx.lineTo(tx(X1), ty(0)); ctx.moveTo(tx(0), ty(Y0)); ctx.lineTo(tx(0), ty(Y1)); ctx.stroke();
+    // the ball around the client that reaches the nearest server
+    const nk = nearest(client, norm), r = NG.pnorm([client[0] - srv[nk][0], client[1] - srv[nk][1]], norm);
+    ctx.beginPath();
+    for (let k = 0; k <= 360; k++) {
+      const t = (2 * Math.PI * k) / 360, d = [Math.cos(t), Math.sin(t)], s = r / NG.pnorm(d, norm);
+      const px = tx(client[0] + s * d[0]), py = ty(client[1] + s * d[1]);
+      if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = "#1D366A"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+    for (const k of names) {
+      const c = COL[k];
+      ctx.beginPath(); ctx.arc(tx(srv[k][0]), ty(srv[k][1]), 11, 0, 2 * Math.PI);
+      ctx.fillStyle = `rgb(${c.join(",")})`; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = "#fff"; ctx.font = "bold 12px Inter Tight, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(k, tx(srv[k][0]), ty(srv[k][1]) + 0.5);
+    }
+    ctx.beginPath(); ctx.arc(tx(client[0]), ty(client[1]), 6, 0, 2 * Math.PI); ctx.fillStyle = "#1C1F26"; ctx.fill();
+    // table
+    const P = [1, 2, Infinity], near = P.map((p) => nearest(client, p));
+    let h = `<p class="w-norms-gradients-mono">client = ${NG.vec(client, 2)}</p><div class="table-wrap"><table><tr><th>server</th>${P.map((p) => `<th>${nm(p)}</th>`).join("")}</tr>`;
+    for (const k of names) {
+      h += `<tr><td><b style="color:rgb(${COL[k].join(",")})">${k}</b> ${NG.vec(srv[k], 2)}</td>`;
+      P.forEach((p, i) => { const d = NG.pnorm([client[0] - srv[k][0], client[1] - srv[k][1]], p); h += `<td class="${near[i] === k ? "w-norms-gradients-hl" : ""}">${NG.num(d, 2)}</td>`; });
+      h += `</tr>`;
+    }
+    h += `</table></div><p>En yakın: ℓ1 → <b>${near[0]}</b>, ℓ2 → <b>${near[1]}</b>, ℓ∞ → <b>${near[2]}</b>. Haritadaki renkler ${nm(norm)}'e göre; kesikli çizgi client'ın en yakın server'a değen ${nm(norm)} ball'u.</p>`;
+    out.innerHTML = h;
+    document.querySelectorAll("[data-svn]").forEach((b) => b.classList.toggle("is-on", (b.dataset.svn === "inf" ? Infinity : +b.dataset.svn) === norm));
+  }
+  document.querySelectorAll("[data-svn]").forEach((b) => b.addEventListener("click", () => { norm = b.dataset.svn === "inf" ? Infinity : +b.dataset.svn; draw(); }));
+  document.getElementById("sv-reset").addEventListener("click", () => { reset(); draw(); });
+  let drag = null;
+  const pos = (e) => { const [sx, sy] = NG.svgPoint(cv, e, [W, W]); return [X0 + sx / sc, Y1 - sy / sc]; };
+  cv.addEventListener("pointerdown", (e) => {
+    const q = pos(e), all = [["K", client], ...names.map((k) => [k, srv[k]])];
+    let best = null, bd = 0.6;
+    for (const [k, p] of all) { const d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd) { bd = d; best = k; } }
+    if (best) { drag = best; cv.setPointerCapture(e.pointerId); }
+  });
+  cv.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const q = pos(e).map((v) => Math.round(v * 10) / 10);
+    q[0] = Math.max(X0, Math.min(X1, q[0])); q[1] = Math.max(Y0, Math.min(Y1, q[1]));
+    if (drag === "K") client = q; else srv[drag] = q;
+    draw();
+  });
+  cv.addEventListener("pointerup", () => { drag = null; });
+  draw();
+})();
+
+/* 3. One-number summary of data under L2 / L1 / Linf */
+(function () {
+  const svg = document.getElementById("sm-svg"), res = document.getElementById("sm-res"), err = document.getElementById("sm-err");
+  const inp = document.getElementById("sm-data"), sl = document.getElementById("sm-outl"), sv = document.getElementById("sm-outv");
+  let data = [1, 2, 3, 4, 100];
+  const L = {
+    l2: (x) => data.reduce((s, a) => s + (x - a) * (x - a), 0),
+    l1: (x) => data.reduce((s, a) => s + Math.abs(x - a), 0),
+    li: (x) => Math.max(...data.map((a) => Math.abs(x - a)))
+  };
+  function draw() {
+    const lo = Math.min(...data), hi = Math.max(...data), pad = Math.max(1, 0.08 * (hi - lo));
+    const a = lo - pad, b = hi + pad, N = 2000, W = 360, H = 200, top = 12, bot = 168;
+    const xs = Array.from({ length: N + 1 }, (_, i) => a + (b - a) * i / N);
+    const sx = (x) => 10 + (x - a) / (b - a) * (W - 20);
+    let h = `<line x1="10" y1="${bot}" x2="${W - 10}" y2="${bot}" style="stroke:#8A8F99"/>`;
+    const arg = {};
+    [["l2", "#0063AA"], ["l1", "#F47524"], ["li", "#2b8a3e"]].forEach(([k, c]) => {
+      const ys = xs.map(L[k]), mx = Math.max(...ys);
+      let bi = 0; ys.forEach((y, i) => { if (y < ys[bi] - 1e-12) bi = i; });
+      // collect the whole flat argmin range (L1 with an even count)
+      let lo2 = bi, hi2 = bi; while (hi2 < N && Math.abs(ys[hi2 + 1] - ys[bi]) < 1e-9 * Math.max(1, ys[bi])) hi2++;
+      arg[k] = [xs[lo2], xs[hi2], ys[bi]];
+      const d = ys.map((y, i) => (i ? "L" : "M") + sx(xs[i]).toFixed(1) + " " + (bot - (y / mx) * (bot - top)).toFixed(1)).join(" ");
+      h += `<path d="${d}" style="fill:none;stroke:${c};stroke-width:2"/>`;
+      h += `<line x1="${sx(arg[k][0])}" y1="${top}" x2="${sx(arg[k][0])}" y2="${bot}" style="stroke:${c};stroke-dasharray:3 3"/>`;
+    });
+    data.forEach((v) => { h += `<circle cx="${sx(v)}" cy="${bot}" r="4" style="fill:#1C1F26"/>`; });
+    h += `<text x="10" y="${H - 8}" style="font-size:11px;fill:#6A6F7A">${NG.num(a, 1)}</text><text x="${W - 10}" y="${H - 8}" text-anchor="end" style="font-size:11px;fill:#6A6F7A">${NG.num(b, 1)}</text>`;
+    svg.innerHTML = h;
+    const s = [...data].sort((p, q) => p - q), m = s.length;
+    const mean = data.reduce((t, v) => t + v, 0) / m;
+    const med = m % 2 ? `${NG.num(s[(m - 1) / 2], 2)}` : `[${NG.num(s[m / 2 - 1], 2)}, ${NG.num(s[m / 2], 2)}] aralığı`;
+    const mid = (s[0] + s[m - 1]) / 2;
+    const g = (k) => (Math.abs(arg[k][1] - arg[k][0]) > 1e-9 ? `[${NG.num(arg[k][0], 2)}, ${NG.num(arg[k][1], 2)}]` : NG.num(arg[k][0], 2));
+    res.innerHTML = `<div class="table-wrap"><table><tr><th>loss</th><th>grid argmin</th><th>formül</th><th>min loss</th></tr>
+      <tr><td style="color:#0063AA"><b>Σ(x − aᵢ)²</b></td><td>${g("l2")}</td><td>mean = ${NG.num(mean, 2)}</td><td>${NG.num(arg.l2[2], 2)}</td></tr>
+      <tr><td style="color:#F47524"><b>Σ|x − aᵢ|</b></td><td>${g("l1")}</td><td>median = ${med}</td><td>${NG.num(arg.l1[2], 2)}</td></tr>
+      <tr><td style="color:#2b8a3e"><b>max|x − aᵢ|</b></td><td>${g("li")}</td><td>midrange = ${NG.num(mid, 2)}</td><td>${NG.num(arg.li[2], 2)}</td></tr></table></div>
+      <p class="src">Grid: ${N + 1} nokta, adım ${NG.num((b - a) / N, 4)}. Grid sonucu formülden en fazla bir adım sapabilir.</p>`;
+  }
+  function fromInput() {
+    const r = NG.parse(inp.value, 0, 1000);
+    if (r.err) { err.textContent = r.err; return; }
+    if (r.v.length < 2 || r.v.length > 12) { err.textContent = "2 ile 12 arasında sayı gir."; return; }
+    err.textContent = ""; data = r.v;
+    const mx = Math.max(...data); sl.value = Math.max(-20, Math.min(200, mx)); sv.textContent = NG.num(mx, 2);
+    draw();
+  }
+  sl.addEventListener("input", () => {
+    let k = 0; data.forEach((v, i) => { if (v > data[k]) k = i; });
+    data[k] = +sl.value; sv.textContent = sl.value; inp.value = data.map((v) => NG.num(v, 2).replace("−", "-")).join(", "); err.textContent = ""; draw();
+  });
+  document.getElementById("sm-go").addEventListener("click", fromInput);
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") fromInput(); });
+  draw();
+})();
+
+/* 4. Contours of f = x^2 + xy + 2y^2, gradient, tangent and directional derivative */
+(function () {
+  const svg = document.getElementById("ct-svg"), out = document.getElementById("ct-out"), err = document.getElementById("ct-err");
+  const inp = document.getElementById("ct-pt"), th = document.getElementById("ct-th"), thv = document.getElementById("ct-thv");
+  const S = 300, R = 4, sc = S / (2 * R), X = (x) => S / 2 + x * sc, Y = (y) => S / 2 - y * sc;
+  const H = [[2, 1], [1, 4]];
+  const f = (p) => p[0] * p[0] + p[0] * p[1] + 2 * p[1] * p[1];
+  const grad = (p) => [2 * p[0] + p[1], p[0] + 4 * p[1]];
+  // eigen-decomposition of the symmetric 2x2 H (f = 1/2 x^T H x)
+  const tr = H[0][0] + H[1][1], dt = H[0][0] * H[1][1] - H[0][1] * H[1][0], disc = Math.sqrt(tr * tr / 4 - dt);
+  const lam = [tr / 2 - disc, tr / 2 + disc];
+  const vec = lam.map((l) => { const v = [H[0][1], l - H[0][0]], n = NG.n2(v); return [v[0] / n, v[1] / n]; });
+  function ellipse(c) {
+    const a = Math.sqrt(2 * c / lam[0]), b = Math.sqrt(2 * c / lam[1]), pts = [];
+    for (let k = 0; k < 240; k++) {
+      const t = 2 * Math.PI * k / 240, u = a * Math.cos(t), w = b * Math.sin(t);
+      pts.push([X(u * vec[0][0] + w * vec[1][0]), Y(u * vec[0][1] + w * vec[1][1])]);
+    }
+    return NG.path(pts);
+  }
+  let P = [1, 2], theta = 0;
+  const arrow = (x1, y1, x2, y2, col, w) => {
+    const ang = Math.atan2(y2 - y1, x2 - x1), hl = 9;
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" style="stroke:${col};stroke-width:${w}"/>
+      <path d="M${x2} ${y2} L${x2 - hl * Math.cos(ang - 0.4)} ${y2 - hl * Math.sin(ang - 0.4)} L${x2 - hl * Math.cos(ang + 0.4)} ${y2 - hl * Math.sin(ang + 0.4)}Z" style="fill:${col}"/>`;
+  };
+  function draw() {
+    const g = grad(P), gn = NG.n2(g), fv = f(P);
+    const u = [Math.cos(theta * Math.PI / 180), Math.sin(theta * Math.PI / 180)], du = g[0] * u[0] + g[1] * u[1];
+    thv.textContent = theta + "°";
+    let h = `<clipPath id="ct-clip"><rect x="0" y="0" width="${S}" height="${S}"/></clipPath><g clip-path="url(#ct-clip)">`;
+    h += `<line x1="0" y1="${S / 2}" x2="${S}" y2="${S / 2}" style="stroke:#E7E9EE"/><line x1="${S / 2}" y1="0" x2="${S / 2}" y2="${S}" style="stroke:#E7E9EE"/>`;
+    [1, 3, 6, 11, 18, 27].forEach((c) => { h += `<path d="${ellipse(c)}" style="fill:none;stroke:#A6CCEA;stroke-width:1"/>`; });
+    if (fv > 1e-9) h += `<path d="${ellipse(fv)}" style="fill:none;stroke:#0063AA;stroke-width:2"/>`;
+    if (gn > 1e-9) {
+      const t = [-g[1] / gn, g[0] / gn], L = 2.2;
+      h += `<line x1="${X(P[0] - L * t[0])}" y1="${Y(P[1] - L * t[1])}" x2="${X(P[0] + L * t[0])}" y2="${Y(P[1] + L * t[1])}" style="stroke:#1C1F26;stroke-dasharray:5 4;stroke-width:1.3"/>`;
+      const k = 1.3 / gn;
+      h += arrow(X(P[0]), Y(P[1]), X(P[0] + k * g[0]), Y(P[1] + k * g[1]), "#1D366A", 3);
+    }
+    h += arrow(X(P[0]), Y(P[1]), X(P[0] + u[0]), Y(P[1] + u[1]), "#F47524", 2.5);
+    h += `<circle cx="${X(P[0])}" cy="${Y(P[1])}" r="4.5" style="fill:#1C1F26"/></g>`;
+    svg.innerHTML = h;
+    const pos = gn > 1e-12 ? Math.max(0, Math.min(100, 50 + 50 * du / gn)) : 50;
+    out.innerHTML = `<p class="w-norms-gradients-mono">P = ${NG.vec(P, 2)}<br>f(P) = ${NG.num(fv)}<br>∇f(P) = ${NG.vec(g)}<br>‖∇f(P)‖ = ${NG.num(gn)}<br>u = ${NG.vec(u)}<br>∇f(P)ᵀu = <b>${NG.num(du)}</b></p>
+      <div class="w-norms-gradients-dial" aria-hidden="true"><b></b><i style="left:${pos}%"></i></div>
+      <div class="w-norms-gradients-legend" style="justify-content:space-between"><span style="--c:transparent">−${NG.num(gn, 2)}</span><span style="--c:transparent">0</span><span style="--c:transparent">+${NG.num(gn, 2)}</span></div>
+      <p class="src">Mavi kalın eğri P'den geçen contour (f = ${NG.num(fv, 2)}). Koyu ok ∇f yönünde (boyu kısaltıldı), kesikli çizgi tangent.</p>`;
+  }
+  th.addEventListener("input", () => { theta = +th.value; draw(); });
+  document.querySelectorAll("[data-ctu]").forEach((b) => b.addEventListener("click", () => {
+    const g = grad(P); if (NG.n2(g) < 1e-12) return;
+    let a = Math.atan2(g[1], g[0]) * 180 / Math.PI;
+    if (b.dataset.ctu === "-g") a += 180;
+    if (b.dataset.ctu === "t") a += 90;
+    theta = ((Math.round(a) % 360) + 360) % 360; th.value = theta; draw();
+  }));
+  function setP(p) { P = p; inp.value = p.join(", "); err.textContent = ""; draw(); }
+  svg.addEventListener("pointerdown", (e) => {
+    const [sx, sy] = NG.svgPoint(svg, e, [S, S]);
+    setP([Math.round((sx - S / 2) / sc * 10) / 10, Math.round((S / 2 - sy) / sc * 10) / 10]);
+  });
+  function fromInput() {
+    const r = NG.parse(inp.value, 2, 3.5);
+    if (r.err) { err.textContent = r.err; return; }
+    setP(r.v);
+  }
+  document.getElementById("ct-go").addEventListener("click", fromInput);
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") fromInput(); });
+  draw();
+})();
+
+/* 5. Halving h: forward vs central error on e^x at 1 */
+(function () {
+  const box = document.getElementById("fd-stepper"), rows = [];
+  let h = 0.4;
+  for (let k = 0; k < 8; k++) {
+    const fw = Math.abs((Math.exp(1 + h) - Math.E) / h - Math.E);
+    const ce = Math.abs((Math.exp(1 + h) - Math.exp(1 - h)) / (2 * h) - Math.E);
+    rows.push({ h, fw, ce });
+    h /= 2;
+  }
+  const frames = rows.map((r, i) => {
+    let cap = `h = ${NG.num(r.h, 5)}: forward hatası ${NG.sci(r.fw)}, central hatası ${NG.sci(r.ce)}.`;
+    if (i > 0) cap += ` h yarıya inince forward hatası ${NG.num(rows[i - 1].fw / r.fw, 2)} kat, central hatası ${NG.num(rows[i - 1].ce / r.ce, 2)} kat küçüldü.`;
+    if (i === rows.length - 1) cap += " Forward için oran 2'ye (hata ∝ h), central için 4'e (hata ∝ h²) yaklaşıyor.";
+    return { k: i + 1, caption: cap };
+  });
+  Lab.stepper(box, {
+    title: "e^x, x = 1: h'yi yarıya indir",
+    interval: 1200,
+    frames,
+    render(fr, idx, el) {
+      let t = `<div class="table-wrap"><table><tr><th>h</th><th>forward hatası</th><th>oran</th><th>central hatası</th><th>oran</th></tr>`;
+      rows.slice(0, fr.k).forEach((r, i) => {
+        const cur = i === fr.k - 1;
+        t += `<tr class="${cur ? "w-norms-gradients-hl" : ""}"><td>${NG.num(r.h, 5)}</td><td>${NG.sci(r.fw)}</td><td>${i ? NG.num(rows[i - 1].fw / r.fw, 2) : "—"}</td><td>${NG.sci(r.ce)}</td><td>${i ? NG.num(rows[i - 1].ce / r.ce, 2) : "—"}</td></tr>`;
+      });
+      el.innerHTML = t + `</table></div>`;
+    }
+  });
+})();
+
+/* 6. Gradient checker playground (central differences, coordinate by coordinate) */
+(function () {
+  const A = [[1, 1], [1, 2], [1, 3]], b = [1, 2, 2];
+  const FN = {
+    run: { n: 2, x0: "1, 2", f: (x) => x[0] * x[0] + x[0] * x[1] + 2 * x[1] * x[1], g: (x) => [2 * x[0] + x[1], x[0] + 4 * x[1]] },
+    ls: { n: 2, x0: "0.3, -0.7", f: (x) => A.reduce((s, r, i) => s + Math.pow(r[0] * x[0] + r[1] * x[1] - b[i], 2), 0),
+          g: (x) => { const r = A.map((a, i) => a[0] * x[0] + a[1] * x[1] - b[i]); return [0, 1].map((j) => 2 * A.reduce((s, a, i) => s + a[j] * r[i], 0)); } },
+    lse: { n: 3, x0: "0.1, -0.5, 1.2", f: (x) => Math.log(x.reduce((s, t) => s + Math.exp(t), 0)),
+           g: (x) => { const z = x.reduce((s, t) => s + Math.exp(t), 0); return x.map((t) => Math.exp(t) / z); } },
+    rosen: { n: 2, x0: "-1, 1", f: (x) => Math.pow(1 - x[0], 2) + 100 * Math.pow(x[1] - x[0] * x[0], 2),
+             g: (x) => [-2 * (1 - x[0]) - 400 * x[0] * (x[1] - x[0] * x[0]), 200 * (x[1] - x[0] * x[0])] }
+  };
+  const BUG = { ok: (g) => g, half: (g) => g.map((v) => v / 2), neg: (g) => g.map((v) => -v), swap: (g) => [...g].reverse(), triple: (g) => g.map((v) => 3 * v) };
+  const BUGNAME = { ok: "doğru formül", half: "×2 unutulmuş", neg: "işaret hatası", swap: "component'ler yer değiştirmiş", triple: "fazladan ×3" };
+  const fs = document.getElementById("gc-f"), gs = document.getElementById("gc-g"), xs = document.getElementById("gc-x"), hs = document.getElementById("gc-h");
+  const err = document.getElementById("gc-err"), box = document.getElementById("gc-stepper");
+  fs.addEventListener("change", () => { xs.value = FN[fs.value].x0; run(); });
+  [gs, hs].forEach((e) => e.addEventListener("change", run));
+  document.getElementById("gc-go").addEventListener("click", run);
+  xs.addEventListener("keydown", (e) => { if (e.key === "Enter") run(); });
+  function run() {
+    const F = FN[fs.value], r = NG.parse(xs.value, F.n, 10);
+    if (r.err) { err.textContent = r.err; return; }
+    err.textContent = "";
+    const x = r.v, h = +hs.value, g = BUG[gs.value](F.g(x)), gh = [], steps = [];
+    for (let i = 0; i < F.n; i++) {
+      const xp = x.slice(), xm = x.slice(); xp[i] += h; xm[i] -= h;
+      const fp = F.f(xp), fm = F.f(xm); gh.push((fp - fm) / (2 * h));
+      steps.push({ i, fp, fm, gi: gh[i] });
+    }
+    const den = NG.n2(g) + NG.n2(gh), rel = den === 0 ? NaN : NG.n2(NG.sub(g, gh)) / den;
+    const verdict = !isFinite(rel) ? `<span class="w-norms-gradients-meh">tanımsız (iki gradient de sıfır)</span>`
+      : rel < 1e-6 ? `<span class="w-norms-gradients-ok">&lt; 10⁻⁶: gradient doğru</span>`
+      : rel > 1e-3 ? `<span class="w-norms-gradients-bad">&gt; 10⁻³: bug var</span>`
+      : `<span class="w-norms-gradients-meh">10⁻⁶ ile 10⁻³ arası: şüpheli, başka h ve nokta dene</span>`;
+    const frames = steps.map((s) => ({ k: s.i + 1, caption: `Coordinate ${s.i + 1}: sadece x<sub>${s.i + 1}</sub>'i ±h oynat. ĝ<sub>${s.i + 1}</sub> = (f(x + h·e<sub>${s.i + 1}</sub>) − f(x − h·e<sub>${s.i + 1}</sub>)) / 2h = (${NG.num(s.fp, 10)} − ${NG.num(s.fm, 10)}) / ${NG.sci(2 * h)} = <b>${NG.num(s.gi, 8)}</b>` }));
+    frames.push({ k: F.n, final: true, caption: `‖g − ĝ‖ / (‖g‖ + ‖ĝ‖) = <b>${isFinite(rel) ? NG.sci(rel) + " = " + NG.num(rel, 10) : "—"}</b> ⇒ ${verdict}` });
+    Lab.stepper(box, {
+      title: `${fs.options[fs.selectedIndex].text} · ${BUGNAME[gs.value]} · h = ${hs.value}`,
+      interval: 1400,
+      frames,
+      render(fr, idx, el) {
+        let t = `<p class="w-norms-gradients-mono">x = ${NG.vec(x, 4)}</p><div class="table-wrap"><table><tr><th>i</th><th>iddia edilen gᵢ</th><th>ĝᵢ (central)</th></tr>`;
+        for (let i = 0; i < F.n; i++) {
+          const shown = i < fr.k;
+          t += `<tr class="${i === fr.k - 1 && !fr.final ? "w-norms-gradients-hl" : ""}"><td>${i + 1}</td><td>${NG.num(g[i], 8)}</td><td>${shown ? NG.num(gh[i], 8) : "?"}</td></tr>`;
+        }
+        el.innerHTML = t + `</table></div>`;
+      }
+    });
+  }
+  run();
+})();
+
+/* 7. V-curve: forward, central and complex-step error against h */
+(function () {
+  const svg = document.getElementById("vc-svg"), out = document.getElementById("vc-out"), err = document.getElementById("vc-err");
+  const fsel = document.getElementById("vc-f"), xin = document.getElementById("vc-x"), hsl = document.getElementById("vc-h"), hv = document.getElementById("vc-hv");
+  const EPS = Number.EPSILON;
+  // complex arithmetic only for the complex-step column: f(a + ib) by hand
+  const FN = {
+    exp: { f: Math.exp, d: Math.exp, cs: (a, b) => Math.exp(a) * Math.sin(b) },
+    expsin: { f: (t) => Math.exp(t) * Math.sin(t), d: (t) => Math.exp(t) * (Math.sin(t) + Math.cos(t)),
+              cs: (a, b) => { const er = Math.exp(a) * Math.cos(b), ei = Math.exp(a) * Math.sin(b), sr = Math.sin(a) * Math.cosh(b), si = Math.cos(a) * Math.sinh(b); return er * si + ei * sr; } }
+  };
+  let x0 = 1;
+  const errs = (F, h) => {
+    const t = F.d(x0);
+    return [Math.abs((F.f(x0 + h) - F.f(x0)) / h - t), Math.abs((F.f(x0 + h) - F.f(x0 - h)) / (2 * h) - t), Math.abs(F.cs(x0, h) / h - t)];
+  };
+  const W = 360, H = 240, l = 40, r = 10, tp = 10, bt = 30, E0 = -15, E1 = -1, Y0 = -17, Y1 = 1;
+  const sx = (e) => l + (e - E0) / (E1 - E0) * (W - l - r), sy = (v) => tp + (Y1 - Math.max(Y0, Math.min(Y1, v))) / (Y1 - Y0) * (H - tp - bt);
+  function draw() {
+    const F = FN[fsel.value], N = 120, rows = [];
+    for (let i = 0; i < N; i++) { const e = E0 + (E1 - E0) * i / (N - 1), h = Math.pow(10, e); rows.push([e, ...errs(F, h)]); }
+    let s = "";
+    for (let e = E0; e <= E1; e += 2) s += `<line x1="${sx(e)}" y1="${tp}" x2="${sx(e)}" y2="${H - bt}" style="stroke:#F2F3F6"/><text x="${sx(e)}" y="${H - bt + 14}" text-anchor="middle" style="font-size:10px;fill:#6A6F7A">${e}</text>`;
+    for (let v = Y0 + 1; v <= Y1; v += 4) s += `<line x1="${l}" y1="${sy(v)}" x2="${W - r}" y2="${sy(v)}" style="stroke:#F2F3F6"/><text x="${l - 4}" y="${sy(v) + 3}" text-anchor="end" style="font-size:10px;fill:#6A6F7A">${v}</text>`;
+    s += `<text x="${(W + l) / 2}" y="${H - 2}" text-anchor="middle" style="font-size:10px;fill:#4A4F5A">log₁₀ h</text><text x="10" y="${tp + 6}" style="font-size:10px;fill:#4A4F5A">log₁₀ hata</text>`;
+    [[Math.log10(Math.sqrt(EPS)), "√eps"], [Math.log10(Math.cbrt(EPS)), "eps^⅓"]].forEach(([e, t]) => {
+      s += `<line x1="${sx(e)}" y1="${tp}" x2="${sx(e)}" y2="${H - bt}" style="stroke:#8A8F99;stroke-dasharray:3 3"/><text x="${sx(e) + 3}" y="${tp + 18}" style="font-size:10px;fill:#4A4F5A">${t}</text>`;
+    });
+    [[1, "#F47524"], [2, "#1D366A"], [3, "#2b8a3e"]].forEach(([k, c]) => {
+      s += `<path d="${rows.map((rw, i) => (i ? "L" : "M") + sx(rw[0]).toFixed(1) + " " + sy(rw[k] > 0 ? Math.log10(rw[k]) : Y0).toFixed(1)).join(" ")}" style="fill:none;stroke:${c};stroke-width:2"/>`;
+    });
+    const eh = +hsl.value, cur = errs(F, Math.pow(10, eh));
+    s += `<line x1="${sx(eh)}" y1="${tp}" x2="${sx(eh)}" y2="${H - bt}" style="stroke:#C75712;stroke-width:1.5"/>`;
+    svg.innerHTML = s;
+    hv.textContent = "h = 1e" + (Math.round(eh * 10) / 10);
+    const best = (k) => rows.reduce((m, rw) => (rw[k] < m[k] ? rw : m), rows[0]);
+    const bf = best(1), bc = best(2);
+    const fmt = (v) => (v === 0 ? "0 (tam)" : NG.sci(v));
+    out.innerHTML = `<div class="table-wrap"><table><tr><th>yöntem</th><th>seçili h'de hata</th><th>en iyi h (grid)</th><th>en küçük hata</th></tr>
+      <tr><td style="color:#F47524"><b>forward</b></td><td>${fmt(cur[0])}</td><td>${NG.sci(Math.pow(10, bf[0]))}</td><td>${fmt(bf[1])}</td></tr>
+      <tr><td style="color:#1D366A"><b>central</b></td><td>${fmt(cur[1])}</td><td>${NG.sci(Math.pow(10, bc[0]))}</td><td>${fmt(bc[2])}</td></tr>
+      <tr><td style="color:#2b8a3e"><b>complex step</b></td><td>${fmt(cur[2])}</td><td colspan="2">h küçüldükçe bozulmaz</td></tr></table></div>
+      <p class="src">√eps = ${NG.sci(Math.sqrt(EPS))}, eps^(1/3) = ${NG.sci(Math.cbrt(EPS))}. Sıfır hata grafikte en alt çizgide gösterildi.</p>`;
+  }
+  function fromInput() {
+    const r = NG.parse(xin.value, 1, 5);
+    if (r.err) { err.textContent = r.err; return; }
+    err.textContent = ""; x0 = r.v[0]; draw();
+  }
+  fsel.addEventListener("change", draw);
+  hsl.addEventListener("input", draw);
+  document.getElementById("vc-go").addEventListener("click", fromInput);
+  xin.addEventListener("keydown", (e) => { if (e.key === "Enter") fromInput(); });
+  draw();
+})();
+</script>
+</body>
+</html>

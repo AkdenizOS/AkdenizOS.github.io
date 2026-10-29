@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 413 Week 1: optimization problem'inin anatomisi, standard form, decision variable, objective, constraint, feasible region, local ve global minimum, dört sınıflandırma ekseni, 6 adımlık modelleme tarifi, devre enerjisi ve scheduler modeling clinic'leri." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Optimization problem'ini kurmak · CSE 413 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-modeling-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-modeling-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-modeling-ctl input[type="text"] { width: 64px; }
+    .w-modeling-ctl select { max-width: 100%; }
+    .w-modeling-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-modeling-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; font-family: 'JetBrains Mono', monospace; font-size: .9rem; }
+    .w-modeling-row input[type="text"] { width: 54px; }
+    .w-modeling-row .w-modeling-idx { min-width: 26px; font-weight: 700; color: var(--fg-brand); }
+    .w-modeling-plot { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); padding: 6px; max-width: 440px; }
+    .w-modeling-plot svg { display: block; width: 100%; height: auto; }
+    .w-modeling-slider { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; margin: 6px 0; max-width: 440px; }
+    .w-modeling-slider input[type="range"] { width: 100%; accent-color: var(--orange-600); }
+    .w-modeling-out { margin: 8px 0; }
+    .w-modeling-ok { color: #2b8a3e; font-weight: 700; }
+    .w-modeling-bad { color: var(--orange-700); font-weight: 700; }
+    .w-modeling-tags { display: grid; gap: 6px; margin: 8px 0; }
+    .w-modeling-tag { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); }
+    .w-modeling-tag .w-modeling-why { grid-column: 1 / -1; font-size: .9rem; color: var(--fg-muted); }
+    .w-modeling-axes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px; margin: 8px 0; }
+    .w-modeling-axes fieldset { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; margin: 0; min-width: 0; }
+    .w-modeling-axes legend { font-weight: 700; font-size: .88rem; color: var(--fg-brand); }
+    .w-modeling-axes label { margin-right: 10px; white-space: nowrap; }
+    .w-modeling-sched { display: grid; gap: 4px; margin: 8px 0; }
+    .w-modeling-sched > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .w-modeling-load { display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: .85rem; margin: 3px 0; }
+    .w-modeling-load > span:first-child { min-width: 34px; }
+    .w-modeling-bar { flex: 1; min-width: 60px; max-width: 260px; height: 12px; background: var(--stone-200); border-radius: 4px; overflow: hidden; }
+    .w-modeling-bar > i { display: block; height: 100%; }
+    .w-modeling-fig { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 8px 0; }
+    .w-modeling-fig > div { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); padding: 6px; min-width: 0; }
+    .w-modeling-fig svg { display: block; width: 100%; height: auto; }
+    .w-modeling-fig h4 { margin: 0 0 4px; font-size: .95rem; color: var(--fg-brand); }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 413</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 413</a> / Optimization problem'ini kurmak</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">Week 1</span><span class="chip chip--exam">Vize: Week 1–7</span><span class="chip">Lab 01</span><span class="chip">HW 0</span><span class="src">~60 dk · 12 bölüm</span></div>
+          <h1>Optimization problem'ini kurmak</h1>
+          <p class="lead">Dersin ilk becerisi, sözle anlatılan bir mühendislik problemini matematiksel bir optimization problem'ine çevirmek. Bu derste standard form'u, decision variable, objective ve constraint ayrımını, feasible region'ı, local ve global minimum farkını ve problemleri dört eksende sınıflandırmayı göreceksin. Sonunda hocanın iki modeling clinic örneğini (devre enerjisi ve scheduler) kendin kuracaksın.</p>
+          <!-- Kaynak: 27G_CSE413_5013_Optimization_Theory_Week_01.pdf s.2–21 (hocanın Week 1 slaytları) · 27G_CSE413_5013_OptimizationTheory_Lab01.ipynb Section 1, 3, 4, 5, 6 ve Exercise 1, 3 · Boyd & Vandenberghe Ch.1 (s.1–12) ve bv_cvxslides Introduction (1.2–1.14, aydınlatma örneği bv_cvxslides_original 1–9…1–12) · Winston Ch.1 (§1.1–1.2) ve §3.1 (Giapetto, LP varsayımları, Problem 1–2 ve 5) · assignments/project.md · weeks/01-introduction-and-modeling.md. Bütün sayılar python3 ile kontrol edildi. -->
+        </header>
+
+        <article class="lesson" data-course="cse-413" data-lesson="modeling">
+
+<!-- 1 -->
+<section class="lsec" id="anatomy" data-min="5">
+  <h2>Bir optimization problem'inin anatomisi</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · neden optimization?</span>
+    <p>Mühendislikte kurulan sistemlerin çoğunda birinin olabildiğince büyütmek ya da küçültmek istediği bir sayı vardır. Hoca ilk derste dört alan gösteriyor:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Alan</th><th>Ne yapılıyor</th><th>Problem</th></tr>
+      <tr><td>Machine Learning &amp; AI</td><td>Model eğitmek = milyonlarca parametre üzerinde bir loss'u minimize etmek</td><td>$\min\ \text{loss(weights)}$</td></tr>
+      <tr><td>Networks &amp; Systems</td><td>Trafiği latency ve congestion en az olacak şekilde yönlendirmek</td><td>$\min\ \text{delay(flows)}$</td></tr>
+      <tr><td>VLSI &amp; Hardware</td><td>Cell yerleştirmek, gate boyutlamak: chip area, wirelength, power</td><td>$\min\ \text{area}\cdot\text{power}$</td></tr>
+      <tr><td>Scheduling &amp; Resources</td><td>Task'ları processor'lara atayıp throughput'u artırmak</td><td>$\max\ \text{throughput}$</td></tr>
+    </table></div>
+    <p>Hepsinde üç şey var: <strong>seçebildiğin</strong> bir şey, <strong>ölçebildiğin</strong> bir sayı ve <strong>uyman gereken</strong> kurallar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · standard form (slayt 4)</span>
+    $$\begin{aligned}\text{minimize}\quad & f_0(x)\\ \text{subject to}\quad & f_i(x) \le 0, \quad i = 1,\dots,m\\ & h_j(x) = 0, \quad j = 1,\dots,p\end{aligned}$$
+    <p>$x \in \mathbb{R}^n$ optimization variable'dır.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Parça</th><th>Anlamı</th></tr>
+      <tr><td><strong>Decision variable</strong> $x$</td><td>the unknowns you get to choose: senin seçtiğin bilinmeyenler</td></tr>
+      <tr><td><strong>Objective</strong> $f_0(x)$</td><td>the single number you minimize: minimize ettiğin tek bir sayı</td></tr>
+      <tr><td><strong>Constraints</strong> $f_i,\ h_j$</td><td>the limits a solution must respect: çözümün uyması gereken sınırlar</td></tr>
+      <tr><td><strong>Feasible set</strong></td><td>all $x$ satisfying every constraint: bütün constraint'leri birlikte sağlayan $x$'ler</td></tr>
+      <tr><td><strong>Optimal point</strong> $x^*$ / <strong>optimal value</strong> $p^*$</td><td>en iyi feasible $x$ ve onun objective değeri: $p^* = f_0(x^*)$</td></tr>
+    </table></div>
+    <p><strong>Maximizing $f$ is the same as minimizing $-f$</strong>, bu yüzden "minimize" yazmak hiçbir şey kaybettirmez.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tarif · bir problemi standard form'a çevirmek</span>
+    <ul>
+      <li>$\max f(x)$ → $\min\, -f(x)$. Sonunda asıl değer $= -p^*$.</li>
+      <li>$g(x) \le b$ → $g(x) - b \le 0$.</li>
+      <li>$g(x) \ge b$ → $b - g(x) \le 0$ (iki tarafı da $-1$ ile çarpınca yön döner).</li>
+      <li>$x_1 \ge 0$ gibi sign restriction'lar da constraint'tir: $-x_1 \le 0$.</li>
+      <li>$g(x) = b$ → $h(x) = g(x) - b = 0$.</li>
+    </ul>
+    <p>Boyd'un kitabı aynı şeyi $f_i(x) \le b_i$ diye yazar: $b_i$'yi sola atınca slayttaki $f_i(x) \le 0$ biçimi çıkar.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Lab 01'deki LP</span>
+    <p>Lab 01 (ve slayt 8) şu problemi kullanıyor: $\max\ 3x_1 + 4x_2$, $x_1 + x_2 \le 4$, $x_1 + 3x_2 \le 6$, $x_1, x_2 \ge 0$. Standard form'da:</p>
+    $$\begin{aligned}\text{minimize}\quad & -3x_1 - 4x_2\\ \text{subject to}\quad & x_1 + x_2 - 4 \le 0\\ & x_1 + 3x_2 - 6 \le 0\\ & -x_1 \le 0,\quad -x_2 \le 0\end{aligned}$$
+    <p>Burada $n = 2$, $m = 4$, $p = 0$. 5. bölümde optimum'un $x^* = (3, 1)$ olduğunu göreceğiz. Min biçiminde $p^* = -3\cdot 3 - 4\cdot 1 = -13$; asıl (max) problemin değeri $13$.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Max'ı min'e çevirdiysen $p^*$'nin işareti de döner. "$p^* = 13$" yazıp min biçimini kullanmak tutarsızdır.</li>
+      <li>$\ge$ constraint'ini $\le 0$ biçimine çevirirken sadece sağ tarafı sola atmak yetmez: $x_1 + 2x_2 \ge 3$, $x_1 + 2x_2 - 3 \le 0$ <em>değildir</em>.</li>
+      <li>$x^*$ bir nokta (vektör), $p^*$ bir sayıdır. "$p^* = (3,1)$" yanlış.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-anat-1">
+    <p class="quiz__q">$x_1 + 2x_2 \ge 3$ constraint'inin $f(x) \le 0$ biçimi hangisi?</p>
+    <button class="quiz__opt">$x_1 + 2x_2 - 3 \le 0$<span class="why">Bu, yönü çevirmeden sağ tarafı sola atmak. Bu eşitsizlik tam tersi bölgeyi tarif eder ($x_1 + 2x_2 \le 3$).</span></button>
+    <button class="quiz__opt" data-correct>$3 - x_1 - 2x_2 \le 0$<span class="why">Doğru. İki tarafı $-1$ ile çarpınca $\ge$, $\le$ olur: $-x_1 - 2x_2 \le -3$, yani $3 - x_1 - 2x_2 \le 0$.</span></button>
+    <button class="quiz__opt">$-x_1 - 2x_2 + 3 \ge 0$<span class="why">Bunu düzenlersen $x_1 + 2x_2 \le 3$ çıkar: verilen constraint'in ters bölgesi. Ayrıca biçim $\ge 0$; standard form $f_i(x) \le 0$ ister.</span></button>
+  </div>
+  <div class="quiz" id="q-anat-2">
+    <p class="quiz__q">Lab 01 LP'sini ($\max\ 3x_1 + 4x_2$) yukarıdaki min biçimine çevirdin. Bu min probleminin $p^*$'si nedir?</p>
+    <button class="quiz__opt">$13$<span class="why">13, asıl max probleminin değeri. Min biçiminde objective $-3x_1 - 4x_2$ olduğu için değer de işaret değiştirir.</span></button>
+    <button class="quiz__opt" data-correct>$-13$<span class="why">Doğru: $f_0(x^*) = -3\cdot3 - 4\cdot1 = -13$. Asıl değer $-p^* = 13$.</span></button>
+    <button class="quiz__opt">$(3, 1)$<span class="why">Bu $x^*$, yani optimal point. $p^*$ bir sayıdır: objective'in $x^*$'daki değeri.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="var-obj" data-min="6">
+  <h2>Decision variable ve objective</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · decision variable (slayt 5)</span>
+    <ul>
+      <li>Serbestçe seçtiğin bilinmeyenlerdir. Solver'ın döndürdüğü cevap budur.</li>
+      <li>Bir vektörde toplanır: $x = (x_1, \dots, x_n)$. $n$ çok küçük (2) ya da çok büyük (deep learning'de $10^9$) olabilir.</li>
+      <li><strong>Key idea:</strong> If you cannot change it, it is a parameter (data). Not a decision variable.</li>
+    </ul>
+    <div class="table-wrap"><table>
+      <tr><th>Domain</th><th>Variables</th><th>Type</th></tr>
+      <tr><td>Neural net</td><td>weights &amp; biases</td><td>continuous</td></tr>
+      <tr><td>Network routing</td><td>flow on each link</td><td>continuous</td></tr>
+      <tr><td>Path selection</td><td>use link? (0 / 1)</td><td>binary</td></tr>
+      <tr><td>VLSI placement</td><td>cell coordinates</td><td>continuous</td></tr>
+      <tr><td>Scheduling</td><td>task → slot</td><td>integer</td></tr>
+    </table></div>
+    <p>Winston bir ek şart koyar: decision variable'lar verilecek kararların <strong>tamamını</strong> anlatmalı. Giapetto örneğinde karar "haftada kaç soldier, kaç train üretilecek" olduğu için iki variable yeter.</p>
+  </div>
+  <p>Lab 01'in ilk bölümü bunu NumPy ile gösteriyor: <code>x = np.array([3.0, 1.0])</code> aday bir decision vector; <code>c</code>, <code>A</code>, <code>b</code> ise problemin verisi (parameter). <code>c @ x</code> objective'i (13), <code>A @ x</code> constraint'lerin sol tarafını ($(4, 6)$) verir.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · objective (slayt 6)</span>
+    <ul>
+      <li>Her karara <strong>tek bir reel sayı</strong> atayan bir fonksiyondur: kararın maliyeti ya da kalitesi.</li>
+      <li>Bir cost'u (energy, error, delay) minimize ya da bir utility'yi (throughput, accuracy) maximize ederiz.</li>
+      <li><strong>Ölçülebilir</strong> olmalı: "make it good" bir objective değildir; "minimize mean-squared error" bir objective'tir.</li>
+      <li>Sign convention: $\max f(x) \equiv \min\, -f(x)$, bu yüzden minimization'da standartlaşırız.</li>
+    </ul>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · birden fazla hedef (multi-objective)</span>
+    <p>Gerçek sistemlerin çoğunun aynı anda birkaç hedefi vardır. Winston'ın örneğinde bir okul yönetimi öğrencileri iki liseye dağıtırken (1) iki okuldaki öğrenci sayısını eşitlemek, (2) ortalama yolu kısaltmak, (3) iki okulda da çeşitli bir öğrenci profili sağlamak istiyor. Tek bir objective'e inmenin iki yolu var (slayt 6):</p>
+    <ol>
+      <li><strong>Ağırlıklarla birleştir:</strong> $\min\ E(v) + \lambda\cdot \text{delay}(v)$. $\lambda$'yı sen seçersin; farklı $\lambda$ farklı cevap verir.</li>
+      <li><strong>Birini objective olarak tut, diğerlerini constraint yap:</strong> $\min\ E(v)$ s.t. $\text{delay}(v) \le T$.</li>
+    </ol>
+    <p>10. bölümdeki devre enerjisi modeli tam olarak ikinci yolu kullanıyor. Boyd'un data fitting örneği ise birinci yolu: objective = prediction error + $\rho \cdot$ (model complexity cezası), yani $\sum_i (a_i^T x - b_i)^2 + \rho \sum_j x_j^2$. Konunun tamamı dönemin ilerisinde.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Kararlardan <strong>hesaplanan</strong> bir büyüklük (toplam energy, toplam delay) ayrı bir decision variable değildir; $x$'in fonksiyonudur.</li>
+      <li>Problemde değeri verilen her şey (capacity, deadline, fiyat) parameter'dır, harfle yazılmış olsa bile ($C_j$, $T$).</li>
+      <li>Objective'e sabit eklemek ya da objective'i pozitif bir sayıyla çarpmak $x^*$'ı değiştirmez, $p^*$'yi değiştirir. Winston bu yüzden Giapetto'da fixed cost'ları (kira, sigorta) objective'e katmaz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-varobj-1">
+    <p class="quiz__q">Slayt 19'daki scheduler'da ($N$ task, $M$ processor, processor $j$'nin capacity'si $C_j$, task $i$'nin yükü $w_i$) hangisi decision variable?</p>
+    <button class="quiz__opt" data-correct>$x_{ij}$: task $i$ processor $j$'de çalışsın mı (0/1)<span class="why">Doğru. Bunu sen seçiyorsun; solver'ın cevabı bu atama.</span></button>
+    <button class="quiz__opt">$C_j$<span class="why">Capacity donanımın verisi; değiştiremezsin, o yüzden parameter. Harfle yazılması onu variable yapmaz.</span></button>
+    <button class="quiz__opt">$w_i$<span class="why">Task'ın yükü probleme verilen bir sayı, yani parameter.</span></button>
+    <button class="quiz__opt">Tamamlanan task sayısı $\sum_{i,j} x_{ij}$<span class="why">Bu, kararlardan hesaplanan bir büyüklük; objective'in kendisi. Ayrı bir variable değil.</span></button>
+  </div>
+  <div class="quiz" id="q-varobj-2">
+    <p class="quiz__q">Bir modelde objective $3x_1 + 2x_2$ iken haftalık 100 TL kira da düşmek istiyorsun: $3x_1 + 2x_2 - 100$. Ne değişir?</p>
+    <button class="quiz__opt">$x^*$ değişir, $p^*$ aynı kalır<span class="why">Tersi. Sabit bir terim bütün noktaların değerini aynı miktarda kaydırır; sıralama, dolayısıyla $x^*$ aynı kalır.</span></button>
+    <button class="quiz__opt" data-correct>$x^*$ aynı kalır, optimal değer 100 azalır<span class="why">Doğru. Sabit terim karar vermeye etki etmez, sadece sonucu kaydırır.</span></button>
+    <button class="quiz__opt">Problem infeasible olur<span class="why">Feasibility'yi constraint'ler belirler; objective'e eklenen bir sabit feasible set'i değiştirmez.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="constraints" data-min="5">
+  <h2>Constraint'ler ve feasible region</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · constraints &amp; the feasible region (slayt 7)</span>
+    <ul>
+      <li>Constraint'ler çözümün uyması gereken kurallardır. Feasible region'ı $\mathbb{R}^n$'in içinden oyarlar.</li>
+      <li><strong>Inequality</strong> $f_i(x) \le 0$: bir bölge / half-space (örnek: power ≤ budget).</li>
+      <li><strong>Equality</strong> $h_j(x) = 0$: bir yüzey (örnek: flow in = flow out).</li>
+      <li><strong>Feasible region</strong>: bütün constraint'leri <em>aynı anda</em> sağlayan noktaların kümesi.</li>
+      <li>Bir constraint optimum'da eşitlikle sağlanıyorsa <strong>active (binding)</strong>'dir. "Önemli olan" constraint'ler bunlardır.</li>
+    </ul>
+    <div class="table-wrap"><table>
+      <tr><th>Durum</th><th>Anlamı</th><th>Modelde ne var?</th></tr>
+      <tr><td><strong>Feasible</strong></td><td>En az bir nokta bütün constraint'leri sağlıyor</td><td>Normal durum</td></tr>
+      <tr><td><strong>Infeasible</strong></td><td>Hiçbir nokta sağlamıyor</td><td>Model over-constrained</td></tr>
+      <tr><td><strong>Unbounded</strong></td><td>Objective sonsuza kadar iyileşiyor</td><td>Bir constraint eksik</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Lab 01, Section 1</span>
+    <p>$x = (3, 1)$ için $Ax = (3+1,\ 3+3) = (4, 6)$ ve $b = (4, 6)$. <code>A @ x &lt;= b</code> iki satırda da <code>True</code>, $x \ge 0$ da sağlanıyor ⇒ feasible. Üstelik iki satır da <strong>eşitlikle</strong> sağlanıyor: bu noktada iki constraint de active.</p>
+    <p>$x = (2, 2)$ için $Ax = (4, 8)$: ikinci satırda $8 &gt; 6$ ⇒ bu nokta infeasible.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Winston §3.1, Problem 1–2 · dene</span>
+    <p>"Farmer Jones must determine how many acres of corn and wheat to plant this year. An acre of wheat yields 25 bushels of wheat and requires 10 hours of labor per week. An acre of corn yields 10 bushels of corn and requires 4 hours of labor per week. All wheat can be sold at $\$4$ a bushel, and all corn can be sold at $\$3$ a bushel. Seven acres of land and 40 hours per week of labor are available. Government regulations require that at least 30 bushels of corn be produced during the current year. Let $x_1$ = number of acres of corn planted, and $x_2$ = number of acres of wheat planted. Using these decision variables, formulate an LP whose solution will tell Farmer Jones how to maximize the total revenue from wheat and corn."</p>
+    <p>"Answer these questions about Problem 1. a Is $(x_1 = 2, x_2 = 3)$ in the feasible region? b Is $(x_1 = 4, x_2 = 3)$ in the feasible region? c Is $(x_1 = 2, x_2 = 1)$ in the feasible region? d Is $(x_1 = 3, x_2 = 2)$ in the feasible region?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Variable'lar <em>acre</em>, fiyatlar <em>bushel</em> başına. Bir acre corn kaç dolar getirir? (10 bushel × 3 dolar.) Birimleri eşitle.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Üç kaynak var: land (acre), labor (saat/hafta), corn alt sınırı (bushel). "At least 30 bushels" bir $\ge$ constraint'i: $10x_1 \ge 30$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      $$\begin{aligned}\max\quad & z = 30x_1 + 100x_2 \\ \text{s.t.}\quad & x_1 + x_2 \le 7 \quad\text{(land)}\\ & 4x_1 + 10x_2 \le 40 \quad\text{(labor)}\\ & 10x_1 \ge 30 \quad\text{(corn)}\\ & x_1, x_2 \ge 0\end{aligned}$$
+      <p>Bir acre corn $10 \cdot 3 = 30$ dolar, bir acre wheat $25 \cdot 4 = 100$ dolar getirir.</p>
+      <div class="table-wrap"><table>
+        <tr><th>Nokta</th><th>land ≤ 7</th><th>labor ≤ 40</th><th>corn ≥ 30</th><th>Sonuç</th></tr>
+        <tr><td>a $(2, 3)$</td><td>5 ✓</td><td>38 ✓</td><td>20 ✗</td><td>infeasible</td></tr>
+        <tr><td>b $(4, 3)$</td><td>7 ✓</td><td>46 ✗</td><td>40 ✓</td><td>infeasible</td></tr>
+        <tr><td>c $(2, 1)$</td><td>3 ✓</td><td>18 ✓</td><td>20 ✗</td><td>infeasible</td></tr>
+        <tr><td>d $(3, 2)$</td><td>5 ✓</td><td>32 ✓</td><td>30 ✓</td><td><strong>feasible</strong></td></tr>
+      </table></div>
+      <p>Bir noktanın infeasible olması için <strong>tek bir</strong> constraint'i bozması yeter. (Bu modeli 4. bölümdeki sandbox'ta "Farmer Jones" preset'i olarak çizebilirsin: optimum $(3,\ 2.8)$, $z^* = 370$.)</p>
+    </div></details>
+  </div>
+  <!-- Kaynak: Winston §3.1 Problems, Group A 1–2; Group B 5. Problem 1–2 için kitapta cevap yok; python ile kontrol edildi. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Bir noktanın</strong> infeasible olması ile <strong>problemin</strong> infeasible olması farklıdır. $(2, 2)$ infeasible bir nokta, ama Lab 01 problemi feasible.</li>
+      <li>Feasible region'ın sınırsız olması problemi unbounded yapmaz. $\min\ x_1 + x_2$, $x \ge 0$: region sonsuza gidiyor ama $p^* = 0$.</li>
+      <li>Bir constraint'in bütün terimleri aynı birimde olmalı (Winston: "otherwise one is adding apples and oranges").</li>
+      <li>Strict inequality ($&lt;$) kullanılmaz. $\max\ x$ s.t. $x &lt; 1$'de $x$ 1'e istediğin kadar yaklaşır ama 1 olamaz; optimum yok. Winston Problem 5 tam bunu soruyor.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-con-1">
+    <p class="quiz__q">Solver "infeasible" diyor. Modelde büyük olasılıkla ne var?</p>
+    <button class="quiz__opt" data-correct>Birbiriyle çelişen fazla constraint (over-constrained)<span class="why">Doğru. Hiçbir nokta hepsini birden sağlayamıyor; bir constraint'i gevşetmek ya da çıkarmak gerekir.</span></button>
+    <button class="quiz__opt">Eksik bir constraint<span class="why">Eksik constraint'in belirtisi unbounded'dır: objective sonsuza kadar iyileşir.</span></button>
+    <button class="quiz__opt">Yanlış seçilmiş bir objective<span class="why">Feasibility objective'e bağlı değil; aynı constraint'lerle her objective için de infeasible olur.</span></button>
+  </div>
+  <div class="quiz" id="q-con-2">
+    <p class="quiz__q">Winston Group B Problem 5: "Why don't we allow an LP to have &lt; or &gt; constraints?" En iyi cevap hangisi?</p>
+    <button class="quiz__opt">Çünkü solver'lar strict inequality'yi yazamaz<span class="why">Mesele yazım değil, matematik: strict bir sınırla optimum noktası var olmayabilir.</span></button>
+    <button class="quiz__opt" data-correct>Çünkü optimum sınırda oluşur ve strict inequality o sınırı dışarıda bırakır; optimal point var olmayabilir<span class="why">Doğru. $\max\ x$ s.t. $x &lt; 1$: $0.9, 0.99, 0.999, \dots$ hep daha iyi, ama hiçbiri en iyi değil.</span></button>
+    <button class="quiz__opt">Çünkü feasible region convex olmaz<span class="why">Açık bir half-space ($x &lt; 1$) da convex'tir. Sorun convexity değil, sınırın kümeye ait olmaması.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="picture" data-min="6">
+  <h2>2-D resim: polygon, contour ve vertex</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · slayt 8</span>
+    <ul>
+      <li>İki decision variable ($x_1, x_2$) varsa problemin tamamını çizebiliriz.</li>
+      <li>Taralı polygon = feasible region (bütün constraint'lerin kesişimi).</li>
+      <li>Kesikli çizgiler = objective contour'ları (level set'ler: objective'in aynı değeri aldığı noktalar).</li>
+      <li>Contour'u iyileşme yönünde (gradient yönünde) kaydır, feasible set'ten çıkmak üzereyken dur.</li>
+      <li>Optimum bir <strong>vertex</strong>'e düşer. Simplex'in neden çalıştığının ön izlemesi bu (Week 3).</li>
+    </ul>
+    <p>Linear objective $c^T x$'in gradient'i her yerde $c$'dir. Lab 01 LP'sinde $c = (3, 4)$: contour'lar $3x_1 + 4x_2 = z$ doğruları, $c$'ye diktir ve $c$ yönünde kaydıkça $z$ artar.</p>
+  </div>
+  <p>Aşağıdaki sandbox, girdiğin constraint'lerden feasible region'ı gerçekten hesaplıyor (her half-plane ile büyük bir kareyi kırparak), vertex'leri buluyor ve objective'i her vertex'te değerlendiriyor. Slider contour'u ($c^T x = z$) kaydırır.</p>
+  <p class="w-modeling-guess"><b>Önce tahmin et:</b> Lab 01 LP'sinde objective'i $3x_1 + 4x_2$'den $x_1 + x_2$'ye değiştirirsen optimum hâlâ tek bir vertex mi olur?</p>
+  <div id="wlp">
+    <div class="w-modeling-ctl">
+      <label>Preset: <select id="wlp-preset" class="btn btn--sm"></select></label>
+    </div>
+    <div class="w-modeling-ctl">
+      <select id="wlp-sense" class="btn btn--sm" aria-label="max ya da min"><option value="max">max</option><option value="min">min</option></select>
+      <input id="wlp-c1" type="text" inputmode="decimal" class="btn btn--sm" aria-label="c1" /> x₁ +
+      <input id="wlp-c2" type="text" inputmode="decimal" class="btn btn--sm" aria-label="c2" /> x₂
+    </div>
+    <div id="wlp-rows"></div>
+    <div class="w-modeling-ctl">
+      <label><input id="wlp-sign" type="checkbox" checked /> x₁, x₂ ≥ 0 (sign restriction)</label>
+      <button class="btn btn--sm" id="wlp-add">+ constraint</button>
+      <button class="btn btn--sm btn--accent" id="wlp-go">Çiz ve çöz</button>
+    </div>
+    <div class="w-modeling-err" id="wlp-err" aria-live="polite"></div>
+    <div class="w-modeling-plot" id="wlp-plot"></div>
+    <div class="w-modeling-slider"><span id="wlp-zlab">z</span><input id="wlp-z" type="range" min="0" max="1" step="0.001" value="0" aria-label="contour değeri" /></div>
+    <div class="src" id="wlp-zmsg" aria-live="polite"></div>
+    <div class="w-modeling-out" id="wlp-out"></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · LP'de vertex kontrolü</span>
+    <p>Feasible region en az bir vertex içeriyorsa ve LP'nin sonlu bir optimum'u varsa, en az bir optimum bir vertex'tedir. $x \ge 0$ sign restriction'ları varsa region'ın vertex'i hep olur (boş değilse). Region bounded ise (Lab 01'deki gibi kapalı bir polygon) bütün vertex'leri bulup objective'i her birinde hesaplamak yeter. Region bir yönde sonsuza gidiyorsa önce objective'in o yönde sınırsız büyümediğini kontrol et; vertex tablosu tek başına unbounded durumu göstermez. Lab 01'in kodu bounded durumu çözüyor:</p>
+<pre><code>objective = lambda v: 3*v[0] + 4*v[1]
+best = max(verts, key=objective)      # verts = [(0,0), (4,0), (3,1), (0,2)]</code></pre>
+    <div class="table-wrap"><table>
+      <tr><th>Vertex</th><th>$3x_1 + 4x_2$</th><th>Active constraint'ler</th></tr>
+      <tr><td>$(0, 0)$</td><td>0</td><td>$x_1 \ge 0$, $x_2 \ge 0$</td></tr>
+      <tr><td>$(4, 0)$</td><td>12</td><td>$x_1 + x_2 \le 4$, $x_2 \ge 0$</td></tr>
+      <tr><td>$(3, 1)$</td><td><strong>13</strong></td><td>$x_1 + x_2 \le 4$, $x_1 + 3x_2 \le 6$</td></tr>
+      <tr><td>$(0, 2)$</td><td>8</td><td>$x_1 + 3x_2 \le 6$, $x_1 \ge 0$</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--exam" data-exam="lab01-ex1"><span class="box__label">Week 1 Lab · Exercise 1 · lab görevi</span>
+    <p>"<strong>Re-solve the LP.</strong> Change the objective to <strong>maximize $x_1 + 2x_2$</strong> over the same feasible region. Evaluate it at each vertex (reuse <code>verts</code>) to find the new optimum. <em>Which constraint(s) are active at the solution?</em>"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Feasible region değişmedi, sadece objective değişti. Vertex'ler aynı: $(0,0)$, $(4,0)$, $(3,1)$, $(0,2)$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>En iyi vertex'i bulduktan sonra her constraint'in sol tarafını o noktada hesapla; sağ tarafa eşit olanlar active.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Vertex</th><th>$x_1 + 2x_2$</th></tr>
+        <tr><td>$(0, 0)$</td><td>0</td></tr>
+        <tr><td>$(4, 0)$</td><td>4</td></tr>
+        <tr><td>$(3, 1)$</td><td><strong>5</strong></td></tr>
+        <tr><td>$(0, 2)$</td><td>4</td></tr>
+      </table></div>
+      <p>Optimum $x^* = (3, 1)$, $z^* = 5$. Active constraint'ler: $x_1 + x_2 \le 4$ ($3 + 1 = 4$) ve $x_1 + 3x_2 \le 6$ ($3 + 3 = 6$). $x_1 \ge 0$ ve $x_2 \ge 0$ active değil (ikisi de pozitif).</p>
+<pre><code>objective = lambda v: v[0] + 2*v[1]
+best = max(verts, key=objective)      # (3, 1) -&gt; 5</code></pre>
+      <p>Neden optimum yer değiştirmedi? Yeni contour'ların eğimi ($-\tfrac12$) iki active constraint'in eğimleri ($-1$ ve $-\tfrac13$) arasında kalıyor; contour hâlâ en son $(3,1)$'e değiyor. Sandbox'ta "Lab01 Exercise 1" preset'iyle kontrol et.</p>
+    </div></details>
+    <!-- Kaynak: Lab01.ipynb "Your turn" Exercise 1. Notebook origin/main'de yok, link verilmedi. Değerler python ile kontrol edildi. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Vertex kontrolü <strong>LP</strong>'ye özgü. Nonlinear bir objective'in optimum'u region'ın içinde ya da bir kenarın ortasında olabilir.</li>
+      <li>Contour bir kenara paralelse o kenarın <strong>tamamı</strong> optimal'dir (alternative optima). Vertex'lerden biri yine optimum ama tek değil. Week 3'teki bandwidth LP'si de böyle: $f_1 = 7$, $f_2 + f_3 = 9$ ve $f_3 \in [1, 3]$ olan her nokta optimal; slayttaki $(7, 8, 1)$ bunlardan sadece biri.</li>
+      <li>Min probleminde contour'u $c$ yönünde değil, $-c$ yönünde kaydırırsın.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-pic-1">
+    <p class="quiz__q">Aynı region'da $\max\ x_1 + x_2$. Optimum nedir?</p>
+    <button class="quiz__opt">Sadece $(3, 1)$<span class="why">$(3,1)$'de değer 4, ama $(4,0)$'da da 4. Contour $x_1 + x_2 = 4$ bir constraint'le aynı doğru.</span></button>
+    <button class="quiz__opt">Sadece $(4, 0)$<span class="why">$(3,1)$ de aynı değeri (4) veriyor. Tek vertex'e bakıp durmak alternative optima'yı kaçırır.</span></button>
+    <button class="quiz__opt" data-correct>$(3, 1)$ ile $(4, 0)$ arasındaki kenarın tamamı, $z^* = 4$<span class="why">Doğru. Objective, $x_1 + x_2 \le 4$ constraint'ine paralel; o kenar boyunca her nokta optimal.</span></button>
+  </div>
+  <div class="quiz" id="q-pic-2">
+    <p class="quiz__q">$\min\ c^T x$ probleminde contour'u hangi yöne kaydırırsın?</p>
+    <button class="quiz__opt">$c$ yönünde<span class="why">$c$ yönünde gittikçe $c^T x$ <em>artar</em>. Bu max problemi için doğru yön.</span></button>
+    <button class="quiz__opt" data-correct>$-c$ yönünde<span class="why">Doğru. Gradient en hızlı artış yönüdür; minimize ederken tersine gidersin.</span></button>
+    <button class="quiz__opt">Contour'a paralel<span class="why">Contour boyunca objective sabit kalır; ilerleme olmaz.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="local-global" data-min="5">
+  <h2>Local ve global minimum</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · slayt 9</span>
+    <ul>
+      <li><strong>Global minimum:</strong> $f(x^*) \le f(x)$ for ALL feasible $x$.</li>
+      <li><strong>Local minimum:</strong> $f(x^*) \le f(x)$ only for feasible $x$ NEAR $x^*$.</li>
+    </ul>
+    <p><em>Most algorithms only guarantee a local optimum. Convexity is what makes local = global.</em></p>
+  </div>
+  <p>Lab 01'in 3. bölümü engebeli bir 1-D fonksiyon kullanıyor:</p>
+  $$g(x) = \sin x + 0.5\sin 2.5x + 0.08x^2, \qquad x \in [-8, 8]$$
+  <p>Lab'daki kod 1000 noktalık bir grid'de "iki komşusundan küçük" noktaları sayıyor: 6 local minimum var, global olan $x \approx -0.81$'de, $g \approx -1.121$. Aşağıda bir başlangıç noktası seç; top yokuş aşağı yuvarlanıyor: her adımda $x \leftarrow x - 0.1\, g'(x)$. (Bu güncellemenin adı gradient descent; Week 5'te ayrıntısıyla gelecek.)</p>
+  <p class="w-modeling-guess"><b>Önce tahmin et:</b> Topu $x_0 = 3$'ten bırakırsan hangi çukurda durur: $x \approx 1.89$'daki mi, $x \approx 4.30$'daki mi?</p>
+  <div class="w-modeling-ctl">
+    <label>$x_0$ = <input id="wgd-x0" type="text" inputmode="decimal" value="3" class="btn btn--sm" /></label>
+    <button class="btn btn--sm btn--accent" id="wgd-go">Bırak</button>
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wgd="-7">−7</button>
+    <button class="btn btn--sm" data-wgd="-3">−3</button>
+    <button class="btn btn--sm" data-wgd="0">0</button>
+    <button class="btn btn--sm" data-wgd="1">1</button>
+    <button class="btn btn--sm" data-wgd="7">7</button>
+  </div>
+  <div class="w-modeling-err" id="wgd-err" aria-live="polite"></div>
+  <div id="wgd-stepper"></div>
+  <div class="w-modeling-out" id="wgd-log"></div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · local yöntemlerin bedeli (Boyd §1.4)</span>
+    <p>Local optimization hızlıdır, büyük problemlerde çalışır, sadece türev ister. Ama bir başlangıç noktası ister (sonucu bu nokta belirler), bulduğu noktanın global optimum'dan ne kadar uzak olduğunu söylemez ve parametre ayarı ister. Global optimization gerçek çözümü bulur, ama worst-case karmaşıklığı problem boyutuyla exponential büyür.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$g'(x) = 0$ olması global minimum demek değildir. Local minimum, local maximum ya da (çok boyutta) saddle olabilir.</li>
+      <li>Her global minimum aynı zamanda local minimum'dur; tersi genelde yanlıştır.</li>
+      <li>Constrained bir problemde local minimum sınırda olabilir; orada gradient sıfır olmak zorunda değil (polygon'daki $(3,1)$ gibi).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-lg-1">
+    <p class="quiz__q">Yukarıdaki iterasyon $x_0 = 3$'ten başlayınca nerede durur?</p>
+    <button class="quiz__opt">$x \approx 1.888$<span class="why">Bu en yakın çukur gibi görünüyor ama $g'(3) &lt; 0$: fonksiyon $x = 3$'te sağa doğru iniyor, top sağa yuvarlanır.</span></button>
+    <button class="quiz__opt" data-correct>$x \approx 4.304$<span class="why">Doğru. $g'(3) \approx -0.077 &lt; 0$, yani $x$ artar ve sağdaki çukura düşer ($g \approx 0.078$). Global minimum'a gitmez.</span></button>
+    <button class="quiz__opt">$x \approx -0.813$ (global minimum)<span class="why">Gradient'i takip eden bir yöntem tepeyi aşamaz; global minimum'a sadece o çukurun içinden başlarsa ulaşır.</span></button>
+  </div>
+  <div class="quiz" id="q-lg-2">
+    <p class="quiz__q">Hangisi her zaman doğru?</p>
+    <button class="quiz__opt" data-correct>Her global minimum bir local minimum'dur<span class="why">Doğru: bütün feasible noktalardan iyiyse yakındakilerden de iyidir.</span></button>
+    <button class="quiz__opt">Her local minimum bir global minimum'dur<span class="why">Bu sadece convex problemlerde garanti. $g(x)$'te 6 local minimum'dan sadece biri global.</span></button>
+    <button class="quiz__opt">Algoritma durduysa global minimum'dadır<span class="why">Çoğu algoritma sadece local optimum garanti eder (slayt 9). $x_0 = 3$ örneği $x \approx 4.30$'da duruyor.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="axes-1" data-min="5">
+  <h2>Problem haritası I: continuous / discrete, linear / nonlinear</h2>
+  <p>Slayt 10: her problem birkaç eksen üzerinde bir noktada durur, ve nerede durduğu hem ne kadar zor olduğunu hem de hangi algoritmanın uygulanacağını belirler. Dört eksen: (1) Continuous / Discrete, (2) Linear / Nonlinear, (3) Convex / Non-convex, (4) Unconstrained / Constrained.</p>
+  <div class="box box--rule">
+    <span class="box__label">Axis 1 · continuous vs. discrete (slayt 11)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Continuous</th><th>Discrete / Integer</th></tr>
+      <tr><td>Variable'lar $\mathbb{R}$'de</td><td>Variable'lar $\mathbb{Z}$'de ya da $\{0, 1\}$'de</td></tr>
+      <tr><td>Calculus çalışır: gradient ve Hessian var</td><td>Türev yok; arama uzayı combinatorial</td></tr>
+      <tr><td>Örnek: voltage, weight, flow, position</td><td>Örnek: assignment, routing, scheduling</td></tr>
+      <tr><td>Workhorse: gradient-based yöntemler</td><td>Workhorse: branch-and-bound, search, DP</td></tr>
+      <tr><td>Genelde "daha kolay" dünya</td><td>Çoğu zaman NP-hard; exact çözüm pahalı olabilir</td></tr>
+    </table></div>
+    <p><strong>Mixed-integer</strong> problemlerde ikisi birden var. Integer'ları reel sayılara gevşetmek (relaxation) bir <strong>bound</strong> verir: Week 12'nin anahtar hilesi (11. bölümde küçük bir örneğini göreceksin).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Axis 2 · linear vs. nonlinear (slayt 12)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Linear</th><th>Nonlinear</th></tr>
+      <tr><td>Objective ve constraint'ler linear: $c^T x$, $Ax \le b$</td><td>Objective ya da constraint'lerden biri eğri</td></tr>
+      <tr><td>Linear Programs (LP)</td><td>Gradient ve Hessian kullanır</td></tr>
+      <tr><td>Çok büyük ölçekte çözülür: milyonlarca variable</td><td>Örnek: least squares, neural net, power ∝ $V^2$</td></tr>
+      <tr><td>Optimum, feasible polytope'un bir vertex'inde</td><td>Daha zengin modelleme, ama genelde daha zor</td></tr>
+      <tr><td>Yöntemler: Simplex, interior-point</td><td>Yöntemler: gradient, Newton, SQP</td></tr>
+    </table></div>
+    <p><em>Linearity ≠ easy and nonlinearity ≠ hard. The deeper question is the next axis: convexity.</em></p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Winston · linear model testi ve LP varsayımları</span>
+    <p>Bir model, decision variable'lar objective'te ve constraint'lerde <strong>her zaman sabitlerle çarpılıp toplanıyorsa</strong> linear'dır: $f(x) = c_1x_1 + \dots + c_nx_n$. $x_1^2x_2$ ya da $T\cdot P$ gibi terimler modeli nonlinear yapar. Bir LP'nin gerçeği iyi temsil etmesi için dört varsayım:</p>
+    <ul>
+      <li><strong>Proportionality:</strong> 4 soldier'ın katkısı tam 4 × (1 soldier'ın katkısı).</li>
+      <li><strong>Additivity:</strong> bir variable'ın katkısı diğerlerinin değerinden bağımsız; toplam = katkıların toplamı.</li>
+      <li><strong>Divisibility:</strong> variable'lar kesirli değer alabilir (1.5 soldier). Alamıyorsa integer programming gerekir.</li>
+      <li><strong>Certainty:</strong> bütün parameter'lar kesin biliniyor.</li>
+    </ul>
+    <p>Winston iki eksen daha sayar: static / dynamic (tek seferlik karar mı, dönemler boyunca bir karar dizisi mi) ve deterministic / stochastic (parameter'lar kesin mi, rastgele mi).</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$|x_1|$, $\max(x_1, x_2)$, $x_1x_2$, $x_1^2$ nonlinear'dır. (Bazıları LP'ye <em>çevrilebilir</em>; Boyd'un Chebyshev örneği $\min \max_i |a_i^Tx - b_i|$ yeni bir variable $t$ ile LP olur. Ama yazıldığı haliyle linear değildir.)</li>
+      <li>$\dfrac{x_1}{x_1 + x_2} \le 0.4$ yazıldığı haliyle nonlinear, ama payda pozitifse $x_1 \le 0.4(x_1 + x_2)$ olarak linear yazılır.</li>
+      <li>Optimal LP cevabını yuvarlamak her zaman güvenli değil. 150,000.4 araba → 150,000 yeterli; 0.4 füze üssü → 0 mı 1 mi büyük fark eder (Winston).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ax1-1">
+    <p class="quiz__q">Hangi constraint linear?</p>
+    <button class="quiz__opt">$x_1 x_2 \le 10$<span class="why">İki variable'ın çarpımı var; "sabitle çarpıp topla" testinden geçmez.</span></button>
+    <button class="quiz__opt" data-correct>$2x_1 - 0.5x_2 + 7x_3 \ge 4$<span class="why">Doğru. Her variable bir sabitle çarpılmış ve toplanmış; $\ge$ olması linearity'yi bozmaz.</span></button>
+    <button class="quiz__opt">$x_1^2 + x_2^2 \le 1$<span class="why">Kareler var: bu bir disk, linear değil (ama convex; sonraki bölüm).</span></button>
+    <button class="quiz__opt">$|x_1 - x_2| \le 3$<span class="why">Mutlak değer nonlinear. İki linear constraint'e ($x_1 - x_2 \le 3$ ve $x_2 - x_1 \le 3$) çevrilebilir, ama yazıldığı haliyle linear değil.</span></button>
+  </div>
+  <div class="quiz" id="q-ax1-2">
+    <p class="quiz__q">Bir LP "0.4 füze üssü kur" diyor. Hangi LP varsayımı bozuluyor?</p>
+    <button class="quiz__opt">Proportionality<span class="why">Proportionality katkıların variable ile orantılı olmasıyla ilgili; burada sorun kesirli değerin anlamsız olması.</span></button>
+    <button class="quiz__opt" data-correct>Divisibility<span class="why">Doğru. Füze üssü sayısı tam sayı olmak zorunda; bu bir integer programming problemi.</span></button>
+    <button class="quiz__opt">Certainty<span class="why">Certainty parameter'ların kesin bilinmesiyle ilgili; burada variable'ın tipi sorun.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="axes-2" data-min="6">
+  <h2>Problem haritası II: convex / non-convex, unconstrained / constrained</h2>
+  <div class="box box--rule">
+    <span class="box__label">Axis 3 · the watershed (slayt 13)</span>
+    <ul>
+      <li><strong>Convex set:</strong> iki noktası arasındaki doğru parçası tamamen kümenin içinde kalır.</li>
+      <li><strong>Convex function:</strong> her chord grafiğin üstünde ya da üzerindedir. Boyd'un yazımıyla, her $\theta \in [0,1]$ için
+      $$f(\theta x + (1-\theta) y) \le \theta f(x) + (1-\theta) f(y).$$</li>
+      <li>Convex ⇒ her local minimum global'dir, ve optimality'yi sertifikalayabiliriz (duality).</li>
+      <li>Non-convex (deep net'ler, combinatorial problemler): çok sayıda local minimum; global olarak NP-hard.</li>
+    </ul>
+    <p>Linear bir fonksiyon bu eşitsizliği eşitlikle sağlar. Yani <strong>her LP convex'tir</strong>; Boyd convex optimization'ı linear programming'in bir genellemesi olarak görür.</p>
+    <p><em>"The great watershed in optimization is not between linearity and nonlinearity, but convexity and non-convexity."</em> (R. T. Rockafellar)</p>
+  </div>
+  <p>Slayttaki iki resim, gerçek fonksiyonlardan çizildi. Chord'un grafiğin altına düştüğü bir nokta varsa fonksiyon convex değildir; kod bunu chord boyunca 200 noktada kontrol ediyor:</p>
+  <div class="w-modeling-fig" id="wcv"></div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · chord testi, $f(x) = x^2$</span>
+    <p>$x = -1$, $y = 3$, $\theta = \tfrac12$: sol taraf $f(1) = 1$, sağ taraf $\tfrac12\cdot 1 + \tfrac12\cdot 9 = 5$. $1 \le 5$ ✓. Bu tek bir kontrol; convexity <em>her</em> $x, y, \theta$ için sağlanmalı. Tam ispat yöntemleri (Hessian testi) sonraki dersin konusu.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Axis 4 · unconstrained vs. constrained (slayt 14)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Unconstrained</th><th>Constrained</th></tr>
+      <tr><td>$f(x)$'i $\mathbb{R}^n$'in tamamında minimize et</td><td>Constraint'lere uy; feasible set'te kal</td></tr>
+      <tr><td>Optimum bir stationary point: $\nabla f(x^*) = 0$</td><td>Optimum çoğu zaman sınırın ÜZERİNDE (polygon'u hatırla)</td></tr>
+      <tr><td>Yöntemler: gradient descent, Newton</td><td>Araçlar: Lagrange multipliers &amp; KKT conditions</td></tr>
+      <tr><td>Model fitting / training'in doğal ortamı</td><td>Gerçek mühendislik: power, timing, area budget'ları hep bağlar</td></tr>
+    </table></div>
+    <p>Sık kullanılan strateji: constrained problemi <strong>penalty</strong> ya da <strong>barrier</strong> terimleriyle unconstrained'e çevirmek (Week 7).</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Boyd'un aydınlatma problemi</span>
+    <p>$m$ lamba $n$ yüzeyi aydınlatıyor. Decision variable lamba güçleri $p_j$; yüzey $k$'nın aydınlığı $I_k = \sum_j a_{kj}p_j$ ($a_{kj}$ geometriden gelen parameter'lar). Problem: $0 \le p_j \le p_{\max}$ iken her $I_k$'yı istenen $I_{\text{des}}$'e yaklaştırmak. Boyd uygun bir objective ile bunu convex bir problem olarak yazar. Sonra iki ek constraint sorar:</p>
+    <ol>
+      <li>"no more than half of total power is in any 10 lamps"</li>
+      <li>"no more than half of the lamps are on ($p_j &gt; 0$)"</li>
+    </ol>
+    <p>Cevap: (1) eklenince problem hâlâ kolay; (2) eklenince son derece zor. (2) "kaç lamba açık" diye <strong>sayıyor</strong>: hangi lambaların açık olacağı bir combinatorial seçim. Ders: iki problem birbirine çok benzeyip zorluk bakımından çok farklı olabilir.</p>
+  </div>
+  <!-- Kaynak: bv_cvxslides_original.pdf 1–9…1–12 (illumination), bv_cvxslides.pdf 1.11–1.12 (convex problem tanımı, "classical view is wrong"). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Convex <em>problem</em> için hepsi gerekir: objective convex (min problemi), her $f_i$ convex, her equality constraint <strong>affine</strong> ($Ax = b$). $x_1^2 + x_2^2 = 1$ gibi nonlinear bir equality bir çember tarif eder; çember convex set değildir.</li>
+      <li>Convex bir fonksiyonu <em>maximize</em> etmek convex bir problem değildir.</li>
+      <li>Boyd'un uyarısı: "linear kolay, nonlinear zor" klasik görüşü yanlış. Doğrusu: convex kolay, non-convex zor.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ax2-1">
+    <p class="quiz__q">Aydınlatma problemine hangi ek constraint problemi zor hale getirir?</p>
+    <button class="quiz__opt">Herhangi 10 lambadaki güç toplam gücün yarısını geçmesin<span class="why">Boyd'a göre bu eklenince problem hâlâ kolay: güçler üzerinde convex bir koşul.</span></button>
+    <button class="quiz__opt" data-correct>Lambaların en fazla yarısı açık olsun ($p_j &gt; 0$)<span class="why">Doğru. Bu, açık lambaları sayan combinatorial bir koşul; problem "extremely difficult" olur.</span></button>
+    <button class="quiz__opt">İkisi de aynı zorlukta<span class="why">Sözle birbirine çok benziyorlar; Boyd'un vermek istediği ders tam da bu benzerliğin yanıltıcı olması.</span></button>
+  </div>
+  <div class="quiz" id="q-ax2-2">
+    <p class="quiz__q">$\min\ x_1 + x_2$ s.t. $x_1^2 + x_2^2 = 1$. Bu problem convex mi?</p>
+    <button class="quiz__opt">Evet, çünkü objective linear<span class="why">Objective convex ama feasible set (çember) convex değil: çemberin iki noktası arasındaki doğru parçası çemberin içinden geçer.</span></button>
+    <button class="quiz__opt">Evet, çünkü $x_1^2 + x_2^2$ convex bir fonksiyon<span class="why">Convex fonksiyon <em>$\le$</em> constraint'inde convex set verir (disk). Equality'de ise sadece affine fonksiyonlara izin var.</span></button>
+    <button class="quiz__opt" data-correct>Hayır, nonlinear bir equality constraint var<span class="why">Doğru. Convex problemde equality constraint'ler affine olmalı.</span></button>
+  </div>
+  <div class="quiz" id="q-ax2-3">
+    <p class="quiz__q">Unconstrained, türevlenebilir bir problemin optimum'unda hangisi sağlanır?</p>
+    <button class="quiz__opt" data-correct>$\nabla f(x^*) = 0$<span class="why">Doğru: slayt 14, "optimum is a stationary point".</span></button>
+    <button class="quiz__opt">$x^*$ bir vertex'te<span class="why">Vertex'ler constraint'lerin kesişiminden gelir; unconstrained bir problemde constraint yok.</span></button>
+    <button class="quiz__opt">$f(x^*) = 0$<span class="why">Optimal değer herhangi bir sayı olabilir. Sıfır olan gradient, fonksiyonun değeri değil.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="recipe" data-min="6">
+  <h2>Sınıf algoritmayı seçer: 6 adımlık tarif</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · why the problem class dictates the algorithm (slayt 15)</span>
+    <p>İlk adım her zaman problemi sınıflandırmaktır. Sınıf hangi aracı kullanacağını ve exact bir cevabın mümkün olup olmadığını söyler.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Problem class</th><th>Typical method(s)</th><th>Course week</th></tr>
+      <tr><td>Linear program</td><td>Simplex · interior-point</td><td>3–4</td></tr>
+      <tr><td>Unconstrained smooth</td><td>Gradient descent · Newton / quasi-Newton</td><td>5–6</td></tr>
+      <tr><td>Constrained nonlinear</td><td>Lagrange / KKT · SQP</td><td>7</td></tr>
+      <tr><td>Convex</td><td>Interior-point · CVXPY modeling</td><td>8–9</td></tr>
+      <tr><td>Large-scale / ML</td><td>SGD · momentum · Adam · proximal</td><td>10–11</td></tr>
+      <tr><td>Integer / combinatorial</td><td>Branch-and-bound · dynamic programming</td><td>12–13</td></tr>
+      <tr><td>Intractable / very large</td><td>Heuristics · metaheuristics</td><td>14</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tarif · a recipe for formulating any problem (slayt 17)</span>
+    <ol>
+      <li><strong>Identify the decision variables.</strong> Tam olarak neyi seçmekte serbestsin?</li>
+      <li><strong>Define the objective.</strong> "En iyi" ne demek: neyi minimize ya da maximize ediyorsun?</li>
+      <li><strong>List the constraints.</strong> Fiziksel sınırlar, budget'lar, capacity'ler, mantıksal kurallar.</li>
+      <li><strong>Pin down types &amp; data.</strong> Continuous mu, integer mı? Hangi sayılar sabit parameter?</li>
+      <li><strong>Classify the problem.</strong> Eksenlere yerleştir: LP, convex, integer, …</li>
+      <li><strong>Choose a solver / algorithm.</strong> Sınıf doğru aracı gösterir.</li>
+    </ol>
+    <p>Winston daha geniş bir 7 adımlık süreç anlatır (problemi tanımla, sistemi gözle ve veri topla, modeli kur, modeli doğrula, alternatif seç, sonuçları sun, uygula ve izle). Slayttaki 6 adım bunun "modeli kur ve çöz" kısmı.</p>
+  </div>
+  <p>Aşağıda bir hikâye seç. Her ifadeyi etiketle, dört ekseni işaretle, sonra kontrol et. Hepsi doğruysa widget modeli ve slayt 15'teki satırı gösterir.</p>
+  <p class="w-modeling-guess"><b>Önce tahmin et:</b> Giapetto hikâyesinde "bir soldier 2 saat finishing ister" ifadesi bir constraint mi, yoksa bir parameter mı?</p>
+  <div class="w-modeling-ctl"><label>Hikâye: <select id="wmb-story" class="btn btn--sm"></select></label></div>
+  <div id="wmb"></div>
+  <div class="box box--example">
+    <span class="box__label">Sınav tipi alıştırma · kendi verimizle · dene</span>
+    <p>"A small electronics workshop assembles two products: router cases and switch cases. Each router case brings a profit of 50 TL and each switch case 35 TL. A router case needs 2 hours of assembly and 1 hour of testing; a switch case needs 1 hour of assembly and 2 hours of testing. Each week at most 100 assembly hours and 80 testing hours are available, and at most 30 router cases can be sold.<br>
+    (a) Identify the decision variables, the objective and the constraints, and write the model.<br>
+    (b) Write the model in the standard form of Week 1 (minimize, $f_i(x) \le 0$).<br>
+    (c) Classify the problem on the four axes and name a suitable method.<br>
+    (d) Find the optimum by evaluating the objective at the vertices. Which constraints are active?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Variable'lar haftalık üretim miktarları: $x_1$ router case, $x_2$ switch case. Her kaynak (assembly, testing, demand) bir constraint.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(d) için aday köşeler: eksenlerle kesişimler ve constraint çiftlerinin kesişimleri. $2x_1 + x_2 = 100$ ile $x_1 + 2x_2 = 80$'in kesişimini bulduğunda $x_1 \le 30$'u bozup bozmadığına bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $x_1$ = haftada üretilen router case sayısı, $x_2$ = switch case sayısı.</p>
+      $$\begin{aligned}\max\quad & z = 50x_1 + 35x_2\\ \text{s.t.}\quad & 2x_1 + x_2 \le 100 \quad\text{(assembly)}\\ & x_1 + 2x_2 \le 80 \quad\text{(testing)}\\ & x_1 \le 30 \quad\text{(demand)}\\ & x_1, x_2 \ge 0\end{aligned}$$
+      <p><strong>(b)</strong></p>
+      $$\begin{aligned}\text{minimize}\quad & -50x_1 - 35x_2\\ \text{subject to}\quad & 2x_1 + x_2 - 100 \le 0\\ & x_1 + 2x_2 - 80 \le 0\\ & x_1 - 30 \le 0\\ & -x_1 \le 0, \quad -x_2 \le 0\end{aligned}$$
+      <p><strong>(c)</strong> Continuous (adetler aslında tam sayı, ama LP modeli divisibility varsayar; burada optimum zaten tam sayı çıkıyor), linear, convex (her LP convex'tir), constrained ⇒ <strong>linear program</strong> ⇒ Simplex ya da interior-point (Week 3–4).</p>
+      <p><strong>(d)</strong></p>
+      <div class="table-wrap"><table>
+        <tr><th>Vertex</th><th>$z = 50x_1 + 35x_2$</th></tr>
+        <tr><td>$(0, 0)$</td><td>0</td></tr>
+        <tr><td>$(30, 0)$</td><td>1500</td></tr>
+        <tr><td>$(30, 25)$</td><td><strong>2375</strong></td></tr>
+        <tr><td>$(0, 40)$</td><td>1400</td></tr>
+      </table></div>
+      <p>Assembly ile testing doğrularının kesişimi $(40, 20)$, ama $x_1 \le 30$'u bozuyor; vertex değil. Optimum $x^* = (30, 25)$, $z^* = 2375$ TL (min biçiminde $p^* = -2375$). Active: testing ($30 + 50 = 80$) ve demand ($x_1 = 30$). Assembly'de $100 - 85 = 15$ saat boş kalıyor.</p>
+    </div></details>
+  </div>
+  <!-- Bu alıştırma ayrılmış deneme sınavından alınmadı; sayılar bu ders için seçildi ve python (vertex + scipy linprog) ile kontrol edildi. -->
+  <div class="quiz" id="q-recipe-1">
+    <p class="quiz__q">$\min_x\ \sum_{k=1}^{K} (a_k^T x - b_k)^2$, constraint yok, $x \in \mathbb{R}^n$. Slayt 15'e göre hangi satır?</p>
+    <button class="quiz__opt">Linear program<span class="why">Objective kareli terimlerden oluşuyor; linear değil.</span></button>
+    <button class="quiz__opt" data-correct>Unconstrained smooth → gradient descent · Newton<span class="why">Doğru. Türevlenebilir ve constraint yok. (Ayrıca convex bir least-squares problemi; Boyd'a göre normal equation'larla da çözülür.)</span></button>
+    <button class="quiz__opt">Integer / combinatorial<span class="why">Variable'lar $\mathbb{R}^n$'de, integer değil.</span></button>
+  </div>
+  <div class="quiz" id="q-recipe-2">
+    <p class="quiz__q">Variable'lar $\{0,1\}$'de, objective ve constraint'ler linear. Hangi yöntem ailesi?</p>
+    <button class="quiz__opt">Simplex, çünkü her şey linear<span class="why">Linear olması yetmez: variable'lar discrete. Simplex continuous LP çözer; integer şartını bilmez.</span></button>
+    <button class="quiz__opt" data-correct>Branch-and-bound (integer programming)<span class="why">Doğru. Binary variable'lar problemi integer / combinatorial sınıfına koyar (Week 12).</span></button>
+    <button class="quiz__opt">Newton<span class="why">Newton türev kullanır; $\{0,1\}$ üzerinde türev yok.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="clinic-circuit" data-min="6">
+  <h2>Modeling clinic 1: bir devrenin enerjisini minimize etmek</h2>
+  <div class="box box--exam" data-exam="w1-slide18-circuit"><span class="box__label">Week 1 slayt 18 · Modeling clinic, Example 1 · slayt sorusu</span>
+    <p>"The problem, in words:</p>
+    <ul>
+      <li>A digital block has gates with supply voltages $v_1, \dots, v_n$.</li>
+      <li>Dynamic energy per gate grows like $C_i v_i^2$ (the $CV^2$ law).</li>
+      <li>Lower voltage saves energy but makes gates slower.</li>
+      <li>The block must still meet a timing deadline $T$.</li>
+      <li>Each voltage has physical lower/upper limits."</li>
+    </ul>
+    <p>Modeli yaz ve problemi dört eksende sınıflandır.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Neyi seçebiliyorsun? $C_i$ ve $T$'yi değiştirebilir misin?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İki hedef çatışıyor: energy ve hız. Slayt 6'daki ikinci yolu kullan: birini objective yap, diğerini constraint.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      $$\begin{aligned}\text{minimize}\quad & E(v) = \sum_{i=1}^{n} C_i v_i^2\\ \text{subject to}\quad & \text{delay}(v) \le T\\ & v_{\min} \le v_i \le v_{\max}, \quad i = 1, \dots, n\end{aligned}$$
+      <p>Decision variable: $v = (v_1, \dots, v_n)$. Parameter'lar: $C_i$, $T$, $v_{\min}$, $v_{\max}$ ve delay modelinin katsayıları.</p>
+      <p>Standard form'da: $f_0(v) = \sum C_iv_i^2$; $f_1(v) = \text{delay}(v) - T \le 0$; her $i$ için $v_{\min} - v_i \le 0$ ve $v_i - v_{\max} \le 0$. Toplam $m = 2n + 1$ inequality, $p = 0$.</p>
+      <p><strong>Problem class</strong> (slayttaki gibi): continuous · nonlinear · convex (if delay is modeled convexly) · constrained → convex / NLP methods; relates to geometric programming.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Week_01.pdf" target="_blank" rel="noopener">Orijinal slayt (Week_01.pdf, s.18) ↗</a></p>
+  </div>
+  <div class="box box--exam" data-exam="lab01-ex3"><span class="box__label">Week 1 Lab · Exercise 3 · lab görevi</span>
+    <p>"<strong>Model &amp; solve a CE problem.</strong> From lecture, the <em>circuit-energy</em> model is $\min \sum_i C_i v_i^2$ s.t. a delay budget and bounds $v_{\min}\le v_i\le v_{\max}$. Pick small numbers (e.g. 3 gates) and minimize it with <code>scipy.optimize.minimize</code> using the <code>bounds=</code> and <code>constraints=</code> arguments."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce bir delay modeli seçmen gerekiyor. Voltage arttıkça delay azalmalı ve convex olmalı. Basit bir seçim: gate $i$'nin delay'i $a_i / v_i$, toplam delay $\sum_i a_i / v_i$ ($v &gt; 0$ için convex).</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p><code>scipy</code>'de <code>{"type": "ineq", "fun": g}</code> constraint'i $g(v) \ge 0$ demektir. Yani $\text{delay}(v) \le T$'yi <code>T - delay(v)</code> olarak yazarsın.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Seçilen sayılar (bunlar bizim seçimimiz; lab "pick small numbers" diyor): $C = (1, 2, 4)$, $a = (1, 1, 1)$, $T = 3.6$, $0.6 \le v_i \le 1.2$.</p>
+<pre><code>import numpy as np
+from scipy.optimize import minimize
+
+C = np.array([1.0, 2.0, 4.0])      # capacitances (normalized)
+a = np.array([1.0, 1.0, 1.0])      # delay of gate i = a_i / v_i
+T = 3.6                            # timing deadline
+
+energy = lambda v: np.sum(C * v**2)
+cons = [{"type": "ineq", "fun": lambda v: T - np.sum(a / v)}]   # scipy: fun(v) &gt;= 0
+res = minimize(energy, x0=[1.0, 1.0, 1.0], bounds=[(0.6, 1.2)] * 3,
+               constraints=cons, method="SLSQP")
+print(np.round(res.x, 4), round(res.fun, 4))   # [1.0687 0.8482 0.6732] 4.3941</code></pre>
+      <div class="table-wrap"><table>
+        <tr><th>Çözüm</th><th>$v_1$</th><th>$v_2$</th><th>$v_3$</th><th>Delay</th><th>Energy</th></tr>
+        <tr><td>Optimum</td><td>1.0687</td><td>0.8482</td><td>0.6732</td><td>3.6000</td><td><strong>4.3941</strong></td></tr>
+        <tr><td>Hepsi eşit ($v = 3/3.6$)</td><td>0.8333</td><td>0.8333</td><td>0.8333</td><td>3.6000</td><td>4.8611</td></tr>
+      </table></div>
+      <ul>
+        <li><strong>Delay constraint'i active:</strong> delay tam $T = 3.6$. Sebep: bir voltage'ı biraz düşürmek energy'yi hep azaltır; bunu deadline izin verdiği sürece yaparsın.</li>
+        <li><strong>Bound'lar active değil:</strong> üç voltage da $[0.6, 1.2]$'nin içinde.</li>
+        <li>Capacitance'ı büyük olan gate daha düşük voltage alıyor. Oranlar $v_i \propto (a_i/C_i)^{1/3}$ kuralına uyuyor: $v_1 / v_2 = 1.0687/0.8482 \approx 1.26 = 2^{1/3}$. Bu kuralın nereden geldiğini KKT dersinde (Week 7) türeteceğiz.</li>
+        <li>Bütün gate'lere aynı voltage'ı vermek aynı deadline'ı tutturup yaklaşık %10.6 daha fazla energy harcıyor.</li>
+      </ul>
+      <p>Sınıf: continuous, nonlinear, convex ($C_iv_i^2$ ve $a_i/v_i$ ($v_i &gt; 0$) convex, bound'lar linear), constrained ⇒ convex / constrained nonlinear.</p>
+    </div></details>
+    <!-- Kaynak: Lab01.ipynb Exercise 3 (origin/main'de yok, link verilmedi). scipy 1.13.1 SLSQP sonucu ile kapalı form v_i = s (a_i/C_i)^{1/3}, s = Σ(a_i/w_i)/T birbirini tuttu (E* = 4.394107). -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>scipy'nin <code>"ineq"</code>'i $\ge 0$ anlamına gelir; standard form ise $f_i \le 0$. Constraint'i ters yazarsan solver "delay en az $T$ olsun" diye çözer.</li>
+      <li>Bound'ları unutursan voltage'lar fiziksel aralığın dışına çıkabilir. Bound'lar da constraint'tir.</li>
+      <li>"Convex" etiketi delay modeline bağlı. Delay convex değilse problem non-convex olur ve local / global ayrımı geri gelir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-circ-1">
+    <p class="quiz__q">Optimumda hangi constraint active?</p>
+    <button class="quiz__opt" data-correct>Delay constraint'i: $\sum a_i/v_i = T$<span class="why">Doğru. Energy voltage ile artıyor, bu yüzden voltage'lar deadline'ın izin verdiği en düşük değere iner.</span></button>
+    <button class="quiz__opt">Alt bound'lar: $v_i = v_{\min}$<span class="why">Hepsi $v_{\min}$'de olsaydı delay $3/0.6 = 5 &gt; 3.6$ olurdu; deadline bozulurdu.</span></button>
+    <button class="quiz__opt">Hiçbiri; optimum region'ın içinde<span class="why">Unconstrained minimum $v = 0$ olurdu; constraint'ler olmasa energy'yi sıfıra indirirdin. Optimum sınırda.</span></button>
+  </div>
+  <div class="quiz" id="q-circ-2">
+    <p class="quiz__q">Deadline gevşetilirse ($T$ büyürse) optimal energy $E^*$ ne olur?</p>
+    <button class="quiz__opt" data-correct>Azalır (ya da en kötü aynı kalır)<span class="why">Doğru. Feasible set büyür; eski optimum hâlâ feasible, daha iyisi de bulunabilir. Burada delay active olduğu için gerçekten azalır.</span></button>
+    <button class="quiz__opt">Artar<span class="why">Constraint gevşeyince feasible set genişler; min probleminde optimum kötüleşemez.</span></button>
+    <button class="quiz__opt">Değişmez<span class="why">Değişmemesi için delay constraint'inin inactive olması gerekirdi; burada active.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="clinic-scheduler" data-min="6">
+  <h2>Modeling clinic 2: bir scheduler'ın throughput'unu maximize etmek</h2>
+  <div class="box box--exam" data-exam="w1-slide19-scheduler"><span class="box__label">Week 1 slayt 19 · Modeling clinic, Example 2 · slayt sorusu</span>
+    <p>"The problem, in words:</p>
+    <ul>
+      <li>$N$ tasks must run on $M$ processors.</li>
+      <li>Goal: complete as many tasks as possible.</li>
+      <li>Each task is assigned to at most one processor.</li>
+      <li>No processor may exceed its capacity $C_j$.</li>
+      <li>Decision per pair: run task $i$ on processor $j$, yes or no."</li>
+    </ul>
+    <p>Modeli yaz ve sınıflandır.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Son madde decision variable'ı veriyor: her $(i, j)$ çifti için bir evet/hayır, yani $x_{ij} \in \{0, 1\}$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Capacity'yi yazmak için her task'ın processor'da ne kadar yer tuttuğunu bilmen gerekir: $w_i$ (task $i$'nin yükü, bir parameter).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      $$\begin{aligned}\text{maximize}\quad & \sum_{i,j} x_{ij}\\ \text{subject to}\quad & \sum_{j} x_{ij} \le 1, \quad \forall i \quad\text{(at most one processor)}\\ & \sum_{i} w_i x_{ij} \le C_j, \quad \forall j \quad\text{(capacity)}\\ & x_{ij} \in \{0, 1\}\end{aligned}$$
+      <p><strong>Problem class</strong> (slayttaki gibi): discrete (binary) · linear · constrained → an integer program (ILP); generally NP-hard, solved by branch-and-bound or heuristics.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Week_01.pdf" target="_blank" rel="noopener">Orijinal slayt (Week_01.pdf, s.19) ↗</a></p>
+  </div>
+  <p>Modeli küçük bir örnekte dene. Varsayılan örnekte 5 task ($w = 4, 4, 2, 4, 4$) ve iki processor ($C = 7, 7$) var. Task'ları elle ata; sonra brute force bütün atamaları denesin.</p>
+  <p class="w-modeling-guess"><b>Önce tahmin et:</b> Toplam capacity 14, en hafif dört task'ın toplamı $2 + 4 + 4 + 4 = 14$. En fazla kaç task tamamlanır?</p>
+  <div class="w-modeling-ctl">
+    <label>$w$ = <input id="ws-w" type="text" value="4, 4, 2, 4, 4" class="btn btn--sm" style="width:130px" aria-label="task yükleri" /></label>
+    <label>$C$ = <input id="ws-c" type="text" value="7, 7" class="btn btn--sm" style="width:80px" aria-label="capacity'ler" /></label>
+    <button class="btn btn--sm" id="ws-set">Kur</button>
+  </div>
+  <div class="w-modeling-err" id="ws-err" aria-live="polite"></div>
+  <div class="w-modeling-sched" id="ws-assign"></div>
+  <div id="ws-status" aria-live="polite"></div>
+  <div class="w-modeling-ctl"><button class="btn btn--sm btn--accent" id="ws-brute">Brute force ile kontrol et</button></div>
+  <div class="w-modeling-out" id="ws-out"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · neden "NP-hard" ve neden relaxation</span>
+    <ul>
+      <li>Her task ya çalışmaz ya da $M$ processor'dan birine gider: $(M+1)^N$ atama. $x_{ij}$ vektörü olarak bakarsan $2^{NM}$ olasılık. $N = 30$, $M = 5$ için $2^{150} \approx 1.4 \times 10^{45}$: brute force imkânsız.</li>
+      <li><strong>Relaxation:</strong> $x_{ij} \in \{0,1\}$ yerine $0 \le x_{ij} \le 1$ yazarsan bir LP olur. Bu LP'nin değeri integer optimum için bir <strong>upper bound</strong>'dur (max problemi): daha geniş bir küme üzerinde maximize ediyorsun.</li>
+      <li>Varsayılan örnekte LP relaxation 4 diyor (bir task'ı iki processor'a bölebiliyor), integer optimum 3. Branch-and-bound (Week 12) bu bound'ları kullanarak aramayı budar.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"At most one processor" constraint'ini unutursan aynı task iki processor'da sayılır ve throughput şişer.</li>
+      <li>$\sum_j x_{ij} = 1$ yazmak "her task <em>mutlaka</em> çalışsın" demektir. Capacity yetmiyorsa model infeasible olur.</li>
+      <li>LP relaxation'ın kesirli cevabını yuvarlamak feasible ya da optimal bir atama vermeyebilir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sched-1">
+    <p class="quiz__q">Varsayılan örnekte ($w = 4,4,2,4,4$; $C = 7,7$) $\sum_j x_{ij} \le 1$ yerine $\sum_j x_{ij} = 1$ yazılırsa?</p>
+    <button class="quiz__opt">Optimum 5 olur<span class="why">5 task'ın toplam yükü 18, toplam capacity 14. Hepsini çalıştırmak mümkün değil.</span></button>
+    <button class="quiz__opt" data-correct>Model infeasible olur<span class="why">Doğru. "= 1" her task'ı çalışmaya zorlar; toplam yük (18) capacity'yi (14) aşıyor, hiçbir atama bütün constraint'leri sağlamaz.</span></button>
+    <button class="quiz__opt">Optimum yine 3 olur<span class="why">3 task'lık atamalar artık feasible değil: çalışmayan iki task $\sum_j x_{ij} = 1$'i bozuyor.</span></button>
+  </div>
+  <div class="quiz" id="q-sched-2">
+    <p class="quiz__q">Bir max ILP'nin LP relaxation'ı 4.0 veriyor. Integer optimum hakkında ne biliyoruz?</p>
+    <button class="quiz__opt">Tam olarak 4<span class="why">Relaxation sadece bir bound verir. Varsayılan örnekte relaxation 4, integer optimum 3.</span></button>
+    <button class="quiz__opt" data-correct>En fazla 4<span class="why">Doğru. Relaxation daha geniş bir küme üzerinde maximize eder; integer optimum onu geçemez.</span></button>
+    <button class="quiz__opt">En az 4<span class="why">Yön ters. Max probleminde relaxation bir upper bound'dur.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="own-problem" data-min="5">
+  <h2>Kendi problemini kur: HW 0 ve proje</h2>
+  <p>Slayt 21'in özeti: her problem = variables + objective + constraints; local ≠ global, convexity ikisi arasındaki köprü; önce sınıflandır, sınıf algoritmayı seçer; modelleme mühendisliğin ana becerisi.</p>
+  <div class="box box--exam" data-exam="w1-hw0"><span class="box__label">Week 1 slayt 21 · HW 0 · ödev sorusu</span>
+    <p>"HW 0: formulate two CE problems in standard form"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Her problem için 6 adımlık tarifi uygula, sonra 1. bölümdeki dönüşümlerle $f_i(x) \le 0$, $h_j(x) = 0$ biçimine getir. $m$ ve $p$'yi yaz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Biri continuous, biri discrete olsun: dört eksenin farkını göstermenin en kolay yolu bu.</p></div></details>
+    <details class="reveal"><summary>Örnek çözüm göster</summary><div>
+      <p><strong>Problem A · sensor calibration.</strong> Bir sensörün okumaları $s_k$, gerçek değerler $y_k$ ($k = 1, \dots, K$). Model $y \approx \theta_1 + \theta_2 s$. Decision variable $\theta = (\theta_1, \theta_2)$; parameter'lar $(s_k, y_k)$.</p>
+      $$\text{minimize}\quad f_0(\theta) = \sum_{k=1}^{K} (\theta_1 + \theta_2 s_k - y_k)^2$$
+      <p>$m = 0$, $p = 0$. Sınıf: continuous · nonlinear (quadratic) · convex · unconstrained ⇒ gradient descent / Newton (Week 5–6) ya da doğrudan normal equation'lar. Gain'in pozitif olması istenirse $-\theta_2 \le 0$ eklenir ve $m = 1$ olur.</p>
+      <p><strong>Problem B · VM placement.</strong> $n$ sanal makine (boyutları $s_i$), en fazla $K$ server (capacity'leri $\text{Cap}$). Decision variable'lar: $z_{ik} = 1$ ise VM $i$ server $k$'da; $y_k = 1$ ise server $k$ açık.</p>
+      $$\begin{aligned}\text{minimize}\quad & \sum_{k} y_k\\ \text{subject to}\quad & \sum_i s_i z_{ik} - \text{Cap}\cdot y_k \le 0, \quad k = 1,\dots,K\\ & \sum_k z_{ik} - 1 = 0, \quad i = 1,\dots,n\\ & z_{ik},\ y_k \in \{0, 1\}\end{aligned}$$
+      <p>$m = K$, $p = n$. Sınıf: discrete (binary) · linear · constrained ⇒ ILP ⇒ branch-and-bound (Week 12). $\{0,1\}$ şartı $f_i \le 0$ biçimine doğal olarak girmez; zorla yazarsan $z(1-z) = 0$ olur, bu da affine olmayan bir equality, yani non-convex. Zorluğun kaynağı bu.</p>
+      <p>Küçük bir örnek: boyutlar $(3, 2, 2, 1)$, $\text{Cap} = 4$. Toplam 8, yani en az 2 server gerekir; $\{3, 1\}$ ve $\{2, 2\}$ ile 2 server yeter ⇒ optimum 2.</p>
+    </div></details>
+    <!-- Kaynak: Week_01.pdf s.21 "BEFORE NEXT WEEK". HW 0'ın dosyası repoda yok; hoca bir çözüm yayımlamadı. Yukarıdaki iki problem örnek cevaptır, hocanın değildir. -->
+  </div>
+  <p class="src">Not: HW 0'ın kendisi repoda yok; slaytta yalnızca bu tek satır var. Yukarıdaki iki problem hocanın değil, örnek bir cevap.</p>
+  <div class="box box--exam" data-exam="project-model"><span class="box__label">Term project · Requirement 1 · proje sorusu</span>
+    <p>"1. Model a real problem (decision variables, objective, constraints)" ve "A strong project picks a problem with <strong>both</strong> a convex formulation (provable optimum) and a heuristic approach, then quantifies the gap between them."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce "neyi seçebiliyorum?" sorusunu cevapla, sonra "neyi ölçebiliyorum?" Ölçemediğin bir şey objective olamaz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Seçeneklerin bir listeden mi geliyor (model adı), yoksa bir aralıkta mı (bir oran)? Bu, axis 1'i belirler.</p></div></details>
+    <details class="reveal"><summary>Örnek iskelet göster</summary><div>
+      <p>Örnek konu: yerel çalışan bir LLM için model, context size ve GPU offload seçmek.</p>
+      <ul>
+        <li><strong>Decision variables:</strong> model seçimi $y_k \in \{0,1\}$ ($\sum_k y_k = 1$), context size $c$ (bir listeden), GPU'ya offload edilen layer sayısı $g$ (integer).</li>
+        <li><strong>Objective:</strong> ölçülen kalite $Q(k, c, g)$'yi maximize et (bir benchmark skoru: ölçülebilir olmalı).</li>
+        <li><strong>Constraints:</strong> bellek kullanımı $\le$ bellek limiti, cevap latency'si $\le$ latency limiti, $0 \le g \le$ modelin layer sayısı.</li>
+        <li><strong>Sınıf:</strong> discrete (integer) · nonlinear (kalite ve latency ölçümle bulunuyor, formülü yok) · büyük olasılıkla non-convex · constrained ⇒ seçenek sayısı küçükse enumeration; büyükse heuristic / metaheuristic (Week 14).</li>
+      </ul>
+      <p>Kendi sayıların ve ölçümlerinle doldur. Ölçülen her büyüklük bir parameter mı, yoksa kararlarından hesaplanan bir fonksiyon mu, ayır.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/assignments/project.md" target="_blank" rel="noopener">Orijinal metin (assignments/project.md) ↗</a></p>
+  </div>
+  <div class="quiz" id="q-own-1">
+    <p class="quiz__q">Problem B'de $\sum_k z_{ik} - 1 = 0$ satırı standard form'un hangi parçası?</p>
+    <button class="quiz__opt">Inequality constraint $f_i(x) \le 0$<span class="why">Eşittir işareti var; $\le$ değil.</span></button>
+    <button class="quiz__opt" data-correct>Equality constraint $h_j(x) = 0$<span class="why">Doğru: "her VM tam olarak bir server'a" bir eşitlik. $n$ tane var, yani $p = n$.</span></button>
+    <button class="quiz__opt">Objective<span class="why">Objective açık server sayısı $\sum_k y_k$; bu satır bir kural.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="5">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">$\max\ 2x_1 - x_2$ s.t. $x_1 + x_2 \ge 1$, $x_1 \le 5$. Standard form'da objective ve ilk constraint hangisi?</p>
+    <button class="quiz__opt" data-correct>$\min\ -2x_1 + x_2$; $1 - x_1 - x_2 \le 0$<span class="why">Doğru. Max → min ile objective'in işareti döner; $\ge$ constraint'i $b - g(x) \le 0$ olur.</span></button>
+    <button class="quiz__opt">$\min\ 2x_1 - x_2$; $x_1 + x_2 - 1 \le 0$<span class="why">İki hata: objective'in işaretini çevirmedin (max yerine min çözersin) ve $\ge$'nin yönünü korumadın.</span></button>
+    <button class="quiz__opt">$\min\ -2x_1 + x_2$; $x_1 + x_2 - 1 \le 0$<span class="why">Objective doğru, constraint ters: bu $x_1 + x_2 \le 1$ bölgesi.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">$\max\ x_1 + x_2$ s.t. $x_1 - x_2 \le 1$, $x_1, x_2 \ge 0$. Durum nedir?</p>
+    <button class="quiz__opt">Optimal, $x^* = (1, 0)$<span class="why">$(t, t)$ noktaları her $t \ge 0$ için feasible ($t - t = 0 \le 1$) ve objective $2t$ sınırsız büyüyor.</span></button>
+    <button class="quiz__opt" data-correct>Unbounded<span class="why">Doğru. $x_1 = x_2 = t$ boyunca $z = 2t \to \infty$. Bir constraint eksik (sandbox'taki "Unbounded" preset'i bu problem).</span></button>
+    <button class="quiz__opt">Infeasible<span class="why">$(0,0)$ bütün constraint'leri sağlıyor; feasible set boş değil.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Farmer Jones'un optimum'u $(3,\ 2.8)$, $z^* = 370$. Hangi constraint'ler active?</p>
+    <button class="quiz__opt">Land ve labor<span class="why">Land: $3 + 2.8 = 5.8 &lt; 7$, active değil.</span></button>
+    <button class="quiz__opt" data-correct>Labor ve corn<span class="why">Doğru: $4\cdot3 + 10\cdot2.8 = 40$ ve $10\cdot 3 = 30$; ikisi de eşitlikle sağlanıyor.</span></button>
+    <button class="quiz__opt">Hiçbiri<span class="why">Bir LP'nin optimum vertex'i iki doğrunun kesişimidir; 2-D'de en az iki constraint active olur.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Convex bir problemde bir solver local minimum buldu. Ne söyleyebilirsin?</p>
+    <button class="quiz__opt">Başka başlangıç noktalarından da denemelisin<span class="why">Bu non-convex problemler için doğru bir tavsiye ($g(x)$ gibi). Convex'te local = global.</span></button>
+    <button class="quiz__opt" data-correct>Bu nokta global minimum<span class="why">Doğru: "Convexity is what makes local = global" (slayt 9, 13).</span></button>
+    <button class="quiz__opt">Global olup olmadığı bilinemez<span class="why">Convexity tam da bu garantiyi verir; ayrıca duality ile sertifikalanabilir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">"Task'ları processor'lara ata, bitirilen task sayısını maximize et, capacity'leri aşma" problemi dört eksende nerede?</p>
+    <button class="quiz__opt">Continuous · linear · convex · constrained ⇒ LP<span class="why">Atama evet/hayır kararı; variable'lar binary. Relaxation LP olur ama asıl problem integer.</span></button>
+    <button class="quiz__opt" data-correct>Discrete · linear · constrained ⇒ ILP, branch-and-bound<span class="why">Doğru: slayt 19'daki sınıflandırmanın aynısı.</span></button>
+    <button class="quiz__opt">Continuous · nonlinear · unconstrained ⇒ gradient descent<span class="why">Capacity ve "en fazla bir processor" kuralları constraint; objective ve constraint'ler linear.</span></button>
+  </div>
+  <!-- Sıradaki konu: Norm'lar, gradient ve gradient checker (Week 2). -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* Shared helpers */
+const MD = {
+  num(v, d) {
+    d = d === undefined ? 4 : d;
+    if (Math.abs(v) < 1e-12) return "0";
+    const k = 10 ** d;
+    return String(Math.round(v * k) / k);
+  },
+  /* small-denominator fraction as TeX, for vertices of LPs with integer data */
+  frac(v) {
+    if (!isFinite(v)) return String(v);
+    for (let den = 1; den <= 60; den++) {
+      const n = Math.round(v * den);
+      if (Math.abs(n / den - v) < 1e-9 * (1 + Math.abs(v))) {
+        if (den === 1) return String(n);
+        return (n < 0 ? "-" : "") + "\\tfrac{" + Math.abs(n) + "}{" + den + "}";
+      }
+    }
+    return MD.num(v);
+  },
+  parse(s) {
+    s = String(s).trim().replace(",", ".");
+    if (!s) return NaN;
+    const m = s.match(/^(-?\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+    if (m) { const d = +m[2]; return d === 0 ? NaN : +m[1] / d; }
+    return /^-?(\d+\.?\d*|\.\d+)$/.test(s) ? +s : NaN;
+  },
+  esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+};
+
+/* LP2: 2-variable LP by half-plane clipping (Sutherland–Hodgman). Pure functions, tested offline. */
+const LP2 = {
+  clip(poly, a, b) {
+    const out = [], n = poly.length;
+    if (!n) return out;
+    const tol = 1e-9 * (1 + Math.abs(b));
+    const val = p => a[0] * p[0] + a[1] * p[1] - b;
+    for (let i = 0; i < n; i++) {
+      const P = poly[i], Q = poly[(i + 1) % n], vp = val(P), vq = val(Q);
+      const pin = vp <= tol, qin = vq <= tol;
+      if (pin) out.push(P);
+      if (pin !== qin) { const t = vp / (vp - vq); out.push([P[0] + t * (Q[0] - P[0]), P[1] + t * (Q[1] - P[1])]); }
+    }
+    const same = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]) <= 1e-9 * (1 + Math.hypot(p[0], p[1]));
+    const res = [];
+    for (const p of out) if (!res.length || !same(p, res[res.length - 1])) res.push(p);
+    while (res.length > 1 && same(res[0], res[res.length - 1])) res.pop();
+    return res;
+  },
+  region(H, B) {
+    let poly = [[-B, -B], [B, -B], [B, B], [-B, B]];
+    for (const h of H) { poly = LP2.clip(poly, h.a, h.b); if (!poly.length) break; }
+    return poly;
+  },
+  /* Largest |coordinate| among the origin, the foot of the perpendicular from the origin
+     to each constraint line and every pairwise intersection. The min-norm point of a
+     nonempty region, and of its optimal face, is one of these, so a box several times
+     this size decides feasibility and a finite optimum without cutting them off. */
+  scale(H) {
+    const pts = [];
+    for (const h of H) { const n2 = h.a[0] * h.a[0] + h.a[1] * h.a[1]; if (n2 > 0) pts.push([h.a[0] * h.b / n2, h.a[1] * h.b / n2]); }
+    for (let i = 0; i < H.length; i++) for (let j = i + 1; j < H.length; j++) {
+      const A = H[i], Bq = H[j], det = A.a[0] * Bq.a[1] - A.a[1] * Bq.a[0];
+      if (det === 0) continue;
+      pts.push([(A.b * Bq.a[1] - A.a[1] * Bq.b) / det, (A.a[0] * Bq.b - A.b * Bq.a[0]) / det]);
+    }
+    return pts.reduce((r, p) => Math.max(r, Math.abs(p[0]), Math.abs(p[1])), 1);
+  },
+  /* m = { sense: "max"|"min", c: [c1, c2], H: [{a, b, tex}] } (all rows already a·x <= b) */
+  solve(m) {
+    const B1 = Math.max(1e5, 4 * LP2.scale(m.H)), B2 = 2 * B1;
+    const s = m.sense === "max" ? 1 : -1;
+    const f = p => s * (m.c[0] * p[0] + m.c[1] * p[1]);
+    const P1 = LP2.region(m.H, B1);
+    if (!P1.length) return { status: "infeasible" };
+    const P2 = LP2.region(m.H, B2);
+    const best = P => Math.max(...P.map(f));
+    const b1 = best(P1), b2 = best(P2);
+    const isBox = p => Math.max(Math.abs(p[0]), Math.abs(p[1])) >= B1 * (1 - 1e-9);
+    const real = P1.filter(p => !isBox(p));
+    const boxed = real.length < P1.length;
+    if (b2 > b1 + 1e-9 * (1 + Math.abs(b1) + (Math.abs(m.c[0]) + Math.abs(m.c[1])) * B1)) return { status: "unbounded", poly: P1, real, boxed };
+    const tol = 1e-7 * (1 + Math.abs(b1));
+    const opt = real.filter(p => f(p) >= b1 - tol);
+    return { status: "optimal", poly: P1, real, boxed, z: s * b1, opt };
+  },
+  active(H, p) {
+    return H.map((h, i) => Math.abs(h.a[0] * p[0] + h.a[1] * p[1] - h.b) <= 1e-7 * (1 + Math.abs(h.b) + Math.abs(h.a[0] * p[0]) + Math.abs(h.a[1] * p[1])) ? i : -1).filter(i => i >= 0);
+  }
+};
+/* end LP2 */
+
+/* 1. Feasible-region sandbox */
+(function () {
+  const PRESETS = [
+    { name: "Lab01 / slayt 8: max 3x₁ + 4x₂", sense: "max", c: [3, 4], sign: true, rows: [[1, 1, "le", 4], [1, 3, "le", 6]] },
+    { name: "Lab01 Exercise 1: max x₁ + 2x₂", sense: "max", c: [1, 2], sign: true, rows: [[1, 1, "le", 4], [1, 3, "le", 6]] },
+    { name: "Alternative optima: max x₁ + x₂", sense: "max", c: [1, 1], sign: true, rows: [[1, 1, "le", 4], [1, 3, "le", 6]] },
+    { name: "Infeasible: x₁ + x₂ ≥ 5 eklendi", sense: "max", c: [3, 4], sign: true, rows: [[1, 1, "le", 4], [1, 3, "le", 6], [1, 1, "ge", 5]] },
+    { name: "Unbounded: max x₁ + x₂, x₁ − x₂ ≤ 1", sense: "max", c: [1, 1], sign: true, rows: [[1, -1, "le", 1]] },
+    { name: "Min problemi: min x₁ + x₂", sense: "min", c: [1, 1], sign: true, rows: [[1, 2, "ge", 2], [3, 1, "ge", 3]] },
+    { name: "Farmer Jones (Winston §3.1)", sense: "max", c: [30, 100], sign: true, rows: [[1, 1, "le", 7], [4, 10, "le", 40], [10, 0, "ge", 30]] }
+  ];
+  const MAXROWS = 6;
+  const $ = id => document.getElementById(id);
+  const sel = $("wlp-preset"), rowsEl = $("wlp-rows"), err = $("wlp-err"), plot = $("wlp-plot"), out = $("wlp-out");
+  const zIn = $("wlp-z"), zLab = $("wlp-zlab"), zMsg = $("wlp-zmsg");
+  sel.innerHTML = PRESETS.map((p, i) => `<option value="${i}">${MD.esc(p.name)}</option>`).join("");
+  let state = null;
+
+  function lin(a1, a2) {
+    const term = (a, v, first) => {
+      if (a === 0) return "";
+      const sg = a < 0 ? "-" : (first ? "" : "+");
+      const m = Math.abs(a);
+      return `${sg} ${m === 1 ? "" : MD.frac(m)}${v} `;
+    };
+    let s = term(a1, "x_1", true);
+    s += term(a2, "x_2", s === "");
+    return s.trim() || "0";
+  }
+  function addRow(r) {
+    if (rowsEl.children.length >= MAXROWS) return;
+    const d = document.createElement("div");
+    d.className = "w-modeling-row";
+    d.innerHTML = `<span class="w-modeling-idx"></span>
+      <input type="text" inputmode="decimal" class="btn btn--sm" aria-label="a1" value="${r[0]}" /> x₁ +
+      <input type="text" inputmode="decimal" class="btn btn--sm" aria-label="a2" value="${r[1]}" /> x₂
+      <select class="btn btn--sm" aria-label="yön"><option value="le"${r[2] === "le" ? " selected" : ""}>≤</option><option value="ge"${r[2] === "ge" ? " selected" : ""}>≥</option></select>
+      <input type="text" inputmode="decimal" class="btn btn--sm" aria-label="b" value="${r[3]}" />
+      <button class="btn btn--sm" aria-label="sil">×</button>`;
+    d.querySelector("button").addEventListener("click", () => { d.remove(); renumber(); });
+    rowsEl.appendChild(d);
+    renumber();
+  }
+  function renumber() { Array.from(rowsEl.children).forEach((d, i) => { d.querySelector(".w-modeling-idx").textContent = `(${i + 1})`; }); }
+  function loadPreset(i) {
+    const p = PRESETS[i];
+    $("wlp-sense").value = p.sense; $("wlp-c1").value = p.c[0]; $("wlp-c2").value = p.c[1];
+    $("wlp-sign").checked = p.sign;
+    rowsEl.innerHTML = "";
+    p.rows.forEach(addRow);
+    build();
+  }
+  function read() {
+    const errs = [];
+    const c1 = MD.parse($("wlp-c1").value), c2 = MD.parse($("wlp-c2").value);
+    const ok = v => isFinite(v) && Math.abs(v) <= 1000;
+    if (!ok(c1) || !ok(c2)) errs.push("Objective katsayıları sayı olmalı (örnek: 3, -2, 0.5, 1/3) ve mutlak değeri en fazla 1000.");
+    if (ok(c1) && ok(c2) && c1 === 0 && c2 === 0) errs.push("Objective $0$ olursa her feasible nokta optimal olur; en az bir katsayı sıfırdan farklı olsun.");
+    const H = [];
+    Array.from(rowsEl.children).forEach((d, i) => {
+      const ins = d.querySelectorAll("input"), rel = d.querySelector("select").value;
+      const a1 = MD.parse(ins[0].value), a2 = MD.parse(ins[1].value), b = MD.parse(ins[2].value);
+      if (![a1, a2, b].every(ok)) { errs.push(`(${i + 1}). satırda sayı olmayan ya da çok büyük bir değer var.`); return; }
+      const tex = `${lin(a1, a2)} ${rel === "le" ? "\\le" : "\\ge"} ${MD.frac(b)}`;
+      const s = rel === "le" ? 1 : -1;
+      H.push({ a: [s * a1, s * a2], b: s * b, tex, label: `(${i + 1})`, raw: [a1, a2, b] });
+    });
+    if ($("wlp-sign").checked) {
+      H.push({ a: [-1, 0], b: 0, tex: "x_1 \\ge 0", label: "x₁≥0", raw: [1, 0, 0] });
+      H.push({ a: [0, -1], b: 0, tex: "x_2 \\ge 0", label: "x₂≥0", raw: [0, 1, 0] });
+    }
+    if (!H.length) errs.push("En az bir constraint ekle; hiç constraint yoksa linear bir objective her zaman unbounded olur.");
+    return { errs, m: { sense: $("wlp-sense").value, c: [c1, c2], H } };
+  }
+  function niceStep(raw) {
+    const p = 10 ** Math.floor(Math.log10(raw)), f = raw / p;
+    return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+  }
+  function lineInView(a, b, v) {
+    const [x0, x1, y0, y1] = v, pts = [];
+    if (Math.abs(a[1]) > 1e-12) { for (const x of [x0, x1]) { const y = (b - a[0] * x) / a[1]; if (y >= y0 - 1e-9 && y <= y1 + 1e-9) pts.push([x, y]); } }
+    if (Math.abs(a[0]) > 1e-12) { for (const y of [y0, y1]) { const x = (b - a[1] * y) / a[0]; if (x >= x0 - 1e-9 && x <= x1 + 1e-9) pts.push([x, y]); } }
+    if (pts.length < 2) return null;
+    let best = [pts[0], pts[1]], d = -1;
+    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+      const dd = Math.hypot(pts[i][0] - pts[j][0], pts[i][1] - pts[j][1]);
+      if (dd > d) { d = dd; best = [pts[i], pts[j]]; }
+    }
+    return best;
+  }
+  function viewFor(m, R) {
+    let pts = [[0, 0]];
+    if (R.real && R.real.length) pts = pts.concat(R.real);
+    else {
+      for (let i = 0; i < m.H.length; i++) for (let j = i + 1; j < m.H.length; j++) {
+        const A = m.H[i], Bq = m.H[j], det = A.a[0] * Bq.a[1] - A.a[1] * Bq.a[0];
+        if (Math.abs(det) < 1e-12) continue;
+        const x = (A.b * Bq.a[1] - A.a[1] * Bq.b) / det, y = (A.a[0] * Bq.b - A.b * Bq.a[0]) / det;
+        if (Math.abs(x) < 1e4 && Math.abs(y) < 1e4) pts.push([x, y]);
+      }
+    }
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    let lo = [Math.min(...xs), Math.min(...ys)], hi = [Math.max(...xs), Math.max(...ys)];
+    let span = Math.max(hi[0] - lo[0], hi[1] - lo[1], 2);
+    const extra = R.boxed || R.status === "unbounded" ? 0.6 : 0.2;
+    const half = span / 2 + span * extra;
+    const cx = (lo[0] + hi[0]) / 2, cy = (lo[1] + hi[1]) / 2;
+    return [cx - half, cx + half, cy - half, cy + half];
+  }
+  function draw() {
+    const { m, R, view } = state, z = +zIn.value;
+    const W = 340, Hh = 340, P = 28;
+    const [x0, x1, y0, y1] = view;
+    const X = x => P + (x - x0) / (x1 - x0) * (W - 2 * P), Y = y => Hh - P - (y - y0) / (y1 - y0) * (Hh - 2 * P);
+    let s = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Feasible region ve contour">`;
+    const st = niceStep((x1 - x0) / 6);
+    for (let t = Math.ceil(x0 / st) * st; t <= x1 + 1e-9; t += st) {
+      s += `<line x1="${X(t)}" y1="${P}" x2="${X(t)}" y2="${Hh - P}" stroke="var(--border)" stroke-width="0.6"/><text x="${X(t)}" y="${Hh - P + 13}" font-size="9" text-anchor="middle" fill="var(--fg-muted)">${MD.num(t, 2)}</text>`;
+    }
+    for (let t = Math.ceil(y0 / st) * st; t <= y1 + 1e-9; t += st) {
+      s += `<line x1="${P}" y1="${Y(t)}" x2="${W - P}" y2="${Y(t)}" stroke="var(--border)" stroke-width="0.6"/><text x="${P - 3}" y="${Y(t) + 3}" font-size="9" text-anchor="end" fill="var(--fg-muted)">${MD.num(t, 2)}</text>`;
+    }
+    if (x0 < 0 && x1 > 0) s += `<line x1="${X(0)}" y1="${P}" x2="${X(0)}" y2="${Hh - P}" stroke="var(--fg-muted)" stroke-width="1"/>`;
+    if (y0 < 0 && y1 > 0) s += `<line x1="${P}" y1="${Y(0)}" x2="${W - P}" y2="${Y(0)}" stroke="var(--fg-muted)" stroke-width="1"/>`;
+    s += `<text x="${W - P}" y="${Hh - 4}" font-size="10" text-anchor="end" fill="var(--fg-muted)">x₁</text><text x="6" y="${P - 8}" font-size="10" fill="var(--fg-muted)">x₂</text>`;
+    if (R.poly && R.poly.length) {
+      let vp = R.poly;
+      for (const h of [{ a: [1, 0], b: x1 }, { a: [-1, 0], b: -x0 }, { a: [0, 1], b: y1 }, { a: [0, -1], b: -y0 }]) vp = LP2.clip(vp, h.a, h.b);
+      if (vp.length >= 2) s += `<polygon points="${vp.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}" fill="var(--blue-600)" fill-opacity="0.16" stroke="var(--blue-600)" stroke-width="1.6"/>`;
+    }
+    const act = R.status === "optimal" && R.opt.length ? LP2.active(m.H, R.opt[0]) : [];
+    m.H.forEach((h, i) => {
+      if (Math.abs(h.a[0]) < 1e-12 && Math.abs(h.a[1]) < 1e-12) return;
+      const L = lineInView(h.a, h.b, view);
+      if (!L) return;
+      const on = act.includes(i);
+      s += `<line x1="${X(L[0][0])}" y1="${Y(L[0][1])}" x2="${X(L[1][0])}" y2="${Y(L[1][1])}" stroke="${on ? "var(--fg-brand)" : "var(--ink-400)"}" stroke-width="${on ? 2.2 : 1.1}"/>`;
+      const mx = (L[0][0] * 0.25 + L[1][0] * 0.75), my = (L[0][1] * 0.25 + L[1][1] * 0.75);
+      s += `<text x="${X(mx) + 3}" y="${Y(my) - 3}" font-size="10" font-weight="700" fill="var(--fg-brand)">${MD.esc(h.label)}</text>`;
+    });
+    const c = m.c;
+    const CL = lineInView(c, z, view);
+    if (CL) s += `<line x1="${X(CL[0][0])}" y1="${Y(CL[0][1])}" x2="${X(CL[1][0])}" y2="${Y(CL[1][1])}" stroke="var(--orange-600)" stroke-width="1.8" stroke-dasharray="6 4"/>`;
+    const base = R.status === "optimal" && R.opt.length ? R.opt[0] : [(x0 + x1) / 2, (y0 + y1) / 2];
+    const dir = m.sense === "max" ? 1 : -1, nrm = Math.hypot(c[0], c[1]), L = 0.16 * (x1 - x0);
+    const tip = [base[0] + dir * c[0] / nrm * L, base[1] + dir * c[1] / nrm * L];
+    s += `<defs><marker id="wlp-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--orange-700)"/></marker></defs>`;
+    s += `<line x1="${X(base[0])}" y1="${Y(base[1])}" x2="${X(tip[0])}" y2="${Y(tip[1])}" stroke="var(--orange-700)" stroke-width="2" marker-end="url(#wlp-arr)"/>`;
+    s += `<text x="${X(tip[0]) + 4}" y="${Y(tip[1]) - 4}" font-size="10" fill="var(--orange-700)">${m.sense === "max" ? "c" : "−c"}</text>`;
+    (R.real || []).forEach(p => { s += `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="3.2" fill="var(--paper)" stroke="var(--blue-600)" stroke-width="1.6"/>`; });
+    if (R.status === "optimal") R.opt.forEach(p => {
+      const cx = X(p[0]), cy = Y(p[1]), pts = [];
+      for (let k = 0; k < 10; k++) { const r = k % 2 ? 4 : 9, t = -Math.PI / 2 + k * Math.PI / 5; pts.push((cx + r * Math.cos(t)) + "," + (cy + r * Math.sin(t))); }
+      s += `<polygon points="${pts.join(" ")}" fill="var(--accent)" stroke="var(--ink-900)" stroke-width="0.6"/>`;
+    });
+    plot.innerHTML = s + "</svg>";
+    zLab.innerHTML = `$z = ${MD.num(z, 2)}$`;
+    let msg;
+    if (R.status === "infeasible") msg = "Feasible region boş; hiçbir contour ona değemez.";
+    else {
+      const vals = R.poly.map(p => c[0] * p[0] + c[1] * p[1]);
+      const lo = Math.min(...vals), hi = Math.max(...vals);
+      const hits = z >= lo - 1e-9 && z <= hi + 1e-9;
+      msg = hits ? `$${lin(c[0], c[1])} = ${MD.num(z, 2)}$ çizgisi feasible region'ı kesiyor: bu değer elde edilebilir.` : `$${lin(c[0], c[1])} = ${MD.num(z, 2)}$ çizgisi feasible region'a hiç değmiyor: bu değer elde edilemez.`;
+      if (R.status === "optimal") msg += ` En iyi değer $z^* = ${MD.frac(R.z)}$.`;
+    }
+    zMsg.innerHTML = msg;
+    Lab.renderMath(zLab); Lab.renderMath(zMsg);
+  }
+  function build() {
+    const { errs, m } = read();
+    if (errs.length) { err.innerHTML = errs.join(" "); Lab.renderMath(err); return; }
+    err.innerHTML = "";
+    const R = LP2.solve(m);
+    const view = viewFor(m, R);
+    state = { m, R, view };
+    const cs = [[view[0], view[2]], [view[1], view[2]], [view[0], view[3]], [view[1], view[3]]].map(p => m.c[0] * p[0] + m.c[1] * p[1]);
+    const zlo = Math.min(...cs), zhi = Math.max(...cs);
+    zIn.min = zlo; zIn.max = zhi; zIn.step = (zhi - zlo) / 400;
+    let z0 = zlo + 0.25 * (zhi - zlo);
+    if (R.status === "optimal" && R.real.length) {
+      const vals = R.real.map(p => m.c[0] * p[0] + m.c[1] * p[1]);
+      z0 = m.sense === "max" ? Math.min(...vals) : Math.max(...vals);
+    }
+    zIn.value = z0;
+    let h = "";
+    const obj = `\\${m.sense}\\ ${lin(m.c[0], m.c[1])}`;
+    if (R.status === "infeasible") {
+      h = `<p><span class="w-modeling-bad">Infeasible.</span> Hiçbir nokta bütün constraint'leri birlikte sağlamıyor: model over-constrained. Bir constraint'i gevşet ya da sil.</p>`;
+    } else if (R.status === "unbounded") {
+      h = `<p><span class="w-modeling-bad">Unbounded.</span> Feasible region'da $${obj}$ sınırsız iyileşiyor: contour'u ${m.sense === "max" ? "$c$" : "$-c$"} yönünde istediğin kadar kaydırabilirsin. Modelde bir constraint eksik.</p>`;
+    } else if (!R.opt.length) {
+      h = `<p><span class="w-modeling-ok">Optimal.</span> $${obj}$: $z^* = ${MD.frac(R.z)}$. Feasible region'ın köşesi yok; optimal noktalar bir doğru boyunca uzanıyor.</p>`;
+    } else {
+      const x = R.opt[0];
+      const act = LP2.active(m.H, x);
+      h = `<p><span class="w-modeling-ok">Optimal.</span> $${obj}$: $x^* = (${MD.frac(x[0])},\\ ${MD.frac(x[1])})$, $z^* = ${MD.frac(R.z)}$.</p>`;
+      if (R.opt.length > 1) h += `<p><b>Birden fazla optimal vertex var:</b> ${R.opt.map(p => `$(${MD.frac(p[0])},\\ ${MD.frac(p[1])})$`).join(" ve ")}. Aradaki kenarın tamamı optimal (alternative optima): contour bir constraint'e paralel.</p>`;
+      h += `<p>Active constraint'ler ($x^*$'da eşitlikle sağlananlar): ${act.map(i => `$${m.H[i].tex}$`).join(", ") || "yok"}.</p>`;
+    }
+    if (R.real && R.real.length) {
+      const zs = R.real.map(p => m.c[0] * p[0] + m.c[1] * p[1]);
+      h += `<div class="table-wrap"><table><tr><th>Vertex</th><th>$${lin(m.c[0], m.c[1])}$</th><th>Active</th></tr>` +
+        R.real.map((p, i) => {
+          const isOpt = R.status === "optimal" && R.opt.includes(p);
+          return `<tr><td>$(${MD.frac(p[0])},\\ ${MD.frac(p[1])})$</td><td>${isOpt ? "<b>" : ""}$${MD.frac(zs[i])}$${isOpt ? " ★</b>" : ""}</td><td>${LP2.active(m.H, p).map(k => MD.esc(m.H[k].label)).join(", ")}</td></tr>`;
+        }).join("") + `</table></div>`;
+      if (R.boxed) h += `<p class="src">Feasible region bir yönde sonsuza gidiyor; tabloda sadece gerçek köşeler var.</p>`;
+    }
+    out.innerHTML = h;
+    Lab.renderMath(out);
+    draw();
+  }
+  sel.addEventListener("change", () => loadPreset(+sel.value));
+  $("wlp-add").addEventListener("click", () => { if (rowsEl.children.length >= MAXROWS) { err.textContent = `En fazla ${MAXROWS} constraint (sign restriction'lar hariç).`; return; } addRow([1, 1, "le", 1]); });
+  $("wlp-go").addEventListener("click", build);
+  zIn.addEventListener("input", () => { if (state) draw(); });
+  loadPreset(0);
+})();
+
+/* 2. Local vs global: roll downhill on Lab01's g(x) */
+(function () {
+  const g = x => Math.sin(x) + 0.5 * Math.sin(2.5 * x) + 0.08 * x * x;
+  const dg = x => Math.cos(x) + 1.25 * Math.cos(2.5 * x) + 0.16 * x;
+  const d2g = x => -Math.sin(x) - 3.125 * Math.sin(2.5 * x) + 0.16;
+  // Lab01: 1000-point grid, "smaller than both neighbours", then refine with Newton on g'
+  const xs = Array.from({ length: 1000 }, (_, i) => -8 + 16 * i / 999), ys = xs.map(g);
+  const mins = [];
+  for (let i = 1; i < 999; i++) if (ys[i] < ys[i - 1] && ys[i] < ys[i + 1]) {
+    let x = xs[i];
+    for (let k = 0; k < 50; k++) x -= dg(x) / d2g(x);
+    mins.push(x);
+  }
+  const gmin = mins.reduce((a, b) => (g(b) < g(a) ? b : a));
+  const ALPHA = 0.1;
+  const W = 340, H = 190, P = 24, Y0 = -1.6, Y1 = 7;
+  const X = x => P + (x + 8) / 16 * (W - 2 * P), Y = y => H - P - (y - Y0) / (Y1 - Y0) * (H - 2 * P);
+  let curve = "";
+  for (let i = 0; i <= 320; i++) { const x = -8 + 16 * i / 320; curve += (i ? " " : "") + X(x).toFixed(1) + "," + Y(g(x)).toFixed(1); }
+  const log = [];
+  function svg(path, k) {
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="g(x) ve yuvarlanan top" style="display:block;width:100%;max-width:520px;height:auto">`;
+    for (let t = -8; t <= 8; t += 4) s += `<line x1="${X(t)}" y1="${P}" x2="${X(t)}" y2="${H - P}" stroke="var(--border)" stroke-width="0.6"/><text x="${X(t)}" y="${H - P + 13}" font-size="9" text-anchor="middle" fill="var(--fg-muted)">${t}</text>`;
+    for (let t = 0; t <= 6; t += 2) s += `<line x1="${P}" y1="${Y(t)}" x2="${W - P}" y2="${Y(t)}" stroke="var(--border)" stroke-width="0.6"/><text x="${P - 3}" y="${Y(t) + 3}" font-size="9" text-anchor="end" fill="var(--fg-muted)">${t}</text>`;
+    s += `<polyline points="${curve}" fill="none" stroke="var(--fg-brand)" stroke-width="2"/>`;
+    mins.forEach(x => { if (x !== gmin) s += `<circle cx="${X(x)}" cy="${Y(g(x))}" r="4" fill="var(--paper)" stroke="var(--blue-600)" stroke-width="1.8"/>`; });
+    const cx = X(gmin), cy = Y(g(gmin)), st = [];
+    for (let j = 0; j < 10; j++) { const r = j % 2 ? 3.5 : 8, t = -Math.PI / 2 + j * Math.PI / 5; st.push((cx + r * Math.cos(t)).toFixed(1) + "," + (cy + r * Math.sin(t)).toFixed(1)); }
+    s += `<polygon points="${st.join(" ")}" fill="var(--accent)" stroke="var(--ink-900)" stroke-width="0.5"/>`;
+    for (let i = 0; i < k; i++) s += `<circle cx="${X(path[i])}" cy="${Y(g(path[i]))}" r="1.8" fill="var(--orange-600)" fill-opacity="0.55"/>`;
+    s += `<circle cx="${X(path[k])}" cy="${Y(g(path[k]))}" r="6" fill="var(--orange-600)" stroke="var(--ink-900)" stroke-width="0.8"/>`;
+    return s + "</svg>";
+  }
+  function run(x0) {
+    const path = [x0];
+    let x = x0;
+    for (let k = 0; k < 2000 && Math.abs(dg(x)) > 1e-6; k++) { x -= ALPHA * dg(x); path.push(x); }
+    return path;
+  }
+  const err = document.getElementById("wgd-err"), inp = document.getElementById("wgd-x0"), box = document.getElementById("wgd-stepper"), logEl = document.getElementById("wgd-log");
+  function go(raw) {
+    const x0 = MD.parse(raw);
+    if (!isFinite(x0)) { err.textContent = "Başlangıç noktası bir sayı olmalı (örnek: 3, -2.5)."; return; }
+    if (x0 < -8 || x0 > 8) { err.innerHTML = "Lab 01 fonksiyonu $[-8, 8]$ aralığında çiziliyor; $x_0$ bu aralıkta olsun."; Lab.renderMath(err); return; }
+    err.textContent = "";
+    const path = run(x0), last = path.length - 1, xe = path[last];
+    const idx = [];
+    for (let i = 0; i <= Math.min(5, last); i++) idx.push(i);
+    const stride = Math.max(1, Math.ceil(last / 22));
+    for (let i = 6; i < last; i += stride) idx.push(i);
+    if (idx[idx.length - 1] !== last) idx.push(last);
+    const isG = Math.abs(xe - gmin) < 1e-3;
+    // g' = 0 alone does not make a minimum: the ball can start exactly on a peak.
+    const gl = `Global minimum $x \\approx ${MD.num(gmin, 3)}$'te, $g \\approx ${MD.num(g(gmin), 3)}$.`;
+    const verdict = isG ? "Bu global minimum."
+      : Math.abs(dg(xe)) > 1e-6 ? `Adım sınırına (2000) ulaştı; türev henüz sıfır değil. ${gl}`
+      : d2g(xe) > 1e-6 ? `Bu bir local minimum. ${gl}`
+      : d2g(xe) < -1e-6 ? `Burada $g'(x) = 0$ ama $g''(x) &lt; 0$: bu bir local maximum. Gradient descent durdu, çünkü türev sıfır; durduğu nokta minimum olmak zorunda değil. ${gl}`
+      : `Burada $g'(x) = 0$ ve $g''(x) \\approx 0$; ikinci türev testi sonuç vermiyor. ${gl}`;
+    const frames = idx.map((k, j) => {
+      const x = path[k];
+      let cap = `Adım ${k}: $x = ${MD.num(x)}$, $g(x) = ${MD.num(g(x))}$, $g'(x) = ${MD.num(dg(x))}$.`;
+      if (j === 0) cap += Math.abs(dg(x)) <= 1e-6 ? " Türev zaten sıfır; top hareket etmiyor." : ` $g'(x_0) ${dg(x) < 0 ? "&lt; 0" : "&gt; 0"}$ ⇒ $x$ ${dg(x) < 0 ? "artacak (sağa)" : "azalacak (sola)"}. Kural: $x \\leftarrow x - 0.1\\,g'(x)$.`;
+      if (k === last) cap += ` <b>Durdu (${last} adım).</b> ${verdict}`;
+      return { k, caption: cap };
+    });
+    Lab.stepper(box, { title: `x₀ = ${MD.num(x0)} başlangıcından yokuş aşağı`, interval: 650, frames, render(f, i, el) { el.innerHTML = svg(path, f.k); } });
+    log.push({ x0, xe, isG });
+    logEl.innerHTML = "<b>Denediklerin:</b> " + log.slice(-8).map(r => `$x_0 = ${MD.num(r.x0)} \\to ${MD.num(r.xe, 3)}$${r.isG ? " (global)" : ""}`).join(" · ");
+    Lab.renderMath(logEl);
+  }
+  document.getElementById("wgd-go").addEventListener("click", () => go(inp.value));
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") go(inp.value); });
+  document.querySelectorAll("[data-wgd]").forEach(b => b.addEventListener("click", () => { inp.value = b.dataset.wgd; go(inp.value); }));
+  go(inp.value);
+})();
+
+/* 3. Convex vs non-convex: chord test computed on real functions */
+(function () {
+  const el = document.getElementById("wcv");
+  const panels = [
+    { name: "Convex: $f(x) = 0.25x^2 + 0.3$", f: x => 0.25 * x * x + 0.3, a: -2.3, b: 2.6, y0: -0.2, y1: 2.9 },
+    { name: "Non-convex: $h(x) = \\sin 2x + 0.15x^2$", f: x => Math.sin(2 * x) + 0.15 * x * x, a: -1.9, b: 2.4, y0: -1.3, y1: 2.6 }
+  ];
+  el.innerHTML = panels.map(p => {
+    const W = 240, H = 170, P = 16, X0 = -3.2, X1 = 3.4;
+    const X = x => P + (x - X0) / (X1 - X0) * (W - 2 * P), Y = y => H - P - (y - p.y0) / (p.y1 - p.y0) * (H - 2 * P);
+    let pts = "";
+    for (let i = 0; i <= 200; i++) { const x = X0 + (X1 - X0) * i / 200; pts += (i ? " " : "") + X(x).toFixed(1) + "," + Y(p.f(x)).toFixed(1); }
+    const fa = p.f(p.a), fb = p.f(p.b);
+    let worst = { gap: Infinity, x: 0 };
+    for (let i = 1; i < 200; i++) {
+      const t = i / 200, x = (1 - t) * p.a + t * p.b, gap = ((1 - t) * fa + t * fb) - p.f(x);
+      if (gap < worst.gap) worst = { gap, x };
+    }
+    const above = worst.gap >= -1e-12;
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="chord testi">`;
+    s += `<polyline points="${pts}" fill="none" stroke="var(--fg-brand)" stroke-width="2"/>`;
+    s += `<line x1="${X(p.a)}" y1="${Y(fa)}" x2="${X(p.b)}" y2="${Y(fb)}" stroke="var(--orange-600)" stroke-width="2"/>`;
+    s += `<circle cx="${X(p.a)}" cy="${Y(fa)}" r="3.5" fill="var(--orange-600)"/><circle cx="${X(p.b)}" cy="${Y(fb)}" r="3.5" fill="var(--orange-600)"/>`;
+    if (!above) s += `<circle cx="${X(worst.x)}" cy="${Y(p.f(worst.x))}" r="5" fill="none" stroke="var(--orange-700)" stroke-width="2"/>`;
+    s += "</svg>";
+    const verdict = above ? "Chord her noktada grafiğin üstünde ya da üzerinde." : `Chord $x \\approx ${MD.num(worst.x, 2)}$'de grafiğin ${MD.num(-worst.gap, 2)} birim altında: grafik chord'un üstüne çıkıyor.`;
+    return `<div><h4>${p.name}</h4>${s}<p class="src">${verdict}</p></div>`;
+  }).join("");
+  Lab.renderMath(el);
+})();
+
+/* 4. Model builder: tag phrases, tick the axes */
+(function () {
+  const TAGS = [["", "— seç —"], ["dv", "decision variable"], ["par", "parameter (data)"], ["obj", "objective"], ["con", "constraint"]];
+  const AX = [
+    ["cd", "Axis 1", [["c", "Continuous"], ["d", "Discrete"]]],
+    ["ln", "Axis 2", [["l", "Linear"], ["n", "Nonlinear"]]],
+    ["cv", "Axis 3", [["c", "Convex"], ["n", "Non-convex"]]],
+    ["uc", "Axis 4", [["u", "Unconstrained"], ["c", "Constrained"]]]
+  ];
+  const STORIES = [
+    {
+      name: "Giapetto's Woodcarving (Winston §3.1)",
+      text: "Giapetto ahşap soldier ve train yapıyor. Bir soldier 3 dolar, bir train 2 dolar kâr bırakıyor (satış fiyatı eksi malzeme ve değişken maliyet). Bir soldier 2 saat finishing ve 1 saat carpentry, bir train 1 saat finishing ve 1 saat carpentry istiyor. Haftada en fazla 100 finishing ve 80 carpentry saati var, haftada en fazla 40 soldier satılabiliyor. Giapetto haftalık kârı en büyük yapmak istiyor.",
+      items: [
+        ["haftada kaç soldier üretileceği ($x_1$)", "dv", "Giapetto bunu seçiyor; cevabın kendisi."],
+        ["haftada kaç train üretileceği ($x_2$)", "dv", "İkinci karar. İki variable kararların tamamını anlatıyor."],
+        ["bir soldier'ın kâr katkısı: 3 dolar", "par", "Fiyat ve maliyetlerden gelen sabit bir sayı; objective'in katsayısı."],
+        ["haftalık kârı en büyük yap", "obj", "Ölçülebilir tek bir sayı: $3x_1 + 2x_2$."],
+        ["haftada en fazla 100 finishing saati", "con", "Bir kaynak sınırı: $2x_1 + x_2 \\le 100$."],
+        ["bir soldier 2 saat finishing ister", "par", "Bu bir technological coefficient: constraint'in <em>içindeki</em> bir sayı, kendi başına bir kural değil."],
+        ["haftada en fazla 80 carpentry saati", "con", "$x_1 + x_2 \\le 80$."],
+        ["haftada en fazla 40 soldier satılır", "con", "Demand sınırı: $x_1 \\le 40$."]
+      ],
+      axes: { cd: "c", ln: "l", cv: "c", uc: "c" },
+      axesWhy: {
+        cd: "LP modeli divisibility varsayar, variable'lar continuous. (Gerçekte adetler tam sayı; Winston'ın optimum'u zaten tam sayı çıkıyor.)",
+        ln: "Bütün terimler sabit × variable.",
+        cv: "Her LP convex'tir.",
+        uc: "Saat ve demand sınırları var."
+      },
+      model: "$$\\begin{aligned}\\max\\quad & z = 3x_1 + 2x_2\\\\ \\text{s.t.}\\quad & 2x_1 + x_2 \\le 100\\\\ & x_1 + x_2 \\le 80\\\\ & x_1 \\le 40\\\\ & x_1, x_2 \\ge 0\\end{aligned}$$",
+      cls: "Slayt 15: <b>Linear program</b> → Simplex · interior-point (Week 3–4). Winston'a göre optimum $(20, 60)$, $z = 180$."
+    },
+    {
+      name: "Devre enerjisi (Week 1 slayt 18)",
+      text: "Dijital bir bloktaki gate'lerin supply voltage'larını seçiyoruz. Gate $i$'nin dynamic energy'si $C_i v_i^2$ gibi büyüyor. Düşük voltage energy kazandırır ama gate'leri yavaşlatır. Blok yine de verilen bir timing deadline'ını tutturmalı ve her voltage fiziksel alt ve üst sınırlar içinde kalmalı. Slayttaki gibi her $C_i > 0$ ve $\\text{delay}(v)$ fonksiyonu convex modellenmiş kabul ediliyor.",
+      items: [
+        ["her gate'in supply voltage'ı $v_i$", "dv", "Tasarımcının seçtiği değerler."],
+        ["gate $i$'nin capacitance'ı $C_i$", "par", "Devreden gelen veri; değiştiremezsin."],
+        ["toplam dynamic energy'yi en aza indir", "obj", "$E(v) = \\sum_i C_i v_i^2$."],
+        ["bloğun toplam delay'i deadline'ı geçemez", "con", "$\\text{delay}(v) \\le T$."],
+        ["deadline süresi $T$ (spec'te verilmiş)", "par", "Constraint'in sağ tarafındaki sayı; kendisi bir kural değil."],
+        ["her voltage $v_{\\min}$ ile $v_{\\max}$ arasında kalmalı", "con", "Bound'lar da constraint'tir."],
+        ["$v_{\\min}$ ve $v_{\\max}$ değerleri (process'in sınırları)", "par", "Sabit sayılar."]
+      ],
+      axes: { cd: "c", ln: "n", cv: "c", uc: "c" },
+      axesWhy: {
+        cd: "Voltage reel bir sayı.",
+        ln: "$v_i^2$ terimi (ve delay modeli) nonlinear.",
+        cv: "$C_i > 0$ olduğu için $\\sum_i C_i v_i^2$ convex; delay convex modellendiği için $\\text{delay}(v) \\le T$ convex bir set verir; bound'lar linear. Slayt da bunu söylüyor: \"convex (if delay is modeled convexly)\".",
+        uc: "Deadline ve bound'lar var."
+      },
+      model: "$$\\begin{aligned}\\text{minimize}\\quad & \\sum_{i} C_i v_i^2\\\\ \\text{subject to}\\quad & \\text{delay}(v) \\le T\\\\ & v_{\\min} \\le v_i \\le v_{\\max}\\end{aligned}$$",
+      cls: "Slayt 15: <b>Convex</b> → interior-point · CVXPY (Week 8–9); <b>constrained nonlinear</b> olarak Lagrange / KKT · SQP (Week 7). Geometric programming ile ilişkili."
+    }
+  ];
+  const sel = document.getElementById("wmb-story"), root = document.getElementById("wmb");
+  sel.innerHTML = STORIES.map((s, i) => `<option value="${i}">${MD.esc(s.name)}</option>`).join("");
+  function render() {
+    const st = STORIES[+sel.value], sid = sel.value;
+    root.innerHTML = `<p>${st.text}</p>
+      <div class="w-modeling-tags">${st.items.map((it, i) => `<div class="w-modeling-tag" data-i="${i}"><span>${it[0]}</span>
+        <select class="btn btn--sm" aria-label="etiket">${TAGS.map(t => `<option value="${t[0]}">${t[1]}</option>`).join("")}</select>
+        <span class="w-modeling-why"></span></div>`).join("")}</div>
+      <div class="w-modeling-axes">${AX.map(a => `<fieldset data-ax="${a[0]}"><legend>${a[1]}</legend>${a[2].map(o => `<label><input type="radio" name="wmb-${sid}-${a[0]}" value="${o[0]}" /> ${o[1]}</label>`).join("")}<div class="w-modeling-why src"></div></fieldset>`).join("")}</div>
+      <div class="w-modeling-ctl"><button class="btn btn--sm btn--accent" id="wmb-check">Kontrol et</button></div>
+      <div class="w-modeling-out" id="wmb-out" aria-live="polite"></div>`;
+    Lab.renderMath(root);
+    document.getElementById("wmb-check").addEventListener("click", check);
+  }
+  function check() {
+    const st = STORIES[+sel.value];
+    let ok = 0, total = st.items.length + AX.length, missing = 0;
+    root.querySelectorAll(".w-modeling-tag").forEach(row => {
+      const it = st.items[+row.dataset.i], v = row.querySelector("select").value, w = row.querySelector(".w-modeling-why");
+      if (!v) { missing++; w.innerHTML = `<span class="w-modeling-bad">Etiket seçilmedi.</span>`; return; }
+      const good = v === it[1];
+      if (good) ok++;
+      const name = TAGS.find(t => t[0] === it[1])[1];
+      w.innerHTML = good ? `<span class="w-modeling-ok">✓</span> ${it[2]}` : `<span class="w-modeling-bad">✗</span> Bu bir <b>${name}</b>. ${it[2]}`;
+    });
+    root.querySelectorAll("fieldset[data-ax]").forEach(fs => {
+      const k = fs.dataset.ax, r = fs.querySelector("input:checked"), w = fs.querySelector(".w-modeling-why");
+      if (!r) { missing++; w.innerHTML = `<span class="w-modeling-bad">Seçim yok.</span>`; return; }
+      const good = r.value === st.axes[k];
+      if (good) ok++;
+      w.innerHTML = `${good ? '<span class="w-modeling-ok">✓</span>' : '<span class="w-modeling-bad">✗</span>'} ${st.axesWhy[k]}`;
+    });
+    const out = document.getElementById("wmb-out");
+    out.innerHTML = ok === total
+      ? `<p class="w-modeling-ok">${ok} / ${total} doğru. Model:</p>${st.model}<p>${st.cls}</p>`
+      : `<p><b>${ok} / ${total}</b> doğru${missing ? `, ${missing} boş` : ""}. Turuncu satırların açıklamasını oku, düzelt ve tekrar kontrol et.</p>`;
+    Lab.renderMath(root);
+  }
+  sel.addEventListener("change", render);
+  render();
+})();
+
+/* 5. Scheduler ILP: hand assignment, brute force, LP-relaxation bound */
+(function () {
+  const $ = id => document.getElementById(id);
+  const err = $("ws-err"), asg = $("ws-assign"), status = $("ws-status"), out = $("ws-out");
+  let W = [], C = [];
+  function parseList(s, lo, hi, nmin, nmax, what) {
+    const parts = String(s).split(/[\s,;]+/).filter(Boolean);
+    if (parts.length < nmin || parts.length > nmax) return { e: `${what}: ${nmin} ile ${nmax} arası değer yaz (virgülle ayır).` };
+    const v = parts.map(Number);
+    if (v.some(x => !Number.isInteger(x) || x < lo || x > hi)) return { e: `${what}: her değer ${lo} ile ${hi} arasında bir tam sayı olmalı.` };
+    return { v };
+  }
+  function setup() {
+    const a = parseList($("ws-w").value, 1, 20, 2, 6, "Task yükleri $w$"), b = parseList($("ws-c").value, 1, 40, 1, 3, "Capacity'ler $C$");
+    if (a.e || b.e) { err.innerHTML = [a.e, b.e].filter(Boolean).join(" "); Lab.renderMath(err); return; }
+    err.textContent = "";
+    W = a.v; C = b.v;
+    asg.innerHTML = W.map((w, i) => `<div><span>Task ${i + 1} ($w_{${i + 1}} = ${w}$):</span> <select class="btn btn--sm" data-t="${i}" aria-label="task ${i + 1} ataması"><option value="0">çalışmaz</option>${C.map((c, j) => `<option value="${j + 1}">P${j + 1}</option>`).join("")}</select></div>`).join("");
+    asg.querySelectorAll("select").forEach(s => s.addEventListener("change", update));
+    out.innerHTML = "";
+    Lab.renderMath(asg);
+    update();
+  }
+  function update() {
+    const pick = Array.from(asg.querySelectorAll("select")).map(s => +s.value);
+    const load = C.map(() => 0);
+    pick.forEach((j, i) => { if (j) load[j - 1] += W[i]; });
+    const ok = load.every((l, j) => l <= C[j]);
+    const n = pick.filter(Boolean).length;
+    status.innerHTML = C.map((c, j) => {
+      const over = load[j] > c, pct = Math.min(100, 100 * load[j] / c);
+      return `<div class="w-modeling-load"><span>P${j + 1}</span><div class="w-modeling-bar"><i style="width:${pct}%;background:${over ? "var(--orange-600)" : "var(--blue-600)"}"></i></div><span>${load[j]} / ${c}${over ? " aşıldı" : ""}</span></div>`;
+    }).join("") + `<p>${ok ? `<span class="w-modeling-ok">Feasible.</span> Tamamlanan task: <b>${n}</b>.` : `<span class="w-modeling-bad">Infeasible:</span> bir processor'ın capacity'si aşıldı.`}</p>`;
+  }
+  function brute() {
+    const N = W.length, M = C.length;
+    let tried = 0, feas = 0, best = -1, arg = null;
+    const cur = new Array(N).fill(0);
+    const rec = i => {
+      if (i === N) {
+        tried++;
+        const load = new Array(M).fill(0);
+        for (let t = 0; t < N; t++) if (cur[t]) load[cur[t] - 1] += W[t];
+        if (load.every((l, j) => l <= C[j])) {
+          feas++;
+          const v = cur.filter(Boolean).length;
+          if (v > best) { best = v; arg = cur.slice(); }
+        }
+        return;
+      }
+      for (let j = 0; j <= M; j++) { cur[i] = j; rec(i + 1); }
+    };
+    rec(0);
+    // LP relaxation: processors can split tasks, so it equals a fractional knapsack with capacity ΣC
+    let rem = C.reduce((a, b) => a + b, 0), lp = 0;
+    for (const w of W.slice().sort((a, b) => a - b)) { const t = Math.min(1, rem / w); lp += t; rem -= t * w; if (rem <= 1e-12) break; }
+    const plan = C.map((c, j) => `P${j + 1}: {${arg.map((p, t) => (p === j + 1 ? t + 1 : 0)).filter(Boolean).join(", ") || "—"}}`).join(" · ");
+    out.innerHTML = `<p><b>Brute force:</b> $(M+1)^N = ${M + 1}^{${N}} = ${tried}$ atama denendi, ${feas} tanesi feasible. En iyi: <b>${best}</b> task (${plan}).</p>
+      <p><b>LP relaxation</b> ($0 \\le x_{ij} \\le 1$): $${MD.num(lp, 3)}$. ${lp > best + 1e-9 ? `Relaxation integer optimum'dan büyük: kesirli çözüm bir task'ı processor'lar arasında bölüyor, ki gerçek bir scheduler'da bu yapılamaz. Bound ${Math.floor(lp + 1e-9) > best ? "yuvarlansa bile" : "yine de"} gerçek cevaptan ${MD.num(lp - best, 3)} fazla.` : "Bu örnekte relaxation ile integer optimum eşit."}</p>
+      <p class="src">$x_{ij}$ ikili vektör olarak $2^{NM} = 2^{${N * M}} = ${2 ** (N * M)}$ olasılık var; "en fazla bir processor" constraint'i bunların çoğunu eliyor.</p>`;
+    Lab.renderMath(out);
+  }
+  $("ws-set").addEventListener("click", setup);
+  $("ws-brute").addEventListener("click", () => { if (W.length) brute(); });
+  setup();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 413: Hessian matrix, stationary point sınıflandırma, condition number, Taylor modelleri, definiteness testleri, Qx = b, convex set, convex function ve convexity'nin getirisi." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Hessian, Taylor modeli ve convexity · CSE 413 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-hessian-convexity-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-hessian-convexity-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-hessian-convexity-ctl input[type="text"] { width: 72px; }
+    .w-hessian-convexity-ctl select { max-width: 100%; }
+    .w-hessian-convexity-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-hessian-convexity-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) 72px; gap: 8px; align-items: center; margin: 6px 0; }
+    .w-hessian-convexity-row input[type="range"] { width: 100%; accent-color: var(--blue-600); }
+    .w-hessian-convexity-row label { font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .w-hessian-convexity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; align-items: start; }
+    .w-hessian-convexity-plot { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); padding: 6px; min-width: 0; }
+    .w-hessian-convexity-plot svg { display: block; width: 100%; height: auto; }
+    .w-hessian-convexity-plot h4 { margin: 0 0 4px; font-size: .92rem; color: var(--fg-brand); }
+    .w-hessian-convexity-out { font-size: .93rem; min-width: 0; }
+    .w-hessian-convexity-out table { font-size: .88rem; }
+    .w-hessian-convexity-verdict { font-weight: 700; margin: 6px 0; }
+    .w-hessian-convexity-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: .82rem; margin-top: 4px; }
+    .w-hessian-convexity-legend i { display: inline-block; width: 16px; height: 3px; vertical-align: middle; margin-right: 4px; border-radius: 2px; }
+    .w-hessian-convexity-mono { font-family: 'JetBrains Mono', monospace; font-size: .85rem; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 413</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 413</a> / Hessian, Taylor modeli ve convexity</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L3</span><span class="chip chip--exam">Vize · Week 2</span><span class="chip">Lab 2</span><span class="src">~55 dk · 11 bölüm</span></div>
+          <h1>Hessian, Taylor modeli ve convexity</h1>
+          <p class="lead">Gradient bir noktadaki eğimi verir. Bu derste ikinci türevlere geçiyoruz: Hessian matrix, stationary point'leri sınıflandırma, Taylor modelleri, bir matrix'in definite olup olmadığını anlamanın üç yolu, $Qx = b$ ile quadratic minimization, sonra convex set ve convex function. Sonunda convexity'nin neden "local = global" dediğini ve sayısal hesapta condition number'ın kaç basamak yediğini göreceksin.</p>
+          <p class="src">Not: Week 2 slaytları repoda yok. Bu ders hocanın Lab 2 notebook'u üzerinden anlatıldı (notebook slaytlardaki her sayıyı yeniden hesaplıyor); tanım ve teoremler Nocedal–Wright §2.1 ve Boyd–Vandenberghe Bölüm 2–3 ile tamamlandı.</p>
+          <!-- Kaynak: resources/2026-2027-fall/27G_CSE413_5013_OptimizationTheory_Lab02.ipynb Section 4–8, Exercise 2–3 · Week_01.pdf s.9, s.13 · Week_03.pdf s.6 · Nocedal–Wright §2.1 (Teorem 2.2–2.5) · Boyd–Vandenberghe §2.1–2.3, §3.1, Ek A.5 · bv_cvxslides s.22–57 · weeks/02-mathematical-foundations.md. -->
+        </header>
+
+        <article class="lesson" data-course="cse-413" data-lesson="hessian-convexity">
+
+<!-- 1 -->
+<section class="lsec" id="hessian" data-min="4">
+  <h2>Hessian: eğriliği taşıyan matrix</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Gradient "bu noktada hangi yön yokuş yukarı ve ne kadar dik?" sorusunu cevaplar. Ama eğim de noktadan noktaya değişir. Bir kâsenin dibinde eğim sıfırdır, bir semerin ortasında da. Aradaki farkı ikinci türevler görür: fonksiyon hangi yönde yukarı, hangi yönde aşağı kıvrılıyor? Tek değişkende bu $f''(x)$'tir. Çok değişkende bütün ikinci türevler bir matrix'te toplanır: <strong>Hessian</strong>.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanım · Hessian matrix</span>
+    <p>$f:\mathbb{R}^n \to \mathbb{R}$ iki kez türevlenebilir olsun.</p>
+    $$\nabla^2 f(x)_{ij} = \frac{\partial^2 f(x)}{\partial x_i\,\partial x_j}, \qquad i, j = 1, \dots, n$$
+    <ul>
+      <li>İkinci türevler sürekliyse $\dfrac{\partial^2 f}{\partial x_i \partial x_j} = \dfrac{\partial^2 f}{\partial x_j \partial x_i}$, yani Hessian <strong>symmetric</strong>'tir.</li>
+      <li><strong>Bir yön boyunca eğrilik:</strong> $\dfrac{d^2}{dt^2} f(x + t v)\Big|_{t=0} = v^T \nabla^2 f(x)\, v$. Hessian, her yöndeki ikinci türevi tek bir formülde saklar.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · $f = x^2 + xy + 2y^2$</span>
+    <p>Önceki dersteki örnek: $\nabla f = (2x + y,\; x + 4y)$. Her bileşenin türevini bir kez daha al:</p>
+    $$\nabla^2 f = \begin{pmatrix} \partial_x(2x+y) & \partial_y(2x+y) \\ \partial_x(x+4y) & \partial_y(x+4y) \end{pmatrix} = \begin{pmatrix} 2 & 1 \\ 1 & 4 \end{pmatrix}$$
+    <p>Matrix noktaya bağlı değil, çünkü $f$ quadratic. Quadratic olmayan bir fonksiyonda Hessian her noktada farklıdır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Hessian cookbook</span>
+    <div class="table-wrap"><table>
+      <tr><th>$f(x)$</th><th>$\nabla f(x)$</th><th>$\nabla^2 f(x)$</th></tr>
+      <tr><td>$c^T x$</td><td>$c$</td><td>$0$</td></tr>
+      <tr><td>$\tfrac12 x^T Q x - b^T x$ ($Q$ symmetric)</td><td>$Qx - b$</td><td>$Q$</td></tr>
+      <tr><td>$\|Ax - b\|_2^2$</td><td>$2A^T(Ax - b)$</td><td>$2A^T A$</td></tr>
+      <tr><td>$\alpha x^2 + \beta xy + \gamma y^2$</td><td>$(2\alpha x + \beta y,\; \beta x + 2\gamma y)$</td><td>$\begin{pmatrix} 2\alpha & \beta \\ \beta & 2\gamma \end{pmatrix}$</td></tr>
+      <tr><td>Rosenbrock $(1-x)^2 + 100(y - x^2)^2$</td><td>$\begin{pmatrix} -2(1-x) - 400x(y - x^2) \\ 200(y - x^2) \end{pmatrix}$</td><td>$\begin{pmatrix} 2 + 1200x^2 - 400y & -400x \\ -400x & 200 \end{pmatrix}$</td></tr>
+    </table></div>
+    <p>Rosenbrock satırı: $f_x = -2(1-x) - 400x(y - x^2)$. Bunu $x$'e göre türevle: $2 - 400(y - x^2) + 800x^2 = 2 + 1200x^2 - 400y$. $f_{xy} = -400x$, $f_{yy} = 200$.</p>
+  </div>
+  <!-- Kaynak: Lab02 Section 2 (f = x^2 + xy + 2y^2), Section 4 (rosen_hess) · Boyd §3.1.4 ve bv_cvxslides s.54–55 (quadratic, least-squares Hessian'ı). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$\beta xy$ teriminin Hessian'daki karşılığı <strong>$\beta$</strong>'dır: $\beta/2$ değil, $2\beta$ değil. Köşegende ise $\alpha x^2 \to 2\alpha$.</li>
+      <li>$\tfrac12$ çarpanı önemli: $\tfrac12 x^TQx$'in Hessian'ı $Q$, $x^TQx$'in Hessian'ı $2Q$ ($Q$ symmetric iken). $Q$ symmetric değilse önce $\tfrac12(Q + Q^T)$ ile symmetric hale getir.</li>
+      <li>Quadratic olmayan fonksiyonda Hessian'ı <strong>soruda verilen noktada</strong> hesapla. Rosenbrock'ta $(1,1)$ ile $(-1,1)$ farklı matrix'ler verir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-hess-1">
+    <p class="quiz__q">$g(x, y) = x^2 + 3xy + 2y^2$'nin Hessian'ı hangisi?</p>
+    <button class="quiz__opt" data-correct>$\begin{pmatrix} 2 & 3 \\ 3 & 4 \end{pmatrix}$<span class="why">Doğru. Köşegen: $x^2 \to 2$, $2y^2 \to 4$. Köşegen dışı: $\partial^2(3xy)/\partial x\partial y = 3$.</span></button>
+    <button class="quiz__opt">$\begin{pmatrix} 1 & 1.5 \\ 1.5 & 2 \end{pmatrix}$<span class="why">Bu, $g = x^T M x$ yazıldığında $M$'nin kendisi. Hessian bunun iki katı: türev alırken $x^2$'den 2 gelir.</span></button>
+    <button class="quiz__opt">$\begin{pmatrix} 2 & 6 \\ 6 & 4 \end{pmatrix}$<span class="why">$xy$ teriminin karışık türevi katsayının kendisidir: $\partial_x\partial_y(3xy) = 3$. Köşegendeki "2 ile çarp" kuralını köşegen dışına taşıma.</span></button>
+  </div>
+  <div class="quiz" id="q-hess-2">
+    <p class="quiz__q">$\nabla^2 f = \begin{pmatrix} 2 & 1 \\ 1 & 4 \end{pmatrix}$ için $v = (1, -1)$ yönündeki ikinci türev $v^T \nabla^2 f\, v$ kaç?</p>
+    <button class="quiz__opt" data-correct>4<span class="why">Doğru: $\nabla^2 f\, v = (1, -3)$, $v^T(1, -3) = 1 + 3 = 4$. Yani $2 + 4 - 2\cdot 1$.</span></button>
+    <button class="quiz__opt">6<span class="why">Sadece köşegeni topladın. Köşegen dışı terim $2 v_1 v_2 \cdot 1 = -2$ katkı yapar.</span></button>
+    <button class="quiz__opt">8<span class="why">Köşegen dışını eksi yerine artı aldın. $v_1 v_2 = -1$ olduğu için cross terim eksidir.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="classify" data-min="6">
+  <h2>Stationary point'i sınıflandırmak</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>$\nabla f(x^*) = 0$ olan noktaya <strong>stationary point</strong> denir. Orada gradient sıfır, yani birinci dereceden hiçbir yön yokuş aşağı değil. Peki minimum mu? Taylor açılımının ilk terimi düşünce elimizde sadece ikinci terim kalır:</p>
+    $$f(x^* + p) \approx f(x^*) + \tfrac12\, p^T \nabla^2 f(x^*)\, p$$
+    <p>Her yönde $p^T \nabla^2 f\, p &gt; 0$ ise her yön yukarı gider: minimum. Bir yönde bile negatifse o yönde aşağı inilir: minimum değil.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Nocedal–Wright Teorem 2.2–2.4</span>
+    <ul>
+      <li><strong>First-order necessary condition:</strong> $x^*$ local minimizer ise $\nabla f(x^*) = 0$.</li>
+      <li><strong>Second-order necessary condition:</strong> $x^*$ local minimizer ise $\nabla f(x^*) = 0$ ve $\nabla^2 f(x^*)$ positive semidefinite ($p^T \nabla^2 f\, p \ge 0$, her $p$).</li>
+      <li><strong>Second-order sufficient condition:</strong> $\nabla f(x^*) = 0$ ve $\nabla^2 f(x^*)$ positive definite ($p^T \nabla^2 f\, p &gt; 0$, her $p \ne 0$) ise $x^*$ <strong>strict</strong> local minimizer'dır.</li>
+    </ul>
+    <p>Sufficient condition gerekli değildir: $f(x) = x^4$ için $0$ strict minimizer ama $f''(0) = 0$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Sınıflandırma: Hessian'ın eigenvalue'ları</span>
+    <p>Hessian symmetric, o yüzden eigenvector'leri dik bir eksen takımı kurar. O eksenlerde $p^T \nabla^2 f\, p = \sum_i \lambda_i u_i^2$. Karar eigenvalue'ların işaretinde:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Eigenvalue'lar</th><th>Stationary point</th></tr>
+      <tr><td>hepsi $&gt; 0$</td><td>local <strong>minimum</strong> (strict)</td></tr>
+      <tr><td>hepsi $&lt; 0$</td><td>local <strong>maximum</strong> (strict)</td></tr>
+      <tr><td>bazısı $&gt; 0$, bazısı $&lt; 0$</td><td><strong>saddle point</strong></td></tr>
+      <tr><td>biri $0$, diğerleri aynı işaretli</td><td><strong>degenerate</strong>: test sonuç vermez</td></tr>
+    </table></div>
+    <p><strong>2×2 kısayolu.</strong> $H = \begin{pmatrix} a & b \\ b & c \end{pmatrix}$ için $\lambda_1 \lambda_2 = \det H = ac - b^2$ ve $\lambda_1 + \lambda_2 = a + c$. Yani $\det H &lt; 0$ ⇒ saddle; $\det H &gt; 0$ ve $a &gt; 0$ ⇒ minimum; $\det H &gt; 0$ ve $a &lt; 0$ ⇒ maximum; $\det H = 0$ ⇒ degenerate. Eigenvalue'ların kendisi: $\lambda = \tfrac{a+c}{2} \pm \sqrt{\left(\tfrac{a-c}{2}\right)^2 + b^2}$.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Lab 2 · kılık değiştirmiş saddle</span>
+    <p>$g = x^2 + 3xy + 2y^2$. Bütün katsayılar pozitif, ilk bakışta kâse gibi duruyor. Origin stationary: $\nabla g(0) = 0$. Hessian $\begin{pmatrix} 2 & 3 \\ 3 & 4 \end{pmatrix}$, $\det = 8 - 9 = -1 &lt; 0$. Eigenvalue'lar $3 \pm \sqrt{10} = -0.162$ ve $6.162$: <strong>saddle</strong>. Negatif eigenvalue'nun eigenvector'ü $v_{neg}$ boyunca yürürsen $g(t\, v_{neg}) = \tfrac{\lambda_1}{2} t^2 = -0.081\, t^2$, yani $g$ sıfırın altına iner. Elle kontrol: $g(1, -0.6) = 1 - 1.8 + 0.72 = -0.08 &lt; 0 = g(0, 0)$.</p>
+  </div>
+  <p class="w-hessian-convexity-guess"><b>Önce tahmin et:</b> $v_{neg}$ boyunca $t = 3$ adım gidince $g$ kaç olur? Ya $v_{pos}$ boyunca?</p>
+  <div id="w-walk"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Katsayılar pozitif, o hâlde minimum" yanlış. $x^2 + 4xy + y^2$ de saddle. Karar köşegende değil, eigenvalue'larda.</li>
+      <li>$\nabla f = 0$ tek başına hiçbir şey kanıtlamaz: minimum, maximum ya da saddle olabilir.</li>
+      <li>Bir eigenvalue sıfırsa "minimum değil" deme. Test sadece <strong>sonuç vermez</strong>. $x^4$, $-x^4$, $x^3$'ün üçünde de $f''(0) = 0$, ama biri minimum, biri maximum, biri hiçbiri.</li>
+      <li>Eigenvector'ün işareti keyfî: $v_{neg}$ ile $-v_{neg}$ aynı doğruyu verir. numpy $(-0.811, 0.585)$ döndürebilir, sen $(0.811, -0.585)$ bulabilirsin.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s4-saddle"><span class="box__label">Lab 2 · Section 4 · lab görevi</span>
+    <p>"One rule today: <strong>every number that appeared on a lecture slide gets recomputed here, and asserted.</strong> If the slide said the Hessian's eigenvalues are −0.16 and 6.16, you will produce them."</p>
+    <p>Section 4, "Hessians: a bowl, a saddle in disguise, and a canyon": <code>H_f</code> for $f = x^2 + xy + 2y^2$, <code>H_g</code> for $g = x^2 + 3xy + 2y^2$, then "walk along v_neg" and check that $g(2\,v_{neg}) &lt; 0$. (notebook hücrelerinden kısaltıldı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Hessian'ları cookbook'tan yaz: $\alpha x^2 + \beta xy + \gamma y^2 \to \begin{pmatrix} 2\alpha & \beta \\ \beta & 2\gamma \end{pmatrix}$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>2×2'de iz $T = a + c$ ve determinant $D = ac - b^2$ ile $\lambda = T/2 \pm \sqrt{T^2/4 - D}$. $D &lt; 0$ görürsen hesaplamadan "saddle" diyebilirsin.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$H_f = \begin{pmatrix} 2 & 1 \\ 1 & 4 \end{pmatrix}$: $T = 6$, $D = 7$, $\lambda = 3 \pm \sqrt 2 = 1.586,\ 4.414$. İkisi de pozitif ⇒ <strong>bowl</strong>, origin strict local minimum.</p>
+      <p>$H_g = \begin{pmatrix} 2 & 3 \\ 3 & 4 \end{pmatrix}$: $T = 6$, $D = -1$, $\lambda = 3 \pm \sqrt{10} = -0.162,\ 6.162$. İşaretler farklı ⇒ <strong>saddle</strong>.</p>
+      <p>$\lambda_1 = -0.162$ için $(H_g - \lambda_1 I)v = 0$: $v \propto (3,\ \lambda_1 - 2) = (3, -2.162)$, normalize edince $v_{neg} = \pm(0.811, -0.585)$. $g(t\,v_{neg}) = \tfrac{\lambda_1}{2}t^2$: $t = 1, 2, 3$ için $-0.081,\ -0.325,\ -0.730$. $g(2\,v_{neg}) = -0.325 &lt; 0$.</p>
+      <p>Sonuç: gradient origin'de sıfır ama $g$ oradan daha küçük değerler alıyor. "Zero gradient proved nothing."</p>
+    </div></details>
+    <!-- Kaynak: Lab02.ipynb hücre 1 (welcome), hücre 16 (H_f, H_g, v_neg yürüyüşü). Sayılar python ile kontrol edildi. -->
+  </div>
+  <div class="box box--exam" data-exam="lab02-ex2"><span class="box__label">Lab 2 · Exercise 2 · lab görevi</span>
+    <p>"Exercise 2 — Classify six stationary points. For each function below the origin is a stationary point. Use <strong>Hessian eigenvalues</strong> to label it <em>minimum</em>, <em>maximum</em>, <em>saddle</em>, or <em>degenerate</em> (a zero eigenvalue — the test is inconclusive)."</p>
+    <p>$x^2 + y^2$ · $-x^2 - 3y^2$ · $x^2 - y^2$ · $x^2 + 4xy + y^2$ · $(x + y)^2$ · $2x^2 + 2xy + 3y^2$</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$(x+y)^2$'yi önce aç: $x^2 + 2xy + y^2$. Sonra her biri için cookbook ile Hessian.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her matrix'in determinant'ına bak: negatifse saddle, sıfırsa degenerate. Pozitifse köşegenin işareti min/max'ı söyler.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>Fonksiyon</th><th>Hessian</th><th>$\det$</th><th>Eigenvalue'lar</th><th>Karar</th></tr>
+        <tr><td>$x^2 + y^2$</td><td>$\begin{pmatrix} 2 & 0 \\ 0 & 2 \end{pmatrix}$</td><td>4</td><td>$2,\ 2$</td><td>minimum</td></tr>
+        <tr><td>$-x^2 - 3y^2$</td><td>$\begin{pmatrix} -2 & 0 \\ 0 & -6 \end{pmatrix}$</td><td>12</td><td>$-6,\ -2$</td><td>maximum</td></tr>
+        <tr><td>$x^2 - y^2$</td><td>$\begin{pmatrix} 2 & 0 \\ 0 & -2 \end{pmatrix}$</td><td>$-4$</td><td>$-2,\ 2$</td><td>saddle</td></tr>
+        <tr><td>$x^2 + 4xy + y^2$</td><td>$\begin{pmatrix} 2 & 4 \\ 4 & 2 \end{pmatrix}$</td><td>$-12$</td><td>$-2,\ 6$</td><td>saddle</td></tr>
+        <tr><td>$(x + y)^2$</td><td>$\begin{pmatrix} 2 & 2 \\ 2 & 2 \end{pmatrix}$</td><td>0</td><td>$0,\ 4$</td><td>degenerate</td></tr>
+        <tr><td>$2x^2 + 2xy + 3y^2$</td><td>$\begin{pmatrix} 4 & 2 \\ 2 & 6 \end{pmatrix}$</td><td>20</td><td>$5 \pm \sqrt5 = 2.764,\ 7.236$</td><td>minimum</td></tr>
+      </table></div>
+      <p>Notebook'un notu: "$x^2 + 4xy + y^2$: positive coefficients again, saddle again. Trust eigenvalues." $(x+y)^2$'de test sonuç vermiyor; fonksiyon $\ge 0$ olduğu için origin aslında bir minimum, ama bunu Hessian değil, fonksiyonun kendisi söylüyor ($x = -y$ doğrusu boyunca hep 0, yani strict değil).</p>
+    </div></details>
+    <!-- Kaynak: Lab02.ipynb hücre 35–36 (Exercise 2, classify()). Eigenvalue'lar python ile kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-class-1">
+    <p class="quiz__q">Bir stationary point'te $\nabla^2 f = \begin{pmatrix} 1 & 2 \\ 2 & 1 \end{pmatrix}$. Nokta nedir?</p>
+    <button class="quiz__opt" data-correct>Saddle point<span class="why">Doğru: $\det = 1 - 4 = -3 &lt; 0$, eigenvalue'lar $-1$ ve $3$.</span></button>
+    <button class="quiz__opt">Local minimum<span class="why">Köşegen pozitif diye minimum dedin. Köşegen dışı terim büyük: $(1, -1)$ yönünde $v^THv = 1 + 1 - 4 = -2 &lt; 0$.</span></button>
+    <button class="quiz__opt">Degenerate<span class="why">Degenerate için bir eigenvalue'nun sıfır olması, yani $\det = 0$ gerekir. Burada $\det = -3$.</span></button>
+  </div>
+  <div class="quiz" id="q-class-2">
+    <p class="quiz__q">$f(x, y) = x^4 + y^2$, origin'de $\nabla^2 f = \begin{pmatrix} 0 & 0 \\ 0 & 2 \end{pmatrix}$. Ne söylersin?</p>
+    <button class="quiz__opt">Origin minimum değil, çünkü Hessian positive definite değil<span class="why">PD olmaması sadece sufficient condition'ın sağlanmadığını söyler. Sufficient condition gerekli değil: bu fonksiyon $\ge 0 = f(0)$.</span></button>
+    <button class="quiz__opt" data-correct>Hessian testi sonuç vermez; fonksiyona bakınca origin strict global minimum<span class="why">Doğru. Bir eigenvalue 0 ⇒ degenerate. $x^4 + y^2 &gt; 0$ her $(x,y) \ne 0$ için, bu yüzden origin strict minimum.</span></button>
+    <button class="quiz__opt">Saddle point<span class="why">Zıt işaretli iki eigenvalue (indefinite Hessian) saddle için yeterlidir, ama gerekli değildir: sıfır eigenvalue varsa test sonuç vermez ve saddle yine olabilir ($x^2 - y^4$'te origin saddle, eigenvalue'lar $2$ ve $0$). Burada karar fonksiyondan çıkıyor: $x^4 + y^2 &gt; 0$ her $(x, y) \ne 0$ için, yani origin saddle değil.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="kappa" data-min="4">
+  <h2>Eğriliğin büyüklüğü: condition number</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · kanyon</span>
+    <p>Eigenvalue'nun işareti yönü söyler, büyüklüğü ise <strong>ne kadar dik</strong> kıvrıldığını. Bir yönde eğrilik 1000, diğerinde 0.4 ise yüzey dar ve uzun bir kanyondur: bir yönde duvarlar diktir, diğer yönde taban neredeyse düzdür. Gradient descent bu kanyonda duvardan duvara zıplar (Week 5).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Condition number</span>
+    <p>Symmetric positive definite bir matrix için</p>
+    $$\kappa = \frac{\lambda_{\max}}{\lambda_{\min}} \ \ge 1$$
+    <p>$\kappa = 1$: her yönde aynı eğrilik, level set'ler çember. $\kappa$ büyüdükçe level set'ler uzar. Bu sayı iki yerde geri gelecek: gradient descent'in hızı (Week 5) ve linear system çözerken kaybedilen basamak sayısı (Bölüm 10).</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Lab 2 · Rosenbrock'un kanyonu</span>
+    <p>Rosenbrock $f = (1-x)^2 + 100(y - x^2)^2$'nin minimizer'ı $(1, 1)$: $\nabla f(1,1) = (0, 0)$ ve $f(1,1) = 0$. Hessian cookbook'tan:</p>
+    $$\nabla^2 f(1,1) = \begin{pmatrix} 2 + 1200 - 400 & -400 \\ -400 & 200 \end{pmatrix} = \begin{pmatrix} 802 & -400 \\ -400 & 200 \end{pmatrix}$$
+    <p>$T = 1002$, $D = 802 \cdot 200 - 400^2 = 400$. $\lambda = 501 \pm \sqrt{501^2 - 400} = 501 \pm 500.6006$, yani $0.3994$ ve $1001.6006$. $\kappa = 1001.6006 / 0.3994 \approx 2508$. Kanyonun karşı yönündeki eğrilik, kanyon boyuncakinin 2508 katı.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$\kappa$'yı köşegenden okuma: $802/200 \approx 4$ çok yanlış. Köşegen dışı $-400$ terimi eksenleri döndürüp eğrilikleri ayırır.</li>
+      <li>$\kappa$ büyük diye "minimum değil" deme. $(1,1)$'de iki eigenvalue da pozitif, nokta strict minimum. $\kappa$ sadece yüzeyin ne kadar uzun ve ince olduğunu söyler.</li>
+      <li>$\lambda_{\min} \le 0$ ise bu tanım kullanılmaz: PSD singular matrix'te $\kappa = \infty$ kabul edilir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s4-rosenbrock"><span class="box__label">Lab 2 · Section 4 · lab görevi</span>
+    <p>"# Rosenbrock's canyon: Hessian at the minimizer (1, 1)" … <code>assert abs(lam.max() / lam.min() - 2508) &lt; 1</code> … "2,508x more curved across the canyon than along it -- Week 5 will feel this number" (notebook hücresinden kısaltıldı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce Hessian formülünü türet, sonra $x = 1$, $y = 1$ koy.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Hesap makinesinde eigenvalue için iz ve determinant yeter: $\lambda = T/2 \pm \sqrt{T^2/4 - D}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$f_{xx} = 2 + 1200x^2 - 400y$, $f_{xy} = -400x$, $f_{yy} = 200$. $(1,1)$'de $H = \begin{pmatrix} 802 & -400 \\ -400 & 200 \end{pmatrix}$.</p>
+      <p>$T = 1002$, $D = 160400 - 160000 = 400$. $\lambda_{\min} = 501 - \sqrt{250601} = 0.3994$, $\lambda_{\max} = 1001.6006$. $\kappa = \lambda_{\max}/\lambda_{\min} = 2508.0$.</p>
+      <p>İki eigenvalue da pozitif ⇒ $(1,1)$ strict local minimum (zaten $f \ge 0 = f(1,1)$, yani global). Ama $\kappa \approx 2508$: çok kötü koşullanmış bir minimum.</p>
+    </div></details>
+    <!-- Kaynak: Lab02.ipynb hücre 17. python: eig = 0.399361, 1001.600639, kappa = 2508.0096. -->
+  </div>
+  <div class="quiz" id="q-kappa-1">
+    <p class="quiz__q">$f = 3x^2 + 2xy + 3y^2$. Hessian'ın condition number'ı kaç?</p>
+    <button class="quiz__opt" data-correct>2<span class="why">Doğru: $H = \begin{pmatrix} 6 & 2 \\ 2 & 6 \end{pmatrix}$, eigenvalue'lar $6 \pm 2 = 4, 8$, $\kappa = 8/4 = 2$.</span></button>
+    <button class="quiz__opt">1<span class="why">Köşegen eşit diye çember sandın. Köşegen dışı $2$ eğrilikleri ayırır: $(1,1)$ yönünde 8, $(1,-1)$ yönünde 4.</span></button>
+    <button class="quiz__opt">3<span class="why">Bu $6/2$: köşegen elemanını köşegen dışına böldün. $\kappa$ eigenvalue'ların oranıdır.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="taylor" data-min="6">
+  <h2>Taylor modelleri: ne kadar güvenebilirsin?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Her optimization algoritması bulunduğu noktada fonksiyonun basit bir <strong>modelini</strong> kurar ve o modele göre adım atar. Gradient descent linear model'i kullanır, Newton quadratic modeli (Week 6). Model ne kadar iyi, hangi adım boyuna kadar güvenilir? Bu bölüm bunu ölçüyor.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">First- ve second-order Taylor modeli</span>
+    $$m_1(p) = f(x) + \nabla f(x)^T p \qquad\qquad m_2(p) = f(x) + \nabla f(x)^T p + \tfrac12\, p^T \nabla^2 f(x)\, p$$
+    <ul>
+      <li>Hata mertebesi: $f(x+p) - m_1(p) = O(\|p\|^2)$, $f(x+p) - m_2(p) = O(\|p\|^3)$. İkincisi için $\nabla^2 f$'nin Lipschitz olması gerekir (örneğin $f$ üç kez sürekli türevlenebilir); sadece iki kez türevlenebilir $f$ için elimizdeki $o(\|p\|^2)$'dir.</li>
+      <li>Ölçme yolu: küçük bir adımı yarıya indir. Hatanın baş terimi sıfır değilse $m_1$'in hatası yaklaşık <strong>4</strong>'e, $m_2$'ninki yaklaşık <strong>8</strong>'e bölünür. Baş terim sıfırsa oran daha büyük çıkar: $x^4$'te $0$ etrafında $m_2$'nin hatası $p^4$, oran 16.</li>
+      <li>$f$ quadratic ise $m_2$ tam doğrudur (hata sıfır). Newton bu yüzden quadratic'te tek adımda biter.</li>
+      <li>Nocedal–Wright'ın tam (yaklaşıksız) sürümü, ispatlarda kullanılan: bir $t \in (0,1)$ için $f(x+p) = f(x) + \nabla f(x)^Tp + \tfrac12 p^T \nabla^2 f(x + tp)\, p$.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Lab 2 · $e^x$, $x = 0$ etrafında</span>
+    <p>$m_1(p) = 1 + p$, $m_2(p) = 1 + p + p^2/2$.</p>
+    <div class="table-wrap"><table>
+      <tr><th>$p$</th><th>$e^p$</th><th>1st-order hata</th><th>2nd-order hata</th></tr>
+      <tr><td>0.1</td><td>1.105171</td><td>0.00517</td><td>0.000171</td></tr>
+      <tr><td>0.5</td><td>1.648721</td><td>0.14872</td><td>0.023721</td></tr>
+      <tr><td>1.0</td><td>2.718282</td><td>0.71828</td><td>0.218282</td></tr>
+    </table></div>
+    <p>$p = 0.1 \to 0.2$: 1st-order hata $4.1$ katına, 2nd-order hata $8.2$ katına çıkar. Bunlar $p^2$ ve $p^3$'ün imzası.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Lab 2 · Rosenbrock, $x = (-1, 1)$, $p = (0.1,\ 0.05)$</span>
+    <p>$f(-1,1) = 4$, $\nabla f(-1,1) = (-4,\ 0)$, $\nabla^2 f(-1,1) = \begin{pmatrix} 802 & 400 \\ 400 & 200 \end{pmatrix}$.</p>
+    <ul>
+      <li>$\nabla f^T p = -0.4$ ⇒ $m_1 = 3.60$. Linear model <strong>azalma</strong> öngörüyor.</li>
+      <li>$p^T \nabla^2 f\, p = 802(0.01) + 2 \cdot 400 (0.005) + 200 (0.0025) = 12.52$ ⇒ $m_2 = 3.60 + 6.26 = 9.86$.</li>
+      <li>Gerçek değer: $f(-0.9,\ 1.05) = 1.9^2 + 100(1.05 - 0.81)^2 = 3.61 + 5.76 = 9.37$.</li>
+    </ul>
+    <p>Fonksiyon iki katından fazla arttı. Linear model yönü bile yanlış söyledi; quadratic model yakın.</p>
+  </div>
+  <h3>Kendin dene: Taylor model explorer</h3>
+  <p>Fonksiyonu, başlangıç noktasını ve adımı seç. Grafik, adım doğrultusunda $\varphi(t) = f(x + t p)$'yi ve iki modeli çiziyor; $t = 1$ seçtiğin adım. Altındaki tablo adımı yarıya, çeyreğe ve sekizde bire indiriyor ve hataların oranını hesaplıyor.</p>
+  <p class="w-hessian-convexity-guess"><b>Önce tahmin et:</b> Rosenbrock'ta $(-1,1)$'den $(0.1, 0.05)$ adımında linear model'in hatası adım yarıya inince kaça bölünür? $x^2 + xy + 2y^2$'de quadratic modelin hatası ne olur?</p>
+  <div class="w-hessian-convexity-ctl">
+    <select id="wt-fn" class="btn btn--sm" aria-label="fonksiyon">
+      <option value="rosen">Rosenbrock</option>
+      <option value="exp">e^x (tek değişken)</option>
+      <option value="quad">x² + xy + 2y² (quadratic)</option>
+    </select>
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wt="rosen,-1,1,0.1,0.05">Lab 2 Rosenbrock</button>
+    <button class="btn btn--sm" data-wt="exp,0,0,0.1,0">Lab 2 e^x</button>
+  </div>
+  <div class="w-hessian-convexity-ctl">
+    <label>$x_0$ <input id="wt-x0" type="text" inputmode="decimal" value="-1" class="btn btn--sm" /></label>
+    <label>$y_0$ <input id="wt-y0" type="text" inputmode="decimal" value="1" class="btn btn--sm" /></label>
+    <label>$p_1$ <input id="wt-p1" type="text" inputmode="decimal" value="0.1" class="btn btn--sm" /></label>
+    <label>$p_2$ <input id="wt-p2" type="text" inputmode="decimal" value="0.05" class="btn btn--sm" /></label>
+  </div>
+  <div class="w-hessian-convexity-err" id="wt-err" aria-live="polite"></div>
+  <div class="w-hessian-convexity-grid">
+    <div class="w-hessian-convexity-plot"><div id="wt-plot"></div>
+      <div class="w-hessian-convexity-legend"><span><i style="background:var(--fg)"></i>$f$</span><span><i style="background:var(--accent)"></i>$m_1$</span><span><i style="background:var(--blue-600)"></i>$m_2$</span></div>
+    </div>
+    <div class="w-hessian-convexity-out" id="wt-out"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$\tfrac12$'yi unutma: $m_2 = f + \nabla f^Tp + \mathbf{\tfrac12}\, p^T \nabla^2 f\, p$. Rosenbrock'ta unutursan $16.12$ bulursun.</li>
+      <li>Hessian'ı <strong>başlangıç noktasında</strong> hesapla, $x + p$'de değil.</li>
+      <li>Hata mertebesi küçük adım için geçerli. Büyük adımda ($e^x$, $p = 1$) oranlar 4 ve 8'den sapar.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s5-taylor"><span class="box__label">Lab 2 · Section 5 · lab görevi</span>
+    <p>"Taylor models: how far can you trust them?" — print the 1st- and 2nd-order errors of $e^x$ at $0$ for steps 0.1, 0.5, 1.0; "error ORDER, measured: halve the step, watch the error ratio"; "Rosenbrock at (-1, 1), step (0.1, 0.05): which model would you trust?" (notebook hücresinden kısaltıldı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$e^x$'in bütün türevleri $e^x$, $0$'da hepsi 1. Rosenbrock için önce $f$, $\nabla f$ ve $\nabla^2 f$'yi $(-1,1)$'de hesapla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$p^T H p = H_{11}p_1^2 + 2H_{12}p_1p_2 + H_{22}p_2^2$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>$e^x$:</strong> hatalar $|e^p - (1+p)|$ ve $|e^p - (1 + p + p^2/2)|$: $p = 0.1$: $0.00517$, $0.000171$; $p = 0.5$: $0.14872$, $0.023721$; $p = 1$: $0.71828$, $0.218282$. Adımı iki katına çıkarınca ($0.1 \to 0.2$) hatalar $4.1$ ve $8.2$ katına çıkıyor: $\approx 2^2$ ve $2^3$.</p>
+      <p><strong>Rosenbrock:</strong> $f = (1-(-1))^2 + 100(1 - 1)^2 = 4$. $\nabla f = (-2 \cdot 2 - 400(-1)(0),\ 200 \cdot 0) = (-4, 0)$. $H = \begin{pmatrix} 2 + 1200 - 400 & 400 \\ 400 & 200 \end{pmatrix} = \begin{pmatrix} 802 & 400 \\ 400 & 200 \end{pmatrix}$.</p>
+      <p>$m_1 = 4 - 0.4 = 3.60$, $m_2 = 3.60 + \tfrac12(12.52) = 9.86$, gerçek $9.37$. Güvenilecek model quadratic olan. Linear model azalma öngördü, fonksiyon ise iki katından fazla arttı.</p>
+    </div></details>
+    <!-- Kaynak: Lab02.ipynb hücre 19. python: m1 = 3.60, m2 = 9.86, true = 9.37; oranlar 4.139 ve 8.207. -->
+  </div>
+  <div class="quiz" id="q-taylor-1">
+    <p class="quiz__q">$e^x$'i $x = 0$ etrafında modelliyorsun ve küçük bir adımı yarıya indirdin. Second-order Taylor modelinin hatası yaklaşık ne olur?</p>
+    <button class="quiz__opt">Yarıya iner<span class="why">Bu $O(\|p\|)$ bir hata olurdu. $m_2$'nin hatası $O(\|p\|^3)$.</span></button>
+    <button class="quiz__opt">4'e bölünür<span class="why">Bu first-order modelin hatası ($O(\|p\|^2)$). Quadratic terimi ekleyince mertebe bir artar.</span></button>
+    <button class="quiz__opt" data-correct>8'e bölünür<span class="why">Doğru: $(1/2)^3 = 1/8$. Lab 2'de $e^x$ için ölçülen oran 8.2.</span></button>
+  </div>
+  <div class="quiz" id="q-taylor-2">
+    <p class="quiz__q">$f(x) = x^3$, $x = 1$, $p = 0.1$. $m_2(p)$ ve hatası?</p>
+    <button class="quiz__opt" data-correct>$m_2 = 1.33$, hata $0.001$<span class="why">Doğru: $1 + 3(0.1) + \tfrac12 \cdot 6 \cdot 0.01 = 1.33$, gerçek $1.1^3 = 1.331$. Hata tam $p^3$.</span></button>
+    <button class="quiz__opt">$m_2 = 1.36$, hata $0.029$<span class="why">$\tfrac12$'yi unuttun: $\tfrac12 f''(1) p^2 = 0.03$, $0.06$ değil.</span></button>
+    <button class="quiz__opt">$m_2 = 1.30$, hata $0.031$<span class="why">Bu first-order model $m_1$. Quadratic terim $0.03$ eksik.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="definiteness" data-min="6">
+  <h2>Definiteness'in üç testi</h2>
+  <div class="box box--rule">
+    <span class="box__label">Tanımlar (symmetric $B$)</span>
+    <ul>
+      <li><strong>Positive definite (PD)</strong>, $B \succ 0$: $p^T B p &gt; 0$ her $p \ne 0$ için.</li>
+      <li><strong>Positive semidefinite (PSD)</strong>, $B \succeq 0$: $p^T B p \ge 0$ her $p$ için.</li>
+      <li><strong>Negative definite / semidefinite</strong>: $-B$ PD / PSD ise.</li>
+      <li><strong>Indefinite</strong>: $p^T B p$ bazı $p$'lerde pozitif, bazılarında negatif.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Üç test</span>
+    <ol>
+      <li><strong>Eigenvalue'lar:</strong> hepsi $&gt; 0$ ⇔ PD; hepsi $\ge 0$ ⇔ PSD; zıt işaretli ⇔ indefinite.</li>
+      <li><strong>Leading principal minor'lar (Sylvester):</strong> $\Delta_k$ = sol üst $k \times k$ blok'un determinant'ı. $\Delta_1, \dots, \Delta_n$ hepsi $&gt; 0$ ⇔ PD. Negative definite: işaretler $-, +, -, \dots$ diye değişir.</li>
+      <li><strong>Cholesky:</strong> $B = LL^T$ (köşegeni pozitif, alt üçgen $L$) bulunabiliyorsa ⇔ PD. Solver'ların gerçekte çalıştırdığı test bu: dener, başarısız olursa PD değildir.</li>
+    </ol>
+    <p><strong>2×2 Cholesky elle:</strong> $\ell_{11} = \sqrt a$, $\ell_{21} = b / \ell_{11}$, $\ell_{22} = \sqrt{c - \ell_{21}^2}$. Kökün içi negatif ya da sıfır çıkarsa PD değil. ($c - b^2/a = \det/a$, yani bu aslında minor testinin ta kendisi.)</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Lab 2 · $A_3$ ve dört küçük matrix</span>
+    <p>$A_3 = \begin{pmatrix} 4 & 1 & 0 \\ 1 & 3 & 1 \\ 0 & 1 & 2 \end{pmatrix}$: $\Delta_1 = 4$, $\Delta_2 = 4 \cdot 3 - 1 = 11$, $\Delta_3 = 4(3 \cdot 2 - 1) - 1(1 \cdot 2 - 0) = 20 - 2 = 18$. Hepsi pozitif ⇒ PD. Eigenvalue'lar $3 - \sqrt3,\ 3,\ 3 + \sqrt3 = 1.268,\ 3,\ 4.732$. Cholesky başarılı: $L = \begin{pmatrix} 2 & 0 & 0 \\ 0.5 & 1.658 & 0 \\ 0 & 0.603 & 1.279 \end{pmatrix}$.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Matrix</th><th>Eigenvalue'lar</th><th>Cholesky</th><th>Sınıf</th></tr>
+      <tr><td>$\begin{pmatrix} 2 & 0 \\ 0 & 1 \end{pmatrix}$</td><td>$1,\ 2$</td><td>başarılı</td><td>PD</td></tr>
+      <tr><td>$\begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}$</td><td>$0,\ 2$</td><td>başarısız ($\ell_{22} = \sqrt{0}$)</td><td>PSD</td></tr>
+      <tr><td>$\begin{pmatrix} 1 & 2 \\ 2 & 1 \end{pmatrix}$</td><td>$-1,\ 3$</td><td>başarısız ($\sqrt{1 - 4}$)</td><td>indefinite</td></tr>
+    </table></div>
+  </div>
+  <h3>Kendin dene: 2×2 symmetric matrix lab</h3>
+  <p>$Q = \begin{pmatrix} a & b \\ b & c \end{pmatrix}$ ve isteğe bağlı linear terim $(b_1, b_2)$ ile $q(x) = \tfrac12 x^TQx - b_1x_1 - b_2x_2$. Lab üç testi birden yapıyor, kararı veriyor ve level set'leri çiziyor. Mavi çizgiler merkezdeki değerden yüksek, turuncu çizgiler alçak seviyeler. Kalın çizgiler eigenvector eksenleri; uzunlukları $1/\sqrt{|\lambda|}$ ile orantılı.</p>
+  <p class="w-hessian-convexity-guess"><b>Önce tahmin et:</b> $a = 2$, $c = 2$ sabitken $b$'yi 0'dan yukarı çek. $b$ kaçı geçince matrix PD olmaktan çıkar ve level set'ler ne şekle döner?</p>
+  <div class="stepper">
+    <div class="w-hessian-convexity-ctl">
+      <span class="src">hazır:</span>
+      <button class="btn btn--sm" data-mx="2,1,4,0,0">bowl $H_f$</button>
+      <button class="btn btn--sm" data-mx="2,3,4,0,0">saddle $H_g$</button>
+      <button class="btn btn--sm" data-mx="1,1,1,0,0">PSD</button>
+      <button class="btn btn--sm" data-mx="1,2,1,0,0">indefinite</button>
+      <button class="btn btn--sm" data-mx="-2,0,-6,0,0">maximum</button>
+      <button class="btn btn--sm" data-mx="3,1,2,5,5">$Qx = b$ örneği</button>
+    </div>
+    <div class="w-hessian-convexity-row"><label for="mx-a">a</label><input type="range" id="mx-a-r" min="-6" max="6" step="0.5" value="2" aria-label="a slider" /><input id="mx-a" type="text" inputmode="decimal" value="2" class="btn btn--sm" /></div>
+    <div class="w-hessian-convexity-row"><label for="mx-b">b</label><input type="range" id="mx-b-r" min="-6" max="6" step="0.5" value="1" aria-label="b slider" /><input id="mx-b" type="text" inputmode="decimal" value="1" class="btn btn--sm" /></div>
+    <div class="w-hessian-convexity-row"><label for="mx-c">c</label><input type="range" id="mx-c-r" min="-6" max="6" step="0.5" value="4" aria-label="c slider" /><input id="mx-c" type="text" inputmode="decimal" value="4" class="btn btn--sm" /></div>
+    <div class="w-hessian-convexity-ctl">
+      <label>$b_1$ <input id="mx-b1" type="text" inputmode="decimal" value="0" class="btn btn--sm" /></label>
+      <label>$b_2$ <input id="mx-b2" type="text" inputmode="decimal" value="0" class="btn btn--sm" /></label>
+    </div>
+    <div class="w-hessian-convexity-err" id="mx-err" aria-live="polite"></div>
+    <div class="w-hessian-convexity-grid">
+      <div class="w-hessian-convexity-plot" id="mx-plot"></div>
+      <div class="w-hessian-convexity-out" id="mx-out"></div>
+    </div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Leading minor'lar PSD'yi test etmez.</strong> $\begin{pmatrix} 0 & 0 \\ 0 & -1 \end{pmatrix}$'in leading minor'ları $0, 0$ (ikisi de $\ge 0$) ama matrix negative semidefinite. PSD için <em>bütün</em> principal minor'lar $\ge 0$ olmalı (burada $-1$ köşegen elemanı da bir principal minor).</li>
+      <li>Negative definite için "bütün minor'lar negatif" değil: işaretler $\Delta_1 &lt; 0$, $\Delta_2 &gt; 0$, $\Delta_3 &lt; 0$… diye değişir.</li>
+      <li>Köşegenin pozitif olması PD için gerekli ama yeterli değil: $\begin{pmatrix} 1 & 2 \\ 2 & 1 \end{pmatrix}$.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s6-definiteness"><span class="box__label">Lab 2 · Section 6 · lab görevi</span>
+    <p>"Definiteness three ways": for $A_3 = \begin{pmatrix} 4 & 1 & 0 \\ 1 & 3 & 1 \\ 0 & 1 & 2 \end{pmatrix}$ print "test 1 eigenvalues", "test 2 leading minors" (<code>assert minors == [4, 11, 18]</code>) and "Test 3: Cholesky succeeds &lt;=&gt; positive definite. What solvers actually run." for $A_3$, $\begin{pmatrix} 2 & 0 \\ 0 & 1 \end{pmatrix}$, $\begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}$, $\begin{pmatrix} 1 & 2 \\ 2 & 1 \end{pmatrix}$. (notebook hücresinden kısaltıldı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$\Delta_3$ için ilk satır boyunca açılım: $4 \cdot \det\begin{pmatrix} 3 & 1 \\ 1 & 2 \end{pmatrix} - 1 \cdot \det\begin{pmatrix} 1 & 1 \\ 0 & 2 \end{pmatrix}$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Cholesky'yi satır satır yap: $\ell_{11} = \sqrt{4}$, $\ell_{21} = 1/\ell_{11}$, $\ell_{22} = \sqrt{3 - \ell_{21}^2}$, $\ell_{32} = (1 - 0)/\ell_{22}$, $\ell_{33} = \sqrt{2 - \ell_{32}^2}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Test 1:</strong> eigenvalue'lar $1.268,\ 3,\ 4.732$ (tam değer $3 - \sqrt3,\ 3,\ 3 + \sqrt3$). Hepsi pozitif.</p>
+      <p><strong>Test 2:</strong> $\Delta_1 = 4$, $\Delta_2 = 11$, $\Delta_3 = 4 \cdot 5 - 1 \cdot 2 = 18$. Hepsi pozitif.</p>
+      <p><strong>Test 3:</strong> $\ell_{11} = 2$, $\ell_{21} = 0.5$, $\ell_{22} = \sqrt{2.75} = 1.658$, $\ell_{31} = 0$, $\ell_{32} = 1/1.658 = 0.603$, $\ell_{33} = \sqrt{2 - 0.3636} = 1.279$. Başarılı.</p>
+      <p>Üç test aynı cevabı verir: $A_3 \succ 0$. Diğer üçü: $\mathrm{diag}(2,1)$ PD (Cholesky ok, eig $1, 2$); birler matrix'i PSD (Cholesky başarısız, eig $0, 2$); $\begin{pmatrix} 1 & 2 \\ 2 & 1 \end{pmatrix}$ indefinite (Cholesky başarısız, eig $-1, 3$).</p>
+    </div></details>
+    <!-- Kaynak: Lab02.ipynb hücre 21. python: minors 4/11/18, eig 1.268/3/4.732, Cholesky L kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-def-1">
+    <p class="quiz__q">$B = \begin{pmatrix} 2 & -1 & 0 \\ -1 & 2 & -1 \\ 0 & -1 & 2 \end{pmatrix}$'nin leading principal minor'ları ve sınıfı?</p>
+    <button class="quiz__opt" data-correct>$2, 3, 4$ · positive definite<span class="why">Doğru: $\Delta_2 = 4 - 1 = 3$, $\Delta_3 = 2 \cdot 3 - (-1)(-2) = 4$. Hepsi pozitif.</span></button>
+    <button class="quiz__opt">$2, 3, 4$ · indefinite, çünkü negatif elemanlar var<span class="why">Elemanların işareti sınıfı belirlemez. Sylvester testi sadece minor'lara bakar.</span></button>
+    <button class="quiz__opt">$2, 5, 8$ · positive definite<span class="why">Köşegen dışını eksi yerine artıyla aldın: $\Delta_2 = 2 \cdot 2 - (-1)^2 = 3$, $5$ değil.</span></button>
+  </div>
+  <div class="quiz" id="q-def-2">
+    <p class="quiz__q">$\begin{pmatrix} 4 & 2 \\ 2 & 1 \end{pmatrix}$ için Cholesky ne yapar?</p>
+    <button class="quiz__opt">Başarılı olur, çünkü köşegen pozitif<span class="why">$\ell_{11} = 2$, $\ell_{21} = 1$, ama $\ell_{22} = \sqrt{1 - 1} = 0$. Sıfır pivot: PD değil.</span></button>
+    <button class="quiz__opt" data-correct>$\ell_{22}$'de durur; matrix PSD ama PD değil<span class="why">Doğru: $\det = 0$, eigenvalue'lar $0$ ve $5$.</span></button>
+    <button class="quiz__opt">İlk adımda durur; matrix indefinite<span class="why">İlk adım $\sqrt 4 = 2$, sorunsuz. Negatif eigenvalue yok, indefinite değil.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="quadratic" data-min="5">
+  <h2>Her solver'ın içindeki quadratic: $Qx = b$</h2>
+  <div class="box box--rule">
+    <span class="box__label">Quadratic minimization</span>
+    $$q(x) = \tfrac12 x^T Q x - b^T x, \qquad \nabla q = Qx - b, \qquad \nabla^2 q = Q$$
+    <ul>
+      <li>$Q \succ 0$ ise $q$ strictly convex ve <strong>tek</strong> minimizer'ı var: $\nabla q = 0 \iff Qx^* = b$. Ters matrix alma, sistemi çöz.</li>
+      <li>Minimum değer: $q^* = \tfrac12 x^{*T} b - b^T x^* = -\tfrac12\, b^T x^*$.</li>
+      <li>Level set'ler: $q(x) = q^* + \tfrac12 (x - x^*)^T Q (x - x^*)$. Eigenvector eksenlerinde $q^* + \tfrac12\sum_i \lambda_i u_i^2$, yani <strong>ellipse</strong>'ler. Ellipse'in $v_i$ yönündeki yarı ekseni $\propto 1/\sqrt{\lambda_i}$: dik yön (büyük $\lambda$) kısa eksen, düz yön (küçük $\lambda$) uzun eksen. Eksenlerin oranı $\sqrt{\kappa}$.</li>
+      <li>$Q$ PSD ve singular ise: ya bir doğru boyunca sonsuz minimizer vardır, ya da $q$ alttan sınırsızdır. $Q$ indefinite ise $q$ alttan sınırsız, $Qx = b$'nin çözümü bir saddle'dır.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Lab 2 · $Q = \begin{pmatrix} 3 & 1 \\ 1 & 2 \end{pmatrix}$, $b = (5, 5)$</span>
+    <p>$3x_1 + x_2 = 5$ ve $x_1 + 2x_2 = 5$. İkinci denklemden $x_1 = 5 - 2x_2$, birinciye koy: $15 - 6x_2 + x_2 = 5 \Rightarrow x_2 = 2$, $x_1 = 1$. $x^* = (1, 2)$, $\nabla q(x^*) = (0, 0)$.</p>
+    <p>$q^* = -\tfrac12 (5 \cdot 1 + 5 \cdot 2) = -7.5$. Eigenvalue'lar $\tfrac{5 \pm \sqrt5}{2} = 1.382,\ 3.618$, $\kappa = 2.618$, eksen oranı $\sqrt{\kappa} = 1.618$. Yukarıdaki lab'da "$Qx = b$ örneği" düğmesine bas: merkez $(1, 2)$'ye kayar, ellipse'ler eigenvector'ler boyunca durur.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İşaret: $q = \tfrac12 x^TQx - b^Tx$ ise denklem $Qx = b$. $+b^Tx$ yazılmışsa $Qx = -b$.</li>
+      <li>$q^*$'ı $\tfrac12 b^Tx^*$ yazma: işaret eksi. Hızlı kontrol: minimum değer, $q(0) = 0$'dan küçük olmalı.</li>
+      <li>"Büyük eigenvalue, uzun eksen" ters. Büyük eğrilik o yönde hızlı yükselmek demek, yani level set o yönde dar.</li>
+      <li>$Qx^* = b$ ve $Q \succeq 0$ ise $x^*$ global minimizer'dır; $Q \succ 0$ ise minimizer ayrıca tektir. Bunu söylemeden önce $Q$'nun işaretini göster: indefinite $Q$'da aynı denklem saddle verir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s6-qxb"><span class="box__label">Lab 2 · Section 6 · lab görevi</span>
+    <p>"# minimize q(x) = 1/2 x'Qx - b'x &lt;=&gt; solve Qx = b" with <code>Q = [[3, 1], [1, 2]]</code>, <code>b = [5, 5]</code>; print $x^*$, $q^*$, the gradient there and eig(Q) (<code>assert np.allclose(xq, [1, 2]) and abs(q(xq) + 7.5) &lt; 1e-12</code>), then plot "ellipses along Q's eigenvectors (axis ~ 1/sqrt(lambda))". (notebook hücresinden kısaltıldı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce $Q \succ 0$'ı göster ($\Delta_1 = 3$, $\Delta_2 = 5$). Sonra 2×2 sistemi çöz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Eigenvector'ler: $\lambda$ için $v \propto (1,\ \lambda - 3)$. Yarı eksen uzunlukları $\sqrt{2(\text{level} - q^*)/\lambda_i}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$\Delta_1 = 3 &gt; 0$, $\Delta_2 = 6 - 1 = 5 &gt; 0$ ⇒ $Q \succ 0$ ⇒ tek minimizer. $Qx = b$ ⇒ $x^* = (1, 2)$, $\nabla q(x^*) = Qx^* - b = (5 - 5,\ 5 - 5) = 0$. $q^* = -\tfrac12 b^Tx^* = -7.5$.</p>
+      <p>$\lambda = \tfrac{5 \pm \sqrt5}{2}$: $\lambda_1 = 1.382$, $v_1 \propto (1, -1.618)$; $\lambda_2 = 3.618$, $v_2 \propto (1, 0.618)$. Level set $q = q^* + c$: $v_1$ yönünde yarı eksen $\sqrt{2c/1.382}$, $v_2$ yönünde $\sqrt{2c/3.618}$. Uzun eksen $v_1$ boyunca, oran $1.618$.</p>
+    </div></details>
+    <!-- Kaynak: Lab02.ipynb hücre 22. python: x* = (1,2), q* = -7.5, eig = 1.381966/3.618034. -->
+  </div>
+  <div class="quiz" id="q-quad-1">
+    <p class="quiz__q">$Q = \begin{pmatrix} 4 & 2 \\ 2 & 2 \end{pmatrix}$, $b = (2, 0)$, $q = \tfrac12 x^TQx - b^Tx$. $x^*$ ve $q^*$?</p>
+    <button class="quiz__opt" data-correct>$x^* = (1, -1)$, $q^* = -1$<span class="why">Doğru: $4x_1 + 2x_2 = 2$, $2x_1 + 2x_2 = 0$ ⇒ $x_1 = 1$, $x_2 = -1$. $q^* = -\tfrac12(2 \cdot 1 + 0) = -1$. $Q \succ 0$ ($\Delta = 4, 4$).</span></button>
+    <button class="quiz__opt">$x^* = (1, -1)$, $q^* = 1$<span class="why">İşaret hatası: $q^* = -\tfrac12 b^Tx^*$. Minimum $q(0) = 0$'dan küçük olmalı.</span></button>
+    <button class="quiz__opt">$x^* = (-1, 1)$, $q^* = -1$<span class="why">Bu $Qx = -b$'nin çözümü. Gradient $Qx - b$, sıfır olunca $Qx = b$.</span></button>
+  </div>
+  <div class="quiz" id="q-quad-2">
+    <p class="quiz__q">$Q = \mathrm{diag}(9, 1)$ olan bir quadratic'in level set ellipse'i hangi eksende uzundur?</p>
+    <button class="quiz__opt">$x_1$ ekseninde, çünkü eigenvalue orada büyük<span class="why">Ters. $x_1$ yönünde eğrilik 9, fonksiyon hızlı yükselir, ellipse o yönde dar.</span></button>
+    <button class="quiz__opt" data-correct>$x_2$ ekseninde, 3 kat uzun<span class="why">Doğru: yarı eksenler $\propto 1/\sqrt9$ ve $1/\sqrt1$, oran $\sqrt{\kappa} = 3$.</span></button>
+    <button class="quiz__opt">$x_2$ ekseninde, 9 kat uzun<span class="why">Eksen oranı $\sqrt\kappa$, $\kappa$ değil: yarı eksen $1/\sqrt{\lambda}$ ile orantılı.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="convex-sets" data-min="5">
+  <h2>Convex set</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Bir küme convex ise içindeki herhangi iki noktayı birleştiren doğru parçası da tamamen kümenin içindedir. Hilal, simit ya da yıldız şekli convex değildir: bir uçtan ötekine giden düz yol dışarı taşar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanımlar · Boyd §2.1</span>
+    <ul>
+      <li>$x_1$ ve $x_2$'den geçen <strong>doğru</strong>: $\theta x_1 + (1 - \theta) x_2$, $\theta \in \mathbb{R}$. Bu doğruyu her nokta çifti için içeren küme <strong>affine set</strong>'tir (örnek: $\{x \mid Ax = b\}$).</li>
+      <li>$x_1$ ile $x_2$ arasındaki <strong>doğru parçası</strong>: aynı formül, $0 \le \theta \le 1$.</li>
+      <li><strong>Convex set</strong>: $x_1, x_2 \in C$ ve $0 \le \theta \le 1$ ⇒ $\theta x_1 + (1-\theta)x_2 \in C$.</li>
+      <li><strong>Convex combination</strong>: $\theta_1 x_1 + \dots + \theta_k x_k$, $\theta_i \ge 0$, $\sum \theta_i = 1$. Bir kümenin bütün convex combination'ları onun <strong>convex hull</strong>'unu verir.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Standart convex set'ler ve koruyan işlem</span>
+    <ul>
+      <li><strong>Hyperplane</strong> $\{x \mid a^Tx = b\}$ ve <strong>halfspace</strong> $\{x \mid a^Tx \le b\}$ ($a \ne 0$): convex.</li>
+      <li>Euclidean ball $\{x \mid \|x - x_c\|_2 \le r\}$, ellipsoid, her norm ball (ℓ1 elmas, ℓ2 çember, ℓ∞ kare): convex.</li>
+      <li><strong>Polyhedron</strong> $\{x \mid Ax \preceq b,\ Cx = d\}$: sonlu sayıda halfspace ve hyperplane'in kesişimi.</li>
+      <li><strong>Kesişim convexity'yi korur</strong>: istediğin kadar convex set'in kesişimi convex. Birleşim korumaz.</li>
+      <li><strong>Affine mapping</strong> $f(x) = Ax + b$ de korur: convex bir kümenin $f$ altındaki görüntüsü ve ters görüntüsü convex. Örnek: bir ball'u ölçekleyip kaydırınca ellipsoid çıkar.</li>
+      <li>Convex bir $f$'nin <strong>sublevel set</strong>'i $\{x \mid f(x) \le \alpha\}$ convex'tir (tersi doğru değil).</li>
+    </ul>
+    <p><strong>Convex cone:</strong> $\theta_1 x_1 + \theta_2 x_2$ ($\theta_1, \theta_2 \ge 0$) biçimindeki her noktayı içeren küme. Bu dersin en önemli örneği <strong>positive semidefinite cone</strong> $\mathbb{S}^n_+ = \{X \in \mathbb{S}^n \mid X \succeq 0\}$: $A \succeq 0$ ve $B \succeq 0$ ise $p^T(\theta_1 A + \theta_2 B)p = \theta_1 p^TAp + \theta_2 p^TBp \ge 0$. İki PSD Hessian'ın nonnegative toplamı yine PSD; iki convex fonksiyonun toplamının convex olması buradan gelir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">İki kısa ispat</span>
+    <p><strong>Halfspace convex:</strong> $a^Tx_1 \le b$ ve $a^Tx_2 \le b$ olsun. $a^T(\theta x_1 + (1-\theta)x_2) = \theta a^Tx_1 + (1-\theta)a^Tx_2 \le \theta b + (1-\theta) b = b$. ($\theta$ ve $1 - \theta$ negatif olmadığı için eşitsizlik yön değiştirmez.)</p>
+    <p><strong>Kesişim convex:</strong> $x_1, x_2 \in C \cap D$ ise parça $C$'nin içinde ($C$ convex) ve $D$'nin içinde ($D$ convex), yani $C \cap D$'nin içinde.</p>
+    <p><strong>Week 3'e köprü:</strong> job-mix LP'nin bölgesi $x_1 \le 4$, $2x_2 \le 12$, $3x_1 + 2x_2 \le 18$, $x_1 \ge 0$, $x_2 \ge 0$: beş halfspace'in kesişimi. Week 3 slaytındaki cümle bu: "Convex — by Week 2's rule: intersections preserve convexity."</p>
+  </div>
+  <!-- Kaynak: Boyd §2.1–2.3, bv_cvxslides s.22–30 (s.25 convex cone, s.30 PSD cone), s.32–35 (intersection, affine mapping) · Week_03.pdf s.6. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İki convex set'in <strong>birleşimi</strong> convex olmayabilir: $[0,1] \cup [2,3]$.</li>
+      <li>$\{x \mid \|x\|_2 \ge 1\}$ (dairenin dışı) convex değil: $(1,0)$ ile $(-1,0)$'ın orta noktası origin.</li>
+      <li>Tam sayı noktalar kümesi convex değil. Integer programming'in zor olmasının sebebi bu (Week 12).</li>
+      <li>"Sublevel set'ler convex ⇒ fonksiyon convex" yanlış: $\sqrt{|x|}$'in sublevel set'leri aralıktır ama fonksiyon convex değil.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sets-1">
+    <p class="quiz__q">Hangisi convex <strong>değil</strong>?</p>
+    <button class="quiz__opt">$\{x \in \mathbb{R}^2 \mid x_1 + x_2 \le 4,\ x \ge 0\}$<span class="why">Üç halfspace'in kesişimi, yani bir polyhedron (üçgen). Convex.</span></button>
+    <button class="quiz__opt">$\{x \in \mathbb{R}^2 \mid \|x\|_\infty \le 1\}$<span class="why">Bu bir norm ball (kare). Her norm ball convex.</span></button>
+    <button class="quiz__opt" data-correct>$\{x \in \mathbb{R}^2 \mid 1 \le \|x\|_2 \le 2\}$<span class="why">Doğru: simit şekli. $(1.5, 0)$ ile $(-1.5, 0)$'ın orta noktası origin, kümenin dışında.</span></button>
+    <button class="quiz__opt">$\{x \in \mathbb{R}^2 \mid x_1 = 2x_2\}$<span class="why">Origin'den geçen bir doğru: hyperplane, affine ve convex.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="convex-functions" data-min="6">
+  <h2>Convex function: tanım, first-order ve second-order condition</h2>
+  <div class="box box--rule">
+    <span class="box__label">Tanım · Boyd §3.1.1</span>
+    <p>$f:\mathbb{R}^n \to \mathbb{R}$ <strong>convex</strong>'tir eğer $\mathrm{dom}\, f$ convex set ise ve her $x, y \in \mathrm{dom}\, f$, $0 \le \theta \le 1$ için</p>
+    $$f(\theta x + (1-\theta) y) \le \theta f(x) + (1-\theta) f(y)$$
+    <p>Resim: <strong>her chord grafiğin üstünde ya da üzerindedir</strong> (Week 1 s.13). $-f$ convex ise $f$ <strong>concave</strong>. $x \ne y$ ve $0 &lt; \theta &lt; 1$ için eşitsizlik kesinse ($&lt;$) <strong>strictly convex</strong>.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">İki eşdeğer test</span>
+    <p><strong>First-order condition</strong> (türevlenebilir $f$, convex domain): $f$ convex ⇔ her $x, y$ için</p>
+    $$f(y) \ge f(x) + \nabla f(x)^T (y - x)$$
+    <p>Yani first-order Taylor modeli (tangent) $f$'nin <strong>global alt sınırı</strong>dır. Sonuç: $\nabla f(x^*) = 0$ ise $f(y) \ge f(x^*)$ her $y$ için, yani $x^*$ global minimizer.</p>
+    <p><strong>Second-order condition</strong> (iki kez türevlenebilir $f$, açık convex domain):</p>
+    <ul>
+      <li>$f$ convex ⇔ $\nabla^2 f(x) \succeq 0$ her $x \in \mathrm{dom}\, f$ için.</li>
+      <li>$\nabla^2 f(x) \succ 0$ her $x$ için ⇒ $f$ strictly convex. Tersi doğru değil: $x^4$ strictly convex ama $f''(0) = 0$.</li>
+    </ul>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Fonksiyon</th><th>Neden</th><th>Sonuç</th></tr>
+    <tr><td>$a^Tx + b$ (affine)</td><td>$\nabla^2 f = 0 \succeq 0$; $-f$ de convex</td><td>hem convex hem concave</td></tr>
+    <tr><td>$e^{ax}$, $|x|^p$ ($p \ge 1$), $\max\{0, x\}$</td><td>Boyd'un ℝ üzerindeki listesi</td><td>convex</td></tr>
+    <tr><td>$\log x$, $\sqrt x$ ($x &gt; 0$)</td><td>$f'' &lt; 0$</td><td>concave</td></tr>
+    <tr><td>$\tfrac12 x^TPx + q^Tx + r$</td><td>$\nabla^2 f = P$</td><td>convex ⇔ $P \succeq 0$</td></tr>
+    <tr><td>$\|Ax - b\|_2^2$</td><td>$\nabla^2 f = 2A^TA$, $v^T A^TA v = \|Av\|^2 \ge 0$</td><td>her $A$ için convex</td></tr>
+    <tr><td>her norm $\|x\|$, $\max_i x_i$, $\log\sum e^{x_i}$</td><td>Boyd s.3.4</td><td>convex</td></tr>
+    <tr><td>$x^3$ (ℝ üzerinde)</td><td>$f'' = 6x &lt; 0$, $x &lt; 0$ için</td><td>convex değil</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Boyd'dan üç araç daha</span>
+    <ul>
+      <li><strong>Restriction to a line:</strong> $f$ convex ⇔ her $x \in \mathrm{dom}\,f$ ve her $v$ için $g(t) = f(x + tv)$ tek değişkenli fonksiyonu convex. Çok değişkenli soruyu tek değişkene indirir. İkinci türevi Bölüm 1'deki formül: $g''(0) = v^T \nabla^2 f(x)\, v$. Second-order condition'ın "her yönde $g'' \ge 0$" demek olduğu buradan görülür.</li>
+      <li><strong>Epigraph:</strong> $\mathrm{epi}\, f = \{(x, t) \mid x \in \mathrm{dom}\, f,\ f(x) \le t\}$, grafiğin üstündeki bölge. $f$ convex ⇔ $\mathrm{epi}\, f$ convex set. Fonksiyonlar ile kümeler arasındaki köprü bu.</li>
+      <li><strong>Jensen's inequality:</strong> tanımdaki eşitsizliğin genel hali. $\theta_i \ge 0$, $\sum \theta_i = 1$ ise $f(\sum \theta_i x_i) \le \sum \theta_i f(x_i)$; olasılık diliyle $f(\mathbf{E}\, z) \le \mathbf{E}\, f(z)$.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Boyd §3.1.1–3.1.8, bv_cvxslides s.46–48, s.51 (restriction to a line), s.53–58 (first/second-order, epigraph, Jensen) · Week_01.pdf s.13. -->
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · çürütmek ve kanıtlamak</span>
+    <p>Lab 2'nin cümlesi: "One violated chord <strong>disproves</strong> convexity; no number of passing chords proves it." Rastgele chord testi bir <em>falsifier</em>'dır: bulduğu tek ihlal yeter. Ama 20 000 chord geçse de bu bir ispat değildir. İspat aracı Hessian'dır.</p>
+  </div>
+  <h3>Kendin dene: chord tester</h3>
+  <p>Fonksiyonu seç. Kod, notebook'taki gibi rastgele $x, y, \lambda$ çekiyor ve $f(\lambda x + (1-\lambda)y) &gt; \lambda f(x) + (1-\lambda) f(y)$ olup olmadığına bakıyor; en fazla 20 000 deneme. İlk birkaç deneme ve (varsa) ilk ihlal adım adım gösteriliyor.</p>
+  <p class="w-hessian-convexity-guess"><b>Önce tahmin et:</b> $|x|$ testten geçer mi? $x^3$, $[-3, 3]$ aralığında kaçıncı denemede yakalanır?</p>
+  <div class="w-hessian-convexity-ctl">
+    <select id="wc-fn" class="btn btn--sm" aria-label="fonksiyon">
+      <option value="x2">x² on [−5, 5]</option>
+      <option value="exp">e^x on [−3, 3]</option>
+      <option value="abs">|x| on [−5, 5]</option>
+      <option value="x3" selected>x³ on [−3, 3]</option>
+      <option value="sin">sin x on [−3, 3]</option>
+    </select>
+    <button class="btn btn--sm" id="wc-seed">Yeni rastgele tohum</button>
+    <span class="src" id="wc-seed-lbl"></span>
+  </div>
+  <div id="wc-stepper"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Hessian'ı <strong>tek bir noktada</strong> PSD bulmak convexity'yi kanıtlamaz. Second-order condition "her $x$ için" diyor. $x^3$'ün Hessian'ı $x = 1$'de $6 &gt; 0$, ama $x = -1$'de $-6$.</li>
+      <li>$|x|$ convex ama $0$'da türevlenemez; orada second-order test kullanılamaz. Tanıma (chord) dön.</li>
+      <li>"Strictly convex ⇒ $\nabla^2 f \succ 0$" yanlış ($x^4$). Doğru yön: $\nabla^2 f \succ 0$ her yerde ⇒ strictly convex.</li>
+      <li>Convex bir fonksiyonun minimizer'ı olmayabilir: $e^x$ convex ama alttan 0'a yaklaşır, hiç ulaşmaz.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s7-convexity"><span class="box__label">Lab 2 · Section 7 · lab görevi</span>
+    <p>"Convexity: falsify by chords, certify by eigenvalues. One violated chord <strong>disproves</strong> convexity; no number of passing chords proves it. So the random test below is a <em>falsifier</em> — the proof tool is the Hessian."</p>
+    <p>Run <code>find_violation</code> on $x^2$, $\exp$, $|x|$, $x^3$, $\sin$; then give "second-order verdicts" for $x^2 + xy + y^2$, $x^2 + 3xy + 2y^2$, $\log(e^x + e^y)$ at $0$, and $x \cdot y$. (notebook hücrelerinden kısaltıldı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Chord testinde ihlal ancak $f$'nin aşağı kıvrıldığı ($f'' &lt; 0$) bir bölge varsa bulunur. $x^3$ ve $\sin x$'te böyle bölge var mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\log(e^x + e^y)$'nin Hessian'ı $\mathrm{diag}(z)/s - zz^T/s^2$ ($z_k = e^{x_k}$, $s = \sum z_k$). $0$'da $z = (1,1)$, $s = 2$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Chord'lar:</strong> $x^2$, $e^x$, $|x|$: ihlal yok ("consistent with convex"). $x^3$ ve $\sin$: ihlal bulunur ⇒ NOT convex. $x^3$ için $x &lt; 0$ bölgesinde $f'' &lt; 0$; $\sin$ için $(0, \pi)$'de $f'' = -\sin x &lt; 0$.</p>
+      <div class="table-wrap"><table>
+        <tr><th>$f$</th><th>Hessian</th><th>Eigenvalue'lar</th><th>Karar</th></tr>
+        <tr><td>$x^2 + xy + y^2$</td><td>$\begin{pmatrix} 2 & 1 \\ 1 & 2 \end{pmatrix}$</td><td>$1,\ 3$</td><td>strictly convex</td></tr>
+        <tr><td>$x^2 + 3xy + 2y^2$</td><td>$\begin{pmatrix} 2 & 3 \\ 3 & 4 \end{pmatrix}$</td><td>$-0.162,\ 6.162$</td><td>NOT convex</td></tr>
+        <tr><td>$\log(e^x + e^y)$, $0$'da</td><td>$\begin{pmatrix} 0.25 & -0.25 \\ -0.25 & 0.25 \end{pmatrix}$</td><td>$0,\ 0.5$</td><td>convex (not strictly)</td></tr>
+        <tr><td>$xy$</td><td>$\begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$</td><td>$-1,\ 1$</td><td>NOT convex</td></tr>
+      </table></div>
+      <p>İlk iki ve sonuncu quadratic, Hessian sabit; karar her yerde geçerli. log-sum-exp'te notebook sadece $0$ noktasına bakıyor. Bir noktada PSD olmak yetmez; Boyd her $x$ için $v^T\nabla^2 f\, v \ge 0$ olduğunu Cauchy–Schwarz ile gösteriyor (s.3.12). Sıfır eigenvalue $(1,1)$ yönünde: $f(x + t, y + t) = f(x,y) + t$, o yönde fonksiyon linear. Bu yüzden strictly convex değil.</p>
+    </div></details>
+    <!-- Kaynak: Lab02.ipynb hücre 24–25. Eigenvalue'lar python ile kontrol edildi; log-sum-exp Hessian'ı başka bir noktada da PSD çıktı (0, 0.298). -->
+  </div>
+  <div class="box box--exam" data-exam="w2-review-twin"><span class="box__label">Sınav tipi alıştırma · Week 2 tekrarı</span>
+    <p>$f(x, y) = 2x^2 + 2xy + y^2 + e^{y}$.</p>
+    <ol type="a">
+      <li>$\nabla f$ ve $\nabla^2 f$'yi bul; $(1, 0)$ noktasında değerlerini yaz.</li>
+      <li>$f$'nin ℝ² üzerinde strictly convex olduğunu kanıtla.</li>
+      <li>$(1, 0)$ etrafında second-order Taylor modelini yaz ve $p = (-0.1,\ 0.1)$ için gerçek değerle karşılaştır.</li>
+      <li>$f$'nin minimizer'ı var mı, kaç tane? Denklemini kur.</li>
+    </ol>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Quadratic kısım cookbook'tan, $e^y$ sadece $f_y$ ve $f_{yy}$'ye katkı yapar.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b) için Hessian'ı genel $(x, y)$'de yaz ve leading minor'ları kullan. $e^y &gt; 0$ her zaman.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $\nabla f = (4x + 2y,\ 2x + 2y + e^y)$, $\nabla^2 f = \begin{pmatrix} 4 & 2 \\ 2 & 2 + e^y \end{pmatrix}$. $(1, 0)$'da: $f = 2 + 0 + 0 + 1 = 3$, $\nabla f = (4, 3)$, $\nabla^2 f = \begin{pmatrix} 4 & 2 \\ 2 & 3 \end{pmatrix}$.</p>
+      <p><strong>(b)</strong> Her $(x, y)$ için $\Delta_1 = 4 &gt; 0$ ve $\Delta_2 = 4(2 + e^y) - 4 = 4 + 4e^y &gt; 0$. Sylvester ⇒ $\nabla^2 f(x, y) \succ 0$ her yerde ⇒ $f$ strictly convex.</p>
+      <p><strong>(c)</strong> $m_2(p) = 3 + 4p_1 + 3p_2 + \tfrac12(4p_1^2 + 4p_1p_2 + 3p_2^2)$. $p = (-0.1, 0.1)$: $3 - 0.4 + 0.3 + \tfrac12(0.04 - 0.04 + 0.03) = 2.915$. Gerçek: $f(0.9, 0.1) = 1.62 + 0.18 + 0.01 + e^{0.1} = 2.915171$. Hata $1.7 \times 10^{-4}$. Quadratic kısım modelde tam, hatanın hepsi $e^y$'den geliyor: $e^{0.1} - (1 + 0.1 + 0.005)$.</p>
+      <p><strong>(d)</strong> Strictly convex ⇒ en fazla bir minimizer, ve stationary point varsa o global minimizer. $\nabla f = 0$: $4x + 2y = 0 \Rightarrow x = -y/2$; ikinci denklem $-y + 2y + e^y = 0 \Rightarrow y + e^y = 0$. Bu denklemin tek kökü $y^* \approx -0.5671$ (Newton ile birkaç adım), $x^* \approx 0.2836$, $f^* \approx 0.7280$.</p>
+    </div></details>
+    <!-- Kaynak: Week 2 konularını (gradient/Hessian, strict convexity ispatı, Taylor modeli) birleştiren tekrar sorusu; yeni sayılarla yazıldı. Bütün sayılar python ile kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-cf-1">
+    <p class="quiz__q">Bir öğrenci 1000 rastgele chord çizdi, hiçbiri grafiğin altına düşmedi. Ne söyleyebilir?</p>
+    <button class="quiz__opt">$f$ convex<span class="why">Geçen chord'lar ispat değildir; ihlal 1001. denemede çıkabilir. İspat için Hessian ya da tanımın genel ispatı lazım.</span></button>
+    <button class="quiz__opt" data-correct>Convex olduğuyla çelişen bir şey bulunmadı, ama kanıtlanmadı<span class="why">Doğru: chord testi bir falsifier. Notebook'un ifadesi: "consistent with convex".</span></button>
+    <button class="quiz__opt">$f$ strictly convex<span class="why">Testte eşitlik durumları da geçer ($|x|$'te aynı işaretli iki nokta). Strictly bir yana, convexity bile kanıtlanmadı.</span></button>
+  </div>
+  <div class="quiz" id="q-cf-2">
+    <p class="quiz__q">First-order condition $f(y) \ge f(x) + \nabla f(x)^T(y - x)$ neyi söyler?</p>
+    <button class="quiz__opt" data-correct>Tangent düzlem $f$'nin her yerde altında; $\nabla f(x^*) = 0$ ise $x^*$ global minimizer<span class="why">Doğru. $\nabla f(x^*) = 0$ koyunca $f(y) \ge f(x^*)$ her $y$ için.</span></button>
+    <button class="quiz__opt">Tangent düzlem sadece $x$'in yakınında $f$'nin altında<span class="why">Convex fonksiyonda bu "global underestimator"dır, yerel değil. Yerel olan Taylor yaklaşımının doğruluğu.</span></button>
+    <button class="quiz__opt">Chord grafiğin altında kalır<span class="why">Ters. Convex fonksiyonda chord grafiğin <em>üstündedir</em>; altında kalan tangent.</span></button>
+  </div>
+  <div class="quiz" id="q-cf-3">
+    <p class="quiz__q">$f(x, y) = x^2 + xy + y^2$, $x = (0, 0)$, $v = (1, -2)$. $g(t) = f(tv)$ için $g''(0)$ kaç ve bu ne söyler?</p>
+    <button class="quiz__opt" data-correct>$6$; bu yönde $f$ yukarı kıvrılıyor<span class="why">Doğru: $g(t) = t^2 - 2t^2 + 4t^2 = 3t^2$, $g'' = 6$. Formülle: $v^T \begin{pmatrix} 2 & 1 \\ 1 & 2 \end{pmatrix} v = 2 - 4 + 8 = 6$.</span></button>
+    <button class="quiz__opt">$3$<span class="why">Bu $g(t) = 3t^2$'nin katsayısı, ikinci türev değil. $(3t^2)'' = 6$.</span></button>
+    <button class="quiz__opt">$8$<span class="why">Köşegen dışı terimi bir kez saydın. $v^THv = H_{11}v_1^2 + 2H_{12}v_1v_2 + H_{22}v_2^2$: cross terim $2 \cdot 1 \cdot (1)(-2) = -4$, $-2$ değil.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="payoff" data-min="4">
+  <h2>Convexity'nin getirisi: local = global</h2>
+  <div class="box box--rule">
+    <span class="box__label">Week 1 s.9 ve s.13 · Nocedal–Wright Teorem 2.5</span>
+    <ul>
+      <li><strong>Global minimum:</strong> $f(x^*) \le f(x)$ bütün feasible $x$ için. <strong>Local minimum:</strong> sadece $x^*$'a yakın feasible $x$ için.</li>
+      <li>Slayt: "Most algorithms only guarantee a local optimum. Convexity is what makes local = global."</li>
+      <li><strong>Teorem 2.5:</strong> $f$ convex ise her local minimizer global minimizer'dır. $f$ ayrıca türevlenebilir ise her stationary point global minimizer'dır.</li>
+      <li>"The great watershed in optimization is not between linearity and nonlinearity, but convexity and non-convexity." — R. T. Rockafellar (Week 1 s.13)</li>
+    </ul>
+    <p><strong>İspat fikri:</strong> $x^*$ local ama global değil olsun: $f(z) &lt; f(x^*)$ olan bir $z$ var. Parça üzerindeki $x = \theta z + (1-\theta)x^*$ noktaları için convexity $f(x) \le \theta f(z) + (1-\theta) f(x^*) &lt; f(x^*)$ verir. $\theta \to 0$ alınca bu noktalar $x^*$'a istediğimiz kadar yakın; yani $x^*$ local minimum bile değil. Çelişki.</p>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Week_01.pdf">Orijinal slayt (Week 1, s.9 ve s.13)</a></p>
+  </div>
+  <h3>Ölçülmüş getiri: aynı gradient descent, dokuz başlangıç</h3>
+  <p>Lab 2'nin son deneyi: $\alpha = 0.08$ sabit adımla 400 gradient descent iterasyonu, $-2.1$ ile $2.3$ arasında eşit aralıklı dokuz başlangıç. Solda convex $\tfrac12(x-1)^2 + 0.3$, sağda non-convex quartic $x^4/4 - x^2 + 0.3x$. Noktalar gerçekten iterasyonla hareket ediyor.</p>
+  <p class="w-hessian-convexity-guess"><b>Önce tahmin et:</b> Quartic'te dokuz koşunun kaçı global minimum'a ($x \approx -1.48$) varır? Tuzağa düşenler bunu fark eder mi?</p>
+  <div id="wg-stepper"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Tuzağa düşen koşular da "başarılı" görünür: gradient sıfır, iterasyon durdu. Algoritma local ile global'i ayıramaz; bunu sadece convexity garanti eder.</li>
+      <li>Convex bir problem de birden fazla minimizer'a sahip olabilir ($(x+y)^2$), ama hepsi aynı $f$ değerini verir. Strict convexity, minimizer varsa onun tek olmasını garanti eder; ama teklik için gerekli değildir ($|x|$ strictly convex değil, minimizer'ı yine tek: $x = 0$).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s7-multistart"><span class="box__label">Lab 2 · Section 7 · lab görevi</span>
+    <p>"# the payoff, measured: same gradient descent, nine starts" — run <code>gd</code> with <code>a=0.08, iters=400</code> from <code>np.linspace(-2.1, 2.3, 9)</code> on $\tfrac12(x-1)^2 + 0.3$ and on $x^4/4 - x^2 + 0.3x$; <code>assert np.ptp(ends_convex) &lt; 1e-6 and n_global == 5</code>. (notebook hücresinden kısaltıldı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Quartic'in stationary point'leri $x^3 - 2x + 0.3 = 0$'ın kökleri. Hangisinde $f'' = 3x^2 - 2 &gt; 0$?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Ortadaki kök ($x \approx 0.15$) bir local maximum ve iki çukuru ayıran sınır. Başlangıç onun solundaysa sol çukura, sağındaysa sağ çukura düşer.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Convex:</strong> $f' = x - 1$, her adım $x - 1$'i $0.92$ ile çarpar; 400 adımda $0.92^{400} \approx 3 \times 10^{-15}$. Dokuz koşunun hepsi $x = 1$'de: tek cevap.</p>
+      <p><strong>Quartic:</strong> kökler $-1.484$ (local min, $f = -1.435$, global), $0.152$ (local max), $1.332$ (local min, $f = -0.588$). Başlangıçlar $-2.1, -1.55, -1, -0.45, 0.1$ sınırın ($0.152$) solunda ⇒ 5 koşu $-1.484$'e gider. $0.65, 1.2, 1.75, 2.3$ sağda ⇒ 4 koşu $1.332$'de tuzağa düşer. Sonuç 5–4.</p>
+    </div></details>
+    <!-- Kaynak: Lab02.ipynb hücre 26. python: convex uçlar hepsi 1.0; quartic uçlar 5 × −1.484, 4 × 1.3322. -->
+  </div>
+  <div class="quiz" id="q-pay-1">
+    <p class="quiz__q">Türevlenebilir convex bir $f$ için $\nabla f(\hat x) = 0$ bulundu. Hangisi kesin doğru?</p>
+    <button class="quiz__opt" data-correct>$\hat x$ global minimizer<span class="why">Doğru: Teorem 2.5 ya da first-order condition ile $f(y) \ge f(\hat x)$.</span></button>
+    <button class="quiz__opt">$\hat x$ tek minimizer<span class="why">Convexity tek başına teklik vermez. $(x + y)^2$'de bütün $x = -y$ doğrusu minimizer. Strict convexity olsaydı teklik garanti olurdu.</span></button>
+    <button class="quiz__opt">Hessian'a bakmadan bir şey söylenemez<span class="why">Convexity'de Hessian testine gerek yok; stationary olmak global minimum için yeter. Hessian non-convex durumda lazımdı.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="numerics" data-min="5">
+  <h2>Sayısal gerçeklik: condition number basamak yer</h2>
+  <div class="box box--rule">
+    <span class="box__label">Condition number ve linear system</span>
+    <p>$Ax = b$'de $b$ biraz değişirse $x$ ne kadar değişir?</p>
+    $$\frac{\|\Delta x\|}{\|x\|} \le \kappa(A)\, \frac{\|\Delta b\|}{\|b\|}$$
+    <p>$\kappa(A) = \sigma_{\max}/\sigma_{\min}$ (<code>np.linalg.cond</code>); symmetric PD matrix'te bu $\lambda_{\max}/\lambda_{\min}$, yani Bölüm 3'teki sayı. Pratik kural: float64'te yaklaşık 16 anlamlı basamak var ve çözüm yaklaşık <strong>$\log_{10}\kappa$ basamak kaybeder</strong>.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Lab 2 · zıplayan cevap</span>
+    <p>$A = \begin{pmatrix} 1 & 1 \\ 1 & 1.0001 \end{pmatrix}$. $b_2 = 2.0001$ ⇒ $x = (1, 1)$. $b_2 = 2.0002$ ⇒ $x = (0, 2)$. Girdi göreli olarak $3.5 \times 10^{-5}$ oynadı, çıktı $1.00$ (yüzde yüz). Büyütme $\approx 28\,285$ kat. $\kappa(A) \approx 40\,002$ en kötü durum büyütmesi; $\log_{10}\kappa \approx 4.6$ basamak kaybı.</p>
+  </div>
+  <h3>Kendin dene: basamakların kayboluşu</h3>
+  <p>Üstte 2×2 sistem: $\delta$'yı değiştir, $A = \begin{pmatrix} 1 & 1 \\ 1 & 1+\delta \end{pmatrix}$ ile $b = (2, 2+\delta)$ ve $(2, 2+2\delta)$ çözülüyor. Altta Hilbert matrix'leri: $H_{ij} = 1/(i+j-1)$, $Hx = H\mathbf{1}$ tarayıcıda Gaussian elimination (partial pivoting, float64) ile çözülüyor. $\kappa$, $\lambda_{\max}(H) \cdot \lambda_{\max}(H^{-1})$ ile bulunuyor; $H^{-1}$'in elemanları tam sayı ve BigInt ile tam hesaplanıyor.</p>
+  <p class="w-hessian-convexity-guess"><b>Önce tahmin et:</b> $n = 12$ Hilbert sisteminde çözümün en kötü bileşeni 1'den ne kadar sapar? Solver bir uyarı verir mi?</p>
+  <div class="w-hessian-convexity-ctl">
+    <label>$\delta$ = <input id="wn-d" type="text" inputmode="decimal" value="0.0001" class="btn btn--sm" /></label>
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-wn="0.0001">Lab 2: 0.0001</button>
+    <button class="btn btn--sm" data-wn="0.1">0.1</button>
+    <button class="btn btn--sm" data-wn="1e-8">1e-8</button>
+  </div>
+  <div class="w-hessian-convexity-err" id="wn-err" aria-live="polite"></div>
+  <div class="w-hessian-convexity-out table-wrap" id="wn-out"></div>
+  <div id="wh-stepper"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Kötü koşullanmış sistemde solver hata vermez. $n = 12$'de cevap çöp ama ekranda düzgün sayılar görünür.</li>
+      <li>Küçük residual ($\|Ax - b\|$) doğru $x$ demek değil. İkisi arasındaki köprü $\kappa$.</li>
+      <li>$\kappa$ problemin özelliğidir, algoritmanın değil. Daha iyi bir solver $\kappa$'yı ve verideki belirsizliğe duyarlılığı değiştirmez; ama hesaplama hatasını azaltabilir (iterative refinement, daha yüksek precision). $\log_{10}\kappa$ basamak kaybı yaklaşık bir worst-case kuralıdır. Duyarlılığın kendisini azaltmak için problemi yeniden kurmak (ölçekleme, farklı baz) gerekir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab02-s8-conditioning"><span class="box__label">Lab 2 · Section 8 · lab görevi</span>
+    <p>"# conditioning: the answer that jumps" — solve <code>Ac = [[1, 1], [1, 1.0001]]</code> with right-hand sides <code>[2, 2.0001]</code> and <code>[2, 2.0002]</code>; print how far the input moved (relative), how far the output moved, the amplification, and "kappa(A) … (the worst-case amplification; expect to lose ~… digits)". (notebook hücresinden kısaltıldı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İki denklemi çıkar: $0.0001\, x_2 = b_2 - 2$. Gerisi $x_1 = 2 - x_2$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$A$ symmetric: $\kappa = \lambda_{\max}/\lambda_{\min}$. İz $2.0001$, determinant $0.0001$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$b_2 = 2.0001$: $x_2 = 1$, $x_1 = 1$. $b_2 = 2.0002$: $x_2 = 2$, $x_1 = 0$.</p>
+      <p>Girdi: $\|\Delta b\|/\|b\| = 0.0001/\|(2, 2.0001)\| = 0.0001/2.8285 = 3.5 \times 10^{-5}$. Çıktı: $\|(-1, 1)\|/\|(1,1)\| = 1.00$. Büyütme $\approx 28\,285$.</p>
+      <p>$\lambda = \tfrac{2.0001}{2} \pm \sqrt{\tfrac{2.0001^2}{4} - 0.0001}$: $\lambda_{\max} = 2.00005$, $\lambda_{\min} = 0.00005$. $\kappa \approx 40\,002$, $\log_{10}\kappa \approx 4.6$ basamak. Gerçek büyütme ($28\,285$) en kötü durumun ($40\,002$) altında, olması gerektiği gibi.</p>
+    </div></details>
+    <!-- Kaynak: Lab02.ipynb hücre 30. python: rel_in 3.535e-5, rel_out 1.0000, amp 28285, kappa 40002.0, digits 4.60. Aynı Section 8'deki cancellation, vectorization ve V-curve hücreleri norms-gradients dersinde. -->
+  </div>
+  <div class="box box--exam" data-exam="lab02-ex3-hilbert"><span class="box__label">Lab 2 · Exercise 3 · lab görevi</span>
+    <p>"Exercise 3 — Hilbert matrices: watching digits disappear. The Hilbert matrix $H_{ij} = 1/(i+j-1)$ is the classic ill-conditioned matrix. Solve $Hx = H\mathbf{1}$ (true solution: all ones) for growing $n$ and compare the error with the rule of thumb <em>"you lose about $\log_{10}\kappa$ digits."</em>"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Notebook $n = 3, 6, 9, 12$ için tablo istiyor: $\kappa$, $\log_{10}\kappa$, en büyük $|x_i - 1|$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>16 basamaktan $\log_{10}\kappa$ kadarı giderse kalan doğru basamak $\approx 16 - \log_{10}\kappa$, hata da $\approx 10^{-(16 - \log_{10}\kappa)}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>$n$</th><th>$\kappa$</th><th>$\log_{10}\kappa$ (kural)</th><th>gerçek hata (numpy)</th></tr>
+        <tr><td>3</td><td>$5.2 \times 10^{2}$</td><td>2.7</td><td>$\approx 10^{-15}$</td></tr>
+        <tr><td>6</td><td>$1.5 \times 10^{7}$</td><td>7.2</td><td>$\approx 2 \times 10^{-10}$</td></tr>
+        <tr><td>9</td><td>$4.9 \times 10^{11}$</td><td>11.7</td><td>$\approx 7 \times 10^{-6}$</td></tr>
+        <tr><td>12</td><td>$1.7 \times 10^{16}$</td><td>16.2</td><td>$\approx 0.2$</td></tr>
+      </table></div>
+      <p>Kural tutuyor: $n = 6$'da $\sim 7$ basamak gitti, $\sim 9$ basamak doğru. $n = 12$'de $\kappa \approx 10^{16}$: on altı basamağın hepsi gitti. Notebook: "The solver raised no error." Hata sayıları makineye ve kütüphaneye göre biraz değişir; büyüklük sırası değişmez.</p>
+    </div></details>
+    <!-- Kaynak: Lab02.ipynb hücre 37–38. python (numpy, LAPACK): cond 524 / 1.495e7 / 4.93e11 / 1.72e16; hata 1.0e-15 / 2.3e-10 / 6.9e-6 / 0.22. -->
+  </div>
+  <div class="quiz" id="q-num-1">
+    <p class="quiz__q">Symmetric PD bir matrix'in eigenvalue'ları $10^{-3}$ ve $10^{5}$. float64 ile $Ax = b$ çözülürse yaklaşık kaç doğru basamak kalır?</p>
+    <button class="quiz__opt" data-correct>Yaklaşık 8<span class="why">Doğru: $\kappa = 10^8$, $\log_{10}\kappa = 8$ basamak gider, $16 - 8 = 8$ kalır.</span></button>
+    <button class="quiz__opt">Yaklaşık 14<span class="why">$\kappa$'yı $10^5 - 10^{-3}$ gibi bir farkla değil, oranla hesapla: $10^5/10^{-3} = 10^8$.</span></button>
+    <button class="quiz__opt">Hiç; solver hata verir<span class="why">Solver hata vermez. $\kappa \approx 10^{16}$'ya kadar bir sayı döndürür, sadece basamakları güvenilmez olur.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">$f = x^2 - 4xy + y^2$, origin stationary. Sınıfı?</p>
+    <button class="quiz__opt">Minimum, çünkü $x^2$ ve $y^2$ katsayıları pozitif<span class="why">Köşegen yetmez. $H = \begin{pmatrix} 2 & -4 \\ -4 & 2 \end{pmatrix}$, $\det = 4 - 16 = -12 &lt; 0$.</span></button>
+    <button class="quiz__opt" data-correct>Saddle point<span class="why">Doğru: eigenvalue'lar $-2$ ve $6$. $(1,1)$ yönünde $f = -2t^2$.</span></button>
+    <button class="quiz__opt">Degenerate<span class="why">Degenerate için $\det = 0$ gerekir; burada $-12$.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">$Q \succ 0$ ve $\kappa(Q) = 100$. $q = \tfrac12 x^TQx - b^Tx$'in level set'leri için hangisi doğru?</p>
+    <button class="quiz__opt">Uzun eksen kısa eksenin 100 katı<span class="why">Eksen oranı $\sqrt\kappa$. Yarı eksenler $1/\sqrt{\lambda}$ ile orantılı.</span></button>
+    <button class="quiz__opt" data-correct>Uzun eksen kısa eksenin 10 katı, $\lambda_{\min}$'in eigenvector'ü boyunca<span class="why">Doğru: $\sqrt{100} = 10$. Küçük eğrilik, yavaş yükselme, uzun eksen.</span></button>
+    <button class="quiz__opt">Level set'ler çember, çünkü $Q \succ 0$<span class="why">PD olmak ellipse demek; çember için $\kappa = 1$ gerekir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">$f(x) = x^4$ için hangisi doğru?</p>
+    <button class="quiz__opt">Convex değil, çünkü $f''(0) = 0$<span class="why">Second-order condition $\succeq 0$ ister, $\succ 0$ değil. $f'' = 12x^2 \ge 0$ her yerde ⇒ convex.</span></button>
+    <button class="quiz__opt" data-correct>Strictly convex; ama $\nabla^2 f \succ 0$ her yerde değil<span class="why">Doğru: strict convexity'nin Hessian testi sadece sufficient. $x^4$ bunun standart karşı örneği.</span></button>
+    <button class="quiz__opt">Convex ama strictly convex değil<span class="why">Chord'lar her zaman kesin olarak grafiğin üstünde; grafik hiçbir aralıkta linear değil.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">$f(x, y) = e^x + y^2$. Second-order Taylor modelinin $(0, 0)$'daki Hessian'ı ve $f$'nin convexity'si?</p>
+    <button class="quiz__opt" data-correct>$\mathrm{diag}(1, 2)$; her yerde $\mathrm{diag}(e^x, 2) \succ 0$ ⇒ strictly convex<span class="why">Doğru. Not: strictly convex ama minimizer'ı yok, $e^x$ sıfıra hiç ulaşmaz.</span></button>
+    <button class="quiz__opt">$\mathrm{diag}(1, 1)$; convex<span class="why">$y^2$'nin ikinci türevi 2.</span></button>
+    <button class="quiz__opt">$\mathrm{diag}(1, 2)$; convex, ama sadece $(0,0)$ yakınında<span class="why">Convexity global bir özellik. Hessian her noktada PD olduğu için her yerde convex.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Bir LP'nin feasible region'ı neden convex?</p>
+    <button class="quiz__opt">Çünkü objective linear<span class="why">Feasible region constraint'lerden gelir, objective'den değil.</span></button>
+    <button class="quiz__opt" data-correct>Her constraint bir halfspace (ya da hyperplane) ve kesişim convexity'yi korur<span class="why">Doğru. Week 3 s.6'daki cümle: "intersections preserve convexity".</span></button>
+    <button class="quiz__opt">Çünkü sınırlı (bounded)<span class="why">Sınırlı olmak convexity vermez (simit sınırlı ama convex değil); unbounded polyhedron'lar da convex.</span></button>
+  </div>
+  <!-- Sıradaki konu: LP geometrisi. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* Shared helpers: formatting, 2x2 symmetric eigen-decomposition, input checks, level-set drawing */
+const HC = {
+  num(v, d) {
+    if (d === undefined) d = 3;
+    if (!Number.isFinite(v)) return String(v);
+    if (v !== 0 && (Math.abs(v) >= 1e6 || Math.abs(v) < 1e-4)) return v.toExponential(2);
+    const r = Math.round(v * 10 ** d) / 10 ** d;
+    return String(Object.is(r, -0) ? 0 : r);
+  },
+  sci(v) {
+    if (!Number.isFinite(v)) return String(v);
+    let e = Math.floor(Math.log10(Math.abs(v)));
+    let m = Number((v / 10 ** e).toFixed(1));
+    if (Math.abs(m) >= 10) { m /= 10; e += 1; }
+    return `${m.toFixed(1)} \\times 10^{${e}}`;
+  },
+  eig2(a, b, c) {
+    const m = (a + c) / 2, r = Math.hypot((a - c) / 2, b);
+    const l1 = m - r, l2 = m + r;
+    let v1, v2;
+    if (Math.abs(b) > 1e-12) {
+      const n1 = Math.hypot(b, l1 - a);
+      v1 = [b / n1, (l1 - a) / n1];
+      v2 = [-v1[1], v1[0]];
+    } else if (a <= c) { v1 = [1, 0]; v2 = [0, 1]; } else { v1 = [0, 1]; v2 = [1, 0]; }
+    return { l: [l1, l2], v: [v1, v2] };
+  },
+  read(inp, label, lo, hi) {
+    const raw = String(inp.value).trim().replace(",", ".");
+    if (raw === "") return { e: `${label} boş. Bir sayı yaz (ondalık için nokta: 0.5).` };
+    const v = Number(raw);
+    if (!Number.isFinite(v)) return { e: `${label} bir sayı olmalı (örneğin 1.5).` };
+    if (v < lo || v > hi) return { e: `${label} ${lo} ile ${hi} arasında olmalı.` };
+    return { v };
+  },
+  /* level sets of q(x) = 0.5 x'Px - b1 x1 - b2 x2 by marching squares, plus eigen-axes and optional points */
+  contour(P, opt) {
+    opt = opt || {};
+    const W = 300, R = opt.R || 3;
+    const det = P.a * P.c - P.b * P.b;
+    let cx = 0, cy = 0;
+    if (opt.center) { cx = opt.center[0]; cy = opt.center[1]; }
+    else if (Math.abs(det) > 1e-9) { cx = (P.c * P.b1 - P.b * P.b2) / det; cy = (P.a * P.b2 - P.b * P.b1) / det; }
+    const q = (x, y) => 0.5 * (P.a * x * x + 2 * P.b * x * y + P.c * y * y) - P.b1 * x - P.b2 * y;
+    const q0 = q(cx, cy), N = 56;
+    const gx = i => cx - R + 2 * R * i / N, gy = j => cy - R + 2 * R * j / N;
+    const X = x => ((x - (cx - R)) / (2 * R) * W).toFixed(1), Y = y => (W - (y - (cy - R)) / (2 * R) * W).toFixed(1);
+    const G = [];
+    let s = 0;
+    for (let i = 0; i <= N; i++) {
+      G.push([]);
+      for (let j = 0; j <= N; j++) { const d = q(gx(i), gy(j)) - q0; G[i].push(d); s = Math.max(s, Math.abs(d)); }
+    }
+    let out = `<svg viewBox="0 0 ${W} ${W}" role="img" aria-label="level set'ler">`;
+    out += `<rect x="0" y="0" width="${W}" height="${W}" style="fill:var(--paper)" />`;
+    if (Math.abs(cx) < R) out += `<line x1="${X(0)}" y1="0" x2="${X(0)}" y2="${W}" style="stroke:var(--border);stroke-width:1" />`;
+    if (Math.abs(cy) < R) out += `<line x1="0" y1="${Y(0)}" x2="${W}" y2="${Y(0)}" style="stroke:var(--border);stroke-width:1" />`;
+    if (s > 1e-12) {
+      const levels = [];
+      for (let k = 1; k <= 6; k++) { const L = s * 0.85 * (k / 6) ** 2; levels.push(L, -L); }
+      for (const L of levels) {
+        let d = "";
+        for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+          const v = [G[i][j], G[i + 1][j], G[i + 1][j + 1], G[i][j + 1]];
+          const c4 = [[gx(i), gy(j)], [gx(i + 1), gy(j)], [gx(i + 1), gy(j + 1)], [gx(i), gy(j + 1)]];
+          const pts = [];
+          for (let e = 0; e < 4; e++) {
+            const a0 = v[e] - L, a1 = v[(e + 1) % 4] - L;
+            if ((a0 < 0) !== (a1 < 0)) {
+              const t = a0 / (a0 - a1), p0 = c4[e], p1 = c4[(e + 1) % 4];
+              pts.push([p0[0] + t * (p1[0] - p0[0]), p0[1] + t * (p1[1] - p0[1])]);
+            }
+          }
+          for (let k = 0; k + 1 < pts.length; k += 2) d += `M${X(pts[k][0])} ${Y(pts[k][1])}L${X(pts[k + 1][0])} ${Y(pts[k + 1][1])}`;
+        }
+        if (d) out += `<path d="${d}" style="fill:none;stroke:${L > 0 ? "var(--blue-600)" : "var(--accent)"};stroke-width:1.1;opacity:.75" />`;
+      }
+    }
+    const E = HC.eig2(P.a, P.b, P.c), tol = 1e-9 * Math.max(1, Math.abs(E.l[0]), Math.abs(E.l[1]));
+    const nz = E.l.map(Math.abs).filter(x => x > tol), mn = nz.length ? Math.min(...nz) : 1;
+    E.l.forEach((lam, i) => {
+      const zero = Math.abs(lam) <= tol, len = zero ? 0.9 * R : 0.9 * R * Math.sqrt(mn / Math.abs(lam));
+      const vx = E.v[i][0] * len, vy = E.v[i][1] * len;
+      const col = zero ? "var(--fg-muted)" : lam > 0 ? "var(--blue-700)" : "var(--orange-700)";
+      out += `<line x1="${X(cx - vx)}" y1="${Y(cy - vy)}" x2="${X(cx + vx)}" y2="${Y(cy + vy)}" style="stroke:${col};stroke-width:3;stroke-linecap:round${zero ? ";stroke-dasharray:6 5" : ""}" />`;
+      out += `<text x="${X(cx + vx * 1.04)}" y="${Y(cy + vy * 1.04)}" style="fill:${col};font-size:12px;font-weight:700">v${i + 1}</text>`;
+    });
+    out += `<circle cx="${X(cx)}" cy="${Y(cy)}" r="4" style="fill:var(--fg)" />`;
+    (opt.pts || []).forEach(p => { out += `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="5" style="fill:${p[2]};stroke:#fff;stroke-width:1.5" />`; });
+    return out + `</svg>`;
+  }
+};
+
+/* 0. Walking along the eigenvectors of the disguised saddle g = x^2 + 3xy + 2y^2 */
+(function () {
+  const E = HC.eig2(2, 3, 4), vn = E.v[0], vp = E.v[1];
+  const g = (x, y) => x * x + 3 * x * y + 2 * y * y;
+  const T = [0, 1, 2, 3];
+  const rows = T.map(t => ({ t, n: g(t * vn[0], t * vn[1]), p: g(t * vp[0], t * vp[1]) }));
+  const frames = rows.map((r, i) => ({ k: i, caption: `$t = ${r.t}$: $g(t\\,v_{neg}) = ${HC.num(r.n)}$ ve $g(t\\,v_{pos}) = ${HC.num(r.p)}$.` + (i === 0 ? ` Eigenvalue'lar $\\lambda_1 = ${HC.num(E.l[0])}$, $\\lambda_2 = ${HC.num(E.l[1])}$; $v_{neg} = (${HC.num(vn[0])}, ${HC.num(vn[1])})$.` : ` Formül: $\\tfrac{\\lambda}{2}t^2$ ⇒ $${HC.num(E.l[0] / 2 * r.t * r.t)}$ ve $${HC.num(E.l[1] / 2 * r.t * r.t)}$.`) }));
+  frames.push({ k: 3, final: true, caption: `Origin'de gradient sıfır ama $v_{neg}$ boyunca $g$ negatife iniyor: origin bir <b>saddle point</b>. Turuncu noktalar $v_{neg}$, mavi noktalar $v_{pos}$ boyunca.` });
+  Lab.stepper(document.getElementById("w-walk"), {
+    title: "g = x² + 3xy + 2y²: iki eigenvector boyunca yürüyüş",
+    interval: 1400,
+    frames,
+    render(f, idx, el) {
+      const pts = [];
+      for (let i = 0; i <= f.k; i++) { const t = T[i]; pts.push([t * vn[0], t * vn[1], "var(--accent)"], [t * vp[0], t * vp[1], "var(--blue-600)"]); }
+      let tb = `<div class="table-wrap"><table><tr><th>$t$</th><th>$g(t\\,v_{neg})$</th><th>$g(t\\,v_{pos})$</th></tr>`;
+      rows.slice(0, f.k + 1).forEach((r, i) => { tb += `<tr style="${i === f.k && !f.final ? "background:var(--blue-050)" : ""}"><td>${r.t}</td><td><b style="color:var(--orange-700)">${HC.num(r.n)}</b></td><td>${HC.num(r.p)}</td></tr>`; });
+      el.innerHTML = `<div class="w-hessian-convexity-grid"><div class="w-hessian-convexity-plot">${HC.contour({ a: 2, b: 3, c: 4, b1: 0, b2: 0 }, { R: 3.2, center: [0, 0], pts })}</div><div class="w-hessian-convexity-out">${tb}</table></div></div></div>`;
+    }
+  });
+})();
+
+/* 1. Taylor model explorer: f, m1, m2 along the step, and the error ratios when the step is halved */
+(function () {
+  const $ = id => document.getElementById(id);
+  const FUN = {
+    exp: { dim: 1, f: p => Math.exp(p[0]), g: p => [Math.exp(p[0]), 0], H: p => [[Math.exp(p[0]), 0], [0, 0]] },
+    rosen: { dim: 2, f: p => (1 - p[0]) ** 2 + 100 * (p[1] - p[0] ** 2) ** 2, g: p => [-2 * (1 - p[0]) - 400 * p[0] * (p[1] - p[0] ** 2), 200 * (p[1] - p[0] ** 2)], H: p => [[2 + 1200 * p[0] ** 2 - 400 * p[1], -400 * p[0]], [-400 * p[0], 200]] },
+    quad: { dim: 2, f: p => p[0] ** 2 + p[0] * p[1] + 2 * p[1] ** 2, g: p => [2 * p[0] + p[1], p[0] + 4 * p[1]], H: () => [[2, 1], [1, 4]] }
+  };
+  const sel = $("wt-fn"), ins = ["wt-x0", "wt-y0", "wt-p1", "wt-p2"].map($), err = $("wt-err"), plot = $("wt-plot"), out = $("wt-out");
+  function models(F, x, p) {
+    const fx = F.f(x), g = F.g(x), H = F.H(x);
+    const gp = g[0] * p[0] + g[1] * p[1];
+    const pHp = H[0][0] * p[0] * p[0] + 2 * H[0][1] * p[0] * p[1] + H[1][1] * p[1] * p[1];
+    return { fx, g, H, gp, pHp, m1: fx + gp, m2: fx + gp + pHp / 2, tr: F.f([x[0] + p[0], x[1] + p[1]]) };
+  }
+  function upd() {
+    const F = FUN[sel.value];
+    ins[1].disabled = ins[3].disabled = F.dim === 1;
+    const lim = [3, 3, 2, 2], labels = ["$x_0$", "$y_0$", "$p_1$", "$p_2$"];
+    const vals = [], errs = [];
+    ins.forEach((inp, i) => {
+      if (F.dim === 1 && (i === 1 || i === 3)) { vals.push(0); return; }
+      const r = HC.read(inp, labels[i], -lim[i], lim[i]);
+      if (r.e) errs.push(r.e); else vals.push(r.v);
+    });
+    if (!errs.length && vals[2] === 0 && vals[3] === 0) errs.push("Adım sıfır olamaz: $p_1$ ya da $p_2$'den en az biri sıfırdan farklı olsun.");
+    if (errs.length) { err.innerHTML = errs.join("<br>"); plot.innerHTML = ""; out.innerHTML = ""; Lab.renderMath(err); return; }
+    err.innerHTML = "";
+    const x = [vals[0], vals[1]], p = [vals[2], vals[3]], M = models(F, x, p);
+    /* plot along t in [-0.5, 1.5] */
+    const W = 300, Hh = 210, ts = [];
+    for (let i = 0; i <= 120; i++) ts.push(-0.5 + 2 * i / 120);
+    const fv = ts.map(t => F.f([x[0] + t * p[0], x[1] + t * p[1]])), m1 = ts.map(t => M.fx + t * M.gp), m2 = ts.map(t => M.fx + t * M.gp + t * t * M.pHp / 2);
+    const all = fv.concat(m1, m2);
+    let lo = Math.min(...all), hi = Math.max(...all);
+    if (hi - lo < 1e-9) { hi += 1; lo -= 1; }
+    const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+    const X = t => ((t + 0.5) / 2 * W).toFixed(1), Y = v => (Hh - (v - lo) / (hi - lo) * Hh).toFixed(1);
+    const line = (arr, col, dash) => `<polyline points="${arr.map((v, i) => X(ts[i]) + "," + Y(v)).join(" ")}" style="fill:none;stroke:${col};stroke-width:2${dash ? ";stroke-dasharray:6 4" : ""}" />`;
+    plot.innerHTML = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Taylor modelleri"><rect width="${W}" height="${Hh}" style="fill:var(--paper)" />` +
+      `<line x1="${X(0)}" y1="0" x2="${X(0)}" y2="${Hh}" style="stroke:var(--border)" /><line x1="${X(1)}" y1="0" x2="${X(1)}" y2="${Hh}" style="stroke:var(--fg-muted);stroke-dasharray:3 3" />` +
+      line(fv, "var(--fg)") + line(m1, "var(--accent)", true) + line(m2, "var(--blue-600)") +
+      `<text x="${+X(1) + 3}" y="14" style="fill:var(--fg-muted);font-size:11px">t = 1</text><text x="${+X(0) + 3}" y="${Hh - 4}" style="fill:var(--fg-muted);font-size:11px">x</text></svg>`;
+    /* halving table */
+    let rows = "", prev = null;
+    [1, 0.5, 0.25, 0.125].forEach(s => {
+      const q = models(F, x, [p[0] * s, p[1] * s]), e1 = Math.abs(q.tr - q.m1), e2 = Math.abs(q.tr - q.m2);
+      const r1 = prev && e1 > 1e-14 ? HC.num(prev[0] / e1, 2) : "—", r2 = prev && e2 > 1e-13 && prev[1] > 1e-13 ? HC.num(prev[1] / e2, 2) : "—";
+      rows += `<tr><td>${s === 1 ? "$p$" : "$p/" + (1 / s) + "$"}</td><td>${HC.num(e1, 6)}</td><td>${r1}</td><td>${HC.num(e2, 6)}</td><td>${r2}</td></tr>`;
+      prev = [e1, e2];
+    });
+    const Ht = F.dim === 1 ? `f''(x) = ${HC.num(M.H[0][0], 4)}` : `\\nabla^2 f = \\begin{pmatrix} ${HC.num(M.H[0][0], 3)} & ${HC.num(M.H[0][1], 3)} \\\\ ${HC.num(M.H[1][0], 3)} & ${HC.num(M.H[1][1], 3)} \\end{pmatrix}`;
+    const gt = F.dim === 1 ? `f'(x) = ${HC.num(M.g[0], 4)}` : `\\nabla f = (${HC.num(M.g[0], 4)},\\ ${HC.num(M.g[1], 4)})`;
+    out.innerHTML = `<p>$f(x) = ${HC.num(M.fx, 4)}$, $${gt}$, $${Ht}$</p>` +
+      `<div class="table-wrap"><table><tr><th>$\\nabla f^Tp$</th><th>$\\tfrac12 p^THp$</th><th>$m_1$</th><th>$m_2$</th><th>gerçek</th></tr><tr><td>${HC.num(M.gp, 4)}</td><td>${HC.num(M.pHp / 2, 4)}</td><td><b>${HC.num(M.m1, 4)}</b></td><td><b>${HC.num(M.m2, 4)}</b></td><td><b>${HC.num(M.tr, 4)}</b></td></tr></table></div>` +
+      `<div class="table-wrap"><table><tr><th>adım</th><th>$|f - m_1|$</th><th>oran</th><th>$|f - m_2|$</th><th>oran</th></tr>${rows}</table></div>` +
+      `<p class="src">Oran = bir önceki satırın hatası / bu satırın hatası. Beklenen: $m_1$ için ≈ 4, $m_2$ için ≈ 8. "—": hata sıfır (model tam) ya da önceki satır yok.</p>`;
+    Lab.renderMath(out);
+  }
+  sel.addEventListener("change", upd);
+  ins.forEach(i => i.addEventListener("input", upd));
+  document.querySelectorAll("[data-wt]").forEach(btn => btn.addEventListener("click", () => {
+    const v = btn.dataset.wt.split(",");
+    sel.value = v[0]; ins.forEach((inp, i) => { inp.value = v[i + 1]; });
+    upd();
+  }));
+  upd();
+})();
+
+/* 2. 2x2 symmetric matrix lab: eigen, minors, Cholesky, verdict, Qx = b and level sets */
+(function () {
+  const $ = id => document.getElementById(id);
+  const keys = ["a", "b", "c"], nums = keys.map(k => $("mx-" + k)), rngs = keys.map(k => $("mx-" + k + "-r"));
+  const b1 = $("mx-b1"), b2 = $("mx-b2"), err = $("mx-err"), plot = $("mx-plot"), out = $("mx-out");
+  function upd() {
+    const rs = [HC.read(nums[0], "$a$", -50, 50), HC.read(nums[1], "$b$", -50, 50), HC.read(nums[2], "$c$", -50, 50), HC.read(b1, "$b_1$", -50, 50), HC.read(b2, "$b_2$", -50, 50)];
+    const errs = rs.filter(r => r.e).map(r => r.e);
+    if (errs.length) { err.innerHTML = errs.join("<br>"); plot.innerHTML = ""; out.innerHTML = ""; Lab.renderMath(err); return; }
+    err.innerHTML = "";
+    const [a, b, c, u1, u2] = rs.map(r => r.v);
+    const E = HC.eig2(a, b, c), [l1, l2] = E.l, det = a * c - b * b;
+    const tol = 1e-10 * Math.max(1, Math.abs(l1), Math.abs(l2));
+    let cls, pt;
+    if (l1 > tol) { cls = "positive definite (PD)"; pt = "minimum"; }
+    else if (l2 < -tol) { cls = "negative definite"; pt = "maximum"; }
+    else if (l1 < -tol && l2 > tol) { cls = "indefinite"; pt = "saddle"; }
+    else if (Math.abs(l1) <= tol && Math.abs(l2) <= tol) { cls = "sıfır matrix (hem PSD hem NSD)"; pt = "degenerate"; }
+    else if (Math.abs(l1) <= tol) { cls = "positive semidefinite (PSD), singular"; pt = "degenerate"; }
+    else { cls = "negative semidefinite, singular"; pt = "degenerate"; }
+    /* Cholesky, step by step */
+    let ch;
+    if (a <= tol) ch = `$\\ell_{11} = \\sqrt{a} = \\sqrt{${HC.num(a)}}$: kökün içi pozitif değil ⇒ <b>durdu</b>, PD değil.`;
+    else {
+      const L11 = Math.sqrt(a), L21 = b / L11, r = c - L21 * L21;
+      ch = `$\\ell_{11} = ${HC.num(L11)}$, $\\ell_{21} = ${HC.num(L21)}$, $c - \\ell_{21}^2 = ${HC.num(r)}$` + (r > tol ? ` ⇒ $\\ell_{22} = ${HC.num(Math.sqrt(r))}$: <b>başarılı</b>.` : ` ⇒ kökün içi pozitif değil: <b>durdu</b>, PD değil.`);
+    }
+    let opt = "";
+    if (Math.abs(det) > 1e-9) {
+      const xs = [(c * u1 - b * u2) / det, (a * u2 - b * u1) / det], qs = -0.5 * (u1 * xs[0] + u2 * xs[1]);
+      opt = `$Qx = b$ çözümü $x^* = (${HC.num(xs[0])}, ${HC.num(xs[1])})$, $q(x^*) = ${HC.num(qs)}$. ` +
+        (pt === "minimum" ? "Q PD ⇒ tek global minimizer." : pt === "maximum" ? "Q negative definite ⇒ bu nokta global maximizer; minimum yok." : "Q indefinite ⇒ bu nokta saddle; $q$ alttan sınırsız.");
+    } else {
+      if (Math.abs(l1) <= tol && Math.abs(l2) <= tol) {
+        const bz = Math.abs(u1) < 1e-9 && Math.abs(u2) < 1e-9;
+        opt = bz ? "Q = 0 ve $b = 0$: $q \\equiv 0$, her nokta stationary." : "Q = 0: $q = -b^Tx$ linear, gradient hep $-b \\ne 0$. Stationary point yok, $q$ alttan ve üstten sınırsız.";
+        if (!bz) pt = "yok";
+      } else {
+        const v1 = E.v[Math.abs(l1) <= tol ? 0 : 1], inRange = Math.abs(v1[0] * u1 + v1[1] * u2) < 1e-9;
+        if (inRange) opt = "Q singular ve $b$ Q'nun range'inde: $Qx = b$'nin sonsuz çözümü var (bir doğru). " + (l2 > tol ? "Q PSD ⇒ bu doğrunun her noktası global minimizer." : "Q negative semidefinite ⇒ bu doğrunun her noktası global maximizer.");
+        else { opt = "Q singular ve $b$ range'de değil: $Qx = b$'nin çözümü yok. Stationary point yok, $q$ " + (l2 > tol ? "alttan" : "üstten") + " sınırsız."; pt = "yok"; }
+      }
+    }
+    const kap = l1 > tol ? `$\\kappa = ${HC.num(l2 / l1)}$` : "$\\kappa$ tanımsız (PD değil)";
+    plot.innerHTML = HC.contour({ a, b, c, b1: u1, b2: u2 }, { R: 3 });
+    out.innerHTML = `<div class="table-wrap"><table>
+      <tr><th>Test</th><th>Sonuç</th></tr>
+      <tr><td>eigenvalue'lar</td><td>$\\lambda_1 = ${HC.num(l1)}$, $\\lambda_2 = ${HC.num(l2)}$</td></tr>
+      <tr><td>eigenvector'ler</td><td>$v_1 = (${HC.num(E.v[0][0])}, ${HC.num(E.v[0][1])})$, $v_2 = (${HC.num(E.v[1][0])}, ${HC.num(E.v[1][1])})$</td></tr>
+      <tr><td>leading minor'lar</td><td>$\\Delta_1 = ${HC.num(a)}$, $\\Delta_2 = ${HC.num(det)}$</td></tr>
+      <tr><td>Cholesky</td><td>${ch}</td></tr>
+    </table></div>
+    <p class="w-hessian-convexity-verdict">Sınıf: ${cls} · stationary point: ${pt} · ${kap}</p><p>${opt}</p>`;
+    Lab.renderMath(out);
+  }
+  nums.forEach((n, i) => {
+    rngs[i].addEventListener("input", () => { n.value = rngs[i].value; upd(); });
+    n.addEventListener("input", () => { const v = Number(n.value); if (n.value.trim() !== "" && Number.isFinite(v)) rngs[i].value = v; upd(); });
+  });
+  [b1, b2].forEach(x => x.addEventListener("input", upd));
+  document.querySelectorAll("[data-mx]").forEach(btn => btn.addEventListener("click", () => {
+    const v = btn.dataset.mx.split(",");
+    nums.forEach((n, i) => { n.value = rngs[i].value = v[i]; });
+    b1.value = v[3]; b2.value = v[4];
+    upd();
+  }));
+  upd();
+})();
+
+/* 3. Chord tester: random chords until the first violation (seeded, like find_violation in Lab 2) */
+(function () {
+  const FN = {
+    x2: { name: "x²", tex: "x^2", f: t => t * t, lo: -5, hi: 5 },
+    exp: { name: "e^x", tex: "e^x", f: Math.exp, lo: -3, hi: 3 },
+    abs: { name: "|x|", tex: "|x|", f: Math.abs, lo: -5, hi: 5 },
+    x3: { name: "x³", tex: "x^3", f: t => t ** 3, lo: -3, hi: 3 },
+    sin: { name: "sin x", tex: "\\sin x", f: Math.sin, lo: -3, hi: 3 }
+  };
+  const TRIALS = 20000;
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function hunt(F, seed) {
+    const r = mulberry32(seed), log = [];
+    for (let k = 1; k <= TRIALS; k++) {
+      const x = F.lo + (F.hi - F.lo) * r(), y = F.lo + (F.hi - F.lo) * r(), lam = r();
+      const z = lam * x + (1 - lam) * y, fz = F.f(z), ch = lam * F.f(x) + (1 - lam) * F.f(y), bad = fz > ch + 1e-9;
+      if (k <= 5 || bad) log.push({ k, x, y, lam, z, fz, ch, bad });
+      if (bad) return { log, found: k };
+    }
+    return { log, found: null };
+  }
+  const sel = document.getElementById("wc-fn"), box = document.getElementById("wc-stepper"), lbl = document.getElementById("wc-seed-lbl");
+  let seed = 0;
+  function build() {
+    const F = FN[sel.value], H = hunt(F, seed);
+    lbl.textContent = "tohum " + seed;
+    const W = 300, Hh = 200, xs = [];
+    for (let i = 0; i <= 150; i++) xs.push(F.lo + (F.hi - F.lo) * i / 150);
+    const ys = xs.map(F.f);
+    let lo = Math.min(...ys), hi = Math.max(...ys); const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+    const X = x => ((x - F.lo) / (F.hi - F.lo) * W).toFixed(1), Y = v => (Hh - (v - lo) / (hi - lo) * Hh).toFixed(1);
+    const curve = `<polyline points="${xs.map((x, i) => X(x) + "," + Y(ys[i])).join(" ")}" style="fill:none;stroke:var(--fg);stroke-width:2" />`;
+    const frames = H.log.map(e => ({ e, caption: `Deneme ${e.k}: $x = ${HC.num(e.x, 2)}$, $y = ${HC.num(e.y, 2)}$, $\\lambda = ${HC.num(e.lam, 2)}$. Grafik $f(\\lambda x + (1-\\lambda)y) = ${HC.num(e.fz)}$, chord $${HC.num(e.ch)}$` + (e.bad ? ` ⇒ grafik chord'un <b>üstünde</b>: ihlal.` : ` ⇒ grafik chord'un altında ya da üzerinde, geçti.`) }));
+    if (H.log.length > 5 && H.found > 6) frames[5].caption = `(${H.found - 6} deneme daha geçti) ` + frames[5].caption;
+    frames.push({ e: H.log[H.log.length - 1], final: true, caption: H.found ? `İlk ihlal ${H.found}. denemede ⇒ $${F.tex}$ bu aralıkta <b>NOT convex</b>. Tek bir ihlal yeter.` : `${TRIALS} denemede ihlal yok: "no violation found (consistent with convex)". Bu bir ispat değil; ispat için Hessian'a bak.` });
+    Lab.stepper(box, {
+      title: `Chord tester: ${F.name} on [${F.lo}, ${F.hi}]`,
+      interval: 1300,
+      frames,
+      render(f, idx, el) {
+        const e = f.e, col = e.bad ? "var(--orange-700)" : "#2b8a3e";
+        el.innerHTML = `<div class="w-hessian-convexity-plot"><svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="chord testi"><rect width="${W}" height="${Hh}" style="fill:var(--paper)" />${curve}` +
+          `<line x1="${X(e.x)}" y1="${Y(F.f(e.x))}" x2="${X(e.y)}" y2="${Y(F.f(e.y))}" style="stroke:${col};stroke-width:2.2" />` +
+          `<circle cx="${X(e.x)}" cy="${Y(F.f(e.x))}" r="4" style="fill:${col}" /><circle cx="${X(e.y)}" cy="${Y(F.f(e.y))}" r="4" style="fill:${col}" />` +
+          `<line x1="${X(e.z)}" y1="${Y(e.ch)}" x2="${X(e.z)}" y2="${Y(e.fz)}" style="stroke:var(--fg-muted);stroke-dasharray:3 3" />` +
+          `<circle cx="${X(e.z)}" cy="${Y(e.fz)}" r="5" style="fill:var(--fg)" /><circle cx="${X(e.z)}" cy="${Y(e.ch)}" r="5" style="fill:none;stroke:${col};stroke-width:2" /></svg>` +
+          `<div class="w-hessian-convexity-legend"><span><i style="background:var(--fg)"></i>grafik ve $f(z)$</span><span><i style="background:${col}"></i>chord ve chord değeri</span></div></div>`;
+      }
+    });
+  }
+  sel.addEventListener("change", build);
+  document.getElementById("wc-seed").addEventListener("click", () => { seed += 1; build(); });
+  build();
+})();
+
+/* 4. Multi-start gradient descent: convex vs non-convex, nine starts, a = 0.08 */
+(function () {
+  const starts = Array.from({ length: 9 }, (_, i) => -2.1 + i * 4.4 / 8);
+  const P = [
+    { name: "convex: ½(x−1)² + 0.3", f: t => 0.5 * (t - 1) ** 2 + 0.3, df: t => t - 1 },
+    { name: "non-convex: x⁴/4 − x² + 0.3x", f: t => t ** 4 / 4 - t * t + 0.3 * t, df: t => t ** 3 - 2 * t + 0.3 }
+  ];
+  const KS = [0, 1, 2, 3, 5, 10, 20, 50, 100, 400], A = 0.08, LO = -2.5, HI = 2.7, DONE = "#2b8a3e";
+  P.forEach(pr => {
+    pr.snap = {};
+    let xs = starts.slice();
+    for (let k = 0; k <= 400; k++) {
+      if (KS.includes(k)) pr.snap[k] = xs.slice();
+      xs = xs.map(x => x - A * pr.df(x));
+    }
+    const ys = [];
+    for (let i = 0; i <= 120; i++) { const t = LO + (HI - LO) * i / 120; ys.push([t, pr.f(t)]); }
+    pr.curve = ys;
+  });
+  const ends = P[1].snap[400], nGlobal = ends.filter(x => x < 0).length;
+  function panel(pr, k, final) {
+    const W = 260, Hh = 170, ys = pr.curve.map(p => p[1]);
+    let lo = Math.min(...ys), hi = Math.max(...ys); const pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
+    const X = x => ((x - LO) / (HI - LO) * W).toFixed(1), Y = v => (Hh - (v - lo) / (hi - lo) * Hh).toFixed(1);
+    let s = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${pr.name}"><rect width="${W}" height="${Hh}" style="fill:var(--paper)" /><polyline points="${pr.curve.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}" style="fill:none;stroke:var(--fg);stroke-width:1.8" />`;
+    pr.snap[k].forEach((x, i) => {
+      const xc = Math.max(LO, Math.min(HI, x));
+      const col = final ? (pr === P[0] || pr.snap[400][i] < 0 ? DONE : "var(--accent)") : "var(--blue-600)";
+      s += `<circle cx="${X(xc)}" cy="${Y(pr.f(xc))}" r="5" style="fill:${col};opacity:.8;stroke:#fff;stroke-width:1" />`;
+    });
+    return `<div class="w-hessian-convexity-plot"><h4>${pr.name}</h4>${s}</svg></div>`;
+  }
+  const frames = KS.map(k => ({ k, caption: `İterasyon ${k}. Convex: ${P[0].snap[k].map(x => HC.num(x, 2)).join(", ")}. Quartic: ${P[1].snap[k].map(x => HC.num(x, 2)).join(", ")}.` }));
+  frames.push({ k: 400, final: true, caption: `400 iterasyon sonra. Convex: dokuz koşu da $x = ${HC.num(P[0].snap[400][0], 4)}$, <b>tek cevap</b>. Quartic: <b>${nGlobal}</b> koşu global minimum $x \\approx ${HC.num(Math.min(...ends), 3)}$'e (yeşil), <b>${9 - nGlobal}</b> koşu local minimum $x \\approx ${HC.num(Math.max(...ends), 3)}$'e (turuncu) gitti. Turuncular da gradient sıfırda durdu, "başarılı" görünüyor.` });
+  Lab.stepper(document.getElementById("wg-stepper"), {
+    title: "Dokuz başlangıç, α = 0.08",
+    interval: 1100,
+    frames,
+    render(f, idx, el) { el.innerHTML = `<div class="w-hessian-convexity-grid">${P.map(pr => panel(pr, f.k, f.final)).join("")}</div>`; }
+  });
+})();
+
+/* 5. Conditioning: the jumping 2x2 answer and Hilbert matrices solved for real */
+(function () {
+  function solve(A, b) {
+    const n = b.length, M = A.map((r, i) => r.concat([b[i]]));
+    for (let k = 0; k < n; k++) {
+      let p = k;
+      for (let i = k + 1; i < n; i++) if (Math.abs(M[i][k]) > Math.abs(M[p][k])) p = i;
+      const tmp = M[k]; M[k] = M[p]; M[p] = tmp;
+      for (let i = k + 1; i < n; i++) { const m = M[i][k] / M[k][k]; for (let j = k; j <= n; j++) M[i][j] -= m * M[k][j]; }
+    }
+    const x = new Array(n).fill(0);
+    for (let i = n - 1; i >= 0; i--) { let s = M[i][n]; for (let j = i + 1; j < n; j++) s -= M[i][j] * x[j]; x[i] = s / M[i][i]; }
+    return x;
+  }
+  const mv = (A, v) => A.map(r => r.reduce((s, a, j) => s + a * v[j], 0));
+  const dot = (u, v) => u.reduce((s, a, i) => s + a * v[i], 0);
+  function lmax(A) {
+    let v = A.map((_, i) => 1 + 0.01 * i), lam = 0;
+    for (let it = 0; it < 400; it++) { const w = mv(A, v); lam = dot(v, w) / dot(v, v); const nw = Math.hypot(...w); v = w.map(x => x / nw); }
+    return lam;
+  }
+  function C(n, k) { if (k < 0 || k > n) return 0n; let r = 1n; for (let i = 1; i <= k; i++) r = r * BigInt(n - k + i) / BigInt(i); return r; }
+  function hilbInv(n) {
+    const out = [];
+    for (let i = 0; i < n; i++) { out.push([]); for (let j = 0; j < n; j++) { const v = BigInt(i + j + 1) * C(n + i, n - j - 1) * C(n + j, n - i - 1) * C(i + j, i) ** 2n; out[i].push(Number((i + j) % 2 ? -v : v)); } }
+    return out;
+  }
+  /* 2x2 part */
+  const inp = document.getElementById("wn-d"), err = document.getElementById("wn-err"), out = document.getElementById("wn-out");
+  function upd() {
+    const r = HC.read(inp, "$\\delta$", 1e-12, 0.5);
+    if (!r.e && r.v <= 0) r.e = "$\\delta$ pozitif olmalı.";
+    if (r.e) { err.innerHTML = r.e; out.innerHTML = ""; Lab.renderMath(err); return; }
+    err.innerHTML = "";
+    const d = r.v, A = [[1, 1], [1, 1 + d]], ba = [2, 2 + d], bb = [2, 2 + 2 * d];
+    const xa = solve(A, ba), xb = solve(A, bb), E = HC.eig2(1, 1, 1 + d), kap = E.l[1] / E.l[0];
+    const rin = d / Math.hypot(...ba), rout = Math.hypot(xb[0] - xa[0], xb[1] - xa[1]) / Math.hypot(...xa);
+    out.innerHTML = `<table><tr><th>$b$</th><th>$x$</th></tr><tr><td>$(2,\\ ${HC.num(2 + d, 12)})$</td><td>$(${HC.num(xa[0], 4)},\\ ${HC.num(xa[1], 4)})$</td></tr><tr><td>$(2,\\ ${HC.num(2 + 2 * d, 12)})$</td><td>$(${HC.num(xb[0], 4)},\\ ${HC.num(xb[1], 4)})$</td></tr>
+      <tr><td>girdi göreli değişim</td><td>$${HC.sci(rin)}$</td></tr><tr><td>çıktı göreli değişim</td><td>$${HC.num(rout, 4)}$</td></tr>
+      <tr><td>büyütme</td><td>$${HC.sci(rout / rin)}$</td></tr><tr><td>$\\kappa = \\lambda_{\\max}/\\lambda_{\\min}$</td><td>$${HC.sci(kap)}$, kayıp ≈ $${HC.num(Math.log10(kap), 1)}$ basamak</td></tr></table>`;
+    Lab.renderMath(out);
+  }
+  inp.addEventListener("input", upd);
+  document.querySelectorAll("[data-wn]").forEach(btn => btn.addEventListener("click", () => { inp.value = btn.dataset.wn; upd(); }));
+  upd();
+  /* Hilbert part: one row per n */
+  const rows = [];
+  for (let n = 3; n <= 12; n++) {
+    const H = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => 1 / (i + j + 1)));
+    const ones = new Array(n).fill(1), x = solve(H, mv(H, ones));
+    const e = Math.max(...x.map(v => Math.abs(v - 1))), kap = lmax(H) * lmax(hilbInv(n));
+    rows.push({ n, kap, lg: Math.log10(kap), e });
+  }
+  const frames = rows.map((r, i) => ({ k: i, caption: `$n = ${r.n}$: $\\kappa \\approx ${HC.sci(r.kap)}$, kural ${HC.num(r.lg, 1)} basamak kaybı öngörüyor; gerçek en büyük hata $${HC.sci(r.e)}$, yani yaklaşık ${Math.max(0, Math.round(-Math.log10(r.e)))} doğru basamak kaldı.` }));
+  frames.push({ k: rows.length - 1, final: true, caption: `$n = 12$'de $\\kappa \\approx 10^{16}$: on altı basamağın hepsi gitti, çözüm bileşenleri 1'den $${HC.sci(rows[rows.length - 1].e)}$ kadar sapıyor. Solver hiçbir uyarı vermedi.` });
+  Lab.stepper(document.getElementById("wh-stepper"), {
+    title: "Hilbert matrix: Hx = H·1, gerçek çözüm hep birler",
+    interval: 1200,
+    frames,
+    render(f, idx, el) {
+      let h = `<div class="table-wrap"><table><tr><th>$n$</th><th>$\\kappa$</th><th>$\\log_{10}\\kappa$</th><th>$\\max_i |x_i - 1|$</th></tr>`;
+      rows.slice(0, f.k + 1).forEach((r, i) => { h += `<tr style="${i === f.k && !f.final ? "background:var(--blue-050)" : ""}"><td>${r.n}</td><td>$${HC.sci(r.kap)}$</td><td>${HC.num(r.lg, 1)}</td><td><b>$${HC.sci(r.e)}$</b></td></tr>`; });
+      el.innerHTML = h + `</table></div>`;
+    }
+  });
+})();
+</script>
+</body>
+</html>

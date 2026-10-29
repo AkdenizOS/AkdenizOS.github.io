@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 413: simplex tableau'sunda dört son, alternative optima, bandwidth LP'nin optimal edge'i, unbounded LP ve direction of unboundedness, degeneracy, cycling ve Bland's rule, Klee–Minty, Big-M ve two-phase method." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Simplex'in özel durumları · CSE 413 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-simplex-special-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-simplex-special-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-simplex-special-ctl input[type="text"] { width: 72px; }
+    .w-simplex-special-ctl label { white-space: nowrap; }
+    .w-simplex-special-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-simplex-special-tab { font-family: 'JetBrains Mono', monospace; font-size: .82rem; border-collapse: collapse; }
+    .w-simplex-special-tab th, .w-simplex-special-tab td { padding: 3px 7px; text-align: center; white-space: nowrap; }
+    .w-simplex-special-tab .is-in { background: var(--blue-050); }
+    .w-simplex-special-tab tr.is-out td { background: var(--orange-100); }
+    .w-simplex-special-tab td.is-piv { outline: 2px solid var(--accent); outline-offset: -2px; font-weight: 700; }
+    .w-simplex-special-tab td.is-zero { background: #d3f9d8; font-weight: 700; }
+    .w-simplex-special-tab tr.w-simplex-special-zr td { border-top: 1px solid var(--border-strong); }
+    .w-simplex-special-hist { font-family: 'JetBrains Mono', monospace; font-size: .78rem; color: var(--fg-muted); margin-top: 6px; line-height: 1.5; overflow-wrap: anywhere; }
+    .w-simplex-special-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; align-items: start; }
+    .w-simplex-special-plot svg { display: block; width: 100%; max-width: 340px; height: auto; }
+    .w-simplex-special-out { min-width: 0; }
+    .w-simplex-special-bar { display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: .8rem; margin: 3px 0; }
+    .w-simplex-special-bar > span:first-child { min-width: 74px; }
+    .w-simplex-special-bar > div { flex: 1; min-width: 40px; background: var(--stone-200); border-radius: 4px; height: 12px; overflow: hidden; }
+    .w-simplex-special-bar > div > i { display: block; height: 100%; }
+    .w-simplex-special-bar > b { min-width: 46px; text-align: right; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 413</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 413</a> / Simplex'in özel durumları</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L6</span><span class="chip">Week 3</span><span class="chip">Lab 3</span><span class="src">~40 dk · 10 bölüm</span></div>
+          <h1>Simplex'in özel durumları</h1>
+          <p class="lead">Önceki derste simplex job-mix LP'sinde temiz bir yol yürüdü: $(0,0) \to (0,6) \to (2,6)$, her pivot $z$'yi artırdı ve sonunda tek bir optimum vardı. Her LP bu kadar düzgün davranmaz. Bu derste tableau'nun dört olası sonu nasıl gösterdiğini (unique optimum, alternative optima, unbounded, infeasible), degeneracy'nin $z$'yi neden durdurduğunu, cycling'i ve Bland's rule'u, Klee–Minty örneğini ve slack'lerle başlanamayan LP'ler için Big-M ile two-phase method'u göreceksin.</p>
+          <!-- Kaynak: Week_03.pdf s.10 (four outcomes), s.20 (zero reduced cost), s.21 (degeneracy, Bland), s.22 (Klee–Minty, practice), s.23 (bandwidth LP), s.24 (Lab 3), s.26 (ödev: Winston Ch. 3–4) · Winston §4.7, §4.8, §4.11, §4.12, §4.13 · Nocedal & Wright §13.5 (degenerate steps and cycling) · weeks/03-linear-programming-simplex.md (Key concepts). Bütün tableau'lar, oranlar ve pivot sayıları python3 Fraction ile kontrol edildi. -->
+        </header>
+
+        <article class="lesson" data-course="cse-413" data-lesson="simplex-special">
+
+<!-- 1 -->
+<section class="lsec" id="four" data-min="4">
+  <h2>Dört son ve tableau'daki işaretleri</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · slayt s.10</span>
+    <p>Hocanın "Every LP Ends One of Four Ways" slaytında dört resim var. <strong>Unique optimum</strong>: objective line bölgeye tek bir vertex'te değiyor. <strong>Alternative optima</strong>: objective line bir edge'e paralel, edge'in tamamı optimal. <strong>Unbounded</strong>: bölge iyileşen yönde açık, $z \to \infty$. <strong>Infeasible</strong>: iki kısıt çelişiyor, feasible set boş.</p>
+    <p>Slaytın altındaki not: "Solvers report exactly these statuses — your code must handle all four (scipy: status 0 / 2 / 3)." Kendi simplex'in de bu dört durumu tableau'dan okuyabilmeli.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Son</th><th>Geometri</th><th>Tableau'da işaret (max, $c_j - z_j$)</th><th>scipy <code>linprog</code></th></tr>
+    <tr><td>Unique optimum</td><td>tek vertex</td><td>optimal tableau'da her nonbasic için $c_j - z_j &lt; 0$ (tekliği gösteren yeterli test)</td><td>status 0</td></tr>
+    <tr><td>Alternative optima</td><td>objective bir edge'e paralel</td><td>Nonbasic reduced cost 0: alternative optima adayı. Pozitif feasible adım farklı bir optimum gösterir; sıfır adım tek başına göstermez.</td><td>status 0 (tek bir vertex döner)</td></tr>
+    <tr><td>Unbounded</td><td>bölge iyileşen yönde açık</td><td>$c_j - z_j &gt; 0$ olan bir sütunda pozitif sayı yok, ratio test boş</td><td>status 3</td></tr>
+    <tr><td>Infeasible</td><td>feasible set boş</td><td>Phase I sonunda $w^* &gt; 0$ (Big-M'de optimal tableau'da pozitif artificial variable)</td><td>status 2</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki konvansiyon</span>
+    <p><strong>Slayt konvansiyonu</strong> (hocanın tableau'ları, bu dersteki bütün tableau'lar): alt satır $c_j - z_j$, burada $z_j = \sum_i c_{B,i}\, a_{ij}$. Max problem'inde en büyük pozitif $c_j - z_j$ girer. Bütün $c_j - z_j \le 0$ ise tableau optimal.</p>
+    <p><strong>z-row konvansiyonu</strong> (Lab 3 iskeleti <code>while (T[0, :-1] &lt; -1e-9).any()</code>, Winston'ın "row 0"ı): row 0'daki sayı $z_j - c_j$, yani işaretler ters. "En büyük pozitif $c_j - z_j$" = "row 0'daki en negatif sayı". "Bütün $c_j - z_j \le 0$" = "row 0'da negatif sayı yok".</p>
+    <p>Bu dersteki her kural önce slayt diliyle, sonra z-row karşılığıyla yazıldı.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Infeasible ile unbounded farklı şeyler: birinde hiç feasible nokta yok, ötekinde feasible nokta çok ve $z$ sınırsız büyüyor.</li>
+      <li>Bölgenin sınırsız olması LP'nin unbounded olduğunu göstermez. Bölge açık olsa da objective o yönde kötüleşiyorsa optimum vardır.</li>
+      <li>Solver alternative optima'da da status 0 verir ve bir vertex döndürür. Başka optimumların olup olmadığını sana söylemez; bunu final tableau'dan sen okursun.</li>
+    </ul>
+  </div>
+  <p class="src">Not: Week 3 slaytının son sayfası ("Before next week") Winston Ch. 3–4 problemlerini ödev olarak veriyor. Bu derste o problemlerden konuya uyanlar, ilgili bölümün içinde ödev sorusu olarak duruyor.</p>
+  <!-- Kaynak: Week_03.pdf s.10 (dört resim + scipy notu), s.20 ("Zero reduced cost at the optimum → alternative optima along that edge"), s.24 (Lab 3 kod iskeleti, z-row), s.26 ("problems: Winston Ch. 3–4"). scipy linprog status kodları: 0 optimal, 1 iteration limit, 2 infeasible, 3 unbounded, 4 numerical difficulties. -->
+  <div class="quiz" id="q-four-1">
+    <p class="quiz__q">Bir max problem'inin tableau'sunda bütün $c_j - z_j \le 0$. Nonbasic $x_3$'ün $c_j - z_j$ değeri 0, diğer nonbasic'lerinki negatif. Ne söylersin?</p>
+    <button class="quiz__opt" data-correct>Tableau optimal; $x_3$'ü basis'e sokup pozitif bir adım atılabiliyorsa ikinci bir optimal vertex vardır<span class="why">Doğru. 0 reduced cost, $x_3$ artınca $z$'nin değişmediğini söyler. Ratio test pozitif bir adım verirse aynı $z$ ile başka bir vertex'e varırsın.</span></button>
+    <button class="quiz__opt">Tableau optimal değil, $x_3$ girmeli<span class="why">Optimallik testi "$\le 0$". 0 olan bir sütun $z$'yi artırmaz, girmesi zorunlu değil. Burada "pozitif yok" ile "sıfır yok"u karıştırmışsın.</span></button>
+    <button class="quiz__opt">LP unbounded<span class="why">Unbounded için pozitif $c_j - z_j$'li bir sütunun hiç pozitif girdisi olmaması gerekir. Burada pozitif $c_j - z_j$ hiç yok.</span></button>
+    <button class="quiz__opt">Optimum tektir, 0'ın bir anlamı yok<span class="why">Nonbasic bir variable'ın 0 reduced cost'u, hocanın s.20'deki kuralına göre alternative optima adayıdır; bu bilgiyle optimumun tek olduğunu söyleyemezsin. Basic variable'ların 0 olması ise her zaman böyledir; onu nonbasic'le karıştırma.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="alt" data-min="5">
+  <h2>Alternative optima: sıfır reduced cost</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Bir nonbasic variable'ın $c_j - z_j$ değeri, o variable bir birim artınca $z$'nin ne kadar değiştiğini söyler. Optimal tableau'da bu sayı 0 ise o edge boyunca yürümek $z$'yi ne artırır ne azaltır. Edge'in öbür ucu da aynı $z$'yi verir, aradaki bütün noktalar da.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · job-mix, objective $3x_1 + 2x_2$ · slayt konvansiyonu</span>
+    <p>Job-mix kısıtlarını koru ($x_1 \le 4$, $2x_2 \le 12$, $3x_1 + 2x_2 \le 18$), objective'i $3x_1 + 2x_2$ yap. Objective artık CPU kısıtına paralel. Simplex (en büyük $c_j - z_j$ girer) $(0,0) \to (4,0) \to (4,3)$ yürür ve $z = 18$'de durur:</p>
+    <div class="table-wrap"><table class="w-simplex-special-tab">
+      <tr><th></th><th></th><th>c<sub>j</sub> →</th><th>3</th><th>2</th><th>0</th><th>0</th><th>0</th></tr>
+      <tr><th>c<sub>B</sub></th><th>Basis</th><th>b</th><th>x<sub>1</sub></th><th>x<sub>2</sub></th><th>s<sub>1</sub></th><th>s<sub>2</sub></th><th>s<sub>3</sub></th></tr>
+      <tr><td>3</td><td><b>x<sub>1</sub></b></td><td>4</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+      <tr><td>0</td><td><b>s<sub>2</sub></b></td><td>6</td><td>0</td><td>0</td><td>3</td><td>1</td><td>−1</td></tr>
+      <tr><td>2</td><td><b>x<sub>2</sub></b></td><td>3</td><td>0</td><td>1</td><td>−3/2</td><td>0</td><td>1/2</td></tr>
+      <tr class="w-simplex-special-zr"><td></td><td>z<sub>j</sub></td><td>18</td><td>3</td><td>2</td><td>0</td><td>0</td><td>1</td></tr>
+      <tr><td></td><td>c<sub>j</sub> − z<sub>j</sub></td><td></td><td>0</td><td>0</td><td class="is-zero">0</td><td>0</td><td>−1</td></tr>
+    </table></div>
+    <p>Hepsi $\le 0$, tableau optimal. Ama nonbasic $s_1$'in $c_j - z_j$ değeri 0 ($z_j = 3\cdot 1 + 0\cdot 3 + 2\cdot(-\tfrac32) = 0$). $s_1$'i sok: ratio test $x_1$ satırında $4/1 = 4$, $s_2$ satırında $6/3 = 2$ (en küçük), $x_2$ satırında katsayı negatif. $s_2$ çıkar, pivot 3:</p>
+    <div class="table-wrap"><table class="w-simplex-special-tab">
+      <tr><th>c<sub>B</sub></th><th>Basis</th><th>b</th><th>x<sub>1</sub></th><th>x<sub>2</sub></th><th>s<sub>1</sub></th><th>s<sub>2</sub></th><th>s<sub>3</sub></th></tr>
+      <tr><td>3</td><td><b>x<sub>1</sub></b></td><td>2</td><td>1</td><td>0</td><td>0</td><td>−1/3</td><td>1/3</td></tr>
+      <tr><td>0</td><td><b>s<sub>1</sub></b></td><td>2</td><td>0</td><td>0</td><td>1</td><td>1/3</td><td>−1/3</td></tr>
+      <tr><td>2</td><td><b>x<sub>2</sub></b></td><td>6</td><td>0</td><td>1</td><td>0</td><td>1/2</td><td>0</td></tr>
+      <tr class="w-simplex-special-zr"><td></td><td>z<sub>j</sub></td><td>18</td><td>3</td><td>2</td><td>0</td><td>0</td><td>1</td></tr>
+      <tr><td></td><td>c<sub>j</sub> − z<sub>j</sub></td><td></td><td>0</td><td>0</td><td>0</td><td class="is-zero">0</td><td>−1</td></tr>
+    </table></div>
+    <p>Yeni vertex $(2, 6)$, $z$ yine 18. Şimdi de $s_2$'nin reduced cost'u 0; onu sokarsan $(4,3)$'e geri dönersin. Optimal kümenin tamamı CPU edge'i:</p>
+    $$x = \lambda\,(4,3) + (1-\lambda)\,(2,6), \quad 0 \le \lambda \le 1, \qquad z = 18.$$
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · alternative optima'yı bulmak</span>
+    <ol>
+      <li>Optimal tableau'da <strong>nonbasic</strong> variable'lara bak. $c_j - z_j = 0$ olan var mı? (z-row'da: row 0'da 0 olan nonbasic.)</li>
+      <li>Varsa onu entering yap, ratio test'i normal yap, pivot et. Reduced cost 0 olduğu için $c_j - z_j$ satırı değişmez ve $z$ aynı kalır: yeni tableau da optimal.</li>
+      <li>İki optimal BFS $x^{(1)}, x^{(2)}$ ise $\lambda x^{(1)} + (1-\lambda) x^{(2)}$, $0 \le \lambda \le 1$, de optimaldir. LP'nin optimal kümesi convex'tir.</li>
+    </ol>
+    <p>Hiçbir nonbasic'in reduced cost'u 0 değilse (hepsi $&lt; 0$) optimum tektir.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Basic variable'ların $c_j - z_j$ değeri <em>her zaman</em> 0'dır. Alternative optima için yalnızca nonbasic sütunlara bak.</li>
+      <li>Sıfır reduced cost tek başına ikinci bir nokta garanti etmez. Ratio test 0 çıkarsa (degenerate durum) pivot basis'i değiştirir ama nokta aynı kalır. Winston bunu açıkça söylüyor: sıfır katsayılı bir nonbasic olsa da LP'nin alternative optimal solution'ı olmayabilir.</li>
+      <li>"Kaç optimal çözüm var?" sorusunun cevabı genelde "sonsuz"dur (edge üzerindeki her nokta). "Kaç optimal BFS var?" sorusu ise vertex sayısını sorar.</li>
+    </ul>
+  </div>
+  <h3>Kendin dene: objective'i döndür</h3>
+  <p class="w-simplex-special-guess"><b>Önce tahmin et:</b> $c = (3, 2)$ için kaç optimal vertex var? $c = (0, 1)$ için optimal edge hangi kısıtın üstünde?</p>
+  <div class="w-simplex-special-ctl">
+    <label>c<sub>1</sub> = <input id="alt-c1" type="text" inputmode="decimal" value="3" class="btn btn--sm" /></label>
+    <label>c<sub>2</sub> = <input id="alt-c2" type="text" inputmode="decimal" value="2" class="btn btn--sm" /></label>
+    <button class="btn btn--sm btn--accent" id="alt-go">Çöz</button>
+    <span class="src">hazır:</span>
+    <button class="btn btn--sm" data-altc="3,5">(3, 5) slayt</button>
+    <button class="btn btn--sm" data-altc="3,2">(3, 2)</button>
+    <button class="btn btn--sm" data-altc="0,1">(0, 1)</button>
+    <button class="btn btn--sm" data-altc="1,0">(1, 0)</button>
+  </div>
+  <div class="w-simplex-special-err" id="alt-err" aria-live="polite"></div>
+  <div class="w-simplex-special-grid">
+    <div class="w-simplex-special-plot" id="alt-plot"></div>
+    <div class="w-simplex-special-out" id="alt-out"></div>
+  </div>
+  <div class="w-simplex-special-ctl" id="alt-lamrow">
+    <label>$\lambda$ = <input id="alt-lam" type="text" inputmode="decimal" value="1/2" class="btn btn--sm" /></label>
+    <button class="btn btn--sm" id="alt-lamgo">Edge üstünde nokta</button>
+  </div>
+  <div class="w-simplex-special-err" id="alt-lamerr" aria-live="polite"></div>
+  <div id="alt-lamout"></div>
+  <div class="box box--exam" data-exam="lab3-ex-altopt">
+    <span class="box__label">Lab 3 · alternative optima · lab görevi</span>
+    <p>"Exercises: Bland's rule · staffing LP · <strong>alternative optima</strong> · Klee–Minty" (Week 3 slayt s.24; görevin yalnızca bu kısmı)</p>
+    <p class="src">Not: Lab 3 notebook'u repoda yok; slaytta görevin yalnızca başlığı var. Aşağıdaki somut hali, Lab01'in LP bölgesi üzerinde kuruldu.</p>
+    <p>Lab01'deki bölgeyi al: $x_1 + x_2 \le 4$, $x_1 + 3x_2 \le 6$, $x \ge 0$. Objective $\max\ x_1 + 3x_2$ olsun. Simplex ile optimumu bul, final tableau'dan alternative optima olduğunu göster ve bütün optimal çözümleri yaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Objective'in katsayıları hangi kısıtın katsayılarıyla orantılı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İlk pivot'ta $x_2$ girer ($c_j - z_j = 3$). Final tableau'da nonbasic $x_1$'in $c_j - z_j$ değerine bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Iteration 1</strong> (slayt konvansiyonu): $c_j - z_j = (1, 3, 0, 0)$, $x_2$ girer. Ratio: $s_1$: $4/1 = 4$, $s_2$: $6/3 = 2$ (min). $s_2$ çıkar. Yeni satırlar: $x_2$: $(\tfrac13, 1, 0, \tfrac13 \mid 2)$, $s_1$: $(\tfrac23, 0, 1, -\tfrac13 \mid 2)$. $c_B = (0, 3)$.</p>
+      <p>$z_j$: $x_1$: $3\cdot\tfrac13 = 1$, $s_2$: $3\cdot\tfrac13 = 1$. $c_j - z_j = (0, 0, 0, -1)$. Hepsi $\le 0$: optimal, $(x_1, x_2) = (0, 2)$, $z = 6$.</p>
+      <p><strong>Alternative:</strong> nonbasic $x_1$'in $c_j - z_j$ değeri 0. $x_1$'i sok: ratio $s_1$: $2/\tfrac23 = 3$, $x_2$: $2/\tfrac13 = 6$. $s_1$ çıkar, $x_1 = 3$, $x_2 = 2 - \tfrac13\cdot 3 = 1$. İkinci optimal vertex $(3, 1)$, $z = 3 + 3 = 6$.</p>
+      <p><strong>Bütün optimumlar:</strong> $x = \lambda(0,2) + (1-\lambda)(3,1)$, $0 \le \lambda \le 1$, hepsinde $z^* = 6$. Bu, $x_1 + 3x_2 \le 6$ kısıtının bölgeye değen parçasıdır; objective o kısıta paralel.</p>
+    </div></details>
+    <!-- Kaynak: Week_03.pdf s.24 (Exercises satırı) · Lab01.ipynb hücre 22 (bölge) ve Exercise 1. Tableau'lar python Fraction ile kontrol edildi. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-4.7-p2">
+    <span class="box__label">Winston §4.7 Problem 2 · ödev sorusu</span>
+    <p>"Show that the following LP has alternative optimal solutions; find three of them.</p>
+    <p>$\max z = -3x_1 + 6x_2$ s.t. $5x_1 + 7x_2 \le 35$, $-x_1 + 2x_2 \le 2$, $x_1, x_2 \ge 0$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$-3x_1 + 6x_2 = 3(-x_1 + 2x_2)$. Bu hangi kısıtla paralel?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Tek pivot'ta optimuma varırsın. Sonra nonbasic $x_1$'i sok; ratio test sadece $s_1$ satırında pozitif.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Iteration 1</strong> (slayt konvansiyonu): $c_j - z_j = (-3, 6, 0, 0)$, $x_2$ girer. Ratio: $s_1$: $35/7 = 5$, $s_2$: $2/2 = 1$ (min). $s_2$ çıkar. Yeni satırlar: $s_1$: $(\tfrac{17}{2}, 0, 1, -\tfrac72 \mid 28)$, $x_2$: $(-\tfrac12, 1, 0, \tfrac12 \mid 1)$.</p>
+      <p>$c_B = (0, 6)$. $z_j$: $x_1$: $6\cdot(-\tfrac12) = -3$, $s_2$: $6\cdot\tfrac12 = 3$. $c_j - z_j = (0, 0, 0, -3)$: optimal, $(0, 1)$, $z = 6$.</p>
+      <p><strong>Alternative:</strong> nonbasic $x_1$'in reduced cost'u 0. $x_1$'i sok: ratio sadece $s_1$ satırında, $28 / \tfrac{17}{2} = \tfrac{56}{17}$. $x_1 = \tfrac{56}{17}$, $x_2 = 1 + \tfrac12\cdot\tfrac{56}{17} = \tfrac{45}{17}$. Kontrol: $5\cdot\tfrac{56}{17} + 7\cdot\tfrac{45}{17} = 35$, $z = -3\cdot\tfrac{56}{17} + 6\cdot\tfrac{45}{17} = 6$.</p>
+      <p><strong>Üç optimal çözüm:</strong> $(0, 1)$, $(\tfrac{56}{17}, \tfrac{45}{17})$ ve ortaları $(\tfrac{28}{17}, \tfrac{31}{17})$. Üçünde de $z = 6$.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal kitap (Winston, pdf s.170)</a></p>
+    <!-- Kaynak: Winston, Operations Research, §4.7 Problems Group A #2 (kitap s.154, pdf s.170). Sayılar python Fraction ile kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-alt-1">
+    <p class="quiz__q">Job-mix bölgesinde $c = (3, 2)$. Kaç optimal BFS ve kaç optimal çözüm var?</p>
+    <button class="quiz__opt">1 BFS, 1 çözüm<span class="why">Objective CPU kısıtına paralel ($3x_1 + 2x_2$), o yüzden CPU edge'inin iki ucu da $z = 18$ verir.</span></button>
+    <button class="quiz__opt" data-correct>2 BFS, sonsuz çözüm<span class="why">Doğru: $(4,3)$ ve $(2,6)$ optimal BFS'ler, aradaki her nokta da optimal.</span></button>
+    <button class="quiz__opt">2 BFS, 2 çözüm<span class="why">İki optimal vertex varsa onların convex combination'ları da optimaldir; optimal küme convex'tir. Vertex sayısıyla çözüm sayısını karıştırma.</span></button>
+  </div>
+  <div class="quiz" id="q-alt-2">
+    <p class="quiz__q">Optimal bir tableau'da basic $x_2$'nin $c_j - z_j$ değeri 0. Bu alternative optima gösterir mi?</p>
+    <button class="quiz__opt">Evet, 0 reduced cost her zaman alternative optima demektir<span class="why">Basic variable'larda bu sayı tanım gereği 0'dır: kendi sütunu bir unit vector, $z_j = c_j$. Bilgi taşımaz.</span></button>
+    <button class="quiz__opt" data-correct>Hayır, basic variable'ların $c_j - z_j$ değeri her zaman 0'dır; nonbasic'lere bakmalısın<span class="why">Doğru. Alternative optima işareti, nonbasic bir variable'ın 0 reduced cost'udur.</span></button>
+    <button class="quiz__opt">Tableau optimal değil demektir<span class="why">Optimallik "$c_j - z_j \le 0$" ister; 0 bu koşulu bozmaz.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="bandwidth" data-min="4">
+  <h2>Bandwidth LP: slaytın cevabı tek değil</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · slayt s.23</span>
+    <p>Üç path SRC'den DST'ye trafik taşıyor: $P_1$ = SRC→R1→DST, $P_2$ = SRC→R2→DST, $P_3$ = SRC→R1→R2→DST. Rate'ler $f_1, f_2, f_3$ (Gbps):</p>
+    $$\max\ f_1 + f_2 + f_3 \quad \text{s.t.}\quad f_1 + f_3 \le 10,\ \ f_2 \le 8,\ \ f_1 \le 7,\ \ f_2 + f_3 \le 9,\ \ f_3 \le 4,\ \ f \ge 0.$$
+    <p>Slayt $f^* = (7, 8, 1)$, 16 Gbps diyor. Bu bir optimum, ama tek optimum değil. DST'ye giren iki link'e bak: R1→DST en fazla 7, R2→DST en fazla 9 taşır. Toplam trafik bu iki link'ten geçmek zorunda, yani $f_1 + f_2 + f_3 \le 7 + 9 = 16$. 16'ya ulaşmak için iki link de dolu olmalı: $f_1 = 7$ ve $f_2 + f_3 = 9$. $f_3$'ü bu şartlar içinde kaydırabilirsin.</p>
+  </div>
+  <p class="w-simplex-special-guess"><b>Önce tahmin et:</b> Simplex (en büyük $c_j - z_j$, eşitlikte küçük index) hangi optimumda durur? Final tableau'da hangi nonbasic'in reduced cost'u 0 olur?</p>
+  <div id="bw-run"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · bandwidth LP'nin bütün optimumları</span>
+    <p>$f_1 = 7$, $f_2 + f_3 = 9$ ve diğer kısıtlar: $f_1 + f_3 \le 10 \Rightarrow f_3 \le 3$; $f_2 \le 8 \Rightarrow f_3 \ge 1$; $f_3 \le 4$ zaten sağlanır. Sonuç:</p>
+    $$f^* = (7,\ 9 - t,\ t), \qquad 1 \le t \le 3, \qquad f_1 + f_2 + f_3 = 16.$$
+    <p>Uç noktalar $(7, 8, 1)$ (slaytın cevabı) ve $(7, 6, 3)$. Final tableau'da nonbasic $s_2$'nin ($f_2 \le 8$ kısıtının slack'i) $c_j - z_j$ değeri 0; onu sokan pivot $(7,8,1)$'den $(7,6,3)$'e yürür.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Slayttaki $(7, 8, 1)$'i "tek cevap" diye ezberleme. Sınavda "find all optimal solutions" gelirse cevap bir aralıktır.</li>
+      <li>Farklı solver'lar ya da farklı pivot kuralları farklı optimal vertex döndürebilir. İkisi de doğrudur; $z^* = 16$ değişmez.</li>
+      <li>"$f_1 + f_2 + f_3 \le 16$" argümanı iki kısıtı toplamaktan geliyor. Bu, Week 4'teki duality'nin ön izlemesi: kısıtların uygun bir toplamı objective'e üst sınır verir.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Alıştırma · bandwidth LP'nin bütün optimumları</span>
+    <p>Bandwidth LP'sini tableau simplex ile çöz. Final tableau'dan optimumun tek olmadığını göster, ikinci optimal vertex'i bul ve bütün optimal çözümleri yaz.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Beş kısıtın beşine de slack ekle: $s_1, \dots, s_5$. Başlangıç: bütün $c_j - z_j = 1$; eşitlikte en küçük index ($f_1$) girer.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Üç pivot yeter. Sonra final tableau'da nonbasic slack'lerin $c_j - z_j$ değerlerine bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Slayt konvansiyonu, en büyük $c_j - z_j$ girer, eşitlikte küçük index.</p>
+      <ol>
+        <li>$f_1$ girer. Ratio: $s_1$: $10/1$, $s_3$: $7/1$ (min). $s_3$ çıkar. $f_1 = 7$, $z = 7$.</li>
+        <li>$f_2$ girer ($c_j - z_j = 1$). Ratio: $s_2$: $8/1$ (min), $s_4$: $9/1$. $s_2$ çıkar. $f_2 = 8$, $z = 15$.</li>
+        <li>$f_3$ girer. Ratio: $s_1$: $3/1$, $s_4$: $1/1$ (min), $s_5$: $4/1$. $s_4$ çıkar. $f_3 = 1$, $z = 16$.</li>
+      </ol>
+      <p>Final: $f = (7, 8, 1)$, $s_1 = 2$, $s_5 = 3$. $c_j - z_j$: $s_2$: 0, $s_3$: $-1$, $s_4$: $-1$, diğerleri basic. Optimal, $z^* = 16$.</p>
+      <p><strong>Alternative optima:</strong> nonbasic $s_2$'nin reduced cost'u 0. $s_2$ sütunu $(s_1{:}\ 1,\ f_2{:}\ 1,\ f_1{:}\ 0,\ f_3{:}\ -1,\ s_5{:}\ 1)$. Ratio: $s_1$: $2/1 = 2$ (min), $f_2$: 8, $s_5$: 3. $s_2 = 2$ olur: $f_2 = 6$, $f_3 = 3$, $s_5 = 1$. İkinci optimal vertex $(7, 6, 3)$, $z = 16$.</p>
+      <p><strong>Cevap:</strong> $z^* = 16$ Gbps. Optimal küme $\{(7, 9-t, t) : 1 \le t \le 3\}$; slaytın $(7,8,1)$'i bunun bir ucu.</p>
+    </div></details>
+    <!-- Kaynak: Week_03.pdf s.23 (model, f* = (7,8,1)). Lab 3'ün "Solve the bandwidth-allocation case with YOUR solver" görevi data-exam kutusu olarak simplex.html'de (lab3-bandwidth) ve lp-geometry.html'de duruyor; burada yalnızca alternative optima tarafı alıştırma olarak var. Alternative optima aralığı lab-plans gaps notunda da var; python Fraction simplex ile pivotlar ve (7,6,3) kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-bw-1">
+    <p class="quiz__q">$(f_1, f_2, f_3) = (7, 7, 2)$ bandwidth LP'si için optimal mi?</p>
+    <button class="quiz__opt" data-correct>Evet: bütün kısıtları sağlıyor ve toplam 16<span class="why">Doğru. $f_1 + f_3 = 9 \le 10$, $f_2 = 7 \le 8$, $f_1 = 7$, $f_2 + f_3 = 9$, $f_3 = 2 \le 4$. Toplam $16 = z^*$; $t = 2$ aralığın içinde.</span></button>
+    <button class="quiz__opt">Hayır, slaytın cevabı $(7, 8, 1)$<span class="why">Slaytın verdiği nokta optimal kümenin bir ucu. Alternative optima varken her optimal nokta eşit derecede doğrudur.</span></button>
+    <button class="quiz__opt">Hayır, vertex olmadığı için optimal olamaz<span class="why">Fundamental theorem "bir vertex optimaldir" der, "sadece vertex'ler optimaldir" demez. Optimal edge'in iç noktaları da optimaldir.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="unbounded" data-min="4">
+  <h2>Unbounded LP: ratio test boş kalınca</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · Winston'ın Breadco örneği</span>
+    <p>Bir fırın, sınırsız maya ve un satın alabildiği bir modelde her French ekmekte 9¢ kâr ediyor. Daha çok satın al, daha çok pişir: kâr sınırsız büyür. Tableau'da bu şöyle görünür: bir variable girmek istiyor ($c_j - z_j &gt; 0$), ama hiçbir basic variable onu durdurmuyor, çünkü o sütunda pozitif sayı yok. Ratio test'te aday satır kalmıyor.</p>
+    <p>Winston'ın notu: unbounded LP genelde modelleme hatasıdır. Gerçekte talep, fırın kapasitesi, işçilik gibi bir kısıt unutulmuştur.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · slayt konvansiyonu</span>
+    <p>$\max z = 2x_1 + 3x_2$ s.t. $x_1 - x_2 \le 2$, $-2x_1 + x_2 \le 2$, $x \ge 0$.</p>
+    <p><strong>Iteration 1:</strong> $c_j - z_j = (2, 3, 0, 0)$, $x_2$ girer. $x_2$ sütunu $(-1, 1)$: yalnız ikinci satır pozitif, ratio $2/1 = 2$. $s_2$ çıkar. Yeni satırlar: $s_1$: $(-1, 0, 1, 1 \mid 4)$, $x_2$: $(-2, 1, 0, 1 \mid 2)$. Nokta $(0, 2)$, $z = 6$.</p>
+    <p><strong>Iteration 2:</strong> $c_B = (0, 3)$. $x_1$ için $z_j = 3\cdot(-2) = -6$, $c_j - z_j = 2 + 6 = 8 &gt; 0$, girmek istiyor. $x_1$ sütunu $(-1, -2)$: pozitif yok. LP unbounded.</p>
+    <p><strong>Direction of unboundedness:</strong> $x_1 = t$ yap, diğer nonbasic'ler 0 kalsın. Satırlardan $s_1 = 4 + t$, $x_2 = 2 + 2t$. Hepsi her $t \ge 0$ için nonnegative. Variable sırası $(x_1, x_2, s_1, s_2)$ ile $d = (1, 2, 1, 0)$, $c^\top d = 2\cdot 1 + 3\cdot 2 = 8 &gt; 0$ ve $z = 6 + 8t \to \infty$.</p>
+  </div>
+  <p class="w-simplex-special-guess"><b>Önce tahmin et:</b> Hangi iterasyonda ratio test boş kalır? Bu iki LP'de girmek isteyen variable'ın sütununda hangi sayılar var?</p>
+  <div id="unb-run"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · unbounded testi (max)</span>
+    <p>Bir tableau'da $c_j - z_j &gt; 0$ olan bir nonbasic $x_j$'nin sütunundaki bütün sayılar $\le 0$ ise LP unbounded'dır. (z-row'da: row 0'da negatif sayısı olan bir sütunun bütün kısıt girdileri $\le 0$.)</p>
+    <p>Kanıt tek satır: $x_j = t$ yapınca her basic variable $b_i - a_{ij} t \ge b_i \ge 0$ kalır, $z$ ise $t\,(c_j - z_j)$ kadar artar.</p>
+    <p><strong>Direction of unboundedness</strong> (Winston): feasible bir noktadan sonsuza kadar gidilebilen $d$ yönü. Max problem'i ancak ve ancak $c^\top d &gt; 0$ olan böyle bir $d$ varsa unbounded'dır; min problem'inde $c^\top d &lt; 0$.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Sütunu tamamen $\le 0$ olan ama $c_j - z_j \le 0$ olan bir variable unbounded göstermez: o variable zaten girmek istemiyor, artırmak $z$'yi düşürür.</li>
+      <li>Unbounded'ı görmek için o sütunun "en büyük" $c_j - z_j$ olmasını beklemene gerek yok. Pozitif reduced cost'u olan herhangi bir sütunda pozitif girdi yoksa LP unbounded'dır (Winston §4.8 Problem 3'ün fikri).</li>
+      <li>Ratio test'te negatif ya da sıfır katsayılı satırları atlarsın. "Negatif oran en küçüktür" diye onları seçmek feasibility'yi bozar.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-4.8-p1">
+    <span class="box__label">Winston §4.8 Problem 1 · ödev sorusu</span>
+    <p>"Show that the following LP is unbounded: $\max z = 2x_2$ s.t. $x_1 - x_2 \le 4$, $-x_1 + x_2 \le 1$, $x_1, x_2 \ge 0$. Find a point in the feasible region with $z \ge 10{,}000$."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İlk pivot'ta yalnız $x_2$'nin reduced cost'u pozitif. Hangi satır onu durdurur?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İkinci tableau'da $x_1$'in $c_j - z_j$ değeri ve sütunu ne? $x_1 = t$ alıp basic variable'ları $t$ cinsinden yaz.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Iteration 1</strong> (slayt konvansiyonu): $c_j - z_j = (0, 2, 0, 0)$, $x_2$ girer. $x_2$ sütunu $(-1, 1)$: yalnız $s_2$ satırı, ratio $1/1 = 1$. $s_2$ çıkar. Yeni satırlar: $s_1$: $(0, 0, 1, 1 \mid 5)$, $x_2$: $(-1, 1, 0, 1 \mid 1)$. $z = 2$.</p>
+      <p><strong>Iteration 2:</strong> $c_B = (0, 2)$. $x_1$: $z_j = 2\cdot(-1) = -2$, $c_j - z_j = 2 &gt; 0$. $x_1$ sütunu $(0, -1)$: pozitif girdi yok. <strong>LP unbounded.</strong></p>
+      <p><strong>Yön:</strong> $x_1 = t$, $x_2 = 1 + t$, $s_1 = 5$, $s_2 = 0$; $z = 2 + 2t$. $d = (1, 1, 0, 0)$, $c^\top d = 2 &gt; 0$.</p>
+      <p><strong>$z \ge 10{,}000$:</strong> $2 + 2t = 10{,}000 \Rightarrow t = 4999$. Nokta $(x_1, x_2) = (4999, 5000)$. Kontrol: $4999 - 5000 = -1 \le 4$, $-4999 + 5000 = 1 \le 1$, $z = 10{,}000$.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal kitap (Winston, pdf s.175)</a></p>
+    <!-- Kaynak: Winston §4.8 Problems Group A #1 (kitap s.159, pdf s.175). Breadco: §4.8 Example 3. Örnek LP (2x1+3x2) derse özel; python ile kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-unb-1">
+    <p class="quiz__q">Max problem'i, slayt konvansiyonu. $x_4$'ün $c_j - z_j$ değeri $-2$, sütunu $(-1, 0, -3)$. $x_2$'nin $c_j - z_j$ değeri $5$, sütunu $(2, -1, 0)$. Ne söylersin?</p>
+    <button class="quiz__opt">LP unbounded, çünkü $x_4$'ün sütununda pozitif yok<span class="why">$x_4$'ün reduced cost'u negatif; onu artırmak $z$'yi düşürür. Sütunun işareti ancak girmek isteyen bir variable için anlam taşır.</span></button>
+    <button class="quiz__opt" data-correct>Henüz bir şey söylenemez; $x_2$ girer ve ilk satırdan ratio test yapılır<span class="why">Doğru. $x_2$'nin pozitif bir girdisi (2) var, ratio test çalışır. Unbounded kararı için pozitif reduced cost'lu bir sütunun tamamen $\le 0$ olması gerekir.</span></button>
+    <button class="quiz__opt">Tableau optimal<span class="why">$x_2$'nin $c_j - z_j$ değeri 5 &gt; 0, yani iyileşen bir edge var.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="degenerate" data-min="5">
+  <h2>Degeneracy: ratio test'te beraberlik ve sıfır adım</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · slayt s.21</span>
+    <p>Slayttaki resim job-mix bölgesine gereksiz (redundant) bir kısıt ekliyor: $x_1 + x_2 \le 8$. Bu doğru tam $(2, 6)$'dan geçiyor. Düzlemde bir vertex normalde 2 sınırın kesişimidir; burada 3 sınır ($2x_2 = 12$, $3x_1 + 2x_2 = 18$, $x_1 + x_2 = 8$) aynı noktada buluşuyor. Basis'te 4 variable var ama noktayı belirlemek için 2 sınır yetiyor, bu yüzden bir basic variable 0 değerinde kalmak zorunda.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · tanımlar (slayt s.21, Winston §4.11)</span>
+    <ul>
+      <li><strong>Degenerate BFS:</strong> bir basic variable 0'a eşit. Geometride: vertex'te $n$'den fazla sınır buluşuyor. Sebep: redundant ya da tesadüfen hizalanmış kısıtlar ("common in real models").</li>
+      <li>Ratio test'te <strong>beraberlik</strong> çıkarsa biri leaving olur, berabere kalan öbürü basis'te 0 değerinde kalır: sonraki BFS degenerate.</li>
+      <li><strong>Zero-length pivot (stalling):</strong> degenerate bir BFS'te minimum ratio 0 olabilir. Entering variable 0 değerinde girer, basis değişir ama nokta ve $z$ aynı kalır.</li>
+      <li>Winston'ın formülü: $z_{\text{yeni}} = z_{\text{eski}} + (\text{entering variable'ın yeni değeri}) \cdot (c_j - z_j)$. Yeni değer 0 ise $z$ değişmez; pozitifse $z$ kesin artar.</li>
+      <li><strong>Sonlanma:</strong> nondegenerate bir LP'de her pivot $z$'yi artırır, aynı BFS'e dönülemez, BFS sayısı sonludur ⇒ simplex sonlu adımda biter. Degenerate LP'de bu argüman çöker.</li>
+    </ul>
+  </div>
+  <p class="w-simplex-special-guess"><b>Önce tahmin et:</b> Slaytın LP'sinde ikinci pivot'ta ratio test'te kaç satır berabere kalır? Winston (16)'da ilk pivot $z$'yi ne kadar artırır?</p>
+  <div id="deg-run"></div>
+  <div class="box box--example">
+    <span class="box__label">Ne gördün? · iki LP</span>
+    <p><strong>Slayt s.21 LP'si</strong> (job-mix + $x_1 + x_2 \le 8$): ikinci pivot'ta $x_1$ girerken $s_3$: $6/3 = 2$ ve $s_4$: $2/1 = 2$ berabere. $s_3$ çıkar, $s_4$ basis'te 0 değeriyle kalır. Optimum $(2, 6)$, $z = 36$, ve bu optimal BFS degenerate.</p>
+    <p><strong>Winston (16):</strong> $\max 5x_1 + 2x_2$ s.t. $x_1 + x_2 \le 6$, $x_1 - x_2 \le 0$. Başlangıç BFS'i zaten degenerate ($s_2 = 0$, çünkü RHS 0). $x_1$ girer, ratio $s_2$ satırında $0/1 = 0$: sıfır uzunlukta pivot, $z$ 0'da kalır. Sonra $x_2$ girer ve $(3, 3)$'e varılır, $z = 21$. Origin üç farklı basis ile temsil edilir ($\{s_1, s_2\}$, $\{s_1, x_1\}$, $\{s_1, x_2\}$); simplex origin'in iyi olmadığını ancak iki pivot sonra fark etti.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Degeneracy hata değildir; LP'nin optimumu vardır ve simplex genelde onu bulur. Sorun, $z$'nin bir süre durması ve en kötü durumda cycling.</li>
+      <li>Degenerate ile alternative optima farklı: birinde bir <em>basic</em> variable 0, ötekinde bir <em>nonbasic</em> variable'ın reduced cost'u 0.</li>
+      <li>Sıfır uzunlukta pivot "boşa" değildir: basis değişir ve bir sonraki pivot'ta gerçek bir ilerleme mümkün olabilir (Nocedal & Wright: "laying the groundwork").</li>
+      <li>"Kaç feasible basis var?" ile "kaç vertex/BFS var?" farklı sayılar verebilir; bir degenerate BFS birden fazla basis ile temsil edilebilir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-4.11-p1">
+    <span class="box__label">Winston §4.11 Problem 1 · ödev sorusu</span>
+    <p>"Even if an LP's initial tableau is nondegenerate, later tableaus may exhibit degeneracy. Degenerate tableaus often occur in the tableau following a tie in the ratio test. To illustrate this, solve the following LP: $\max z = 5x_1 + 3x_2$ s.t. $4x_1 + 2x_2 \le 12$, $4x_1 + x_2 \le 10$, $x_1 + x_2 \le 4$, $x_1, x_2 \ge 0$. Also graph the feasible region and show which extreme points correspond to more than one set of basic variables."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İlk pivot'ta $x_1$ girer. İkinci pivot'ta $x_2$ için ratio'ları dikkatle hesapla: iki satır eşit çıkıyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$(2, 2)$'yi üç kısıta da yerleştir. Kaç tanesi eşitlikle sağlanıyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Slayt konvansiyonu, en büyük $c_j - z_j$ girer, beraberlikte üstteki satır çıkar.</p>
+      <p><strong>Iteration 1:</strong> $c_j - z_j = (5, 3, 0, 0, 0)$, $x_1$ girer. Ratio: $12/4 = 3$, $10/4 = \tfrac52$ (min), $4/1 = 4$. $s_2$ çıkar. Satırlar: $s_1$: $(0, 1, 1, -1, 0 \mid 2)$, $x_1$: $(1, \tfrac14, 0, \tfrac14, 0 \mid \tfrac52)$, $s_3$: $(0, \tfrac34, 0, -\tfrac14, 1 \mid \tfrac32)$. $z = \tfrac{25}{2}$.</p>
+      <p><strong>Iteration 2:</strong> $x_2$'nin $c_j - z_j = 3 - 5\cdot\tfrac14 = \tfrac74$. Ratio: $s_1$: $2/1 = 2$, $x_1$: $\tfrac52 / \tfrac14 = 10$, $s_3$: $\tfrac32 / \tfrac34 = 2$. <strong>Beraberlik</strong> ($s_1$, $s_3$). $s_1$ çıkar. Yeni BFS: $x_2 = 2$, $x_1 = 2$, $s_3 = 0$, $z = 16$. $s_3$ basic ve 0: degenerate.</p>
+      <p><strong>Iteration 3:</strong> $s_2$'nin $c_j - z_j$ değeri $\tfrac12 &gt; 0$, girer. Sütunu $(x_2{:}\ -1,\ x_1{:}\ \tfrac12,\ s_3{:}\ \tfrac12)$. Ratio: $x_1$: $2/\tfrac12 = 4$, $s_3$: $0/\tfrac12 = 0$ (min). Sıfır uzunlukta pivot: nokta $(2, 2)$ ve $z = 16$ değişmez.</p>
+      <p><strong>Son tableau:</strong> $c_j - z_j = (0, 0, -1, 0, -1)$, hepsi $\le 0$. Optimum $x_1 = 2$, $x_2 = 2$, $z = 16$.</p>
+      <p><strong>Grafik:</strong> vertex'ler $(0,0)$, $(2.5, 0)$, $(2, 2)$, $(0, 4)$. $(2, 2)$'de üç kısıt da sıkı: $8 + 4 = 12$, $8 + 2 = 10$, $2 + 2 = 4$. Düzlemde 2'den fazla sınır buluştuğu için $(2,2)$ birden çok basis'e karşılık gelir: $\{x_1, x_2, s_3\}$ ($s_3 = 0$) ve $\{x_1, x_2, s_2\}$ ($s_2 = 0$), ayrıca $\{x_1, x_2, s_1\}$ ($s_1 = 0$).</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal kitap (Winston, pdf s.187)</a></p>
+    <!-- Kaynak: Winston §4.11 Problems Group A #1 (kitap s.171, pdf s.187); (16) örneği ve Table 32 aynı bölümden. Bütün ara tableau'lar python Fraction ile kontrol edildi. -->
+  </div>
+  <!-- Kaynak: Week_03.pdf s.21 (resim: x1 + x2 ≤ 8 redundant, (2,6)'da üç sınır) · Winston §4.11 (formül 15, tanım, (16), Table 32) · Nocedal & Wright §13.5. -->
+  <div class="quiz" id="q-deg-1">
+    <p class="quiz__q">Bir pivot'ta minimum ratio 0 çıktı. Pivot'tan sonra ne olur?</p>
+    <button class="quiz__opt">$z$ kesin artar<span class="why">$z$ artışı = (entering variable'ın yeni değeri) × ($c_j - z_j$). Yeni değer 0 olduğu için artış 0.</span></button>
+    <button class="quiz__opt" data-correct>Basis değişir, vertex ve $z$ aynı kalır<span class="why">Doğru: sıfır uzunlukta (degenerate) pivot. Geometride aynı köşede başka bir sınır seçimine geçtin.</span></button>
+    <button class="quiz__opt">LP infeasible olur<span class="why">Ratio 0 bir basic variable'ın zaten 0 olduğunu söyler; feasibility korunur. Infeasibility başka bir yoldan (Phase I) anlaşılır.</span></button>
+    <button class="quiz__opt">Simplex hemen cycling'e girer<span class="why">Cycling, basis dizisinin tekrar etmesidir. Tek bir sıfır pivot buna yetmez; Winston (16)'da sıfır pivot'tan sonra simplex optimuma ulaştı.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="cycling" data-min="5">
+  <h2>Cycling ve Bland's rule</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Degenerate pivot'lar $z$'yi değiştirmeden basis'i değiştirir. Pivot kuralı deterministik olduğu için, basis dizisi bir kez başladığı basis'e dönerse aynı pivot'ları yeniden seçer ve sonsuza kadar döner. Slayt: "Worst case: the basis sequence repeats forever — cycling."</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Bland's rule (slayt s.21)</span>
+    <p>"Always pick the smallest-index entering &amp; leaving candidates ⇒ cycling is impossible (guaranteed termination)."</p>
+    <ol>
+      <li><strong>Entering:</strong> $c_j - z_j &gt; 0$ olan variable'lar arasından <em>index'i en küçük</em> olan (en büyük $c_j - z_j$ değil). z-row'da: row 0'da negatif sayısı olanlar arasından en küçük index.</li>
+      <li><strong>Leaving:</strong> ratio test'te berabere kalan satırlar arasından, basic variable'ının index'i en küçük olan.</li>
+    </ol>
+    <p>Index sırası: önce karar değişkenleri $x_1, \dots, x_n$, sonra slack'ler $x_{n+1}, x_{n+2}, \dots$ (Winston'ın dipnotundaki numaralandırma). Bland (1977) bu kuralla hiçbir basis'in tekrar etmediğini gösterdi, yani simplex sonlu adımda biter.</p>
+  </div>
+  <p>Aşağıdaki LP Winston §4.11'in Problem 4'ü: $\max z = -3x_1 + x_2 - 6x_3$ s.t. $9x_1 + x_2 - 9x_3 - 2x_4 \le 0$, $x_1 + \tfrac13 x_2 - 2x_3 - \tfrac13 x_4 \le 0$, $-9x_1 - x_2 + 9x_3 + 2x_4 \le 1$, $x \ge 0$.</p>
+  <p class="w-simplex-special-guess"><b>Önce tahmin et:</b> Dantzig kuralıyla (en büyük $c_j - z_j$, beraberlikte üstteki satır) kaç pivot sonra başlangıç basis'ine dönülür? Bland's rule ilk kez hangi pivot'ta farklı bir seçim yapar?</p>
+  <div id="cyc-run"></div>
+  <div class="box box--example">
+    <span class="box__label">Ne gördün?</span>
+    <p><strong>Dantzig:</strong> $\{s_1, s_2, s_3\} \to \{x_2, s_2, s_3\} \to \{x_2, x_3, s_3\} \to \{x_4, x_3, s_3\} \to \{x_4, x_1, s_3\} \to \{s_1, x_1, s_3\} \to \{s_1, s_2, s_3\}$. Altı pivot, hepsi sıfır uzunlukta, $z$ hep 0, ve başa dönüldü.</p>
+    <p><strong>Bland:</strong> ilk dört pivot aynı. Beşinci pivot'ta $s_1$ girerken $x_4$ (1. satır) ile $x_1$ (2. satır) berabere. Üstteki satır kuralı $x_4$'ü çıkarır; Bland index'i küçük olan $x_1$'i çıkarır. Sonra $x_2$ girer, ratio 1, ve simplex $z = 1$'de durur: $x_2 = 1$, $x_4 = 1$, $s_1 = 1$.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Cycling yalnızca degenerate LP'lerde olabilir. Nondegenerate LP'de her pivot $z$'yi kesin artırır, aynı basis'e dönülemez.</li>
+      <li>Bland's rule <em>sonlanmayı</em> garanti eder, daha az pivot'u garanti etmez. Entering seçimi artık "en dik" kenara bakmıyor.</li>
+      <li>Bland'ın iki parçası da gerekli. Entering'i küçük index'le seçip leaving beraberliğini rastgele bozarsan garanti kalmaz.</li>
+      <li>Index'ler variable'ların sabit numaralarıdır, tableau'daki satır sırası değil. "Üstteki satır" kuralı Bland değildir.</li>
+    </ul>
+  </div>
+  <p>Nocedal &amp; Wright iki alternatif daha veriyor: <strong>perturbation</strong> (RHS'ye çok küçük $\epsilon, \epsilon^2, \dots$ ekleyerek her basis'i nondegenerate yapmak) ve onun yakın akrabası <strong>lexicographic</strong> kural. Kitap ayrıca cycling'in integer programming'den gelen büyük LP relaxation'larında sık görüldüğünü, bu yüzden gerçek solver'ların bir cycling önleme stratejisi taşıdığını söylüyor.</p>
+  <div class="box box--exam" data-exam="lab3-ex-bland">
+    <span class="box__label">Lab 3 · Bland's rule · lab görevi</span>
+    <p>"Exercises: <strong>Bland's rule</strong> · staffing LP · alternative optima · Klee–Minty" (Week 3 slayt s.24; görevin yalnızca bu kısmı)</p>
+    <p class="src">Not: Lab 3 notebook'u repoda yok; görevin ayrıntısı bilinmiyor. Somut hali: s.24'teki iskeletin <code>entering</code> ve <code>ratio_test</code> fonksiyonlarına Bland seçeneği eklemek ve cycling yapan bir LP'de iki kuralı karşılaştırmak.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İskelet z-row konvansiyonunda: <code>T[0, :-1] &lt; -1e-9</code> olan sütunlar aday. Dantzig en negatifi, Bland ilk adayı (en küçük index) seçer.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Ratio test'te en küçük oranı bul, sonra o orana eşit olan satırlar içinden <code>basis[i]</code> değeri en küçük olanı döndür. Floating point'te "eşit" için bir tolerans kullan.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+<pre><code>def entering(T, bland=False):
+    cand = [j for j in range(T.shape[1] - 1) if T[0, j] &lt; -1e-9]   # z-row: negatif = iyileşen
+    if bland:
+        return cand[0]                                              # en küçük index
+    return min(cand, key=lambda j: T[0, j])                         # Dantzig: en negatif
+
+def ratio_test(T, basis, j, bland=False):
+    rows = [i for i in range(1, T.shape[0]) if T[i, j] &gt; 1e-9]
+    if not rows:
+        raise ValueError("unbounded")                               # sütunda pozitif yok
+    r = {i: T[i, -1] / T[i, j] for i in rows}
+    best = min(r.values())
+    ties = [i for i in rows if r[i] &lt;= best + 1e-9]
+    return min(ties, key=lambda i: basis[i - 1]) if bland else ties[0]</code></pre>
+      <p>Burada <code>basis[i - 1]</code>, satır $i$'deki basic variable'ın sütun index'i (row 0 objective satırı). Winston §4.11 Problem 4 ile denendiğinde: Dantzig + üstteki satır kuralı 6 pivot sonra başlangıç basis'ine döner (cycling); Bland 6 pivot'ta $z^* = 1$'de durur. Yukarıdaki animasyon bu iki koşunun aynısını gösteriyor.</p>
+    </div></details>
+    <!-- Kaynak: Week_03.pdf s.21 (Bland), s.24 (Exercises satırı ve iskelet). Kod çözümü derse özel; pivot dizileri python Fraction ile kontrol edildi. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-4.11-p4-p5">
+    <span class="box__label">Winston §4.11 Problem 4 ve 5 · ödev sorusu</span>
+    <p>"4. Show that if ties are broken in favor of lower-numbered rows, then cycling occurs when the simplex method is used to solve the following LP: $\max z = -3x_1 + x_2 - 6x_3$ s.t. $9x_1 + x_2 - 9x_3 - 2x_4 \le 0$, $x_1 + \frac{x_2}{3} - 2x_3 - \frac{x_4}{3} \le 0$, $-9x_1 - x_2 + 9x_3 + 2x_4 \le 1$, $x_i \ge 0$.</p>
+    <p>5. Show that if Bland's Rule to prevent cycling is applied to Problem 4, then cycling does not occur."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Başlangıçta yalnız $x_2$'nin reduced cost'u pozitif. Ratio test'te ilk iki satırın RHS'i 0: beraberlik.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her adımda basis'i bir kümeye yaz. Altıncı pivot'tan sonra bir kümenin tekrar ettiğini göreceksin. Bland için yalnızca beraberlik olan adımlarda farklı bir seçim yapıp yapmadığına bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Slayt konvansiyonu (Winston'ın "row 0'da en negatif" seçimiyle aynı seçim). Slack'ler $s_1, s_2, s_3$; index sırası $x_1, \dots, x_4, s_1, s_2, s_3$.</p>
+      <div class="table-wrap"><table>
+        <tr><th>Pivot</th><th>Giren ($c_j - z_j$)</th><th>Ratio</th><th>Çıkan</th><th>Yeni basis</th></tr>
+        <tr><td>1</td><td>$x_2$ (1)</td><td>$s_1$: 0, $s_2$: 0</td><td>$s_1$ (üst satır)</td><td>$\{x_2, s_2, s_3\}$</td></tr>
+        <tr><td>2</td><td>$x_3$ (3)</td><td>$s_2$: 0</td><td>$s_2$</td><td>$\{x_2, x_3, s_3\}$</td></tr>
+        <tr><td>3</td><td>$x_4$ (1)</td><td>$x_2$: 0, $x_3$: 0</td><td>$x_2$</td><td>$\{x_4, x_3, s_3\}$</td></tr>
+        <tr><td>4</td><td>$x_1$ (3)</td><td>$x_3$: 0</td><td>$x_3$</td><td>$\{x_4, x_1, s_3\}$</td></tr>
+        <tr><td>5</td><td>$s_1$ (1)</td><td>$x_4$: 0, $x_1$: 0</td><td>$x_4$ (üst satır)</td><td>$\{s_1, x_1, s_3\}$</td></tr>
+        <tr><td>6</td><td>$s_2$ (3)</td><td>$x_1$: 0</td><td>$x_1$</td><td>$\{s_1, s_2, s_3\}$</td></tr>
+      </table></div>
+      <p>Altı pivot sonra başlangıç basis'ine dönüldü; $z$ hep 0. Kural aynı olduğu için aynı altı pivot sonsuza kadar tekrar eder: <strong>cycling</strong> (Problem 4).</p>
+      <p><strong>Problem 5 (Bland):</strong> 1–4. pivot'lar aynı (her adımda pozitif reduced cost'lu tek aday var ya da en küçük index aynı satırı seçiyor; 1. pivot'ta $s_1$'in index'i $s_2$'ninkinden küçük, 3. pivot'ta $x_2$'ninki $x_3$'ünkinden küçük). 5. pivot'ta beraberlik $x_4$ ile $x_1$ arasında: Bland $x_1$'i çıkarır, basis $\{x_4, s_1, s_3\}$ olur. 6. pivot: yalnız $x_2$ pozitif ($c_j - z_j = 1$), ratio yalnız $s_3$ satırında: $1/1 = 1$, $s_3$ çıkar. Son basis $\{x_4, s_1, x_2\}$, değerler $x_4 = 1$, $s_1 = 1$, $x_2 = 1$, $c_j - z_j \le 0$: optimal, $z^* = 1$. Cycling olmadı.</p>
+      <p>Kontrol: $(x_1, x_2, x_3, x_4) = (0, 1, 0, 1)$: $1 - 2 = -1 \le 0$, $\tfrac13 - \tfrac13 = 0 \le 0$, $-1 + 2 = 1 \le 1$, $z = 1$.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal kitap (Winston, pdf s.188)</a></p>
+    <!-- Kaynak: Winston §4.11 Problems Group B #4, #5 (kitap s.172, pdf s.188); Bland dipnotu kitap s.170. Pivot tablosu python Fraction ile kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-cyc-1">
+    <p class="quiz__q">Max problem'i, slayt konvansiyonu: $c_j - z_j = (2,\ 7,\ 0,\ 5,\ -1)$ (sütunlar $x_1, \dots, x_5$). Bland's rule'a göre hangisi girer?</p>
+    <button class="quiz__opt" data-correct>$x_1$<span class="why">Doğru. Pozitif olanlar $x_1, x_2, x_4$; Bland en küçük index'i seçer.</span></button>
+    <button class="quiz__opt">$x_2$<span class="why">Bu Dantzig'in seçimi (en büyük $c_j - z_j$). Bland değer büyüklüğüne bakmaz.</span></button>
+    <button class="quiz__opt">$x_3$<span class="why">$x_3$'ün reduced cost'u 0; $z$'yi artırmaz, aday değil.</span></button>
+    <button class="quiz__opt">$x_5$<span class="why">Negatif reduced cost $z$'yi düşürür. Max problem'inde aday yalnızca pozitif olanlar.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="complexity" data-min="4">
+  <h2>Klee–Minty: teoride üstel, pratikte hızlı</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · slayt s.22</span>
+    <p>Klee ve Minty (1972) $n$ boyutlu küpü öyle bir eğip büküyor ki Dantzig kuralı (en büyük $c_j - z_j$) $2^n$ vertex'in hepsini dolaşıyor, yani $2^n - 1$ pivot atıyor. Bu yüzden simplex worst case'te polynomial değil. Slayt ekliyor: "Every classic pivot rule has such a nemesis."</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · slaytın iki sütunu</span>
+    <div class="table-wrap"><table>
+      <tr><th>Worst case (theory)</th><th>Observed behavior (practice)</th></tr>
+      <tr><td>Klee–Minty: Dantzig kuralı $2^n - 1$ pivot</td><td>Tipik koşu: yaklaşık $O(m)$ pivot; milyon variable'lı LP'lerde binlerce, $2^n$ değil</td></tr>
+      <tr><td>Simplex worst case'te polynomial değil</td><td>Smoothed analysis (Spielman &amp; Teng, 2004): küçük rastgele pertürbasyonlar patolojik örnekleri yok eder</td></tr>
+      <tr><td>Her klasik pivot kuralının böyle bir "nemesis"i var</td><td>Interior-point method'lar polynomial: bölgenin içinden geçerler</td></tr>
+      <tr><td></td><td>Modern solver'lar: presolve + dual simplex + barrier, paralel yarıştırılır</td></tr>
+    </table></div>
+    <p>Klee–Minty'nin bir yazımı ($n$ variable, $n$ kısıt):</p>
+    $$\max \sum_{j=1}^{n} 2^{\,n-j} x_j \quad \text{s.t.} \quad 2\sum_{j=1}^{i-1} 2^{\,i-j} x_j + x_i \le 5^i,\ \ i = 1, \dots, n, \qquad x \ge 0.$$
+    <p>$n = 3$: $\max 4x_1 + 2x_2 + x_3$ s.t. $x_1 \le 5$, $4x_1 + x_2 \le 25$, $8x_1 + 4x_2 + x_3 \le 125$. Optimum $(0, 0, 125)$, $z^* = 125$.</p>
+  </div>
+  <p class="w-simplex-special-guess"><b>Önce tahmin et:</b> $n = 5$'te Dantzig kuralı kaç pivot atar? Bland's rule daha mı çok, daha mı az?</p>
+  <div class="w-simplex-special-ctl">
+    <label>n = <input id="km-n" type="text" inputmode="numeric" value="6" class="btn btn--sm" /></label>
+    <button class="btn btn--sm btn--accent" id="km-go">Say</button>
+    <span class="src">2 ile 10 arası</span>
+  </div>
+  <div class="w-simplex-special-err" id="km-err" aria-live="polite"></div>
+  <div id="km-out"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Simplex worst case'te üstel" ile "LP çözmek zor" aynı şey değil. LP polynomial zamanda çözülebilir (interior-point); üstel olan, belirli bir pivot kuralıyla simplex'in kendisi.</li>
+      <li>Klee–Minty degeneracy örneği değil: her pivot $z$'yi kesin artırıyor. Sorun cycling değil, yolun çok uzun olması.</li>
+      <li>Bland bu örnekte daha az pivot atıyor, ama bu genel bir kural değil; Bland'ın da kendi kötü örnekleri var ("every classic pivot rule has such a nemesis").</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab3-ex-kleeminty">
+    <span class="box__label">Lab 3 · Klee–Minty · lab görevi</span>
+    <p>"Lab stretch: build it, count the pivots, watch $2^n$." (Week 3 slayt s.22) ve "Exercises: … · Klee–Minty" (s.24)</p>
+    <p class="src">Not: Lab 3 notebook'u repoda yok; hangi Klee–Minty yazımının kullanıldığı bilinmiyor. Aşağıda yukarıdaki yazım kullanıldı.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$A$ lower-triangular: köşegen 1, köşegenin altında $a_{ij} = 2^{\,i-j+1}$. $b_i = 5^i$, $c_j = 2^{\,n-j}$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Kendi solver'ına bir pivot sayacı ekle ve $n = 2, \dots, 10$ için Dantzig ile Bland'ı ayrı ayrı koş. $n = 3$'te ziyaret edilen vertex'leri yazdır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+<pre><code>def klee_minty(n):
+    c = np.array([2.0 ** (n - j) for j in range(1, n + 1)])
+    A = np.zeros((n, n)); b = np.array([5.0 ** i for i in range(1, n + 1)])
+    for i in range(1, n + 1):
+        A[i - 1, i - 1] = 1
+        for j in range(1, i):
+            A[i - 1, j - 1] = 2.0 ** (i - j + 1)
+    return c, A, b</code></pre>
+      <div class="table-wrap"><table>
+        <tr><th>$n$</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th></tr>
+        <tr><td>Dantzig</td><td>3</td><td>7</td><td>15</td><td>31</td><td>63</td><td>127</td><td>255</td><td>511</td><td>1023</td></tr>
+        <tr><td>Bland</td><td>3</td><td>5</td><td>9</td><td>15</td><td>25</td><td>41</td><td>67</td><td>109</td><td>177</td></tr>
+      </table></div>
+      <p>Dantzig tam olarak $2^n - 1$ pivot atar; optimum her $n$ için $x_n = 5^n$, diğerleri 0, $z^* = 5^n$.</p>
+      <p>$n = 3$, Dantzig'in yolu ($x$, $z$): $(0,0,0)$ 0 → $(5,0,0)$ 20 → $(5,5,0)$ 30 → $(0,25,0)$ 50 → $(0,25,25)$ 75 → $(5,5,65)$ 95 → $(5,0,85)$ 105 → $(0,0,125)$ 125. Sekiz vertex'in sekizi de ziyaret edildi; $z$ her adımda kesin arttı.</p>
+    </div></details>
+    <!-- Kaynak: Week_03.pdf s.22 ve s.24. Bu Klee–Minty yazımı repoda yok (literatürdeki standart yazımlardan biri); pivot sayıları ve n = 3 yolu python Fraction ile sayıldı. -->
+  </div>
+  <div class="quiz" id="q-km-1">
+    <p class="quiz__q">Klee–Minty örneği neyi gösterir?</p>
+    <button class="quiz__opt">LP problemleri NP-hard'dır<span class="why">LP polynomial zamanda çözülebilir; slayt interior-point method'ların polynomial olduğunu söylüyor. Klee–Minty sadece bir algoritmanın (Dantzig kurallı simplex) kötü durumunu gösterir.</span></button>
+    <button class="quiz__opt" data-correct>Dantzig kurallı simplex worst case'te $2^n - 1$ pivot atabilir, yani polynomial değildir<span class="why">Doğru. Pratikte ise tipik koşular yaklaşık $O(m)$ pivot sürer.</span></button>
+    <button class="quiz__opt">Simplex Klee–Minty'de cycling'e girer<span class="why">Klee–Minty'de her pivot $z$'yi artırır; dönüş yok, sadece çok uzun bir yol var. Cycling degeneracy ister.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="bigm" data-min="5">
+  <h2>Başlangıç BFS'i yoksa: artificial variable ve Big-M</h2>
+  <p class="src">Not: Big-M ve two-phase hocanın Week 3 slaytlarında yok; repodaki Week 3 planı ("two-phase / Big-M for finding an initial BFS") bunları listeliyor. Konu Winston §4.12–4.13 üzerinden anlatıldı. Week 4 slaytları repoda olmadığı için vizede çıkıp çıkmayacağı belirsiz.</p>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Job-mix'te başlangıç bedavaydı: bütün kısıtlar $\le$ ve RHS $\ge 0$, slack'ler basis olur, origin feasible. Bir $\ge$ kısıtında ise slack yerine bir <strong>excess</strong> (surplus) variable çıkarırsın: $x_1 + 3x_2 - e_2 = 20$. Origin'de $e_2 = -20 &lt; 0$, feasible değil. Bir $=$ kısıtının da slack'i yok. Çare: bu satırlara geçici <strong>artificial variable</strong> $a_i \ge 0$ eklemek. Artificial'lar başlangıç basis'ini verir, ama gerçek çözümde 0 olmaları gerekir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Big-M method (Winston §4.12)</span>
+    <ol>
+      <li>Negatif RHS'li kısıtı $-1$ ile çarp (eşitsizliğin yönü döner).</li>
+      <li>$\le$ kısıta slack $s_i$ ekle; $\ge$ kısıttan excess $e_i$ çıkar.</li>
+      <li>Her $\ge$ ve $=$ kısıta artificial $a_i \ge 0$ ekle.</li>
+      <li>Objective'e ceza koy: min problem'inde $+M a_i$, max problem'inde $-M a_i$. $M$ çok büyük bir pozitif sayı.</li>
+      <li>Simplex'i normal koş. Slayt konvansiyonunda $a_i$'nin $c_B$ değeri $-M$ olduğu için $z_j$ satırı bunu kendiliğinden hesaplar. (z-row ile çalışıyorsan önce artificial'ları row 0'dan satır işlemiyle silmelisin.)</li>
+      <li>Optimal tableau'da bütün artificial'lar 0 ise bulunan çözüm asıl LP'nin optimumudur. <strong>Bir artificial pozitif kaldıysa asıl LP infeasible.</strong></li>
+    </ol>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Winston'ın Bevco problemi</span>
+    <p>$\min z = 2x_1 + 3x_2$ s.t. $\tfrac12 x_1 + \tfrac14 x_2 \le 4$ (sugar), $x_1 + 3x_2 \ge 20$ (vitamin C), $x_1 + x_2 = 10$ (10 oz), $x \ge 0$.</p>
+    <p>Standart form: $\tfrac12 x_1 + \tfrac14 x_2 + s_1 = 4$, $x_1 + 3x_2 - e_2 + a_2 = 20$, $x_1 + x_2 + a_3 = 10$. Başlangıç basis'i $\{s_1, a_2, a_3\}$.</p>
+    <p>Slayt konvansiyonunda min'i $\max\,(-z)$ olarak çöz: $c = (-2, -3, 0, 0, -M, -M)$ (sırayla $x_1, x_2, s_1, e_2, a_2, a_3$). $c_B = (0, -M, -M)$. İlk $c_j - z_j$: $x_1$: $-2 + 2M$, $x_2$: $-3 + 4M$, $e_2$: $-M$. $4M - 3$ en büyüğü, $x_2$ girer; ratio $16$, $\tfrac{20}{3}$, $10$ ⇒ $a_2$ çıkar. Sonra $x_1$ girer ($c_j - z_j = \tfrac{2M - 3}{3} &gt; 0$), ratio $5$ ile $a_3$ çıkar.</p>
+    <p>Son tableau: $x_1 = 5$, $x_2 = 5$, $s_1 = \tfrac14$, artificial'lar 0. $z = 2\cdot 5 + 3\cdot 5 = 25$ (Winston Table 35 ile aynı).</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Cezanın işaretini karıştırma: min'de $+Ma_i$, max'te $-Ma_i$. Ters koyarsan simplex artificial'ı basis'te tutmaya çalışır.</li>
+      <li>$M$ ne kadar büyük olmalı? Winston: orijinal katsayıların en az 100 katı. Çok büyük $M$ roundoff hatası getirir; bu yüzden yazılımlar genelde two-phase kullanır.</li>
+      <li>$-1$ ile çarpınca $\ge$ bir $\le$'ye dönüşebilir ve artificial'a gerek kalmaz (aşağıdaki ödev sorusunun ikinci kısıtı).</li>
+      <li>Excess variable'ın işareti eksi: $x_1 + 3x_2 - e_2 = 20$. Onu basis'e koyamazsın, çünkü değeri $-20$ olur.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-4.12-p2">
+    <span class="box__label">Winston §4.12 Problem 2 · ödev sorusu</span>
+    <p>"Use the Big M method to solve the following LPs: […] 2. $\min z = 2x_1 + 3x_2$ s.t. $2x_1 + x_2 \ge 4$, $x_1 - x_2 \ge -1$, $x_1, x_2 \ge 0$" (listeden yalnız 2. LP)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İkinci kısıtın RHS'i negatif. $-1$ ile çarpınca ne olur? Hâlâ artificial gerekir mi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Tek artificial var: $a_1$. $\max(-z) = -2x_1 - 3x_2 - Ma_1$ ile başla, $c_B = (-M, 0)$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Standart form:</strong> $2x_1 + x_2 - e_1 + a_1 = 4$; ikinci kısıt $-1$ ile çarpılınca $-x_1 + x_2 \le 1$, yani $-x_1 + x_2 + s_2 = 1$. Basis $\{a_1, s_2\}$.</p>
+      <p><strong>Objective</strong> (slayt konvansiyonu): $\max\,(-z) = -2x_1 - 3x_2 - Ma_1$. Sütun sırası $x_1, x_2, e_1, s_2, a_1$; $c = (-2, -3, 0, 0, -M)$, $c_B = (-M, 0)$.</p>
+      <p><strong>Iteration 1:</strong> $z_j = (-2M, -M, M, 0, -M)$, $c_j - z_j = (2M - 2,\ M - 3,\ -M,\ 0,\ 0)$. $x_1$ girer. Ratio: $a_1$ satırı $4/2 = 2$; $s_2$ satırında katsayı $-1$, atlanır. $a_1$ çıkar.</p>
+      <p>Yeni satırlar: $x_1$: $(1, \tfrac12, -\tfrac12, 0, \tfrac12 \mid 2)$, $s_2$: $(0, \tfrac32, -\tfrac12, 1, \tfrac12 \mid 3)$. $c_B = (-2, 0)$.</p>
+      <p><strong>Iteration 2:</strong> $z_j = (-2, -1, 1, 0, -1)$, $c_j - z_j = (0,\ -2,\ -1,\ 0,\ 1 - M)$. Hepsi $\le 0$: optimal. Artificial $a_1 = 0$.</p>
+      <p><strong>Cevap:</strong> $x_1 = 2$, $x_2 = 0$, $z^* = 4$ (ve $s_2 = 3$, $e_1 = 0$). Kontrol: $2\cdot 2 + 0 = 4 \ge 4$, $2 - 0 = 2 \ge -1$.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal kitap (Winston, pdf s.194)</a></p>
+    <!-- Kaynak: Winston §4.12 Problems Group A #2 (kitap s.178, pdf s.194); Bevco: §4.12 Example 4, Table 35. Big-M koşusu M = 10^6 ile python Fraction'da kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-bigm-1">
+    <p class="quiz__q">Big-M ile çözülen bir LP'nin optimal tableau'sunda $a_2 = 6$. Ne söylersin?</p>
+    <button class="quiz__opt">Optimum bulundu, $a_2$'yi yok say<span class="why">Artificial'lar asıl LP'de yok; çözümde pozitif kalması, kısıtların ancak "hile" ile sağlanabildiğini gösterir.</span></button>
+    <button class="quiz__opt" data-correct>Asıl LP infeasible<span class="why">Doğru (Winston Step 5). $M$ ne kadar büyük olursa olsun simplex $a_2$'yi sıfırlayamadı, çünkü asıl kısıtları sağlayan bir nokta yok.</span></button>
+    <button class="quiz__opt">LP unbounded<span class="why">Unbounded, ratio test'in boş kalmasıyla anlaşılır. Pozitif artificial infeasibility'nin işaretidir.</span></button>
+    <button class="quiz__opt">$M$'yi büyütüp tekrar çözmek gerekir<span class="why">$M$ simplex'te sembolik olarak "her şeyden büyük" kabul edilir. Bu sonuç $M$'nin değerinden değil, LP'nin kendisinden geliyor.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="twophase" data-min="5">
+  <h2>Two-phase method ve infeasibility</h2>
+  <p class="src">Not: Bu bölüm de Winston §4.13'e dayanıyor; hocanın Week 3 slaytlarında yok.</p>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Big-M iki hedefi tek objective'e sıkıştırıyor: artificial'ları sıfırla ve maliyeti küçült. Two-phase bunları ayırır. Önce sadece "artificial'ları sıfırlayabilir miyim?" sorusunu çöz (Phase I). Evet ise elinde feasible bir BFS var, oradan asıl objective ile devam et (Phase II). $M$ yok, roundoff sorunu yok.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · two-phase simplex (Winston §4.13)</span>
+    <p>Adım 1–3 Big-M ile aynı (RHS'i nonnegative yap, slack/excess ekle, $\ge$ ve $=$ satırlarına artificial ekle).</p>
+    <p><strong>Phase I:</strong> $\min w = \sum_i a_i$. Slayt konvansiyonunda $\max\,(-w)$: artificial'ların $c_j$'si $-1$, diğerlerinin 0. Üç durum:</p>
+    <ol>
+      <li><strong>Case 1:</strong> $w^* &gt; 0$. Asıl LP <strong>infeasible</strong>.</li>
+      <li><strong>Case 2:</strong> $w^* = 0$ ve hiçbir artificial basis'te değil. Artificial sütunlarını sil, asıl objective'i koy, Phase I'in son tableau'sundan devam et (Phase II).</li>
+      <li><strong>Case 3:</strong> $w^* = 0$ ama bir artificial 0 değerinde basis'te. Nonbasic artificial'ları ve Phase I son tableau'sunda $c_j - z_j &lt; 0$ olan orijinal variable'ları (Winston'ın row 0'ında negatif katsayılı olanları) atarak Phase II'ye geçilir.</li>
+    </ol>
+    <p>Neden doğru? Asıl LP'nin feasible bir noktası varsa, onu $a = 0$ ile birlikte almak Phase I'de $w = 0$ verir. Feasible nokta yoksa her Phase I çözümünde bir $a_i &gt; 0$ olmak zorundadır.</p>
+  </div>
+  <p class="w-simplex-special-guess"><b>Önce tahmin et:</b> Bevco'da vitamin C şartı $\ge 36$ olursa Phase I sonunda $w^*$ kaç olur? (10 oz portakal suyu en fazla 30 mg vitamin C verir.)</p>
+  <div id="tp-run"></div>
+  <div class="box box--example">
+    <span class="box__label">Ne gördün? · Bevco iki kez</span>
+    <p><strong>Bevco (≥ 20):</strong> Phase I'de $x_2$ girer ($c_j - z_j = 4$), $a_2$ çıkar (ratio $\tfrac{20}{3}$); sonra $x_1$ girer ($\tfrac23$), $a_3$ çıkar (ratio 5). $w^* = 0$, Case 2. Phase II'de tek $c_j - z_j$ kontrolü yeter: $e_2$ sütununun $c_j - z_j$ değeri $-\tfrac12$; nonbasic $e_2 = 0$. Tableau optimal. $x = (5, 5)$, maliyet 25.</p>
+    <p><strong>Bevco (≥ 36):</strong> $x_2$ girer, ratio $s_1$: 16, $a_2$: 12, $a_3$: 10 ⇒ $a_3$ çıkar. Sonra bütün $c_j - z_j \le 0$ ama $a_2 = 6$ basis'te: $w^* = 6 &gt; 0$, Case 1, infeasible. Winston'ın Big-M koşusu da aynı yerde $a_2 = 6$ ile duruyor.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Phase I'in objective'i asıl objective değil: sadece artificial'ların toplamı. Asıl maliyetleri Phase I'e koyma.</li>
+      <li>Phase II'ye geçerken $z_j$ ve $c_j - z_j$ satırlarını yeni $c$ ile <em>yeniden</em> hesapla; Phase I'in alt satırları artık geçersiz.</li>
+      <li>$w^* &gt; 0$ "Phase I yanlış gitti" demek değil. Phase I bir LP'dir ve optimumunu bulmuştur; o optimumun pozitif olması asıl LP'nin feasible noktası olmadığını kanıtlar.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-4.12-p4">
+    <span class="box__label">Winston §4.12 Problem 4 · ödev sorusu</span>
+    <p>"Use the Big M method to solve the following LPs: […] 4. $\min z = 3x_1$ s.t. $2x_1 + x_2 \ge 6$, $3x_1 + 2x_2 = 4$, $x_1, x_2 \ge 0$" (listeden yalnız 4. LP)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İki satıra da artificial gerekir ($\ge$ ve $=$). Big-M'de $\max(-z) = -3x_1 - Ma_1 - Ma_2$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Tek pivot sonra bütün $c_j - z_j \le 0$ olur. Basis'te hangi artificial kaldı ve değeri ne?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Standart form:</strong> $2x_1 + x_2 - e_1 + a_1 = 6$, $3x_1 + 2x_2 + a_2 = 4$. Slayt konvansiyonu ($c_j - z_j$ satırı, $\max\,(-z)$). Sütun sırası $x_1, x_2, e_1, a_1, a_2$; $c = (-3, 0, 0, -M, -M)$, basis $\{a_1, a_2\}$, $c_B = (-M, -M)$.</p>
+      <p><strong>Iteration 1:</strong> $z_j = (-5M, -3M, M, -M, -M)$, $c_j - z_j = (5M - 3,\ 3M,\ -M,\ 0,\ 0)$. $x_1$ girer. Ratio: $a_1$: $6/2 = 3$, $a_2$: $4/3$ (min). $a_2$ çıkar.</p>
+      <p>Yeni satırlar: $a_1$: $(0, -\tfrac13, -1, 1, -\tfrac23 \mid \tfrac{10}{3})$, $x_1$: $(1, \tfrac23, 0, 0, \tfrac13 \mid \tfrac43)$. $c_B = (-M, -3)$.</p>
+      <p><strong>Iteration 2:</strong> $c_j - z_j$: $x_2$: $0 - (\tfrac{M}{3} - 2) = 2 - \tfrac{M}{3}$, $e_1$: $-M$, $a_2$: $-M - (\tfrac{2M}{3} - 1) = 1 - \tfrac{5M}{3}$. $M$ büyük olduğu için hepsi $\le 0$: tableau optimal.</p>
+      <p><strong>Sonuç:</strong> $a_1 = \tfrac{10}{3} &gt; 0$ ⇒ asıl LP <strong>infeasible</strong>. (Two-phase ile de aynı pivot olur ve $w^* = \tfrac{10}{3}$, Case 1.)</p>
+      <p><strong>Kontrol, cebirle:</strong> eşitlikten $x_2 = 2 - \tfrac32 x_1 \ge 0$ ⇒ $x_1 \le \tfrac43$. O zaman $2x_1 + x_2 = 2 + \tfrac12 x_1 \le 2 + \tfrac23 = \tfrac83 &lt; 6$. Birinci kısıt hiçbir zaman sağlanamaz.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal kitap (Winston, pdf s.194)</a></p>
+    <!-- Kaynak: Winston §4.12 Problems Group A #4 (kitap s.178, pdf s.194); two-phase Case 1–3: §4.13 (kitap s.178–179); Bevco ≥ 36: §4.12 "How to Spot an Infeasible LP", Table 36–37. Big-M (M = 10^6) ve Phase I koşuları python Fraction ile kontrol edildi. -->
+  </div>
+  <div class="box box--exam" data-exam="lab3-ex-staffing">
+    <span class="box__label">Lab 3 · staffing LP · lab görevi</span>
+    <p>"Exercises: Bland's rule · <strong>staffing LP</strong> · alternative optima · Klee–Minty" (Week 3 slayt s.24; görevin yalnızca bu kısmı)</p>
+    <p class="src">Not: Lab 3 notebook'u repoda yok, staffing LP'nin verisi de yok. Slayt s.24 "problem data adapted from Winston, Operations Research (Ch. 3–4)" diyor. Aşağıdaki veri Winston'ın staffing örneğinden (§3.5, Post Office Problem); notebook'taki sayılar farklı olabilir.</p>
+    <p>"A post office needs at least 17, 13, 15, 19, 14, 16 and 11 full-time employees on Monday, Tuesday, …, Sunday. Every employee works five consecutive days and then has two days off.</p>
+    <ol type="a">
+      <li>Formulate an LP that minimizes the number of employees.</li>
+      <li>Explain why the Lab 3 solver (max $c^\top x$ s.t. $Ax \le b$, $x \ge 0$) cannot start on this LP. Set up Phase I and carry out its first pricing step and ratio test.</li>
+      <li>Solve the LP with your solver. Then show, by adding suitable constraints, that no schedule uses fewer than $67/3$ employees.</li>
+      <li>Employees are whole people. What do rounding up and integer programming give?"</li>
+    </ol>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Decision variable "o gün çalışan kişi sayısı" değil, "o gün <em>işe başlayan</em> kişi sayısı" olmalı. Pazartesi kimler çalışır? Pazartesi, Perşembe, Cuma, Cumartesi ve Pazar başlayanlar.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b) Yedi satırın hepsi $\ge$ ve RHS pozitif: origin feasible değil. (c) Pazartesi, Çarşamba, Perşembe ve Cumartesi kısıtlarını topla, 3'e böl. Her $x_j$'nin katsayısı kaç çıkıyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $x_j$ = $j$. gün işe başlayan kişi sayısı ($j = 1$ Pazartesi, …, $7$ Pazar). Her kişi tam bir günde başladığı için $z = x_1 + \dots + x_7$ kişileri bir kez sayar.</p>
+      <div class="table-wrap"><table>
+        <tr><th>Gün</th><th>O gün çalışanlar</th><th>Kısıt</th></tr>
+        <tr><td>Mon</td><td>Mon, Thu, Fri, Sat, Sun başlayanlar</td><td>$x_1 + x_4 + x_5 + x_6 + x_7 \ge 17$</td></tr>
+        <tr><td>Tue</td><td>Tue, Fri, Sat, Sun, Mon</td><td>$x_1 + x_2 + x_5 + x_6 + x_7 \ge 13$</td></tr>
+        <tr><td>Wed</td><td>Wed, Sat, Sun, Mon, Tue</td><td>$x_1 + x_2 + x_3 + x_6 + x_7 \ge 15$</td></tr>
+        <tr><td>Thu</td><td>Thu, Sun, Mon, Tue, Wed</td><td>$x_1 + x_2 + x_3 + x_4 + x_7 \ge 19$</td></tr>
+        <tr><td>Fri</td><td>Mon … Fri</td><td>$x_1 + x_2 + x_3 + x_4 + x_5 \ge 14$</td></tr>
+        <tr><td>Sat</td><td>Tue … Sat</td><td>$x_2 + x_3 + x_4 + x_5 + x_6 \ge 16$</td></tr>
+        <tr><td>Sun</td><td>Wed … Sun</td><td>$x_3 + x_4 + x_5 + x_6 + x_7 \ge 11$</td></tr>
+      </table></div>
+      <p>$\min z = x_1 + \dots + x_7$, yukarıdaki yedi kısıt, $x \ge 0$. Winston'ın uyardığı hata: $x_j$'yi "o gün çalışan" diye tanımlarsan $\sum x_j$ her kişiyi beş kez sayar ve günler arasındaki bağ kaybolur.</p>
+      <p><strong>(b)</strong> Lab 3 iskeletinde başlangıç BFS'i slack'lerden gelir; bu yalnız $\le$ satırlarda ve $b \ge 0$ iken olur. Burada her satır $\ge$: excess $e_i$ çıkarılır ve $e_i$ basis'e konamaz (origin'de $e_1 = -17$). Yedi satırın hepsine artificial gerekir: $Ax - e + a = r$.</p>
+      <p>Phase I, slayt konvansiyonu ($c_j - z_j$ satırı, en büyük pozitif girer): $\max\,(-w) = -(a_1 + \dots + a_7)$, $c_B = (-1, \dots, -1)$. Her $x_j$ beş satırda 1 olduğu için $z_j = -5$ ve $c_j - z_j = 5$. Her $e_i$ için $c_j - z_j = -1$. Yedi $x_j$ berabere; en küçük index ile $x_1$ girer. Ratio test ($x_1$'in 1 olduğu satırlar): Mon $17$, Tue $13$, Wed $15$, Thu $19$, Fri $14$. En küçüğü 13: Tuesday'in artificial'ı çıkar. (z-row ile çalışıyorsan aynı sayılar $-5$ görünür ve en negatif girer; seçim değişmez.)</p>
+      <p><strong>(c)</strong> Bizim koşu (Dantzig, eşitlikte küçük index): Phase I 8 pivot'ta $w^* = 0$ ile bitiyor ve bulunan BFS Phase II'de hemen optimal. Sonuç $x = (\tfrac{19}{3}, 5, \tfrac13, \tfrac{22}{3}, 0, \tfrac{10}{3}, 0)$, $\boxed{z^* = \tfrac{67}{3} \approx 22.33}$. Winston başka bir optimal nokta veriyor: $(\tfrac43, \tfrac{10}{3}, 2, \tfrac{22}{3}, 0, \tfrac{10}{3}, 5)$, yine $\tfrac{67}{3}$. Optimum unique değil; solver'ını kontrol ederken $x$'leri değil $z$'yi karşılaştır.</p>
+      <p>Alt sınır: Mon, Wed, Thu ve Sat kısıtlarını topla. Her $x_j$'nin katsayısı 3, yalnız $x_5$'inki 2 (Cuma başlayan bu dört günden yalnız Cumartesi ve Pazartesi'de çalışır). Sağ taraf $17 + 15 + 19 + 16 = 67$. 3'e bölünce $x_1 + x_2 + x_3 + x_4 + \tfrac23 x_5 + x_6 + x_7 \ge \tfrac{67}{3}$. Sol taraf $z$'den büyük olamaz, öyleyse her feasible çizelgede $z \ge \tfrac{67}{3}$. Solver'ın bulduğu değer bu sınıra eşit, yani optimal. Bu çarpanlar ($\tfrac13$ Mon, Wed, Thu, Sat için, öteki günler için 0) Week 4'te dual solution olarak geri gelecek.</p>
+      <p><strong>(d)</strong> Winston'ın noktasını yukarı yuvarlarsan $(2, 4, 2, 8, 0, 4, 5)$: feasible, $z = 25$. Ama (c)'ye göre tam sayı bir çizelgede $z \ge 23$, ve $(4, 4, 2, 6, 0, 4, 3)$ bütün günleri karşılıyor (17, 15, 17, 19, 16, 16, 15), $z = 23$. Demek ki integer optimum 23. Bu nokta LP çözümünü yuvarlayarak bulunamaz; integer programming Week 12'nin konusu.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal kitap (Winston, pdf s.88–89)</a></p>
+    <!-- Kaynak: Week_03.pdf s.24 ("Exercises: Bland's rule · staffing LP · …", "problem data adapted from Winston, Operations Research (Ch. 3–4)") · Winston §3.5 Example 7 Post Office Problem, Table 4 (kitap s.71–73, pdf s.88–90). Two-phase koşusu, ilk pricing, alternatif optimal nokta, alt sınır kombinasyonu ve tam sayı noktaları python Fraction ile kontrol edildi (/private/tmp/claude-501/lab-cse-413/audit/staffing.py). -->
+  </div>
+  <div class="quiz" id="q-2ph-1">
+    <p class="quiz__q">Phase I bitti: $w^* = 0$ ve hiçbir artificial basis'te değil. Sıradaki adım?</p>
+    <button class="quiz__opt" data-correct>Artificial sütunlarını sil, asıl objective'i koy, $z_j$ ve $c_j - z_j$'yi yeniden hesaplayıp simplex'e devam et<span class="why">Doğru: Case 2, Phase II. Phase I'in son tableau'su asıl LP için feasible bir BFS veriyor.</span></button>
+    <button class="quiz__opt">Bulunan nokta asıl LP'nin optimumudur, dur<span class="why">Phase I yalnızca feasibility arar; asıl objective'e hiç bakmadı. Bevco'da tesadüfen hemen optimal çıktı, genelde Phase II'de pivot gerekir.</span></button>
+    <button class="quiz__opt">Asıl LP infeasible<span class="why">Infeasibility $w^* &gt; 0$ ile anlaşılır (Case 1). $w^* = 0$ feasible bir nokta bulunduğu anlamına gelir.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle düşün, sonra seç. Tableau'lar slayt konvansiyonunda (max, $c_j - z_j$).</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">Optimal tableau: nonbasic $s_1$'in $c_j - z_j$'si 0, onu sokunca ratio test'in minimumu 0 çıkıyor. Hangisi doğru?</p>
+    <button class="quiz__opt">Mutlaka iki farklı optimal vertex var<span class="why">Ratio 0 ise pivot noktayı değiştirmez; sadece aynı vertex'in başka bir basis'ine geçersin. Sıfır reduced cost tek başına ikinci bir nokta garanti etmez.</span></button>
+    <button class="quiz__opt" data-correct>Bu pivot aynı noktada kalır; bu durumda sıfır reduced cost ikinci bir optimal nokta göstermeyebilir<span class="why">Doğru. Degenerate bir optimumda bu olabilir (Winston'ın uyarısı).</span></button>
+    <button class="quiz__opt">LP unbounded<span class="why">Ratio test'te bir aday satır (oran 0) var; unbounded için hiç pozitif girdi olmaması gerekir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">z-row konvansiyonunda (row 0 = $z_j - c_j$) bir max problem'inin row 0'ı $(0,\ -4,\ 0,\ 2,\ 0)$. $x_2$'nin sütunu $(-1, -3)$. Ne söylersin?</p>
+    <button class="quiz__opt">Tableau optimal, çünkü bir girdi pozitif<span class="why">z-row'da optimal olmak için row 0'da hiç negatif olmamalı. $-4$ var.</span></button>
+    <button class="quiz__opt" data-correct>LP unbounded<span class="why">Doğru. $-4$, slayt diliyle $c_j - z_j = 4 &gt; 0$ demek; $x_2$ girmek istiyor ve sütununda pozitif yok.</span></button>
+    <button class="quiz__opt">$x_4$ girer, çünkü row 0'daki en büyük sayı 2<span class="why">z-row'da işaretler ters: en negatif girer. Pozitif bir row 0 girdisi, slayt dilinde negatif reduced cost demektir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Simplex 40 pivot'tur aynı $z$ değerinde ve basis dizisi tekrar etmeye başladı. En doğru teşhis ve çare?</p>
+    <button class="quiz__opt" data-correct>Degeneracy yüzünden cycling; Bland's rule (ya da perturbation) kullan<span class="why">Doğru. $z$'nin hiç artmaması sıfır uzunlukta pivot'lar demek; basis'in tekrar etmesi cycling'in tanımı.</span></button>
+    <button class="quiz__opt">Klee–Minty davranışı; daha hızlı bir bilgisayar gerekir<span class="why">Klee–Minty'de $z$ her pivot'ta artar ve basis tekrar etmez. Burada sorun yolun uzunluğu değil, döngü.</span></button>
+    <button class="quiz__opt">LP infeasible<span class="why">Simplex feasible BFS'ler arasında yürüyor; infeasibility Phase I'de anlaşılır.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">$\min z = x_1 + x_2$ s.t. $x_1 + 2x_2 \ge 4$, $x_1 - x_2 = 1$, $x \ge 0$. Kaç artificial variable gerekir?</p>
+    <button class="quiz__opt">0<span class="why">$\ge$ satırının excess'i $-1$ katsayılı, $=$ satırının slack'i yok. Bu ikisi başlangıç basis'i veremez.</span></button>
+    <button class="quiz__opt">1<span class="why">İki satırın ikisi de slack basis'i vermiyor: biri $\ge$, öbürü $=$. Her biri ayrı bir artificial ister.</span></button>
+    <button class="quiz__opt" data-correct>2<span class="why">Doğru: $\ge$ satırına bir, $=$ satırına bir artificial.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Bandwidth LP'sinde bir arkadaşının solver'ı $(7, 6, 3)$ döndürdü, slayt $(7, 8, 1)$ diyor. Hangisi doğru?</p>
+    <button class="quiz__opt">Slayt doğru, solver hatalı<span class="why">İki nokta da bütün kısıtları sağlıyor ve toplamları 16. Alternative optima var; ikisi de doğru.</span></button>
+    <button class="quiz__opt" data-correct>İkisi de optimal; optimal küme $(7, 9 - t, t)$, $1 \le t \le 3$<span class="why">Doğru. Final tableau'da nonbasic $s_2$'nin reduced cost'u 0 ve iki nokta o edge'in uçları.</span></button>
+    <button class="quiz__opt">İkisi de yanlış, optimum 17<span class="why">R1→DST (7) ve R2→DST (9) link'lerinin toplamı 16; trafik bu iki link'ten geçmek zorunda olduğu için 16'yı aşamaz.</span></button>
+  </div>
+  <!-- Sıradaki konu: LP duality ve complementary slackness. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* Exact fractions on BigInt, so every tableau number matches a hand calculation. */
+const gcdB = (a, b) => { a = a < 0n ? -a : a; b = b < 0n ? -b : b; while (b) { [a, b] = [b, a % b]; } return a; };
+class Q {
+  constructor(n, d = 1n) { if (d < 0n) { n = -n; d = -d; } const g = gcdB(n, d) || 1n; this.n = n / g; this.d = d / g; }
+  static of(x) {
+    if (x instanceof Q) return x;
+    const s = String(x).trim();
+    let m = s.match(/^(-?\d+)\/(\d+)$/);
+    if (m) return BigInt(m[2]) === 0n ? null : new Q(BigInt(m[1]), BigInt(m[2]));
+    m = s.match(/^(-?)(\d+)(?:\.(\d+))?$/);
+    if (!m) return null;
+    const frac = m[3] || "", den = 10n ** BigInt(frac.length);
+    let num = BigInt(m[2]) * den + (frac ? BigInt(frac) : 0n);
+    if (m[1]) num = -num;
+    return new Q(num, den);
+  }
+  add(o) { return new Q(this.n * o.d + o.n * this.d, this.d * o.d); }
+  sub(o) { return new Q(this.n * o.d - o.n * this.d, this.d * o.d); }
+  mul(o) { return new Q(this.n * o.n, this.d * o.d); }
+  div(o) { return new Q(this.n * o.d, this.d * o.n); }
+  sign() { return this.n > 0n ? 1 : this.n < 0n ? -1 : 0; }
+  cmp(o) { return this.sub(o).sign(); }
+  isZero() { return this.n === 0n; }
+  num() { return Number(this.n) / Number(this.d); }
+  txt() { return this.d === 1n ? this.n.toString().replace("-", "−") : (this.n.toString() + "/" + this.d.toString()).replace("-", "−"); }
+  tex() {
+    if (this.d === 1n) return this.n.toString();
+    const neg = this.n < 0n, a = neg ? -this.n : this.n;
+    return (neg ? "-" : "") + "\\tfrac{" + a + "}{" + this.d + "}";
+  }
+}
+const Q0 = new Q(0n);
+const q = x => Q.of(x);
+const nm = s => s.replace(/^([a-zA-Z]+)(\d+)$/, "$1<sub>$2</sub>");
+const tx = s => s.replace(/^([a-zA-Z]+)(\d+)$/, "$1_{$2}");
+const NT = s => "$" + tx(s) + "$";
+function freshHost(box) { box.innerHTML = ""; const d = document.createElement("div"); box.appendChild(d); return d; }
+
+/* LP with a slack on every ≤ row; the slacks form the starting basis. */
+function slackLP(c, A, b, xnames) {
+  const n = c.length, m = A.length;
+  const names = (xnames || c.map((_, j) => "x" + (j + 1))).concat(A.map((_, i) => "s" + (i + 1)));
+  return {
+    names,
+    c: c.map(q).concat(A.map(() => Q0)),
+    A: A.map((r, i) => r.map(q).concat(A.map((_, k) => (k === i ? q(1) : Q0)))),
+    b: b.map(q),
+    basis: A.map((_, i) => n + i)
+  };
+}
+
+/* Tableau simplex in the slide convention: max, c_j − z_j, entering = positive c_j − z_j.
+   rule "dantzig": largest c_j − z_j (ties: smaller index), ratio ties: upper row.
+   rule "bland": smallest index entering, ratio ties: smallest index basic variable. */
+function runSimplex(lp, opt) {
+  opt = opt || {};
+  const m = lp.A.length, n = lp.names.length, c = lp.c, maxit = opt.maxit || 80;
+  let T = lp.A.map(r => r.slice()), b = lp.b.slice(), basis = lp.basis.slice();
+  const frames = [], seen = new Map();
+  let status = "maxit";
+  for (let it = 0; ; it++) {
+    const cB = basis.map(j => c[j]), zj = [], d = [];
+    for (let j = 0; j < n; j++) {
+      let s = Q0;
+      for (let i = 0; i < m; i++) s = s.add(cB[i].mul(T[i][j]));
+      zj.push(s); d.push(c[j].sub(s));
+    }
+    let zval = Q0;
+    for (let i = 0; i < m; i++) zval = zval.add(cB[i].mul(b[i]));
+    const fr = { it, basis: basis.slice(), b: b.slice(), cB, zj, d, zval, enter: -1, leave: -1, ratios: null, ties: [] };
+    if (!opt.lite) fr.T = T.map(r => r.slice());
+    frames.push(fr);
+    const key = basis.slice().sort((x, y) => x - y).join(",");
+    if (seen.has(key)) { fr.status = "cycle"; fr.cycleFrom = seen.get(key); status = "cycle"; break; }
+    seen.set(key, it);
+    let e;
+    if (it === 0 && opt.force !== undefined) e = opt.force;
+    else {
+      const pos = [];
+      for (let j = 0; j < n; j++) if (d[j].sign() > 0) pos.push(j);
+      if (!pos.length) { fr.status = "optimal"; status = "optimal"; break; }
+      e = pos[0];
+      if (opt.rule !== "bland") for (const j of pos) if (d[j].cmp(d[e]) > 0) e = j;
+    }
+    if (it >= maxit) { status = "maxit"; break; }
+    fr.enter = e;
+    const ratios = T.map((row, i) => (row[e].sign() > 0 ? b[i].div(row[e]) : null));
+    fr.ratios = ratios;
+    const rows = [];
+    ratios.forEach((r, i) => { if (r) rows.push(i); });
+    if (!rows.length) { fr.status = "unbounded"; status = "unbounded"; break; }
+    let mn = ratios[rows[0]];
+    for (const i of rows) if (ratios[i].cmp(mn) < 0) mn = ratios[i];
+    const ties = rows.filter(i => ratios[i].cmp(mn) === 0);
+    let l = ties[0];
+    if (opt.rule === "bland") for (const i of ties) if (basis[i] < basis[l]) l = i;
+    fr.ties = ties; fr.minRatio = mn; fr.leave = l; fr.piv = T[l][e];
+    const p = T[l][e];
+    T[l] = T[l].map(x => x.div(p)); b[l] = b[l].div(p);
+    for (let i = 0; i < m; i++) {
+      if (i === l || T[i][e].isZero()) continue;
+      const f = T[i][e];
+      T[i] = T[i].map((x, j) => x.sub(f.mul(T[l][j])));
+      b[i] = b[i].sub(f.mul(b[l]));
+    }
+    basis[l] = e;
+  }
+  return { frames, status, T, b, basis };
+}
+const stateOf = (lp, r) => ({ names: lp.names, c: lp.c, A: r.T, b: r.b, basis: r.basis });
+const valOf = (lp, fr, name) => { const j = lp.names.indexOf(name), i = fr.basis.indexOf(j); return i < 0 ? Q0 : fr.b[i]; };
+const isDecision = s => !/^[sea]\d+$/.test(s);
+
+function tabHTML(lp, fr) {
+  const n = lp.names.length, opt = fr.status === "optimal";
+  const head = j => (j === fr.enter ? ' class="is-in"' : "");
+  let h = '<div class="table-wrap"><table class="w-simplex-special-tab">';
+  h += "<tr><th></th><th></th><th>c<sub>j</sub> →</th>" + lp.c.map((x, j) => `<th${head(j)}>${x.txt()}</th>`).join("") + (fr.ratios ? "<th></th>" : "") + "</tr>";
+  h += "<tr><th>c<sub>B</sub></th><th>Basis</th><th>b</th>" + lp.names.map((s, j) => `<th${head(j)}>${nm(s)}</th>`).join("") + (fr.ratios ? "<th>ratio</th>" : "") + "</tr>";
+  fr.T.forEach((row, i) => {
+    h += `<tr class="${i === fr.leave ? "is-out" : ""}"><td>${fr.cB[i].txt()}</td><td><b>${nm(lp.names[fr.basis[i]])}</b></td><td>${fr.b[i].txt()}</td>`;
+    row.forEach((x, j) => {
+      const cls = i === fr.leave && j === fr.enter ? "is-piv" : j === fr.enter ? "is-in" : "";
+      h += `<td class="${cls}">${x.txt()}</td>`;
+    });
+    if (fr.ratios) {
+      const r = fr.ratios[i];
+      h += "<td>" + (r ? `${fr.b[i].txt()} / ${row[fr.enter].txt()} = ${r.txt()}${fr.ties.includes(i) ? " ◄" : ""}` : "—") + "</td>";
+    }
+    h += "</tr>";
+  });
+  h += `<tr class="w-simplex-special-zr"><td></td><td>z<sub>j</sub></td><td>${fr.zval.txt()}</td>` + fr.zj.map((x, j) => `<td${head(j)}>${x.txt()}</td>`).join("") + (fr.ratios ? "<td></td>" : "") + "</tr>";
+  h += "<tr><td></td><td>c<sub>j</sub> − z<sub>j</sub></td><td></td>" + fr.d.map((x, j) => {
+    const zero = opt && x.isZero() && !fr.basis.includes(j);
+    return `<td class="${zero ? "is-zero" : j === fr.enter ? "is-in" : ""}">${x.txt()}</td>`;
+  }).join("") + (fr.ratios ? "<td></td>" : "") + "</tr></table></div>";
+  return h;
+}
+
+function pointTeX(lp, fr) {
+  const dec = lp.names.filter(isDecision);
+  return "$(" + dec.map(tx).join(", ") + ") = (" + dec.map(s => valOf(lp, fr, s).tex()).join(", ") + ")$";
+}
+
+function capFor(lp, fr) {
+  const N = j => NT(lp.names[j]);
+  const parts = [];
+  if (fr.status === "optimal") {
+    parts.push(`Bütün $c_j - z_j \\le 0$: tableau optimal. ${pointTeX(lp, fr)}, $z = ${fr.zval.tex()}$.`);
+    const zs = [];
+    fr.d.forEach((x, j) => { if (x.isZero() && !fr.basis.includes(j)) zs.push(j); });
+    if (zs.length) parts.push(`Nonbasic ${zs.map(N).join(", ")} için $c_j - z_j = 0$: alternative optima adayı.`);
+    if (fr.b.some(x => x.isZero())) parts.push("Bir basic variable 0 değerinde: bu BFS degenerate.");
+  } else if (fr.status === "unbounded") {
+    parts.push(`${N(fr.enter)} girmek istiyor ($c_j - z_j = ${fr.d[fr.enter].tex()} &gt; 0$) ama sütununda pozitif sayı yok. Ratio test boş: ${N(fr.enter)} sınırsız artabilir, LP <b>unbounded</b>.`);
+    if (fr.T) {
+      /* Direction of unboundedness: the entering variable moves by 1, each basic variable by −a_ie. */
+      const dir = lp.names.map(() => Q0);
+      dir[fr.enter] = q(1);
+      fr.basis.forEach((j, i) => { dir[j] = Q0.sub(fr.T[i][fr.enter]); });
+      let cd = Q0;
+      dir.forEach((x, j) => { cd = cd.add(lp.c[j].mul(x)); });
+      parts.push(`Direction of unboundedness, sıra $(${lp.names.map(tx).join(", ")})$: $d = (${dir.map(x => x.tex()).join(", ")})$, $c^\\top d = ${cd.tex()} &gt; 0$, yani $z = ${fr.zval.tex()} + ${cd.tex()}\\,t \\to \\infty$.`);
+    }
+  } else if (fr.status === "cycle") {
+    parts.push(`Basis {${fr.basis.map(j => tx(lp.names[j])).map(s => "$" + s + "$").join(", ")}} ${fr.cycleFrom}. adımda da vardı. Aynı kural aynı pivot'ları yeniden seçer: <b>cycling</b>. $z$ hep $${fr.zval.tex()}$ kaldı.`);
+  } else if (fr.enter >= 0) {
+    parts.push(`${N(fr.enter)} girer ($c_j - z_j = ${fr.d[fr.enter].tex()}$). En küçük oran $${fr.minRatio.tex()}$, ${N(fr.basis[fr.leave])} çıkar, pivot elemanı $${fr.piv.tex()}$.`);
+    if (fr.ties.length > 1) parts.push(`Ratio test'te beraberlik: ${fr.ties.map(i => N(fr.basis[i])).join(" ve ")}. Çıkmayan basis'te 0 değeriyle kalır, sonraki BFS degenerate.`);
+    if (fr.minRatio.isZero()) parts.push("Oran 0: sıfır uzunlukta pivot. Basis değişir, nokta ve $z$ değişmez.");
+  } else if (fr.status === "maxit") parts.push("Adım sınırına gelindi.");
+  return parts.join(" ");
+}
+
+function histHTML(frames, idx) {
+  return '<div class="w-simplex-special-hist">Basis geçmişi: ' + frames.slice(0, idx + 1).map(f =>
+    `${f.tag || ""}${f.fr.it}: {${f.fr.basis.map(j => f.lp.names[j]).join(", ")}} z=${f.fr.zval.txt()}`).join(" → ") + "</div>";
+}
+
+/* A stepper with a preset menu and, if asked, a Dantzig / Bland switch. */
+function mountRuns(hostId, presets, withRule) {
+  const host = document.getElementById(hostId);
+  const sel = presets.length > 1 ? `<select class="btn btn--sm">${presets.map((p, i) => `<option value="${i}">${p.name}</option>`).join("")}</select>` : "";
+  const rule = withRule ? `<label><input type="radio" name="${hostId}-r" value="dantzig" checked /> Dantzig</label><label><input type="radio" name="${hostId}-r" value="bland" /> Bland's rule</label>` : "";
+  host.innerHTML = `<div class="w-simplex-special-ctl">${sel}${rule}</div><div></div>`;
+  const box = host.lastElementChild;
+  function build() {
+    const p = presets[sel ? Number(host.querySelector("select").value) : 0];
+    const r = withRule ? host.querySelector(`input[name="${hostId}-r"]:checked`).value : "dantzig";
+    const frames = p.make(r);
+    Lab.stepper(freshHost(box), {
+      title: p.name + " · " + (r === "bland" ? "Bland's rule" : "Dantzig kuralı") + " · cⱼ − zⱼ (slayt konvansiyonu)",
+      interval: 1800,
+      frames,
+      render(f, idx, el) { el.innerHTML = tabHTML(f.lp, f.fr) + histHTML(frames, idx); }
+    });
+  }
+  host.querySelector(".w-simplex-special-ctl").addEventListener("change", build);
+  build();
+}
+
+function simple(make, extra) {
+  return rule => {
+    const lp = make();
+    const r = runSimplex(lp, { rule });
+    let frames = r.frames.map(fr => ({ lp, fr, caption: capFor(lp, fr) }));
+    if (extra) frames = extra(lp, r, frames, rule);
+    return frames;
+  };
+}
+
+/* After an optimum with a zero reduced cost, pivot that variable in to reach the other optimal vertex. */
+function alsoAlternative(lp, r, frames, rule) {
+  if (r.status !== "optimal") return frames;
+  const last = r.frames[r.frames.length - 1];
+  const zs = [];
+  last.d.forEach((x, j) => { if (x.isZero() && !last.basis.includes(j)) zs.push(j); });
+  if (!zs.length) return frames;
+  const r2 = runSimplex(stateOf(lp, r), { force: zs[0], rule });
+  r2.frames.forEach((fr, k) => {
+    fr.it += last.it;
+    if (k === 0) return frames.push({ lp, fr, tag: "alt ", caption: `<b>Alternative pivot:</b> ${NT(lp.names[zs[0]])}'nin reduced cost'u 0, onu zorla sokuyoruz. ` + capFor(lp, fr) });
+    frames.push({ lp, fr, tag: "alt ", caption: `<b>İkinci optimal vertex.</b> ` + capFor(lp, fr) });
+  });
+  return frames;
+}
+
+/* Two-phase: Phase I maximises −w = −Σ a_i, Phase II drops the artificial columns. */
+function twoPhase(def) {
+  return rule => {
+    const names = def.names, art = def.art;
+    const lpI = { names, c: names.map((_, j) => (art.includes(j) ? q(-1) : Q0)), A: def.A.map(r => r.map(q)), b: def.b.map(q), basis: def.basis };
+    const r1 = runSimplex(lpI, { rule });
+    const frames = r1.frames.map(fr => ({ lp: lpI, fr, tag: "I·", caption: "<b>Phase I</b> ($\\max\\,-w$, $w = \\sum a_i$) · " + capFor(lpI, fr) }));
+    const last = r1.frames[r1.frames.length - 1], lastF = frames[frames.length - 1];
+    const w = Q0.sub(last.zval);
+    if (w.sign() > 0) {
+      const pos = last.basis.filter((j, i) => art.includes(j) && last.b[i].sign() > 0).map(j => NT(names[j]));
+      lastF.caption = `<b>Phase I</b> bitti: $w^* = ${w.tex()} &gt; 0$. ${pos.join(", ")} hâlâ pozitif. Case 1: asıl LP <b>infeasible</b>.`;
+      return frames;
+    }
+    if (last.basis.some(j => art.includes(j))) {
+      lastF.caption += " $w^* = 0$ ama bir artificial basis'te: Case 3.";
+      return frames;
+    }
+    const keep = names.map((_, j) => j).filter(j => !art.includes(j));
+    const lpII = { names: keep.map(j => names[j]), c: keep.map(j => q(def.c2[j])), A: r1.T.map(row => keep.map(j => row[j])), b: r1.b.slice(), basis: r1.basis.map(j => keep.indexOf(j)) };
+    lastF.caption = `<b>Phase I</b> bitti: $w^* = 0$ ve artificial'lar basis dışında. Case 2: Phase II'ye geç.`;
+    const r2 = runSimplex(lpII, { rule });
+    r2.frames.forEach((fr, k) => {
+      let cap = "<b>Phase II</b> · " + (k === 0 ? `Artificial sütunları silindi, asıl objective geldi (${def.note}). ` : "") + capFor(lpII, fr);
+      if (fr.status === "optimal" && def.min) cap += ` Asıl maliyet $= ${Q0.sub(fr.zval).tex()}$.`;
+      frames.push({ lp: lpII, fr, tag: "II·", caption: cap });
+    });
+    return frames;
+  };
+}
+
+const bevcoNames = ["x1", "x2", "s1", "e2", "a2", "a3"];
+const bevcoA = [["1/2", "1/4", 1, 0, 0, 0], [1, 3, 0, -1, 1, 0], [1, 1, 0, 0, 0, 1]];
+const bevNote = "min $2x_1 + 3x_2$, tabloda $\\max\\,(-2x_1 - 3x_2)$";
+
+mountRuns("bw-run", [
+  { name: "Bandwidth LP (slayt s.23)", make: simple(() => slackLP([1, 1, 1], [[1, 0, 1], [0, 1, 0], [1, 0, 0], [0, 1, 1], [0, 0, 1]], [10, 8, 7, 9, 4], ["f1", "f2", "f3"]), alsoAlternative) }
+], false);
+
+mountRuns("unb-run", [
+  { name: "max 2x₁ + 3x₂ (örnek)", make: simple(() => slackLP([2, 3], [[1, -1], [-2, 1]], [2, 2])) },
+  { name: "Winston §4.8 Problem 1", make: simple(() => slackLP([0, 2], [[1, -1], [-1, 1]], [4, 1])) }
+], false);
+
+mountRuns("deg-run", [
+  { name: "Slayt s.21: job-mix + x₁ + x₂ ≤ 8", make: simple(() => slackLP([3, 5], [[1, 0], [0, 2], [3, 2], [1, 1]], [4, 12, 18, 8])) },
+  { name: "Winston (16): max 5x₁ + 2x₂", make: simple(() => slackLP([5, 2], [[1, 1], [1, -1]], [6, 0])) },
+  { name: "Winston §4.11 Problem 1", make: simple(() => slackLP([5, 3], [[4, 2], [4, 1], [1, 1]], [12, 10, 4])) }
+], true);
+
+mountRuns("cyc-run", [
+  { name: "Winston §4.11 Problem 4", make: simple(() => slackLP([-3, 1, -6, 0], [[9, 1, -9, -2], [1, "1/3", -2, "-1/3"], [-9, -1, 9, 2]], [0, 0, 1])) }
+], true);
+
+mountRuns("tp-run", [
+  { name: "Bevco (vitamin C ≥ 20)", make: twoPhase({ names: bevcoNames, A: bevcoA, b: [4, 20, 10], basis: [2, 4, 5], art: [4, 5], c2: [-2, -3, 0, 0, 0, 0], min: true, note: bevNote }) },
+  { name: "Bevco (vitamin C ≥ 36)", make: twoPhase({ names: bevcoNames, A: bevcoA, b: [4, 36, 10], basis: [2, 4, 5], art: [4, 5], c2: [-2, -3, 0, 0, 0, 0], min: true, note: bevNote }) },
+  { name: "Winston §4.12 Problem 4", make: twoPhase({ names: ["x1", "x2", "e1", "a1", "a2"], A: [[2, 1, -1, 1, 0], [3, 2, 0, 0, 1]], b: [6, 4], basis: [3, 4], art: [3, 4], c2: [-3, 0, 0, 0, 0], min: true, note: "min $3x_1$, tabloda $\\max\\,(-3x_1)$" }) }
+], false);
+
+/* Alternative-optima explorer on the job-mix region */
+(function () {
+  const $ = id => document.getElementById(id);
+  const i1 = $("alt-c1"), i2 = $("alt-c2"), err = $("alt-err"), out = $("alt-out"), plotEl = $("alt-plot");
+  const lamIn = $("alt-lam"), lamErr = $("alt-lamerr"), lamOut = $("alt-lamout"), lamRow = $("alt-lamrow");
+  const V = [[0, 0], [4, 0], [4, 3], [2, 6], [0, 6]];
+  let cur = null;
+  const X = x => 34 + x * 36, Y = y => 272 - y * 25;
+  function plot(c, p1, p2, extra) {
+    let s = `<svg viewBox="0 0 300 300" role="img" aria-label="Job-mix feasible region ve optimum">`;
+    s += `<defs><clipPath id="alt-clip"><rect x="${X(-0.4)}" y="${Y(10.4)}" width="${X(7.4) - X(-0.4)}" height="${Y(-0.4) - Y(10.4)}" /></clipPath></defs>`;
+    for (let t = 0; t <= 6; t += 2) s += `<text x="${X(t)}" y="${Y(0) + 16}" font-size="10" text-anchor="middle" style="fill:var(--fg-muted)">${t}</text>`;
+    for (let t = 2; t <= 10; t += 2) s += `<text x="${X(0) - 8}" y="${Y(t) + 4}" font-size="10" text-anchor="end" style="fill:var(--fg-muted)">${t}</text>`;
+    s += `<line x1="${X(-0.4)}" y1="${Y(0)}" x2="${X(7.4)}" y2="${Y(0)}" style="stroke:var(--fg-subtle)" /><line x1="${X(0)}" y1="${Y(-0.4)}" x2="${X(0)}" y2="${Y(10.4)}" style="stroke:var(--fg-subtle)" />`;
+    s += `<polygon points="${V.map(v => X(v[0]) + "," + Y(v[1])).join(" ")}" style="fill:var(--blue-050);stroke:var(--blue-600);stroke-width:1.5" />`;
+    s += `<g clip-path="url(#alt-clip)" style="stroke:var(--fg-subtle);stroke-width:1">`;
+    s += `<line x1="${X(4)}" y1="${Y(-1)}" x2="${X(4)}" y2="${Y(11)}" /><line x1="${X(-1)}" y1="${Y(6)}" x2="${X(8)}" y2="${Y(6)}" /><line x1="${X(-1)}" y1="${Y(10.5)}" x2="${X(8)}" y2="${Y(-3)}" />`;
+    const cx = c[0].num(), cy = c[1].num(), L = Math.hypot(cx, cy);
+    const px = p1[0].num(), py = p1[1].num(), dx = -cy / L, dy = cx / L;
+    s += `<line x1="${X(px - 20 * dx)}" y1="${Y(py - 20 * dy)}" x2="${X(px + 20 * dx)}" y2="${Y(py + 20 * dy)}" style="stroke:var(--accent);stroke-dasharray:5 4;stroke-width:1.5" /></g>`;
+    s += `<text x="${X(4) + 3}" y="${Y(9.6)}" font-size="9" style="fill:var(--fg-muted)">x₁ = 4</text><text x="${X(5.2)}" y="${Y(6) - 4}" font-size="9" style="fill:var(--fg-muted)">2x₂ = 12</text><text x="${X(5.4)}" y="${Y(1.4)}" font-size="9" style="fill:var(--fg-muted)">3x₁+2x₂ = 18</text>`;
+    if (p2) s += `<line x1="${X(px)}" y1="${Y(py)}" x2="${X(p2[0].num())}" y2="${Y(p2[1].num())}" style="stroke:var(--accent);stroke-width:5;stroke-linecap:round" />`;
+    s += `<circle cx="${X(px)}" cy="${Y(py)}" r="5" style="fill:var(--accent)" />`;
+    if (p2) s += `<circle cx="${X(p2[0].num())}" cy="${Y(p2[1].num())}" r="5" style="fill:var(--accent)" />`;
+    if (extra) s += `<circle cx="${X(extra[0].num())}" cy="${Y(extra[1].num())}" r="4" style="fill:var(--blue-600)" />`;
+    s += `</svg>`;
+    plotEl.innerHTML = s;
+  }
+  function solve() {
+    err.textContent = ""; lamErr.textContent = ""; lamOut.innerHTML = "";
+    const a = Q.of(i1.value), b = Q.of(i2.value);
+    if (!a || !b) { err.textContent = "c₁ ve c₂ sayı olmalı (örnek: 3, -1, 2.5 ya da 3/2)."; return; }
+    if (Math.abs(a.num()) > 20 || Math.abs(b.num()) > 20) { err.textContent = "Katsayılar −20 ile 20 arasında olsun."; return; }
+    if (a.isZero() && b.isZero()) { err.textContent = "c = (0, 0) ise her feasible nokta optimal olur, objective hiçbir şey seçmez. En az birini sıfırdan farklı yap."; return; }
+    const lp = slackLP([a, b], [[1, 0], [0, 2], [3, 2]], [4, 12, 18]);
+    const r = runSimplex(lp, { rule: "dantzig" });
+    const fin = r.frames[r.frames.length - 1];
+    const pt = fr => [valOf(lp, fr, "x1"), valOf(lp, fr, "x2")];
+    const p1 = pt(fin), path = r.frames.map(f => "(" + pt(f).map(v => v.txt()).join(", ") + ")");
+    const zs = [];
+    fin.d.forEach((x, j) => { if (x.isZero() && !fin.basis.includes(j)) zs.push(j); });
+    let p2 = null, fin2 = null;
+    if (zs.length) {
+      const r2 = runSimplex(stateOf(lp, r), { force: zs[0] });
+      fin2 = r2.frames[r2.frames.length - 1];
+      p2 = pt(fin2);
+      if (p2[0].cmp(p1[0]) === 0 && p2[1].cmp(p1[1]) === 0) p2 = null;
+    }
+    cur = { a, b, p1, p2 };
+    let h = `<p>Simplex yolu (Dantzig): ${path.join(" → ")}, $z^* = ${fin.zval.tex()}$. Final tableau, slayt konvansiyonu:</p>` + tabHTML(lp, fin);
+    if (p2) {
+      h += `<p>Nonbasic ${NT(lp.names[zs[0]])}'nin $c_j - z_j$ değeri 0. Onu sokan pivot ikinci optimal vertex'e gider: $(${p2[0].tex()}, ${p2[1].tex()})$, $z$ yine $${fin2.zval.tex()}$. Turuncu edge'in tamamı optimal.</p>` + tabHTML(lp, fin2);
+    } else {
+      h += `<p>Bütün nonbasic'lerde $c_j - z_j &lt; 0$: optimum tek, $(${p1[0].tex()}, ${p1[1].tex()})$.</p>`;
+    }
+    out.innerHTML = h;
+    Lab.renderMath(out);
+    lamRow.style.display = p2 ? "" : "none";
+    plot([a, b], p1, p2);
+  }
+  function lam() {
+    lamErr.textContent = ""; lamOut.innerHTML = "";
+    if (!cur || !cur.p2) return;
+    const l = Q.of(lamIn.value);
+    if (!l) { lamErr.textContent = "λ bir sayı olmalı (örnek: 0.25 ya da 1/3)."; return; }
+    if (l.sign() < 0 || l.cmp(q(1)) > 0) { lamErr.textContent = "λ 0 ile 1 arasında olmalı; dışında kalan noktalar edge'in uzantısında, feasible bölgenin dışında."; return; }
+    const m = q(1).sub(l);
+    const x = cur.p1[0].mul(l).add(cur.p2[0].mul(m)), y = cur.p1[1].mul(l).add(cur.p2[1].mul(m));
+    const z = cur.a.mul(x).add(cur.b.mul(y));
+    lamOut.innerHTML = `<p>$x = ${l.tex()}\\,(${cur.p1[0].tex()}, ${cur.p1[1].tex()}) + ${m.tex()}\\,(${cur.p2[0].tex()}, ${cur.p2[1].tex()}) = (${x.tex()}, ${y.tex()})$, $z = ${z.tex()}$. Aynı $z^*$: bu nokta da optimal.</p>`;
+    Lab.renderMath(lamOut);
+    plot([cur.a, cur.b], cur.p1, cur.p2, [x, y]);
+  }
+  $("alt-go").addEventListener("click", solve);
+  [i1, i2].forEach(el => el.addEventListener("keydown", e => { if (e.key === "Enter") solve(); }));
+  document.querySelectorAll("[data-altc]").forEach(btn => btn.addEventListener("click", () => {
+    const [u, v] = btn.dataset.altc.split(","); i1.value = u; i2.value = v; solve();
+  }));
+  $("alt-lamgo").addEventListener("click", lam);
+  lamIn.addEventListener("keydown", e => { if (e.key === "Enter") lam(); });
+  solve();
+})();
+
+/* Klee–Minty pivot counter: Dantzig vs Bland, against 2^n − 1 */
+(function () {
+  const inp = document.getElementById("km-n"), err = document.getElementById("km-err"), out = document.getElementById("km-out");
+  function kmLP(n) {
+    const c = [], A = [], b = [];
+    for (let j = 1; j <= n; j++) c.push(String(2 ** (n - j)));
+    for (let i = 1; i <= n; i++) {
+      const row = [];
+      for (let j = 1; j <= n; j++) row.push(j < i ? String(2 ** (i - j + 1)) : j === i ? "1" : "0");
+      A.push(row); b.push(String(5 ** i));
+    }
+    return slackLP(c, A, b);
+  }
+  function count(n, rule) { return runSimplex(kmLP(n), { rule, lite: true, maxit: 5000 }).frames.length - 1; }
+  function go() {
+    err.textContent = "";
+    const raw = inp.value.trim();
+    if (!/^\d+$/.test(raw)) { err.textContent = "n bir tam sayı olmalı."; return; }
+    const n = Number(raw);
+    if (n < 2) { err.textContent = "n en az 2 olsun: n = 1'de tek pivot var, karşılaştıracak bir şey yok."; return; }
+    if (n > 10) { err.textContent = "n en fazla 10 olsun: Dantzig n = 10'da zaten 1023 pivot atıyor, tarayıcıda daha büyüğü yavaşlar."; return; }
+    const rows = [];
+    for (let k = 2; k <= n; k++) rows.push({ k, full: 2 ** k - 1, dz: count(k, "dantzig"), bl: count(k, "bland") });
+    const max = rows[rows.length - 1].full;
+    const bar = (v, col) => `<div><i style="width:${Math.max(1, 100 * v / max)}%;background:${col}"></i></div>`;
+    let h = "";
+    rows.forEach(r => {
+      h += `<div class="w-simplex-special-bar"><span>n=${r.k} Dantzig</span>${bar(r.dz, "var(--accent)")}<b>${r.dz}</b></div>`;
+      h += `<div class="w-simplex-special-bar"><span>n=${r.k} Bland</span>${bar(r.bl, "var(--blue-600)")}<b>${r.bl}</b></div>`;
+    });
+    const last = rows[rows.length - 1];
+    h += `<p>$n = ${n}$: $2^{${n}} - 1 = ${last.full}$. Dantzig ${last.dz} pivot attı${last.dz === last.full ? ", yani bütün vertex'leri dolaştı" : ""}; Bland ${last.bl} pivot. Optimum her iki kuralda da $z^* = 5^{${n}} = ${5 ** n}$.</p>`;
+    if (n <= 4) {
+      const lp = kmLP(n), r = runSimplex(lp, { rule: "dantzig" });
+      h += `<p>Dantzig'in ziyaret ettiği vertex'ler: ` + r.frames.map(f => "(" + lp.names.filter(isDecision).map(s => valOf(lp, f, s).txt()).join(", ") + ")").join(" → ") + `.</p>`;
+    }
+    out.innerHTML = h;
+    Lab.renderMath(out);
+  }
+  document.getElementById("km-go").addEventListener("click", go);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+  go();
+})();
+</script>
+</body>
+</html>

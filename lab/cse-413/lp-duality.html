@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 413: LP duality. Dual'ı kurmak, işaret tablosu, weak ve strong duality, sonuç tablosu, complementary slackness, y*'ı tableau'dan okumak ve shadow price ile karar vermek." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>LP duality ve complementary slackness · CSE 413 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-lp-duality-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-lp-duality-box { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px; margin: 12px 0; background: var(--bg-elevated); min-width: 0; }
+    .w-lp-duality-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-lp-duality-ctl select, .w-lp-duality-ctl input[type="text"] { font: inherit; font-size: .9rem; padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--fg); }
+    .w-lp-duality-ctl input[type="text"] { width: 150px; }
+    .w-lp-duality-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-lp-duality-grid { overflow-x: auto; max-width: 100%; }
+    .w-lp-duality-grid table { border-collapse: collapse; font-size: .85rem; }
+    .w-lp-duality-grid td, .w-lp-duality-grid th { padding: 2px 3px; text-align: center; white-space: nowrap; }
+    .w-lp-duality-grid input { width: 46px; font: inherit; font-size: .85rem; padding: 2px 3px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--fg); text-align: center; }
+    .w-lp-duality-grid select { font: inherit; font-size: .8rem; padding: 1px 2px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--fg); }
+    .w-lp-duality-grid input.is-bad { border-color: var(--orange-700); background: var(--orange-100); }
+    .w-lp-duality-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+    .w-lp-duality-two > div { min-width: 0; overflow-x: auto; }
+    .w-lp-duality-sign { border-collapse: collapse; font-size: .85rem; width: 100%; }
+    .w-lp-duality-sign td, .w-lp-duality-sign th { border: 1px solid var(--border); padding: 3px 6px; }
+    .w-lp-duality-sign tr.is-on td { background: var(--orange-100); font-weight: 700; }
+    .w-lp-duality-prim { border-collapse: collapse; font-size: .85rem; }
+    .w-lp-duality-prim td { padding: 2px 6px; text-align: center; white-space: nowrap; }
+    .w-lp-duality-prim .is-on { background: var(--blue-050); outline: 1px solid var(--blue-600); }
+    .w-lp-duality-dual { font-size: .92rem; overflow-x: auto; }
+    .w-lp-duality-sl { display: grid; grid-template-columns: 34px minmax(0, 1fr) 48px; gap: 8px; align-items: center; margin: 4px 0; }
+    .w-lp-duality-sl input[type="range"] { width: 100%; accent-color: var(--blue-600); }
+    .w-lp-duality-sl label { font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: .9rem; }
+    .w-lp-duality-sl output { font-family: 'JetBrains Mono', monospace; font-size: .9rem; text-align: right; }
+    .w-lp-duality-read { font-family: 'JetBrains Mono', monospace; font-size: .85rem; line-height: 1.6; overflow-x: auto; }
+    .w-lp-duality-ok { color: #2b8a3e; font-weight: 700; }
+    .w-lp-duality-no { color: var(--orange-700); font-weight: 700; }
+    .w-lp-duality-svg { display: block; width: 100%; height: auto; max-width: 560px; }
+    .w-lp-duality-list { margin: 4px 0; padding-left: 18px; font-size: .9rem; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 413</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 413</a> / LP duality ve complementary slackness</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">Week 4</span><span class="chip chip--exam">Vize: Weeks 1–7</span><span class="src">~65 dk · 12 bölüm</span></div>
+          <h1>LP duality ve complementary slackness</h1>
+          <p class="lead">Simplex'in son tableau'sunda slack sütunlarının altında üç sayı kalmıştı: $(0, 3/2, 1)$. Bu derste bu sayıların neden kaynakların değeri olduğunu göreceksin. Her LP'nin bir <strong>dual</strong>'ı var; dual'ı kurmayı, weak ve strong duality'yi, complementary slackness ile $y^*$ bulmayı ve shadow price ile karar vermeyi öğreneceksin.</p>
+          <p class="src">Not: Week 4 slaytları ve Lab 4 notebook'u ("Duals with PuLP/CBC") repoda yok. Konu, Week 3 slaytlarının duality'ye giriş yapan sayfaları (s.16, 19, 20), Winston Bölüm 6.5–6.10 ve Boyd §5.2 üzerinden anlatıldı. Notasyon Week 3 slaytlarındaki gibi: max problem, $c_j - z_j$ satırı, job-mix LP.</p>
+          <!-- Kaynak: Week_03.pdf s.4, 5, 13–20, 22–23, 26 · syllabus Week 4 satırı ("Linear programming II: duality, shadow prices, sensitivity analysis"; lab "Duals with PuLP/CBC; RHS/objective ranging") · Winston §6.5 (pdf s.311–317), §6.6 (s.318–319), §6.7 (s.320–329), §6.8 (s.329–334), §6.10 (s.341–345) · Boyd §5.2.1–5.2.2 (pdf s.237–239) · Pınar, Doğrusal Optimizasyondan Çıkış, Ders 5.2 (Farkas'ın Önsavı) ve Ders 6 (Eşterslik Kuramı) · weeks/04-lp-duality-and-sensitivity.md (Implement listesi). Bütün sayılar python (Fraction, vertex enumeration) ve PuLP/CBC ile kontrol edildi. Week_03.pdf origin/main'de olmadığı için linklenmedi. -->
+        </header>
+
+        <article class="lesson" data-course="cse-413" data-lesson="lp-duality">
+
+<!-- 1 -->
+<section class="lsec" id="mystery" data-min="5">
+  <h2>Son tableau'daki gizemli sayılar</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · job-mix'e geri dönüş</span>
+    <p>Week 3'teki job-mix LP'si:</p>
+    $$\max z = 3x_1 + 5x_2 \quad \text{s.t.}\quad x_1 \le 4\ (\text{accelerator}),\quad 2x_2 \le 12\ (\text{memory}),\quad 3x_1 + 2x_2 \le 18\ (\text{CPU}),\quad x_1, x_2 \ge 0$$
+    <p>Simplex iki pivot'ta $(2, 6)$'ya, $z^* = 36$'ya ulaştı. Son tableau aşağıda. Tablo slayt konvansiyonunda: $c_j - z_j$ satırı, optimal olunca hepsi $\le 0$.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>$c_B$</th><th>Basis</th><th>b</th><th>$x_1$</th><th>$x_2$</th><th>$s_1$</th><th>$s_2$</th><th>$s_3$</th></tr>
+    <tr><td>0</td><td>$s_1$</td><td>2</td><td>0</td><td>0</td><td>1</td><td>1/3</td><td>−1/3</td></tr>
+    <tr><td>5</td><td>$x_2$</td><td>6</td><td>0</td><td>1</td><td>0</td><td>1/2</td><td>0</td></tr>
+    <tr><td>3</td><td>$x_1$</td><td>2</td><td>1</td><td>0</td><td>0</td><td>−1/3</td><td>1/3</td></tr>
+    <tr><td></td><td>$z_j$</td><td>36</td><td>3</td><td>5</td><td><b>0</b></td><td><b>3/2</b></td><td><b>1</b></td></tr>
+    <tr><td></td><td>$c_j - z_j$</td><td></td><td>0</td><td>0</td><td>0</td><td>−3/2</td><td>−1</td></tr>
+  </table></div>
+  <p>Hoca bu tableau'da slack'lerin altındaki $z_j$'lere "mystery numbers" diyor: $(0, 3/2, 1)$. Slayt 19'daki yorum: bir birim daha memory $1.5$ değerinde, bir CPU core'u $1$, bir accelerator birimi $0$. Bunu sınamak kolay. Memory'yi 12'den 13'e çıkarıp LP'yi yeniden çözersen $z^* = 37.5$ çıkar, yani tam $1.5$ artar. CPU'yu 18'den 19'a çıkarırsan $z^* = 37$ olur. Accelerator'ı 5 yaparsan $z^*$ 36'da kalır, çünkü zaten $s_1 = 2$ birim boşta.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · shadow price'ı tableau'dan okumak</span>
+    <p>Optimal tableau'da, $i$. kısıtın slack'i $s_i$ ise:</p>
+    $$y_i = z_j\ (s_i\text{ sütunu}) = -(c_j - z_j)\ (s_i\text{ sütunu})$$
+    <p>Bu $y_i$ sayıları <strong>shadow price</strong>'lardır: $b_i$ bir birim artınca $z^*$'ın ne kadar arttığı. Aynı sayılar dual LP'nin optimal çözümüdür. Bu dersin geri kalanı bunun nedenini anlatıyor.</p>
+    <p>Lab 3 iskeleti ve Winston, tableau'nun en üstünde bir <strong>z-row</strong> (row 0) tutar ve orada $z_j - c_j$ yazar; entering variable en negatif olandır. O konvansiyonda $y_i$, row 0'da $s_i$'nin katsayısının ta kendisidir: $(0, 3/2, 1)$. İki satır birbirinin negatifi, sayılar aynı.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · slayt 16, "a shadow price, a week early"</span>
+    <p>İlk pivot'tan sonraki tableau'da (basis $\{s_1, x_2, s_3\}$, vertex $(0, 6)$, $z = 30$) $s_2$'nin $c_j - z_j$ değeri $-5/2$'ydi. Slayttaki yorum: "letting idle memory back in would COST 2.5 per block". O basis'e göre slack'lerin altındaki fiyatlar $(0, 5/2, 0)$.</p>
+    <p>Ama bu fiyatlar henüz doğru değil. Batch hizmetinin bir birimi 1 accelerator ve 3 CPU kullanıyor; bu fiyatlarla bu kaynakların değeri $1\cdot 0 + 3 \cdot 0 = 0$, oysa batch'in kârı 3. Fiyatlar bir ürünü olduğundan ucuz gösteriyorsa, o ürünün $c_j - z_j$'si pozitiftir ($x_1$ için 3) ve simplex devam eder. Simplex primal feasible kalır, fiyatlar da son tableau'da tutarlı hâle gelir.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Slayt konvansiyonunda $c_j - z_j$ satırındaki $-3/2$ fiyat <strong>değil</strong>; fiyat onun negatifi, $3/2$. Shadow price, $\le$ kısıtlı max problemde negatif çıkmaz.</li>
+      <li>b sütunu $x^*$'ı ve slack'leri verir ($x_1 = 2$, $x_2 = 6$, $s_1 = 2$), $y^*$'ı değil. $y^*$ en alt satırdan, slack sütunlarının altından okunur.</li>
+      <li>Optimal olmayan bir tableau'nun slack altındaki sayıları (slayt 16'daki $5/2$) $y^*$ değildir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w3-slide-p19-mystery">
+    <span class="box__label">Week 3 slayt 19 · slayt sorusu</span>
+    <p>"Reading the Final Tableau: Solution, Slacks, a Preview of Duality … THE MYSTERY NUMBERS: z<sub>j</sub> under the slacks: (0, 3/2, 1). One more unit of memory would be worth 1.5; of CPU, 1; of accelerator, 0. These are the SHADOW PRICES — the dual solution. Week 4 explains why." (Slayttan kısaltıldı.)</p>
+    <p>Slaytın yaptığı okumayı sen yap. Yukarıdaki son tableau'dan (a) $x^*$'ı, slack'leri ve binding kısıtları oku; (b) accelerator'ın fiyatının neden 0 olduğunu açıkla; (c) memory 13 blok olunca yeni $z^*$'ı tahmin et.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Basic variable'ların değeri b sütununda; nonbasic olanlar 0. Slack'i 0 olan kısıt binding'dir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Boşta kalan bir kaynağın bir birimi daha eklenirse kullanılır mı? (c) için: yeni $z^* \approx$ eski $z^*$ + (fiyat) × (artış).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) $x_1 = 2$, $x_2 = 6$, $s_1 = 2$; $s_2 = s_3 = 0$ (nonbasic). $z^* = 0\cdot 2 + 5 \cdot 6 + 3 \cdot 2 = 36$. Memory ve CPU binding (tükenmiş), accelerator slack (2 birim boşta).</p>
+      <p>(b) Accelerator'dan 2 birim zaten kullanılmıyor. Bir birim daha accelerator, daha yüksek kâr sağlayan bir plan oluşturmaz; mevcut optimum ve $z^*=36$ değişmez. Bu yüzden değeri $y_1 = 0$.</p>
+      <p>(c) $y_2 = 3/2$: $z^* = 36 + 1.5 \cdot 1 = 37.5$. Kontrol: yeni optimum $x_2 = 6.5$, $x_1 = (18 - 13)/3 = 5/3$, $z = 3 \cdot 5/3 + 5 \cdot 6.5 = 5 + 32.5 = 37.5$. Basis aynı kaldığı için tahmin tam tutar (Bölüm 11'de bunun sınırını göreceksin).</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-lpd-mystery">
+    <p class="quiz__q">Slayt konvansiyonundaki optimal tableau'da $s_3$ sütununun altında $c_j - z_j = -1$ yazıyor. CPU'nun shadow price'ı kaç?</p>
+    <button class="quiz__opt" data-correct>$1$<span class="why">Doğru. $y_3 = z_j = -(c_j - z_j) = 1$. Bir CPU core'u daha $z^*$'ı 1 artırır (CPU 18'den 19'a çıkınca $z^* = 37$).</span></button>
+    <button class="quiz__opt">$-1$<span class="why">Bu, $c_j - z_j$ satırını işaret değiştirmeden okumak. Slayt konvansiyonunda fiyat $z_j$'dir, yani $c_j - z_j$'nin negatifi. $\le$ kısıtlı max problemde shadow price negatif olamaz.</span></button>
+    <button class="quiz__opt">$2$<span class="why">2, b sütunundaki bir değer ($x_1 = 2$ ya da $s_1 = 2$). b sütunu primal çözümü verir, fiyatları değil.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="pricing" data-min="5">
+  <h2>Dual: kaynaklara fiyat biçmek</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · kapasiteyi kiralamak isteyen biri</span>
+    <p>Bir bulut sağlayıcısı cluster'ın bütün kapasitesini kiralamak istiyor: 4 accelerator birimi, 12 memory bloğu, 18 CPU core'u. Birim fiyatları kendisi belirleyecek: $y_1, y_2, y_3$ (k₺). Toplam ödemesi $4y_1 + 12y_2 + 18y_3$ ve bunu <strong>minimize</strong> etmek istiyor.</p>
+    <p>Cluster yalnızca kiralamak kendi üretiminden kötü değilse kabul eder. Bir batch birimi 1 accelerator ve 3 CPU kullanıyor ve 3 kâr getiriyor; bu kaynaklar için teklif edilen para en az 3 olmalı: $y_1 + 3y_3 \ge 3$. Bir interactive birimi 2 memory ve 2 CPU kullanıyor, kârı 5: $2y_2 + 2y_3 \ge 5$. Fiyatlar negatif olamaz.</p>
+    $$\min w = 4y_1 + 12y_2 + 18y_3 \quad\text{s.t.}\quad y_1 + 3y_3 \ge 3,\quad 2y_2 + 2y_3 \ge 5,\quad y_1, y_2, y_3 \ge 0$$
+    <p>Bu LP job-mix'in <strong>dual</strong>'ı. Asıl LP'ye <strong>primal</strong> denir. Dual'ın optimumu $y^* = (0, 3/2, 1)$, $w^* = 0 + 18 + 18 = 36$: son tableau'daki sayılar ve aynı 36.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · canonical (normal) max problemin dual'ı</span>
+    $$\textbf{(P)}\ \max\ c^T x \ \ \text{s.t. } Ax \le b,\ x \ge 0 \qquad\Longleftrightarrow\qquad \textbf{(D)}\ \min\ b^T y \ \ \text{s.t. } A^T y \ge c,\ y \ge 0$$
+    <ul>
+      <li>Primal'ın her <strong>kısıtı</strong> için bir dual <strong>variable</strong> ($m$ tane $y_i$).</li>
+      <li>Primal'ın her <strong>variable</strong>'ı için bir dual <strong>kısıt</strong> ($n$ tane).</li>
+      <li>$A$ transpose olur: dual'ın $j$. kısıtı $A$'nın $j$. <em>sütunudur</em>.</li>
+      <li>$b$ dual'ın objective'ine, $c$ dual kısıtların sağ tarafına geçer. max ⇄ min.</li>
+    </ul>
+    <p>Winston bunu bir tabloyla yapar: primal'ı satır satır (across) yaz, dual'ı sütun sütun (down) oku.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th></th><th>$x_1 \ge 0$</th><th>$x_2 \ge 0$</th><th></th></tr>
+    <tr><td>$y_1 \ge 0$</td><td>1</td><td>0</td><td>$\le 4$</td></tr>
+    <tr><td>$y_2 \ge 0$</td><td>0</td><td>2</td><td>$\le 12$</td></tr>
+    <tr><td>$y_3 \ge 0$</td><td>3</td><td>2</td><td>$\le 18$</td></tr>
+    <tr><td></td><td>$\ge 3$</td><td>$\ge 5$</td><td></td></tr>
+  </table></div>
+  <p>Satırları oku: primal kısıtlar. Sütunları oku: $x_1$ sütunu $y_1 + 3y_3 \ge 3$, $x_2$ sütunu $2y_2 + 2y_3 \ge 5$.</p>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Winston'ın Dakota problemi</span>
+    <p>Masa, sehpa, sandalye: $\max z = 60x_1 + 30x_2 + 20x_3$, s.t. $8x_1 + 6x_2 + x_3 \le 48$ (lumber), $4x_1 + 2x_2 + 1.5x_3 \le 20$ (finishing), $2x_1 + 1.5x_2 + 0.5x_3 \le 8$ (carpentry), $x \ge 0$. Dual:</p>
+    $$\min w = 48y_1 + 20y_2 + 8y_3 \ \ \text{s.t.}\ 8y_1 + 4y_2 + 2y_3 \ge 60,\ 6y_1 + 2y_2 + 1.5y_3 \ge 30,\ y_1 + 1.5y_2 + 0.5y_3 \ge 20,\ y \ge 0$$
+    <p>Winston'ın yorumu aynı: bir girişimci Dakota'nın bütün kaynaklarını satın almak istiyor. Bir masanın kaynakları için en az 60 ödemeli, yoksa Dakota masayı kendisi yapıp satar. Optimum: $x^* = (2, 0, 8)$, $y^* = (0, 10, 10)$, $z^* = w^* = 280$.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Transpose'u unutmak: dual kısıtı $A$'nın <em>satırından</em> yazmak. Job-mix'te $y_1 + 0 \cdot y_2 \ge 3$ gibi bir şey çıkıyorsa satır okumuşsundur.</li>
+      <li>Dual objective'ine $c$ yazmak. Objective'e kaynak miktarları ($b$) gider, kârlar ($c$) sağ tarafa.</li>
+      <li>$x \ge 0$ işaret kısıtlarına ayrı dual variable vermek. Canonical formda onlar dual kısıtın yönünü ($\ge$) belirler, kendileri variable almaz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-lpd-pricing">
+    <p class="quiz__q">Job-mix'in dual'ında $x_2$'ye (interactive) karşılık gelen kısıt hangisi?</p>
+    <button class="quiz__opt" data-correct>$2y_2 + 2y_3 \ge 5$<span class="why">Doğru. $A$'nın 2. sütunu $(0, 2, 2)$, sağ taraf $c_2 = 5$. Bir interactive birimin kaynaklarına en az kârı kadar ödenmeli.</span></button>
+    <button class="quiz__opt">$2y_2 + 2y_3 \le 5$<span class="why">Yön ters. Max-$\le$ primal'ın dual'ı min-$\ge$'dir: kiralayan, cluster'ı ikna etmek için en az kâr kadar ödemeli.</span></button>
+    <button class="quiz__opt">$3y_1 + 2y_2 \ge 18$<span class="why">Bu, $A$'nın 3. satırını ($3x_1 + 2x_2 \le 18$) dual kısıt diye okumak. Dual kısıtlar $A$'nın sütunlarından gelir.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="signs" data-min="6">
+  <h2>Normal olmayan LP'ler: işaret tablosu</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · fiyatın işareti nereden gelir?</span>
+    <p>Max bir problemde $\le$ kısıtın sağ tarafını büyütmek feasible region'ı genişletir; $z^*$ düşemez, o yüzden fiyat $y_i \ge 0$. Bir $\ge$ kısıtın sağ tarafını büyütmek kısıtı sıkılaştırır, feasible region daralır; $z^*$ artamaz, fiyat $y_i \le 0$. Eşitlik kısıtı iki yöne de gidebilir, fiyatın işareti serbest (free, Winston'da "urs": unrestricted in sign).</p>
+    <p>Variable tarafı aynanın öbür yüzü: $x_j \ge 0$ olağan durum, dual kısıt olağan yönde ($\ge$, max primal için). $x_j \le 0$ ters yön verir, $x_j$ free ise dual kısıt eşitlik olur.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · işaret tablosu (iki yönde de okunur)</span>
+    <div class="table-wrap"><table>
+      <tr><th>Max problem</th><th>Min problem</th></tr>
+      <tr><td>$i$. kısıt $\le$</td><td>$i$. variable $\ge 0$</td></tr>
+      <tr><td>$i$. kısıt $\ge$</td><td>$i$. variable $\le 0$</td></tr>
+      <tr><td>$i$. kısıt $=$</td><td>$i$. variable free</td></tr>
+      <tr><td>$j$. variable $\ge 0$</td><td>$j$. kısıt $\ge$</td></tr>
+      <tr><td>$j$. variable $\le 0$</td><td>$j$. kısıt $\le$</td></tr>
+      <tr><td>$j$. variable free</td><td>$j$. kısıt $=$</td></tr>
+    </table></div>
+    <p>Primal max ise soldan sağa, primal min ise sağdan sola oku. Hatırlama yolu: "doğal" eşleşmeler (max'ta $\le$, min'de $\ge$, variable $\ge 0$) birbirine gider, "ters" olan ters olana gider, eşitlik free'ye gider.</p>
+    <p><strong>Dual'ın dual'ı primal'dır.</strong> Tablo simetrik olduğu için dual'a aynı tabloyu uygularsan başladığın LP'ye dönersin.</p>
+  </div>
+  <p>Aynı sonucu Winston'ın uzun yoluyla da bulursun: $\ge$ kısıtı $-1$ ile çarp, $=$ kısıtı iki eşitsizliğe ayır, free variable'ı $x = x^+ - x^-$ yaz, normal formun dual'ını al, sonra variable'ları birleştir. İşaret tablosu bu işlemlerin kısaltmasıdır.</p>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Winston LP (18)</span>
+    $$\max z = 2x_1 + x_2 \ \ \text{s.t.}\ x_1 + x_2 = 2,\ \ 2x_1 - x_2 \ge 3,\ \ x_1 - x_2 \le 1,\ \ x_1 \ge 0,\ x_2 \text{ free}$$
+    <p>Kısıtlar: $=$ → $y_1$ free, $\ge$ → $y_2 \le 0$, $\le$ → $y_3 \ge 0$. Variable'lar: $x_1 \ge 0$ → 1. dual kısıt $\ge$, $x_2$ free → 2. dual kısıt $=$.</p>
+    $$\min w = 2y_1 + 3y_2 + y_3 \ \ \text{s.t.}\ y_1 + 2y_2 + y_3 \ge 2,\ \ y_1 - y_2 - y_3 = 1,\ \ y_1 \text{ free},\ y_2 \le 0,\ y_3 \ge 0$$
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Boyd'un iki LP dual'ı tabloyla uyuşuyor mu?</span>
+    <p>Boyd §5.2.1, inequality form LP: $\min c^T x$ s.t. $Ax \le b$ ($x$ free). Dual'ı: $\max -b^T\lambda$ s.t. $A^T\lambda + c = 0$, $\lambda \ge 0$. Tabloyla: min problemde $\le$ kısıt → dual variable $\mu \le 0$; $x$ free → dual kısıt eşitlik: $\max b^T \mu$, $A^T\mu = c$. $\mu = -\lambda$ koyunca Boyd'un hâli çıkar.</p>
+    <p>Standard form LP: $\min c^T x$ s.t. $Ax = b$, $x \ge 0$. Boyd: $\max -b^T\nu$ s.t. $A^T\nu + c \ge 0$. Tablo: $=$ → free $y$, $x \ge 0$ → dual kısıt $\le$: $\max b^T y$, $A^T y \le c$. $y = -\nu$ ile aynısı. Boyd'un işaretleri Lagrangian'dan geliyor (Week 7'de göreceksin), tablo aynı LP'yi verir.</p>
+  </div>
+  <div class="w-lp-duality-box" id="w-conv">
+    <p class="w-lp-duality-guess"><b>Önce tahmin et:</b> Winston LP (19) bir min problem: $\min w = 2y_1 + 4y_2 + 6y_3$ s.t. $y_1 + 2y_2 + y_3 \ge 2$, $y_1 - y_3 \ge 1$, $y_2 + y_3 = 1$, $2y_1 + y_2 \le 3$, $y_1$ free, $y_2, y_3 \ge 0$. Dual'ın kaçıncı kısıtı eşitlik olur? Son kısıtın ($2y_1 + y_2 \le 3$) dual variable'ı $x_4$ hangi işarette olur? Tahminini yaz, sonra hazır listeden "Winston (19)"u seçip adım adım bak.</p>
+    <p class="src">Widget Winston'ın adlandırmasını kullanır: max problemin variable'ları $x$, min problemin variable'ları $y$; dual'ın variable'ları öbür harf.</p>
+    <div class="w-lp-duality-ctl">
+      <label>Hazır LP <select id="conv-preset">
+        <option value="jobmix">Job-mix (slayt)</option>
+        <option value="w18">Winston (18)</option>
+        <option value="w19">Winston (19)</option>
+        <option value="p3">Winston §6.5 P3</option>
+        <option value="p4">Winston §6.5 P4</option>
+      </select></label>
+      <label><select id="conv-sense"><option value="max">max</option><option value="min">min</option></select></label>
+      <label>variable <select id="conv-n"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+      <label>kısıt <select id="conv-m"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+    </div>
+    <div class="w-lp-duality-grid" id="conv-grid"></div>
+    <div class="w-lp-duality-ctl"><button class="btn btn--sm btn--accent" id="conv-go">Dual'ı kur</button><span class="src">Kesir yazabilirsin: 3/2, −0.5</span></div>
+    <div class="w-lp-duality-err" id="conv-err"></div>
+    <div id="conv-stepper"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İşaret kuralı max/min'e göre değişir. Min problemde $\ge$ kısıt <em>doğal</em> olandır ve dual variable'ı $\ge 0$ verir; max'taki $\ge$ ise $\le 0$ verir.</li>
+      <li>Dual'ı kurmadan önce bütün kısıtları $\le$'ye çevirmek zorunda değilsin. Çevirirsen de sorun yok, ama o zaman sağ taraf ve katsayıların işaretini değiştirmeyi unutma.</li>
+      <li>Free variable'ın dual karşılığı bir <strong>eşitlik</strong> kısıtıdır, "işaretsiz bir kısıt" değil.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.5-P6">
+    <span class="box__label">Winston §6.5 Problem 6 · ödev sorusu</span>
+    <p>"This problem shows why a dual variable $y_i$ corresponding to a $\ge$ constraint in a max problem must satisfy $y_i \le 0$. (a) Using the rules given in the text, find the dual of max $z = 3x_1 + x_2$ s.t. $x_1 + x_2 \le 1$, $-x_1 + x_2 \ge 2$, $x_1, x_2 \ge 0$. (b) Transform the LP of part (a) into a normal max problem. Now use (16) and (17) to find the dual of the transformed LP. Let $\bar y_2$ be the dual variable corresponding to the second primal constraint. (c) Show that, defining $\bar y_2 = -y_2$, the dual in part (a) is equivalent to the dual in part (b)."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) İşaret tablosu: max problemde $\ge$ kısıt hangi işaretli variable verir?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b) $-x_1 + x_2 \ge 2$'yi $-1$ ile çarp: $x_1 - x_2 \le -2$. Artık her şey normal; dual'ı canonical kuralla yaz.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) $\min w = y_1 + 2y_2$ s.t. $y_1 - y_2 \ge 3$, $y_1 + y_2 \ge 1$, $y_1 \ge 0$, $y_2 \le 0$.</p>
+      <p>(b) Normal form: $\max 3x_1 + x_2$ s.t. $x_1 + x_2 \le 1$, $x_1 - x_2 \le -2$, $x \ge 0$. Dual: $\min y_1 - 2\bar y_2$ s.t. $y_1 + \bar y_2 \ge 3$, $y_1 - \bar y_2 \ge 1$, $y_1, \bar y_2 \ge 0$.</p>
+      <p>(c) $\bar y_2 = -y_2$ koy: objective $y_1 + 2y_2$, kısıtlar $y_1 - y_2 \ge 3$, $y_1 + y_2 \ge 1$, ve $\bar y_2 \ge 0 \iff y_2 \le 0$. (a)'daki dual'ın aynısı.</p>
+      <p>Ek gözlem: bu primal infeasible ($x_1 + x_2 \le 1$ ama $x_2 \ge 2 + x_1 \ge 2$). Dual'ı unbounded: $y_2 = -t$, $y_1 = 1 + t$ alınca $w = 1 - t \to -\infty$. Bu ikiliği Bölüm 7'de göreceksin.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf" target="_blank" rel="noopener">Winston PDF</a>, s.317 (kitapta s.301).</p>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.8-P8">
+    <span class="box__label">Winston §6.8 Problem 8 · ödev sorusu</span>
+    <p>"If it seems difficult to believe that the shadow price of an equality constraint should be urs, try this problem. Consider the following two LPs: (LP 1) max $z = x_2$ s.t. $x_1 + x_2 = 2$, $x_1, x_2 \ge 0$. (LP 2) max $z = x_2$ s.t. $-x_1 - x_2 = -2$, $x_1, x_2 \ge 0$. In which LP will the constraint have a positive shadow price? Which will have a negative shadow price?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İki LP aynı feasible set'i tarif ediyor. Her birinde sağ tarafı 1 artır ve yeni $z^*$'ı bul.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>LP 2'de $-x_1 - x_2 = -1$, yani $x_1 + x_2 = 1$. Sağ tarafı artırmak burada kaynağı azaltıyor.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>LP 1: $z^* = 2$ ($x = (0, 2)$). $b = 3$ olunca $z^* = 3$: shadow price $+1$.</p>
+      <p>LP 2: $z^* = 2$. $b = -1$ olunca $x_1 + x_2 = 1$ ve $z^* = 1$: shadow price $-1$.</p>
+      <p>Aynı kısıt, yalnızca $-1$ ile çarpılmış. Eşitlikte yön bilgisi yok, bu yüzden dual variable'ın işareti baştan belli olamaz: urs (free).</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf" target="_blank" rel="noopener">Winston PDF</a>, s.338 (kitapta s.322).</p>
+  </div>
+  <div class="quiz" id="q-lpd-signs">
+    <p class="quiz__q">Primal bir <strong>min</strong> problem ve 2. kısıtı $\le$. Dual'daki $y_2$ hangi işarette?</p>
+    <button class="quiz__opt" data-correct>$y_2 \le 0$<span class="why">Doğru. Min problemde doğal kısıt $\ge$'dir; $\le$ ters olan ve ters işaretli variable verir. Tablonun 2. satırı sağdan sola okunur.</span></button>
+    <button class="quiz__opt">$y_2 \ge 0$<span class="why">Bu, max problemin kuralını ("$\le$ kısıt → $y \ge 0$") min probleme uygulamak. Kural primal'ın max ya da min oluşuna bağlı.</span></button>
+    <button class="quiz__opt">$y_2$ free<span class="why">Free yalnızca eşitlik kısıtından gelir. $\le$ bir eşitsizlik, işareti belirli.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="dual-practice" data-min="5">
+  <h2>Dual yazma pratiği</h2>
+  <div class="box box--rule">
+    <span class="box__label">Tarif · dört adım</span>
+    <ol>
+      <li>Primal max mı min mi? Dual tersi.</li>
+      <li>Her kısıta bir $y_i$ ver; işaretini tablodan kısıtın yönüne bakarak yaz.</li>
+      <li>Her $x_j$ için $A$'nın $j$. sütununu yaz: $\sum_i a_{ij} y_i \ \square\ c_j$; $\square$'yi tablodan $x_j$'nin işaretine bakarak seç.</li>
+      <li>Dual objective: $\sum_i b_i y_i$.</li>
+    </ol>
+    <p><strong>Dual'ın dual'ı:</strong> (D) $\min b^T y$, $A^T y \ge c$, $y \ge 0$'ı $\max -b^T y$, $-A^T y \le -c$, $y \ge 0$ diye yaz. Canonical kural: $\min -c^T x$, $-Ax \ge -b$, $x \ge 0$, yani $\max c^T x$, $Ax \le b$, $x \ge 0$. Primal geri geldi.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzak</span>
+    <p>Min primal'ı önce max'a çevirip ($\max -w$) dual alırsan sonuç doğru olur ama objective'in işareti de değişir. Sınavda karışıklık çıkmasın diye tabloyu doğrudan min tarafından oku.</p>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.5-P1">
+    <span class="box__label">Winston §6.5 Problem 1 · ödev sorusu</span>
+    <p>"Find the duals of the following LPs: 1. max $z = 2x_1 + x_2$ s.t. $-x_1 + x_2 \le 1$, $x_1 + x_2 \le 3$, $x_1 - 2x_2 \le 4$, $x_1, x_2 \ge 0$."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Normal max problem: bütün kısıtlar $\le$, bütün variable'lar $\ge 0$. Canonical kural yeter.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sütunlar: $x_1$ sütunu $(-1, 1, 1)$, $x_2$ sütunu $(1, 1, -2)$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      $$\min w = y_1 + 3y_2 + 4y_3 \ \ \text{s.t.}\ -y_1 + y_2 + y_3 \ge 2,\ \ y_1 + y_2 - 2y_3 \ge 1,\ \ y_1, y_2, y_3 \ge 0$$
+      <p>Kontrol (ikisini de çözünce): primal optimum $x = (3, 0)$, $z^* = 6$; dual optimum $y = (0, 2, 0)$, $w^* = 6$. CS de tutuyor: $s_1 = 1 - (-3) = 4 &gt; 0$ ve $y_1 = 0$; $s_3 = 4 - 3 = 1 &gt; 0$ ve $y_3 = 0$.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.5-P3">
+    <span class="box__label">Winston §6.5 Problem 3 · ödev sorusu</span>
+    <p>"3. max $z = 4x_1 - x_2 + 2x_3$ s.t. $x_1 + x_2 \le 5$, $2x_1 + x_2 \le 7$, $2x_2 + x_3 \ge 6$, $x_1 + x_3 = 4$, $x_1 \ge 0$, $x_2, x_3$ urs."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kısıt yönleri: $\le, \le, \ge, =$ → dual variable işaretleri?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İki free variable var; dual'da kaç eşitlik kısıtı olur?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      $$\min w = 5y_1 + 7y_2 + 6y_3 + 4y_4$$
+      $$\text{s.t.}\ \ y_1 + 2y_2 + y_4 \ge 4,\quad y_1 + y_2 + 2y_3 = -1,\quad y_3 + y_4 = 2$$
+      $$y_1, y_2 \ge 0,\quad y_3 \le 0,\quad y_4 \text{ free}$$
+      <p>Kontrol (ikisini de çözünce): primal optimum $x = (12/5, 11/5, 8/5)$, $z^* = 53/5$; dual optimum $y = (0, 3/5, -4/5, 14/5)$, $w^* = 53/5$. $y_3 = -4/5 \le 0$, beklenen işarette.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.5-P2-P4">
+    <span class="box__label">Winston §6.5 Problem 2 ve 4 · ödev sorusu</span>
+    <p>"2. min $w = y_1 - y_2$ s.t. $2y_1 + y_2 \ge 4$, $y_1 + y_2 \ge 1$, $y_1 + 2y_2 \ge 3$, $y_1, y_2 \ge 0$. 4. min $w = 4y_1 + 2y_2 - y_3$ s.t. $y_1 + 2y_2 \le 6$, $y_1 - y_2 + 2y_3 = 8$, $y_1, y_2 \ge 0$, $y_3$ urs."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>İkisi de min problem: tabloyu sağdan sola oku. Winston burada primal variable'lara $y$, dual'a $x$ diyor.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>P4'te $\le$ kısıt min problemde "ters" olandır; $y_3$ free → dual'da bir eşitlik.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>P2: $\max z = 4x_1 + x_2 + 3x_3$ s.t. $2x_1 + x_2 + x_3 \le 1$, $x_1 + x_2 + 2x_3 \le -1$, $x_1, x_2, x_3 \ge 0$. İkinci kısıtın sol tarafı $\ge 0$, sağ tarafı $-1$: dual infeasible. Primal de unbounded ($y_2 \to \infty$ ile $w \to -\infty$).</p>
+      <p>P4: $\max z = 6x_1 + 8x_2$ s.t. $x_1 + x_2 \le 4$, $2x_1 - x_2 \le 2$, $2x_2 = -1$, $x_1 \le 0$, $x_2$ free. Kontrol: primal optimum $y = (0, 0, 4)$, $w^* = -4$; dual optimum $x = (0, -1/2)$, $z^* = -4$.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf" target="_blank" rel="noopener">Winston PDF</a>, s.317 (kitapta s.301), Group A.</p>
+  </div>
+  <div class="quiz" id="q-lpd-dualdual">
+    <p class="quiz__q">$\min b^T y$ s.t. $A^T y \ge c$, $y \ge 0$ LP'sinin dual'ı hangisi?</p>
+    <button class="quiz__opt" data-correct>$\max c^T x$ s.t. $Ax \le b$, $x \ge 0$<span class="why">Doğru. Dual'ın dual'ı primal'dır; tablo iki yönde de aynı eşleşmeyi verir.</span></button>
+    <button class="quiz__opt">$\max b^T x$ s.t. $A x \le c$, $x \ge 0$<span class="why">$b$ ile $c$'nin yeri değişmeli ve matris yeniden transpose olmalı: $(A^T)^T = A$. Burada ikisi de unutulmuş.</span></button>
+    <button class="quiz__opt">$\min c^T x$ s.t. $Ax \ge b$, $x \ge 0$<span class="why">Min'in dual'ı max'tır. Sense değişmeden dual alınmaz.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="weak" data-min="5">
+  <h2>Weak duality: her feasible $y$ bir üst sınır</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Kiralayan, cluster'ın her ürününü en az kârı kadar ödeyen fiyatlar seçti. O zaman cluster hangi üretim planını seçerse seçsin, kiralayanın toplam ödemesi o planın kârından az olamaz. Her dual feasible $y$, primal'ın ulaşabileceği kâra bir <strong>tavan</strong> koyar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · weak duality (Winston Lemma 1)</span>
+    <p>$x$ primal feasible ($Ax \le b$, $x \ge 0$), $y$ dual feasible ($A^T y \ge c$, $y \ge 0$) ise:</p>
+    $$c^T x \;\le\; (A^T y)^T x \;=\; y^T A x \;\le\; y^T b$$
+    <p>Birinci eşitsizlik $A^T y \ge c$ ve $x \ge 0$'dan, ikincisi $Ax \le b$ ve $y \ge 0$'dan gelir. Tek satırlık ispat bu kadar.</p>
+    <p><strong>Lemma 2 (certificate):</strong> feasible bir $x$ ve feasible bir $y$ için $c^T x = b^T y$ ise $x$ primal optimal, $y$ dual optimal. Çünkü hiçbir feasible $x'$ bu tavanı geçemez.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · sınırlar</span>
+    <p>Job-mix: $x = (1, 1)$ feasible, $z = 8$. O hâlde her dual feasible $y$ için $w \ge 8$. Öbür yönden $y = (1, 2, 1)$ dual feasible ($1 + 3 \ge 3$, $4 + 2 \ge 5$), $w = 4 + 24 + 18 = 46$; hiçbir plan 46'yı geçemez. $x = (2, 6)$ ile $y = (0, 3/2, 1)$ ikisi de 36 verir: Lemma 2'ye göre ikisi de optimal.</p>
+    <p>Winston'ın Dakota'sında: $x = (1, 1, 1)$ ile $z = 110$, $y = (10, 10, 0)$ ile $w = 680$; $110 \le z^* = w^* \le 680$.</p>
+  </div>
+  <div class="w-lp-duality-box" id="w-weak">
+    <p class="w-lp-duality-guess"><b>Önce tahmin et:</b> $x = (2, 6)$ sabitken $y$'yi $(0, 2, 1)$ yaparsan aradaki fark ($w - z$) kaç olur? Bu fark hangi kısıttan geliyor?</p>
+    <div class="w-lp-duality-two">
+      <div>
+        <b>Primal $x$</b>
+        <div class="w-lp-duality-sl"><label for="wk-x1">x₁</label><input type="range" id="wk-x1" min="0" max="5" step="0.5" value="1" /><output id="wk-x1o"></output></div>
+        <div class="w-lp-duality-sl"><label for="wk-x2">x₂</label><input type="range" id="wk-x2" min="0" max="8" step="0.5" value="1" /><output id="wk-x2o"></output></div>
+      </div>
+      <div>
+        <b>Dual $y$</b>
+        <div class="w-lp-duality-sl"><label for="wk-y1">y₁</label><input type="range" id="wk-y1" min="0" max="3" step="0.25" value="1" /><output id="wk-y1o"></output></div>
+        <div class="w-lp-duality-sl"><label for="wk-y2">y₂</label><input type="range" id="wk-y2" min="0" max="3" step="0.25" value="2" /><output id="wk-y2o"></output></div>
+        <div class="w-lp-duality-sl"><label for="wk-y3">y₃</label><input type="range" id="wk-y3" min="0" max="3" step="0.25" value="1" /><output id="wk-y3o"></output></div>
+      </div>
+    </div>
+    <div class="w-lp-duality-ctl"><button class="btn btn--sm" id="wk-opt">Optimal çifti koy</button><button class="btn btn--sm" id="wk-guess">Tahmindeki çifti koy</button></div>
+    <div id="wk-out"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Weak duality iki tarafın da <strong>feasible</strong> olmasını ister. Dual kısıtı ihlal eden bir $y$ (örneğin $y = (0, 0, 0)$) $w = 0$ verir, bu bir tavan değildir.</li>
+      <li>Primal min ise yön tersine döner: her dual feasible değer bir <strong>taban</strong> (lower bound) olur. Boyd'un yazımında $d^* \le p^*$.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-lpd-weak">
+    <p class="quiz__q">Job-mix'te $y = (1, 1, 1)$ dual feasible ve $w = 34$. Bu ne söyler?</p>
+    <button class="quiz__opt">$z^* \le 34$<span class="why">Önce feasibility'yi kontrol et: $2y_2 + 2y_3 = 4 &lt; 5$. Bu $y$ dual feasible değil, verdiği 34 bir tavan değildir; nitekim $z^* = 36 &gt; 34$.</span></button>
+    <button class="quiz__opt" data-correct>Hiçbir şey; bu $y$ dual feasible değil<span class="why">Doğru. $x_2$'nin kısıtı $2 + 2 = 4 \not\ge 5$. Weak duality yalnızca feasible çiftler için geçerli.</span></button>
+    <button class="quiz__opt">$z^* \ge 34$<span class="why">Dual değerler max primal için alt sınır değil üst sınır verir. Üstelik bu $y$ feasible bile değil.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="strong" data-min="6">
+  <h2>Strong duality ve optimality certificate</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Dual Theorem (Winston Theorem 1)</span>
+    <p>BV primal için optimal bir basis ise $y = c_B B^{-1}$ dual optimal'dir ve $z^* = w^*$.</p>
+    <p>Boyd'un ifadesiyle: LP'de strong duality her zaman geçerlidir, primal ile dual'ın <em>ikisi birden</em> infeasible olduğu durum hariç.</p>
+  </div>
+  <p>Neden $c_B B^{-1}$ tam olarak slack'lerin altındaki $z_j$? Tableau'da $z_j = c_B B^{-1} a_j$. Slack $s_i$'nin sütunu birim vektör $e_i$ olduğu için $z_j(s_i) = c_B B^{-1} e_i = y_i$. Şimdi optimality testini oku:</p>
+  <ul>
+    <li>$x_j$ için $c_j - z_j \le 0$ demek $c_j \le y^T a_j$, yani <strong>dual kısıt</strong> $(A^T y)_j \ge c_j$ sağlanıyor.</li>
+    <li>$s_i$ için $0 - y_i \le 0$ demek $y_i \ge 0$.</li>
+    <li>$z = c_B B^{-1} b = y^T b = w$.</li>
+  </ul>
+  <p>Yani "son tableau'da bütün $c_j - z_j \le 0$" ile "slack altındaki fiyatlar dual feasible" aynı cümle. Simplex primal feasible kalarak ilerler ve dual feasible olduğu an durur.</p>
+  <div class="box box--example">
+    <span class="box__label">Örnek · job-mix'te $c_B B^{-1}$</span>
+    <p>Son basis $(s_1, x_2, x_1)$, $c_B = (0, 5, 3)$. $B$'nin sütunları bu variable'ların $A$'daki sütunları: $s_1 \to (1, 0, 0)$, $x_2 \to (0, 2, 2)$, $x_1 \to (1, 0, 3)$. $y^T B = c_B$ sistemi: $y_1 = 0$, $2y_2 + 2y_3 = 5$, $y_1 + 3y_3 = 3$ → $y = (0, 3/2, 1)$. Tableau'dan okunanla aynı.</p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · solver'a güvenmeden kontrol (slayt 20)</span>
+    <p>"The final $c_j - z_j$ row is a CERTIFICATE anyone can check without rerunning the solver." Biri sana $x$ ve $y$ verirse üç şeyi kontrol edersin: $x$ primal feasible mi, $y$ dual feasible mi, $c^T x = b^T y$ mi? Üçü de tutuyorsa ikisi de optimal. Hiç pivot yapmadan.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · bandwidth LP'si (Week 3 slayt 23)</span>
+    <p>$\max f_1 + f_2 + f_3$ s.t. $f_1 + f_3 \le 10$, $f_2 \le 8$, $f_1 \le 7$, $f_2 + f_3 \le 9$, $f_3 \le 4$, $f \ge 0$. Slayt $f^* = (7, 8, 1)$, 16 Gbps veriyor. Bu optimumlardan <strong>biri</strong>: $f_1 = 7$, $f_2 + f_3 = 9$, $f_3 \in [1, 3]$ olan her nokta 16 verir; örneğin $(7, 6, 3)$ da optimal.</p>
+    <p>Dual: $\min 10y_1 + 8y_2 + 7y_3 + 9y_4 + 4y_5$ s.t. $y_1 + y_3 \ge 1$ ($f_1$), $y_2 + y_4 \ge 1$ ($f_2$), $y_1 + y_4 + y_5 \ge 1$ ($f_3$), $y \ge 0$.</p>
+    <details class="hint"><summary>İpucu</summary><div><p>Hangi iki link "tıkanık"? Her ikisine 1 fiyat ver, gerisine 0, ve üç dual kısıtı kontrol et.</p></div></details>
+    <details class="reveal"><summary>Certificate'i göster</summary><div>
+      <p>$y = (0, 0, 1, 1, 0)$: R1→DST linkine ($f_1 \le 7$) ve R2→DST linkine ($f_2 + f_3 \le 9$) birer birim fiyat. Kısıtlar: $0 + 1 \ge 1$, $0 + 1 \ge 1$, $0 + 1 + 0 \ge 1$; feasible. $w = 7 + 9 = 16$.</p>
+      <p>Weak duality'den hiçbir akış 16'yı geçemez, $(7, 8, 1)$ 16 veriyor, demek ki 16 optimal. Aynı certificate kenarın tamamı için geçerli: certificate optimal <em>değeri</em> kanıtlar, optimal noktanın tek olduğunu söylemez.</p>
+    </div></details>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$z = w$ eşitliği yalnızca <strong>optimal</strong> çift için geçerli. İki rastgele feasible nokta için $z &lt; w$ olabilir.</li>
+      <li>Strong duality primal optimumun tek olduğunu söylemez. Bandwidth'te dual tek ($y = (0,0,1,1,0)$) ama primal'ın bir kenar boyunca sonsuz optimumu var.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.7-P3">
+    <span class="box__label">Winston §6.7 Problem 3 · ödev sorusu</span>
+    <p>"For the following LP, max $z = -x_1 + 5x_2$ s.t. $x_1 + 2x_2 \le 0.5$, $-x_1 + 3x_2 \le 0.5$, $x_1, x_2 \ge 0$, row 0 of the optimal tableau is $z + 0.4s_1 + 1.4s_2 = ?$ Determine the optimal $z$-value for the given LP."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bu z-row (row 0) konvansiyonu: $s_i$'nin katsayısı $y_i$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Strong duality: $z^* = w^* = b^T y^*$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$y^* = (0.4, 1.4)$. Dual feasibility: $y_1 - y_2 = -1 \ge -1$ ✓, $2y_1 + 3y_2 = 0.8 + 4.2 = 5 \ge 5$ ✓. $z^* = w^* = 0.5 \cdot 0.4 + 0.5 \cdot 1.4 = 0.9$. Kontrol: primal optimum $x = (0.1, 0.2)$, $z = -0.1 + 1 = 0.9$.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.7-P5">
+    <span class="box__label">Winston §6.7 Problem 5 · ödev sorusu</span>
+    <p>"Consider the following linear programming problem: max $z = 4x_1 + x_2$ s.t. $3x_1 + 2x_2 \le 6$, $6x_1 + 3x_2 \le 10$, $x_1, x_2 \ge 0$. Suppose that in solving this problem, row 0 of the optimal tableau is found to be $z + 2x_2 + s_2 = \frac{20}{3}$. Use the Dual Theorem to prove that the computations must be incorrect."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Row 0'dan $y$'yi oku ($s_1$ ve $s_2$ katsayıları).</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Bu $y$ ile $w = b^T y$ kaç? Dual Theorem'e göre ne olmalıydı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Row 0'a göre $y = (0, 1)$. Dual feasible: $3\cdot 0 + 6 \cdot 1 = 6 \ge 4$, $2 \cdot 0 + 3 \cdot 1 = 3 \ge 1$. Ama $w = 6 \cdot 0 + 10 \cdot 1 = 10 \ne 20/3$. Tableau optimal olsaydı Dual Theorem'e göre $y = c_B B^{-1}$ dual optimal ve $w = z = 20/3$ olurdu. Çelişki: hesap yanlış.</p>
+      <p>Doğrusu: optimum $x = (5/3, 0)$, $z^* = 20/3$ (bu değer doğru), $y^* = (0, 2/3)$, $w^* = 20/3$. Doğru row 0: $z + x_2 + \tfrac{2}{3}s_2 = \tfrac{20}{3}$. Hatalı olan katsayılar, sağ taraf değil.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf" target="_blank" rel="noopener">Winston PDF</a>, s.329 (kitapta s.313).</p>
+  </div>
+  <div class="quiz" id="q-lpd-strong">
+    <p class="quiz__q">Biri sana feasible bir $x$ ve feasible bir $y$ veriyor; $c^T x = 50$, $b^T y = 50$. Simplex çalıştırmadan ne dersin?</p>
+    <button class="quiz__opt" data-correct>İkisi de optimal; $z^* = 50$<span class="why">Doğru. Lemma 2: weak duality her feasible $x$'i 50 ile sınırlıyor ve bu $x$ 50'ye ulaşıyor. Slayt 20'deki certificate fikri.</span></button>
+    <button class="quiz__opt">$x$ optimal ama $y$ için simplex gerek<span class="why">Argüman simetrik: her feasible $y'$ için $b^T y' \ge c^T x = 50$, yani $y$ de optimal.</span></button>
+    <button class="quiz__opt">Optimal olabilirler ama emin olmak için tableau gerekir<span class="why">Certificate'in amacı tam da bu: solver'ı yeniden çalıştırmadan kontrol. Feasibility + eşit değer yeter.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="outcomes" data-min="5">
+  <h2>Primal ve dual'ın sonuç tablosu</h2>
+  <p>Week 3'te her LP'nin dört sonucundan birine düştüğünü gördün: tek optimum, alternative optima, unbounded, infeasible. Duality'de "optimal" ikisini birleştirir; o zaman primal ve dual için üçer durum var.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Primal ↓ / Dual →</th><th>Optimal</th><th>Unbounded</th><th>Infeasible</th></tr>
+    <tr><th>Optimal</th><td><b>mümkün</b>, $z^* = w^*$</td><td>imkânsız</td><td>imkânsız</td></tr>
+    <tr><th>Unbounded</th><td>imkânsız</td><td>imkânsız</td><td><b>mümkün</b></td></tr>
+    <tr><th>Infeasible</th><td>imkânsız</td><td><b>mümkün</b></td><td><b>mümkün</b></td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Winston Lemma 3 ve 4</span>
+    <ul>
+      <li>Primal unbounded ⇒ dual infeasible.</li>
+      <li>Dual unbounded ⇒ primal infeasible.</li>
+      <li>Biri optimal ⇒ öbürü de optimal ve değerler eşit (strong duality).</li>
+      <li>İkisi birden infeasible olabilir; ikisi birden unbounded olamaz.</li>
+    </ul>
+    <p>Lemma 3'ün ispatı weak duality'den: dual feasible bir $y_0$ olsaydı her primal $z \le b^T y_0$ olurdu, primal unbounded olamazdı.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnekler</span>
+    <ul>
+      <li><strong>Primal unbounded, dual infeasible:</strong> Winston §6.5 P2 (Bölüm 4). Primal min ve $w = y_1 - y_2 \to -\infty$; dual'ın ikinci kısıtı $x_1 + x_2 + 2x_3 \le -1$, $x \ge 0$ ile sağlanamaz.</li>
+      <li><strong>Primal infeasible, dual unbounded:</strong> Winston §6.5 P6 (Bölüm 3). Winston'ın kendi LP (18) örneği de böyle: $x_2 = 2 - x_1$ koyunca $x_1 \ge 5/3$ ve $x_1 \le 3/2$ çıkıyor, primal infeasible; dual'ı unbounded.</li>
+      <li><strong>İkisi de infeasible</strong> (Winston dipnotu): $\max z = x_2$ s.t. $x_1 \le -1$, $-x_2 \le 1$, $x \ge 0$. Dual: $\min w = -y_1 + y_2$ s.t. $y_1 \ge 0$, $-y_2 \ge 1$, $y \ge 0$. İlk LP'de $x_1 \ge 0$ ile $x_1 \le -1$ çelişir; dual'da $y_2 \ge 0$ ile $y_2 \le -1$ çelişir.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Ek · infeasibility certificate (Farkas lemma)</span>
+    <p>Optimality'nin certificate'i feasible bir $y$ idi. Infeasibility'nin de bir certificate'i var. <strong>Farkas lemma</strong> (Pınar, Ders 5.2): aşağıdakilerden <em>tam olarak biri</em> doğrudur:</p>
+    <ol>
+      <li>$Ax = b$, $x \ge 0$ sistemini sağlayan bir $x$ vardır.</li>
+      <li>$A^T y \ge 0$ ve $b^T y &lt; 0$ sağlayan bir $y$ vardır.</li>
+    </ol>
+    <p>İkinci durumdaki $y$, ilk sistemin çözümsüz olduğunu kanıtlar: $x \ge 0$ ve $Ax = b$ olsaydı $b^T y = x^T A^T y \ge 0$ olurdu.</p>
+    <p class="src">Not: Farkas lemma, dual simplex ve interior-point method repodaki Week 4 planında ve Week 3 slayt 22'de ("next week") geçiyor ama Week 4 slaytları repoda olmadığı için sınav kapsamında olup olmadıkları belli değil. Burada yalnızca tanıyabileceğin kadarı var.</p>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.7-P7">
+    <span class="box__label">Winston §6.7 Problem 7 · ödev sorusu</span>
+    <p>"In this problem, we use weak duality to prove Lemma 3. (a) Show that Lemma 3 is equivalent to the following: If the dual is feasible, then the primal is bounded. (b) Use weak duality to show the validity of the form of Lemma 3 given in part (a)."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) "$P \Rightarrow Q$" ile "$\lnot Q \Rightarrow \lnot P$" (contrapositive) denktir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b) Dual feasible bir nokta al, değerine $w_0$ de. Weak duality her primal feasible $x$ hakkında ne söylüyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) Lemma 3: "primal unbounded ⇒ dual infeasible". Contrapositive: "dual feasible (infeasible değil) ⇒ primal unbounded değil", yani primal bounded. İkisi mantıksal olarak denk.</p>
+      <p>(b) Dual feasible bir $y_0$ olsun, $w_0 = b^T y_0$. Weak duality: her primal feasible $x$ için $c^T x \le w_0$. Primal objective $w_0$ ile yukarıdan sınırlı, yani primal bounded. (Problem 8, Lemma 4 için aynı argümanı ters yönde ister: primal feasible bir $x_0$ her dual değeri $c^T x_0$ ile alttan sınırlar.)</p>
+    </div></details>
+  </div>
+  <div class="quiz" id="q-lpd-outcomes">
+    <p class="quiz__q">Bir max LP'nin dual'ının infeasible olduğunu buldun. Primal hakkında ne kesin?</p>
+    <button class="quiz__opt">Primal unbounded<span class="why">Lemma 3'ün tersini kullanmak. "Primal unbounded ⇒ dual infeasible" doğru, tersi değil: ikisi birden infeasible da olabilir.</span></button>
+    <button class="quiz__opt" data-correct>Primal ya unbounded ya da infeasible; optimal olamaz<span class="why">Doğru. Primal optimal olsaydı strong duality dual'ın da optimal olmasını gerektirirdi. Geriye iki hücre kalıyor.</span></button>
+    <button class="quiz__opt">Primal infeasible<span class="why">Mümkün ama kesin değil: Winston §6.5 P2'de dual infeasible ve primal unbounded.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="cs" data-min="5">
+  <h2>Complementary slackness</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · fark nereden geliyor?</span>
+    <p>Weak duality'deki fark ($w - z$) iki parçaya ayrılıyor. Primal slack'ler $s = b - Ax \ge 0$ ve dual excess'ler (Winston'da $e$) $e = A^T y - c \ge 0$ olsun:</p>
+    $$w - z = b^T y - c^T x = y^T (b - Ax) + (A^T y - c)^T x = \sum_i s_i y_i + \sum_j e_j x_j$$
+    <p>Her terim $\ge 0$. Fark sıfır, yani çift optimal, ancak ve ancak <strong>her</strong> terim sıfırsa.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Theorem of Complementary Slackness (Winston Theorem 2)</span>
+    <p>$x$ primal feasible, $y$ dual feasible olsun. İkisi birden optimaldir ancak ve ancak:</p>
+    $$s_i\, y_i = 0 \quad (i = 1, \dots, m) \qquad\text{ve}\qquad e_j\, x_j = 0 \quad (j = 1, \dots, n)$$
+    <ul>
+      <li>$s_i &gt; 0$ (kaynak artıyor) ⇒ $y_i = 0$ (fiyatı sıfır).</li>
+      <li>$y_i &gt; 0$ (kaynağın değeri var) ⇒ $s_i = 0$ (kaynak tükenmiş).</li>
+      <li>$e_j &gt; 0$ (ürünün kaynakları kârından pahalı) ⇒ $x_j = 0$ (üretme).</li>
+      <li>$x_j &gt; 0$ (üretiliyor) ⇒ $e_j = 0$ (marginal revenue = marginal cost).</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · job-mix'te dört koşul</span>
+    <p>$x^* = (2, 6)$, $s = (2, 0, 0)$; $y^* = (0, 3/2, 1)$, $e = (0, 0)$.</p>
+    <ul>
+      <li>$s_1 = 2 &gt; 0$ ⇒ $y_1 = 0$: boşta accelerator'ın değeri yok.</li>
+      <li>$y_2, y_3 &gt; 0$ ⇒ $s_2 = s_3 = 0$: memory ve CPU tükenmiş.</li>
+      <li>$x_1 &gt; 0$ ⇒ $e_1 = 0$: batch'in kaynak değeri $1 \cdot 0 + 3 \cdot 1 = 3$, kârı 3.</li>
+      <li>$x_2 &gt; 0$ ⇒ $e_2 = 0$: interactive'in kaynak değeri $2 \cdot 1.5 + 2 \cdot 1 = 5$, kârı 5.</li>
+    </ul>
+    <p>Dakota'da (Winston) $e_2 = 6\cdot 0 + 2 \cdot 10 + 1.5 \cdot 10 - 30 = 5 &gt; 0$: sehpanın kaynakları 35 eder ama sehpa 30'a satılıyor; bu yüzden $x_2 = 0$.</p>
+  </div>
+  <p>Bu, Week 7'de göreceğin KKT koşullarındaki $\lambda_i\, g_i(x) = 0$ koşulunun LP hâli. Week 4 planı bunu "the certificate you will reuse in Week 7" diye not ediyor.</p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"$s_i = 0$ ⇒ $y_i &gt; 0$" <strong>yanlış</strong>. Çarpım sıfır demek en az biri sıfır demek; ikisi birden sıfır olabilir (degenerate durumlarda sık olur).</li>
+      <li>CS tek başına yetmez: $x$ primal feasible, $y$ dual feasible olmalı. $y = 0$ her $s$ ile CS'yi sağlar ama dual feasible olmayabilir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.10-P4">
+    <span class="box__label">Winston §6.10 Problem 4 (Group B) · ödev sorusu</span>
+    <p>"Let $x = [x_1\ x_2\ x_3\ s_1\ s_2\ s_3]$ be a primal feasible point for the Dakota problem and $y = [y_1\ y_2\ y_3\ e_1\ e_2\ e_3]$ be a dual feasible point. (a) Multiply the $i$th constraint (in standard form) of the primal by $y_i$ and sum the resulting constraints. (b) Multiply the $j$th dual constraint (in standard form) by $x_j$ and sum them. (c) Compute: part (a) answer minus part (b) answer. (d) Use the part (c) answer and the Dual Theorem to show that if $x$ is primal optimal and $y$ is dual optimal, then (38) and (39) hold. (e) Use the part (c) answer to show that if (38) and (39) both hold, then $x$ is primal optimal and $y$ is dual optimal."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Standard form: $\sum_j a_{ij}x_j + s_i = b_i$ ve $\sum_i a_{ij} y_i - e_j = c_j$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c)'de $\sum_i\sum_j y_i a_{ij} x_j$ terimi sadeleşir. Ne kalır?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) $\sum_i y_i\big(\sum_j a_{ij}x_j + s_i\big) = \sum_i b_i y_i$, yani $\sum_{i,j} y_i a_{ij} x_j + \sum_i s_i y_i = w$.</p>
+      <p>(b) $\sum_j x_j \big(\sum_i a_{ij} y_i - e_j\big) = \sum_j c_j x_j$, yani $\sum_{i,j} y_i a_{ij} x_j - \sum_j e_j x_j = z$.</p>
+      <p>(c) (a) − (b): $\sum_i s_i y_i + \sum_j e_j x_j = w - z$.</p>
+      <p>(d) İkisi optimal ise Dual Theorem: $w = z$, sol taraf 0. Her terim $\ge 0$ (feasibility), toplamları 0 ise her biri 0: $s_i y_i = 0$, $e_j x_j = 0$.</p>
+      <p>(e) (38) ve (39) tutuyorsa sol taraf 0, yani $w = z$. Feasible bir çiftin değerleri eşit: Lemma 2'ye göre ikisi de optimal.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf" target="_blank" rel="noopener">Winston PDF</a>, s.345 (kitapta s.329).</p>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.10-P2">
+    <span class="box__label">Winston §6.10 Problem 2 · ödev sorusu</span>
+    <p>"Use the Theorem of Complementary Slackness to show that in the LINDO output, the SLACK or SURPLUS and DUAL PRICE entries for any row cannot both be positive."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>LINDO'nun "DUAL PRICE" sütunu optimal dual variable'ı (max problemde $y_i$), "SLACK OR SURPLUS" sütunu $s_i$'yi verir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Optimal çift için (38): $s_i y_i = 0$. İki pozitif sayının çarpımı sıfır olabilir mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>LINDO optimal bir primal ve optimal bir dual çözüm raporlar. Theorem 2'ye göre her satır için $s_i\, y_i = 0$. İkisi de pozitif olsaydı çarpım pozitif olurdu. Demek ki en az biri sıfır. (Dual price negatif olabilir, örneğin max problemde bir $\ge$ satırında; o zaman da çarpım sıfır olmak zorunda, yani surplus 0.)</p>
+      <p>Winston'ın degenerate örneğinde (Figure 5, PDF s.257, kitap s.241) bütün slack'ler 0, dual price'lar $(0.5, 1.25, 0, 1.25)$: 4. satırda ikisi birden 0. Teorem buna izin verir.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf" target="_blank" rel="noopener">Winston PDF</a>, s.344 (kitapta s.328).</p>
+  </div>
+  <div class="quiz" id="q-lpd-cs">
+    <p class="quiz__q">Optimal bir çiftte $i$. primal kısıt binding ($s_i = 0$). $y_i$ için ne kesin?</p>
+    <button class="quiz__opt">$y_i &gt; 0$<span class="why">CS'nin tersini kullanmak. $s_i y_i = 0$, $s_i = 0$ iken $y_i$ hakkında bir şey söylemez; $y_i = 0$ da olabilir.</span></button>
+    <button class="quiz__opt" data-correct>Yalnızca işaret kısıtı ($y_i \ge 0$, $\le$ kısıt için); değeri CS'den çıkmaz<span class="why">Doğru. CS yalnızca "$s_i &gt; 0$ ⇒ $y_i = 0$" yönünü verir. Binding bir kısıtın fiyatı 0 da olabilir.</span></button>
+    <button class="quiz__opt">$y_i = 0$<span class="why">Bu, kaynak <em>artıyorsa</em> ($s_i &gt; 0$) geçerli. Burada kaynak tükenmiş.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="cs-solve" data-min="6">
+  <h2>CS ile $x^*$'dan $y^*$ bulmak</h2>
+  <div class="box box--rule">
+    <span class="box__label">Tarif · beş adım</span>
+    <ol>
+      <li>$x^*$'ı primal'a koy, slack'leri hesapla: $s_i = b_i - (Ax^*)_i$. Negatif varsa $x^*$ feasible değil.</li>
+      <li>$s_i &gt; 0$ olan her kısıt için $y_i = 0$.</li>
+      <li>$x_j^* &gt; 0$ olan her variable için dual kısıt eşitlikle tutar: $\sum_i a_{ij} y_i = c_j$.</li>
+      <li>Kalan bilinmeyenler için bu denklem sistemini çöz.</li>
+      <li>Kontrol et: $y \ge 0$ ve <em>bütün</em> dual kısıtlar ($e_j \ge 0$). Tutuyorsa $w = b^T y = z^*$ olmalı ve ikisi de optimal. Tutmuyorsa $x^*$ optimal değil.</li>
+    </ol>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · job-mix</span>
+    <p>$x^* = (2, 6)$: $s = (4 - 2,\ 12 - 12,\ 18 - 18) = (2, 0, 0)$ → $y_1 = 0$. $x_1 &gt; 0$ → $y_1 + 3y_3 = 3$ → $y_3 = 1$. $x_2 &gt; 0$ → $2y_2 + 2y_3 = 5$ → $y_2 = 3/2$. $y \ge 0$, iki dual kısıt da eşitlikle tutuyor. $w = 0 + 18 + 18 = 36 = z^*$.</p>
+    <p>Optimal olmayan bir aday dene: $x = (0, 6)$. $s = (4, 0, 6)$ → $y_1 = y_3 = 0$. $x_2 &gt; 0$ → $2y_2 = 5$, $y_2 = 5/2$. Şimdi 1. dual kısıt: $y_1 + 3y_3 = 0 \ge 3$? Tutmuyor. Bu $x$ optimal değil, ki zaten simplex buradan bir pivot daha attı.</p>
+  </div>
+  <div class="w-lp-duality-box" id="w-cs">
+    <p class="w-lp-duality-guess"><b>Önce tahmin et:</b> Bandwidth LP'sinde $(7, 8, 1)$ ve $(7, 6, 3)$ iki ayrı optimum. CS ikisinden aynı $y^*$'ı mı çıkarır, farklı mı?</p>
+    <div class="w-lp-duality-ctl">
+      <label>LP <select id="cs-preset">
+        <option value="jobmix">Job-mix (slayt)</option>
+        <option value="bandwidth">Bandwidth (slayt 23)</option>
+        <option value="dakota">Dakota (Winston)</option>
+        <option value="glassco">Glassco (Winston §6.10 P1)</option>
+        <option value="p3">Winston §6.10 P3</option>
+      </select></label>
+      <label>$x$ = <input type="text" id="cs-x" value="2, 6" /></label>
+      <button class="btn btn--sm btn--accent" id="cs-go">CS ile çöz</button>
+    </div>
+    <div class="src" id="cs-lp"></div>
+    <div class="w-lp-duality-err" id="cs-err"></div>
+    <div id="cs-stepper"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>5. adımı atlamak. Denklem sistemi her aday $x$ için bir çözüm verebilir; dual feasibility'yi kontrol etmeden "optimal" deme.</li>
+      <li>$x_j = 0$ olan bir variable'ın dual kısıtını eşitlik yazmak. O kısıt yalnızca $\ge$; eşitlikle tutması gerekmez.</li>
+      <li>Degenerate bir $x^*$'ta (basic bir variable 0) CS denklemleri $y$'yi tek başına belirlemeyebilir. O zaman dual feasibility'yi sağlayan bir $y$ seçmek gerekir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.10-P1">
+    <span class="box__label">Winston §6.10 Problem 1 (Glassco) · ödev sorusu</span>
+    <p>"Glassco manufactures glasses: wine, beer, champagne, and whiskey. … max $z = 6x_1 + 10x_2 + 9x_3 + 20x_4$ s.t. $4x_1 + 9x_2 + 7x_3 + 10x_4 \le 600$ (Molding constraint), $x_1 + x_2 + 3x_3 + 40x_4 \le 400$ (Packaging constraint), $3x_1 + 4x_2 + 2x_3 + x_4 \le 500$ (Glass constraint), $x_1, x_2, x_3, x_4 \ge 0$. It can be shown that the optimal solution to this LP is $z = \frac{2800}{3}$, $x_1 = \frac{400}{3}$, $x_4 = \frac{20}{3}$, $x_2 = 0$, $x_3 = 0$, $s_1 = 0$, $s_2 = 0$, $s_3 = \frac{280}{3}$. (a) Find the dual of the Glassco problem. (b) Using the given optimal primal solution and the Theorem of Complementary Slackness, find the optimal solution to the dual of the Glassco problem. (c) Find an example of each of the complementary slackness conditions, (40)–(43). As in the text, interpret each example in terms of shadow prices." (Hikâye kısaltıldı.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$s_3 &gt; 0$ hangi $y$'yi sıfırlar? $x_1 &gt; 0$ ve $x_4 &gt; 0$ hangi iki dual kısıtı eşitlik yapar?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$y_3 = 0$ ile kalan sistem: $4y_1 + y_2 = 6$, $10y_1 + 40y_2 = 20$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) $\min w = 600y_1 + 400y_2 + 500y_3$ s.t. $4y_1 + y_2 + 3y_3 \ge 6$ (wine), $9y_1 + y_2 + 4y_3 \ge 10$ (beer), $7y_1 + 3y_2 + 2y_3 \ge 9$ (champagne), $10y_1 + 40y_2 + y_3 \ge 20$ (whiskey), $y \ge 0$.</p>
+      <p>(b) $s_3 = 280/3 &gt; 0$ → $y_3 = 0$. $x_1 &gt; 0$ → $4y_1 + y_2 = 6$; $x_4 &gt; 0$ → $10y_1 + 40y_2 = 20$. İlkinden $y_2 = 6 - 4y_1$; ikincisine koy: $10y_1 + 240 - 160y_1 = 20$ → $y_1 = 22/15$, $y_2 = 2/15$. Kontrol: beer $9 \cdot \frac{22}{15} + \frac{2}{15} = \frac{200}{15} \ge 10$ ✓ ($e_2 = 10/3$), champagne $\frac{154 + 6}{15} = \frac{32}{3} \ge 9$ ✓ ($e_3 = 5/3$). $w = 600 \cdot \frac{22}{15} + 400 \cdot \frac{2}{15} = 880 + \frac{160}{3} = \frac{2800}{3} = z^*$.</p>
+      <p>(c) (40) $s_3 &gt; 0$ ⇒ $y_3 = 0$: cam fazla, bir ons daha cam gelirin değerini artırmaz. (41) $y_1 &gt; 0$ ⇒ $s_1 = 0$: molding dakikası değerli, çünkü hepsi kullanılıyor. (42) $e_2 &gt; 0$ ⇒ $x_2 = 0$: bir beer bardağının kaynakları shadow price'larla $40/3$ eder, bardak 10'a satılıyor; üretilmez. (43) $x_1 &gt; 0$ ⇒ $e_1 = 0$: wine bardağının kaynak değeri $4 \cdot \frac{22}{15} + \frac{2}{15} = 6$, satış fiyatına eşit.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.10-P3">
+    <span class="box__label">Winston §6.10 Problem 3 · ödev sorusu</span>
+    <p>"Consider the following LP: max $z = 5x_1 + 3x_2 + x_3$ s.t. $2x_1 + x_2 + x_3 \le 6$, $x_1 + 2x_2 + x_3 \le 7$, $x_1, x_2, x_3 \ge 0$. Graphically solve the dual of this LP. Then use complementary slackness to solve the max problem."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Dual'ın iki variable'ı var: $\min 6y_1 + 7y_2$, üç kısıt. Feasible region'ın köşelerini bul.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Optimal $y$'de hangi dual kısıt gevşek? Ona karşılık gelen $x_j$ sıfır olmalı. İki $y_i$ de pozitifse iki primal kısıt da binding.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Dual: $\min w = 6y_1 + 7y_2$ s.t. $2y_1 + y_2 \ge 5$, $y_1 + 2y_2 \ge 3$, $y_1 + y_2 \ge 1$, $y \ge 0$. Üçüncü kısıt diğer ikisi tutunca kendiliğinden tutar. Köşeler: $(0, 5)$ → $w = 35$; $2y_1 + y_2 = 5$ ile $y_1 + 2y_2 = 3$ kesişimi $(7/3, 1/3)$ → $w = 14 + 7/3 = 49/3$; $(3, 0)$ → $w = 18$. Minimum $y^* = (7/3, 1/3)$, $w^* = 49/3$.</p>
+      <p>CS: $y_1, y_2 &gt; 0$ → iki primal kısıt binding. 3. dual kısıt: $7/3 + 1/3 = 8/3 &gt; 1$, gevşek → $x_3 = 0$. Sistem: $2x_1 + x_2 = 6$, $x_1 + 2x_2 = 7$ → $x_1 = 5/3$, $x_2 = 8/3$. $z = 25/3 + 24/3 = 49/3 = w^*$ ✓.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf" target="_blank" rel="noopener">Winston PDF</a>, s.344 (kitapta s.328).</p>
+  </div>
+  <div class="quiz" id="q-lpd-cssolve">
+    <p class="quiz__q">CS adımlarını bir aday $x$ için uyguladın; denklem sistemi $y = (0, 2, -1)$ verdi (bütün kısıtlar $\le$, max problem). Sonuç?</p>
+    <button class="quiz__opt" data-correct>$x$ optimal değil<span class="why">Doğru. $y_3 = -1 &lt; 0$, dual feasible değil. CS'yi sağlayan tek $y$ infeasible ise bu $x$ için optimality certificate yok.</span></button>
+    <button class="quiz__opt">$x$ optimal, $y^* = (0, 2, -1)$<span class="why">5. adım atlanmış. $\le$ kısıtların fiyatı negatif olamaz; bu $y$ dual feasible değil.</span></button>
+    <button class="quiz__opt">$x$ optimal, $y^* = (0, 2, 0)$<span class="why">$y_3$'ü kendi kafana göre 0 yapınca CS denklemi bozulur. Çözüm denklemden gelir, yuvarlanmaz.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="tableau-read" data-min="4">
+  <h2>$y^*$'ı optimal tableau'dan okumak: iki konvansiyon</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Konvansiyon</th><th>Alt satır (job-mix, optimal)</th><th>Optimal ne zaman?</th><th>$y_i$ nerede?</th></tr>
+    <tr><td>Slayt: $c_j - z_j$</td><td>$(0, 0, 0, -3/2, -1)$</td><td>hepsi $\le 0$</td><td>$s_i$ altındaki $z_j$, ya da $-(c_j - z_j)$</td></tr>
+    <tr><td>Lab 3 / Winston: z-row (row 0)</td><td>$(0, 0, 0, 3/2, 1)$</td><td>hepsi $\ge 0$</td><td>$s_i$'nin row 0 katsayısı</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · $\ge$ ve $=$ kısıtlar (Winston (31), max primal, z-row konvansiyonu)</span>
+    <ul>
+      <li>$i$. kısıt $\le$ (slack $s_i$): $y_i$ = row 0'da $s_i$'nin katsayısı.</li>
+      <li>$i$. kısıt $\ge$ (excess $e_i$): $y_i = -$(row 0'da $e_i$'nin katsayısı). Katsayı $\ge 0$ olduğundan $y_i \le 0$; işaret tablosuyla uyumlu.</li>
+      <li>$i$. kısıt $=$ (artificial $a_i$, Big-M): $y_i$ = (row 0'da $a_i$'nin katsayısı) $- M$. İşareti serbest.</li>
+    </ul>
+    <p>Slayt konvansiyonuna çevirmek için row 0 katsayısının yerine $-(c_j - z_j)$ koy.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Hangi konvansiyonda olduğunu söylemeden okumak. Sınavda yazdığın her tableau'nun üstüne hangi satırı tuttuğunu yaz.</li>
+      <li>Excess variable'ın katsayısını işaret değiştirmeden almak: $\ge$ kısıtın fiyatı max problemde $\le 0$ olmalı.</li>
+      <li>Artificial sütununda $M$'yi atmayı unutmak. Katsayı "$M - 1$" ise $y_i = -1$.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.7-P2b">
+    <span class="box__label">Winston §6.7 Problem 2 · ödev sorusu</span>
+    <p>"Consider the following LP: max $z = -2x_1 - x_2 + x_3$ s.t. $x_1 + x_2 + x_3 \le 3$, $x_2 + x_3 \ge 2$, $x_1 + x_3 = 1$, $x_1, x_2, x_3 \ge 0$. (a) Find the dual of this LP. (b) After adding a slack variable $s_1$, subtracting an excess variable $e_2$, and adding artificial variables $a_2$ and $a_3$, row 0 of the LP's optimal tableau is found to be $z + 4x_1 + e_2 + (M - 1)a_2 + (M + 2)a_3 = 0$. Find the optimal solution to the dual of this LP."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) Kısıtlar $\le, \ge, =$ → $y_1 \ge 0$, $y_2 \le 0$, $y_3$ free.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b) $s_1$ row 0'da görünmüyor: katsayısı kaç? $e_2$ ve $a_3$ için yukarıdaki kuralı uygula.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) $\min w = 3y_1 + 2y_2 + y_3$ s.t. $y_1 + y_3 \ge -2$, $y_1 + y_2 \ge -1$, $y_1 + y_2 + y_3 \ge 1$, $y_1 \ge 0$, $y_2 \le 0$, $y_3$ free.</p>
+      <p>(b) $y_1$ = $s_1$'in katsayısı = 0. $y_2 = -(e_2\text{'nin katsayısı}) = -1$. $y_3 = (M + 2) - M = 2$. $y^* = (0, -1, 2)$, $w^* = 0 - 2 + 2 = 0$. Kontrol: kısıtlar $2 \ge -2$, $-1 \ge -1$, $1 \ge 1$ ✓; primal optimum $x = (0, 1, 1)$, $z^* = -1 + 1 = 0 = w^*$. ($a_2$'nin katsayısından da $y_2 = (M - 1) - M = -1$ çıkar; tutarlı.)</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf" target="_blank" rel="noopener">Winston PDF</a>, s.329 (kitapta s.313).</p>
+  </div>
+  <div class="box box--exam" data-exam="lab04-duals">
+    <span class="box__label">Lab 4 (syllabus Week 4) · lab görevi</span>
+    <p>Syllabus, Week 4 satırı: "Linear programming II: duality, shadow prices, sensitivity analysis — Duals with PuLP/CBC; RHS/objective ranging". Week 4 planı da şunu istiyor: "Automatic primal → dual transformer for LPs in any form. Extract shadow prices from your Week 3 simplex tableau and verify against SciPy duals."</p>
+    <p class="src">Not: Lab 4 notebook'u repoda yok. Görev syllabus satırından ve Week 4 planından kuruldu. Ranging kısmı bir sonraki derste.</p>
+    <p>Görev: job-mix'i PuLP/CBC ile çöz, kısıtların dual değerlerini oku. Sonra dual LP'yi ayrı bir model olarak kur ve çöz. İki çözümü karşılaştır: $z^* = w^*$ mi, dual değerler $y^*$ mı, CS tutuyor mu?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>PuLP'ta her kısıtın <code>.pi</code> alanı dual değeri, <code>.slack</code> alanı slack'i verir. SciPy'de <code>linprog</code> min çözer; max için $-c$ verirsin ve <code>res.ineqlin.marginals</code> min problemin duyarlılığıdır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>SciPy'de $\min -c^T x$ çözdüğün için marginal'ların işareti ters çıkar: $y = -$marginals.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+<pre><code>import pulp
+m = pulp.LpProblem("jobmix", pulp.LpMaximize)
+x1 = pulp.LpVariable("x1", lowBound=0); x2 = pulp.LpVariable("x2", lowBound=0)
+m += 3*x1 + 5*x2
+m += x1 &lt;= 4, "accelerator"
+m += 2*x2 &lt;= 12, "memory"
+m += 3*x1 + 2*x2 &lt;= 18, "cpu"
+m.solve(pulp.PULP_CBC_CMD(msg=0))
+for name, con in m.constraints.items():
+    print(name, con.pi, con.slack)      # accelerator 0 2 · memory 1.5 0 · cpu 1.0 0
+
+d = pulp.LpProblem("dual", pulp.LpMinimize)
+y = [pulp.LpVariable(f"y{i}", lowBound=0) for i in (1, 2, 3)]
+d += 4*y[0] + 12*y[1] + 18*y[2]
+d += y[0] + 3*y[2] &gt;= 3, "x1"
+d += 2*y[1] + 2*y[2] &gt;= 5, "x2"
+d.solve(pulp.PULP_CBC_CMD(msg=0))
+print(pulp.value(d.objective), [v.value() for v in y])   # 36.0 [0.0, 1.5, 1.0]
+for name, con in d.constraints.items():
+    print(name, con.pi)                 # x1 2.0 · x2 6.0  (dual'ın dual'ı = x*)
+
+from scipy.optimize import linprog
+r = linprog([-3, -5], A_ub=[[1, 0], [0, 2], [3, 2]], b_ub=[4, 12, 18], method="highs")
+print(-r.fun, -r.ineqlin.marginals)     # 36.0 [0. 1.5 1.]</code></pre>
+      <p>Beklenen: $x^* = (2, 6)$, $z^* = 36$; dual $y^* = (0, 1.5, 1)$, $w^* = 36$. Dual modelin kısıtlarının <code>.pi</code> değerleri $(2, 6)$, yani primal çözüm: dual'ın dual'ı primal. Slack'ler $(2, 0, 0)$ ve $y_1 = 0$: CS tutuyor. Bu çıktılar PuLP 3 / CBC ve SciPy 1.13 ile alındı.</p>
+    </div></details>
+    <!-- Kaynak: Syllabus Week 4 satırı · weeks/04-lp-duality-and-sensitivity.md Implement listesi. Kod çalıştırılıp çıktılar kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-lpd-read">
+    <p class="quiz__q">Bir max LP'nin z-row konvansiyonundaki optimal row 0'ı: $z + 2x_2 + 0.5s_1 + 3s_2 = 40$. Kısıtlar $\le$. $y^*$ nedir?</p>
+    <button class="quiz__opt" data-correct>$(0.5, 3)$<span class="why">Doğru. z-row'da $y_i$, $s_i$'nin katsayısı. $w^* = z^* = 40$ olmalı.</span></button>
+    <button class="quiz__opt">$(-0.5, -3)$<span class="why">Bu slayt konvansiyonundaki $c_j - z_j$ satırının değerleri olurdu. z-row'da işaret zaten çevrilmiş.</span></button>
+    <button class="quiz__opt">$(2, 0.5)$<span class="why">2, $x_2$'nin reduced cost'u; bir kaynağın fiyatı değil. Fiyatlar slack sütunlarından okunur.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="shadow" data-min="7">
+  <h2>Shadow price ile karar vermek</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · tanım ve geçerlilik (Winston §6.8)</span>
+    <p><strong>Shadow price</strong>: $b_i$ bir birim artınca optimal $z$'nin değişimi, <em>mevcut basis optimal kaldığı sürece</em>. Max problemde bu $y_i^*$'dır:</p>
+    $$z^*_{\text{yeni}} = z^*_{\text{eski}} + y_i^*\,\Delta b_i \qquad (\text{basis aynı kaldıkça})$$
+    <p>İşaret (max problem): $\le$ kısıt $\ge 0$, $\ge$ kısıt $\le 0$, $=$ kısıt serbest.</p>
+    <p><strong>Karar:</strong> $i$. kaynaktan birim fiyatı $p$ olan ek birim teklif ediliyorsa $p &lt; y_i^*$ iken al; birim başına kâr değişimi $y_i^* - p$. Elindeki kaynağı satmak için $p &gt; y_i^*$ iste. İkisi de yalnızca basis'in geçerli olduğu aralıkta.</p>
+  </div>
+  <p>Job-mix'te bu aralık son basis'ten çıkar. Memory $b_2$ olursa basic variable'lar $x_2 = b_2/2$, $x_1 = (18 - b_2)/3$, $s_1 = 4 - x_1$. Hepsi $\ge 0$ olmalı: $6 \le b_2 \le 18$. Aynı yolla CPU için $12 \le b_3 \le 24$, accelerator için $b_1 \ge 2$. Bu aralıkları hesaplamanın genel yolu (RHS ranging) bir sonraki dersin konusu.</p>
+  <div class="box box--example">
+    <span class="box__label">Örnek · aralığın dışına çıkmak</span>
+    <p>Biri 8 memory bloğunu bloğu 1 k₺'den satıyor. Shadow price ile hesap: $8 \cdot (1.5 - 1) = 4$ kâr. Ama $b_2 = 20$ aralığın dışında. LP'yi yeniden çözünce $z^* = 45$ (CPU artık izin vermiyor: $x_2 = 9$, $x_1 = 0$). Gerçek kazanç $45 - 36 - 8 = 1$. En iyisi yalnızca 6 blok almak: $9 - 6 = 3$.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li><strong>Premium tuzağı (Winston, Leatherco):</strong> objective <em>kâr</em> ise ve kaynağın maliyeti kâra zaten girmişse, shadow price "en fazla ödenecek fiyat" değil, mevcut fiyatın <em>üstüne</em> ödenecek primdir. Leatherco'da deri yd² başına 5 dolardan alınıyor ve $y_1 = 1$; bir yd² için en fazla $5 + 1 = 6$ ödenir. Job-mix'te kaynaklar kapasite, maliyeti kâra girmemiş; orada $y_i$ doğrudan tavan fiyattır.</li>
+      <li>Min problemde Winston shadow price'ı "iyileşme" diye tanımlar (min'de azalma). Dual variable ise $\partial w^*/\partial b_i$'dir. İkisinin işareti min problemde zıt; hangisini kullandığını yaz.</li>
+      <li>$y_i = 0$ olan bir kaynağı satmak her zaman bedava değildir: yalnızca slack kadar satabilirsin. Job-mix'te 2'den fazla accelerator satarsan $b_1 &lt; 2$ olur ve $z^*$ düşer.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · yeni bir ürünü fiyatlamak (Winston, Example 16)</span>
+    <p>Job-mix'e 1 accelerator, 1 memory, 1 CPU kullanan ve 2 k₺ kâr getiren yeni bir hizmet eklensin. Shadow price'larla kaynaklarının değeri $0 + 1.5 + 1 = 2.5 &gt; 2$. Dual kısıtı ihlal edilmiyor, mevcut plan optimal kalır; bu hizmet üretilmez. Kârı 3 olsaydı ($3 &gt; 2.5$) üretmek değerdi: yeni optimum $z^* = 37$.</p>
+  </div>
+  <div class="w-lp-duality-box" id="w-shadow">
+    <p class="w-lp-duality-guess"><b>Önce tahmin et:</b> CPU'dan 8 core satmak için core başına 1.2 k₺ teklif geldi. $y_3 = 1$. Shadow price hesabı ne der, kabul eder misin? Sonra "Tahmindeki teklifi koy" ile yeniden çözümün söylediğine bak.</p>
+    <p class="src">Widget job-mix'i her hesapta sayfada yeniden çözer, shadow price'ı dual'dan, geçerli aralığı $B^{-1}$'den hesaplar.</p>
+    <div class="w-lp-duality-ctl">
+      <label>Kaynak <select id="sh-res"><option value="0">accelerator ($b_1 = 4$)</option><option value="1" selected>memory ($b_2 = 12$)</option><option value="2">CPU ($b_3 = 18$)</option></select></label>
+      <label><select id="sh-act"><option value="buy">satın al</option><option value="sell">sat</option></select></label>
+      <label>miktar <input type="text" id="sh-q" value="2" style="width:56px" /></label>
+      <label>birim fiyat (k₺) <input type="text" id="sh-p" value="1.2" style="width:64px" /></label>
+      <button class="btn btn--sm btn--accent" id="sh-go">Hesapla</button>
+      <button class="btn btn--sm" id="sh-guess">Tahmindeki teklifi koy</button>
+    </div>
+    <div class="w-lp-duality-err" id="sh-err"></div>
+    <div id="sh-out"></div>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.8-P3-P4">
+    <span class="box__label">Winston §6.8 Problem 3 ve 4 · ödev sorusu</span>
+    <p>"3. Suppose we are working with a min problem and increase the right-hand side of a $\ge$ constraint. What can happen to the optimal $z$-value? 4. Suppose we are working with a min problem and increase the right-hand side of a $\le$ constraint. What can happen to the optimal $z$-value?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Sağ tarafı artırınca feasible region büyür mü küçülür mü?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Min problemde region küçülürse en iyi değer ancak kötüleşebilir, yani artabilir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>P3: $\ge$ kısıtın sağ tarafını artırmak kısıtı sıkılaştırır, region küçülür (ya da aynı kalır). Min problemde optimal $z$ artar ya da değişmez; azalamaz. Region boşalırsa LP infeasible bile olabilir.</p>
+      <p>P4: $\le$ kısıtın sağ tarafını artırmak region'ı büyütür (ya da aynı bırakır). Optimal $z$ azalır ya da değişmez; artamaz.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.8-P5">
+    <span class="box__label">Winston §6.8 Problem 5 · ödev sorusu</span>
+    <p>"A company manufactures two products (1 and 2). Each unit of product 1 can be sold for $\$15$, and each unit of product 2 for $\$25$. … Currently, the company has available 100 hours of skilled labor, 70 hours of unskilled labor, and 30 units of raw material. Because of marketing considerations, at least 3 units of product 2 must be produced. (b) The relevant LP is max $z = 15x_1 + 25x_2$ s.t. $3x_1 + 4x_2 \le 100$ (Skilled labor), $2x_1 + 3x_2 \le 70$ (Unskilled labor), $x_1 + 2x_2 \le 30$ (Raw material), $x_2 \ge 3$ (Product 2), $x_1, x_2 \ge 0$. The optimal tableau for this problem has the following row 0: $z + 15s_3 + 5e_4 + (M - 5)a_4 = 435$. The optimal solution to the LP is $z = 435$, $x_1 = 24$, $x_2 = 3$. Find and interpret the shadow price of each constraint. How much would the company be willing to pay for an additional unit of each type of labor? How much would it be willing to pay for an extra unit of raw material? (c) Assuming the current basis remains optimal (it does), what would the company's revenue be if 35 units of raw material were available? (d) With the current basis optimal, what would the company's revenue be if 80 hours of skilled labor were available? (e) With the current basis optimal, what would the company's new revenue be if at least 5 units of product 2 were required? How about if at least 2 units of product 2 were required?" (Part (a) ve tablo kısaltıldı.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Row 0 z-row konvansiyonunda. $\le$ satırları: $y_i$ = $s_i$'nin katsayısı. $\ge$ satırı: $y_4 = -$($e_4$'ün katsayısı).</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(d)'den önce $x^* = (24, 3)$'ün kaç saat skilled labor kullandığını hesapla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(b) $y = (0, 0, 15, -5)$. Skilled ve unskilled labor'ın shadow price'ı 0: $x^*$ 84 ve 57 saat kullanıyor, ikisi de artıyor. Ek bir labor saati için hiçbir şey ödenmez. Raw material'ın shadow price'ı 15: bir birim daha geliri 15 artırır, en fazla 15 ödenir (kaynaklar şirketin, objective gelir olduğu için shadow price doğrudan tavan). Product 2 kısıtının shadow price'ı $-5$: minimum talebi 1 artırmak geliri 5 düşürür. Kontrol: $w = 30 \cdot 15 + 3 \cdot (-5) = 435$.</p>
+      <p>(c) $435 + 5 \cdot 15 = 510$ (yeniden çözünce de 510, $x = (29, 3)$).</p>
+      <p>(d) Shadow price ile $435 + (-20) \cdot 0 = 435$. Ama $x^*$ 84 saat kullanıyor ve 80 &lt; 84: basis bu değişiklikte optimal kalmaz. LP yeniden çözülünce gelir <strong>425</strong> ($x = (20, 5)$).</p>
+      <p>(e) En az 5: $435 + 2 \cdot (-5) = 425$. En az 2: $435 + (-1)(-5) = 440$. İkisi de yeniden çözümle aynı.</p>
+    </div></details>
+    <p class="src">Not: (d)'deki "with the current basis optimal" varsayımı bu veride tutmuyor: skilled labor 84 saat kullanılıyor, 80 saate inince $s_1$ negatife düşer. Shadow price'ın verdiği 435 değil, gerçek gelir 425.</p>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf" target="_blank" rel="noopener">Winston PDF</a>, s.338 (kitapta s.322).</p>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.8-P6">
+    <span class="box__label">Winston §6.8 Problem 6 · ödev sorusu</span>
+    <p>"Suppose that the company in Problem 5 owns no labor and raw material but can purchase them at the following prices: as many as 100 hours of skilled labor at $\$3$/hour, 70 hours of unskilled labor at $\$2$/hour, and 30 units of raw material at $\$1$ per unit of raw material. If the company's goal is to maximize profit, show that the appropriate LP is max $z = x_1 + 5x_2$ s.t. $3x_1 + 4x_2 \le 100$, $2x_1 + 3x_2 \le 70$, $x_1 + 2x_2 \le 30$, $x_2 \ge 3$, $x_1, x_2 \ge 0$. The optimal row 0 for this LP is $z + 1.5x_1 + 2.5s_3 + Ma_4 = 75$ and the optimal solution is $z = 75$, $x_1 = 0$, $x_2 = 15$. In answering parts (a) and (b), assume that the current basis remains optimal. (a) How much should the company pay for an extra unit of raw material? (b) How much should the company pay for an extra hour of skilled labor? Unskilled labor? (Be careful here!)"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kâr katsayıları: $15 - 3 \cdot 3 - 2 \cdot 2 - 1 = 1$ ve $25 - 3 \cdot 4 - 2 \cdot 3 - 2 = 5$. Kaynak bedeli objective'in içinde.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Leatherco'daki premium mantığı: shadow price, bedelin <em>üstüne</em> ödenebilecek miktar. Ama bu yalnızca kaynak tamamen kullanılıyorsa geçerli.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Row 0 (z-row): $y = (0, 0, 2.5, 0)$; $e_4$ row 0'da yok, $y_4 = 0$.</p>
+      <p>(a) Raw material tamamen kullanılıyor ($x_1 + 2x_2 = 30$), shadow price 2.5. Ek birim alınır ve kullanılır; 2.5 kâr artışı 1 dolarlık bedel ödendikten sonraki artış. En fazla $1 + 2.5 = 3.5$ dolar ödenir.</p>
+      <p>(b) Dikkat edilecek yer burası. Skilled labor'dan 60, unskilled'dan 45 saat kullanılıyor; sınırlar 100 ve 70. Ek bir saat kullanılmaz, shadow price 0. Bu saatler için hiçbir şey ödenmez; "bedel + shadow price = 3 dolar" demek yanlış olur, çünkü o saat hiç kullanılmayacak.</p>
+    </div></details>
+  </div>
+  <div class="box box--exam" data-exam="w3-jobmix-dual">
+    <span class="box__label">Week 3 slayt verisi (job-mix) · slayt sorusu</span>
+    <p class="src">Not: Bu soru slayttaki job-mix verisiyle bu ders için yazıldı; hocanın yazdığı bir soru değil. Dili ve biçimi sınav kâğıdına benzetildi.</p>
+    <p>Consider the job-mix LP: max $z = 3x_1 + 5x_2$ s.t. $x_1 \le 4$ (accelerator), $2x_2 \le 12$ (memory), $3x_1 + 2x_2 \le 18$ (CPU), $x_1, x_2 \ge 0$. Its optimal solution is $x^* = (2, 6)$ with $z^* = 36$ (k₺).</p>
+    <p>(a) Write the dual LP. (b) Using complementary slackness and strong duality, find $y^*$ and verify $w^* = z^*$. (c) The memory and CPU constraints stay in the current basis for $6 \le b_2 \le 18$ and $12 \le b_3 \le 24$. Decide, and give the change in profit: (i) buy 2 extra memory blocks at 1.2 k₺ each; (ii) sell 3 CPU cores at 1.3 k₺ each; (iii) sell 1 accelerator unit at 0.5 k₺; (iv) buy 8 extra memory blocks at 1 k₺ each.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(b) Hangi slack pozitif? Hangi $x_j$ pozitif? İki eşitlik, bir sıfır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c) Her işlem için önce yeni $b_i$ aralıkta mı bak; içindeyse $\Delta z = y_i \Delta b_i$, sonra ödenen ya da alınan parayı ekle. (iv)'de aralığın dışına çıkılıyor.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) $\min w = 4y_1 + 12y_2 + 18y_3$ s.t. $y_1 + 3y_3 \ge 3$, $2y_2 + 2y_3 \ge 5$, $y_1, y_2, y_3 \ge 0$.</p>
+      <p>(b) $s_1 = 4 - 2 = 2 &gt; 0$ ⇒ $y_1 = 0$. $x_1 = 2 &gt; 0$ ⇒ $y_1 + 3y_3 = 3$ ⇒ $y_3 = 1$. $x_2 = 6 &gt; 0$ ⇒ $2y_2 + 2y_3 = 5$ ⇒ $y_2 = 3/2$. $y^* = (0, 3/2, 1) \ge 0$, dual kısıtlar tutuyor. $w^* = 0 + 12 \cdot 1.5 + 18 \cdot 1 = 36 = z^*$; strong duality ile ikisi de optimal.</p>
+      <p>(c) (i) $b_2 = 14 \in [6, 18]$: $\Delta z = 1.5 \cdot 2 = 3$, ödenen $2.4$; <b>kabul</b>, kâr $+0.6$. (ii) $b_3 = 15 \in [12, 24]$: kayıp $1 \cdot 3 = 3$, gelir $3.9$; <b>kabul</b>, $+0.9$. (iii) $b_1 = 3 \ge 2$: $y_1 = 0$, kayıp 0, gelir 0.5; <b>kabul</b>, $+0.5$. (iv) $b_2 = 20 \notin [6, 18]$: shadow price kullanılamaz. Yeniden çözünce $z^* = 45$ ($x = (0, 9)$), $\Delta z = 9$, ödenen 8: $+1$. Shadow price'ın söylediği $+4$ değil. Daha iyisi yalnızca 6 blok almak: $+3$.</p>
+    </div></details>
+    <!-- Kaynak: job-mix verisi ve (2,6), 36: Week_03.pdf s.4, 18–19. Aralıklar B^{-1} sütunlarından, kararlar yeniden çözümle python'da kontrol edildi. -->
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">İleri bağlantı</span>
+    <p>Shadow price'lar Week 7'deki Lagrange multiplier'ların LP hâli: $y_i$, kısıt $i$'yi bir birim gevşetmenin objective'e etkisi. Complementary slackness de KKT'deki $\lambda_i g_i(x) = 0$ koşulu. Lab 4'te (repoda yok) PuLP/CBC ile bu fiyatları solver'dan okuyacaktın; solver'ın verdiği işareti her zaman bu derste el ile bulduğun $y^*$ ile karşılaştır.</p>
+  </div>
+  <div class="quiz" id="q-lpd-shadow">
+    <p class="quiz__q">Job-mix'te CPU'nun shadow price'ı 1 ve basis $12 \le b_3 \le 24$ aralığında geçerli. 4 core'u core başına 0.8 k₺'ye almak?</p>
+    <button class="quiz__opt" data-correct>Al: $z$ 4 artar, 3.2 ödersin, net $+0.8$<span class="why">Doğru. $b_3 = 22$ aralıkta, $\Delta z = 1 \cdot 4 = 4$; $0.8 &lt; 1$ olduğu için her core kâr bırakır.</span></button>
+    <button class="quiz__opt">Alma: $0.8 &lt; 1$ olduğu için zarar edersin<span class="why">Karar kuralı ters okunmuş. Fiyat shadow price'ın <em>altındaysa</em> almak kârlı.</span></button>
+    <button class="quiz__opt">Shadow price kullanılamaz, LP yeniden çözülmeli<span class="why">$b_3 = 22$ hâlâ $[12, 24]$ içinde; basis değişmiyor, shadow price geçerli.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="5">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-lpd-final-1">
+    <p class="quiz__q">$\max 2x_1 + 3x_2$ s.t. $x_1 + x_2 \le 4$, $x_1 - x_2 \ge 1$, $x_1 \ge 0$, $x_2$ free. Dual hangisi?</p>
+    <button class="quiz__opt" data-correct>$\min 4y_1 + y_2$; $y_1 + y_2 \ge 2$, $y_1 - y_2 = 3$; $y_1 \ge 0$, $y_2 \le 0$<span class="why">Doğru. $\le$ → $y_1 \ge 0$, max'ta $\ge$ → $y_2 \le 0$; $x_1 \ge 0$ → $\ge$, $x_2$ free → $=$.</span></button>
+    <button class="quiz__opt">$\min 4y_1 + y_2$; $y_1 + y_2 \ge 2$, $y_1 - y_2 \ge 3$; $y_1, y_2 \ge 0$<span class="why">Normal LP'nin kuralı her yere uygulanmış. $x_2$ free olduğu için 2. dual kısıt eşitlik, $\ge$ kısıtın variable'ı da $\le 0$.</span></button>
+    <button class="quiz__opt">$\min 2y_1 + 3y_2$; $y_1 + y_2 \ge 4$, $y_1 - y_2 = 1$; $y_1 \ge 0$, $y_2 \le 0$<span class="why">$b$ ile $c$'nin yeri karışmış: dual objective'e sağ taraflar (4, 1) gider, kısıtların sağına kârlar (2, 3).</span></button>
+  </div>
+  <div class="quiz" id="q-lpd-final-2">
+    <p class="quiz__q">Max bir LP için feasible $x$ ile $z = 30$, feasible $y$ ile $w = 34$ buldun. Ne kesin?</p>
+    <button class="quiz__opt">$z^* = 32$<span class="why">Ortalamanın bir anlamı yok. Bildiğin yalnızca bir aralık.</span></button>
+    <button class="quiz__opt" data-correct>$30 \le z^* \le 34$<span class="why">Doğru. Feasible $x$ alt sınır, weak duality ile feasible $y$ üst sınır verir.</span></button>
+    <button class="quiz__opt">$x$ optimal değil<span class="why">Belki optimal, belki değil: fark $y$'nin optimal olmamasından da gelebilir. Fark sıfır olmadıkça hiçbir şey kesin değil.</span></button>
+  </div>
+  <div class="quiz" id="q-lpd-final-3">
+    <p class="quiz__q">Optimal bir çiftte $x_3^* = 4$. Ne kesin?</p>
+    <button class="quiz__opt" data-correct>3. dual kısıt eşitlikle tutar ($e_3 = 0$)<span class="why">Doğru: $e_3 x_3 = 0$ ve $x_3 &gt; 0$. Üretilen ürünün kaynak değeri kârına eşit.</span></button>
+    <button class="quiz__opt">$y_3 = 0$<span class="why">$x_j$, dual <em>kısıt</em> $j$ ile eşleşir; dual variable $y_3$ primal kısıt 3 ile eşleşir. İndeksler karışmış.</span></button>
+    <button class="quiz__opt">3. primal kısıt binding<span class="why">Yine indeks karışıklığı: $x_3$'ün pozitif olması primal kısıtlar hakkında doğrudan bir şey söylemez.</span></button>
+  </div>
+  <div class="quiz" id="q-lpd-final-4">
+    <p class="quiz__q">Max bir LP'de bir $\ge$ kısıtın optimal dual değeri $-4$. Sağ tarafı 1 birim artırırsan (basis aynı kalıyor)?</p>
+    <button class="quiz__opt" data-correct>$z^*$ 4 azalır<span class="why">Doğru. $\Delta z^* = y_i \Delta b_i = -4$. $\ge$ kısıtı sıkılaştırmak feasible region'ı daraltır.</span></button>
+    <button class="quiz__opt">$z^*$ 4 artar<span class="why">İşaret atlanmış. $\ge$ kısıtın fiyatı max problemde $\le 0$; değeri bu yüzden negatif.</span></button>
+    <button class="quiz__opt">Değişmez, çünkü sadece $\le$ kısıtların shadow price'ı olur<span class="why">Her kısıtın bir dual variable'ı ve shadow price'ı vardır; $\ge$ ve $=$ dahil.</span></button>
+  </div>
+  <div class="quiz" id="q-lpd-final-5">
+    <p class="quiz__q">Bir LP'nin primal'ı unbounded. Dual'ı?</p>
+    <button class="quiz__opt">Unbounded<span class="why">İkisi birden unbounded olamaz: dual feasible olsaydı weak duality primal'a bir tavan koyardı.</span></button>
+    <button class="quiz__opt" data-correct>Infeasible<span class="why">Doğru. Winston Lemma 3.</span></button>
+    <button class="quiz__opt">Optimal, değeri $+\infty$<span class="why">Optimal değer sonlu bir sayıdır. "Değeri sonsuz" bir optimum yok; dual'ın feasible noktası yok.</span></button>
+  </div>
+  <!-- Sıradaki konu: Sensitivity analysis: RHS ve objective ranging. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* LP duality widgets. Exact fractions on BigInt, a two-phase simplex (Bland's rule) for checks,
+   the dual builder from the sign table, a complementary-slackness solver and a shadow-price calculator. */
+(function () {
+  "use strict";
+  const gcdB = (a, b) => { a = a < 0n ? -a : a; b = b < 0n ? -b : b; while (b) { [a, b] = [b, a % b]; } return a; };
+  class Q {
+    constructor(n, d = 1n) { if (d < 0n) { n = -n; d = -d; } const g = gcdB(n, d) || 1n; this.n = n / g; this.d = d / g; }
+    static of(x) {
+      if (x instanceof Q) return x;
+      const s = String(x).replace(/−/g, "-").replace(/\s+/g, "");
+      let m = s.match(/^(-?\d+)\/(\d+)$/);
+      if (m) return BigInt(m[2]) === 0n ? null : new Q(BigInt(m[1]), BigInt(m[2]));
+      m = s.match(/^(-?)(\d*)(?:\.(\d+))?$/);
+      if (!m || (m[2] === "" && !m[3])) return null;
+      const frac = m[3] || "", den = 10n ** BigInt(frac.length);
+      let num = BigInt(m[2] || "0") * den + (frac ? BigInt(frac) : 0n);
+      if (m[1]) num = -num;
+      return new Q(num, den);
+    }
+    add(o) { return new Q(this.n * o.d + o.n * this.d, this.d * o.d); }
+    sub(o) { return new Q(this.n * o.d - o.n * this.d, this.d * o.d); }
+    mul(o) { return new Q(this.n * o.n, this.d * o.d); }
+    div(o) { return new Q(this.n * o.d, this.d * o.n); }
+    neg() { return new Q(-this.n, this.d); }
+    sign() { return this.n > 0n ? 1 : this.n < 0n ? -1 : 0; }
+    cmp(o) { return this.sub(o).sign(); }
+    isZero() { return this.n === 0n; }
+    num() { return Number(this.n) / Number(this.d); }
+    dec() { if (this.d === 1n) return this.txt(); const v = Math.round(this.num() * 10000) / 10000; return String(v).replace("-", "\u2212"); }
+    txt() { return (this.d === 1n ? this.n.toString() : this.n + "/" + this.d).replace("-", "\u2212"); }
+    tex() {
+      if (this.d === 1n) return this.n.toString();
+      const neg = this.n < 0n, a = neg ? -this.n : this.n;
+      return (neg ? "-" : "") + "\\tfrac{" + a + "}{" + this.d + "}";
+    }
+  }
+  const Q0 = new Q(0n), Q1 = new Q(1n), QM = new Q(-1n);
+  const q = (x) => Q.of(x);
+  const T$ = (v) => "$" + v.tex() + "$";
+  const OPT = { "<=": "\\le", ">=": "\\ge", "=": "=" };
+  const R = (el) => { if (window.Lab && Lab.renderMath) Lab.renderMath(el); };
+
+  /* a linear form in TeX: coefficients and a letter, e.g. y_1 + 3y_3 */
+  function lin(co, L, idx) {
+    let s = "";
+    co.forEach((v, k) => {
+      if (v.isZero()) return;
+      const neg = v.sign() < 0, a = neg ? v.neg() : v;
+      const c = a.cmp(Q1) === 0 ? "" : a.tex();
+      s += (s ? (neg ? " - " : " + ") : (neg ? "-" : "")) + c + L + "_{" + (idx ? idx[k] : k + 1) + "}";
+    });
+    return s || "0";
+  }
+  const signTex = (L, k, sg) => sg === "+" ? `${L}_{${k}} \\ge 0` : sg === "-" ? `${L}_{${k}} \\le 0` : `${L}_{${k}}\\ \\text{free}`;
+
+  /* Two-phase tableau simplex, Bland's rule. P = {sense, c, rows:[{a, op, b}], signs:['+','-','f']}. */
+  function solveLP(P) {
+    const map = []; let N = 0;
+    P.signs.forEach((s) => { if (s === "f") { map.push([[N, 1], [N + 1, -1]]); N += 2; } else { map.push([[N, s === "-" ? -1 : 1]]); N += 1; } });
+    const sg = P.sense === "max" ? 1 : -1;
+    const obj = Array(N).fill(Q0);
+    map.forEach((l, j) => l.forEach(([k, f]) => { obj[k] = P.c[j].mul(q(f * sg)); }));
+    const rows = P.rows.map((r) => {
+      let a = Array(N).fill(Q0);
+      map.forEach((l, j) => l.forEach(([k, f]) => { a[k] = r.a[j].mul(q(f)); }));
+      let b = r.b, op = r.op;
+      if (b.sign() < 0) { a = a.map((v) => v.neg()); b = b.neg(); op = op === "<=" ? ">=" : op === ">=" ? "<=" : "="; }
+      return { a, b, op };
+    });
+    const m = rows.length;
+    let tot = N; const sl = [], ar = [];
+    rows.forEach((r) => sl.push(r.op !== "=" ? tot++ : -1));
+    rows.forEach((r) => ar.push(r.op !== "<=" ? tot++ : -1));
+    const T = rows.map((r, i) => {
+      const row = Array(tot).fill(Q0);
+      for (let k = 0; k < N; k++) row[k] = r.a[k];
+      if (sl[i] >= 0) row[sl[i]] = r.op === "<=" ? Q1 : QM;
+      if (ar[i] >= 0) row[ar[i]] = Q1;
+      return row;
+    });
+    const b = rows.map((r) => r.b);
+    const basis = rows.map((r, i) => (r.op === "<=" ? sl[i] : ar[i]));
+    const isArt = new Set(ar.filter((k) => k >= 0));
+    function pivot(l, e) {
+      const p = T[l][e];
+      T[l] = T[l].map((v) => v.div(p)); b[l] = b[l].div(p);
+      for (let i = 0; i < m; i++) {
+        if (i === l || T[i][e].isZero()) continue;
+        const f = T[i][e];
+        T[i] = T[i].map((v, j) => v.sub(f.mul(T[l][j])));
+        b[i] = b[i].sub(f.mul(b[l]));
+      }
+      basis[l] = e;
+    }
+    function run(cost, allowed) {
+      for (let it = 0; it < 400; it++) {
+        let e = -1;
+        for (let j = 0; j < tot && e < 0; j++) {
+          if (!allowed(j) || basis.includes(j)) continue;
+          let z = Q0;
+          for (let i = 0; i < m; i++) z = z.add(cost[basis[i]].mul(T[i][j]));
+          if (cost[j].sub(z).sign() > 0) e = j;
+        }
+        if (e < 0) return "optimal";
+        let l = -1, best = null;
+        for (let i = 0; i < m; i++) {
+          if (T[i][e].sign() <= 0) continue;
+          const r = b[i].div(T[i][e]);
+          if (l < 0 || r.cmp(best) < 0 || (r.cmp(best) === 0 && basis[i] < basis[l])) { l = i; best = r; }
+        }
+        if (l < 0) return "unbounded";
+        pivot(l, e);
+      }
+      return "maxit";
+    }
+    if (isArt.size) {
+      const c1 = Array(tot).fill(Q0);
+      isArt.forEach((k) => { c1[k] = QM; });
+      run(c1, () => true);
+      let s = Q0;
+      for (let i = 0; i < m; i++) if (isArt.has(basis[i])) s = s.add(b[i]);
+      if (s.sign() > 0) return { status: "infeasible" };
+      for (let i = 0; i < m; i++) {
+        if (!isArt.has(basis[i])) continue;
+        const e = T[i].findIndex((v, j) => !isArt.has(j) && !v.isZero());
+        if (e >= 0) pivot(i, e);
+      }
+    }
+    const c2 = Array(tot).fill(Q0);
+    for (let k = 0; k < N; k++) c2[k] = obj[k];
+    const st = run(c2, (j) => !isArt.has(j));
+    if (st !== "optimal") return { status: st };
+    const val = Array(tot).fill(Q0);
+    basis.forEach((k, i) => { val[k] = b[i]; });
+    const x = map.map((l) => l.reduce((acc, [k, f]) => acc.add(val[k].mul(q(f))), Q0));
+    const v = x.reduce((acc, xj, j) => acc.add(P.c[j].mul(xj)), Q0);
+    return { status: "optimal", x, value: v };
+  }
+
+  /* dual from the sign table */
+  function dualOf(P) {
+    const mx = P.sense === "max";
+    return {
+      sense: mx ? "min" : "max",
+      c: P.rows.map((r) => r.b),
+      rows: P.signs.map((s, j) => ({ a: P.rows.map((r) => r.a[j]), op: mx ? { "+": ">=", "-": "<=", f: "=" }[s] : { "+": "<=", "-": ">=", f: "=" }[s], b: P.c[j] })),
+      signs: P.rows.map((r) => (mx ? { "<=": "+", ">=": "-", "=": "f" }[r.op] : { ">=": "+", "<=": "-", "=": "f" }[r.op]))
+    };
+  }
+  const STAT = { optimal: "optimal", unbounded: "unbounded", infeasible: "infeasible", maxit: "çözülemedi" };
+
+  /* ───────── Widget 1: primal → dual converter ───────── */
+  (function () {
+    const host = document.getElementById("w-conv");
+    if (!host) return;
+    const grid = document.getElementById("conv-grid"), err = document.getElementById("conv-err");
+    const selN = document.getElementById("conv-n"), selM = document.getElementById("conv-m"), selS = document.getElementById("conv-sense");
+    const stepHost = document.getElementById("conv-stepper");
+    const PRE = {
+      jobmix: { sense: "max", c: ["3", "5"], rows: [[["1", "0"], "<=", "4"], [["0", "2"], "<=", "12"], [["3", "2"], "<=", "18"]], signs: ["+", "+"] },
+      w18: { sense: "max", c: ["2", "1"], rows: [[["1", "1"], "=", "2"], [["2", "-1"], ">=", "3"], [["1", "-1"], "<=", "1"]], signs: ["+", "f"] },
+      w19: { sense: "min", c: ["2", "4", "6"], rows: [[["1", "2", "1"], ">=", "2"], [["1", "0", "-1"], ">=", "1"], [["0", "1", "1"], "=", "1"], [["2", "1", "0"], "<=", "3"]], signs: ["f", "+", "+"] },
+      p3: { sense: "max", c: ["4", "-1", "2"], rows: [[["1", "1", "0"], "<=", "5"], [["2", "1", "0"], "<=", "7"], [["0", "2", "1"], ">=", "6"], [["1", "0", "1"], "=", "4"]], signs: ["+", "f", "f"] },
+      p4: { sense: "min", c: ["4", "2", "-1"], rows: [[["1", "2", "0"], "<=", "6"], [["1", "-1", "2"], "=", "8"]], signs: ["+", "+", "f"] }
+    };
+    let cur = JSON.parse(JSON.stringify(PRE.jobmix));
+    const letterP = () => (selS.value === "max" ? "x" : "y");
+    function snapshot() {
+      const g = (id) => { const el = grid.querySelector(`[data-k="${id}"]`); return el ? el.value : null; };
+      const n = cur.c.length, m = cur.rows.length;
+      const out = { sense: selS.value, c: [], rows: [], signs: [] };
+      for (let j = 0; j < n; j++) { out.c.push(g("c" + j) ?? cur.c[j]); out.signs.push(g("s" + j) ?? cur.signs[j]); }
+      for (let i = 0; i < m; i++) {
+        const a = [];
+        for (let j = 0; j < n; j++) a.push(g(`a${i}_${j}`) ?? cur.rows[i][0][j]);
+        out.rows.push([a, g("o" + i) ?? cur.rows[i][1], g("b" + i) ?? cur.rows[i][2]]);
+      }
+      return out;
+    }
+    function build() {
+      const n = cur.c.length, m = cur.rows.length, L = letterP();
+      selN.value = String(n); selM.value = String(m); selS.value = cur.sense;
+      const sel = (k, opts, v) => `<select data-k="${k}" aria-label="${k}">` + opts.map(([val, lab]) => `<option value="${val}"${val === v ? " selected" : ""}>${lab}</option>`).join("") + "</select>";
+      const inp = (k, v) => `<input type="text" data-k="${k}" value="${v}" aria-label="${k}" />`;
+      let h = "<table><tr><th></th>";
+      for (let j = 0; j < n; j++) h += `<th>${L}<sub>${j + 1}</sub></th>`;
+      h += "<th></th><th>RHS</th></tr><tr><th>işaret</th>";
+      for (let j = 0; j < n; j++) h += "<td>" + sel("s" + j, [["+", "≥ 0"], ["-", "≤ 0"], ["f", "free"]], cur.signs[j]) + "</td>";
+      h += "<td></td><td></td></tr>";
+      for (let i = 0; i < m; i++) {
+        h += `<tr><th>${i + 1}.</th>`;
+        for (let j = 0; j < n; j++) h += "<td>" + inp(`a${i}_${j}`, cur.rows[i][0][j]) + "</td>";
+        h += "<td>" + sel("o" + i, [["<=", "≤"], [">=", "≥"], ["=", "="]], cur.rows[i][1]) + "</td><td>" + inp("b" + i, cur.rows[i][2]) + "</td></tr>";
+      }
+      h += `<tr><th>${cur.sense === "max" ? "max z" : "min w"}</th>`;
+      for (let j = 0; j < n; j++) h += "<td>" + inp("c" + j, cur.c[j]) + "</td>";
+      h += "<td></td><td></td></tr></table>";
+      grid.innerHTML = h;
+    }
+    function resize() {
+      cur = snapshot();
+      const n = +selN.value, m = +selM.value;
+      while (cur.c.length < n) { cur.c.push("0"); cur.signs.push("+"); cur.rows.forEach((r) => r[0].push("0")); }
+      while (cur.c.length > n) { cur.c.pop(); cur.signs.pop(); cur.rows.forEach((r) => r[0].pop()); }
+      while (cur.rows.length < m) cur.rows.push([Array(n).fill("0"), "<=", "0"]);
+      while (cur.rows.length > m) cur.rows.pop();
+      cur.sense = selS.value;
+      build();
+    }
+    function read() {
+      cur = snapshot();
+      let bad = 0;
+      grid.querySelectorAll("input").forEach((el) => { const v = q(el.value); el.classList.toggle("is-bad", !v); if (!v) bad++; });
+      if (bad) return null;
+      return { sense: cur.sense, c: cur.c.map(q), rows: cur.rows.map((r) => ({ a: r[0].map(q), op: r[1], b: q(r[2]) })), signs: cur.signs.slice() };
+    }
+    const SIGNROWS = [["$i$. kısıt $\\le$", "$i$. variable $\\ge 0$"], ["$i$. kısıt $\\ge$", "$i$. variable $\\le 0$"], ["$i$. kısıt $=$", "$i$. variable free"],
+      ["$j$. variable $\\ge 0$", "$j$. kısıt $\\ge$"], ["$j$. variable $\\le 0$", "$j$. kısıt $\\le$"], ["$j$. variable free", "$j$. kısıt $=$"]];
+    function go() {
+      err.textContent = "";
+      const P = read();
+      if (!P) { err.textContent = "İşaretli kutulara sayı ya da kesir yaz (örnek: 3, -2, 3/2, 0.5)."; return; }
+      if (P.c.every((v) => v.isZero())) { err.textContent = "Objective'de en az bir katsayı sıfırdan farklı olsun."; return; }
+      const D = dualOf(P), mx = P.sense === "max";
+      const pl = mx ? "x" : "y", dl = mx ? "y" : "x", pz = mx ? "z" : "w", dz = mx ? "w" : "z";
+      const n = P.c.length, m = P.rows.length;
+      const rowSign = (i) => (mx ? { "<=": 0, ">=": 1, "=": 2 }[P.rows[i].op] : { ">=": 3, "<=": 4, "=": 5 }[P.rows[i].op]);
+      const colSign = (j) => (mx ? { "+": 3, "-": 4, f: 5 }[P.signs[j]] : { "+": 0, "-": 1, f: 2 }[P.signs[j]]);
+      const dualCon = (j) => `${lin(D.rows[j].a, dl)} ${OPT[D.rows[j].op]} ${D.rows[j].b.tex()}`;
+      const frames = [];
+      frames.push({ hr: -1, hc: -1, sr: -1, rows: 0, cols: 0, obj: false, caption: `Primal'ı Winston'ın tablosuna yaz: her satır bir kısıt, her sütun bir variable, en alt satır objective katsayıları. Primal <b>${P.sense}</b>, dual <b>${D.sense}</b> olacak. İşaret tablosunu ${mx ? "soldan sağa (Max → Min)" : "sağdan sola (Min → Max)"} okuyacağız.` });
+      for (let i = 0; i < m; i++) frames.push({ hr: i, hc: -1, sr: rowSign(i), rows: i + 1, cols: 0, obj: false,
+        caption: `${i + 1}. kısıt $${OPT[P.rows[i].op]}$ (primal ${P.sense}) ⇒ $${signTex(dl, i + 1, D.signs[i])}$.` });
+      for (let j = 0; j < n; j++) frames.push({ hr: -1, hc: j, sr: colSign(j), rows: m, cols: j + 1, obj: false,
+        caption: `$${pl}_{${j + 1}}$ sütununu aşağı oku: katsayılar $(${P.rows.map((r) => r.a[j].tex()).join(", ")})$, alttaki $c_${j + 1} = ${P.c[j].tex()}$ sağ taraf olur. $${signTex(pl, j + 1, P.signs[j])}$ ⇒ dual kısıt $${OPT[D.rows[j].op]}$: $${dualCon(j)}$.` });
+      frames.push({ hr: -1, hc: -1, sr: -1, rows: m, cols: n, obj: true, caption: `Dual objective'i sağ taraflardan kur: $\\${D.sense}\\ ${dz} = ${lin(D.c, dl)}$.` });
+      const sp = solveLP(P), sd = solveLP(D);
+      let chk = `Kontrol (iki LP de sayfada simplex ile çözüldü): primal <b>${STAT[sp.status]}</b>, dual <b>${STAT[sd.status]}</b>. `;
+      if (sp.status === "optimal" && sd.status === "optimal") chk += `$${pz}^* = ${sp.value.tex()}$, $${dz}^* = ${sd.value.tex()}$: strong duality. Primal çözüm $${pl} = (${sp.x.map((v) => v.tex()).join(", ")})$, dual çözüm $${dl} = (${sd.x.map((v) => v.tex()).join(", ")})$.`;
+      else if (sp.status === "unbounded") chk += "Primal unbounded olduğu için dual infeasible (Lemma 3).";
+      else if (sd.status === "unbounded") chk += "Dual unbounded olduğu için primal infeasible (Lemma 4).";
+      else if (sp.status === "infeasible" && sd.status === "infeasible") chk += "İkisi birden infeasible: tablonun köşedeki hücresi.";
+      frames.push({ hr: -1, hc: -1, sr: -1, rows: m, cols: n, obj: true, caption: chk });
+      stepHost.innerHTML = "";
+      const box = document.createElement("div");
+      stepHost.appendChild(box);
+      Lab.stepper(box, {
+        title: "Primal → dual, işaret tablosuyla",
+        interval: 1700,
+        frames,
+        render(f, k, stage) {
+          let t = '<div class="w-lp-duality-two"><div><table class="w-lp-duality-prim"><tr><th></th>';
+          for (let j = 0; j < n; j++) t += `<th class="${f.hc === j ? "is-on" : ""}">$${pl}_{${j + 1}}$<br><small>${P.signs[j] === "+" ? "≥ 0" : P.signs[j] === "-" ? "≤ 0" : "free"}</small></th>`;
+          t += "<th></th><th></th></tr>";
+          for (let i = 0; i < m; i++) {
+            const on = f.hr === i ? "is-on" : "";
+            t += `<tr><td class="${on}">${i < f.rows ? "$" + signTex(dl, i + 1, D.signs[i]) + "$" : "$" + dl + "_{" + (i + 1) + "}$ ?"}</td>`;
+            for (let j = 0; j < n; j++) t += `<td class="${on || (f.hc === j ? "is-on" : "")}">${P.rows[i].a[j].tex() === "0" ? "0" : T$(P.rows[i].a[j])}</td>`;
+            t += `<td class="${on}">$${OPT[P.rows[i].op]}$</td><td class="${on}">${T$(P.rows[i].b)}</td></tr>`;
+          }
+          t += `<tr><td>$\\${P.sense}\\ ${pz}$</td>`;
+          for (let j = 0; j < n; j++) t += `<td class="${f.hc === j ? "is-on" : ""}">${T$(P.c[j])}</td>`;
+          t += "<td></td><td></td></tr></table></div><div><table class=\"w-lp-duality-sign\"><tr><th>Max problem</th><th>Min problem</th></tr>";
+          SIGNROWS.forEach((r, k2) => { t += `<tr class="${f.sr === k2 ? "is-on" : ""}"><td>${r[0]}</td><td>${r[1]}</td></tr>`; });
+          t += "</table></div></div><div class=\"w-lp-duality-dual\"><b>Dual (şu ana kadar):</b>";
+          const lines = [];
+          if (f.obj) lines.push(`$\\${D.sense}\\ ${dz} = ${lin(D.c, dl)}$`);
+          for (let j = 0; j < f.cols; j++) lines.push(`$${dualCon(j)}$ &nbsp;<small>(${pl}<sub>${j + 1}</sub>)</small>`);
+          if (f.rows) lines.push("$" + D.signs.slice(0, f.rows).map((s2, i) => signTex(dl, i + 1, s2)).join(",\\ ") + "$");
+          t += lines.length ? '<ul class="w-lp-duality-list">' + lines.map((x) => "<li>" + x + "</li>").join("") + "</ul>" : " <i>henüz boş</i>";
+          t += "</div>";
+          stage.innerHTML = t;
+        }
+      });
+    }
+    document.getElementById("conv-preset").addEventListener("change", (e) => { cur = JSON.parse(JSON.stringify(PRE[e.target.value])); build(); go(); });
+    selN.addEventListener("change", resize);
+    selM.addEventListener("change", resize);
+    selS.addEventListener("change", () => { cur = snapshot(); cur.sense = selS.value; build(); });
+    document.getElementById("conv-go").addEventListener("click", go);
+    build();
+    go();
+  })();
+
+  /* ───────── Widget 2: weak duality on the job-mix LP ───────── */
+  (function () {
+    const host = document.getElementById("w-weak");
+    if (!host) return;
+    const A = [[1, 0], [0, 2], [3, 2]], b = [4, 12, 18], c = [3, 5];
+    const ids = ["wk-x1", "wk-x2", "wk-y1", "wk-y2", "wk-y3"];
+    const el = ids.map((id) => document.getElementById(id));
+    const out = document.getElementById("wk-out");
+    const f = (v) => (Math.round(v * 100) / 100).toString();
+    function upd() {
+      const v = el.map((e) => q(e.value));
+      ids.forEach((id, k) => { document.getElementById(id + "o").textContent = el[k].value; });
+      const x = v.slice(0, 2), y = v.slice(2);
+      const s = A.map((r, i) => q(b[i]).sub(q(r[0]).mul(x[0])).sub(q(r[1]).mul(x[1])));
+      const e = [0, 1].map((j) => A.reduce((acc, r, i) => acc.add(q(r[j]).mul(y[i])), Q0).sub(q(c[j])));
+      const z = x.reduce((acc, xj, j) => acc.add(q(c[j]).mul(xj)), Q0);
+      const w = y.reduce((acc, yi, i) => acc.add(q(b[i]).mul(yi)), Q0);
+      const pf = s.every((t) => t.sign() >= 0), df = e.every((t) => t.sign() >= 0);
+      const mark = (ok) => (ok ? '<span class="w-lp-duality-ok">✓</span>' : '<span class="w-lp-duality-no">✗</span>');
+      let h = '<div class="w-lp-duality-read">';
+      h += `primal: s = (${s.map((t) => f(t.num())).join(", ")}) ${mark(pf)} ${pf ? "feasible" : "infeasible"} &nbsp; z = ${f(z.num())}<br>`;
+      h += `dual: &nbsp;&nbsp;e = (${e.map((t) => f(t.num())).join(", ")}) ${mark(df)} ${df ? "feasible" : "infeasible"} &nbsp; w = ${f(w.num())}</div>`;
+      if (pf && df) {
+        const sy = s.map((t, i) => t.mul(y[i])), ex = e.map((t, j) => t.mul(x[j]));
+        h += `<p>$w - z = ${w.sub(z).tex()} = \\underbrace{${sy.map((t) => t.tex()).join(" + ")}}_{\\sum s_i y_i} + \\underbrace{${ex.map((t) => t.tex()).join(" + ")}}_{\\sum e_j x_j}$</p>`;
+        h += w.sub(z).isZero() ? '<p class="w-lp-duality-ok">Fark sıfır: ikisi de optimal (Lemma 2). Her çarpım tek tek sıfır, complementary slackness.</p>'
+          : `<p>Her feasible $y$ bir tavan: $z^* \\le ${w.tex()}$. Her feasible $x$ bir taban: $z^* \\ge ${z.tex()}$.</p>`;
+      } else {
+        h += `<p class="w-lp-duality-no">${!pf ? "$x$ primal kısıtlarından birini ihlal ediyor (negatif slack), $z$ bir taban vermez." : ""} ${!df ? "$y$ dual kısıtlarından birini ihlal ediyor (negatif excess), $w$ bir tavan vermez." : ""}</p>`;
+        if (pf) h += `<p>$x$ feasible, $y$'den bağımsız olarak bir taban verir: $z^* \\ge ${z.tex()}$.</p>`;
+        if (df) h += `<p>$y$ feasible, $x$'ten bağımsız olarak bir tavan verir: $z^* \\le ${w.tex()}$.</p>`;
+      }
+      const W = 560, H = 64, sx = (t) => 20 + (t / 110) * (W - 40);
+      let svg = `<svg class="w-lp-duality-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="z ve w sayı doğrusu"><line x1="20" y1="34" x2="${W - 20}" y2="34" style="stroke:var(--border-strong)" stroke-width="2"/>`;
+      for (let t = 0; t <= 110; t += 10) svg += `<line x1="${sx(t)}" y1="30" x2="${sx(t)}" y2="38" style="stroke:var(--border-strong)"/><text x="${sx(t)}" y="54" font-size="10" text-anchor="middle" style="fill:var(--fg-muted)">${t}</text>`;
+      svg += `<line x1="${sx(36)}" y1="18" x2="${sx(36)}" y2="40" stroke="#2b8a3e" stroke-width="2" stroke-dasharray="3 2"/><text x="${sx(36)}" y="14" font-size="10" text-anchor="middle" fill="#2b8a3e">z* = 36</text>`;
+      if (pf) svg += `<circle cx="${sx(z.num())}" cy="34" r="6" style="fill:var(--blue-600)"/><text x="${sx(z.num())}" y="24" font-size="11" text-anchor="middle" style="fill:var(--blue-600)">z</text>`;
+      if (df) svg += `<rect x="${sx(w.num()) - 6}" y="28" width="12" height="12" style="fill:var(--orange-700)"/><text x="${sx(w.num())}" y="24" font-size="11" text-anchor="middle" style="fill:var(--orange-700)">w</text>`;
+      svg += "</svg>";
+      out.innerHTML = h + svg;
+      R(out);
+    }
+    const set = (vals) => { vals.forEach((v, k) => { el[k].value = v; }); upd(); };
+    el.forEach((e) => e.addEventListener("input", upd));
+    document.getElementById("wk-opt").addEventListener("click", () => set([2, 6, 0, 1.5, 1]));
+    document.getElementById("wk-guess").addEventListener("click", () => set([2, 6, 0, 2, 1]));
+    upd();
+  })();
+
+  /* ───────── Widget 3: complementary slackness, x* → y* ───────── */
+  (function () {
+    const host = document.getElementById("w-cs");
+    if (!host) return;
+    const PRE = {
+      jobmix: { c: [3, 5], A: [[1, 0], [0, 2], [3, 2]], b: [4, 12, 18], x: "2, 6" },
+      bandwidth: { c: [1, 1, 1], A: [[1, 0, 1], [0, 1, 0], [1, 0, 0], [0, 1, 1], [0, 0, 1]], b: [10, 8, 7, 9, 4], x: "7, 8, 1" },
+      dakota: { c: [60, 30, 20], A: [[8, 6, 1], [4, 2, "3/2"], [2, "3/2", "1/2"]], b: [48, 20, 8], x: "2, 0, 8" },
+      glassco: { c: [6, 10, 9, 20], A: [[4, 9, 7, 10], [1, 1, 3, 40], [3, 4, 2, 1]], b: [600, 400, 500], x: "400/3, 0, 0, 20/3" },
+      p3: { c: [5, 3, 1], A: [[2, 1, 1], [1, 2, 1]], b: [6, 7], x: "5/3, 8/3, 0" }
+    };
+    const sel = document.getElementById("cs-preset"), xin = document.getElementById("cs-x");
+    const lpBox = document.getElementById("cs-lp"), err = document.getElementById("cs-err"), stepHost = document.getElementById("cs-stepper");
+    let L = null;
+    function load() {
+      const p = PRE[sel.value];
+      L = { c: p.c.map(q), A: p.A.map((r) => r.map(q)), b: p.b.map(q) };
+      xin.value = p.x;
+      const cons = L.A.map((r, i) => `${lin(r, "x")} \\le ${L.b[i].tex()}`).join(",\\ ");
+      lpBox.innerHTML = `$\\max z = ${lin(L.c, "x")}$ s.t. $${cons}$, $x \\ge 0$`;
+      R(lpBox);
+    }
+    /* Gauss–Jordan on [M | r]: returns {kind:'none'|'unique'|'many', sol} */
+    function gj(M, r, nv) {
+      const A = M.map((row, i) => row.concat([r[i]]));
+      let rank = 0; const piv = [];
+      for (let col = 0; col < nv && rank < A.length; col++) {
+        let p = -1;
+        for (let i = rank; i < A.length; i++) if (!A[i][col].isZero()) { p = i; break; }
+        if (p < 0) continue;
+        [A[rank], A[p]] = [A[p], A[rank]];
+        const pv = A[rank][col];
+        A[rank] = A[rank].map((v) => v.div(pv));
+        for (let i = 0; i < A.length; i++) {
+          if (i === rank || A[i][col].isZero()) continue;
+          const fct = A[i][col];
+          A[i] = A[i].map((v, j) => v.sub(fct.mul(A[rank][j])));
+        }
+        piv.push(col); rank++;
+      }
+      for (let i = rank; i < A.length; i++) if (!A[i][nv].isZero()) return { kind: "none" };
+      if (rank < nv) return { kind: "many" };
+      const sol = Array(nv).fill(Q0);
+      piv.forEach((col, i) => { sol[col] = A[i][nv]; });
+      return { kind: "unique", sol };
+    }
+    function go() {
+      err.textContent = "";
+      const parts = xin.value.split(",").map((t) => t.trim()).filter((t) => t !== "");
+      const n = L.c.length, m = L.b.length;
+      const x = parts.map(q);
+      if (x.length !== n || x.some((v) => !v)) { err.textContent = `${n} sayı yaz, virgülle ayır (kesir olabilir: 400/3).`; return; }
+      if (x.some((v) => v.sign() < 0)) { err.textContent = "Bu LP'de $x \\ge 0$; negatif değer feasible değil."; R(err); return; }
+      const ax = L.A.map((r) => r.reduce((acc, a, j) => acc.add(a.mul(x[j])), Q0));
+      const s = L.b.map((bi, i) => bi.sub(ax[i]));
+      const z = L.c.reduce((acc, cj, j) => acc.add(cj.mul(x[j])), Q0);
+      const frames = [];
+      const st = { s: false, zero: false, eq: false, y: null, e: null };
+      frames.push({ st: { ...st }, hl: "s", caption: `Adım 1 · slack'ler: $s_i = b_i - (Ax)_i$. $z = c^T x = ${z.tex()}$.` });
+      st.s = true;
+      if (s.some((t) => t.sign() < 0)) {
+        const bad = s.map((t, i) => (t.sign() < 0 ? i + 1 : 0)).filter(Boolean);
+        frames.push({ st: { ...st }, hl: "s", caption: `<span class="w-lp-duality-no">${bad.join(", ")}. kısıt ihlal ediliyor (negatif slack). Bu $x$ feasible değil; CS'ye geçmeden dur.</span>` });
+        return show(frames, x, s, z, ax);
+      }
+      frames.push({ st: { ...st }, hl: "s", caption: `Slack'ler: $s = (${s.map((t) => t.tex()).join(", ")})$. Hepsi $\\ge 0$, $x$ primal feasible.` });
+      const zeroIdx = s.map((t, i) => (t.sign() > 0 ? i : -1)).filter((i) => i >= 0);
+      st.zero = true;
+      frames.push({ st: { ...st }, hl: "y", caption: zeroIdx.length ? `Adım 2 · $s_i &gt; 0$ ⇒ $y_i = 0$: ${zeroIdx.map((i) => `$y_{${i + 1}} = 0$`).join(", ")}.` : "Adım 2 · Pozitif slack yok; hiçbir $y_i$ CS ile sıfırlanmıyor." });
+      const U = [];
+      for (let i = 0; i < m; i++) if (!zeroIdx.includes(i)) U.push(i);
+      const posJ = x.map((v, j) => (v.sign() > 0 ? j : -1)).filter((j) => j >= 0);
+      st.eq = true;
+      const eqTex = posJ.map((j) => `$${lin(U.map((i) => L.A[i][j]), "y", U.map((i) => i + 1))} = ${L.c[j].tex()}$`);
+      frames.push({ st: { ...st }, hl: "e", caption: posJ.length ? `Adım 3 · $x_j &gt; 0$ ⇒ $j$. dual kısıt eşitlikle tutar (sıfır olan $y$'ler atıldı): ${eqTex.join(", ")}.` : "Adım 3 · Pozitif $x_j$ yok; eşitlik yazılmıyor." });
+      const sol = gj(posJ.map((j) => U.map((i) => L.A[i][j])), posJ.map((j) => L.c[j]), U.length);
+      let y = null, how = "";
+      if (sol.kind === "none") {
+        frames.push({ st: { ...st }, hl: "y", caption: '<span class="w-lp-duality-no">Adım 4 · Denklem sistemi çelişkili: CS\'yi sağlayan hiçbir $y$ yok. Bu $x$ optimal değil.</span>' });
+        return show(frames, x, s, z, ax);
+      }
+      if (sol.kind === "unique") { y = Array(m).fill(Q0); U.forEach((i, k) => { y[i] = sol.sol[k]; }); how = "Adım 4 · Sistem tek çözüm verdi"; }
+      else {
+        const D = { sense: "min", c: U.map((i) => L.b[i]), signs: U.map(() => "+"),
+          rows: L.c.map((cj, j) => ({ a: U.map((i) => L.A[i][j]), op: posJ.includes(j) ? "=" : ">=", b: cj })) };
+        const r = solveLP(D);
+        if (r.status !== "optimal") {
+          frames.push({ st: { ...st }, hl: "y", caption: '<span class="w-lp-duality-no">Adım 4 · Denklemler $y$\'yi tek başına belirlemedi ve dual feasible bir seçim de yok. Bu $x$ optimal değil.</span>' });
+          return show(frames, x, s, z, ax);
+        }
+        y = Array(m).fill(Q0); U.forEach((i, k) => { y[i] = r.x[k]; });
+        how = "Adım 4 · Denklemler $y$'yi tek başına belirlemedi (degenerate durum). Dual feasible olanlar arasından biri seçildi";
+      }
+      st.y = y;
+      frames.push({ st: { ...st }, hl: "y", caption: `${how}: $y = (${y.map((t) => t.tex()).join(", ")})$.` });
+      const e = L.c.map((cj, j) => L.A.reduce((acc, r, i) => acc.add(r[j].mul(y[i])), Q0).sub(cj));
+      st.e = e;
+      const yneg = y.some((t) => t.sign() < 0), eneg = e.some((t) => t.sign() < 0);
+      const w = L.b.reduce((acc, bi, i) => acc.add(bi.mul(y[i])), Q0);
+      frames.push({ st: { ...st }, hl: "e", caption: `Adım 5 · Dual feasibility: $y \\ge 0$ ${yneg ? '<span class="w-lp-duality-no">✗</span>' : '<span class="w-lp-duality-ok">✓</span>'}, bütün excess'ler $e_j = (A^T y)_j - c_j$: $(${e.map((t) => t.tex()).join(", ")})$ ${eneg ? '<span class="w-lp-duality-no">✗</span>' : '<span class="w-lp-duality-ok">✓</span>'}.` });
+      if (yneg || eneg) frames.push({ st: { ...st }, hl: "e", caption: `<span class="w-lp-duality-no">CS'yi sağlayan $y$ dual feasible değil. Bu $x$ optimal değil.</span> ($w = ${w.tex()}$ bir tavan sayılmaz.)` });
+      else frames.push({ st: { ...st }, hl: "w", caption: `<span class="w-lp-duality-ok">$w = b^T y = ${w.tex()} = z$.</span> Feasible bir çift, değerleri eşit: ikisi de optimal (Lemma 2).` });
+      show(frames, x, s, z, ax);
+    }
+    function show(frames, x, s, z, ax) {
+      stepHost.innerHTML = "";
+      const box = document.createElement("div");
+      stepHost.appendChild(box);
+      const m = L.b.length, n = L.c.length;
+      Lab.stepper(box, {
+        title: "Complementary slackness ile y*",
+        interval: 1800,
+        frames,
+        render(f, k, stage) {
+          const S = f.st;
+          let h = '<div class="w-lp-duality-two"><div><table class="w-lp-duality-prim"><tr><th>kısıt</th><th>$(Ax)_i$</th><th>$b_i$</th><th>$s_i$</th><th>$y_i$</th></tr>';
+          for (let i = 0; i < m; i++) {
+            const yi = S.y ? T$(S.y[i]) : S.zero && s[i].sign() > 0 ? "$0$" : "?";
+            h += `<tr><td>${i + 1}</td><td>${T$(ax[i])}</td><td>${T$(L.b[i])}</td><td class="${f.hl === "s" ? "is-on" : ""}">${S.s ? T$(s[i]) : "?"}</td><td class="${f.hl === "y" ? "is-on" : ""}">${yi}</td></tr>`;
+          }
+          h += '</table></div><div><table class="w-lp-duality-prim"><tr><th>variable</th><th>$x_j$</th><th>$c_j$</th><th>dual kısıt</th><th>$e_j$</th></tr>';
+          for (let j = 0; j < n; j++) {
+            const kind = S.eq ? (x[j].sign() > 0 ? "$=$" : "$\\ge$") : "?";
+            h += `<tr><td>$x_${j + 1}$</td><td>${T$(x[j])}</td><td>${T$(L.c[j])}</td><td class="${f.hl === "e" ? "is-on" : ""}">${kind}</td><td class="${f.hl === "e" ? "is-on" : ""}">${S.e ? T$(S.e[j]) : "?"}</td></tr>`;
+          }
+          h += "</table></div></div>";
+          stage.innerHTML = h;
+        }
+      });
+    }
+    sel.addEventListener("change", () => { load(); go(); });
+    document.getElementById("cs-go").addEventListener("click", go);
+    xin.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+    load();
+    go();
+  })();
+
+  /* ───────── Widget 4: shadow-price decisions on the job-mix LP ───────── */
+  (function () {
+    const host = document.getElementById("w-shadow");
+    if (!host) return;
+    const c = [q(3), q(5)], A = [[q(1), q(0)], [q(0), q(2)], [q(3), q(2)]], b0 = [q(4), q(12), q(18)];
+    const NAMES = ["accelerator", "memory", "CPU"];
+    const mk = (b) => ({ sense: "max", c, rows: A.map((r, i) => ({ a: r, op: "<=", b: b[i] })), signs: ["+", "+"] });
+    const base = solveLP(mk(b0));
+    const yd = solveLP(dualOf(mk(b0)));
+    /* basis = variables that are positive at the optimum (non-degenerate here): x1, x2 and the slacks with s > 0 */
+    const s0 = A.map((r, i) => b0[i].sub(r[0].mul(base.x[0])).sub(r[1].mul(base.x[1])));
+    const cols = [];
+    base.x.forEach((v, j) => { if (v.sign() > 0) cols.push({ name: "x" + (j + 1), col: A.map((r) => r[j]), val: v }); });
+    s0.forEach((v, i) => { if (v.sign() > 0) cols.push({ name: "s" + (i + 1), col: A.map((_, k) => (k === i ? Q1 : Q0)), val: v }); });
+    function invert(M) {
+      const k = M.length, Aug = M.map((r, i) => r.concat(M.map((_, j) => (i === j ? Q1 : Q0))));
+      for (let col = 0; col < k; col++) {
+        let p = col;
+        while (Aug[p][col].isZero()) p++;
+        [Aug[col], Aug[p]] = [Aug[p], Aug[col]];
+        const pv = Aug[col][col];
+        Aug[col] = Aug[col].map((v) => v.div(pv));
+        for (let i = 0; i < k; i++) if (i !== col && !Aug[i][col].isZero()) { const fc = Aug[i][col]; Aug[i] = Aug[i].map((v, j) => v.sub(fc.mul(Aug[col][j]))); }
+      }
+      return Aug.map((r) => r.slice(k));
+    }
+    const B = A.map((_, i) => cols.map((cl) => cl.col[i]));
+    const Binv = invert(B);
+    function range(i) {
+      let lo = null, hi = null;
+      cols.forEach((cl, k) => {
+        const d = Binv[k][i];
+        if (d.isZero()) return;
+        const t = cl.val.neg().div(d);
+        if (d.sign() > 0) { if (lo === null || t.cmp(lo) > 0) lo = t; } else if (hi === null || t.cmp(hi) < 0) hi = t;
+      });
+      return { lo, hi };
+    }
+    const out = document.getElementById("sh-out"), err = document.getElementById("sh-err");
+    function go() {
+      err.textContent = "";
+      const i = +document.getElementById("sh-res").value, act = document.getElementById("sh-act").value;
+      const qty = q(document.getElementById("sh-q").value), p = q(document.getElementById("sh-p").value);
+      if (!qty || qty.sign() <= 0) { err.textContent = "Miktar pozitif bir sayı olmalı."; return; }
+      if (!p || p.sign() < 0) { err.textContent = "Birim fiyat 0 ya da pozitif bir sayı olmalı."; return; }
+      if (act === "sell" && qty.cmp(b0[i]) > 0) { err.textContent = `Elinde ${b0[i].tex()} birim ${NAMES[i]} var; daha fazlasını satamazsın.`; return; }
+      const db = act === "buy" ? qty : qty.neg();
+      const b1 = b0.slice(); b1[i] = b0[i].add(db);
+      const yi = yd.x[i], rg = range(i);
+      const inR = (rg.lo === null || db.cmp(rg.lo) >= 0) && (rg.hi === null || db.cmp(rg.hi) <= 0);
+      const money = act === "buy" ? qty.mul(p).neg() : qty.mul(p);
+      const pred = yi.mul(db), r1 = solveLP(mk(b1));
+      const real = r1.value.sub(base.value);
+      const netPred = pred.add(money), netReal = real.add(money);
+      const loTxt = rg.lo === null ? "-\\infty" : b0[i].add(rg.lo).tex(), hiTxt = rg.hi === null ? "\\infty" : b0[i].add(rg.hi).tex();
+      let h = `<p>Shadow price $y_${i + 1} = ${yi.tex()}$ (dual sayfada çözüldü). Basis $\\{${cols.map((cl) => cl.name.replace(/(\d)/, "_$1")).join(", ")}\\}$ için geçerli aralık ($B^{-1}$'in ${i + 1}. sütunundan): $${loTxt} \\le b_${i + 1} \\le ${hiTxt}$.</p>`;
+      h += `<p>Yeni $b_${i + 1} = ${b1[i].tex()}$ → ${inR ? '<span class="w-lp-duality-ok">aralığın içinde</span>' : '<span class="w-lp-duality-no">aralığın dışında</span>'}.</p>`;
+      h += '<div class="w-lp-duality-read">';
+      h += `shadow price ile: Δz = ${yi.txt()} × (${db.txt()}) = ${pred.dec()}, para ${money.dec()}, net ${netPred.dec()}<br>`;
+      h += `yeniden çözüm:    z* = ${r1.value.txt()} (x = (${r1.x.map((v) => v.txt()).join(", ")})), Δz = ${real.dec()}, net ${netReal.dec()}</div>`;
+      const verdict = netReal.sign() > 0 ? '<span class="w-lp-duality-ok">Kabul et</span>' : netReal.sign() < 0 ? '<span class="w-lp-duality-no">Reddet</span>' : "Fark etmez";
+      h += `<p><b>${verdict}</b>: net etki ${netReal.dec()} k₺. `;
+      h += inR ? "Aralığın içinde olduğun için shadow price hesabı yeniden çözümle aynı." : "Aralığın dışında basis değişiyor; shadow price'ın tahmini yanlış. Karar yeniden çözümle verilir.";
+      h += "</p>";
+      out.innerHTML = h;
+      R(out);
+    }
+    document.getElementById("sh-go").addEventListener("click", go);
+    host.querySelectorAll("select").forEach((s) => s.addEventListener("change", go));
+    host.querySelectorAll('input[type="text"]').forEach((s) => s.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); }));
+    const gb = document.getElementById("sh-guess");
+    if (gb) gb.addEventListener("click", () => {
+      document.getElementById("sh-res").value = "2"; document.getElementById("sh-act").value = "sell";
+      document.getElementById("sh-q").value = "8"; document.getElementById("sh-p").value = "1.2"; go();
+    });
+    go();
+  })();
+})();
+</script>
+</body>
+</html>

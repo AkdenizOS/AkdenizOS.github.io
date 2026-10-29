@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 413: water-filling problemini KKT ile çözmek, su seviyesi resmi ve bisection on ν; log barrier, central path, duality gap m/t, barrier method ve phase I." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Water-filling ve barrier method · CSE 413 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-water-filling-barrier-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-water-filling-barrier-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-water-filling-barrier-ctl input[type="text"] { width: 72px; }
+    .w-water-filling-barrier-ctl input.w-water-filling-barrier-wide { width: min(220px, 100%); }
+    .w-water-filling-barrier-ctl label { font-weight: 600; }
+    .w-water-filling-barrier-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-water-filling-barrier-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) 76px; gap: 8px; align-items: center; margin: 6px 0; }
+    .w-water-filling-barrier-row input[type="range"] { width: 100%; accent-color: var(--blue-600); }
+    .w-water-filling-barrier-row label { font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .w-water-filling-barrier-row span { font-family: 'JetBrains Mono', monospace; font-size: .9rem; text-align: right; }
+    .w-water-filling-barrier-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; align-items: start; }
+    .w-water-filling-barrier-plot { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); padding: 6px; min-width: 0; }
+    .w-water-filling-barrier-plot svg { display: block; width: 100%; height: auto; }
+    .w-water-filling-barrier-plot h4 { margin: 0 0 4px; font-size: .92rem; color: var(--fg-brand); }
+    .w-water-filling-barrier-drag { touch-action: none; cursor: ns-resize; }
+    .w-water-filling-barrier-out { font-size: .93rem; min-width: 0; }
+    .w-water-filling-barrier-out table { font-size: .86rem; }
+    .w-water-filling-barrier-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: .82rem; margin-top: 4px; color: var(--fg-muted); }
+    .w-water-filling-barrier-legend i { display: inline-block; width: 14px; height: 10px; vertical-align: middle; margin-right: 4px; border-radius: 2px; }
+    .w-water-filling-barrier-ok { color: #2b8a3e; font-weight: 700; }
+    .w-water-filling-barrier-bad { color: var(--orange-700); font-weight: 700; }
+    .w-water-filling-barrier-mono { font-family: 'JetBrains Mono', monospace; font-size: .85rem; }
+    .w-water-filling-barrier-sum { font-weight: 600; margin: 6px 0; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 413</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 413</a> / Water-filling ve barrier method</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L12</span><span class="chip chip--exam">Vize · Week 7</span><span class="chip">Lab 7</span><span class="src">~55 dk · 12 bölüm</span></div>
+          <h1>Water-filling ve barrier (interior-point) method</h1>
+          <p class="lead">Week 7'nin lab'ı KKT'ye iki uygulama ekliyor. İlki <strong>water-filling</strong>: KKT koşullarının kapalı formda çözüldüğü klasik örnek. Bir bütçeyi channel'lara dağıtırken çözümün bir "su seviyesi" resmine dönüştüğünü göreceksin. İkincisi <strong>barrier method</strong>: inequality constraint'leri objective'e bir log barrier olarak ekleyip Newton ile çözen interior-point yöntemi. Central path'i job-mix LP üzerinde çizecek, duality gap'in neden tam olarak $m/t$ olduğunu göreceksin.</p>
+          <p class="src">Not: Week 7 slaytları ve Lab 7 notebook'u repoda yok. Bu ders Boyd–Vandenberghe, Example 5.2 ve Bölüm 11.1–11.4 ile EE364a slaytlarının 11. bölümü (bv_cvxslides) üzerinden anlatıldı. Water-filling, resmi ders tanımında Week 7 konusu olarak geçiyor, yani türetmesini mutlaka çalış. Barrier method ise hocanın syllabus'ında yalnızca Week 7 lab satırında geçiyor; vizede ne kadar derin sorulacağı belli değil.</p>
+          <!-- Kaynak: resources/books/boyd-vandenberghe-convex-optimization.pdf Example 5.2 (kitap s.245–246, pdf s.259–260), §11.1–11.4 (pdf s.575–595), Exercises 11.1–11.2 (pdf s.637) · resources/slides/bv_cvxslides.pdf s.353–377 (11.1–11.25) ve s.8.7 (analytic center) · Syllabus Week 7 satırı (27G_CSE413_5013_Optimization_Theory_Syllabus.pdf) · course-info.md Week 7 tanımı · Week_01.pdf s.14–15 · Week_03.pdf s.22 · weeks/07-lagrange-and-kkt.md (Goals, Implement, Checklist) · weeks/09 (CVXPY ile dual variable) · exams/README.md "Derive water-filling". Bütün sayılar python3 ile doğrulandı. -->
+        </header>
+
+        <article class="lesson" data-course="cse-413" data-lesson="water-filling-barrier">
+
+<!-- 1 -->
+<section class="lsec" id="wf-model" data-min="4">
+  <h2>Water-filling problemi</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · power'ı channel'lara dağıtmak</span>
+    <p>Elinde toplam 1 birim transmitter power var ve bunu $n$ tane communication channel'a dağıtacaksın. Channel $i$'ye $x_i$ verirsen o channel'ın rate'i $\log(\alpha_i + x_i)$ olur. $\alpha_i &gt; 0$ channel'a özgü bir sabit; bilgi kuramında channel'ın noise seviyesine karşılık gelir, yani $\alpha_i$ büyükse channel kötüdür. Amaç toplam rate'i en büyük yapmak.</p>
+    <p>$\log$ concave olduğu için aynı channel'a verilen her yeni birim bir öncekinden daha az rate getirir. Bu yüzden bütün power'ı en iyi channel'a vermek de, eşit bölmek de genelde yanlış cevaptır. Doğru dağılımı KKT koşulları verecek.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Model · Boyd Example 5.2</span>
+    $$\begin{array}{ll}\text{minimize} & -\displaystyle\sum_{i=1}^{n} \log(\alpha_i + x_i)\\[4pt] \text{subject to} & x \succeq 0, \quad \mathbf{1}^T x = 1\end{array}$$
+    <ul>
+      <li>Değişken $x \in \mathbb{R}^n$, veri $\alpha_i &gt; 0$. "Toplam rate'i maximize et" ile "$-\sum \log$'u minimize et" aynı problemdir. Boyd minimize formunda yazar; KKT'yi de bu formda kuracağız.</li>
+      <li>$x \succeq 0$ componentwise demek: her $x_i \ge 0$. $\mathbf 1^T x = \sum_i x_i$ toplam bütçedir.</li>
+      <li><strong>Convex problem:</strong> $-\log(\alpha_i + x_i)$'nin ikinci türevi $1/(\alpha_i + x_i)^2 &gt; 0$, yani convex. Convex fonksiyonların toplamı convex; constraint'ler affine.</li>
+      <li><strong>Slater:</strong> $x = (1/n, \dots, 1/n)$ strictly feasible ($x \succ 0$). Bu yüzden strong duality var ve KKT koşulları optimality için hem gerekli hem yeterli.</li>
+      <li><strong>Genel bütçe:</strong> $\mathbf 1^T x = P$. Boyd $P = 1$ alır. Türetme aynı kalır, yalnızca bütçe denkleminin sağ tarafı değişir. Widget'larda $P$'yi değiştirebileceksin.</li>
+    </ul>
+  </div>
+  <p>Bu problem Week 7'de iki yerde geçiyor: resmi ders tanımında ("the water-filling problem") ve hocanın syllabus'ındaki lab satırında ("A KKT checker; water-filling; barrier interior-point method").</p>
+  <!-- Kaynak: Boyd Example 5.2 (pdf s.259): "This problem arises in information theory, in allocating power to a set of n communication channels..." · course-info.md Week 7 · Syllabus Week 7 lab satırı. Noise yorumu: log(1 + x/N) = log(N + x) − log N. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Yönü karıştırma: rate'i maximize ediyorsun, Boyd'un yazdığı problem ise $-\sum\log$'u minimize ediyor. KKT'deki işaretler minimize formuna göre kurulur.</li>
+      <li>$\log(\alpha_i + x_i)$'nin türevi $1/(\alpha_i + x_i)$'dir, $1/x_i$ değil. $\alpha_i &gt; 0$ olduğu için $x_i = 0$'da da log tanımlı: bir channel'ı tamamen kapatmak serbest.</li>
+      <li>Buradaki $x \succeq 0$ bir matrix'in positive semidefinite olması değil, vektörün her bileşeninin $\ge 0$ olmasıdır.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-wf-model">
+    <p class="quiz__q">Water-filling problemi neden bir convex optimization problem'i?</p>
+    <button class="quiz__opt" data-correct>Objective convex ($-\log$ convex), constraint'ler affine<span class="why">Doğru. $-\log(\alpha_i + x_i)$'nin ikinci türevi $1/(\alpha_i + x_i)^2 &gt; 0$; toplamları convex; $x \succeq 0$ ve $\mathbf 1^T x = 1$ affine.</span></button>
+    <button class="quiz__opt">$\log$ convex olduğu için<span class="why">$\log$ concave'dir, convex olan $-\log$. Concave bir fonksiyonu maximize etmek, convex olan negatifini minimize etmekle aynıdır.</span></button>
+    <button class="quiz__opt">Objective lineer olduğu için<span class="why">Objective lineer değil, $\log$ içeriyor. Lineer olsaydı problem bir LP olurdu ve çözüm bir vertex'te çıkardı. Burada çözüm genelde vertex değil.</span></button>
+    <button class="quiz__opt">Feasible set sonlu sayıda noktadan oluştuğu için<span class="why">Feasible set bir simplex: sonsuz noktalı convex bir küme. Sonlu bir küme (tek nokta hariç) convex bile olmaz.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="wf-kkt" data-min="4">
+  <h2>KKT koşullarını yazmak</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Boyd'un standard form'unda inequality constraint'ler "$f_i(x) \le 0$" diye yazılır. $x_i \ge 0$'ı bu kalıba sokmak için $-x_i \le 0$ yaz ve her birine bir $\lambda_i \ge 0$ ver. Bütçe $\mathbf 1^T x - 1 = 0$ bir equality; onun multiplier'ı $\nu$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Lagrangian ve dört KKT koşulu</span>
+    $$L(x, \lambda, \nu) = -\sum_{i=1}^n \log(\alpha_i + x_i) - \sum_{i=1}^n \lambda_i x_i + \nu\Big(\sum_{i=1}^n x_i - 1\Big)$$
+    $$\frac{\partial L}{\partial x_i} = -\frac{1}{\alpha_i + x_i} - \lambda_i + \nu$$
+    <div class="table-wrap"><table>
+      <tr><th>Koşul</th><th>Water-filling'de</th></tr>
+      <tr><td>primal feasibility</td><td>$x^\star \succeq 0$, $\;\mathbf 1^T x^\star = 1$</td></tr>
+      <tr><td>dual feasibility</td><td>$\lambda^\star \succeq 0$ ($\nu^\star$'ın işaret şartı yok)</td></tr>
+      <tr><td>complementary slackness</td><td>$\lambda_i^\star x_i^\star = 0$, $\;i = 1, \dots, n$</td></tr>
+      <tr><td>stationarity</td><td>$-1/(\alpha_i + x_i^\star) - \lambda_i^\star + \nu^\star = 0$, $\;i = 1, \dots, n$</td></tr>
+    </table></div>
+    <p>Problem convex ve Slater sağlanıyor: $x^\star$'ın optimal olması için bu koşulları sağlayan bir $(\lambda^\star, \nu^\star)$ bulunması gerekli ve yeterli. Genel teori bir önceki derste: <a href="lagrange-kkt.html">Lagrange multipliers ve KKT</a>.</p>
+  </div>
+  <!-- Kaynak: Boyd Example 5.2, KKT sistemi (pdf s.259) · weeks/07 Goals ("Write the Lagrangian..."). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$x_i \ge 0$'ı $-x_i \le 0$ diye yazmadan Lagrangian'a $+\lambda_i x_i$ eklersen stationarity'de $+\lambda_i$ çıkar ve $\lambda_i \ge 0$ şartının anlamı ters döner. Boyd konvansiyonunda inequality her zaman "$\le 0$" formundadır.</li>
+      <li>Equality constraint'in multiplier'ı $\nu$ serbesttir. Çözümde $\nu^\star &gt; 0$ çıkacak, ama bu bir şart değil, sonuçtur.</li>
+      <li>Stationarity her $i$ için ayrı bir denklemdir: $n$ stationarity, $n$ complementary slackness ve bir bütçe denklemi.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-wf-kkt">
+    <p class="quiz__q">Water-filling'de channel $i$ için stationarity koşulu hangisi?</p>
+    <button class="quiz__opt" data-correct>$-\dfrac{1}{\alpha_i + x_i} - \lambda_i + \nu = 0$<span class="why">Doğru. $-\log(\alpha_i + x_i)$'nin türevi $-1/(\alpha_i + x_i)$, $-\lambda_i x_i$'nin türevi $-\lambda_i$, $\nu \sum x_i$'nin türevi $\nu$.</span></button>
+    <button class="quiz__opt">$\dfrac{1}{\alpha_i + x_i} - \lambda_i + \nu = 0$<span class="why">Objective $-\log$, türevi $-1/(\alpha_i + x_i)$. Bu işaret kaybı maximize ile minimize formunu karıştırmaktan gelir.</span></button>
+    <button class="quiz__opt">$-\dfrac{1}{x_i} - \lambda_i + \nu = 0$<span class="why">Log'un içi $\alpha_i + x_i$; chain rule ile türev $1/(\alpha_i + x_i)$ olur. $1/x_i$ ayrıca $x_i = 0$'da tanımsız.</span></button>
+    <button class="quiz__opt">$-\dfrac{1}{\alpha_i + x_i} + \lambda_i + \nu = 0$<span class="why">Constraint $-x_i \le 0$, Lagrangian'a $\lambda_i \cdot (-x_i)$ girer; türevi $-\lambda_i$. $+\lambda_i$ yazmak "$\le 0$" formunu atlamaktır.</span></button>
+  </div>
+  <div class="quiz" id="q-wf-nu">
+    <p class="quiz__q">$\nu$ için hangi işaret şartı KKT'nin bir parçasıdır?</p>
+    <button class="quiz__opt" data-correct>Hiçbiri; $\nu$ bir equality constraint'in multiplier'ı<span class="why">Doğru. Sign şartı yalnızca inequality multiplier'larında ($\lambda \succeq 0$) var. $\nu^\star &gt; 0$ olduğu sonradan stationarity'den çıkar.</span></button>
+    <button class="quiz__opt">$\nu \ge 0$<span class="why">Bu şart inequality'ler içindir. Bütçe bir equality ve $\nu$'nün işareti için bir şart yok.</span></button>
+    <button class="quiz__opt">$\nu \le 0$<span class="why">Hiçbir multiplier'a "$\le 0$" şartı konmaz (Boyd konvansiyonunda). Üstelik burada $\nu^\star = 1/(\alpha_i + x_i^\star) &gt; 0$ çıkıyor.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="wf-derive" data-min="5">
+  <h2>λ'yı elemek: xᵢ* = max{0, 1/ν* − αᵢ}</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Stationarity denkleminde $\lambda_i$ bir slack variable gibi duruyor: $\lambda_i = \nu - 1/(\alpha_i + x_i)$. Onu çekip öbür koşullara koyunca elimizde yalnızca $x$ ve $\nu$ kalır. Sonra her channel için iki durumu ayırırız.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Türetme · Boyd'un üç adımı</span>
+    <p><strong>1. $\lambda$'yı ele.</strong> $\lambda_i^\star = \nu^\star - 1/(\alpha_i + x_i^\star)$. Bunu $\lambda^\star \succeq 0$ ve complementary slackness'a koy:</p>
+    $$x^\star \succeq 0, \quad \mathbf 1^T x^\star = 1, \quad x_i^\star\Big(\nu^\star - \frac{1}{\alpha_i + x_i^\star}\Big) = 0, \quad \nu^\star \ge \frac{1}{\alpha_i + x_i^\star}$$
+    <p><strong>2. İki durum.</strong></p>
+    <ul>
+      <li>$\nu^\star &lt; 1/\alpha_i$: $x_i^\star = 0$ olsaydı son koşul $\nu^\star \ge 1/\alpha_i$ derdi, çelişki. Demek ki $x_i^\star &gt; 0$; complementary slackness parantezi sıfır yapar: $\nu^\star = 1/(\alpha_i + x_i^\star)$, yani $x_i^\star = 1/\nu^\star - \alpha_i$.</li>
+      <li>$\nu^\star \ge 1/\alpha_i$: $x_i^\star &gt; 0$ olsaydı $\nu^\star \ge 1/\alpha_i &gt; 1/(\alpha_i + x_i^\star)$ olurdu; parantez pozitif, çarpım pozitif, complementary slackness bozulur. Demek ki $x_i^\star = 0$.</li>
+    </ul>
+    <p><strong>3. Birleştir.</strong></p>
+    $$x_i^\star = \max\{0,\ 1/\nu^\star - \alpha_i\}, \qquad \sum_{i=1}^n \max\{0,\ 1/\nu^\star - \alpha_i\} = 1$$
+    <p>Soldaki toplam $1/\nu^\star$'ın piecewise-linear, artan bir fonksiyonu; breakpoint'leri $\alpha_i$'lerde. Bu yüzden denklemin tek bir çözümü var.</p>
+    <p><strong>Multiplier'lar:</strong> $\lambda_i^\star = \max\{0,\ \nu^\star - 1/\alpha_i\}$. Açık channel'da ($x_i^\star &gt; 0$) $\lambda_i^\star = 0$, kapalı channel'da $\lambda_i^\star = \nu^\star - 1/\alpha_i \ge 0$.</p>
+  </div>
+  <!-- Kaynak: Boyd Example 5.2 (pdf s.259–260), türetme kitaptaki sırayla. λ formülü: x_i = 0 iken stationarity'den λ_i = ν − 1/α_i. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Max'ı unutup her channel'a $1/\nu^\star - \alpha_i$ yazmak: $\alpha_i$'si büyük channel'a negatif power çıkar.</li>
+      <li>İkinci durumu "zaten belli" diye atlamak. Türetme sorusunda puanı bu çelişki argümanı getirir.</li>
+      <li>$\nu^\star$ ile $1/\nu^\star$'ı karıştırma: su seviyesi $1/\nu^\star$, multiplier $\nu^\star$.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="boyd-ex5.2-derive">
+    <span class="box__label">Boyd Example 5.2 · ödev sorusu</span>
+    <p>"Example 5.2 Water-filling. We consider the convex optimization problem minimize $-\sum_{i=1}^n \log(\alpha_i + x_i)$ subject to $x \succeq 0$, $\mathbf 1^T x = 1$, where $\alpha_i &gt; 0$." (Kitaptaki örneğin yalnızca problem kısmı.)</p>
+    <p>Görev, kursun "Must be able to do by hand" listesinden: "Derive water-filling." KKT koşullarını yaz, $x^\star$'ı $\nu^\star$ cinsinden bul ve $\nu^\star$'ın tek olduğunu göster.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Stationarity'den $\lambda_i$'yi çek, $\lambda_i \ge 0$ ve complementary slackness'a yerleştir. Artık $\lambda$ yok.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>İki durum: $\nu^\star &lt; 1/\alpha_i$ ve $\nu^\star \ge 1/\alpha_i$. Her birinde $x_i^\star = 0$ ve $x_i^\star &gt; 0$ seçeneklerinden hangisi çelişki veriyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Lagrangian.</strong> $x \succeq 0$'ı $-x_i \le 0$ olarak yaz, multiplier $\lambda_i$; bütçeye $\nu$:</p>
+      $$L = -\sum_i \log(\alpha_i + x_i) - \sum_i \lambda_i x_i + \nu(\mathbf 1^T x - 1)$$
+      <p><strong>KKT.</strong> $x^\star \succeq 0$, $\mathbf 1^T x^\star = 1$, $\lambda^\star \succeq 0$, $\lambda_i^\star x_i^\star = 0$, $-1/(\alpha_i + x_i^\star) - \lambda_i^\star + \nu^\star = 0$. Problem convex, $x = \mathbf 1/n$ strictly feasible (Slater), bu yüzden KKT gerekli ve yeterli.</p>
+      <p><strong>Eleme.</strong> $\lambda_i^\star = \nu^\star - 1/(\alpha_i + x_i^\star)$. Kalan koşullar: $\nu^\star \ge 1/(\alpha_i + x_i^\star)$ ve $x_i^\star(\nu^\star - 1/(\alpha_i + x_i^\star)) = 0$.</p>
+      <p><strong>Durum 1</strong>, $\nu^\star &lt; 1/\alpha_i$: $x_i^\star = 0$ ise $\nu^\star \ge 1/\alpha_i$ gerekir, çelişki. O halde $x_i^\star &gt; 0$ ve complementary slackness'tan $\nu^\star = 1/(\alpha_i + x_i^\star)$, yani $x_i^\star = 1/\nu^\star - \alpha_i$.</p>
+      <p><strong>Durum 2</strong>, $\nu^\star \ge 1/\alpha_i$: $x_i^\star &gt; 0$ ise $\nu^\star \ge 1/\alpha_i &gt; 1/(\alpha_i + x_i^\star)$, parantez pozitif olur ve $x_i^\star \cdot (\text{pozitif}) = 0$ sağlanamaz. O halde $x_i^\star = 0$.</p>
+      <p><strong>Sonuç.</strong> $x_i^\star = \max\{0, 1/\nu^\star - \alpha_i\}$. $\nu^\star$, $\sum_i \max\{0, 1/\nu^\star - \alpha_i\} = 1$ denkleminden bulunur. Sol taraf $1/\nu^\star$'da sürekli, piecewise-linear ve (en az bir channel açıkken) kesin artan; $1/\nu^\star = \min_i \alpha_i$'de 0, sonsuza giderken sonsuz. Bu yüzden tam bir çözüm var.</p>
+      <p><strong>Yorum.</strong> $\alpha_i$ patch $i$'deki zemin yüksekliği, bölge $1/\nu^\star$ seviyesine kadar suyla dolduruluyor; toplam su 1. Patch $i$'nin üstündeki suyun derinliği $x_i^\star$.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/boyd-vandenberghe-convex-optimization.pdf">Orijinal kitap (Boyd–Vandenberghe, kitap s.245–246, pdf s.259–260)</a></p>
+    <!-- Kaynak: Boyd Example 5.2 · exams/README.md "Must be able to do by hand: Derive water-filling." · weeks/07 Checklist "Can derive water-filling on paper without notes". -->
+  </div>
+  <div class="quiz" id="q-wf-derive">
+    <p class="quiz__q">$\nu^\star = 2$ ve $\alpha_i = 0.7$ olan channel'a ne kadar power gider?</p>
+    <button class="quiz__opt" data-correct>$0$<span class="why">Doğru. Seviye $1/\nu^\star = 0.5 &lt; 0.7$: zemin suyun üstünde, channel kapalı. Kontrol: $\nu^\star = 2 \ge 1/0.7 \approx 1.43$, ikinci durum.</span></button>
+    <button class="quiz__opt">$-0.2$<span class="why">Bu $1/\nu^\star - \alpha_i$; max'ı unuttun. Power negatif olamaz, $x \succeq 0$.</span></button>
+    <button class="quiz__opt">$1.3$<span class="why">$\nu^\star - \alpha_i$ yazdın. Seviye $\nu^\star$ değil $1/\nu^\star$.</span></button>
+    <button class="quiz__opt">$0.5$<span class="why">Bu seviyenin kendisi. Su derinliği seviye eksi zemindir, burada negatif, yani sıfır.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="wf-level" data-min="5">
+  <h2>Su seviyesi resmi ve elle çözüm</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · Boyd Figure 5.7</span>
+    <p>$\alpha_i$'yi patch $i$'deki zeminin yüksekliği say. Bölgeye su dök; su her yerde aynı seviyeye, $1/\nu$'ya çıkar. Patch $i$'nin üstündeki suyun derinliği $\max\{0, 1/\nu - \alpha_i\}$, yani $x_i$. Toplam su 1 olana kadar seviyeyi yükselt. Zemini seviyenin üstünde kalan patch kuru kalır: o channel kapalı.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Elle çözüm tarifi (bütçe $P$)</span>
+    <ol>
+      <li>$\alpha$'ları küçükten büyüğe sırala: $\alpha_{(1)} \le \dots \le \alpha_{(n)}$.</li>
+      <li>$k = n$'den başla. İlk $k$ channel açık olsun: seviye $L_k = \dfrac{P + \alpha_{(1)} + \dots + \alpha_{(k)}}{k}$.</li>
+      <li>$L_k &gt; \alpha_{(k)}$ ise dur. Değilse en yüksek zeminli channel kurudur; onu at, $k$'yı bir azalt, seviyeyi yeniden hesapla.</li>
+      <li>$x_i^\star = \max\{0, L - \alpha_i\}$, $\;\nu^\star = 1/L$, $\;\lambda_i^\star = \max\{0, \nu^\star - 1/\alpha_i\}$. Kontrol: $\sum x_i^\star = P$.</li>
+    </ol>
+    <p>Neden bu formül: açık channel'larda $\alpha_i + x_i^\star = L$, toplarsan $\sum_{\text{açık}} \alpha_i + P = kL$.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · $\alpha = (0.2,\ 0.5,\ 1.0)$, $P = 1$</span>
+    <p><strong>$k = 3$:</strong> $L_3 = (1 + 0.2 + 0.5 + 1.0)/3 = 0.9$. Ama $0.9 &lt; \alpha_{(3)} = 1.0$: üçüncü patch suyun üstünde, channel 3 kapalı.</p>
+    <p><strong>$k = 2$:</strong> $L_2 = (1 + 0.2 + 0.5)/2 = 0.85 &gt; 0.5$. Dur.</p>
+    <p>$x^\star = (0.85 - 0.2,\ 0.85 - 0.5,\ 0) = (0.65,\ 0.35,\ 0)$, toplam 1. $\nu^\star = 1/0.85 = 20/17 \approx 1.176$. $\lambda^\star = (0,\ 0,\ 20/17 - 1) = (0,\ 0,\ 3/17)$.</p>
+    <p>KKT kontrolü, channel 3: $-1/(1 + 0) - 3/17 + 20/17 = -1 + 1 = 0$ ✓. Toplam rate $= 2\log 0.85 + \log 1 \approx -0.325$.</p>
+  </div>
+  <!-- Kaynak: Boyd Example 5.2 ve Figure 5.7 (pdf s.260). Tarif: "readily determined" cümlesinin elle uygulanışı. Sayılar python Fraction ile kontrol edildi (ayrıca projected gradient ile aynı sonuç). -->
+  <div class="w-water-filling-barrier-guess"><strong>Önce tahmin et:</strong> $\alpha = (0.2, 0.5, 1.0)$ iken bütçeyi $P = 1$'den $P = 2$'ye çıkarırsan channel 3 açılır mı? Açılırsa seviye kaç olur? Sonra kaydırıcıyla dene.</div>
+  <div class="w-water-filling-barrier-ctl">
+    <label for="wf-alpha">$\alpha$:</label>
+    <input type="text" id="wf-alpha" class="w-water-filling-barrier-wide" value="0.2, 0.5, 1.0" aria-label="alpha değerleri, virgülle ayrılmış" />
+    <button class="btn btn--sm btn--accent" id="wf-go">Uygula</button>
+    <button class="btn btn--sm" data-wf="0.2, 0.5, 1.0">Örnek</button>
+    <button class="btn btn--sm" data-wf="0.1, 0.4, 0.6, 1.5">Lab görevi</button>
+    <button class="btn btn--sm" data-wf="0.3, 1.2, 0.5, 2.0, 0.8">5 channel</button>
+  </div>
+  <div class="w-water-filling-barrier-row"><label for="wf-P">P</label><input type="range" id="wf-P" min="0.1" max="3" step="0.05" value="1" /><span id="wf-Pv">1</span></div>
+  <div class="w-water-filling-barrier-err" id="wf-err" aria-live="polite"></div>
+  <div class="w-water-filling-barrier-grid">
+    <div class="w-water-filling-barrier-plot"><h4>Zemin $\alpha_i$ ve su $x_i^\star$ (çubukları sürükleyebilirsin)</h4><div id="wf-plot" class="w-water-filling-barrier-drag"></div>
+      <div class="w-water-filling-barrier-legend"><span><i style="background:var(--stone-300)"></i>zemin $\alpha_i$</span><span><i style="background:var(--blue-300)"></i>su $x_i^\star$</span><span><i style="background:var(--blue-700);height:3px"></i>seviye $1/\nu^\star$</span></div>
+    </div>
+    <div class="w-water-filling-barrier-out" id="wf-out"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Açık channel'larda eşitlenen $x_i$ değil, $\alpha_i + x_i$'dir. Zemini alçak (iyi) channel daha çok power alır.</li>
+      <li>Kapalı bir channel'ı atınca seviye <em>düşer</em> (örnekte 0.9'dan 0.85'e). Yeni seviyenin kalan en büyük $\alpha$'dan hâlâ büyük olduğunu kontrol et.</li>
+      <li>Seviye $L$ ile bütçe $P$ ayrı şeyler. $L$, $P$'den büyük de küçük de olabilir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-wf-level-1">
+    <p class="quiz__q">$\alpha = (0.3,\ 0.3,\ 0.9)$, $P = 0.6$. $x^\star$ hangisi?</p>
+    <button class="quiz__opt" data-correct>$(0.3,\ 0.3,\ 0)$<span class="why">Doğru. $L_3 = (0.6 + 1.5)/3 = 0.7 &lt; 0.9$, channel 3 kapalı. $L_2 = (0.6 + 0.6)/2 = 0.6 &gt; 0.3$; $x = (0.3, 0.3, 0)$, $\nu^\star = 1/0.6$.</span></button>
+    <button class="quiz__opt">$(0.2,\ 0.2,\ 0.2)$<span class="why">Eşit bölmek optimal değil: eşitlenen $x_i$ değil $\alpha_i + x_i$. Üstelik $\alpha_3 = 0.9$ seviyenin üstünde kalıyor.</span></button>
+    <button class="quiz__opt">$(0.4,\ 0.4,\ -0.2)$<span class="why">Bu $L_3 = 0.7$ ile her channel'a $0.7 - \alpha_i$ vermek. Üçüncüde negatif çıktı: max'ı unuttun. O channel'ı kapatıp seviyeyi yeniden hesaplamalısın.</span></button>
+    <button class="quiz__opt">$(0.6,\ 0,\ 0)$<span class="why">Bütün power'ı tek channel'a vermek. İlk iki channel aynı $\alpha$'ya sahip; log concave olduğu için bölmek daha çok rate getirir.</span></button>
+  </div>
+  <div class="quiz" id="q-wf-level-2">
+    <p class="quiz__q">Optimumda power alan iki channel $i$ ve $j$ için hangisi her zaman doğrudur?</p>
+    <button class="quiz__opt" data-correct>$\alpha_i + x_i^\star = \alpha_j + x_j^\star = 1/\nu^\star$<span class="why">Doğru. Açık channel'da $\lambda_i^\star = 0$, stationarity $\nu^\star = 1/(\alpha_i + x_i^\star)$ der. Su yüzeyi düzdür.</span></button>
+    <button class="quiz__opt">$x_i^\star = x_j^\star$<span class="why">Yalnızca $\alpha_i = \alpha_j$ ise. Genelde zemini alçak olan channel daha derin suya sahiptir.</span></button>
+    <button class="quiz__opt">$\lambda_i^\star = \lambda_j^\star = \nu^\star$<span class="why">Açık channel'da complementary slackness $\lambda_i^\star = 0$ verir, $\nu^\star$ değil.</span></button>
+    <button class="quiz__opt">$\alpha$'sı küçük olan daha az power alır<span class="why">Ters. $x_i^\star = 1/\nu^\star - \alpha_i$: $\alpha_i$ küçüldükçe $x_i^\star$ büyür.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="wf-bisect" data-min="5">
+  <h2>Bisection on ν ve KKT residual checker</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Sıralama tarifi elle çözmek için. Kodda ise genelde $\nu$ üzerinde bisection yapılır; ders planındaki görev de bu: "Water-filling: closed-form bisection on $\nu$ vs. CVXPY solution." $S(\nu) = \sum_i \max\{0, 1/\nu - \alpha_i\}$ fonksiyonu $\nu$ arttıkça azalır (seviye düşer, su azalır). $S(\nu) = P$ olan $\nu$'yü arıyoruz.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Bisection on $\nu$</span>
+    <ul>
+      <li><strong>Bracket:</strong> $\nu_{hi} = 1/\min_i \alpha_i$ iken seviye en alçak zeminde, $S = 0 &lt; P$. $\nu_{lo} = 1/(\min_i \alpha_i + P)$ iken yalnızca en iyi channel bile $P$ kadar su alır, $S \ge P$.</li>
+      <li><strong>Adım:</strong> $\nu = (\nu_{lo} + \nu_{hi})/2$. $S(\nu) &gt; P$ ise su fazla, seviye yüksek, $\nu$ büyümeli: $\nu_{lo} := \nu$. Değilse $\nu_{hi} := \nu$.</li>
+      <li>Her adım aralığı yarıya böler: $k$ adımdan sonra hata en çok $(\nu_{hi} - \nu_{lo})/2^k$.</li>
+    </ul>
+<pre><code>lo, hi = 1/(min(alpha) + P), 1/min(alpha)
+while hi - lo &gt; tol:
+    nu = (lo + hi) / 2
+    S = sum(max(0, 1/nu - a) for a in alpha)
+    if S &gt; P: lo = nu      # su fazla: seviyeyi düşür
+    else:     hi = nu
+x = [max(0, 1/nu - a) for a in alpha]</code></pre>
+  </div>
+  <div class="w-water-filling-barrier-guess"><strong>Önce tahmin et:</strong> Yukarıdaki widget'taki $\alpha$ ve $P$ ile ilk orta noktada $S(\nu)$, $P$'den büyük mü çıkar küçük mü? Sonra oynat.</div>
+  <div id="wf-bisect-stepper"></div>
+  <div class="box box--rule">
+    <span class="box__label">$\nu^\star$ bir shadow price</span>
+    <p>Bütçeyi $P$'den $P + \Delta P$'ye çıkarırsan optimal değer yaklaşık $-\nu^\star \Delta P$ kadar değişir: $\dfrac{d p^\star}{dP} = -\nu^\star$. Yani bir birim daha power toplam rate'i yaklaşık $\nu^\star$ kadar artırır. Week 4'teki shadow price fikrinin aynısı. Örnekte $\nu^\star = 20/17 \approx 1.176$; $P$'yi $10^{-6}$ artırıp yeniden çözünce sayısal türev $-1.17647$ çıkıyor.</p>
+    <p>Week 9'da aynı problemi CVXPY ile çözüp "dual variable"ı karşılaştıracaksın: bütçe constraint'inin dual değeri $\nu^\star$'dır (işareti solver'ın konvansiyonuna göre $\pm$ olabilir).</p>
+  </div>
+  <!-- Kaynak: weeks/07 Implement ("Water-filling: closed-form bisection on ν vs. CVXPY solution", "KKT residual checker") · weeks/09 Checklist ("Reproduce your Week 7 water-filling solution in CVXPY and match the dual variable") · Boyd §5.6 (sensitivity) ile aynı fikir. Sayısal türev python ile hesaplandı. -->
+  <h3>KKT residual checker</h3>
+  <p>Kendi çözümünü kontrol et. Yukarıdaki widget'taki $\alpha$ ve $P$ kullanılır. $\lambda$'yı boş bırakırsan stationarity'den hesaplanır: $\lambda_i = \nu - 1/(\alpha_i + x_i)$. O zaman asıl test dual feasibility ve complementary slackness olur.</p>
+  <div class="w-water-filling-barrier-ctl">
+    <label for="wf-cx">$x$:</label><input type="text" id="wf-cx" class="w-water-filling-barrier-wide" value="0.65, 0.35, 0" />
+    <label for="wf-clam">$\lambda$:</label><input type="text" id="wf-clam" class="w-water-filling-barrier-wide" value="" placeholder="boş: hesapla" />
+    <label for="wf-cnu">$\nu$:</label><input type="text" id="wf-cnu" value="1.1765" />
+    <button class="btn btn--sm btn--accent" id="wf-check-go">Kontrol et</button>
+  </div>
+  <div class="w-water-filling-barrier-err" id="wf-check-err" aria-live="polite"></div>
+  <div class="w-water-filling-barrier-out" id="wf-check-out"></div>
+  <div class="box box--exam" data-exam="w7-lab-waterfilling">
+    <span class="box__label">Week 7 lab · water-filling ve KKT checker · lab görevi</span>
+    <p>Syllabus, Week 7 lab: "A KKT checker; water-filling; barrier interior-point method". Ders planı (weeks/07, Implement): "Water-filling: closed-form bisection on $\nu$ vs. CVXPY solution." ve "KKT residual checker: given $(x,\lambda,\nu)$, report violation of each of the 4 conditions." (Görevin water-filling kısmı.)</p>
+    <p class="src">Not: Lab 7 notebook'u repoda yok. Aşağıdaki somut veri bu ders için seçildi.</p>
+    <p>$\alpha = (0.1,\ 0.4,\ 0.6,\ 1.5)$, $P = 1$. (a) $x^\star$, $\nu^\star$, $\lambda^\star$'ı kapalı formda bul. (b) $\nu$ üzerinde bisection'ın ilk dört adımını yaz. (c) Şu üç adayı KKT koşullarıyla kontrol et: $A$: $x = (0.25, 0.25, 0.25, 0.25)$, $\lambda = 0$, $\nu = 1$. $B$: $x = (0.8, 0.5, 0.3, -0.6)$, $\lambda = 0$, $\nu = 10/9$. $C$: (a)'daki cevabın.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(a) Önce dört channel'ı da açık say: seviye $(1 + 2.6)/4$. Bu $\alpha_4 = 1.5$'ten büyük mü?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(b) Bracket $[\nu_{lo}, \nu_{hi}] = [1/1.1,\ 1/0.1] = [0.9091,\ 10]$. (c) $B$'nin seviyesi $0.9$: stationarity tutar mı? Hangi koşul bozulur?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $k = 4$: $L = (1 + 0.1 + 0.4 + 0.6 + 1.5)/4 = 0.9 &lt; 1.5$, channel 4 kapalı. $k = 3$: $L = (1 + 1.1)/3 = 0.7 &gt; 0.6$, dur.</p>
+      <p>$x^\star = (0.6,\ 0.3,\ 0.1,\ 0)$, toplam 1. $\nu^\star = 1/0.7 = 10/7 \approx 1.4286$. $\lambda^\star = (0, 0, 0, \tfrac{10}{7} - \tfrac{1}{1.5}) = (0, 0, 0, \tfrac{16}{21})$.</p>
+      <p><strong>(b)</strong> Bracket $[0.9091, 10]$.</p>
+      <div class="table-wrap"><table>
+        <tr><th>Adım</th><th>$[\nu_{lo}, \nu_{hi}]$</th><th>orta $\nu$</th><th>seviye $1/\nu$</th><th>$S(\nu)$</th><th>karar</th></tr>
+        <tr><td>1</td><td>$[0.9091, 10]$</td><td>5.4545</td><td>0.1833</td><td>0.0833</td><td>$&lt; 1$: $\nu_{hi} := 5.4545$</td></tr>
+        <tr><td>2</td><td>$[0.9091, 5.4545]$</td><td>3.1818</td><td>0.3143</td><td>0.2143</td><td>$&lt; 1$: $\nu_{hi} := 3.1818$</td></tr>
+        <tr><td>3</td><td>$[0.9091, 3.1818]$</td><td>2.0455</td><td>0.4889</td><td>0.4778</td><td>$&lt; 1$: $\nu_{hi} := 2.0455$</td></tr>
+        <tr><td>4</td><td>$[0.9091, 2.0455]$</td><td>1.4773</td><td>0.6769</td><td>0.9308</td><td>$&lt; 1$: $\nu_{hi} := 1.4773$</td></tr>
+      </table></div>
+      <p>5. adımda orta nokta 1.1932, $S = 1.4143 &gt; 1$ ve $\nu_{lo}$ güncellenir. $10^{-10}$ toleransla 37 adımda $\nu = 1.428571\ldots = 10/7$'ye yakınsar; kapalı formla aynı.</p>
+      <p><strong>(c)</strong></p>
+      <div class="table-wrap"><table>
+        <tr><th>Aday</th><th>primal</th><th>dual</th><th>compl. slackness</th><th>stationarity $-\frac{1}{\alpha_i + x_i} - \lambda_i + \nu$</th></tr>
+        <tr><td>$A$</td><td>✓ ($x \succeq 0$, toplam 1)</td><td>✓</td><td>✓</td><td>✗ $(-1.857,\ -0.538,\ -0.176,\ 0.429)$</td></tr>
+        <tr><td>$B$</td><td>✗ $x_4 = -0.6 &lt; 0$</td><td>✓</td><td>✓</td><td>✓ (her $\alpha_i + x_i = 0.9$)</td></tr>
+        <tr><td>$C$</td><td>✓</td><td>✓ ($\lambda_4 = 16/21$)</td><td>✓ ($\lambda_4 x_4 = 0$)</td><td>✓</td></tr>
+      </table></div>
+      <p>$A$ eşit bölme: feasible ama optimal değil. $B$, $k = 4$ seviyesini channel atmadan kullanmanın sonucu: stationarity tutuyor ama power negatif. Yalnızca $C$ dört koşulu birden sağlıyor; problem convex olduğu için $C$ optimal.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/weeks/07-lagrange-and-kkt.md">Ders planı (weeks/07)</a> · <a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Syllabus.pdf">Syllabus</a></p>
+    <!-- Kaynak: Syllabus Week 7 lab satırı · weeks/07 Implement. Veri bu ders için seçildi; (a)–(c) python Fraction ve bisection ile doğrulandı. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Yönü karıştırma: $S(\nu) &gt; P$ ise $\nu$ <em>büyümeli</em> ($\nu_{lo} := \nu$), çünkü seviye $1/\nu$ düşmeli.</li>
+      <li>Bracket'in alt ucu $1/(\min\alpha + P)$: tek channel'ın alabileceği en derin su $P$. Rastgele bir aralık seçersen kök dışarıda kalabilir.</li>
+      <li>Checker'da $\lambda$'yı kendin verirsen stationarity de test edilir; boş bırakırsan stationarity otomatik sağlanır, o zaman $\lambda \succeq 0$'a bak.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-wf-bisect">
+    <p class="quiz__q">Bisection'da orta noktada $S(\nu) = 1.41$ çıktı, $P = 1$. Ne yaparsın?</p>
+    <button class="quiz__opt" data-correct>$\nu_{lo} := \nu$<span class="why">Doğru. Su fazla, seviye $1/\nu$ yüksek. Seviyeyi düşürmek için $\nu$'yü büyütmek gerekir; kök $[\nu, \nu_{hi}]$ aralığında.</span></button>
+    <button class="quiz__opt">$\nu_{hi} := \nu$<span class="why">Bu $\nu$'yü küçültür, seviye daha da yükselir ve su daha da fazlalaşır. $S$, $\nu$'nün azalan fonksiyonu.</span></button>
+    <button class="quiz__opt">Seviyeyi $1/\nu$'den büyük seç<span class="why">Seviyeyi yükseltmek suyu artırır; zaten fazla.</span></button>
+    <button class="quiz__opt">Dur, çünkü $S(\nu) \ge P$<span class="why">Durma ölçütü $S = P$ (ya da aralık genişliği tolerans altında). $S &gt; P$ henüz kök değil.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="ip-problem" data-min="4">
+  <h2>Inequality constraint'li problem ve indicator function</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · neden interior-point?</span>
+    <p>Week 1'deki slayt: "A common strategy: convert constrained → unconstrained via penalty or barrier terms." Week 3'teki karmaşıklık slaytı da şunu söylüyordu: simplex worst case'de exponential (Klee–Minty'de $2^n - 1$ vertex'i dolaşır), "Interior-point methods ARE polynomial — they cut through the middle". Simplex sınır üzerinde vertex'ten vertex'e yürür. Interior-point method feasible bölgenin <strong>içinden</strong> gider ve sınıra ancak limitte yaklaşır. Modern solver'lar presolve, dual simplex ve barrier'ı paralel yarıştırır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Problem (11.1) ve varsayımlar</span>
+    $$\begin{array}{ll}\text{minimize} & f_0(x)\\ \text{subject to} & f_i(x) \le 0, \quad i = 1, \dots, m\\ & Ax = b\end{array}$$
+    <ul>
+      <li>$f_0, \dots, f_m$ convex ve twice continuously differentiable; $A \in \mathbb{R}^{p \times n}$, $\operatorname{rank} A = p$.</li>
+      <li>$p^\star$ sonlu ve bir $x^\star$'da erişiliyor.</li>
+      <li><strong>Strictly feasible:</strong> $f_i(\tilde x) &lt; 0$ ve $A\tilde x = b$ olan bir $\tilde x$ var. Slater sağlanır, strong duality geçerli, dual optimum erişilir ve KKT koşulları (11.2) tutar.</li>
+    </ul>
+    <p><strong>Hiyerarşi:</strong> equality-constrained quadratic problem, KKT'si bir lineer denklem sistemi olduğu için tek adımda çözülür. Newton's method smooth bir problemi bir dizi böyle quadratic probleme indirger. Interior-point method ise inequality'li problemi bir dizi equality-constrained smooth probleme indirger ve her birini Newton ile çözer.</p>
+    <p><strong>Örnekler:</strong> LP, QP, QCQP, GP; linear inequality'li entropy maximization ($\sum x_i \log x_i$). Differentiable olmayan objective önce yeniden yazılır: $\max_i (a_i^T x + b_i)$ minimizasyonu, "$t$'yi minimize et, $a_i^T x + b_i \le t$" LP'sine dönüşür.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Indicator function ile yazmak</span>
+    $$\text{minimize } f_0(x) + \sum_{i=1}^m I_-(f_i(x)) \quad \text{s.t. } Ax = b, \qquad I_-(u) = \begin{cases} 0 & u \le 0 \\ \infty & u &gt; 0 \end{cases}$$
+    <p>Inequality'ler objective'e gömüldü ve problem (11.1) ile tamamen aynı. Ama objective differentiable değil (sıfırda bir sıçrama ve sonsuz değer), bu yüzden Newton's method uygulanamaz. Bir sonraki adım $I_-$'yi smooth bir fonksiyonla yaklaşık yazmak.</p>
+  </div>
+  <!-- Kaynak: Boyd §11.1 ve §11.2 başı (pdf s.575–576) · bv_cvxslides 11.2–11.5 · Week_01.pdf s.14 (penalty/barrier cümlesi) ve s.15 (LP: Simplex · interior-point; Convex: Interior-point · CVXPY) · Week_03.pdf s.22 (Klee–Minty, "Interior-point methods ARE polynomial", modern solvers). -->
+  <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Week_01.pdf">Orijinal slayt (Week 1, s.14–15)</a></p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Barrier method <strong>strictly</strong> feasible bir başlangıç ister: $f_i(x) = 0$ olan sınır noktaları barrier'ın domain'inde değildir.</li>
+      <li>"Polynomial" worst-case karmaşıklık hakkındadır. Simplex pratikte çoğu LP'de çok hızlıdır; Week 3 slaytındaki "exponential in theory, fast in practice" cümlesini hatırla.</li>
+      <li>$\operatorname{rank} A = p$ varsayımı gereksiz (tekrarlanan) equality satırlarını dışlar; Newton'un KKT sistemi aksi halde tekil olur.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ip-problem">
+    <p class="quiz__q">Indicator function'lı formülasyona neden doğrudan Newton's method uygulanamaz?</p>
+    <button class="quiz__opt" data-correct>Objective differentiable değil: $I_-$ sınırda sıçrıyor ve dışarıda sonsuz<span class="why">Doğru. Newton gradient ve Hessian ister. Barrier, $I_-$'nin yerine differentiable bir yaklaşım koyar.</span></button>
+    <button class="quiz__opt">Problem convex değil<span class="why">$I_-$ convex ve nondecreasing; $f_i$ convex olduğu için $I_-(f_i(x))$ convex. Sorun convexity değil, differentiability.</span></button>
+    <button class="quiz__opt">Equality constraint $Ax = b$ yüzünden<span class="why">Newton equality constraint'li problemlerde çalışır (Boyd Bölüm 10); barrier method'un centering adımı da tam olarak bunu yapar.</span></button>
+    <button class="quiz__opt">Optimal nokta tek olmayabilir<span class="why">Tek olmaması Newton'u engellemez. Engel türevin olmaması.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="ip-barrier" data-min="5">
+  <h2>Logarithmic barrier</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · Boyd Figure 11.1</span>
+    <p>$I_-$'nin yerine $\hat I_-(u) = -(1/t)\log(-u)$ koy. Bu fonksiyon $u \to 0^-$ iken sonsuza gider, yani sınırı "duvar" gibi korur, ama içeride smooth'tur. $t &gt; 0$ yaklaşımın kalitesini ayarlar: $t$ büyüdükçe eğri içeride sıfıra yapışır ve $I_-$'ye benzer. Kitaptaki şekil $t = 0.5, 1, 2$'yi çizer; en iyi yaklaşım $t = 2$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Log barrier</span>
+    $$\text{minimize } f_0(x) + \sum_{i=1}^m -\tfrac1t \log(-f_i(x)) \quad \text{s.t. } Ax = b \qquad (11.4)$$
+    $$\phi(x) = -\sum_{i=1}^m \log(-f_i(x)), \qquad \operatorname{dom}\phi = \{x \mid f_i(x) &lt; 0,\ i = 1, \dots, m\}$$
+    <ul>
+      <li>$\phi$ convex (composition rules) ve twice continuously differentiable. $f_i(x) \to 0$ olunca $\phi \to \infty$.</li>
+      <li>$\nabla\phi(x) = \displaystyle\sum_{i=1}^m \frac{1}{-f_i(x)} \nabla f_i(x)$, $\quad\nabla^2\phi(x) = \displaystyle\sum_{i=1}^m \frac{1}{f_i(x)^2}\nabla f_i(x)\nabla f_i(x)^T + \sum_{i=1}^m \frac{1}{-f_i(x)}\nabla^2 f_i(x)$</li>
+      <li><strong>LP</strong> ($a_i^T x \le b_i$): $\phi(x) = -\sum_i \log(b_i - a_i^T x)$, $\;\nabla\phi = A^T d$, $\;\nabla^2\phi = A^T \operatorname{diag}(d)^2 A$, $\;d_i = 1/(b_i - a_i^T x)$.</li>
+      <li><strong>Analytic center:</strong> $\phi$'yi tek başına minimize eden nokta ($t \to 0$ limiti). Aynı kümeyi tarif eden iki farklı inequality listesi farklı analytic center verebilir.</li>
+      <li><strong>Trade-off:</strong> büyük $t$ iyi yaklaşım demek, ama o zaman $f_0 + \phi/t$'nin Hessian'ı sınır yakınında çok hızlı değişir ve Newton zorlanır. Çare: bir dizi $t$ için çöz, her seferinde öncekinin sonucundan başla.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Boyd §11.2.1 (pdf s.577–578), Example 11.1 (LP gradient/Hessian) · bv_cvxslides 11.5–11.7, 8.7 (analytic center). -->
+  <div class="w-water-filling-barrier-guess"><strong>Önce tahmin et:</strong> Boyd Exercise 11.1: minimize $x^2 + 1$, $2 \le x \le 4$. Optimum $x^\star = 2$. $t = 1$ iken $f_0 + \phi/t$'nin minimizer'ı 2'ye mi, 3'e mi yakın? Sonra kaydırıcıyla bak.</div>
+  <div class="w-water-filling-barrier-row"><label for="b1-t">log t</label><input type="range" id="b1-t" min="-1" max="2" step="0.05" value="0" /><span id="b1-tv">t = 1</span></div>
+  <div class="w-water-filling-barrier-grid">
+    <div class="w-water-filling-barrier-plot"><h4>$f_0$ ve $f_0 + \tfrac1t\phi$ (Exercise 11.1)</h4><div id="b1-plot"></div>
+      <div class="w-water-filling-barrier-legend"><span><i style="background:var(--fg-muted);height:3px"></i>$f_0 = x^2 + 1$</span><span><i style="background:var(--accent);height:3px"></i>$f_0 + \tfrac1t\phi$</span><span><i style="background:var(--blue-100)"></i>feasible $[2, 4]$</span></div>
+    </div>
+    <div class="w-water-filling-barrier-plot"><h4>$I_-(u)$ ve $-\tfrac1t\log(-u)$ (Figure 11.1)</h4><div id="b1-ind"></div>
+      <div class="w-water-filling-barrier-legend"><span><i style="background:var(--fg-muted);height:3px"></i>$I_-$ (kesikli)</span><span><i style="background:var(--accent);height:3px"></i>seçili $t$</span><span><i style="background:var(--blue-300);height:3px"></i>$t = 0.5, 1, 2$</span></div>
+    </div>
+  </div>
+  <div class="w-water-filling-barrier-out" id="b1-out"></div>
+  <div class="box box--exam" data-exam="boyd-ex11.1">
+    <span class="box__label">Boyd Exercise 11.1 · ödev sorusu</span>
+    <p>"Barrier method example. Consider the simple problem minimize $x^2 + 1$ subject to $2 \le x \le 4$, which has feasible set $[2, 4]$, and optimal point $x^\star = 2$. Plot $f_0$, and $tf_0 + \phi$, for several values of $t &gt; 0$, versus $x$. Label $x^\star(t)$."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Constraint'leri "$\le 0$" formuna sok: $f_1 = 2 - x$, $f_2 = x - 4$. Barrier $-\log(-f_i)$ olur.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$tf_0 + \phi$'nin türevini sıfıra eşitle. Fonksiyon $(2, 4)$'te strictly convex, türev artan: kökü bisection ile bulabilirsin. $t \to 0$ ve $t \to \infty$ limitlerine bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Barrier.</strong> $\phi(x) = -\log(x - 2) - \log(4 - x)$, $\operatorname{dom}\phi = (2, 4)$.</p>
+      <p><strong>Centering problemi.</strong> minimize $t(x^2 + 1) - \log(x - 2) - \log(4 - x)$. Türev: $2tx - \dfrac{1}{x - 2} + \dfrac{1}{4 - x} = 0$. Sol taraf $(2, 4)$'te kesin artan, tek kök $x^\star(t)$.</p>
+      <div class="table-wrap"><table>
+        <tr><th>$t$</th><th>$\to 0$</th><th>0.1</th><th>0.5</th><th>1</th><th>2</th><th>10</th><th>100</th></tr>
+        <tr><td>$x^\star(t)$</td><td>3</td><td>2.7437</td><td>2.3399</td><td>2.2016</td><td>2.1114</td><td>2.0244</td><td>2.0025</td></tr>
+        <tr><td>$f_0(x^\star(t)) - 5$</td><td>5</td><td>3.528</td><td>1.475</td><td>0.847</td><td>0.458</td><td>0.098</td><td>0.010</td></tr>
+        <tr><td>$m/t = 2/t$</td><td>$\infty$</td><td>20</td><td>4</td><td>2</td><td>1</td><td>0.2</td><td>0.02</td></tr>
+      </table></div>
+      <p><strong>Grafik.</strong> $f_0 = x^2 + 1$ bütün eksende bir parabol. $tf_0 + \phi$ yalnızca $(2, 4)$'te tanımlı, iki uçta sonsuza gider, tek bir minimumu var. $t \to 0$'da minimum analytic center'da ($x = 3$, aralığın ortası). $t$ büyüdükçe $x^\star(t)$ sola, $x^\star = 2$'ye kayar ama hiçbir sonlu $t$'de 2'ye ulaşmaz. Tablonun son satırı bir sonraki bölümün sonucunu gösteriyor: $f_0(x^\star(t)) - p^\star \le m/t$.</p>
+      <p>Not: $tf_0 + \phi$ ile $f_0 + \phi/t$ aynı minimizer'a sahip (biri öbürünün $t$ katı); widget ikincisini çiziyor ki eğriler $f_0$ ile aynı ölçekte olsun.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/boyd-vandenberghe-convex-optimization.pdf">Orijinal kitap (Boyd–Vandenberghe, Exercise 11.1, pdf s.637)</a></p>
+    <!-- Kaynak: Boyd Exercises 11.1 (pdf s.637). x*(t) python'da türevin kökü bisection ile bulundu; dual değer kontrolü f0 − g = 2/t. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Log'un içi $-f_i(x)$, yani constraint'in slack'idir. $x \ge 2$ için $f = 2 - x$, log'un içi $x - 2$. $\log(f_i)$ yazmak negatif sayının log'unu almaktır.</li>
+      <li>$\phi$ yalnızca strictly feasible noktalarda tanımlı. Newton adımında backtracking, iterate'i domain'in içinde tutmalı.</li>
+      <li>$t$ küçükken barrier baskın ve çözüm analytic center'a yakındır, optimuma değil.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ip-barrier">
+    <p class="quiz__q">$x_1 + x_2 \le 4$, $x_1 \ge 0$, $x_2 \ge 0$ kısıtlarının log barrier'ı hangisi?</p>
+    <button class="quiz__opt" data-correct>$-\log(4 - x_1 - x_2) - \log x_1 - \log x_2$<span class="why">Doğru. $f_1 = x_1 + x_2 - 4$, $f_2 = -x_1$, $f_3 = -x_2$; her biri için $-\log(-f_i)$.</span></button>
+    <button class="quiz__opt">$-\log(x_1 + x_2 - 4) - \log x_1 - \log x_2$<span class="why">İlk terimde log'un içi feasible bölgede negatif. Log'un içine slack, yani $-f_i = 4 - x_1 - x_2$ girer.</span></button>
+    <button class="quiz__opt">$\log(4 - x_1 - x_2) + \log x_1 + \log x_2$<span class="why">İşaret ters: bu sınırda $-\infty$'a gider ve bir "duvar" değil bir "çukur" olur; ayrıca concave.</span></button>
+    <button class="quiz__opt">$(4 - x_1 - x_2)^2 + x_1^2 + x_2^2$<span class="why">Bu bir barrier değil: sınırda sonlu kalır ve iterate'leri içeride tutmaz.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="ip-central" data-min="5">
+  <h2>Central path</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Her $t$ için barrier'lı problemin bir çözümü var. $t$'yi 0'dan sonsuza kaydırınca bu çözümler feasible bölgenin içinden geçen bir eğri çizer: analytic center'dan başlar, optimal vertex'e doğru gider. Bu eğri <strong>central path</strong>.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanım ve centrality condition</span>
+    <p>Objective'i $t$ ile çarp (minimizer değişmez):</p>
+    $$\text{minimize } t f_0(x) + \phi(x) \quad \text{s.t. } Ax = b \qquad (11.6)$$
+    <ul>
+      <li>$x^\star(t)$ bu problemin (tek varsayılan) çözümü; central path $= \{x^\star(t) \mid t &gt; 0\}$, noktalarına central point denir.</li>
+      <li><strong>Karakterizasyon:</strong> $x^\star(t)$ strictly feasible ve bir $\hat\nu$ için $\;0 = t\nabla f_0(x^\star(t)) + \nabla\phi(x^\star(t)) + A^T\hat\nu$ (11.7).</li>
+      <li><strong>LP</strong> (minimize $c^Tx$, $Ax \preceq b$): centrality $\;tc + A^T d = 0$ (11.9). Geometrisi: $\nabla\phi(x^\star(t))$, $-c$'ye paraleldir; yani $c^Tx = c^Tx^\star(t)$ hyperplane'i, $\phi$'nin $x^\star(t)$'den geçen level curve'üne teğettir.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · job-mix LP (Week 3)</span>
+    <p>Week 3'teki model: max $z = 3x_1 + 5x_2$, $x_1 \le 4$, $2x_2 \le 12$, $3x_1 + 2x_2 \le 18$, $x \ge 0$; optimum $(2, 6)$, $z^\star = 36$. Boyd'un formuna sokmak için min $-3x_1 - 5x_2$ yaz, yani $c = (-3, -5)$. $x \ge 0$ da inequality olarak sayılır: $m = 5$.</p>
+    $$\phi(x) = -\log(4 - x_1) - \log(12 - 2x_2) - \log(18 - 3x_1 - 2x_2) - \log x_1 - \log x_2$$
+    <p>Analytic center $\approx (1.420,\ 2.130)$. $x^\star(1) \approx (1.885,\ 5.681)$, $x^\star(10) \approx (1.989,\ 5.967)$; $t \to \infty$ iken $(2, 6)$'ya gider.</p>
+  </div>
+  <!-- Kaynak: Boyd §11.2.2 (pdf s.578–579), Example 11.1, Figure 11.2 · bv_cvxslides 11.8 · Week_03.pdf s.4 (job-mix modeli). x*(t) python'da damped Newton ile hesaplandı. -->
+  <div class="w-water-filling-barrier-guess"><strong>Önce tahmin et:</strong> $t$ çok küçükken $x^\star(t)$ nerede olur: origin'de mi, bölgenin "ortasında" mı, $(2, 6)$'da mı? $t = 1$'de $z$, 36'ya ne kadar yakın?</div>
+  <div class="w-water-filling-barrier-row"><label for="cp-t">log t</label><input type="range" id="cp-t" min="-2" max="3" step="0.05" value="0" /><span id="cp-tv">t = 1</span></div>
+  <div class="w-water-filling-barrier-grid">
+    <div class="w-water-filling-barrier-plot"><h4>Job-mix: central path ve $x^\star(t)$</h4><div id="cp-plot"></div>
+      <div class="w-water-filling-barrier-legend"><span><i style="background:var(--accent);height:3px"></i>central path</span><span><i style="background:var(--blue-600);height:3px"></i>$\phi$ level curve</span><span><i style="background:var(--fg-muted);height:3px"></i>$z = $ sabit</span></div>
+    </div>
+    <div class="w-water-filling-barrier-out" id="cp-out"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$x^\star(t)$ hiçbir sonlu $t$'de vertex'e ulaşmaz; her zaman strictly feasible'dır. Central path simplex'in vertex'ten vertex'e yürüyüşü değildir.</li>
+      <li>Küçük $t$ origin'e değil analytic center'a götürür.</li>
+      <li>Max formundaki LP'yi min formuna çevirirken $c$'nin işaretini değiştirmeyi unutma: $c = (-3, -5)$.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ip-central">
+    <p class="quiz__q">Bir LP'de (minimize $c^Tx$, $Ax \preceq b$) central point $x^\star(t)$ için hangisi doğrudur?</p>
+    <button class="quiz__opt" data-correct>$tc + A^Td = 0$, $d_i = 1/(b_i - a_i^Tx)$<span class="why">Doğru. Bu (11.9): $t\nabla f_0 + \nabla\phi = 0$ ve LP'de $\nabla\phi = A^Td$.</span></button>
+    <button class="quiz__opt">$c = 0$<span class="why">$c$ veri, değişmez. Sıfır olan, $tf_0 + \phi$'nin gradient'i.</span></button>
+    <button class="quiz__opt">$Ax^\star(t) = b$<span class="why">Bu bütün kısıtların aktif olması demek; central point'te hiçbiri aktif değil, hepsi $b_i - a_i^Tx &gt; 0$.</span></button>
+    <button class="quiz__opt">$x^\star(t)$ bir vertex'tir<span class="why">Central point'ler strictly feasible, yani bölgenin içinde. Vertex'e yalnızca $t \to \infty$ limitinde yaklaşılır.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="ip-dual" data-min="5">
+  <h2>Central path'ten dual point: duality gap m/t</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Centrality denklemi (11.7), $t$'ye bölünce, bir Lagrangian'ın stationarity denklemine benzer. Oradaki katsayıları multiplier diye okursak her central point bize bedava bir dual feasible nokta, yani $p^\star$ için bir alt sınır verir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Dual point ve gap</span>
+    $$\lambda_i^\star(t) = -\frac{1}{t f_i(x^\star(t))}, \qquad \nu^\star(t) = \hat\nu / t \qquad (11.10)$$
+    <ul>
+      <li>$f_i(x^\star(t)) &lt; 0$ olduğu için $\lambda^\star(t) \succ 0$.</li>
+      <li>$x^\star(t)$, $L(x, \lambda^\star(t), \nu^\star(t))$'yi minimize eder; bu yüzden $(\lambda^\star(t), \nu^\star(t))$ dual feasible.</li>
+      <li>Her terimde $\lambda_i^\star(t) f_i(x^\star(t)) = -1/t$, toplam $-m/t$:</li>
+    </ul>
+    $$g(\lambda^\star(t), \nu^\star(t)) = f_0(x^\star(t)) - \frac{m}{t} \quad\Longrightarrow\quad f_0(x^\star(t)) - p^\star \le \frac{m}{t}$$
+    <p>$x^\star(t)$ en çok $m/t$-suboptimal. LP'de (Example 11.2): $\lambda_i^\star(t) = 1/(t(b_i - a_i^Tx^\star(t)))$ ve dual objective $-b^T\lambda^\star(t) = c^Tx^\star(t) - m/t$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">KKT yorumu · approximate complementary slackness</span>
+    <p>$x = x^\star(t)$, $\lambda = \lambda^\star(t)$, $\nu = \nu^\star(t)$ şunları sağlar:</p>
+    <ol>
+      <li>primal constraints: $f_i(x) \le 0$, $Ax = b$</li>
+      <li>dual constraints: $\lambda \succeq 0$</li>
+      <li><strong>approximate complementary slackness:</strong> $-\lambda_i f_i(x) = 1/t$</li>
+      <li>Lagrangian'ın gradient'i sıfır: $\nabla f_0(x) + \sum_i \lambda_i \nabla f_i(x) + A^T\nu = 0$</li>
+    </ol>
+    <p>KKT'den tek farkı 3. koşul: $\lambda_i f_i(x) = 0$ yerine $-\lambda_i f_i(x) = 1/t$. $t$ büyüdükçe central point "neredeyse" KKT noktasıdır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Force field yorumu</span>
+    <p>Equality constraint yokken: $tf_0$, $F_0(x) = -t\nabla f_0(x)$ kuvvetinin potansiyeli; $-\log(-f_i)$, $F_i(x) = (1/f_i(x))\nabla f_i(x)$ kuvvetinin potansiyeli. $x^\star(t)$'de kuvvetler dengede: $F_0 + \sum_i F_i = 0$. LP'de objective kuvveti sabit, $-tc$; constraint kuvveti $F_i = -a_i/(b_i - a_i^Tx)$, büyüklüğü $1/\operatorname{dist}(x, H_i)$, $H_i = \{x \mid a_i^Tx = b_i\}$. Her kısıt hyperplane'i parçacığı uzaklıkla ters orantılı bir kuvvetle iter; $t$ büyüdükçe objective kuvveti parçacığı optimuma daha çok yaklaştırır.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · job-mix, $t = 1$</span>
+    <p>$x^\star(1) \approx (1.8854,\ 5.6813)$. Slack'ler $b - Ax \approx (2.1146,\ 0.6374,\ 0.9812,\ 1.8854,\ 5.6813)$. $\lambda_i = 1/(t \cdot \text{slack}_i)$:</p>
+    $$\lambda^\star(1) \approx (0.4729,\ 1.5688,\ 1.0192,\ 0.5304,\ 0.1760)$$
+    <p>Max formunda: $z(x^\star(1)) \approx 34.063$ ve $b^T\lambda \approx 39.063 = 34.063 + 5$. Yani $34.063 \le z^\star \le 39.063$; gerçekten $z^\star = 36$. $t = 10$'da $\lambda^\star(10) \approx (0.050,\ 1.508,\ 1.000,\ 0.050,\ 0.017)$. $t \to \infty$'da $\lambda \to (0,\ 3/2,\ 1,\ 0,\ 0)$: ilk üç bileşen Week 4'teki shadow price'lar $y^\star = (0, 3/2, 1)$, son ikisi ($x \ge 0$ satırları) sıfıra gider çünkü $x_1, x_2$ basic.</p>
+  </div>
+  <!-- Kaynak: Boyd §11.2.2 "Dual points from central path", Example 11.2, "Interpretation via KKT conditions", "Force field interpretation", Example 11.3 (pdf s.579–582) · bv_cvxslides 11.9–11.12. Job-mix sayıları python'da damped Newton ile; A^T λ = (3, 5) kontrol edildi. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$m$ <strong>bütün</strong> inequality'lerin sayısı, $x \ge 0$ dahil. Job-mix'te $m = 5$, 3 değil.</li>
+      <li>$m/t$ bir üst sınır: gerçek fark daha küçük olabilir ($t = 1$'de $36 - 34.063 = 1.937 &lt; 5$). Tam olarak $m/t$ olan, primal ile dual değer arasındaki gap.</li>
+      <li>Formül $\lambda_i = -1/(tf_i)$; işaret $f_i &lt; 0$ olduğu için pozitifliği sağlar. $1/(tf_i)$ yazarsan $\lambda$ negatif çıkar.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ip-dual">
+    <p class="quiz__q">Job-mix LP'de $t = 20$ için central point'in suboptimality'si en çok kaç?</p>
+    <button class="quiz__opt" data-correct>$0.25$<span class="why">Doğru. $m/t = 5/20$; $m$, $x \ge 0$ dahil beş inequality.</span></button>
+    <button class="quiz__opt">$0.15$<span class="why">Bu $3/20$: yalnızca kaynak kısıtlarını saydın. $x_1 \ge 0$ ve $x_2 \ge 0$ da barrier'a giriyor.</span></button>
+    <button class="quiz__opt">$0.05$<span class="why">Bu $1/t$. Her kısıt $1/t$ katkı yapar, toplam $m/t$.</span></button>
+    <button class="quiz__opt">$100$<span class="why">Bu $m \cdot t$. $t$ büyüdükçe gap küçülür, büyümez.</span></button>
+  </div>
+  <div class="quiz" id="q-ip-kkt">
+    <p class="quiz__q">Centrality koşulları KKT koşullarından hangi noktada ayrılır?</p>
+    <button class="quiz__opt" data-correct>Complementary slackness: $-\lambda_i f_i(x) = 1/t$<span class="why">Doğru. Diğer üç koşul aynı; $t \to \infty$ iken $1/t \to 0$ ve KKT'ye dönülür.</span></button>
+    <button class="quiz__opt">Dual feasibility: $\lambda$ negatif olabilir<span class="why">Central path'te $\lambda^\star(t) \succ 0$, hatta kesin pozitif.</span></button>
+    <button class="quiz__opt">Primal feasibility: $f_i(x) \le 1/t$<span class="why">Central point strictly feasible: $f_i(x) &lt; 0$. Primal koşul gevşetilmiyor.</span></button>
+    <button class="quiz__opt">Stationarity tutmuyor<span class="why">Lagrangian'ın gradient'i central point'te tam sıfır; $x^\star(t)$'nin Lagrangian'ı minimize etmesi bundan gelir.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="ip-method" data-min="6">
+  <h2>Barrier method: t := μt</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>En basit fikir: istediğin doğruluk $\epsilon$ ise $t = m/\epsilon$ al ve tek seferde çöz. Boyd buna "unconstrained minimization method" diyor ve pratikte neredeyse hiç kullanılmadığını söylüyor: büyük $t$'de Newton zorlanır. Barrier method $t$'yi adım adım büyütür ve her centering'e bir öncekinin sonucundan başlar. Böylece Newton hep iyi bir başlangıç noktasından başlar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Algorithm 11.1 · Barrier method</span>
+<pre><code>given strictly feasible x, t := t(0) &gt; 0, mu &gt; 1, tolerance eps &gt; 0.
+repeat
+  1. Centering step. Compute x*(t) by minimizing t f0 + phi, subject to Ax = b, starting at x.
+  2. Update. x := x*(t).
+  3. Stopping criterion. quit if m/t &lt; eps.
+  4. Increase t. t := mu t.</code></pre>
+    <ul>
+      <li>Her centering step bir <strong>outer iteration</strong>; içindeki Newton adımları <strong>inner iteration</strong>. İlkine initial centering step denir. Fiacco ve McCormick 1960'larda SUMT (sequential unconstrained minimization technique) adını vermişti; bugün barrier method ya da path-following method denir.</li>
+      <li>Centering'ler tam çözülürse durduğunda $f_0(x) - p^\star \le \epsilon$ garanti, çünkü $f_0(x^\star(t)) - p^\star \le m/t$. Algoritma $\lambda^\star(t), \nu^\star(t)$'yi de bir sertifika olarak döndürebilir.</li>
+      <li>Her inner adımda primal feasible bir noktan var; dual feasible nokta ise yalnızca her centering'in sonunda.</li>
+      <li><strong>Centering doğruluğu:</strong> tam çözmek şart değil, ama kaba centering'de $\lambda^\star(t)$ tam dual feasible olmaz. Çok doğru çözmenin maliyeti de en fazla birkaç Newton adımı.</li>
+      <li><strong>$\mu$ seçimi:</strong> küçük $\mu$: centering başına az Newton adımı, ama çok outer iteration; iterate'ler central path'i yakından izler. Büyük $\mu$: az outer iteration, centering başına daha çok Newton adımı; inner iterate'ler path'ten uzaklaşır. Toplam Newton sayısı $\mu \approx 3$ ile 100 arasında aşağı yukarı sabit. Slayt: "typical values: $\mu$ = 10 or 20"; kitap: iyi bir aralık 10–100.</li>
+      <li><strong>$t^{(0)}$ seçimi:</strong> $m/t^{(0)}$, $f_0(x^{(0)}) - p^\star$ ile aynı mertebede olsun. Gap'i $\eta$ olan dual feasible bir nokta biliniyorsa $t^{(0)} = m/\eta$.</li>
+      <li><strong>Outer iteration sayısı</strong> (initial centering hariç), Boyd'un formülü:</li>
+    </ul>
+    $$\left\lceil \frac{\log\big(m/(\epsilon\, t^{(0)})\big)}{\log \mu} \right\rceil \qquad (11.13)$$
+    <p>Bu sayı, $\log(m/(\epsilon t^{(0)}))/\log\mu$ oranı tam sayı değilse kesin. Oran tam sayıysa son adımda $m/t = \epsilon$ çıkar; durma kuralı $m/t &lt; \epsilon$ olduğu için bir centering daha gerekir. Her iki durumda da doğru olan sayı $K = \max\big(0,\ \lfloor \log(m/(\epsilon t^{(0)}))/\log\mu \rfloor + 1\big)$, toplam centering $K + 1$.</p>
+    <p>Centering adımında Newton step, (11.14) sistemiyle hesaplanır; Boyd §11.3.4 bunun "modified KKT" denklemlerine ($-\lambda_i f_i = 1/t$ olan sisteme) Newton uygulamakla aynı olduğunu gösterir. Kitabın deneylerinde (100 kısıtlı, 50 değişkenli LP; GP; $m = 10$'dan 1000'e standard-form LP ailesi) toplam Newton sayısı birkaç on civarında kalıyor ve problem boyutuyla çok yavaş artıyor.</p>
+  </div>
+  <!-- Kaynak: Boyd §11.3.1–11.3.4 (pdf s.582–592), Algorithm 11.1, Figures 11.4–11.8, (11.13), (11.14) · bv_cvxslides 11.13–11.17, 11.25. -->
+  <div class="w-water-filling-barrier-guess"><strong>Önce tahmin et:</strong> Job-mix'te $t^{(0)} = 1$, $\epsilon = 10^{-6}$, $\mu = 10$: kaç centering step olur? $\mu = 50$'de outer iteration azalır; toplam Newton adımı da azalır mı?</div>
+  <div class="w-water-filling-barrier-ctl">
+    <label for="bm-t0">$t^{(0)}$:</label><input type="text" id="bm-t0" value="1" />
+    <label for="bm-mu">$\mu$:</label><input type="text" id="bm-mu" value="10" />
+    <button class="btn btn--sm btn--accent" id="bm-go">Çalıştır</button>
+    <button class="btn btn--sm" data-bm="2">$\mu = 2$</button>
+    <button class="btn btn--sm" data-bm="10">$\mu = 10$</button>
+    <button class="btn btn--sm" data-bm="50">$\mu = 50$</button>
+  </div>
+  <p class="w-water-filling-barrier-mono">Sabitler: $\epsilon = 10^{-6}$, başlangıç $x = (1, 1)$; centering'de Newton + backtracking ($\alpha = 0.01$, $\beta = 0.5$), dur: $\lambda(x)^2/2 \le 10^{-5}$ (Boyd'un deneylerindeki değerler).</p>
+  <div class="w-water-filling-barrier-err" id="bm-err" aria-live="polite"></div>
+  <div class="w-water-filling-barrier-sum" id="bm-sum"></div>
+  <div id="bm-stepper"></div>
+  <div class="box box--exam" data-exam="w7-lab-barrier">
+    <span class="box__label">Week 7 lab · barrier interior-point method · lab görevi</span>
+    <p>Syllabus, Week 7 lab: "A KKT checker; water-filling; barrier interior-point method". (Görevin barrier kısmı.)</p>
+    <p class="src">Not: Lab 7 notebook'u repoda yok. Görev, Week 3'teki job-mix LP üzerinde kuruldu.</p>
+    <p>Job-mix LP: max $3x_1 + 5x_2$, $x_1 \le 4$, $2x_2 \le 12$, $3x_1 + 2x_2 \le 18$, $x \ge 0$. Barrier method'u $t^{(0)} = 1$, $\mu = 10$, $\epsilon = 10^{-6}$ ile çalıştıracaksın. (a) Boyd formunda $c$, $m$, $\phi$ ve centering problemini yaz. (b) Kaç centering step yapılır, son $t$ ne olur? (c) İlk centering $x^\star(1) \approx (1.8854,\ 5.6813)$ verdi. Dual point $\lambda^\star(1)$'i hesapla, dual feasible olduğunu kontrol et ve $z^\star$ için bir aralık ver.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Max'ı min'e çevir; $x \ge 0$'ı $-x_j \le 0$ olarak yaz. (b) için (11.13)'e initial centering'i ekle.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c) $\lambda_i = 1/(t(b_i - a_i^Tx))$. Dual feasibility: $A^T\lambda + c = 0$. Alt sınır primal değerden, üst sınır $b^T\lambda$'dan.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> minimize $c^Tx$, $c = (-3, -5)$; satırlar $a_i^Tx \le b_i$: $(1,0) \le 4$, $(0,2) \le 12$, $(3,2) \le 18$, $(-1,0) \le 0$, $(0,-1) \le 0$. $m = 5$.</p>
+      $$\phi(x) = -\log(4 - x_1) - \log(12 - 2x_2) - \log(18 - 3x_1 - 2x_2) - \log x_1 - \log x_2$$
+      <p>Centering: minimize $t(-3x_1 - 5x_2) + \phi(x)$; optimality $tc + A^Td = 0$, $d_i = 1/(b_i - a_i^Tx)$.</p>
+      <p><strong>(b)</strong> $\lceil \log(5/(10^{-6}\cdot 1))/\log 10 \rceil = \lceil \log_{10}(5\cdot 10^6) \rceil = \lceil 6.70 \rceil = 7$ outer iteration, artı initial centering: toplam <strong>8 centering step</strong>. $t$ dizisi $1, 10, \dots, 10^7$; son gap $m/t = 5\cdot 10^{-7} &lt; 10^{-6}$. (Widget'ta $\mu = 10$ ile aynı sayıyı görüyorsun.)</p>
+      <p><strong>(c)</strong> Slack'ler $b - Ax^\star(1) = (2.1146,\ 0.6374,\ 0.9812,\ 1.8854,\ 5.6813)$, $\lambda_i = 1/\text{slack}_i$:</p>
+      $$\lambda^\star(1) \approx (0.4729,\ 1.5688,\ 1.0192,\ 0.5304,\ 0.1760) \succ 0$$
+      <p>Dual feasibility: $A^T\lambda = (0.4729 + 3\cdot 1.0192 - 0.5304,\ \ 2\cdot 1.5688 + 2\cdot 1.0192 - 0.1760) \approx (3.000,\ 5.000) = -c$ ✓.</p>
+      <p>Primal değer $z(x^\star(1)) = 3(1.8854) + 5(5.6813) \approx 34.063$. Dual değer $b^T\lambda = 4(0.4729) + 12(1.5688) + 18(1.0192) \approx 39.063$. Fark tam $m/t = 5$. Sonuç: $34.063 \le z^\star \le 39.063$ (gerçek değer 36).</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Syllabus.pdf">Syllabus</a></p>
+    <!-- Kaynak: Syllabus Week 7 lab satırı · job-mix: Week_03.pdf s.4 · Boyd Algorithm 11.1, (11.10), (11.13). Sayılar python ile (damped Newton, tol 1e-15) doğrulandı; 8 centering ve 41 Newton adımı JS widget'ıyla aynı. -->
+  </div>
+  <div class="box box--exam" data-exam="boyd-ex11.2">
+    <span class="box__label">Boyd Exercise 11.2 · ödev sorusu</span>
+    <p>"What happens if the barrier method is applied to the LP minimize $x_2$ subject to $x_1 \le x_2$, $0 \le x_2$, with variable $x \in \mathbb{R}^2$?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Barrier'ı yaz ve $x_2$'yi sabit tutup $x_1 \to -\infty$ götür.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Centering objective'inin $x_1$'e göre türevi hiç sıfır olabiliyor mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>LP'nin kendisi iyi tanımlı: $p^\star = 0$, optimal küme $\{x \mid x_2 = 0,\ x_1 \le 0\}$ (sınırsız bir küme).</p>
+      <p>Kısıtlar $f_1 = x_1 - x_2 \le 0$, $f_2 = -x_2 \le 0$; barrier $\phi(x) = -\log(x_2 - x_1) - \log x_2$. Centering: minimize $tx_2 - \log(x_2 - x_1) - \log x_2$.</p>
+      <p>$\partial/\partial x_1 = 1/(x_2 - x_1) &gt; 0$ her feasible noktada. Türev hiç sıfır olmuyor, yani centering probleminin minimizer'ı yok. Gerçekten de $x_2$ sabitken $x_1 \to -\infty$ giderken $-\log(x_2 - x_1) \to -\infty$: problem alttan sınırsız.</p>
+      <p>Sonuç: $x^\star(t)$ hiçbir $t$ için yok; centering'deki Newton iterate'leri $x_1 \to -\infty$ yönünde kaçar ve barrier method çalışmaz. Bölüm 11.2.2'deki "$x^\star(t)$ var ve tek" varsayımı bozuluyor (Exercise 11.3: sublevel set'ler sınırlıysa bu olmaz). Çare: kümeyi sınırlayan bir kısıt eklemek, örneğin $x_1 \ge -R$ ya da §11.3.3'teki gibi $\|x\|_2^2 \le R^2$.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/boyd-vandenberghe-convex-optimization.pdf">Orijinal kitap (Boyd–Vandenberghe, Exercise 11.2, pdf s.637)</a></p>
+    <!-- Kaynak: Boyd Exercises 11.2 ve 11.3 (pdf s.637), §11.3.3 norm bound. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$t$ büyür, küçülmez: $t := \mu t$, $\mu &gt; 1$.</li>
+      <li>Durma ölçütü gradient normu değil, $m/t &lt; \epsilon$. Newton'un kendi durma ölçütü (decrement) yalnızca centering'in içinde.</li>
+      <li>Outer iteration sayısını hesaplarken initial centering'i ekle: formül onu saymaz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ip-method">
+    <p class="quiz__q">$m = 5$, $t^{(0)} = 1$, $\mu = 10$, $\epsilon = 10^{-6}$. Toplam kaç centering step yapılır?</p>
+    <button class="quiz__opt" data-correct>8<span class="why">Doğru. $\lceil \log_{10}(5\cdot 10^6) \rceil = 7$ outer iteration, artı initial centering.</span></button>
+    <button class="quiz__opt">7<span class="why">Formül initial centering'i saymaz; onu eklemeyi unuttun.</span></button>
+    <button class="quiz__opt">6<span class="why">$m$'yi unutup $\log_{10}(10^6) = 6$ aldın ve initial centering'i de eklemedin. Gap $m/t$; $m = 5$ bir basamak daha ister.</span></button>
+    <button class="quiz__opt">70<span class="why">Bu Newton adımı sayısı gibi bir tahmin. Soru centering step (outer) sayısını soruyor; o $\mu$ ve $\epsilon$'dan tam olarak hesaplanır.</span></button>
+  </div>
+  <div class="quiz" id="q-ip-mu">
+    <p class="quiz__q">$\mu$'yü 10'dan 100'e çıkarırsan ne beklersin?</p>
+    <button class="quiz__opt" data-correct>Daha az outer iteration, centering başına daha çok Newton adımı<span class="why">Doğru. Gap her outer'da 100 kat düşer, ama bir sonraki $x^\star(t)$ uzakta olduğu için Newton daha çok adım atar. Toplam aşağı yukarı aynı kalır.</span></button>
+    <button class="quiz__opt">Hem outer hem inner iteration azalır<span class="why">Bedava değil: büyük sıçramada önceki nokta yeni centering için kötü bir başlangıç olur, inner adımlar artar.</span></button>
+    <button class="quiz__opt">Algoritma daha doğru bir sonuç verir<span class="why">Doğruluk $\epsilon$ ile belirlenir; $\mu$ sadece oraya hangi adımlarla gidildiğini değiştirir.</span></button>
+    <button class="quiz__opt">İterate'ler central path'i daha yakından izler<span class="why">Ters. Path'i yakından izleyen küçük $\mu$; büyük $\mu$'de inner iterate'ler path'ten uzaklaşır.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="ip-phase1" data-min="3">
+  <h2>Phase I: strictly feasible başlangıç noktası</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Barrier method strictly feasible bir $x$ ile başlamak zorunda. Elimizde böyle bir nokta yoksa önce onu bulan küçük bir optimizasyon problemi çözeriz (phase I), sonra barrier method'u o noktadan başlatırız (phase II).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Basic phase I method</span>
+    $$\begin{array}{ll}\text{minimize (over } x, s) & s\\ \text{subject to} & f_i(x) \le s, \quad i = 1, \dots, m\\ & Ax = b\end{array}$$
+    <ul>
+      <li>Optimal değer $\bar p^\star$: $\bar p^\star &lt; 0$ ise orijinal inequality'ler strictly feasible; $\bar p^\star &gt; 0$ ise infeasible; $\bar p^\star = 0$ belirsiz durum.</li>
+      <li>Phase I problemi kendisi strictly feasible: $A\tilde x = b$ olan (domain'de) herhangi bir $\tilde x$ al ve $s = 1 + \max_i f_i(\tilde x)$ seç.</li>
+      <li>Optimuma kadar gitmek gerekmez: $s &lt; 0$ olur olmaz elinde strictly feasible bir $x$ var.</li>
+      <li><strong>Sum of infeasibilities:</strong> minimize $\mathbf 1^Ts$, $s \succeq 0$, $f_i(x) \le s_i$, $Ax = b$. Infeasible problemde kısıtların çoğunu sağlayan bir nokta verir (slayttaki örnekte 100 kısıttan basic phase I 39'unu, sum of infeasibilities 79'unu sağlıyor). Slack'lere ağırlık verip öncelik koyabilirsin.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · job-mix, $\tilde x = (5, 7)$</span>
+    <p>$f_i(\tilde x) = a_i^T\tilde x - b_i = (1,\ 2,\ 11,\ -5,\ -7)$: ilk üç kısıt ihlal ediliyor. Başlangıç $s = 1 + 11 = 12$. Phase I'in optimal değeri $\bar p^\star = -2$ (örneğin $x = (2, 5)$'te bütün slack'ler en az 2). $\bar p^\star &lt; 0$: bölge strictly feasible, phase II başlayabilir.</p>
+  </div>
+  <!-- Kaynak: Boyd §11.4.1 (pdf s.593) · bv_cvxslides 11.19–11.22. Job-mix phase I değeri python'da vertex enumeration ile bulundu (optimal x tek değil: x1 = 2, x2 ∈ [2, 5]). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$s$'yi $\max_i f_i(\tilde x)$'e eşit seçme: o zaman en az bir phase I kısıtı aktif olur ve nokta strictly feasible olmaz. "+1" bunun için.</li>
+      <li>$\bar p^\star = 0$ hiçbir şey kanıtlamaz: bölge feasible olabilir ama strictly feasible olmayabilir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ip-phase1">
+    <p class="quiz__q">Basic phase I problemi $\bar p^\star = 0.3$ verdi. Sonuç?</p>
+    <button class="quiz__opt" data-correct>Orijinal inequality'ler infeasible<span class="why">Doğru. Her $x$ için en az bir $f_i(x) \ge 0.3 &gt; 0$; hiçbir nokta bütün kısıtları sağlamıyor.</span></button>
+    <button class="quiz__opt">Strictly feasible, phase II başlar<span class="why">Strictly feasible için $\bar p^\star &lt; 0$ gerekir.</span></button>
+    <button class="quiz__opt">Feasible ama strictly feasible değil<span class="why">Bu $\bar p^\star = 0$ durumu (ve o bile belirsiz). Pozitif değer infeasibility kanıtıdır.</span></button>
+    <button class="quiz__opt">$s$'yi 1 artırıp tekrar dene<span class="why">Başlangıç $s$'si sonucu değiştirmez; $\bar p^\star$ problemin optimal değeri.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="son-kontrol" data-min="4">
+  <h2>Son kontrol</h2>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">$\alpha = (0.5,\ 0.5,\ 2)$, $P = 2$. $\nu^\star$ kaç?</p>
+    <button class="quiz__opt" data-correct>$2/3$<span class="why">Doğru. $L_3 = (2 + 3)/3 \approx 1.667 &lt; 2$, channel 3 kapalı. $L_2 = (2 + 1)/2 = 1.5$; $x = (1, 1, 0)$, $\nu^\star = 1/1.5$.</span></button>
+    <button class="quiz__opt">$3/5$<span class="why">Bu $1/L_3$: üçüncü channel'ın zemini (2) seviyenin üstünde kaldığı halde onu açık saydın.</span></button>
+    <button class="quiz__opt">$3/2$<span class="why">Bu seviyenin kendisi, $1/\nu^\star$. Multiplier onun tersi.</span></button>
+    <button class="quiz__opt">$1/6$<span class="why">Bu kapalı channel'ın $\lambda_3^\star = \nu^\star - 1/\alpha_3 = 2/3 - 1/2$ değeri.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Water-filling'de $\lambda_i^\star &gt; 0$ ne anlama gelir?</p>
+    <button class="quiz__opt" data-correct>Channel $i$ kapalı ve zemini seviyenin üstünde: $\alpha_i &gt; 1/\nu^\star$<span class="why">Doğru. $\lambda_i^\star = \nu^\star - 1/\alpha_i &gt; 0 \iff \alpha_i &gt; 1/\nu^\star$; complementary slackness $x_i^\star = 0$ der.</span></button>
+    <button class="quiz__opt">Channel $i$ en çok power alan channel<span class="why">Açık channel'larda complementary slackness $\lambda_i^\star = 0$ verir.</span></button>
+    <button class="quiz__opt">Bütçe constraint'i aktif değil<span class="why">Bütçe bir equality, her zaman aktif; onun multiplier'ı $\nu^\star$. $\lambda_i$ yalnızca $x_i \ge 0$ ile ilgili.</span></button>
+    <button class="quiz__opt">KKT bozuldu<span class="why">$\lambda \succeq 0$ dual feasibility'nin kendisi; pozitif $\lambda_i$ tamamen normal.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">8 inequality'li bir problemde $t = 4$'teki central point için $m/t$ bağıntısı $f_0(x^\star(4)) - p^\star$ için en küçük hangi üst sınırı verir?</p>
+    <button class="quiz__opt" data-correct>$f_0(x^\star(4)) - p^\star \le 2$<span class="why">Doğru. $m/t = 8/4 = 2$, dual point $\lambda_i = -1/(tf_i)$ bu sertifikayı verir.</span></button>
+    <button class="quiz__opt">$f_0(x^\star(4)) - p^\star = 2$<span class="why">Tam 2 olan primal ile dual değer arasındaki gap. $p^\star$'a uzaklık 2'den küçük olabilir.</span></button>
+    <button class="quiz__opt">$f_0(x^\star(4)) - p^\star \le 32$<span class="why">Geçerli fakat daha gevşek bir üst sınır: $\le 2$ zaten $\le 32$'yi verir. 32, $m \cdot t$; bağıntı $m/t = 2$ diyor, gap $t$ ile ters orantılı.</span></button>
+    <button class="quiz__opt">$x^\star(4)$ bir vertex<span class="why">Central point'ler strictly feasible; hiçbir kısıt aktif değil.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Barrier method'un ilk adımı için ne gerekir ve eldeki nokta sağlamıyorsa ne yaparsın?</p>
+    <button class="quiz__opt" data-correct>Strictly feasible bir $x$; yoksa phase I problemini çözerim<span class="why">Doğru. Phase I'de $s &lt; 0$ olan bir nokta bulununca phase II (barrier method) oradan başlar.</span></button>
+    <button class="quiz__opt">Herhangi bir $x$; barrier onu içeri iter<span class="why">$\phi$, feasible olmayan noktada tanımlı değil ($\log$ negatif sayı). Barrier ancak içeriden başlayan noktayı içeride tutar.</span></button>
+    <button class="quiz__opt">Bir vertex; simplex'ten alırım<span class="why">Vertex'te bazı $f_i = 0$, yani $\phi = \infty$. Başlangıç noktası sınırın üstünde olamaz.</span></button>
+    <button class="quiz__opt">Optimal dual point<span class="why">Dual point'e gerek yok; $t^{(0)}$ seçimine yardım edebilir ama başlangıç için primal strictly feasible nokta şart.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Water-filling ile barrier method'u bağlayan fikir hangisi?</p>
+    <button class="quiz__opt" data-correct>İkisi de KKT koşullarını çözüyor: water-filling tam olarak, barrier method $-\lambda_i f_i = 1/t$ ile gevşetilmiş haliyle<span class="why">Doğru. Water-filling'de KKT kapalı formda çözülüyor; barrier method'da her centering gevşetilmiş KKT'nin çözümü ve $t \to \infty$ iken gerçek KKT'ye yaklaşıyor.</span></button>
+    <button class="quiz__opt">İkisi de simplex'in özel halleri<span class="why">Simplex vertex'lerde yürür; water-filling'in çözümü genelde vertex değil, barrier ise içeriden gider.</span></button>
+    <button class="quiz__opt">İkisi de yalnızca LP'ler için geçerli<span class="why">Water-filling'in objective'i log içeriyor, LP değil. Barrier method da LP'ye bağlı değil: strict feasibility, differentiability ve centering problemlerinin çözülebilir olması varsayımları altında nonlinear convex problemlerde de kullanılır. (Exercise 11.2'de son varsayım bozuluyor.)</span></button>
+    <button class="quiz__opt">İkisi de gradient descent kullanır<span class="why">Water-filling kapalı formda (ya da bisection ile) çözülüyor; barrier'ın centering'i Newton ile yapılıyor.</span></button>
+  </div>
+  <!-- Sıradaki sayfa: formül kartı ve karışık tekrar. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* Shared helpers: number formatting and input checks */
+const WB = {
+  num(v, d) {
+    if (d === undefined) d = 3;
+    if (!Number.isFinite(v)) return String(v);
+    if (v !== 0 && (Math.abs(v) >= 1e6 || Math.abs(v) < 1e-4)) return v.toExponential(2);
+    const r = Math.round(v * 10 ** d) / 10 ** d;
+    return String(Object.is(r, -0) ? 0 : r);
+  },
+  tex(v, d) {
+    const s = WB.num(v, d);
+    const m = s.match(/^(-?[\d.]+)e([+-]\d+)$/);
+    return m ? `${m[1]} \\times 10^{${Number(m[2])}}` : s;
+  },
+  vec(a, d) { return "(" + a.map(v => WB.num(v, d)).join(", ") + ")"; },
+  readNum(raw, label, lo, hi) {
+    const s = String(raw).trim().replace(",", ".");
+    if (s === "") return { e: `${label} boş. Bir sayı yaz (ondalık için nokta: 0.5).` };
+    let v = Number(s);
+    if (/^-?\d+(\.\d+)?\/\d+(\.\d+)?$/.test(s)) { const p = s.split("/"); v = Number(p[0]) / Number(p[1]); }
+    if (!Number.isFinite(v)) return { e: `${label} bir sayı olmalı (örneğin 0.5 ya da 10/7).` };
+    if (v < lo || v > hi) return { e: `${label} ${lo} ile ${hi} arasında olmalı.` };
+    return { v };
+  },
+  readList(raw, label, lo, hi, nmin, nmax) {
+    const parts = String(raw).trim().split(/[\s,;]+/).filter(Boolean);
+    if (parts.length < nmin || parts.length > nmax) return { e: nmin === nmax ? `${label} tam ${nmin} sayı olmalı (virgülle ayır, ondalık için nokta).` : `${label} ${nmin} ile ${nmax} arasında sayı olmalı (virgülle ayır, ondalık için nokta).` };
+    const v = [];
+    for (const p of parts) {
+      const r = WB.readNum(p, `${label} içindeki "${p}"`, lo, hi);
+      if (r.e) return r;
+      v.push(r.v);
+    }
+    return { v };
+  }
+};
+
+/* Water-filling solver: exact (sorting) and bisection on nu */
+const WF = {
+  exact(alpha, P) {
+    const a = alpha.slice().sort((p, q) => p - q);
+    let L = 0, k;
+    for (k = a.length; k >= 1; k--) {
+      let s = 0;
+      for (let j = 0; j < k; j++) s += a[j];
+      L = (P + s) / k;
+      if (L > a[k - 1]) break;
+    }
+    const nu = 1 / L;
+    return { L, nu, k, x: alpha.map(ai => Math.max(0, L - ai)), lam: alpha.map(ai => Math.max(0, nu - 1 / ai)) };
+  },
+  S(alpha, nu) { return alpha.reduce((s, a) => s + Math.max(0, 1 / nu - a), 0); },
+  bisect(alpha, P, steps) {
+    const amin = Math.min(...alpha);
+    let lo = 1 / (amin + P), hi = 1 / amin;
+    const rows = [];
+    for (let k = 1; k <= steps; k++) {
+      const mid = (lo + hi) / 2, s = WF.S(alpha, mid), up = s > P;
+      rows.push({ k, lo, hi, mid, L: 1 / mid, s, up });
+      if (up) lo = mid; else hi = mid;
+    }
+    return { lo0: 1 / (amin + P), hi0: 1 / amin, rows };
+  },
+  W: 320, H: 200, top: 18, bot: 36, padX: 8,
+  svg(alpha, L, ymax) {
+    const W = WF.W, H = WF.H, ph = H - WF.top - WF.bot, n = alpha.length, bw = (W - 2 * WF.padX) / n;
+    const y = v => WF.top + ph - v / ymax * ph;
+    let out = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="water-filling resmi">`;
+    out += `<rect x="0" y="0" width="${W}" height="${H}" style="fill:var(--paper)" />`;
+    alpha.forEach((a, i) => {
+      const x0 = WF.padX + i * bw + bw * 0.08, w = bw * 0.84, xi = Math.max(0, L - a);
+      if (xi > 0) out += `<rect x="${x0.toFixed(1)}" y="${y(L).toFixed(1)}" width="${w.toFixed(1)}" height="${(y(a) - y(L)).toFixed(1)}" style="fill:var(--blue-300);opacity:.85" />`;
+      out += `<rect x="${x0.toFixed(1)}" y="${y(a).toFixed(1)}" width="${w.toFixed(1)}" height="${(y(0) - y(a)).toFixed(1)}" style="fill:var(--stone-300);stroke:var(--stone-500);stroke-width:1" />`;
+      const cx = (x0 + w / 2).toFixed(1);
+      out += `<text x="${cx}" y="${(y(0) + 14).toFixed(1)}" text-anchor="middle" style="fill:var(--fg-muted);font-size:11px">${WB.num(a, 2)}</text>`;
+      out += `<text x="${cx}" y="${(y(0) + 29).toFixed(1)}" text-anchor="middle" style="fill:${xi > 0 ? "var(--blue-700)" : "var(--fg-faint)"};font-size:11px;font-weight:700">${WB.num(xi, 3)}</text>`;
+    });
+    out += `<line x1="0" y1="${y(L).toFixed(1)}" x2="${W}" y2="${y(L).toFixed(1)}" style="stroke:var(--blue-700);stroke-width:2;stroke-dasharray:6 4" />`;
+    out += `<text x="${W - 4}" y="${(y(L) - 4).toFixed(1)}" text-anchor="end" style="fill:var(--blue-700);font-size:11px;font-weight:700">1/ν = ${WB.num(L, 4)}</text>`;
+    out += `<line x1="0" y1="${y(0).toFixed(1)}" x2="${W}" y2="${y(0).toFixed(1)}" style="stroke:var(--fg-muted);stroke-width:1" />`;
+    return out + `</svg>`;
+  }
+};
+
+/* 1. Water-filling widget: draggable patches, budget slider, exact solution, bisection stepper, KKT checker */
+(function () {
+  const $ = id => document.getElementById(id);
+  const inp = $("wf-alpha"), sl = $("wf-P"), pv = $("wf-Pv"), err = $("wf-err"), plot = $("wf-plot"), out = $("wf-out");
+  const st = { alpha: [0.2, 0.5, 1.0], P: 1, drag: null };
+  const ymaxOf = (alpha, L) => Math.max(...alpha, L) * 1.15 + 0.05;
+  function renderMain(ymax) {
+    const R = WF.exact(st.alpha, st.P);
+    plot.innerHTML = WF.svg(st.alpha, R.L, ymax || ymaxOf(st.alpha, R.L));
+    let tb = `<div class="table-wrap"><table><tr><th>$i$</th><th>$\\alpha_i$</th><th>$x_i^\\star$</th><th>$\\alpha_i + x_i^\\star$</th><th>$\\lambda_i^\\star$</th><th>durum</th></tr>`;
+    st.alpha.forEach((a, i) => {
+      const on = R.x[i] > 1e-12;
+      tb += `<tr><td>${i + 1}</td><td>${WB.num(a, 3)}</td><td><b>${WB.num(R.x[i], 4)}</b></td><td>${WB.num(a + R.x[i], 4)}</td><td>${WB.num(R.lam[i], 4)}</td><td>${on ? "açık" : "kapalı"}</td></tr>`;
+    });
+    tb += `</table></div>`;
+    const rate = st.alpha.reduce((s, a, i) => s + Math.log(a + R.x[i]), 0);
+    out.innerHTML = tb + `<p>Açık channel sayısı $k = ${R.k}$. Seviye $1/\\nu^\\star = ${WB.num(R.L, 4)}$, $\\nu^\\star = ${WB.num(R.nu, 4)}$. Toplam su $\\sum x_i^\\star = ${WB.num(R.x.reduce((s, v) => s + v, 0), 4)} = P$. Toplam rate $\\sum \\log(\\alpha_i + x_i^\\star) = ${WB.num(rate, 4)}$.</p>`;
+    Lab.renderMath(out);
+    return R;
+  }
+  function rebuildBisect() {
+    const B = WF.bisect(st.alpha, st.P, 12), R = WF.exact(st.alpha, st.P), P = st.P;
+    const frames = [{ row: null, caption: `Bracket: $\\nu_{lo} = 1/(\\min\\alpha + P) = ${WB.num(B.lo0, 4)}$ (su $\\ge P$), $\\nu_{hi} = 1/\\min\\alpha = ${WB.num(B.hi0, 4)}$ (su $= 0$).` }];
+    B.rows.forEach(r => frames.push({ row: r, caption: `Adım ${r.k}: $\\nu = (${WB.num(r.lo, 4)} + ${WB.num(r.hi, 4)})/2 = ${WB.num(r.mid, 4)}$, seviye $1/\\nu = ${WB.num(r.L, 4)}$, su $S(\\nu) = ${WB.num(r.s, 4)} ${r.up ? "&gt;" : "\\le"} P = ${WB.num(P, 3)}$. ` + (r.up ? "Su fazla: seviyeyi düşür, $\\nu_{lo} := \\nu$." : "Su az: seviyeyi yükselt, $\\nu_{hi} := \\nu$.") }));
+    const last = B.rows[B.rows.length - 1];
+    frames.push({ row: null, final: true, caption: `12 adım sonra aralık genişliği $${WB.tex((last.up ? last.hi - last.mid : last.mid - last.lo), 2)}$. Kapalı form: $\\nu^\\star = ${WB.num(R.nu, 6)}$, seviye $${WB.num(R.L, 6)}$, $x^\\star = ${WB.vec(R.x, 4)}$. Bisection'ı sürdürürsen aynı sayıya yakınsar.` });
+    const ymax = ymaxOf(st.alpha, Math.max(R.L, B.rows[0].L, 1 / B.lo0));
+    Lab.stepper($("wf-bisect-stepper"), {
+      title: "Bisection on ν",
+      interval: 1300,
+      frames,
+      render(f, idx, el) {
+        const L = f.final ? R.L : f.row ? f.row.L : null;
+        let svg = L === null ? WF.svg(st.alpha, 0, ymax).replace(/1\/ν = 0/, "") : WF.svg(st.alpha, L, ymax);
+        let tb = `<div class="table-wrap"><table><tr><th>adım</th><th>$\\nu_{lo}$</th><th>$\\nu_{hi}$</th><th>orta $\\nu$</th><th>$1/\\nu$</th><th>$S(\\nu)$</th></tr>`;
+        const upto = f.final ? B.rows.length : f.row ? f.row.k : 0;
+        B.rows.slice(0, upto).forEach(r => { tb += `<tr style="${f.row && r.k === f.row.k ? "background:var(--blue-050)" : ""}"><td>${r.k}</td><td>${WB.num(r.lo, 4)}</td><td>${WB.num(r.hi, 4)}</td><td>${WB.num(r.mid, 4)}</td><td>${WB.num(r.L, 4)}</td><td style="color:${r.up ? "var(--orange-700)" : "var(--blue-700)"}">${WB.num(r.s, 4)}</td></tr>`; });
+        el.innerHTML = `<div class="w-water-filling-barrier-grid"><div class="w-water-filling-barrier-plot">${svg}</div><div class="w-water-filling-barrier-out">${tb}</table></div></div></div>`;
+      }
+    });
+  }
+  function setLabels() { pv.textContent = WB.num(st.P, 2); const lbl = $("wf-check-ctx"); if (lbl) lbl.innerHTML = ""; }
+  function apply(raw) {
+    const r = WB.readList(raw, "$\\alpha$", 0.01, 5, 2, 8);
+    if (r.e) { err.innerHTML = r.e; Lab.renderMath(err); return; }
+    if (r.v.some(v => v <= 0)) { err.innerHTML = "Her $\\alpha_i &gt; 0$ olmalı."; Lab.renderMath(err); return; }
+    err.innerHTML = "";
+    st.alpha = r.v;
+    renderMain();
+    rebuildBisect();
+  }
+  $("wf-go").addEventListener("click", () => apply(inp.value));
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") apply(inp.value); });
+  document.querySelectorAll("[data-wf]").forEach(b => b.addEventListener("click", () => { inp.value = b.dataset.wf; apply(inp.value); }));
+  sl.addEventListener("input", () => { st.P = Number(sl.value); setLabels(); renderMain(); });
+  sl.addEventListener("change", () => rebuildBisect());
+  /* dragging a patch changes its alpha */
+  function pick(e) {
+    const svg = plot.querySelector("svg");
+    if (!svg) return null;
+    const r = svg.getBoundingClientRect();
+    const px = (e.clientX - r.left) * WF.W / r.width, py = (e.clientY - r.top) * WF.H / r.height;
+    const n = st.alpha.length, bw = (WF.W - 2 * WF.padX) / n;
+    const i = Math.min(n - 1, Math.max(0, Math.floor((px - WF.padX) / bw)));
+    return { i, py };
+  }
+  function dragTo(e) {
+    const p = pick(e);
+    if (!p) return;
+    const ph = WF.H - WF.top - WF.bot;
+    let v = (WF.top + ph - p.py) / ph * st.drag.ymax;
+    v = Math.min(5, Math.max(0.05, Math.round(v * 20) / 20));
+    st.alpha[st.drag.i] = v;
+    inp.value = st.alpha.map(a => WB.num(a, 2)).join(", ");
+    renderMain(st.drag.ymax);
+  }
+  plot.addEventListener("pointerdown", e => {
+    const p = pick(e);
+    if (!p) return;
+    const R = WF.exact(st.alpha, st.P);
+    st.drag = { i: p.i, ymax: ymaxOf(st.alpha, R.L) };
+    try { plot.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
+    dragTo(e);
+    e.preventDefault();
+  });
+  plot.addEventListener("pointermove", e => { if (st.drag) dragTo(e); });
+  const end = () => { if (st.drag) { st.drag = null; err.innerHTML = ""; renderMain(); rebuildBisect(); } };
+  plot.addEventListener("pointerup", end);
+  plot.addEventListener("pointercancel", end);
+
+  /* KKT residual checker for the current alpha and P */
+  const cerr = $("wf-check-err"), cout = $("wf-check-out");
+  function check() {
+    const n = st.alpha.length;
+    const rx = WB.readList($("wf-cx").value, "$x$", -10, 10, n, n);
+    if (rx.e) { cerr.innerHTML = rx.e + ` (Şu anki $\\alpha$'da ${n} channel var.)`; cout.innerHTML = ""; Lab.renderMath(cerr); return; }
+    const rnu = WB.readNum($("wf-cnu").value, "$\\nu$", -100, 100);
+    if (rnu.e) { cerr.innerHTML = rnu.e; cout.innerHTML = ""; Lab.renderMath(cerr); return; }
+    const x = rx.v, nu = rnu.v;
+    const bad = x.findIndex((xi, i) => st.alpha[i] + xi <= 0);
+    if (bad >= 0) { cerr.innerHTML = `$\\alpha_{${bad + 1}} + x_{${bad + 1}} \\le 0$: log tanımsız, bu nokta objective'in domain'inde değil.`; cout.innerHTML = ""; Lab.renderMath(cerr); return; }
+    let lam, given = $("wf-clam").value.trim() !== "";
+    if (given) {
+      const rl = WB.readList($("wf-clam").value, "$\\lambda$", -100, 100, n, n);
+      if (rl.e) { cerr.innerHTML = rl.e; cout.innerHTML = ""; Lab.renderMath(cerr); return; }
+      lam = rl.v;
+    } else lam = x.map((xi, i) => nu - 1 / (st.alpha[i] + xi));
+    cerr.innerHTML = "";
+    const tol = 1e-3;
+    const pr1 = Math.max(0, -Math.min(...x)), pr2 = Math.abs(x.reduce((s, v) => s + v, 0) - st.P);
+    const du = Math.max(0, -Math.min(...lam));
+    const cs = Math.max(...x.map((xi, i) => Math.abs(lam[i] * xi)));
+    const sr = x.map((xi, i) => -1 / (st.alpha[i] + xi) - lam[i] + nu), stn = Math.max(...sr.map(Math.abs));
+    const mark = v => v <= tol ? `<span class="w-water-filling-barrier-ok">✓</span>` : `<span class="w-water-filling-barrier-bad">✗</span>`;
+    const rows = [
+      ["primal: $x \\succeq 0$", pr1], ["primal: $\\mathbf 1^Tx = P$", pr2], ["dual: $\\lambda \\succeq 0$", du],
+      ["compl. slackness: $\\max|\\lambda_i x_i|$", cs], ["stationarity: $\\max_i|-\\frac{1}{\\alpha_i + x_i} - \\lambda_i + \\nu|$", stn]
+    ];
+    let h = `<p>$\\alpha = ${WB.vec(st.alpha, 3)}$, $P = ${WB.num(st.P, 3)}$, $\\lambda = ${WB.vec(lam, 4)}$${given ? "" : " (stationarity'den)"}.</p><div class="table-wrap"><table><tr><th>Koşul</th><th>ihlal</th><th></th></tr>`;
+    rows.forEach(r => { h += `<tr><td>${r[0]}</td><td>${WB.num(r[1], 4)}</td><td>${mark(r[1])}</td></tr>`; });
+    h += `</table></div>`;
+    const ok = rows.every(r => r[1] <= tol);
+    h += ok ? `<p class="w-water-filling-barrier-ok">Dört koşul da sağlanıyor (tolerans 0.001). Problem convex, bu yüzden bu $x$ optimal.</p>` : `<p class="w-water-filling-barrier-bad">En az bir koşul bozuk: bu $(x, \\lambda, \\nu)$ bir KKT noktası değil.</p>`;
+    cout.innerHTML = h;
+    Lab.renderMath(cout);
+  }
+  $("wf-check-go").addEventListener("click", check);
+  ["wf-cx", "wf-clam", "wf-cnu"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") check(); }));
+
+  setLabels();
+  renderMain();
+  rebuildBisect();
+  check();
+})();
+
+/* 2. Boyd Exercise 11.1: f0 + phi/t on (2, 4) and the indicator approximation of Figure 11.1 */
+(function () {
+  const $ = id => document.getElementById(id);
+  const sl = $("b1-t"), tv = $("b1-tv"), pl = $("b1-plot"), ind = $("b1-ind"), out = $("b1-out");
+  function xstar(t) {
+    let lo = 2 + 1e-12, hi = 4 - 1e-12;
+    for (let k = 0; k < 200; k++) {
+      const m = (lo + hi) / 2, d = 2 * t * m - 1 / (m - 2) + 1 / (4 - m);
+      if (d > 0) hi = m; else lo = m;
+    }
+    return (lo + hi) / 2;
+  }
+  const f0 = x => x * x + 1, phi = x => -Math.log(x - 2) - Math.log(4 - x);
+  function path(fn, a, b, X, Y, ylo, yhi, N) {
+    let d = "", pen = false;
+    for (let i = 0; i <= N; i++) {
+      const x = a + (b - a) * i / N, v = fn(x);
+      if (!Number.isFinite(v) || v > yhi || v < ylo) { pen = false; continue; }
+      d += (pen ? "L" : "M") + X(x).toFixed(1) + " " + Y(v).toFixed(1);
+      pen = true;
+    }
+    return d;
+  }
+  function draw() {
+    const t = 10 ** Number(sl.value);
+    tv.textContent = "t = " + WB.num(t, 3);
+    const xs = xstar(t), W = 300, H = 210;
+    const X = x => (x - 1.6) / 2.8 * W, Y = v => H - 8 - v / 30 * (H - 16);
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Exercise 11.1 grafiği"><rect x="0" y="0" width="${W}" height="${H}" style="fill:var(--paper)" />`;
+    s += `<rect x="${X(2)}" y="0" width="${X(4) - X(2)}" height="${H}" style="fill:var(--blue-100);opacity:.6" />`;
+    [0, 10, 20, 30].forEach(v => { s += `<line x1="0" y1="${Y(v)}" x2="${W}" y2="${Y(v)}" style="stroke:var(--border);stroke-width:1" /><text x="3" y="${Y(v) - 2}" style="fill:var(--fg-faint);font-size:10px">${v}</text>`; });
+    [2, 3, 4].forEach(v => { s += `<text x="${X(v)}" y="${H - 1}" text-anchor="middle" style="fill:var(--fg-faint);font-size:10px">${v}</text>`; });
+    s += `<path d="${path(f0, 1.6, 4.4, X, Y, -1, 31, 140)}" style="fill:none;stroke:var(--fg-muted);stroke-width:2" />`;
+    s += `<path d="${path(x => f0(x) + phi(x) / t, 2.0005, 3.9995, X, Y, -1, 31, 400)}" style="fill:none;stroke:var(--accent);stroke-width:2.5" />`;
+    const ys = f0(xs) + phi(xs) / t;
+    s += `<line x1="${X(xs)}" y1="${Y(Math.min(ys, 30))}" x2="${X(xs)}" y2="${H - 8}" style="stroke:var(--accent);stroke-dasharray:4 3" />`;
+    if (ys <= 30) s += `<circle cx="${X(xs)}" cy="${Y(ys)}" r="4.5" style="fill:var(--accent);stroke:#fff;stroke-width:1.5" />`;
+    s += `<text x="${Math.min(X(xs) + 5, W - 70)}" y="${Math.max(14, Y(Math.min(ys, 30)) - 8)}" style="fill:var(--orange-700);font-size:11px;font-weight:700">x*(t) = ${WB.num(xs, 4)}</text>`;
+    s += `<circle cx="${X(2)}" cy="${Y(5)}" r="4" style="fill:#2b8a3e" /><text x="${X(2) + 6}" y="${Y(5) + 14}" style="fill:#2b8a3e;font-size:11px;font-weight:700">x* = 2</text>`;
+    pl.innerHTML = s + `</svg>`;
+    /* indicator approximation */
+    const U = u => (u + 3) / 4 * W, V = v => H - 8 - (v + 5) / 15 * (H - 16);
+    let q = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="indicator yaklaşımı"><rect x="0" y="0" width="${W}" height="${H}" style="fill:var(--paper)" />`;
+    [-5, 0, 5, 10].forEach(v => { q += `<line x1="0" y1="${V(v)}" x2="${W}" y2="${V(v)}" style="stroke:var(--border);stroke-width:1" /><text x="3" y="${V(v) - 2}" style="fill:var(--fg-faint);font-size:10px">${v}</text>`; });
+    [-3, -2, -1, 0, 1].forEach(u => { q += `<text x="${U(u)}" y="${H - 1}" text-anchor="middle" style="fill:var(--fg-faint);font-size:10px">${u}</text>`; });
+    q += `<path d="M${U(-3)} ${V(0)}L${U(0)} ${V(0)}L${U(0)} ${V(10)}" style="fill:none;stroke:var(--fg-muted);stroke-width:2;stroke-dasharray:6 4" />`;
+    [0.5, 1, 2].forEach(tt => { q += `<path d="${path(u => -Math.log(-u) / tt, -3, -0.0005, U, V, -5.5, 10.5, 300)}" style="fill:none;stroke:var(--blue-300);stroke-width:1.5" />`; });
+    q += `<path d="${path(u => -Math.log(-u) / t, -3, -0.0005, U, V, -5.5, 10.5, 300)}" style="fill:none;stroke:var(--accent);stroke-width:2.5" />`;
+    ind.innerHTML = q + `</svg>`;
+    const gap = f0(xs) - 5, l1 = 1 / (t * (xs - 2)), l2 = 1 / (t * (4 - xs));
+    out.innerHTML = `<div class="table-wrap"><table><tr><th>$t$</th><th>$x^\\star(t)$</th><th>$f_0(x^\\star(t)) - p^\\star$</th><th>$m/t$</th><th>$\\lambda_1 = \\frac{1}{t(x - 2)}$</th><th>$\\lambda_2 = \\frac{1}{t(4 - x)}$</th></tr><tr><td>${WB.num(t, 3)}</td><td><b>${WB.num(xs, 4)}</b></td><td>${WB.num(gap, 4)}</td><td>${WB.num(2 / t, 4)}</td><td>${WB.num(l1, 4)}</td><td>${WB.num(l2, 4)}</td></tr></table></div><p>$x^\\star(t)$, $2tx - \\frac{1}{x-2} + \\frac{1}{4-x} = 0$ denkleminin kökü (bisection). $t \\to \\infty$'da $\\lambda_1 \\to 4$: KKT'deki multiplier $f_0'(2) = 4$; $\\lambda_2 \\to 0$ çünkü $x \\le 4$ aktif değil.</p>`;
+    Lab.renderMath(out);
+  }
+  sl.addEventListener("input", draw);
+  draw();
+})();
+
+/* 3. Job-mix LP: log barrier, damped Newton centering, central path tracer and barrier-method stepper */
+const JM = {
+  A: [[1, 0], [0, 2], [3, 2], [-1, 0], [0, -1]], b: [4, 12, 18, 0, 0], c: [-3, -5], m: 5,
+  slack(x) { return JM.A.map((a, i) => JM.b[i] - a[0] * x[0] - a[1] * x[1]); },
+  phi(x) { const s = JM.slack(x); return Math.min(...s) <= 0 ? Infinity : -s.reduce((acc, v) => acc + Math.log(v), 0); },
+  F(x, t) { return t * (JM.c[0] * x[0] + JM.c[1] * x[1]) + JM.phi(x); },
+  /* Newton with backtracking (alpha = 0.01, beta = 0.5), stop when lambda^2/2 <= tol */
+  center(x0, t, tol, keep) {
+    let x = x0.slice(), steps = 0;
+    const path = [x.slice()];
+    for (let it = 0; it < 200; it++) {
+      const s = JM.slack(x), d = s.map(v => 1 / v);
+      const g = [t * JM.c[0], t * JM.c[1]], H = [[0, 0], [0, 0]];
+      JM.A.forEach((a, i) => {
+        g[0] += d[i] * a[0]; g[1] += d[i] * a[1];
+        H[0][0] += d[i] * d[i] * a[0] * a[0]; H[0][1] += d[i] * d[i] * a[0] * a[1]; H[1][1] += d[i] * d[i] * a[1] * a[1];
+      });
+      H[1][0] = H[0][1];
+      const det = H[0][0] * H[1][1] - H[0][1] * H[1][0];
+      const dx = [-(H[1][1] * g[0] - H[0][1] * g[1]) / det, -(-H[1][0] * g[0] + H[0][0] * g[1]) / det];
+      const lam2 = -(g[0] * dx[0] + g[1] * dx[1]);
+      if (lam2 / 2 <= tol) break;
+      let st = 1;
+      const f = JM.F(x, t);
+      let xn;
+      for (let k = 0; k < 60; k++) {
+        xn = [x[0] + st * dx[0], x[1] + st * dx[1]];
+        if (JM.F(xn, t) <= f - 0.01 * st * lam2) break;
+        st *= 0.5;
+      }
+      x = xn; steps++;
+      if (keep) path.push(x.slice());
+    }
+    return { x, steps, path };
+  },
+  X0: -0.4, X1: 4.6, Y0: -0.4, Y1: 6.8, W: 320, H: 290,
+  px(p) { return [(p[0] - JM.X0) / (JM.X1 - JM.X0) * JM.W, JM.H - (p[1] - JM.Y0) / (JM.Y1 - JM.Y0) * JM.H]; },
+  /* level curve phi = level by marching squares on cells fully inside the domain */
+  contour(level) {
+    const N = 70, gx = i => 4 * i / N, gy = j => 6 * j / N, G = [];
+    for (let i = 0; i <= N; i++) { G.push([]); for (let j = 0; j <= N; j++) G[i].push(JM.phi([gx(i), gy(j)])); }
+    let d = "";
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+      const v = [G[i][j], G[i + 1][j], G[i + 1][j + 1], G[i][j + 1]];
+      if (v.some(z => !Number.isFinite(z))) continue;
+      const c4 = [[gx(i), gy(j)], [gx(i + 1), gy(j)], [gx(i + 1), gy(j + 1)], [gx(i), gy(j + 1)]], pts = [];
+      for (let e = 0; e < 4; e++) {
+        const a0 = v[e] - level, a1 = v[(e + 1) % 4] - level;
+        if ((a0 < 0) !== (a1 < 0)) { const r = a0 / (a0 - a1), p0 = c4[e], p1 = c4[(e + 1) % 4]; pts.push([p0[0] + r * (p1[0] - p0[0]), p0[1] + r * (p1[1] - p0[1])]); }
+      }
+      for (let k = 0; k + 1 < pts.length; k += 2) { const a = JM.px(pts[k]), b = JM.px(pts[k + 1]); d += `M${a[0].toFixed(1)} ${a[1].toFixed(1)}L${b[0].toFixed(1)} ${b[1].toFixed(1)}`; }
+    }
+    return d;
+  },
+  svg(o) {
+    const W = JM.W, H = JM.H, P = p => JM.px(p).map(v => v.toFixed(1)).join(" ");
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="job-mix feasible region ve central path"><rect x="0" y="0" width="${W}" height="${H}" style="fill:var(--paper)" />`;
+    s += `<line x1="${JM.px([0, 0])[0]}" y1="0" x2="${JM.px([0, 0])[0]}" y2="${H}" style="stroke:var(--border)" /><line x1="0" y1="${JM.px([0, 0])[1]}" x2="${W}" y2="${JM.px([0, 0])[1]}" style="stroke:var(--border)" />`;
+    s += `<path d="M${P([0, 0])}L${P([4, 0])}L${P([4, 3])}L${P([2, 6])}L${P([0, 6])}Z" style="fill:var(--blue-050);stroke:var(--blue-400);stroke-width:1.5" />`;
+    if (o.contour) s += `<path d="${o.contour}" style="fill:none;stroke:var(--blue-600);stroke-width:1.2;opacity:.8" />`;
+    if (o.level !== undefined) {
+      const z = o.level, a = [JM.X0, (z - 3 * JM.X0) / 5], b = [JM.X1, (z - 3 * JM.X1) / 5];
+      s += `<line x1="${JM.px(a)[0].toFixed(1)}" y1="${JM.px(a)[1].toFixed(1)}" x2="${JM.px(b)[0].toFixed(1)}" y2="${JM.px(b)[1].toFixed(1)}" style="stroke:var(--fg-muted);stroke-width:1.2;stroke-dasharray:5 4" />`;
+    }
+    if (o.path) s += `<polyline points="${o.path.map(P).join(" ")}" style="fill:none;stroke:var(--accent);stroke-width:${o.faint ? 1.5 : 2.5};opacity:${o.faint ? 0.45 : 1}" />`;
+    (o.centers || []).forEach(p => { s += `<circle cx="${JM.px(p)[0].toFixed(1)}" cy="${JM.px(p)[1].toFixed(1)}" r="3.2" style="fill:var(--blue-700)" />`; });
+    if (o.inner && o.inner.length > 1) {
+      s += `<polyline points="${o.inner.map(P).join(" ")}" style="fill:none;stroke:var(--orange-600);stroke-width:1.8" />`;
+      o.inner.forEach(p => { s += `<circle cx="${JM.px(p)[0].toFixed(1)}" cy="${JM.px(p)[1].toFixed(1)}" r="2.4" style="fill:var(--orange-600)" />`; });
+    }
+    if (o.ac) s += `<circle cx="${JM.px(o.ac)[0].toFixed(1)}" cy="${JM.px(o.ac)[1].toFixed(1)}" r="4" style="fill:var(--fg)" /><text x="${(JM.px(o.ac)[0] + 6).toFixed(1)}" y="${(JM.px(o.ac)[1] + 4).toFixed(1)}" style="fill:var(--fg);font-size:11px">analytic center</text>`;
+    s += `<circle cx="${JM.px([2, 6])[0]}" cy="${JM.px([2, 6])[1]}" r="4.5" style="fill:#2b8a3e" /><text x="${JM.px([2, 6])[0] + 7}" y="${JM.px([2, 6])[1] - 4}" style="fill:#2b8a3e;font-size:11px;font-weight:700">(2, 6), z* = 36</text>`;
+    if (o.cur) s += `<circle cx="${JM.px(o.cur)[0].toFixed(1)}" cy="${JM.px(o.cur)[1].toFixed(1)}" r="5.5" style="fill:var(--accent);stroke:#fff;stroke-width:1.5" />`;
+    const a0 = JM.px([3.3, 4.6]), a1 = JM.px([3.3 + 0.45, 4.6 + 0.75]);
+    s += `<line x1="${a0[0].toFixed(1)}" y1="${a0[1].toFixed(1)}" x2="${a1[0].toFixed(1)}" y2="${a1[1].toFixed(1)}" style="stroke:var(--fg);stroke-width:2" /><circle cx="${a1[0].toFixed(1)}" cy="${a1[1].toFixed(1)}" r="3" style="fill:var(--fg)" /><text x="${(a0[0] + 8).toFixed(1)}" y="${(a0[1] + 12).toFixed(1)}" style="fill:var(--fg);font-size:11px">−c: z artar</text>`;
+    return s + `</svg>`;
+  }
+};
+JM.AC = JM.center([1, 1], 0, 1e-14, false).x;
+JM.PATH = (function () {
+  const pts = [JM.AC.slice()];
+  let x = JM.AC.slice();
+  for (let lt = -2; lt <= 4.0001; lt += 0.05) { x = JM.center(x, 10 ** lt, 1e-12, false).x; pts.push(x.slice()); }
+  return pts;
+})();
+
+(function () {
+  const $ = id => document.getElementById(id);
+  const sl = $("cp-t"), tv = $("cp-tv"), pl = $("cp-plot"), out = $("cp-out");
+  function draw() {
+    const lt = Number(sl.value), t = 10 ** lt;
+    tv.textContent = "t = " + WB.num(t, 3);
+    const k = Math.max(0, Math.min(JM.PATH.length - 1, Math.round((lt + 2) / 0.05) + 1));
+    const x = JM.center(JM.PATH[k], t, 1e-13, false).x;
+    const z = 3 * x[0] + 5 * x[1], s = JM.slack(x), lam = s.map(v => 1 / (t * v));
+    const ub = JM.b.reduce((acc, bi, i) => acc + bi * lam[i], 0);
+    pl.innerHTML = JM.svg({ path: JM.PATH, cur: x, ac: JM.AC, level: z, contour: JM.contour(JM.phi(x)) });
+    out.innerHTML = `<div class="table-wrap"><table>
+      <tr><td>$t$</td><td>${WB.num(t, 4)}</td></tr>
+      <tr><td>$x^\\star(t)$</td><td><b>${WB.vec(x, 4)}</b></td></tr>
+      <tr><td>$z = 3x_1 + 5x_2$</td><td>${WB.num(z, 4)}</td></tr>
+      <tr><td>$36 - z$ (gerçek fark)</td><td>${WB.num(36 - z, 4)}</td></tr>
+      <tr><td>$m/t = 5/t$ (sınır)</td><td>${WB.num(5 / t, 4)}</td></tr>
+      <tr><td>$\\lambda^\\star(t)$</td><td>${WB.vec(lam, 4)}</td></tr>
+      <tr><td>$b^T\\lambda$ (üst sınır)</td><td>${WB.num(ub, 4)}</td></tr>
+    </table></div><p>Kesikli doğru $3x_1 + 5x_2 = z$, mavi eğri $\\phi$'nin $x^\\star(t)$'den geçen level curve'ü: ikisi teğet (centrality condition). $t$ büyüdükçe $\\lambda^\\star(t) \\to (0,\\ 1.5,\\ 1,\\ 0,\\ 0)$.</p>`;
+    Lab.renderMath(out);
+  }
+  sl.addEventListener("input", draw);
+  draw();
+})();
+
+(function () {
+  const $ = id => document.getElementById(id);
+  const it0 = $("bm-t0"), imu = $("bm-mu"), err = $("bm-err"), sum = $("bm-sum"), box = $("bm-stepper"), EPS = 1e-6;
+  function run(t0, mu) {
+    let x = [1, 1], t = t0, tot = 0;
+    const outs = [];
+    for (let k = 0; k < 200; k++) {
+      const r = JM.center(x, t, 1e-5, true);
+      tot += r.steps;
+      const s = JM.slack(r.x), lam = s.map(v => 1 / (t * v));
+      const res = [0, 1].map(j => JM.c[j] + JM.A.reduce((acc, a, i) => acc + a[j] * lam[i], 0));
+      /* resource duals y = (lam1, lam2, lam3) >= 0; scaled up if needed so that A_res^T y >= (3, 5) holds exactly (weak duality) */
+      const y = lam.slice(0, 3), Ay = [y[0] + 3 * y[2], 2 * y[1] + 2 * y[2]], sc = Math.max(1, 3 / Ay[0], 5 / Ay[1]);
+      const U = sc * (4 * y[0] + 12 * y[1] + 18 * y[2]), z = 3 * r.x[0] + 5 * r.x[1];
+      /* m/t within rounding of eps counts as equal, so the strict rule m/t < eps stops where the formula says */
+      const stop = JM.m / t < EPS * (1 - 1e-9);
+      outs.push({ t, steps: r.steps, x: r.x, inner: r.path, gap: JM.m / t, tot, res, sc, U, z, stop });
+      x = r.x;
+      if (stop) break;
+      t *= mu;
+    }
+    return outs;
+  }
+  function build() {
+    const r1 = WB.readNum(it0.value, "$t^{(0)}$", 0.01, 100), r2 = WB.readNum(imu.value, "$\\mu$", 1.5, 1000);
+    const e = [r1.e, r2.e].filter(Boolean);
+    if (e.length) { err.innerHTML = e.join("<br>"); sum.innerHTML = ""; box.innerHTML = ""; Lab.renderMath(err); return; }
+    err.innerHTML = "";
+    const t0 = r1.v, mu = r2.v, outs = run(t0, mu);
+    const L = Math.log(JM.m / (EPS * t0)) / Math.log(mu), Li = Math.round(L), onInt = Math.abs(L - Li) < 1e-9;
+    const Kb = Math.max(0, onInt ? Li : Math.ceil(L)), K = Math.max(0, (onInt ? Li : Math.floor(L)) + 1);
+    const total = outs[outs.length - 1].tot, last = outs[outs.length - 1];
+    let msg = `Bu ayarla <b>${outs.length} centering step</b> (initial dahil) ve toplam <b>${total} Newton step</b>. Formül (11.13): $\\lceil \\log(m/(\\epsilon t^{(0)}))/\\log\\mu \\rceil = ${Kb}$, artı initial centering $= ${Kb + 1}$.`;
+    if (K !== Kb) msg += ` Burada oran tam sayı (${Li}): son adımda $m/t = \\epsilon$ çıkıyor ve $m/t &lt; \\epsilon$ kuralı bir centering daha istiyor. Strict kurala göre $K = \\lfloor\\cdot\\rfloor + 1 = ${K}$, artı initial $= ${K + 1}$.`;
+    sum.innerHTML = msg;
+    Lab.renderMath(sum);
+    const rv = v => "(" + v.map(q => WB.tex(q, 6)).join(",\\ ") + ")";
+    const frames = outs.map((o, i) => ({ i, caption: `Outer iteration ${i + 1}: $t = ${WB.tex(o.t, 3)}$. Centering, ${i === 0 ? "başlangıç noktası $(1, 1)$'den" : "önceki centering sonucundan"} başlayarak ${o.steps} Newton step aldı (turuncu) ve $\\lambda(x)^2/2 \\le 10^{-5}$ ile durdu: yaklaşık central point $x \\approx ${WB.vec(o.x, 5)}$. $\\lambda_i = 1/(t s_i)$ için stationarity residual'ı $A^T\\lambda + c = ${rv(o.res)}$ (tam central point'te $0$). Kaynak kısıtlarının multiplier'ları $y = ${o.sc > 1 ? WB.num(o.sc, 6) + "\\cdot" : ""}(\\lambda_1, \\lambda_2, \\lambda_3) \\ge 0$, $A_{res}^Ty \\ge (3, 5)$ sağlıyor; bu yüzden $z^\\star \\le b_{res}^Ty = ${WB.num(o.U, 6)}$ ve sertifikalı gap $b_{res}^Ty - z(x) = ${WB.tex(o.U - o.z, 4)}$. $m/t = ${WB.tex(o.gap, 3)}$ ` + (o.stop ? "$&lt; \\epsilon$: dur." : "$\\ge \\epsilon$: $t := \\mu t$.") }));
+    frames.push({ i: outs.length - 1, final: true, caption: `Bitti: ${outs.length} centering, ${total} Newton step. Son nokta $${WB.vec(last.x, 6)}$. Centering tam çözülseydi garanti $m/t = ${WB.tex(last.gap, 3)}$ olurdu. Centering yaklaşık olduğu için kesin sertifika dual'dan: $z^\\star \\le ${WB.num(last.U, 6)}$, yani $f_0(x) - p^\\star \\le ${WB.tex(last.U - last.z, 4)}$. Gerçek fark $36 - z(x) = ${WB.tex(36 - last.z, 3)}$: primal nokta çok iyi, ama kaba centering'den kurulan dual sertifika gevşek kalıyor. Mavi noktalar centering sonuçları.` });
+    Lab.stepper(box, {
+      title: `Barrier method, t⁽⁰⁾ = ${WB.num(t0, 3)}, μ = ${WB.num(mu, 3)}`,
+      interval: 1200,
+      frames,
+      render(f, idx, el) {
+        const o = outs[f.i];
+        const svg = JM.svg({ path: JM.PATH, faint: true, centers: outs.slice(0, f.i + 1).map(q => q.x), inner: f.final ? null : o.inner, cur: o.x });
+        let tb = `<div class="table-wrap"><table><tr><th>outer</th><th>$t$</th><th>Newton</th><th>$x \\approx x^\\star(t)$</th><th>$m/t$</th><th>$b_{res}^Ty - z$</th></tr>`;
+        outs.slice(0, f.i + 1).forEach((q, k) => { tb += `<tr style="${k === f.i && !f.final ? "background:var(--blue-050)" : ""}"><td>${k + 1}</td><td>${WB.num(q.t, 3)}</td><td>${q.steps}</td><td>${WB.vec(q.x, 4)}</td><td>${WB.num(q.gap, 3)}</td><td>${WB.num(q.U - q.z, 4)}</td></tr>`; });
+        el.innerHTML = `<div class="w-water-filling-barrier-grid"><div class="w-water-filling-barrier-plot">${svg}</div><div class="w-water-filling-barrier-out">${tb}</table></div></div></div>`;
+      }
+    });
+  }
+  $("bm-go").addEventListener("click", build);
+  [it0, imu].forEach(el => el.addEventListener("keydown", e => { if (e.key === "Enter") build(); }));
+  document.querySelectorAll("[data-bm]").forEach(b => b.addEventListener("click", () => { imu.value = b.dataset.bm; build(); }));
+  build();
+})();
+</script>
+</body>
+</html>

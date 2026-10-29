@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 413: job-mix LP, inequality form ve standard form, slack, dönüşümler, halfspace ve polyhedron, grafik çözüm, basic solution ve BFS, Fundamental Theorem of LP, dört sonuç ve bandwidth allocation." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>LP geometrisi: polyhedron, vertex, BFS · CSE 413 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-lp-geometry-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-lp-geometry-box { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px; background: var(--paper); margin: 10px 0; min-width: 0; }
+    .w-lp-geometry-ctl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+    .w-lp-geometry-ctl input[type="text"] { width: 58px; }
+    .w-lp-geometry-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 4px 0; font-family: 'JetBrains Mono', monospace; font-size: .86rem; }
+    .w-lp-geometry-row input[type="text"] { width: 50px; text-align: right; }
+    .w-lp-geometry-row select { padding-left: 4px; padding-right: 4px; }
+    .w-lp-geometry-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-lp-geometry-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; align-items: start; }
+    .w-lp-geometry-cols > * { min-width: 0; }
+    .w-lp-geometry-plot svg { display: block; width: 100%; max-width: 420px; height: auto; }
+    .w-lp-geometry-status { padding: 8px 10px; border-radius: var(--radius-sm); background: var(--blue-050); margin: 6px 0; }
+    .w-lp-geometry-badge { font-size: .78rem; font-weight: 700; color: #fff; border-radius: var(--radius-full); padding: 1px 9px; display: inline-block; margin-right: 6px; }
+    .w-lp-geometry-math { overflow-x: auto; max-width: 100%; }
+    .w-lp-geometry-neg { color: var(--orange-700); font-weight: 700; }
+    .w-lp-geometry-z { margin: 6px 0; }
+    .w-lp-geometry-z input[type="range"] { width: 100%; accent-color: var(--blue-600); }
+    .w-lp-geometry-small { font-size: .88rem; }
+    .w-lp-geometry-net svg { display: block; width: 100%; max-width: 460px; height: auto; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 413</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 413</a> / LP geometrisi</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">Week 3 · Part I</span><span class="chip chip--exam">Vize kapsamında</span><span class="chip">Lab 3</span><span class="src">~55 dk · 12 bölüm</span></div>
+          <h1>Linear programming geometrisi: polyhedron, vertex, basic feasible solution</h1>
+          <p class="lead">Bir linear program'ın (LP) bütün feasible noktaları düz kenarlı, köşeli bir bölge oluşturur: bir <em>polyhedron</em>. Optimum bu bölgenin bir köşesinde, yani bir <em>vertex</em>'te durur. Bu derste hocanın job-mix örneği üzerinden bölgeyi çizmeyi, iso-profit doğrusunu kaydırmayı, basic solution'ları saymayı ve bir LP'nin bitebileceği dört yolu göreceksin. Simplex'in neden köşeden köşeye yürüdüğü buradan çıkıyor.</p>
+          <!-- Kaynak: resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Week_03.pdf s.2–10, 23–25 (görsel slaytlar pdftoppm ile okundu) · Week_01.pdf s.7–8 · Lab01.ipynb Section 5 ve Exercise 1 · Winston, Operations Research §3.1–3.3 (pdf s.65–84), §4.1–4.2 (pdf s.143–149) · Pınar, Doğrusal Optimizasyondan Çıkış §1.3, §3.5–3.6. Bütün sayılar python3 -I ile Fraction kullanılarak doğrulandı. -->
+        </header>
+
+        <article class="lesson" data-course="cse-413" data-lesson="lp-geometry">
+
+<!-- 1 -->
+<section class="lsec" id="jobmix" data-min="4">
+  <h2>Hikâyeden modele: job-mix LP</h2>
+  <div class="quiz" id="q-jobmix">
+    <p class="quiz__q">Job-mix LP'sinde (aşağıda) $(x_1, x_2) = (3, 5)$ planı feasible mı?</p>
+    <button class="quiz__opt">Evet, üç constraint de sağlanıyor<span class="why">CPU satırını hesapla: $3\cdot 3 + 2\cdot 5 = 19$, sınır 18. Bir planın feasible olması için bütün satırların aynı anda sağlanması gerekir.</span></button>
+    <button class="quiz__opt" data-correct>Hayır, CPU constraint'i bozuluyor<span class="why">Doğru: $3\cdot 3 + 2\cdot 5 = 19 &gt; 18$. Accelerator ($3 \le 4$) ve memory ($2\cdot 5 = 10 \le 12$) sağlanıyor, ama tek bir bozuk satır yeter.</span></button>
+    <button class="quiz__opt">Hayır, memory constraint'i bozuluyor<span class="why">Memory satırı $2x_2 \le 12$: $2\cdot 5 = 10 \le 12$, sağlanıyor. Burada 5'i 6 sınırıyla karşılaştırmak yeterli.</span></button>
+    <button class="quiz__opt">Hayır, accelerator constraint'i bozuluyor<span class="why">Accelerator sadece batch'i sınırlar: $x_1 = 3 \le 4$. Sağlanıyor.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · hocanın running example'ı</span>
+    <p>Kampüsteki bir cluster iki tür hizmet satıyor. Her birinden kaç birim satılacağına sen karar veriyorsun:</p>
+    <ul>
+      <li>$x_1$: batch compute birimi, birim başına 3 k₺ kâr.</li>
+      <li>$x_2$: interactive compute birimi, birim başına 5 k₺ kâr.</li>
+      <li><strong>Accelerator quota:</strong> sadece batch kullanır, en fazla 4 birim.</li>
+      <li><strong>Memory pool:</strong> her interactive birim 2 block kullanır, 12 block var.</li>
+      <li><strong>CPU pool:</strong> batch birimi 3 core, interactive birimi 2 core kullanır, 18 core var.</li>
+    </ul>
+    <div class="w-lp-geometry-math">
+    $$\begin{aligned} \max\ & z = 3x_1 + 5x_2 \\ \text{s.t.}\ & x_1 \le 4 && \text{(accelerator)} \\ & 2x_2 \le 12 && \text{(memory)} \\ & 3x_1 + 2x_2 \le 18 && \text{(CPU)} \\ & x_1, x_2 \ge 0 \end{aligned}$$
+    </div>
+    <p>Hoca bu tek LP'yi Week 3'ün bütün resimlerinde, tablolarında ve lab'inde kullanıyor. Bu derste de her şey onun üzerinden gidecek.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · bir problem ne zaman LP'dir?</span>
+    <ol>
+      <li><strong>Objective</strong>, decision variable'ların linear bir fonksiyonu: $c_1x_1 + c_2x_2 + \dots + c_nx_n$. Max ya da min olabilir.</li>
+      <li>Her <strong>constraint</strong> bir linear equation ya da linear inequality: $a^\top x \le b$, $a^\top x \ge b$ ya da $a^\top x = b$. Sağdaki sayıya <em>right-hand side</em> (rhs) denir; çoğu zaman eldeki kaynak miktarıdır.</li>
+      <li>Her değişkenin bir <strong>sign restriction</strong>'ı var: $x_j \ge 0$ ya da unrestricted in sign (urs, "free").</li>
+    </ol>
+    <p>$x_1x_2$, $x_1^2$, $\sqrt{x_1}$ gibi terimler bir LP'ye doğrudan yazılamaz.</p>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.4 (The Job-Mix LP) · Winston §3.1 LP tanımı ve sign restriction. -->
+  <div class="box box--example">
+    <span class="box__label">Örnek · bir planı kontrol etmek</span>
+    <p>$(x_1, x_2) = (2, 6)$ planı:</p>
+    <ul>
+      <li>accelerator: $2 \le 4$ ✓</li>
+      <li>memory: $2\cdot 6 = 12 \le 12$ ✓</li>
+      <li>CPU: $3\cdot 2 + 2\cdot 6 = 18 \le 18$ ✓</li>
+      <li>sign: $2 \ge 0$, $6 \ge 0$ ✓</li>
+    </ul>
+    <p>Hepsi sağlanıyor, yani plan feasible. Kârı $z = 3\cdot 2 + 5\cdot 6 = 36$ k₺. Bir nokta feasible olmak için bütün constraint'leri ve sign restriction'ları <strong>aynı anda</strong> sağlamalı. Tek bir satır bozulursa nokta infeasible olur.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Memory satırı $2x_2 \le 12$, yani $x_2 \le 6$. 12'yi doğrudan $x_2$'nin sınırı sanma.</li>
+      <li>Accelerator'ı sadece batch kullanıyor. Bu yüzden o satırda $x_2$ yok: katsayısı 0.</li>
+      <li>Birim: kâr k₺ cinsinden. $z = 36$, 36 bin ₺ demek.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="forms" data-min="4">
+  <h2>İki kostüm: inequality form ve standard form</h2>
+  <div class="quiz" id="q-forms">
+    <p class="quiz__q">Job-mix'in standard form'unda $(x_1, x_2) = (4, 3)$ noktasındaki slack değerleri $(s_1, s_2, s_3)$ nedir?</p>
+    <button class="quiz__opt" data-correct>$(0, 6, 0)$<span class="why">Doğru: $s_1 = 4 - 4 = 0$, $s_2 = 12 - 2\cdot 3 = 6$, $s_3 = 18 - 3\cdot 4 - 2\cdot 3 = 0$. Accelerator ve CPU tükenmiş, 6 memory block boşta.</span></button>
+    <button class="quiz__opt">$(4, 12, 18)$<span class="why">Bunlar rhs değerleri, yani $(0, 0)$'daki slack'ler. Slack, rhs'den kullanılan miktar çıkarılınca kalan kısımdır: $s_i = b_i - a_i^\top x$.</span></button>
+    <button class="quiz__opt">$(0, -6, 0)$<span class="why">İşaret ters: memory'den $2\cdot 3 = 6$ block kullanılıyor, 12'den $6$ kalıyor. Negatif slack constraint'in bozulduğu anlamına gelir; bu nokta feasible.</span></button>
+    <button class="quiz__opt">$(0, 6, 6)$<span class="why">CPU kullanımı $3\cdot 4 + 2\cdot 3 = 18$, yani CPU tamamen dolu: $s_3 = 0$. Batch'in de CPU kullandığını unutma.</span></button>
+  </div>
+  <p>Hoca her LP'nin iki "kostümü" olduğunu söylüyor. İkisi aynı problemi anlatır. Biri çizmek için, öteki hesaplamak için uygundur.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki form</span>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Inequality form (geometric)</th><th>Standard form (algebraic)</th></tr>
+      <tr><td>Yazılış</td><td>$\max\ c^\top x$ s.t. $Ax \le b,\ x \ge 0$</td><td>$\max\ c^\top x$ s.t. $Ax = b,\ x \ge 0$</td></tr>
+      <tr><td>Ne işe yarar</td><td>Modelleme ve resim. Feasible set doğrudan inequality'lerden çizilir.</td><td>Simplex tableau'nun istediği şekil: equality'ler.</td></tr>
+      <tr><td>Job-mix</td><td>Zaten bu formda.</td><td>Her satıra bir slack eklenir.</td></tr>
+    </table></div>
+    <p>Job-mix için: $c = (3, 5)$, $A = \begin{pmatrix} 1 & 0 \\ 0 & 2 \\ 3 & 2 \end{pmatrix}$, $b = (4, 12, 18)$. Standard form:</p>
+    <div class="w-lp-geometry-math">
+    $$\begin{aligned} \max\ & z = 3x_1 + 5x_2 + 0s_1 + 0s_2 + 0s_3 \\ \text{s.t.}\ & x_1 + s_1 = 4 \\ & 2x_2 + s_2 = 12 \\ & 3x_1 + 2x_2 + s_3 = 18 \\ & x_1, x_2, s_1, s_2, s_3 \ge 0 \end{aligned}$$
+    </div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · slack = leftover resource</span>
+    <p>$s_i = b_i - a_i^\top x$: $i$'nci kaynaktan ne kadarının boşta kaldığı. $s_i \ge 0$ ⇔ $i$'nci constraint sağlanıyor. $s_i = 0$ ⇔ constraint o noktada <strong>binding</strong> (active, tight).</p>
+    <div class="table-wrap"><table>
+      <tr><th>Plan</th><th>$s_1$ (boş accelerator)</th><th>$s_2$ (boş memory block)</th><th>$s_3$ (boş CPU core)</th><th>Yorum</th></tr>
+      <tr><td>$(0, 0)$</td><td>4</td><td>12</td><td>18</td><td>Hiçbir şey üretilmiyor, her şey boşta. Simplex buradan ücretsiz başlar: "all slack".</td></tr>
+      <tr><td>$(0, 6)$</td><td>4</td><td>0</td><td>6</td><td>Memory dolu, 6 CPU core boşta.</td></tr>
+      <tr><td>$(2, 6)$</td><td>2</td><td>0</td><td>0</td><td>Memory ve CPU tükendi, 2 accelerator birimi boşta.</td></tr>
+    </table></div>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.5 (Two Standard Costumes), s.14 (slack'lerle standard form) · Winston §4.1 (slack tanımı). -->
+  <p class="src">Not: Hocanın slaytında standard form <strong>max</strong> ile yazılı. Winston ve Nocedal–Wright'ta min ile de görürsün; fark sadece $c$'nin işareti (bir sonraki bölüm).</p>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Slack'in objective'deki katsayısı 0: boşta kalan kaynak kâr getirmez.</li>
+      <li>Slack negatif çıkıyorsa nokta o constraint'i bozuyor demektir. Standard form'daki $s_i \ge 0$ şartı bu yüzden var.</li>
+      <li>Standard form'da değişken sayısı artar: 2 decision variable + 3 slack = 5 değişken, 3 equation.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="convert" data-min="5">
+  <h2>Dönüşümler: her LP iki kostüme de girer</h2>
+  <div class="quiz" id="q-convert">
+    <p class="quiz__q">$x_1 - 2x_2 \ge -4$ constraint'ini inequality form için ($\le$ ile) nasıl yazarsın?</p>
+    <button class="quiz__opt" data-correct>$-x_1 + 2x_2 \le 4$<span class="why">Doğru: iki tarafı da $-1$ ile çarptın, eşitsizlik yön değiştirdi.</span></button>
+    <button class="quiz__opt">$x_1 - 2x_2 \le -4$<span class="why">Sadece işaret sembolünü çevirmek bambaşka bir constraint verir: $(0,0)$ ilkini sağlar, bunu sağlamaz.</span></button>
+    <button class="quiz__opt">$-x_1 + 2x_2 \le -4$<span class="why">Sol tarafı çarptın ama rhs'yi unuttun. $-1$ ile çarpmak iki tarafa birden uygulanır: $-(-4) = 4$.</span></button>
+    <button class="quiz__opt">$x_1 - 2x_2 + s = -4$<span class="why">$\ge$ satırına slack eklenmez, excess çıkarılır: $x_1 - 2x_2 - e = -4$. Üstelik soru inequality form istiyor.</span></button>
+  </div>
+  <p>Hocanın slaytındaki dört kural, her LP'yi her iki kostüme de sokmaya yeter.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · dönüşümler</span>
+    <div class="table-wrap"><table>
+      <tr><th>Elindeki</th><th>Yapılacak</th><th>Örnek</th></tr>
+      <tr><td>$\min\ c^\top x$</td><td>$\max\ (-c)^\top x$: $c$'yi negate et</td><td>$\min\ 50x_1 + 100x_2$ → $\max\ -50x_1 - 100x_2$</td></tr>
+      <tr><td>$a^\top x \ge b$</td><td>$-1$ ile çarp: $-a^\top x \le -b$</td><td>$7x_1 + 2x_2 \ge 28$ → $-7x_1 - 2x_2 \le -28$</td></tr>
+      <tr><td>$a^\top x = b$</td><td>iki $\le$: $a^\top x \le b$ ve $-a^\top x \le -b$</td><td>$2x_1 - x_2 = 3$ → $2x_1 - x_2 \le 3$, $-2x_1 + x_2 \le -3$</td></tr>
+      <tr><td>$x_j$ free (urs)</td><td>$x_j = x_j^+ - x_j^-$, $x_j^+, x_j^- \ge 0$</td><td>$x_2 = x_2^+ - x_2^-$</td></tr>
+    </table></div>
+    <p>Standard form'a geçerken (Winston §4.1): $\le$ satırına <strong>slack</strong> $s_i$ ekle, $\ge$ satırından <strong>excess</strong> (surplus) $e_i$ çıkar, $=$ satırı zaten bir equation.</p>
+    $$7x_1 + 2x_2 \ge 28 \;\Longrightarrow\; 7x_1 + 2x_2 - e_1 = 28,\quad e_1 \ge 0$$
+    <p>$e_1$, constraint'in ne kadar fazlasıyla sağlandığını gösterir. Hocanın yolu ($\ge$'yi çevir, sonra slack ekle) aynı satırı verir: $-7x_1 - 2x_2 + s_1 = -28$ satırını $-1$ ile çarparsan $7x_1 + 2x_2 - s_1 = 28$ olur.</p>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · bu dönüşümler neden doğru?</span>
+    <ul>
+      <li><strong>min ⇄ max:</strong> $f$'yi en küçük yapan $x$, $-f$'yi en büyük yapar. Optimal $x$ aynı kalır, değer işaret değiştirir: $\min f = -\max(-f)$.</li>
+      <li><strong>Free değişken:</strong> her reel sayı iki nonnegative sayının farkıdır: $-3 = 0 - 3$, $2 = 2 - 0$. Fark tek değil ($-3 = 1 - 4$ de olur), ama objective ve constraint'ler sadece farkı görür.</li>
+      <li><strong>Equation:</strong> $a^\top x = b$ ⇔ hem $a^\top x \le b$ hem $a^\top x \ge b$.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.5 alt satır ("Conversions: min ⇄ max (negate c) · '≥' → flip sign · '=' → two '≤' · free x → x⁺ − x⁻") · Winston §4.1 (slack, excess). -->
+  <h3>Kendin dene: standard-form converter</h3>
+  <p>LP'yi yaz ya da hazır bir örnek seç. Adım adım ilerlet: önce objective, sonra free değişkenler, sonra inequality form, en son standard form. Her adım koddaki dönüşümün gerçek çıktısı.</p>
+  <p class="w-lp-geometry-guess"><b>Önce tahmin et:</b> Winston 4.1 Problem 3'te ($x_1 \ge 3$, $x_1 + x_2 \le 4$, $2x_1 - x_2 = 3$) hocanın yoluyla (önce inequality form, sonra her satıra bir slack) standard form'da kaç değişken olur?</p>
+  <div class="w-lp-geometry-box" id="gc">
+    <div class="w-lp-geometry-ctl">
+      <span class="src">hazır:</span>
+      <button class="btn btn--sm" data-gc="p3">Winston 4.1 P3</button>
+      <button class="btn btn--sm" data-gc="dorian">Dorian (min, ≥)</button>
+      <button class="btn btn--sm" data-gc="free">free değişkenli</button>
+      <button class="btn btn--sm" data-gc="jobmix">job-mix</button>
+    </div>
+    <div class="w-lp-geometry-row">
+      <label>değişken sayısı <select id="gc-n" class="btn btn--sm"><option value="2">2</option><option value="3">3</option></select></label>
+    </div>
+    <div class="w-lp-geometry-row" id="gc-obj"></div>
+    <div class="w-lp-geometry-row" id="gc-signs"></div>
+    <div id="gc-rows"></div>
+    <div class="w-lp-geometry-ctl"><button class="btn btn--sm btn--accent" id="gc-go">Dönüştür</button></div>
+    <div class="w-lp-geometry-err" id="gc-err" aria-live="polite"></div>
+    <div id="gc-stepper"></div>
+  </div>
+  <div class="box box--exam" data-exam="winston-4.1-P2"><span class="box__label">Winston §4.1 Problem 2 · ödev sorusu</span>
+    <p>"Convert the Dorian problem (Example 2 in Chapter 3) to standard form." Dorian problemi (Winston §3.2):</p>
+    $$\min\ z = 50x_1 + 100x_2 \quad \text{s.t.}\quad 7x_1 + 2x_2 \ge 28,\quad 2x_1 + 12x_2 \ge 24,\quad x_1, x_2 \ge 0$$
+    <details class="hint"><summary>İpucu 1</summary><div><p>İki satır da $\ge$. Her birine hangi tür ek değişken gelir, eklenir mi çıkarılır mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Hocanın standard form'u max ile yazılıyor. Objective'i de çevirmen gerekiyor mu?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Winston'un standard form'u</strong> (min kalabilir): her $\ge$ satırından bir excess çıkar.</p>
+      $$\begin{aligned} \min\ & z = 50x_1 + 100x_2 \\ \text{s.t.}\ & 7x_1 + 2x_2 - e_1 = 28 \\ & 2x_1 + 12x_2 - e_2 = 24 \\ & x_1, x_2, e_1, e_2 \ge 0 \end{aligned}$$
+      <p><strong>Slayttaki biçim</strong> ($\max$, $Ax = b$): objective'i negate et, $\max\ -z = -50x_1 - 100x_2$, constraint'ler aynı. Optimal değeri bulunca işaretini geri çevir.</p>
+      <p>Kontrol: Dorian'ın optimumu $(3.6,\ 1.4)$, $z^* = 320$. Orada $7(3.6) + 2(1.4) = 28$ ve $2(3.6) + 12(1.4) = 24$, yani $e_1 = e_2 = 0$: iki constraint de binding.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, Operations Research (pdf s.146)</a></p>
+    <!-- Kaynak: Winston §4.1 Problems Group A 2 (pdf s.146); Dorian modeli §3.2 (pdf s.74–75). Slayt s.26 "problems: Winston Ch. 3–4" diye ödev veriyor. Optimum (18/5, 7/5), z=320 Fraction ile doğrulandı. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-4.1-P3"><span class="box__label">Winston §4.1 Problem 3 · ödev sorusu</span>
+    <p>"Convert the following LP to standard form:"</p>
+    $$\min\ z = 3x_1 + x_2 \quad \text{s.t.}\quad x_1 \ge 3,\quad x_1 + x_2 \le 4,\quad 2x_1 - x_2 = 3,\quad x_1, x_2 \ge 0$$
+    <details class="hint"><summary>İpucu 1</summary><div><p>Üç satırın üçü de farklı türde. Her birine ne yapılacağını tablodan oku.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Equation satırına ek değişken gerekmez. $\ge$ satırına excess, $\le$ satırına slack.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Standard form (Winston):</strong></p>
+      $$\begin{aligned} \min\ & z = 3x_1 + x_2 \\ \text{s.t.}\ & x_1 - e_1 = 3 \\ & x_1 + x_2 + s_2 = 4 \\ & 2x_1 - x_2 = 3 \\ & x_1, x_2, e_1, s_2 \ge 0 \end{aligned}$$
+      <p><strong>Hocanın yolu:</strong> önce inequality form ($\max\ -3x_1 - x_2$; $-x_1 \le -3$; $x_1 + x_2 \le 4$; $2x_1 - x_2 \le 3$; $-2x_1 + x_2 \le -3$), sonra dört satırın her birine bir slack: 2 + 4 = 6 değişken, 4 equation. İki yol aynı LP'yi anlatır; ikincisi daha çok değişken kullanır.</p>
+      <p><strong>Ek gözlem:</strong> bu LP aslında infeasible. $2x_1 - x_2 = 3$ ⇒ $x_2 = 2x_1 - 3$; $x_1 \ge 3$ ⇒ $x_2 \ge 3$ ⇒ $x_1 + x_2 \ge 6 &gt; 4$. Soru sadece dönüşümü istiyor; dönüşüm feasibility'yi kontrol etmez.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, Operations Research (pdf s.146)</a></p>
+    <!-- Kaynak: Winston §4.1 Problems Group A 3 (pdf s.146, görüntüden okundu). Infeasibility python ile kontrol edildi. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$\ge$'yi $\le$'ye çevirirken sadece sembolü değil, iki tarafı da $-1$ ile çarp: $b$ de değişir.</li>
+      <li>Free değişkeni ikiye böldüğünde objective'de ve <strong>her</strong> satırda değiştir. Bir satırı unutursan başka bir LP çözersin.</li>
+      <li>min'i max'a çevirdiysen, cevabı yazarken optimal değerin işaretini geri çevir.</li>
+      <li>Dönüşüm feasibility'yi kontrol etmez: yukarıdaki P3 infeasible, ama standard form'u yine de yazılır.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="polyhedron" data-min="5">
+  <h2>Feasible region bir polyhedron'dur</h2>
+  <div class="quiz" id="q-poly">
+    <p class="quiz__q">Hangisi bir polyhedron <strong>değildir</strong>?</p>
+    <button class="quiz__opt">$\{x \in \mathbb{R}^2 : x_1 \ge 0,\ x_2 \ge 0\}$<span class="why">İki halfspace'in kesişimi: unbounded bir polyhedron. "Polyhedron" bounded olmak zorunda değil.</span></button>
+    <button class="quiz__opt">$\{x : x_1 + x_2 = 3,\ x \ge 0\}$<span class="why">Equation iki halfspace'tir ($\le$ ve $\ge$). Sonuç bir doğru parçası; o da bir polyhedron.</span></button>
+    <button class="quiz__opt" data-correct>$\{x : x_1^2 + x_2^2 \le 1\}$<span class="why">Doğru. Disk convex, ama onu halfspace'lerle yazmak için sonsuz sayıda inequality gerekir. Polyhedron tanımında sayı sonlu.</span></button>
+    <button class="quiz__opt">Job-mix'in feasible region'ı<span class="why">Beş halfspace'in kesişimi (3 constraint, 2 sign restriction): bounded bir polyhedron, yani polytope.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · her inequality düzlemi ikiye böler</span>
+    <p>Bir linear inequality, sınır doğrusunu ve doğrunun bir tarafını tutar. Hangi taraf? Doğrunun üstünde olmayan bir test noktası seç, çoğu zaman $(0,0)$, ve yerine koy (Winston §3.2). CPU için $3\cdot 0 + 2\cdot 0 = 0 \le 18$ sağlanıyor ⇒ CPU constraint'i origin'in bulunduğu tarafı tutar. Bütün tarafların ortak kısmı feasible region.</p>
+  </div>
+  <div class="w-lp-geometry-plot" data-lg-fig="jobmix"></div>
+  <p class="src">Şekil: job-mix'in feasible region'ı (mavi), üç constraint doğrusu ve beş vertex. Sayfadaki kodla hesaplanıp çiziliyor.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · halfspace, polyhedron, vertex</span>
+    <ul>
+      <li><strong>Halfspace:</strong> $\{x : a^\top x \le b\}$. Sınırı <em>hyperplane</em> $\{x : a^\top x = b\}$; iki boyutta bir doğru.</li>
+      <li><strong>Polyhedron:</strong> sonlu sayıda halfspace'in kesişimi, $\{x : Ax \le b\}$. Bir LP'nin feasible region'ı her zaman polyhedron'dur: $x \ge 0$ da $-x \le 0$ halfspace'leridir, bir $=$ iki halfspace'tir.</li>
+      <li><strong>Convex:</strong> her halfspace convex'tir ve kesişim convexity'yi korur (Week 2'nin kuralı). Kısa ispat: $a^\top x \le b$ ve $a^\top y \le b$ ise $\theta \in [0,1]$ için $a^\top(\theta x + (1-\theta) y) = \theta\, a^\top x + (1-\theta)\, a^\top y \le b$.</li>
+      <li><strong>Polytope:</strong> bounded polyhedron. Job-mix region'ı bir polytope. Polyhedron'lar unbounded da olabilir.</li>
+      <li><strong>Vertex:</strong> $\mathbb{R}^n$'de yeterince constraint boundary'nin, yani $n$ tanesinin buluştuğu feasible nokta. Kesin hâli: o noktada tight olan constraint'lerin arasında $n$ tane <em>linearly independent</em> olan var (Pınar'daki rank testi). Winston aynı noktaya <em>extreme point</em> der: region'ın içinde kalan hiçbir doğru parçasının ortasında değildir, ancak ucu olabilir. Düz kenarlar <em>edge</em>, köşeler vertex.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.6 (The Feasible Region Is a Polyhedron; görsel slayt render edildi) · Winston §3.2 (test noktası, convex set, extreme point) · Pınar §1.3 (yarımuzay, çokyüzlü, Örnek 1.3.4) ve §3.6 (uç nokta rank testi). -->
+  <div class="box box--example">
+    <span class="box__label">Örnek · job-mix'te kim vertex?</span>
+    <ul>
+      <li>$(2, 6)$: memory ($x_2 = 6$) ve CPU ($3x_1 + 2x_2 = 18$) tight. İki boundary, $n = 2$ ⇒ <strong>vertex</strong>.</li>
+      <li>$(3,\ 4.5)$: CPU üzerinde ($9 + 9 = 18$), ama tek bir boundary tight ⇒ bir edge'in ortası, vertex değil.</li>
+      <li>$(2, 3)$: hiçbir constraint tight değil ⇒ iç nokta.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İki boundary'nin kesiştiği her nokta vertex değildir. $(4, 6)$'da accelerator ve memory doğruları kesişir, ama CPU'yu bozar ($12 + 12 = 24 &gt; 18$): region'ın dışında.</li>
+      <li>Paralel iki boundary hiç kesişmez: $x_1 = 0$ ile $x_1 = 4$.</li>
+      <li>"Convex" ile "polyhedron" aynı şey değil: disk convex ama polyhedron değil.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-poly-n">
+    <p class="quiz__q">$\mathbb{R}^3$'te üç değişkenli bir LP'de bir noktanın vertex olması için o noktada en az kaç constraint boundary tight olmalı?</p>
+    <button class="quiz__opt">2<span class="why">İki düzlem $\mathbb{R}^3$'te bir doğruda kesişir: bu bir edge, köşe değil.</span></button>
+    <button class="quiz__opt" data-correct>3, ve linearly independent olmalılar<span class="why">Doğru. $n = 3$: üç bağımsız düzlem tek bir noktada buluşur.</span></button>
+    <button class="quiz__opt">Constraint sayısı kadar<span class="why">Bütün constraint'lerin tight olması gerekmez. Job-mix'te $(2,6)$'da accelerator tight değil, ama nokta yine de vertex.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="graphical" data-min="6">
+  <h2>Grafik çözüm: iso-profit doğrusunu kaydır</h2>
+  <div class="quiz" id="q-graph">
+    <p class="quiz__q">Bir <strong>min</strong> probleminde isocost doğrusunu hangi yöne kaydırırsın?</p>
+    <button class="quiz__opt" data-correct>$-c$ yönüne<span class="why">Doğru. $z = c^\top x$, $c$ yönünde artar; azaltmak için ters yöne gidersin. Son temas noktası minimum.</span></button>
+    <button class="quiz__opt">$c$ yönüne<span class="why">Bu max problemi için. Min'de $c$ yönünde gitmek maliyeti artırır.</span></button>
+    <button class="quiz__opt">Her zaman origin'e doğru<span class="why">Bu ancak $c \ge 0$ olduğunda $-c$ ile çakışır. Örneğin $\min\ x_1 - x_2$'de $-c = (-1, 1)$: sola ve yukarı, origin'e doğru değil.</span></button>
+    <button class="quiz__opt">Hangi yöne olduğu fark etmez<span class="why">Yanlış yöne kaydırırsan son temas noktası maksimumu verir.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · aynı kârı veren planlar bir doğru üzerinde</span>
+    <p>$3x_1 + 5x_2 = z$ doğrusu, kârı tam $z$ olan bütün planlardır: <strong>iso-profit line</strong>. $z$'yi büyütünce doğru kendine paralel kalır ve $c = (3, 5)$ yönünde kayar. Region'dan çıkmak üzereyken son değdiği nokta optimum: $(2, 6)$, $z^* = 36$.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Not all-interactive!</span>
+    <p>Sadece interactive satmak, yani $(0, 6)$, $z = 30$ verir. En iyi plan iki tier'ı karıştırır: memory interactive'i 6'da keser, kalan CPU'yu batch kullanır. Kalan CPU $18 - 2\cdot 6 = 6$ core, bu da $6/3 = 2$ batch birimi eder.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tarif · iki değişkenli LP'nin grafik çözümü</span>
+    <ol>
+      <li>Her constraint'in doğrusunu çiz, test noktasıyla doğru tarafı seç. Hepsinin kesişimi feasible region.</li>
+      <li>Bir iso-profit line çiz: region'dan bir nokta al, $z$'sini hesapla.</li>
+      <li>Max'ta doğruyu $c$ yönünde, min'de $-c$ yönünde (isocost line) paralel kaydır.</li>
+      <li>Son temas noktasını resimden okuma: orada tight olan iki doğrunun denklem sistemini çöz, $z^*$'ı hesapla.</li>
+      <li>Optimumda binding ve nonbinding constraint'leri yaz. Job-mix'te memory ve CPU binding, accelerator nonbinding ($s_1 = 2$).</li>
+    </ol>
+    <p>$c$ iso-profit doğrularına diktir: $\nabla z = c$, Week 1'deki "improving direction".</p>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.7 (Slide the Objective; görsel render edildi) · Week_01.pdf s.8 (A Geometric Picture in 2-D, 3x1+4x2, x*=(3,1)) · Winston §3.2 (isoprofit / isocost, binding / nonbinding, Dorian). -->
+  <h3>Kendin dene: grafik LP çözücü</h3>
+  <p>Objective'i ve en fazla altı constraint'i yaz ($x_1, x_2 \ge 0$ her zaman var). Kod bütün boundary çiftlerini kesiştirir, vertex'leri bulur, region'ı çizer ve sonucu sınıflandırır. Slider iso-profit doğrusunu kaydırır.</p>
+  <p class="w-lp-geometry-guess"><b>Önce tahmin et:</b> job-mix'te objective'i $5x_1 + 3x_2$ yaparsan son temas hangi vertex'te olur?</p>
+  <div class="w-lp-geometry-box" id="ga">
+    <div class="w-lp-geometry-ctl">
+      <span class="src">hazır:</span>
+      <button class="btn btn--sm" data-ga="jobmix">job-mix</button>
+      <button class="btn btn--sm" data-ga="lab01">Lab01 / Week 1</button>
+      <button class="btn btn--sm" data-ga="dorian">Dorian (min)</button>
+      <button class="btn btn--sm" data-ga="jane">Farmer Jane</button>
+    </div>
+    <div class="w-lp-geometry-row" id="ga-obj">
+      <select id="ga-sense" class="btn btn--sm" aria-label="max ya da min"><option value="max">max</option><option value="min">min</option></select>
+      z = <input id="ga-c1" type="text" inputmode="decimal" class="btn btn--sm" aria-label="c1" /> x₁ + <input id="ga-c2" type="text" inputmode="decimal" class="btn btn--sm" aria-label="c2" /> x₂
+    </div>
+    <div id="ga-rows"></div>
+    <div class="w-lp-geometry-err" id="ga-err" aria-live="polite"></div>
+    <div class="w-lp-geometry-cols">
+      <div class="w-lp-geometry-plot" id="ga-plot"></div>
+      <div>
+        <div class="w-lp-geometry-z">
+          <label for="ga-z">iso-profit: $z$ = <b id="ga-zval"></b></label>
+          <input type="range" id="ga-z" min="0" max="1" step="0.01" value="0" />
+          <button class="btn btn--sm" id="ga-zstar">$z^*$'a git</button>
+          <div class="w-lp-geometry-small" id="ga-zinfo"></div>
+        </div>
+        <div id="ga-status"></div>
+        <div class="table-wrap" id="ga-table"></div>
+      </div>
+    </div>
+  </div>
+  <div class="box box--exam" data-exam="lab01-ex1"><span class="box__label">Lab01 Exercise 1 · lab görevi</span>
+    <p>Lab01 Section 5'teki LP: $\max\ 3x_1 + 4x_2$ s.t. $x_1 + x_2 \le 4$, $x_1 + 3x_2 \le 6$, $x_1, x_2 \ge 0$; köşeler <code>verts = [(0, 0), (4, 0), (3, 1), (0, 2)]</code>, optimum $(3, 1)$.</p>
+    <p>"1. <strong>Re-solve the LP.</strong> Change the objective to <strong>maximize $x_1 + 2x_2$</strong> over the same feasible region. Evaluate it at each vertex (reuse <code>verts</code>) to find the new optimum. <em>Which constraint(s) are active at the solution?</em>"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Region değişmedi, sadece objective değişti. Dört köşede $x_1 + 2x_2$'yi hesapla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Active" = o noktada eşitlikle sağlanan constraint. Optimum noktayı iki satıra da koy.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>vertex</th><th>$(0,0)$</th><th>$(4,0)$</th><th>$(3,1)$</th><th>$(0,2)$</th></tr>
+        <tr><td>$x_1 + 2x_2$</td><td>0</td><td>4</td><td><b>5</b></td><td>4</td></tr>
+      </table></div>
+      <p>Yeni optimum yine $x^* = (3, 1)$, $z^* = 5$. Region bounded olduğu için en iyi vertex optimumdur (Fundamental Theorem, Bölüm 8).</p>
+      <p>Active constraint'ler: $x_1 + x_2 = 3 + 1 = 4$ ✓ ve $x_1 + 3x_2 = 3 + 3 = 6$ ✓, <strong>ikisi de</strong> active. $x_1, x_2 &gt; 0$, yani sign restriction'lar active değil.</p>
+      <p>Neden optimum değişmedi? $c = (1, 2)$, iki active satırın normalleri $(1,1)$ ile $(1,3)$ arasında kalıyor; iso-profit doğrusu yine $(3,1)$'de son kez değiyor. Grafik çözücüde "Lab01" örneğini yükleyip $c$'yi $(1, 2)$ yaparak görebilirsin.</p>
+    </div></details>
+    <!-- Kaynak: resources/2026-2027-fall/27G_CSE413_5013_OptimizationTheory_Lab01.ipynb, Section 5 ve "Your turn" Exercise 1. Dosya origin/main'de olmadığı için link verilmedi. Vertex değerleri Fraction ile doğrulandı. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-3.2-P4"><span class="box__label">Winston §3.2 Problem 4 · ödev sorusu</span>
+    <p>"For each of the following, determine the direction in which the objective function increases: a $z = 4x_1 - x_2$ &nbsp; b $z = -x_1 + 2x_2$ &nbsp; c $z = -x_1 - 3x_2$"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$z = c^\top x$ en hızlı $c$ yönünde artar. Her şıkta $c$'yi yaz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$c$'nin bileşenlerinin işaretleri sağ/sol ve yukarı/aşağıyı söyler.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ul>
+        <li>a: $c = (4, -1)$: sağa ve biraz aşağı (güneydoğu, daha çok doğu).</li>
+        <li>b: $c = (-1, 2)$: sola ve yukarı (kuzeybatı, daha çok kuzey).</li>
+        <li>c: $c = (-1, -3)$: sola ve aşağı (güneybatı, daha çok güney).</li>
+      </ul>
+      <p>Her şıkta iso-profit doğruları $c$'ye diktir; doğruyu bu yönde kaydırınca $z$ artar.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, Operations Research (pdf s.79)</a></p>
+    <!-- Kaynak: Winston §3.2 Problems Group A 4 (pdf s.79, görüntüden okundu). -->
+  </div>
+  <div class="box box--exam" data-exam="winston-3.2-P6"><span class="box__label">Winston §3.2 Problem 6 · ödev sorusu</span>
+    <p>"Farmer Jane owns 45 acres of land. She is going to plant each with wheat or corn. Each acre planted with wheat yields <code>$200</code> profit; each with corn yields <code>$300</code> profit. The labor and fertilizer used for each acre are given in Table 1. One hundred workers and 120 tons of fertilizer are available. Use linear programming to determine how Jane can maximize profits from her land." Table 1: wheat 3 workers, 2 tons; corn 2 workers, 4 tons.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$x_1$ = wheat acre, $x_2$ = corn acre. Üç kaynak var: land, labor, fertilizer. Her biri bir $\le$ satırı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Köşeleri bul: $3x_1 + 2x_2 = 100$ ile $2x_1 + 4x_2 = 120$'nin kesişimine özellikle bak. Land satırı orada tight mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      $$\max\ z = 200x_1 + 300x_2 \ \text{ s.t. }\ x_1 + x_2 \le 45,\ \ 3x_1 + 2x_2 \le 100,\ \ 2x_1 + 4x_2 \le 120,\ \ x \ge 0$$
+      <div class="table-wrap"><table>
+        <tr><th>vertex</th><th>$(0,0)$</th><th>$(100/3,\ 0)$</th><th>$(20, 20)$</th><th>$(0, 30)$</th></tr>
+        <tr><td>$z$</td><td>0</td><td>$\approx 6666.7$</td><td><b>10000</b></td><td>9000</td></tr>
+      </table></div>
+      <p>$(20,20)$: labor $60 + 40 = 100$ ve fertilizer $40 + 80 = 120$ tight. Land $40 \le 45$: 5 acre boşta, nonbinding. Optimum: 20 acre wheat, 20 acre corn, kâr 10,000 dolar.</p>
+      <p>Land doğrusu ($x_1 + x_2 = 45$) labor ve fertilizer ile $(10, 35)$ ve $(30, 15)$'te kesişir, ama ikisi de infeasible; bu yüzden land region'ın hiçbir köşesine katılmaz. Grafik çözücüde "Farmer Jane" ile kontrol edebilirsin.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, Operations Research (pdf s.79)</a></p>
+    <!-- Kaynak: Winston §3.2 Problems Group A 6 ve Table 1 (pdf s.79). Bütün köşeler Fraction ile doğrulandı. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Son temas noktasını gözle okuyup yazma; iki tight doğrunun denklemini çöz. Dorian'ın optimumu $(3.6,\ 1.4)$: kesirli.</li>
+      <li>Iso-profit doğrusunun eğimi $-c_1/c_2$; ama kaydırma yönü $c$, doğrunun kendisi değil.</li>
+      <li>Optimal $z$'yi yazmadan bırakma: soru "optimal solution" diyorsa hem $x^*$ hem $z^*$ beklenir.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="basic" data-min="5">
+  <h2>Basic solution ve basic feasible solution (BFS)</h2>
+  <div class="quiz" id="q-basic">
+    <p class="quiz__q">Job-mix'te accelerator ($x_1 = 4$) ve memory ($x_2 = 6$) doğrularının kesişimi $(4, 6)$ neden bir BFS değil?</p>
+    <button class="quiz__opt">İki doğru paralel olduğu için<span class="why">$x_1 = 4$ dikey, $x_2 = 6$ yatay; dik kesişirler. Kesişmeyen çiftler $x_1 = 0$ ile $x_1 = 4$ gibi paralel olanlar.</span></button>
+    <button class="quiz__opt" data-correct>CPU constraint'ini bozduğu için<span class="why">Doğru: $3\cdot 4 + 2\cdot 6 = 24 &gt; 18$. Bir basic solution, ama feasible değil.</span></button>
+    <button class="quiz__opt">Objective değeri en büyük olmadığı için<span class="why">BFS olmak optimum olmakla ilgili değil; feasible olmakla ilgili. $(0,0)$ en kötü plan ama bir BFS.</span></button>
+    <button class="quiz__opt">Bir sign restriction'ı bozduğu için<span class="why">$4 \ge 0$ ve $6 \ge 0$: sign restriction'lar sağlanıyor.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · basic solution, BFS</span>
+    <ul>
+      <li>$n$ tane constraint boundary seç ve kesiştir → bir <strong>basic solution</strong>. İki boyutta $n = 2$: iki doğru.</li>
+      <li>Feasible olanlar vertex'lerdir: <strong>basic feasible solution (BFS)</strong>.</li>
+      <li>Job-mix'te 5 boundary var: $x_1 = 0$, $x_2 = 0$, $x_1 = 4$, $2x_2 = 12$, $3x_1 + 2x_2 = 18$. $\binom{5}{2} = 10$ çift. İki çift paralel ($x_1 = 0 \parallel x_1 = 4$, $x_2 = 0 \parallel x_2 = 6$) ⇒ <strong>8 kesişim noktası</strong>. Bunlardan sadece <strong>5'i BFS</strong>: $(0,0)$, $(4,0)$, $(4,3)$, $(2,6)$, $(0,6)$.</li>
+      <li>Infeasible olan üç basic solution: $(0, 9)$ memory'yi bozar ($18 &gt; 12$), $(4, 6)$ CPU'yu bozar ($24 &gt; 18$), $(6, 0)$ accelerator'ı bozar ($6 &gt; 4$).</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.8 (Basic Solutions & Basic Feasible Solutions; şekildeki (0,9), (4,6), (6,0) çarpıları render edilen görüntüden okundu). -->
+  <h3>Kendin dene: basic-solution enumerator</h3>
+  <p>Stepper her boundary çiftini sırayla kesiştirir. Solda o çiftin iki doğrusu turuncu, kesişim noktası halkalı. Tabloda noktanın bütün değişkenleri var: slack'lerden biri negatifse nokta infeasible.</p>
+  <p class="w-lp-geometry-guess"><b>Önce tahmin et:</b> job-mix'te 10 çiftten kaçı bir nokta verir, kaç tanesi BFS çıkar? Kaçıncı çiftte ilk infeasible nokta gelir?</p>
+  <div class="w-lp-geometry-box">
+    <div class="w-lp-geometry-ctl">
+      <span class="src">LP:</span>
+      <button class="btn btn--sm" data-gb="jobmix">job-mix</button>
+      <button class="btn btn--sm" data-gb="lab01">Lab01</button>
+      <button class="btn btn--sm" data-gb="twin">alıştırma LP'si</button>
+      <button class="btn btn--sm" data-gb="ga">grafik çözücüdeki LP</button>
+    </div>
+    <div class="w-lp-geometry-err" id="gb-err" aria-live="polite"></div>
+    <div id="gb-stepper"></div>
+  </div>
+  <div class="box box--exam" data-exam="w3-slide-p8-basic"><span class="box__label">Week 3 slayt s.8 · slayt sorusu</span>
+    <p>"Pick n constraint boundaries, intersect them → a basic solution. Feasible ones are the vertices — basic feasible solutions (BFS). Here: 10 pairs of lines → 8 intersection points → only 5 are BFS." (Slayttaki iddia. Görev: job-mix için bütün basic solution'ları elle listele ve bu sayıları doğrula.)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Beş boundary doğrusunu yaz: iki eksen ve üç constraint. Kaç çift çıkar?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Önce paralel çiftleri ayır. Kalan her nokta için üç constraint'i ve iki sign restriction'ı kontrol et.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>#</th><th>boundary çifti</th><th>nokta</th><th>durum</th><th>$z$</th></tr>
+        <tr><td>1</td><td>$x_1 = 0$, $x_2 = 0$</td><td>$(0, 0)$</td><td>BFS</td><td>0</td></tr>
+        <tr><td>2</td><td>$x_1 = 0$, $x_1 = 4$</td><td>yok</td><td>paralel</td><td></td></tr>
+        <tr><td>3</td><td>$x_1 = 0$, $2x_2 = 12$</td><td>$(0, 6)$</td><td>BFS</td><td>30</td></tr>
+        <tr><td>4</td><td>$x_1 = 0$, $3x_1 + 2x_2 = 18$</td><td>$(0, 9)$</td><td>infeasible: $2\cdot 9 = 18 &gt; 12$</td><td>45</td></tr>
+        <tr><td>5</td><td>$x_2 = 0$, $x_1 = 4$</td><td>$(4, 0)$</td><td>BFS</td><td>12</td></tr>
+        <tr><td>6</td><td>$x_2 = 0$, $2x_2 = 12$</td><td>yok</td><td>paralel</td><td></td></tr>
+        <tr><td>7</td><td>$x_2 = 0$, $3x_1 + 2x_2 = 18$</td><td>$(6, 0)$</td><td>infeasible: $6 &gt; 4$</td><td>18</td></tr>
+        <tr><td>8</td><td>$x_1 = 4$, $2x_2 = 12$</td><td>$(4, 6)$</td><td>infeasible: $12 + 12 = 24 &gt; 18$</td><td>42</td></tr>
+        <tr><td>9</td><td>$x_1 = 4$, $3x_1 + 2x_2 = 18$</td><td>$(4, 3)$</td><td>BFS</td><td>27</td></tr>
+        <tr><td>10</td><td>$2x_2 = 12$, $3x_1 + 2x_2 = 18$</td><td>$(2, 6)$</td><td>BFS</td><td><b>36</b></td></tr>
+      </table></div>
+      <p>10 çift, 2 paralel ⇒ 8 nokta; 5 BFS, 3 infeasible. En iyi BFS $(2, 6)$, $z = 36$. Infeasible noktaların $z$'si daha büyük olabilir ($(0,9)$'da 45), ama onlar plan değil.</p>
+    </div></details>
+    <!-- Kaynak: Week_03.pdf s.8. Week_03.pdf origin/main'de olmadığı için link verilmedi. Tablo python (Fraction) ile doğrulandı. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Basic solution feasible olmak zorunda değil. "Basic" sadece "$n$ boundary'nin kesişimi" demek.</li>
+      <li>Aynı noktadan $n$'den fazla boundary geçebilir. O zaman farklı çiftler aynı noktayı verir; noktaları sayarken tekrarları bir kez say. Böyle bir vertex'e <em>degenerate</em> denir (Simplex'in özel durumları dersinde).</li>
+      <li>Sign restriction'lar da boundary'dir: $x_1 = 0$ ve $x_2 = 0$ doğrularını çiftlere katmayı unutma.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="algebra" data-min="5">
+  <h2>Cebir tarafı: her boundary bir değişkenin sıfır olmasıdır</h2>
+  <div class="quiz" id="q-algebra">
+    <p class="quiz__q">Job-mix'in standard form'unda nonbasic değişkenler olarak $\{x_1, s_1\}$'i seçersen ne olur?</p>
+    <button class="quiz__opt">$(0, 0)$ noktası çıkar<span class="why">$(0,0)$, $x_1 = x_2 = 0$ seçiminden gelir. $s_1 = 0$ ise $x_1 = 4$ olmalı.</span></button>
+    <button class="quiz__opt" data-correct>Basic solution yok: $x_1 = 0$ ve $x_1 = 4$ birlikte olamaz<span class="why">Doğru. $s_1 = 0$ ⇔ $x_1 = 4$. İki boundary paralel; geri kalan sütunlar linearly independent değil.</span></button>
+    <button class="quiz__opt">$(4, 0)$ noktası, BFS<span class="why">$(4,0)$ için nonbasic set $\{x_2, s_1\}$. $x_1$ nonbasic ise $x_1 = 0$ olur.</span></button>
+    <button class="quiz__opt">Infeasible bir basic solution çıkar<span class="why">Infeasible olması için önce bir çözüm çıkması gerekir. Burada denklem sisteminin hiç çözümü yok.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · doğru = "bir değişken sıfır"</span>
+    <p>Standard form'da her boundary bir değişkenin 0 olmasıdır:</p>
+    <div class="table-wrap"><table>
+      <tr><th>boundary</th><th>$x_1 = 0$</th><th>$x_2 = 0$</th><th>$x_1 = 4$</th><th>$2x_2 = 12$</th><th>$3x_1 + 2x_2 = 18$</th></tr>
+      <tr><td>hangi değişken 0?</td><td>$x_1$</td><td>$x_2$</td><td>$s_1$</td><td>$s_2$</td><td>$s_3$</td></tr>
+    </table></div>
+    <p>"İki boundary seç" = "5 değişkenden 2'sini 0 yap" (<strong>nonbasic</strong>). Kalan 3 değişkeni (<strong>basic</strong>) 3 denklemden çöz. Bu seçime bir <strong>basis</strong> denir. Slaytın dediği gibi: choosing boundaries = choosing a basis.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · basic solution'ın cebirsel tanımı (Winston §4.2)</span>
+    <p>$m$ equation'lı $Ax = b$ sistemi, $N$ değişken ($N \ge m$):</p>
+    <ul>
+      <li><strong>Basic solution:</strong> $N - m$ değişkeni 0 yap (nonbasic, NBV), kalan $m$ değişkeni (basic, BV) çöz. Bunun için BV sütunları linearly independent olmalı; değilse o seçimden basic solution çıkmaz.</li>
+      <li><strong>BFS:</strong> bütün değişkenleri $\ge 0$ olan basic solution.</li>
+      <li><strong>Theorem (Winston, Thm 1):</strong> feasible region'daki bir nokta extreme point'tir ⇔ bir BFS'tir.</li>
+    </ul>
+    <p><strong>Sayım:</strong> slaytın gösteriminde $n$ decision variable, $m$ constraint varsa standard form'da $n + m$ değişken olur ve en fazla $\binom{n+m}{n}$ basis seçimi vardır. Job-mix: $\binom{5}{2} = 10$. $n = m = 50$ için $\binom{100}{50} \approx 1.01 \times 10^{29}$. Hepsini denemek imkânsız; simplex bu yüzden sadece iyileşen komşulara yürür.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>NBV (= 0)</th><th>$(x_1, x_2, s_1, s_2, s_3)$</th><th>durum</th><th>$z$</th></tr>
+    <tr><td>$x_1, x_2$</td><td>$(0, 0, 4, 12, 18)$</td><td>BFS</td><td>0</td></tr>
+    <tr><td>$x_1, s_1$</td><td colspan="2">çözüm yok ($x_1 = 0$ ve $x_1 = 4$)</td><td></td></tr>
+    <tr><td>$x_1, s_2$</td><td>$(0, 6, 4, 0, 6)$</td><td>BFS</td><td>30</td></tr>
+    <tr><td>$x_1, s_3$</td><td>$(0, 9, 4, \mathbf{-6}, 0)$</td><td>infeasible</td><td>45</td></tr>
+    <tr><td>$x_2, s_1$</td><td>$(4, 0, 0, 12, 6)$</td><td>BFS</td><td>12</td></tr>
+    <tr><td>$x_2, s_2$</td><td colspan="2">çözüm yok ($x_2 = 0$ ve $x_2 = 6$)</td><td></td></tr>
+    <tr><td>$x_2, s_3$</td><td>$(6, 0, \mathbf{-2}, 12, 0)$</td><td>infeasible</td><td>18</td></tr>
+    <tr><td>$s_1, s_2$</td><td>$(4, 6, 0, 0, \mathbf{-6})$</td><td>infeasible</td><td>42</td></tr>
+    <tr><td>$s_1, s_3$</td><td>$(4, 3, 0, 6, 0)$</td><td>BFS</td><td>27</td></tr>
+    <tr><td>$s_2, s_3$</td><td>$(2, 6, 2, 0, 0)$</td><td>BFS</td><td><b>36</b></td></tr>
+  </table></div>
+  <p>Infeasible bir basic solution'da negatif çıkan değişken, bozulan constraint'in slack'idir: $(0,9)$'da $s_2 = -6$ ⇒ memory 6 block aşılmış.</p>
+  <!-- Kaynak: Week_03.pdf s.8 ("Algebra (next part): choosing boundaries = choosing a basis", "C(n + m, n) ... for n = m = 50 that is ≈ 10^29") · Winston §4.2 (basic solution tanımı, Theorem 1, Table 1, degenerate) · tablo python (Fraction, 5×5 sistemler) ile doğrulandı; C(100,50) = 100891344545564193334812497256. -->
+  <div class="box box--exam" data-exam="lab3-plot-enumerate"><span class="box__label">Lab 3 (Week 3 slayt s.24) · lab görevi</span>
+    <p>"Plot the job-mix LP; enumerate all basic solutions."</p>
+    <p class="src">Not: Lab 3 notebook'u repoda yok; görev Week 3 slaytındaki Lab 3 listesinden alındı.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Algoritma: boundary listesini kur (iki eksen + constraint'ler), bütün çiftleri dolaş, her çift için 2×2 sistemi çöz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Determinant 0 ise çift paralel. Değilse noktayı bütün constraint'lere ve $x \ge 0$'a koy. Grafik için region'ı ve noktaları çizip BFS'leri ayrı renkle göster.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Saf Python ile (Cramer kuralı; NumPy'de <code>np.linalg.solve</code> aynı işi yapar):</p>
+<pre><code>from itertools import combinations
+
+c = (3, 5)
+# her boundary: a1*x1 + a2*x2 = b  (iki eksen + üç constraint)
+lines = [((1, 0), 0, "x1=0"), ((0, 1), 0, "x2=0"),
+         ((1, 0), 4, "accel"), ((0, 2), 12, "memory"), ((3, 2), 18, "CPU")]
+rows = lines[2:]                       # gerçek constraint'ler (hepsi &lt;=)
+
+def feasible(x):
+    return min(x) &gt;= 0 and all(a[0]*x[0] + a[1]*x[1] &lt;= b for a, b, _ in rows)
+
+for (a, b, n1), (d, e, n2) in combinations(lines, 2):
+    det = a[0]*d[1] - a[1]*d[0]
+    if det == 0:
+        print(f"{n1:&gt;6} &amp; {n2:&lt;6}  parallel")
+        continue
+    x = ((b*d[1] - a[1]*e) / det + 0.0, (a[0]*e - b*d[0]) / det + 0.0)   # Cramer
+    tag = "BFS" if feasible(x) else "infeasible"
+    print(f"{n1:&gt;6} &amp; {n2:&lt;6}  x = ({x[0]:g}, {x[1]:g})  {tag:&lt;10}  z = {c[0]*x[0] + c[1]*x[1]:g}")</code></pre>
+      <p>Çıktı:</p>
+<pre><code>  x1=0 &amp; x2=0    x = (0, 0)  BFS         z = 0
+  x1=0 &amp; accel   parallel
+  x1=0 &amp; memory  x = (0, 6)  BFS         z = 30
+  x1=0 &amp; CPU     x = (0, 9)  infeasible  z = 45
+  x2=0 &amp; accel   x = (4, 0)  BFS         z = 12
+  x2=0 &amp; memory  parallel
+  x2=0 &amp; CPU     x = (6, 0)  infeasible  z = 18
+ accel &amp; memory  x = (4, 6)  infeasible  z = 42
+ accel &amp; CPU     x = (4, 3)  BFS         z = 27
+memory &amp; CPU     x = (2, 6)  BFS         z = 36</code></pre>
+      <p>Grafik: region'ı (beş BFS'in oluşturduğu beşgen) boya, BFS'leri dolu nokta, üç infeasible noktayı çarpı ile işaretle. Bölüm 4'teki şekil ve yukarıdaki enumerator tam olarak bunu yapıyor. Gerçek kodda <code>&lt;= b</code> yerine <code>&lt;= b + 1e-9</code> gibi bir tolerance kullan: float'larla çalışırken tam eşitlik bozulabilir.</p>
+    </div></details>
+    <!-- Kaynak: Week_03.pdf s.24 (Lab 3: Build Your Own Simplex, ilk madde). Kod python3 -I ile çalıştırıldı, çıktı birebir kopyalandı. -->
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Sınav tipi alıştırma · standard form, başlangıç BFS'i, vertex listesi</span>
+    <p>$\max\ z = 5x_1 + 2x_2$ s.t. $x_1 + x_2 \le 9$, $2x_1 + x_2 \le 14$, $x_1 \le 6$, $x_1, x_2 \ge 0$.</p>
+    <p>(a) Standard form'a çevir ve başlangıç BFS'ini yaz. (b) Bütün vertex'leri hangi değişkenlerin nonbasic olduğuyla birlikte listele, optimumu bul.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Üç $\le$ satırı ⇒ üç slack. Başlangıç BFS'i: decision variable'lar nonbasic.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Beş boundary, $\binom{5}{2} = 10$ çift. Hangi çift paralel? Enumerator'da "alıştırma LP'si" ile cevabını kontrol edebilirsin.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $\max\ z = 5x_1 + 2x_2$ s.t. $x_1 + x_2 + s_1 = 9$, $2x_1 + x_2 + s_2 = 14$, $x_1 + s_3 = 6$, hepsi $\ge 0$. Başlangıç BFS'i: NBV $= \{x_1, x_2\}$, $x = (0, 0)$, $(s_1, s_2, s_3) = (9, 14, 6)$, $z = 0$.</p>
+      <p><strong>(b)</strong></p>
+      <div class="table-wrap"><table>
+        <tr><th>vertex</th><th>NBV</th><th>$(s_1, s_2, s_3)$</th><th>$z$</th></tr>
+        <tr><td>$(0, 0)$</td><td>$x_1, x_2$</td><td>$(9, 14, 6)$</td><td>0</td></tr>
+        <tr><td>$(6, 0)$</td><td>$x_2, s_3$</td><td>$(3, 2, 0)$</td><td>30</td></tr>
+        <tr><td>$(6, 2)$</td><td>$s_2, s_3$</td><td>$(1, 0, 0)$</td><td><b>34</b></td></tr>
+        <tr><td>$(5, 4)$</td><td>$s_1, s_2$</td><td>$(0, 0, 1)$</td><td>33</td></tr>
+        <tr><td>$(0, 9)$</td><td>$x_1, s_1$</td><td>$(0, 5, 6)$</td><td>18</td></tr>
+      </table></div>
+      <p>Optimum $x^* = (6, 2)$, $z^* = 34$: $2x_1 + x_2 \le 14$ ve $x_1 \le 6$ binding, $x_1 + x_2 \le 9$'da 1 birim boşluk var. Diğer basic solution'lar infeasible: $(0, 14)$ ($s_1 = -5$), $(9, 0)$ ($s_2 = -4$, $s_3 = -3$), $(7, 0)$ ($s_3 = -1$), $(6, 3)$ ($s_2 = -1$). $\{x_1, s_3\}$ seçimi ($x_1 = 0$ ve $x_1 = 6$) paralel. 10 çift, 9 nokta, 5 BFS.</p>
+    </div></details>
+    <!-- Kaynak: kendi sayılarımla kurulmuş alıştırma (yedek deneme sınavının sorusu kullanılmadı). Bütün değerler python (Fraction, 3x3 sistemler) ile doğrulandı. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Gösterime dikkat: slaytta $n$ = decision variable sayısı, nonbasic sayısı da $n$. Winston'da $n$ standard form'daki bütün değişkenlerin sayısı, nonbasic sayısı $n - m$. İkisi aynı şeyi sayıyor.</li>
+      <li>Basic bir değişken 0 da olabilir. Aynı vertex birden fazla basis'ten gelirse LP degenerate'tir (Winston); simplex orada yerinde sayabilir.</li>
+      <li>Slack'i negatif çıkan bir basic solution'ı "neredeyse feasible" diye kabul etme: bir constraint bozuk.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="fundamental" data-min="4">
+  <h2>Fundamental Theorem of LP</h2>
+  <div class="quiz" id="q-fund">
+    <p class="quiz__q">Fundamental Theorem of LP tam olarak ne söyler?</p>
+    <button class="quiz__opt" data-correct>Bir LP'nin optimal solution'ı varsa, bir vertex (BFS) de optimaldir<span class="why">Doğru. "Varsa" şartı ve "bir vertex" ifadesi önemli.</span></button>
+    <button class="quiz__opt">Her LP'nin optimal bir vertex'i vardır<span class="why">Infeasible ve unbounded LP'lerin optimal solution'ı yok. Teorem "if an LP has an optimal solution" diye başlar.</span></button>
+    <button class="quiz__opt">Optimal solution her zaman tek bir vertex'tir<span class="why">Alternative optima'da bir edge'in tamamı optimaldir. Teorem sadece optimal noktalar arasında bir vertex'in de bulunduğunu söyler.</span></button>
+    <button class="quiz__opt">Optimal solution hiçbir zaman bir edge'in ortasında olamaz<span class="why">Olabilir: objective bir edge'e paralelse edge'in her noktası optimal. Ama o zaman edge'in uçları da optimal.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Theorem</span>
+    <p><strong>If an LP has an optimal solution, then some vertex (BFS) is optimal.</strong></p>
+    <ul>
+      <li>Linear bir objective, convex bir polyhedron'un bir face'inin ortasında tepe yapamaz; hep bir köşeye kayar.</li>
+      <li>Arama uzayı çöker: bütün $\mathbb{R}^n$ yerine sonlu sayıda vertex.</li>
+      <li>Her boyutta aynı resim: edge'lerle birbirine bağlı vertex'ler. Bir algoritma bunlar üzerinde yürüyebilir. Simplex job-mix'te $(0,0) \to (0,6) \to (2,6)$ yürür, $z$: $0 \to 30 \to 36$.</li>
+    </ul>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · bir edge boyunca $z$ tek yönde değişir</span>
+    <p>CPU edge'i $(4,3)$'ten $(2,6)$'ya gider. Bu doğru üzerinde $x_1$'i 1 azaltırsan $x_2$ $3/2$ artar ($3x_1 + 2x_2 = 18$ korunur). $z$ değişimi: $-3 + 5\cdot\tfrac32 = +4.5$. Yani edge boyunca bir yöne gittikçe $z$ hep artar; en iyi nokta bir uçta, $(2,6)$'da. Kontrol: $27 + 2 \cdot 4.5 = 36$. Değişim 0 olsaydı edge'in her noktası aynı $z$'yi verirdi: alternative optima.</p>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.9 (The Fundamental Theorem of LP) ve s.12 (walk the edges) · Winston §3.2 "Convex Sets, Extreme Points, and LP" (FG edge argümanı, burada job-mix'in CPU edge'ine uygulandı; +9/2 Fraction ile doğrulandı). -->
+  <div class="box box--exam" data-exam="winston-3.3-P7"><span class="box__label">Winston §3.3 Problem 7 · ödev sorusu</span>
+    <p>"If an LP's feasible region is not unbounded, we say the LP's feasible region is bounded. Suppose an LP has a bounded feasible region. Explain why you can find the optimal solution to the LP (without an isoprofit or isocost line) by simply checking the $z$-values at each of the feasible region's extreme points. Why might this method fail if the LP's feasible region is unbounded?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Bounded ve boş olmayan bir region'da $z$ sonsuza gidebilir mi? Optimal solution var mı?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Unbounded region için tek constraint'li bir örnek dene: $\max\ 3x_1 + 5x_2$ s.t. $x_1 \le 4$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>Bounded:</strong> region boş değilse ve bounded ise her noktada $|x_j| \le M$, dolayısıyla $z$ de sınırlıdır; LP unbounded olamaz ve bir optimal solution vardır. Fundamental Theorem'e göre bir extreme point optimaldir. Extreme point sayısı sonlu, o yüzden hepsinde $z$'yi hesaplayıp en iyisini seçmek optimumu verir.</p>
+      <p><strong>Unbounded:</strong> extreme point'ler hâlâ sonlu, ama optimal solution olmayabilir. $\max\ 3x_1 + 5x_2$ s.t. $x_1 \le 4$, $x \ge 0$: extreme point'ler $(0,0)$ ve $(4,0)$, en iyisi $z = 12$. Oysa $(0, t)$ noktaları feasible ve $z = 5t \to \infty$: LP unbounded. Köşeleri karşılaştırmak "12" gibi yanlış bir cevap verir. Önce bir improving direction olup olmadığını kontrol etmek gerekir.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, Operations Research (pdf s.84)</a></p>
+    <!-- Kaynak: Winston §3.3 Problems Group A 7 (pdf s.84). Örnek LP'nin köşeleri python ile kontrol edildi. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Optimum bir vertex'tedir" demek, "optimum <em>sadece</em> vertex'tedir" demek değil.</li>
+      <li>Teorem optimal solution'ın varlığını varsayar; infeasible ya da unbounded LP'de bir şey söylemez.</li>
+      <li>Linearity şart: nonlinear bir objective'in (örneğin $(x_1 - 1)^2 + (x_2 - 1)^2$'yi minimize etmek) optimumu region'ın içinde olabilir.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="outcomes" data-min="6">
+  <h2>Her LP dört şekilde biter</h2>
+  <div class="quiz" id="q-outcomes">
+    <p class="quiz__q">Alternative optima'lı bir LP'yi scipy <code>linprog</code> ile çözersen ne raporlar?</p>
+    <button class="quiz__opt" data-correct>status 0 ve optimal noktalardan sadece birini<span class="why">Doğru. Solver optimumu bulmuştur; alternatifleri ayrıca bildirmez. Edge'in tamamını görmek için reduced cost'lara bakmalısın (Simplex'in özel durumları).</span></button>
+    <button class="quiz__opt">Ayrı bir "alternative optima" status'ü<span class="why">Slayttaki listede scipy için sadece 0 / 2 / 3 var: optimal, infeasible, unbounded. Alternative optima "optimal" sayılır.</span></button>
+    <button class="quiz__opt">status 3 (unbounded)<span class="why">Optimal kümenin sonsuz sayıda nokta içermesi $z$'nin sonsuza gittiği anlamına gelmez. $z^*$ sonlu.</span></button>
+    <button class="quiz__opt">Optimal edge'in iki ucunu<span class="why">linprog tek bir <code>x</code> döndürür.</span></button>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · dört sonuç</span>
+    <div class="table-wrap"><table>
+      <tr><th>Sonuç</th><th>Resim</th><th>scipy <code>linprog</code></th></tr>
+      <tr><td><strong>Unique optimum</strong></td><td>Tek bir vertex; iso-profit doğrusu ona tek noktada son kez değer.</td><td>status 0</td></tr>
+      <tr><td><strong>Alternative optima</strong></td><td>Objective bir edge'e paralel: edge'in tamamı optimal. İki optimal vertex varsa aradaki her nokta da optimal.</td><td>status 0, tek nokta döner</td></tr>
+      <tr><td><strong>Unbounded</strong></td><td>Region improving direction'da açık: $z \to \infty$ (min'de $-\infty$).</td><td>status 3</td></tr>
+      <tr><td><strong>Infeasible</strong></td><td>Constraint'ler çelişiyor: feasible set boş.</td><td>status 2</td></tr>
+    </table></div>
+    <p>Kodun dördünü de karşılamalı. <code>linprog</code> minimize eder; max problemini $-c$ ile verirsin ve sonucun işaretini çevirirsin (Lab01: "it minimizes, so to maximize you minimize the negative").</p>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.10 (Every LP Ends One of Four Ways; dört panel görüntüden okundu) · Week_01.pdf s.7 (feasible / infeasible / unbounded) · Winston §3.3 · Lab01 Section 6 notu. -->
+  <h3>Kendin dene: dört sonuç galerisi</h3>
+  <p>Job-mix'ten başla ve kutuları işaretle. Her değişiklikte kod LP'yi yeniden çözer ve sonucu sınıflandırır.</p>
+  <p class="w-lp-geometry-guess"><b>Önce tahmin et:</b> üç kutuyu birden işaretlersen sonuç ne olur: infeasible mı, unbounded mı, alternative optima mı?</p>
+  <div class="w-lp-geometry-box" id="gd">
+    <div class="w-lp-geometry-ctl"><label><input type="checkbox" id="gd-alt" /> objective'i $3x_1 + 2x_2$ yap</label></div>
+    <div class="w-lp-geometry-ctl"><label><input type="checkbox" id="gd-unb" /> memory ve CPU satırlarını kaldır</label></div>
+    <div class="w-lp-geometry-ctl"><label><input type="checkbox" id="gd-inf" /> $x_1 + x_2 \ge 10$ ekle</label></div>
+    <div class="w-lp-geometry-cols">
+      <div class="w-lp-geometry-plot" id="gd-plot"></div>
+      <div id="gd-out"></div>
+    </div>
+  </div>
+  <div class="box box--exam" data-exam="winston-3.3-P1-4"><span class="box__label">Winston §3.3 Problem 1–4 · ödev sorusu</span>
+    <p>"Identify which of Cases 1–4 apply to each of the following LPs:" (Case 1 unique, 2 alternative optima, 3 infeasible, 4 unbounded)</p>
+    <ol>
+      <li>$\max\ z = x_1 + x_2$ s.t. $x_1 + x_2 \le 4$, $x_1 - x_2 \ge 5$, $x_1, x_2 \ge 0$</li>
+      <li>$\max\ z = 4x_1 + x_2$ s.t. $8x_1 + 2x_2 \le 16$, $5x_1 + 2x_2 \le 12$, $x_1, x_2 \ge 0$</li>
+      <li>$\max\ z = -x_1 + 3x_2$ s.t. $x_1 - x_2 \le 4$, $x_1 + 2x_2 \ge 4$, $x_1, x_2 \ge 0$</li>
+      <li>$\max\ z = 3x_1 + x_2$ s.t. $2x_1 + x_2 \le 6$, $x_1 + 3x_2 \le 9$, $x_1, x_2 \ge 0$</li>
+    </ol>
+    <details class="hint"><summary>İpucu 1</summary><div><p>1'de iki constraint'i ve $x_2 \ge 0$'ı yan yana koy: $x_1$ için ne çıkıyor? 2'de objective'i ilk constraint'le karşılaştır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>3'te $x_2$'yi büyütmeye engel olan bir constraint var mı? 4'te köşeleri hesapla. Grafik çözücüye yazıp kontrol edebilirsin.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Case 3, infeasible.</strong> $x_1 \ge 5 + x_2 \ge 5$, ama $x_1 \le 4 - x_2 \le 4$. Çelişki: feasible set boş.</li>
+        <li><strong>Case 2, alternative optima.</strong> $4x_1 + x_2 = \tfrac12(8x_1 + 2x_2) \le 8$. Eşitlik ilk constraint'in edge'i boyunca: $(2, 0)$ ile $(\tfrac43, \tfrac83)$ arası ($5\cdot\tfrac43 + 2\cdot\tfrac83 = 12$ ✓). İkisinde de $z^* = 8$.</li>
+        <li><strong>Case 4, unbounded.</strong> $d = (0, 1)$ yönünde git: $x_1 - x_2$ azalır, $x_1 + 2x_2$ artar, iki constraint de sağlanmaya devam eder. $(0, t)$ ($t \ge 2$) feasible ve $z = 3t \to \infty$.</li>
+        <li><strong>Case 1, unique.</strong> Köşeler $(0,0)$: 0, $(3,0)$: 9, $(\tfrac95, \tfrac{12}5)$: $\tfrac{39}{5} = 7.8$, $(0,3)$: 3. Tek optimum $(3, 0)$, $z^* = 9$.</li>
+      </ol>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, Operations Research (pdf s.84)</a></p>
+    <!-- Kaynak: Winston §3.3 Problems Group A 1–4 (pdf s.84, işaretler görüntüden okundu). Dört LP'nin bütün basic solution'ları Fraction ile hesaplandı. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-3.3-P5-6"><span class="box__label">Winston §3.3 Problem 5–6 · ödev sorusu</span>
+    <p>"5 True or false: For an LP to be unbounded, the LP's feasible region must be unbounded."<br>"6 True or false: Every LP with an unbounded feasible region has an unbounded optimal solution."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>5: bounded bir region'da $z$ ne kadar büyüyebilir?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>6: Dorian'ın region'ı unbounded (sağa ve yukarı açık). Peki Dorian'ın optimumu var mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>5: True.</strong> Region bounded ise her noktada $|x_j| \le M$, dolayısıyla $|z| \le (|c_1| + \dots + |c_n|)M$. $z$ sonsuza gidemez. Unbounded bir LP için region'ın improving direction'da açık olması gerekir.</p>
+      <p><strong>6: False.</strong> Dorian: $\min\ 50x_1 + 100x_2$, $7x_1 + 2x_2 \ge 28$, $2x_1 + 12x_2 \ge 24$. Region unbounded, ama $z$ aşağıdan sınırlı ve optimum $(3.6,\ 1.4)$, $z^* = 320$. Region'ın açık olduğu yönler ($c$'ye göre) maliyeti artırıyor. Unbounded LP için açık yönlerden birinin improving olması gerekir.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, Operations Research (pdf s.84)</a></p>
+    <!-- Kaynak: Winston §3.3 Problems Group A 5–6 (pdf s.84). -->
+  </div>
+  <div class="box box--exam" data-exam="winston-3.3-P8"><span class="box__label">Winston §3.3 Problem 8 · ödev sorusu</span>
+    <p>"Graphically find all optimal solutions to the following LP:"</p>
+    $$\min\ z = x_1 - x_2 \quad \text{s.t.}\quad x_1 + x_2 \le 6,\quad x_1 - x_2 \ge 0,\quad x_2 - x_1 \ge 3,\quad x_1, x_2 \ge 0$$
+    <details class="hint"><summary>İpucu 1</summary><div><p>İkinci ve üçüncü constraint'i $x_2$ cinsinden yaz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$x_2 \le x_1$ ve $x_2 \ge x_1 + 3$ aynı anda olabilir mi?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$x_1 - x_2 \ge 0$ ⇒ $x_2 \le x_1$. $x_2 - x_1 \ge 3$ ⇒ $x_2 \ge x_1 + 3$. İkisi birlikte $x_1 + 3 \le x_1$, yani $3 \le 0$: imkânsız. Feasible region boş, LP <strong>infeasible</strong>. Optimal solution yok. Grafikte iki halfspace'in ortak noktası olmadığını görürsün: $x_2 = x_1$ ve $x_2 = x_1 + 3$ paralel doğrular, biri altını, öteki üstünü tutuyor.</p>
+      <p>Sorunun "all optimal solutions" demesi bir tuzak: cevap "yok" ve sebebi.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, Operations Research (pdf s.84)</a></p>
+    <!-- Kaynak: Winston §3.3 Problems Group A 8 (pdf s.84). Basic solution'ların hiçbirinin feasible olmadığı python ile doğrulandı. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-3.3-P9"><span class="box__label">Winston §3.3 Problem 9 · ödev sorusu</span>
+    <p>"Graphically determine two optimal solutions to the following LP:"</p>
+    $$\min\ z = 3x_1 + 5x_2 \quad \text{s.t.}\quad 3x_1 + 2x_2 \ge 36,\quad 3x_1 + 5x_2 \ge 45,\quad x_1, x_2 \ge 0$$
+    <details class="hint"><summary>İpucu 1</summary><div><p>Objective'i ikinci constraint'le karşılaştır. $z$ 45'ten küçük olabilir mi?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$3x_1 + 5x_2 = 45$ doğrusunun hangi parçası birinci constraint'i de sağlıyor? Uçlarını bul.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>İkinci constraint $z = 3x_1 + 5x_2 \ge 45$ diyor, yani $z^* \ge 45$. $z = 45$ olan noktalar $3x_1 + 5x_2 = 45$ doğrusu üzerinde; bunların birinci constraint'i sağlayanları $(10, 3)$ ile $(15, 0)$ arasındaki edge. $(10,3)$: $30 + 6 = 36$ ✓ (iki constraint de tight). $(15, 0)$: $45 \ge 36$ ✓.</p>
+      <p>İki optimal solution: $(10, 3)$ ve $(15, 0)$, $z^* = 45$. Aradaki her nokta da optimal, örneğin $(12.5,\ 1.5)$. Region unbounded ama minimum var: Problem 6'nın bir örneği daha.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Orijinal soru: Winston, Operations Research (pdf s.84)</a></p>
+    <!-- Kaynak: Winston §3.3 Problems Group A 9 (pdf s.84). Köşeler Fraction ile doğrulandı. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Unbounded region ≠ unbounded LP. Dorian ve Problem 9'da region açık ama minimum var.</li>
+      <li>Infeasible ile unbounded'ı karıştırma: biri "hiç plan yok", öteki "planlar var ama en iyisi yok".</li>
+      <li>Alternative optima'da solver uyarı vermez. Tek bir cevap görünce "unique" diye yazma; slayt "Zero reduced cost at the optimum → alternative optima" diyor.</li>
+      <li>Winston'a göre doğru kurulmuş bir modelde unbounded sonuç genelde bir modelleme hatasıdır: bir constraint unutulmuştur (Week 1: "a constraint is missing").</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="bandwidth" data-min="5">
+  <h2>Uygulama: bandwidth allocation</h2>
+  <div class="quiz" id="q-bw">
+    <p class="quiz__q">Bandwidth LP'sinde $f = (7, 7, 2)$ optimal mi?</p>
+    <button class="quiz__opt" data-correct>Evet, feasible ve toplamı 16<span class="why">Doğru. SRC→R1: $7 + 2 = 9 \le 10$, SRC→R2: $7 \le 8$, R1→DST: $7 \le 7$, R2→DST: $7 + 2 = 9 \le 9$, R1→R2: $2 \le 4$. Toplam 16, üst sınıra eşit.</span></button>
+    <button class="quiz__opt">Hayır, slayttaki optimum $(7, 8, 1)$<span class="why">Slayt bir optimum veriyor, tek optimum değil. $f_3 \in [1, 3]$ olan her $(7,\ 9 - f_3,\ f_3)$ 16 verir.</span></button>
+    <button class="quiz__opt">Hayır, R2→DST kapasitesini aşıyor<span class="why">R2→DST'yi $f_2 + f_3 = 7 + 2 = 9$ kullanıyor; kapasite 9. Tam dolu, aşmıyor.</span></button>
+    <button class="quiz__opt">Feasible ama toplamı 16'dan az<span class="why">$7 + 7 + 2 = 16$.</span></button>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · bir link iki path'i birbirine bağlar</span>
+    <p>Üç path SRC'den DST'ye beş kapasiteli link üzerinden trafik taşıyor. Karar: path'lerin rate'leri $f_1, f_2, f_3$ (Gbps). $P_1 = $ SRC→R1→DST, $P_2 = $ SRC→R2→DST, $P_3 = $ SRC→R1→R2→DST.</p>
+    <div class="w-lp-geometry-math">
+    $$\begin{aligned} \max\ & f_1 + f_2 + f_3 \\ \text{s.t.}\ & f_1 + f_3 \le 10 && \text{(SRC}\to\text{R1)} \\ & f_2 \le 8 && \text{(SRC}\to\text{R2)} \\ & f_1 \le 7 && \text{(R1}\to\text{DST)} \\ & f_2 + f_3 \le 9 && \text{(R2}\to\text{DST)} \\ & f_3 \le 4 && \text{(R1}\to\text{R2)} \\ & f \ge 0 \end{aligned}$$
+    </div>
+    <p>Slaytın cevabı: $f^* = (7, 8, 1)$, 16 Gbps. Bir link'i iki path kullanınca path'ler birbirine bağlanır; bu yüzden path'leri tek tek doldurmak (greedy) yanlış gidebilir ve LP doğru araçtır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Analiz · 16 neden en iyisi ve neden tek değil</span>
+    <ul>
+      <li><strong>Üst sınır:</strong> her path DST'ye ya R1→DST ya R2→DST üzerinden girer. $f_1 \le 7$ ve $f_2 + f_3 \le 9$ topla: $f_1 + f_2 + f_3 \le 16$. $(7, 8, 1)$ bu sınıra ulaştığı için optimal. (Constraint'leri toplayıp objective'e sınır koymak, Week 4'teki duality'nin ilk adımı.)</li>
+      <li><strong>Optimal küme:</strong> toplam 16 ⇔ $f_1 = 7$ ve $f_2 + f_3 = 9$. SRC→R1: $7 + f_3 \le 10$ ⇒ $f_3 \le 3$. SRC→R2: $f_2 = 9 - f_3 \le 8$ ⇒ $f_3 \ge 1$. Yani $f_3 \in [1, 3]$: $(7,8,1)$, $(7,7,2)$, $(7,6,3)$ ve aradaki her nokta.</li>
+      <li>İki optimal vertex var, $(7, 8, 1)$ ve $(7, 6, 3)$; aradaki edge'in tamamı optimal. <strong>Alternative optima</strong>: bir solver bunlardan herhangi birini döndürebilir. Simplex'te bunu final tableau'daki sıfır reduced cost söyler (Simplex'in özel durumları dersi).</li>
+      <li><strong>Greedy:</strong> önce $P_3$'ü doldur: $\min(10, 4, 9) = 4$. Sonra $P_1$: $\min(10 - 4, 7) = 6$. Sonra $P_2$: $\min(8, 9 - 4) = 5$. Toplam 15 &lt; 16. Başka sıralar burada 16'yı tutturuyor, ama greedy'nin bir garantisi yok.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.23 (Case: Bandwidth Allocation as an LP; ağ şekli görüntüden okundu) · s.24 Lab 3 listesi. 3 değişkenli vertex enumeration (8 düzlemden 3'lü seçimler) python ile yapıldı: 12 vertex, z=16 olanlar (7,8,1) ve (7,6,3). Greedy'nin altı sırası da hesaplandı. -->
+  <h3>Kendin dene: bir rate vektörünü kontrol et</h3>
+  <p class="w-lp-geometry-guess"><b>Önce tahmin et:</b> $(7, 6, 3)$ feasible mı? Toplamı kaç, hangi link'ler tam dolu?</p>
+  <div class="w-lp-geometry-box" id="ge">
+    <div class="w-lp-geometry-ctl">
+      f₁ = <input id="ge-f1" type="text" inputmode="decimal" value="7" class="btn btn--sm" aria-label="f1" />
+      f₂ = <input id="ge-f2" type="text" inputmode="decimal" value="8" class="btn btn--sm" aria-label="f2" />
+      f₃ = <input id="ge-f3" type="text" inputmode="decimal" value="1" class="btn btn--sm" aria-label="f3" />
+      <button class="btn btn--sm btn--accent" id="ge-go">Kontrol et</button>
+    </div>
+    <div class="w-lp-geometry-ctl">
+      <span class="src">hazır:</span>
+      <button class="btn btn--sm" data-ge="7,8,1">(7, 8, 1)</button>
+      <button class="btn btn--sm" data-ge="7,6,3">(7, 6, 3)</button>
+      <button class="btn btn--sm" data-ge="6,5,4">greedy, P₃ önce</button>
+      <button class="btn btn--sm" data-ge="7,8,2">(7, 8, 2)</button>
+    </div>
+    <div class="w-lp-geometry-err" id="ge-err" aria-live="polite"></div>
+    <div class="w-lp-geometry-cols">
+      <div class="w-lp-geometry-net" id="ge-net"></div>
+      <div id="ge-out"></div>
+    </div>
+  </div>
+  <div class="box box--exam" data-exam="lab3-bandwidth"><span class="box__label">Week 3 slayt s.23–24 (Lab 3) · lab görevi</span>
+    <p>"Solve the bandwidth-allocation case with YOUR solver." Model slayt s.23'teki LP (yukarıda). Slaytın verdiği cevap: "f* = (7, 8, 1), 16 Gbps".</p>
+    <p class="src">Not: Lab 3 notebook'u repoda yok; görev Week 3 slaytındaki Lab 3 listesinden alındı.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Kendi solver'ın simplex olacak (sonraki ders). Onu yazmadan önce cevabı elle doğrula: üç değişken, sekiz düzlem ($f_j = 0$ dahil). Bir vertex'te üç düzlem tight.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Solver'ın $(7, 8, 1)$'den farklı bir nokta döndürürse hemen hata arama: toplamı 16 mı, feasible mı? Önce bunları kontrol et.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol>
+        <li><strong>Inequality form:</strong> $\max\ c^\top f$, $c = (1,1,1)$, $A = \begin{pmatrix} 1&amp;0&amp;1 \\ 0&amp;1&amp;0 \\ 1&amp;0&amp;0 \\ 0&amp;1&amp;1 \\ 0&amp;0&amp;1 \end{pmatrix}$, $b = (10, 8, 7, 9, 4)$. Zaten simplex'in istediği $Ax \le b$, $b \ge 0$ biçiminde: 5 slack, başlangıç BFS'i $f = 0$.</li>
+        <li><strong>Optimal değer:</strong> $z^* = 16$ (R1→DST ve R2→DST kapasitelerinin toplamı, yukarıdaki üst sınır).</li>
+        <li><strong>Optimal noktalar:</strong> $f_1 = 7$, $f_2 = 9 - f_3$, $1 \le f_3 \le 3$. Vertex'ler $(7, 8, 1)$ ve $(7, 6, 3)$. Feasible region'ın 12 vertex'i var; $z = 16$ olan sadece bu ikisi.</li>
+        <li><strong>Cevap yazarken:</strong> "$z^* = 16$ Gbps, örneğin $f^* = (7, 8, 1)$; optimum unique değil" yaz. Senin solver'ın $(7, 6, 3)$ döndürürse o da doğru.</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: Week_03.pdf s.23–24 (dosya origin/main'de olmadığı için link verilmedi). Vertex listesi python (Fraction) ile çıkarıldı. -->
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$(7, 8, 1)$'i "the" optimum diye yazma. Tek olan şey optimal değer, 16.</li>
+      <li>R1→R2 link'ini sadece $P_3$ kullanır; SRC→R1'i ise $P_1$ ve $P_3$ paylaşır. Her link satırına onu kullanan bütün path'leri yaz.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="dictionary" data-min="3">
+  <h2>Sözlük: geometri ⇄ cebir</h2>
+  <div class="quiz" id="q-dict">
+    <p class="quiz__q">Job-mix'te $(0, 6)$ vertex'inin komşu vertex'leri hangileri?</p>
+    <button class="quiz__opt" data-correct>$(0, 0)$ ve $(2, 6)$<span class="why">Doğru. $(0,6)$'da $x_1 = 0$ ve memory tight. $(0,0)$ ile $x_1 = 0$'ı, $(2,6)$ ile memory'yi paylaşıyor: tek bir boundary değişiyor, yani tek bir pivot.</span></button>
+    <button class="quiz__opt">$(4, 3)$ ve $(2, 6)$<span class="why">$(4,3)$'te accelerator ve CPU tight; $(0,6)$ ile ortak boundary'si yok. Komşu vertex'ler bir boundary hariç hepsini paylaşır.</span></button>
+    <button class="quiz__opt">Bütün diğer vertex'ler<span class="why">Komşuluk bir edge ile bağlı olmak demek. $(0,6)$ ile $(4,0)$ arasındaki doğru parçası region'ın içinden geçer, bir edge değil.</span></button>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Kavram</th><th>Geometri</th><th>Cebir (tableau)</th></tr>
+    <tr><td>Feasible region</td><td>Polyhedron $\{x : Ax \le b,\ x \ge 0\}$</td><td>Tableau'nun satırları (slack'lerle)</td></tr>
+    <tr><td>Corner / vertex</td><td>Polyhedron'un extreme point'i</td><td>Basic feasible solution (bir basis)</td></tr>
+    <tr><td>Komşuya geçmek</td><td>Bir edge boyunca yürümek</td><td>Bir pivot (entering ⇄ leaving)</td></tr>
+    <tr><td>Yön iyi mi?</td><td>Edge yokuş yukarı gidiyor</td><td>Pozitif bir $c_j - z_j$ (reduced cost)</td></tr>
+    <tr><td>Optimality</td><td>Bu vertex'ten yokuş yukarı edge çıkmıyor</td><td>Her yerde $c_j - z_j \le 0$ (certificate)</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · komşu vertex'ler ve simplex'in yürüyüşü</span>
+    <p>Komşu vertex'ler tight boundary'lerinin biri hariç hepsini paylaşır. Her adım bir active boundary'yi değiştirir: $(0,0)$ $[x_1 = 0,\ x_2 = 0]$ → $(0,6)$ $[x_1 = 0,\ \text{memory}]$ → $(2,6)$ $[\text{memory},\ \text{CPU}]$. Cebirde bu, bir nonbasic değişkenin basis'e girmesi ve bir basic değişkenin çıkmasıdır.</p>
+  </div>
+  <p class="src">Not: Slaytlar $c_j - z_j$ satırını kullanır; max probleminde en büyük pozitif $c_j - z_j$'li değişken girer. Lab 3 iskeleti ve bazı cevap anahtarları bunun yerine z-row kullanır: orada değerler $z_j - c_j$, yani işaret ters, ve en negatif olan girer. Aynı kararı verirler. Tableau'lar bir sonraki derste.</p>
+  <!-- Kaynak: Week_03.pdf s.25 (The LP Dictionary: Geometry ⇄ Algebra) ve s.12–13 (walk the edges, one iteration) · s.24 kod iskeleti (T[0, :-1] < -1e-9, "Dantzig: most negative reduced cost"). -->
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">$\max\ 2x_1 + x_2$ s.t. $x_1 + x_2 \le 5$, $x_1 \le 3$, $x \ge 0$. Optimum nedir?</p>
+    <button class="quiz__opt">$(0, 5)$, $z = 5$<span class="why">$(3, 2)$'de $z = 8$ daha büyük. $c = (2,1)$ daha çok $x_1$'i ödüllendiriyor.</span></button>
+    <button class="quiz__opt" data-correct>$(3, 2)$, $z = 8$<span class="why">Doğru. Köşeler $(0,0)$: 0, $(3,0)$: 6, $(3,2)$: 8, $(0,5)$: 5. İki constraint de $(3,2)$'de tight.</span></button>
+    <button class="quiz__opt">$(5, 0)$, $z = 10$<span class="why">$(5, 0)$ basic solution ama $x_1 \le 3$'ü bozuyor: infeasible.</span></button>
+    <button class="quiz__opt">$(3, 0)$, $z = 6$<span class="why">Bu bir vertex, ama orada $x_1 + x_2 \le 5$ satırında 2 birim boşluk var; $x_2$'yi artırmak $z$'yi büyütür: $(3,2)$ daha iyi.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">3 decision variable ve 4 $\le$ constraint'li bir LP'de en fazla kaç basic solution olabilir?</p>
+    <button class="quiz__opt">$\binom{4}{3} = 4$<span class="why">Sadece constraint boundary'lerini saydın. Sign restriction'lar da boundary: $x_j = 0$.</span></button>
+    <button class="quiz__opt" data-correct>$\binom{7}{3} = 35$<span class="why">Doğru: standard form'da $3 + 4 = 7$ değişken, 3'ü nonbasic. Paralel ya da bağımlı seçimler bu sayıyı azaltabilir.</span></button>
+    <button class="quiz__opt">$3 \cdot 4 = 12$<span class="why">Seçim sayısı çarpımla değil, combination ile bulunur: $\binom{n+m}{n}$.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">$\max\ x_1 + x_2$ s.t. $x_1 - x_2 \le 2$, $x \ge 0$. Bu LP için hangisi doğru?</p>
+    <button class="quiz__opt">Unique optimum $(2, 0)$<span class="why">$(2,0)$ bir vertex ama $(0, t)$ noktaları feasible ve $z = t$ sınırsız büyür.</span></button>
+    <button class="quiz__opt" data-correct>Unbounded<span class="why">Doğru: $d = (0,1)$ yönünde $x_1 - x_2$ azalır, constraint bozulmaz, $z$ artar. scipy status 3.</span></button>
+    <button class="quiz__opt">Infeasible<span class="why">$(0,0)$ feasible: $0 \le 2$.</span></button>
+    <button class="quiz__opt">Alternative optima<span class="why">Bunun için önce sonlu bir $z^*$ gerekir. Burada $z$ sınırsız.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Job-mix'te $\min\ -x_1 - x_2$ problemini inequality form'a ($\max$, $\le$) çevirince objective ne olur ve optimum nerede?</p>
+    <button class="quiz__opt" data-correct>$\max\ x_1 + x_2$, optimum $(2, 6)$, $\max = 8$; min problemin değeri $-8$<span class="why">Doğru. Köşeler: 0, 4, 7, 8, 6. Min değeri işareti çevirerek bulursun.</span></button>
+    <button class="quiz__opt">$\max\ -x_1 - x_2$, optimum $(0, 0)$<span class="why">min'i max'a çevirirken $c$'yi negate etmeyi unuttun. $\max\ -x_1 - x_2$ başka bir problem.</span></button>
+    <button class="quiz__opt">$\max\ x_1 + x_2$, optimum $(4, 3)$, değer 7<span class="why">$(2,6)$'da $x_1 + x_2 = 8 &gt; 7$.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Bir LP'nin feasible region'ı bounded ve boş değil. Hangisi kesin doğru?</p>
+    <button class="quiz__opt">Optimum tek bir vertex'tir<span class="why">Alternative optima bounded region'larda da olur (job-mix, $c = (3,2)$).</span></button>
+    <button class="quiz__opt" data-correct>Optimal solution vardır ve vertex'lerden biri optimaldir<span class="why">Doğru: bounded ⇒ unbounded olamaz, boş değil ⇒ infeasible değil. Fundamental Theorem bir vertex'in optimal olduğunu söyler.</span></button>
+    <button class="quiz__opt">Bütün basic solution'lar feasible'dır<span class="why">Job-mix bounded, ama $(0,9)$, $(4,6)$, $(6,0)$ infeasible basic solution'lar.</span></button>
+  </div>
+  <!-- Sıradaki konu: Tableau simplex adım adım. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* Shared 2-variable LP helpers: every figure, table and verdict below is computed here. */
+const LG = (() => {
+  const near = (a, b) => Math.abs(a - b) <= 1e-7 * (1 + Math.abs(a) + Math.abs(b));
+  function fr(v) {
+    if (!Number.isFinite(v)) return "∞";
+    if (Math.abs(v) < 1e-12) return "0";
+    const r = Math.round(v);
+    if (Math.abs(v - r) < 1e-9) return String(r);
+    for (let d = 2; d <= 12; d++) { const n = Math.round(v * d); if (Math.abs(v - n / d) < 1e-9) return n + "/" + d; }
+    return String(Math.round(v * 100) / 100);
+  }
+  function tex(v) {
+    const s = fr(v);
+    if (!s.includes("/")) return s;
+    const neg = s[0] === "-", [n, d] = s.replace("-", "").split("/");
+    return (neg ? "-" : "") + "\\tfrac{" + n + "}{" + d + "}";
+  }
+  const ptTex = p => "(" + tex(p[0]) + ",\\ " + tex(p[1]) + ")";
+  const pt = p => "(" + fr(p[0]) + ", " + fr(p[1]) + ")";
+  const OPT = { le: "\\le", ge: "\\ge", eq: "=" };
+  const OPS = { le: "≤", ge: "≥", eq: "=" };
+  function linTex(coefs, vars) {
+    let s = "";
+    coefs.forEach((c, i) => {
+      if (Math.abs(c) < 1e-12) return;
+      const a = Math.abs(c), k = Math.abs(a - 1) < 1e-12 ? "" : tex(a);
+      if (s === "") s = (c < 0 ? "-" : "") + k + vars[i];
+      else s += (c < 0 ? " - " : " + ") + k + vars[i];
+    });
+    return s || "0";
+  }
+  function parseNum(raw) {
+    const t = String(raw).trim().replace(",", ".");
+    if (!/^[-+]?\d+(\.\d+)?(\/\d+(\.\d+)?)?$/.test(t)) return null;
+    const parts = t.split("/");
+    const v = parts.length === 1 ? Number(parts[0]) : Number(parts[0]) / Number(parts[1]);
+    return Number.isFinite(v) ? v : null;
+  }
+  const tol = b => 1e-9 * (1 + Math.abs(b));
+  function rowOk(r, p) {
+    const v = r.a[0] * p[0] + r.a[1] * p[1];
+    return r.op === "le" ? v <= r.b + tol(r.b) : r.op === "ge" ? v >= r.b - tol(r.b) : Math.abs(v - r.b) <= tol(r.b);
+  }
+  const feasible = (lp, p) => p[0] >= -1e-9 && p[1] >= -1e-9 && lp.rows.every(r => rowOk(r, p));
+  function lines(lp) {
+    const L = [
+      { a: [1, 0], b: 0, name: "x₁ = 0", tex: "x_1 = 0", nb: "x_1" },
+      { a: [0, 1], b: 0, name: "x₂ = 0", tex: "x_2 = 0", nb: "x_2" }
+    ];
+    lp.rows.forEach((r, i) => L.push({ a: r.a, b: r.b, name: r.name || "R" + (i + 1), row: i,
+      tex: linTex(r.a, ["x_1", "x_2"]) + " = " + tex(r.b),
+      nb: r.op === "le" ? "s_{" + (i + 1) + "}" : r.op === "ge" ? "e_{" + (i + 1) + "}" : null }));
+    return L;
+  }
+  function meet(l1, l2) {
+    const det = l1.a[0] * l2.a[1] - l1.a[1] * l2.a[0];
+    if (Math.abs(det) < 1e-12) return null;
+    return [(l1.b * l2.a[1] - l1.a[1] * l2.b) / det + 0, (l1.a[0] * l2.b - l1.b * l2.a[0]) / det + 0];
+  }
+  const zOf = (lp, p) => lp.c[0] * p[0] + lp.c[1] * p[1];
+  /* recession cone of {x >= 0, rows}: in 2-D its extreme rays lie on an axis or on a row boundary */
+  function cone(lp) {
+    const cand = [[1, 0], [0, 1]];
+    lp.rows.forEach(r => { if (r.a[0] || r.a[1]) { cand.push([r.a[1], -r.a[0]]); cand.push([-r.a[1], r.a[0]]); } });
+    return cand.map(d => { const m = Math.max(Math.abs(d[0]), Math.abs(d[1])); return [d[0] / m + 0, d[1] / m + 0]; })
+      .filter(d => d[0] >= -1e-12 && d[1] >= -1e-12 && lp.rows.every(r => {
+        const v = r.a[0] * d[0] + r.a[1] * d[1];
+        return r.op === "le" ? v <= 1e-12 : r.op === "ge" ? v >= -1e-12 : Math.abs(v) <= 1e-12;
+      }));
+  }
+  function analyze(lp) {
+    const L = lines(lp), pairs = [], verts = [];
+    for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
+      const p = meet(L[i], L[j]);
+      const rec = { i, j, p, ok: p ? feasible(lp, p) : false, z: p ? zOf(lp, p) : null };
+      pairs.push(rec);
+      if (p && rec.ok) {
+        let v = verts.find(v => near(v.p[0], p[0]) && near(v.p[1], p[1]));
+        if (!v) { v = { p, z: rec.z, n: 0 }; verts.push(v); }
+        v.n++;
+      }
+    }
+    const points = [];
+    pairs.forEach(r => { if (r.p && !points.some(q => near(q[0], r.p[0]) && near(q[1], r.p[1]))) points.push(r.p); });
+    const s = lp.sense === "min" ? -1 : 1, dirs = cone(lp);
+    const res = { L, pairs, verts, points, dirs, bounded: dirs.length === 0 };
+    if (!verts.length) { res.status = "infeasible"; return res; }
+    const up = dirs.find(d => s * zOf(lp, d) > 1e-9);
+    if (up) { res.status = "unbounded"; res.dir = up; return res; }
+    res.zstar = verts.reduce((m, v) => (s * v.z > s * m ? v.z : m), verts[0].z);
+    res.opt = verts.filter(v => Math.abs(v.z - res.zstar) <= 1e-9 * (1 + Math.abs(res.zstar)));
+    res.ray = dirs.find(d => Math.abs(zOf(lp, d)) <= 1e-9) || null;
+    res.status = res.opt.length > 1 || res.ray ? "alternative" : "unique";
+    return res;
+  }
+  function niceStep(m) { const raw = m / 6, p = 10 ** Math.floor(Math.log10(raw)), f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+  function scaleOf(an) {
+    let m = 0;
+    an.pairs.forEach(r => { if (r.p && r.p[0] >= -1e-9 && r.p[1] >= -1e-9) m = Math.max(m, r.p[0], r.p[1]); });
+    m = Math.max(Math.min(m, 1e4) * 1.12, 5);
+    const step = niceStep(m);
+    return { M: Math.ceil(m / step - 1e-9) * step, step };
+  }
+  function clip(poly, a, b) {
+    const out = [];
+    for (let k = 0; k < poly.length; k++) {
+      const P = poly[k], Q = poly[(k + 1) % poly.length];
+      const fp = a[0] * P[0] + a[1] * P[1] - b, fq = a[0] * Q[0] + a[1] * Q[1] - b, t0 = tol(b);
+      if (fp <= t0) out.push(P);
+      if ((fp < -t0 && fq > t0) || (fp > t0 && fq < -t0)) { const t = fp / (fp - fq); out.push([P[0] + t * (Q[0] - P[0]), P[1] + t * (Q[1] - P[1])]); }
+    }
+    return out;
+  }
+  function region(lp, M) {
+    let poly = [[0, 0], [M, 0], [M, M], [0, M]];
+    lp.rows.forEach(r => {
+      if (r.op !== "ge") poly = clip(poly, r.a, r.b);
+      if (r.op !== "le") poly = clip(poly, [-r.a[0], -r.a[1]], -r.b);
+    });
+    return poly;
+  }
+  /* part of the line a.x = b inside the view box */
+  function lineSeg(a, b, x0, x1, y0, y1) {
+    const P = [];
+    if (Math.abs(a[1]) > 1e-12) [x0, x1].forEach(x => { const y = (b - a[0] * x) / a[1]; if (y >= y0 - 1e-9 && y <= y1 + 1e-9) P.push([x, y]); });
+    if (Math.abs(a[0]) > 1e-12) [y0, y1].forEach(y => { const x = (b - a[1] * y) / a[0]; if (x >= x0 - 1e-9 && x <= x1 + 1e-9) P.push([x, y]); });
+    if (P.length < 2) return null;
+    let best = null, bd = -1;
+    for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) { const d = Math.hypot(P[i][0] - P[j][0], P[i][1] - P[j][1]); if (d > bd) { bd = d; best = [P[i], P[j]]; } }
+    return bd > 1e-9 ? best : null;
+  }
+  /* part of a segment that stays feasible */
+  function segInLP(lp, seg) {
+    if (!seg) return null;
+    const [P, Q] = seg, D = [Q[0] - P[0], Q[1] - P[1]];
+    let lo = 0, hi = 1;
+    const H = [[[-1, 0], 0], [[0, -1], 0]];
+    lp.rows.forEach(r => { if (r.op !== "ge") H.push([r.a, r.b]); if (r.op !== "le") H.push([[-r.a[0], -r.a[1]], -r.b]); });
+    for (const [a, b] of H) {
+      const f0 = a[0] * P[0] + a[1] * P[1] - b, df = a[0] * D[0] + a[1] * D[1], t0 = tol(b);
+      if (Math.abs(df) < 1e-12) { if (f0 > t0) return null; continue; }
+      const t = (-f0) / df;
+      if (df > 0) hi = Math.min(hi, t + t0); else lo = Math.max(lo, t - t0);
+    }
+    if (lo > hi) return null;
+    return [[P[0] + lo * D[0], P[1] + lo * D[1]], [P[0] + hi * D[0], P[1] + hi * D[1]]];
+  }
+  const W = 320, H = 300, PL = 30, PR = 10, PT = 10, PB = 24;
+  function plot(lp, an, o) {
+    const M = o.M, x0 = -M * 0.05, x1 = M, y0 = -M * 0.05, y1 = M;
+    const sx = x => +(PL + (x - x0) / (x1 - x0) * (W - PL - PR)).toFixed(2);
+    const sy = y => +(H - PB - (y - y0) / (y1 - y0) * (H - PT - PB)).toFixed(2);
+    const ln = (P, Q, st) => `<line x1="${sx(P[0])}" y1="${sy(P[1])}" x2="${sx(Q[0])}" y2="${sy(Q[1])}" style="${st}"/>`;
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria || "feasible region"}">`;
+    for (let t = 0; t <= M + 1e-9; t += o.step) {
+      s += ln([t, y0], [t, y1], "stroke:var(--stone-200)") + ln([x0, t], [x1, t], "stroke:var(--stone-200)");
+      s += `<text x="${sx(t)}" y="${H - PB + 14}" text-anchor="middle" style="font-size:10px;fill:var(--fg-muted)">${fr(t)}</text>`;
+      if (t > 0) s += `<text x="${PL - 4}" y="${sy(t) + 3}" text-anchor="end" style="font-size:10px;fill:var(--fg-muted)">${fr(t)}</text>`;
+    }
+    const poly = region(lp, M);
+    if (poly.length >= 2) s += `<polygon points="${poly.map(p => sx(p[0]) + "," + sy(p[1])).join(" ")}" style="fill:var(--blue-200);fill-opacity:.6;stroke:var(--blue-600);stroke-width:${poly.length >= 3 ? 1 : 4}"/>`;
+    s += ln([x0, 0], [x1, 0], "stroke:var(--ink-600);stroke-width:1.2") + ln([0, y0], [0, y1], "stroke:var(--ink-600);stroke-width:1.2");
+    s += `<text x="${W - PR}" y="${sy(0) - 4}" text-anchor="end" style="font-size:11px;fill:var(--fg-muted)">x₁</text><text x="${sx(0) + 4}" y="${PT + 9}" style="font-size:11px;fill:var(--fg-muted)">x₂</text>`;
+    const hi = o.hiLines || [];
+    an.L.forEach((l, k) => {
+      const seg = lineSeg(l.a, l.b, x0, x1, y0, y1);
+      if (!seg) return;
+      const h = hi.includes(k);
+      if (k < 2 && !h) return;
+      s += ln(seg[0], seg[1], `stroke:${h ? "var(--orange-600)" : "var(--blue-700)"};stroke-width:${h ? 3 : 1.4}`);
+      if (k >= 2) {
+        const top = seg[0][1] > seg[1][1] + 1e-9 ? seg[0] : seg[1][1] > seg[0][1] + 1e-9 ? seg[1] : (seg[0][0] > seg[1][0] ? seg[0] : seg[1]);
+        const oth = top === seg[0] ? seg[1] : seg[0];
+        const lx = top[0] + 0.1 * (oth[0] - top[0]), ly = top[1] + 0.1 * (oth[1] - top[1]);
+        s += `<text x="${sx(lx) + 3}" y="${sy(ly)}" style="font-size:10px;font-weight:700;fill:${h ? "var(--orange-700)" : "var(--blue-700)"};paint-order:stroke;stroke:var(--paper);stroke-width:3px">${l.name}</text>`;
+      }
+    });
+    if (o.z !== undefined && o.z !== null && (lp.c[0] || lp.c[1])) {
+      const seg = lineSeg(lp.c, o.z, x0, x1, y0, y1);
+      if (seg) {
+        s += ln(seg[0], seg[1], "stroke:var(--accent);stroke-width:1.6;stroke-dasharray:6 4");
+        const t = segInLP(lp, seg);
+        if (t) s += Math.hypot(t[0][0] - t[1][0], t[0][1] - t[1][1]) > 1e-6 * M ? ln(t[0], t[1], "stroke:var(--accent);stroke-width:5;stroke-linecap:round") : `<circle cx="${sx(t[0][0])}" cy="${sy(t[0][1])}" r="7" style="fill:none;stroke:var(--accent);stroke-width:3"/>`;
+      }
+    }
+    if (o.arrow) {
+      const [p, d] = o.arrow, len = 0.22 * M, q = [p[0] + d[0] * len / Math.hypot(d[0], d[1]), p[1] + d[1] * len / Math.hypot(d[0], d[1])];
+      const ang = Math.atan2(sy(q[1]) - sy(p[1]), sx(q[0]) - sx(p[0])), A = 7;
+      s += ln(p, q, `stroke:${o.arrowColor || "var(--orange-600)"};stroke-width:2.5`);
+      s += `<polygon points="${sx(q[0])},${sy(q[1])} ${sx(q[0]) - A * Math.cos(ang - 0.45)},${sy(q[1]) - A * Math.sin(ang - 0.45)} ${sx(q[0]) - A * Math.cos(ang + 0.45)},${sy(q[1]) - A * Math.sin(ang + 0.45)}" style="fill:${o.arrowColor || "var(--orange-600)"}"/>`;
+      if (o.arrowLabel) s += `<text x="${sx(q[0]) + 4}" y="${sy(q[1]) - 4}" style="font-size:10px;font-weight:700;fill:${o.arrowColor || "var(--orange-700)"};paint-order:stroke;stroke:var(--paper);stroke-width:3px">${o.arrowLabel}</text>`;
+    }
+    (o.marks || []).forEach(m => {
+      if (m.p[0] < x0 || m.p[0] > x1 || m.p[1] < y0 || m.p[1] > y1) return;
+      const X = sx(m.p[0]), Y = sy(m.p[1]);
+      if (m.kind === "bad") s += `<path d="M${X - 4},${Y - 4}L${X + 4},${Y + 4}M${X - 4},${Y + 4}L${X + 4},${Y - 4}" style="stroke:var(--orange-600);stroke-width:2.2"/>`;
+      else s += `<circle cx="${X}" cy="${Y}" r="${m.kind === "opt" ? 6 : 4}" style="fill:${m.kind === "opt" ? "var(--accent)" : m.kind === "dim" ? "var(--stone-300)" : "var(--ink-800)"};stroke:var(--paper);stroke-width:1.5"/>`;
+      if (m.ring) s += `<circle cx="${X}" cy="${Y}" r="9" style="fill:none;stroke:var(--orange-600);stroke-width:2"/>`;
+      if (m.label) s += `<text x="${X + 6}" y="${Y - 6}" style="font-size:10px;font-weight:700;fill:var(--ink-800);paint-order:stroke;stroke:var(--paper);stroke-width:3px">${m.label}</text>`;
+    });
+    return s + "</svg>";
+  }
+  const BADGE = {
+    unique: ["unique optimum", "#2b8a3e"], alternative: ["alternative optima", "var(--blue-600)"],
+    unbounded: ["unbounded", "var(--orange-600)"], infeasible: ["infeasible", "var(--orange-700)"]
+  };
+  function statusHTML(lp, an) {
+    const [txt, col] = BADGE[an.status];
+    let h = `<div class="w-lp-geometry-status"><span class="w-lp-geometry-badge" style="background:${col}">${txt}</span>`;
+    const word = lp.sense === "min" ? "azalıyor" : "artıyor";
+    if (an.status === "infeasible") h += "Hiçbir nokta bütün constraint'leri aynı anda sağlamıyor: feasible region boş. Optimal solution yok. scipy <code>linprog</code>: status 2.";
+    else if (an.status === "unbounded") h += `Region $d = ${ptTex(an.dir)}$ yönünde sonsuza açık ve bu yönde $z$ birim başına $c^\\top d = ${tex(zOf(lp, an.dir))}$ ${word}. $z$ sınırsız: unbounded LP. scipy: status 3.`;
+    else if (an.status === "unique") h += `Optimum tek vertex: $x^* = ${ptTex(an.opt[0].p)}$, $z^* = ${tex(an.zstar)}$. scipy: status 0.`;
+    else {
+      h += `En iyi değer $z^* = ${tex(an.zstar)}$ birden çok noktada: `;
+      h += an.opt.length > 1 ? `vertex'ler ${an.opt.map(v => "$" + ptTex(v.p) + "$").join(" ve ")} ve aradaki edge'in tamamı.` : `$${ptTex(an.opt[0].p)}$'den $d = ${ptTex(an.ray)}$ yönünde giden ışının tamamı.`;
+      h += " Alternative optima. scipy yine status 0 verir ve bunlardan sadece birini döndürür.";
+    }
+    if (an.status !== "infeasible") h += `<br><span class="src">Region: ${an.bounded ? "bounded (polytope)" : "unbounded polyhedron"}.</span>`;
+    return h + "</div>";
+  }
+  function figure(el, lp, o) {
+    const an = analyze(lp), sc = scaleOf(an);
+    el.innerHTML = plot(lp, an, Object.assign({ M: sc.M, step: sc.step, marks: an.verts.map(v => ({ p: v.p, label: pt(v.p), kind: "bfs" })) }, o || {}));
+    return an;
+  }
+  const JOBMIX = () => ({ sense: "max", c: [3, 5], rows: [{ a: [1, 0], op: "le", b: 4, name: "accelerator" }, { a: [0, 2], op: "le", b: 12, name: "memory" }, { a: [3, 2], op: "le", b: 18, name: "CPU" }] });
+  return { fr, tex, pt, ptTex, linTex, parseNum, OPT, OPS, feasible, rowOk, analyze, scaleOf, plot, statusHTML, figure, zOf, lineSeg, segInLP, JOBMIX, current: null };
+})();
+
+/* Static figure in section 4 */
+document.querySelectorAll('[data-lg-fig="jobmix"]').forEach(el => LG.figure(el, LG.JOBMIX(), { aria: "Job-mix feasible region ve beş vertex" }));
+
+/* Widget A: graphical LP solver with an iso-profit slider */
+(function () {
+  const PRE = {
+    jobmix: { sense: "max", c: [3, 5], rows: [[1, 0, "le", 4, "accelerator"], [0, 2, "le", 12, "memory"], [3, 2, "le", 18, "CPU"]] },
+    lab01: { sense: "max", c: [3, 4], rows: [[1, 1, "le", 4, "R1"], [1, 3, "le", 6, "R2"]] },
+    dorian: { sense: "min", c: [50, 100], rows: [[7, 2, "ge", 28, "HIW"], [2, 12, "ge", 24, "HIM"]] },
+    jane: { sense: "max", c: [200, 300], rows: [[1, 1, "le", 45, "land"], [3, 2, "le", 100, "labor"], [2, 4, "le", 120, "fertilizer"]] }
+  };
+  const NR = 6;
+  const rowsEl = document.getElementById("ga-rows"), err = document.getElementById("ga-err");
+  const sense = document.getElementById("ga-sense"), c1 = document.getElementById("ga-c1"), c2 = document.getElementById("ga-c2");
+  const zr = document.getElementById("ga-z"), zval = document.getElementById("ga-zval"), zinfo = document.getElementById("ga-zinfo");
+  const plotEl = document.getElementById("ga-plot"), stEl = document.getElementById("ga-status"), tbl = document.getElementById("ga-table");
+  rowsEl.innerHTML = Array.from({ length: NR }, (_, i) =>
+    `<div class="w-lp-geometry-row" data-r="${i}"><input type="checkbox" aria-label="R${i + 1} açık" /><input type="text" inputmode="decimal" class="btn btn--sm" aria-label="R${i + 1} a1" /> x₁ + <input type="text" inputmode="decimal" class="btn btn--sm" aria-label="R${i + 1} a2" /> x₂ <select class="btn btn--sm" aria-label="R${i + 1} işaret"><option value="le">≤</option><option value="ge">≥</option><option value="eq">=</option></select> <input type="text" inputmode="decimal" class="btn btn--sm" aria-label="R${i + 1} rhs" /> <span class="src"></span></div>`).join("");
+  const R = [...rowsEl.querySelectorAll("[data-r]")].map(d => ({ on: d.querySelector("input[type=checkbox]"), t: d.querySelectorAll("input[type=text]"), op: d.querySelector("select"), nm: d.querySelector("span") }));
+  function load(key) {
+    const P = PRE[key];
+    sense.value = P.sense; c1.value = P.c[0]; c2.value = P.c[1];
+    R.forEach((r, i) => {
+      const q = P.rows[i];
+      r.on.checked = !!q;
+      r.t[0].value = q ? q[0] : ""; r.t[1].value = q ? q[1] : ""; r.op.value = q ? q[2] : "le"; r.t[2].value = q ? q[3] : "";
+      r.nm.textContent = q ? q[4] : "R" + (i + 1);
+    });
+    zr.dataset.init = "1";
+    upd();
+  }
+  function read() {
+    const c = [LG.parseNum(c1.value), LG.parseNum(c2.value)];
+    if (c.some(v => v === null)) return { e: "Objective katsayıları sayı olmalı (örnek: 3, -2, 0.5 ya da 1/40)." };
+    const rows = [];
+    for (let i = 0; i < NR; i++) {
+      const r = R[i];
+      if (!r.on.checked) continue;
+      const v = [...r.t].map(t => LG.parseNum(t.value));
+      if (v.some(x => x === null)) return { e: `R${i + 1} satırında sayı olmayan bir kutu var. Satırı kullanmayacaksan kutusunu boşalt.` };
+      if (Math.abs(v[0]) < 1e-12 && Math.abs(v[1]) < 1e-12) return { e: `R${i + 1}: iki katsayı birden 0 olamaz; bu bir doğru tanımlamaz.` };
+      rows.push({ a: [v[0], v[1]], op: r.op.value, b: v[2], name: r.nm.textContent || "R" + (i + 1) });
+    }
+    return { lp: { sense: sense.value, c, rows } };
+  }
+  let cur = null;
+  function upd() {
+    const r = read();
+    if (r.e) { err.textContent = r.e; return; }
+    err.textContent = "";
+    const lp = r.lp, an = LG.analyze(lp), sc = LG.scaleOf(an);
+    LG.current = lp;
+    const corners = [[0, 0], [sc.M, 0], [0, sc.M], [sc.M, sc.M]].map(p => LG.zOf(lp, p));
+    const lo = Math.min(...corners), hi = Math.max(...corners);
+    zr.min = lo; zr.max = hi; zr.step = (hi - lo) / 240 || 1;
+    if (zr.dataset.init === "1") { zr.value = an.zstar !== undefined ? lo + 0.4 * (an.zstar - lo) : lo + 0.3 * (hi - lo); zr.dataset.init = ""; }
+    cur = { lp, an, sc };
+    document.getElementById("ga-zstar").disabled = an.zstar === undefined;
+    stEl.innerHTML = LG.statusHTML(lp, an);
+    let h = `<table><tr><th>vertex</th><th>$z$</th><th>tight</th></tr>`;
+    an.verts.forEach(v => {
+      const tight = an.L.filter((l, k) => k < 2 ? Math.abs(v.p[k]) < 1e-9 : Math.abs(l.a[0] * v.p[0] + l.a[1] * v.p[1] - l.b) <= 1e-9 * (1 + Math.abs(l.b))).map(l => l.name).join(", ");
+      const best = an.opt && an.opt.includes(v);
+      h += `<tr><td>${best ? "★ " : ""}$${LG.ptTex(v.p)}$</td><td>${best ? "<b>" + LG.fr(v.z) + "</b>" : LG.fr(v.z)}</td><td class="w-lp-geometry-small">${tight}</td></tr>`;
+    });
+    tbl.innerHTML = an.verts.length ? h + "</table>" : "";
+    Lab.renderMath(stEl); Lab.renderMath(tbl);
+    draw();
+  }
+  function draw() {
+    if (!cur) return;
+    const { lp, an, sc } = cur, z = Number(zr.value);
+    const marks = an.verts.map(v => ({ p: v.p, label: LG.pt(v.p), kind: an.opt && an.opt.includes(v) ? "opt" : "bfs" }));
+    const arrow = an.status === "unbounded" ? [an.verts.reduce((b, v) => (LG.zOf(lp, v.p) * (lp.sense === "min" ? -1 : 1) > LG.zOf(lp, b.p) * (lp.sense === "min" ? -1 : 1) ? v : b), an.verts[0]).p, an.dir] : null;
+    const cdir = lp.sense === "min" ? [-lp.c[0], -lp.c[1]] : lp.c;
+    plotEl.innerHTML = LG.plot(lp, an, { M: sc.M, step: sc.step, z, marks, arrow: arrow || ((cdir[0] || cdir[1]) ? [[sc.M * 0.06, sc.M * 0.06], cdir] : null), arrowLabel: arrow ? "d" : (lp.sense === "min" ? "−c" : "c"), arrowColor: arrow ? "var(--orange-600)" : "var(--accent)", aria: "grafik LP çözücü" });
+    zval.textContent = LG.fr(Math.round(z * 100) / 100);
+    const seg = LG.segInLP(lp, LG.lineSeg(lp.c, z, -sc.M * 0.05, sc.M, -sc.M * 0.05, sc.M));
+    const zs = an.zstar;
+    if (!seg) zinfo.textContent = `z = ${LG.fr(Math.round(z * 100) / 100)}: doğru region'ın dışında. Bu z'yi veren feasible plan yok.`;
+    else if (zs !== undefined && Math.abs(z - zs) <= 1e-6 * (1 + Math.abs(zs))) zinfo.textContent = `Son temas: z = z* = ${LG.fr(zs)}. Doğrunun region'la ortak kısmı optimal kümedir.`;
+    else zinfo.textContent = `z = ${LG.fr(Math.round(z * 100) / 100)}: doğru region'ı kesiyor (kalın kısım). Bu parçadaki her plan aynı kârı verir; doğruyu ${lp.sense === "min" ? "−c" : "c"} yönünde kaydırmaya devam et.`;
+  }
+  zr.addEventListener("input", draw);
+  document.getElementById("ga-zstar").addEventListener("click", () => { if (cur && cur.an.zstar !== undefined) { zr.value = cur.an.zstar; draw(); } });
+  document.getElementById("ga").addEventListener("input", e => { if (e.target !== zr) upd(); });
+  document.getElementById("ga").addEventListener("change", e => { if (e.target !== zr) upd(); });
+  document.querySelectorAll("[data-ga]").forEach(b => b.addEventListener("click", () => load(b.dataset.ga)));
+  load("jobmix");
+})();
+
+/* Widget B: enumerate every pair of boundary lines */
+(function () {
+  const box = document.getElementById("gb-stepper"), err = document.getElementById("gb-err");
+  const PRE = {
+    jobmix: LG.JOBMIX(),
+    lab01: { sense: "max", c: [3, 4], rows: [{ a: [1, 1], op: "le", b: 4, name: "R1" }, { a: [1, 3], op: "le", b: 6, name: "R2" }] },
+    twin: { sense: "max", c: [5, 2], rows: [{ a: [1, 1], op: "le", b: 9, name: "R1" }, { a: [2, 1], op: "le", b: 14, name: "R2" }, { a: [1, 0], op: "le", b: 6, name: "R3" }] }
+  };
+  function why(lp, p) {
+    const bad = [];
+    if (p[0] < -1e-9) bad.push(`x₁ ≥ 0 (x₁ = ${LG.fr(p[0])})`);
+    if (p[1] < -1e-9) bad.push(`x₂ ≥ 0 (x₂ = ${LG.fr(p[1])})`);
+    lp.rows.forEach((r, i) => { if (!LG.rowOk(r, p)) bad.push(`${r.name || "R" + (i + 1)}: ${LG.fr(r.a[0] * p[0] + r.a[1] * p[1])} ${LG.OPS[r.op]} ${LG.fr(r.b)} değil`); });
+    return bad.join("; ");
+  }
+  function build(lp, title) {
+    if (lp.rows.length > 6) { err.textContent = "En fazla 6 constraint."; return; }
+    err.textContent = "";
+    const an = LG.analyze(lp), sc = LG.scaleOf(an), L = an.L;
+    const vecHead = lp.rows.map((r, i) => r.op === "le" ? `$s_{${i + 1}}$` : r.op === "ge" ? `$e_{${i + 1}}$` : null);
+    const frames = an.pairs.map((r, k) => {
+      const l1 = L[r.i], l2 = L[r.j];
+      let cap = `Çift ${k + 1}/${an.pairs.length}: $${l1.tex}$ ve $${l2.tex}$. `;
+      if (!r.p) cap += "İki doğru paralel, kesişmiyor: bu çiftten basic solution çıkmaz.";
+      else cap += `Kesişim $${LG.ptTex(r.p)}$. ` + (r.ok ? `Bütün constraint'ler sağlanıyor ⇒ <b>BFS</b> (vertex), $z = ${LG.tex(r.z)}$.` : `Bozulan: ${why(lp, r.p)} ⇒ basic solution ama <b>feasible değil</b>.`);
+      return { k, caption: cap };
+    });
+    const npar = an.pairs.filter(r => !r.p).length, nOkPairs = an.pairs.filter(r => r.p).length;
+    let fin = `Toplam ${an.pairs.length} çift; ${npar} paralel ⇒ ${nOkPairs} kesişim` + (an.points.length < nOkPairs ? ` (${an.points.length} farklı nokta)` : "") + `; bunlardan <b>${an.verts.length} tanesi BFS</b>.`;
+    const deg = an.verts.filter(v => v.n > 1);
+    if (deg.length) fin += ` ${deg.map(v => "$" + LG.ptTex(v.p) + "$").join(", ")} birden çok çiftten geliyor: orada ikiden fazla boundary buluşuyor (degenerate).`;
+    if (an.status === "unbounded") fin += " Dikkat: region objective'in iyileştiği yönde açık; en iyi BFS optimum değil, LP unbounded.";
+    else if (an.zstar !== undefined) fin += ` En iyi BFS: ${an.opt.map(v => "$" + LG.ptTex(v.p) + "$").join(", ")}, $z^* = ${LG.tex(an.zstar)}$.`;
+    else fin += " Hiç BFS yok: LP infeasible.";
+    frames.push({ k: an.pairs.length - 1, final: true, caption: fin });
+    Lab.stepper(box, {
+      title, interval: 1500, frames,
+      render(f, idx, el) {
+        const r = an.pairs[f.k];
+        const marks = [];
+        an.pairs.slice(0, f.k + 1).forEach((q, t) => { if (q.p) marks.push({ p: q.p, kind: q.ok ? "bfs" : "bad", ring: !f.final && t === f.k, label: !f.final && t === f.k ? LG.pt(q.p) : (f.final && q.ok ? LG.pt(q.p) : "") }); });
+        const svg = LG.plot(lp, an, { M: sc.M, step: sc.step, marks, hiLines: f.final ? [] : [r.i, r.j], aria: "boundary çiftleri" });
+        let h = `<table><tr><th>#</th><th>NBV</th><th>nokta</th>${vecHead.filter(Boolean).map(x => `<th>${x}</th>`).join("")}<th>durum</th><th>$z$</th></tr>`;
+        an.pairs.slice(0, f.k + 1).forEach((q, t) => {
+          const nb = [L[q.i].nb, L[q.j].nb].map(x => x ? "$" + x + "$" : "—").join(", ");
+          const curRow = !f.final && t === f.k ? ' style="background:var(--blue-050)"' : "";
+          if (!q.p) { h += `<tr${curRow}><td>${t + 1}</td><td>${nb}</td><td colspan="${2 + vecHead.filter(Boolean).length}">paralel</td><td></td></tr>`; return; }
+          const vals = lp.rows.map(rr => rr.op === "le" ? rr.b - (rr.a[0] * q.p[0] + rr.a[1] * q.p[1]) : rr.op === "ge" ? rr.a[0] * q.p[0] + rr.a[1] * q.p[1] - rr.b : null).filter(v => v !== null)
+            .map(v => `<td class="${v < -1e-9 ? "w-lp-geometry-neg" : ""}">${LG.fr(v + 0)}</td>`).join("");
+          h += `<tr${curRow}><td>${t + 1}</td><td>${nb}</td><td>${LG.pt(q.p)}</td>${vals}<td>${q.ok ? "BFS" : "infeasible"}</td><td>${LG.fr(q.z)}</td></tr>`;
+        });
+        el.innerHTML = `<div class="w-lp-geometry-cols"><div class="w-lp-geometry-plot">${svg}</div><div class="table-wrap">${h}</table></div></div>`;
+      }
+    });
+  }
+  const names = { jobmix: "Job-mix", lab01: "Lab01 LP", twin: "Alıştırma LP'si" };
+  document.querySelectorAll("[data-gb]").forEach(b => b.addEventListener("click", () => {
+    if (b.dataset.gb === "ga") { if (LG.current) build(LG.current, "Grafik çözücüdeki LP"); else err.textContent = "Grafik çözücüde geçerli bir LP yok."; }
+    else build(PRE[b.dataset.gb], names[b.dataset.gb]);
+  }));
+  build(PRE.jobmix, names.jobmix);
+})();
+
+/* Widget C: standard-form converter */
+(function () {
+  const PRE = {
+    p3: { n: 2, sense: "min", c: [3, 1, 0], free: [0, 0, 0], rows: [[1, 0, 0, "ge", 3], [1, 1, 0, "le", 4], [2, -1, 0, "eq", 3]] },
+    dorian: { n: 2, sense: "min", c: [50, 100, 0], free: [0, 0, 0], rows: [[7, 2, 0, "ge", 28], [2, 12, 0, "ge", 24]] },
+    free: { n: 3, sense: "min", c: [1, -2, 1], free: [0, 1, 0], rows: [[1, 1, 0, "ge", 2], [1, -1, 1, "eq", 1], [0, 1, 0, "le", 3]] },
+    jobmix: { n: 2, sense: "max", c: [3, 5, 0], free: [0, 0, 0], rows: [[1, 0, 0, "le", 4], [0, 2, 0, "le", 12], [3, 2, 0, "le", 18]] }
+  };
+  const NV = 3, NR = 4;
+  const nSel = document.getElementById("gc-n"), objEl = document.getElementById("gc-obj"), sgEl = document.getElementById("gc-signs"), rowsEl = document.getElementById("gc-rows");
+  const err = document.getElementById("gc-err"), box = document.getElementById("gc-stepper");
+  const inp = lbl => `<input type="text" inputmode="decimal" class="btn btn--sm" aria-label="${lbl}" />`;
+  objEl.innerHTML = `<select class="btn btn--sm" id="gc-sense" aria-label="max ya da min"><option value="max">max</option><option value="min">min</option></select> z = ` +
+    [0, 1, 2].map(j => `<span data-v="${j}">${j ? "+ " : ""}${inp("c" + (j + 1))} x${"₁₂₃"[j]}</span>`).join(" ");
+  sgEl.innerHTML = [0, 1, 2].map(j => `<span data-v="${j}">x${"₁₂₃"[j]}: <select class="btn btn--sm" aria-label="x${j + 1} işareti"><option value="0">≥ 0</option><option value="1">free</option></select></span>`).join(" ");
+  rowsEl.innerHTML = Array.from({ length: NR }, (_, i) => `<div class="w-lp-geometry-row" data-r="${i}"><input type="checkbox" aria-label="satır ${i + 1} açık" /> ` +
+    [0, 1, 2].map(j => `<span data-v="${j}">${j ? "+ " : ""}${inp(`satır ${i + 1} a${j + 1}`)} x${"₁₂₃"[j]}</span>`).join(" ") +
+    ` <select class="btn btn--sm" aria-label="satır ${i + 1} işaret"><option value="le">≤</option><option value="ge">≥</option><option value="eq">=</option></select> ${inp(`satır ${i + 1} rhs`)}</div>`).join("");
+  const senseEl = document.getElementById("gc-sense");
+  const cIn = [...objEl.querySelectorAll("input")], sgIn = [...sgEl.querySelectorAll("select")];
+  const RW = [...rowsEl.querySelectorAll("[data-r]")].map(d => ({ on: d.querySelector("input[type=checkbox]"), a: [...d.querySelectorAll("span input")], op: d.querySelector("select"), b: d.querySelector(":scope > input[type=text]") }));
+  function showN() {
+    const n = +nSel.value;
+    document.querySelectorAll("#gc [data-v]").forEach(s => { s.style.display = +s.dataset.v < n ? "" : "none"; });
+  }
+  function load(k) {
+    const P = PRE[k];
+    nSel.value = P.n; senseEl.value = P.sense;
+    cIn.forEach((x, j) => { x.value = P.c[j]; });
+    sgIn.forEach((x, j) => { x.value = P.free[j]; });
+    RW.forEach((r, i) => { const q = P.rows[i]; r.on.checked = !!q; r.a.forEach((x, j) => { x.value = q ? q[j] : ""; }); r.op.value = q ? q[3] : "le"; r.b.value = q ? q[4] : ""; });
+    showN(); go();
+  }
+  function read() {
+    const n = +nSel.value, c = cIn.slice(0, n).map(x => LG.parseNum(x.value));
+    if (c.some(v => v === null)) return { e: "Objective katsayılarından biri sayı değil." };
+    const rows = [];
+    for (let i = 0; i < NR; i++) {
+      const r = RW[i];
+      if (!r.on.checked) continue;
+      const a = r.a.slice(0, n).map(x => LG.parseNum(x.value)), b = LG.parseNum(r.b.value);
+      if (a.some(v => v === null) || b === null) return { e: `Satır ${i + 1}'de sayı olmayan bir kutu var.` };
+      if (a.every(v => Math.abs(v) < 1e-12)) return { e: `Satır ${i + 1}: bütün katsayılar 0, bu bir constraint değil.` };
+      rows.push({ a, op: r.op.value, b });
+    }
+    if (!rows.length) return { e: "En az bir satırı işaretle." };
+    return { n, sense: senseEl.value, c, free: sgIn.slice(0, n).map(x => x.value === "1"), rows };
+  }
+  function lpTex(L, head) {
+    let s = `\\begin{array}{ll} ${head} & ${L.zname} = ${LG.linTex(L.c, L.vars)} \\\\ \\text{s.t.} & `;
+    s += L.rows.map(r => `${LG.linTex(r.a, L.vars)} ${LG.OPT[r.op]} ${LG.tex(r.b)}`).join(" \\\\ & ");
+    const pos = L.vars.filter((v, j) => !L.free[j]), fr = L.vars.filter((v, j) => L.free[j]);
+    s += " \\\\ & " + [pos.length ? pos.join(", ") + " \\ge 0" : "", fr.length ? fr.join(", ") + " \\text{ free}" : ""].filter(Boolean).join(",\\quad ");
+    return s + " \\end{array}";
+  }
+  function go() {
+    const P = read();
+    if (P.e) { err.textContent = P.e; return; }
+    err.textContent = "";
+    const X = Array.from({ length: P.n }, (_, j) => `x_{${j + 1}}`);
+    const L0 = { zname: "z", c: P.c, vars: X, free: P.free, rows: P.rows };
+    const frames = [{ L: L0, head: P.sense === "min" ? "\\min" : "\\max", caption: "Başlangıç LP'si. Sırayla: objective, free değişkenler, inequality form, standard form." }];
+    const L1 = Object.assign({}, L0, P.sense === "min" ? { zname: "-z", c: P.c.map(v => -v) } : {});
+    frames.push({ L: L1, head: "\\max", caption: P.sense === "min" ? "min'i max'a çevir: $c$'yi negate et, $\\max\\ (-z)$. Optimal $x$ aynı kalır; optimal değeri bulunca işaretini geri çevir: $z^* = -(-z)^*$." : "Objective zaten max: değişiklik yok." });
+    const vars = [], free = [], cols = [];
+    X.forEach((v, j) => { if (P.free[j]) { vars.push(`x_{${j + 1}}^+`, `x_{${j + 1}}^-`); free.push(false, false); cols.push([j, 1], [j, -1]); } else { vars.push(v); free.push(false); cols.push([j, 1]); } });
+    const split = vec => cols.map(([j, s]) => s * vec[j] + 0);
+    const L2 = { zname: L1.zname, c: split(L1.c), vars, free, rows: P.rows.map(r => ({ a: split(r.a), op: r.op, b: r.b })) };
+    const fv = X.filter((v, j) => P.free[j]);
+    frames.push({ L: L2, head: "\\max", caption: fv.length ? fv.map(v => `$${v}$ free (urs): $${v} = ${v}^+ - ${v}^-$, ikisi de $\\ge 0$.`).join(" ") + " Objective'de ve her satırda o sütun ikiye ayrılır: biri aynı, öteki negatifi." : "Free değişken yok: bütün değişkenler zaten $\\ge 0$." });
+    const iq = [], notes = [];
+    L2.rows.forEach((r, i) => {
+      if (r.op === "le") iq.push(r);
+      else if (r.op === "ge") { iq.push({ a: r.a.map(v => -v + 0), op: "le", b: -r.b + 0 }); notes.push(`${i + 1}. satır $\\ge$: $-1$ ile çarpıldı`); }
+      else { iq.push({ a: r.a, op: "le", b: r.b }, { a: r.a.map(v => -v + 0), op: "le", b: -r.b + 0 }); notes.push(`${i + 1}. satır $=$: iki $\\le$ satırı oldu`); }
+    });
+    const L3 = { zname: L2.zname, c: L2.c, vars, free, rows: iq };
+    frames.push({ L: L3, head: "\\max", caption: "<b>Inequality form</b> ($\\max\\ c^\\top x$, $Ax \\le b$, $x \\ge 0$). " + (notes.length ? notes.join("; ") + "." : "Bütün satırlar zaten $\\le$.") + ` ${iq.length} satır, ${vars.length} değişken.` });
+    const m = iq.length, sv = Array.from({ length: m }, (_, i) => `s_{${i + 1}}`);
+    const L4 = { zname: L2.zname, c: L2.c.concat(sv.map(() => 0)), vars: vars.concat(sv), free: free.concat(sv.map(() => false)), rows: iq.map((r, i) => ({ a: r.a.concat(sv.map((_, k) => (k === i ? 1 : 0))), op: "eq", b: r.b })) };
+    frames.push({ L: L4, head: "\\max", caption: `<b>Standard form, hocanın yolu:</b> inequality form'un her satırına bir slack, $s_i \\ge 0$, objective'de katsayısı 0. ${m} equation, ${vars.length + m} değişken.` });
+    let ns = 0;
+    const extra = [];
+    const L5rows = L2.rows.map(r => ({ a: r.a.slice(), op: "eq", b: r.b, kind: r.op }));
+    L2.rows.forEach((r, i) => { if (r.op === "le") extra.push({ name: `s_{${i + 1}}`, row: i, sign: 1 }); if (r.op === "ge") extra.push({ name: `e_{${i + 1}}`, row: i, sign: -1 }); });
+    L5rows.forEach((r, i) => { extra.forEach(x => r.a.push(x.row === i ? x.sign : 0)); });
+    ns = extra.length;
+    const L5 = { zname: L2.zname, c: L2.c.concat(extra.map(() => 0)), vars: vars.concat(extra.map(x => x.name)), free: free.concat(extra.map(() => false)), rows: L5rows };
+    frames.push({ L: L5, head: "\\max", caption: `<b>Kısa yol (Winston §4.1):</b> $\\le$ satırına slack ekle, $\\ge$ satırından excess (surplus) çıkar, $=$ satırına dokunma. ${L2.rows.length} equation, ${vars.length + ns} değişken.` + (L2.rows.some(r => r.op === "ge") ? " Bir önceki adımda $\\ge$'den gelen satırı $-1$ ile çarparsan buradaki excess'li satırı bulursun (slack'in adı burada excess olur)." : "") });
+    Lab.stepper(box, { title: "Dönüşüm adımları", interval: 2200, frames, render(f, i, el) { el.innerHTML = `<div class="w-lp-geometry-math">$$${lpTex(f.L, f.head)}$$</div>`; } });
+  }
+  nSel.addEventListener("change", showN);
+  document.getElementById("gc-go").addEventListener("click", go);
+  document.querySelectorAll("[data-gc]").forEach(b => b.addEventListener("click", () => load(b.dataset.gc)));
+  load("p3");
+})();
+
+/* Widget D: four-outcomes gallery on the job-mix LP */
+(function () {
+  const alt = document.getElementById("gd-alt"), unb = document.getElementById("gd-unb"), inf = document.getElementById("gd-inf");
+  const plotEl = document.getElementById("gd-plot"), out = document.getElementById("gd-out");
+  function upd() {
+    const rows = [{ a: [1, 0], op: "le", b: 4, name: "accelerator" }];
+    if (!unb.checked) rows.push({ a: [0, 2], op: "le", b: 12, name: "memory" }, { a: [3, 2], op: "le", b: 18, name: "CPU" });
+    if (inf.checked) rows.push({ a: [1, 1], op: "ge", b: 10, name: "x₁+x₂≥10" });
+    const lp = { sense: "max", c: alt.checked ? [3, 2] : [3, 5], rows };
+    const an = LG.analyze(lp), sc = LG.scaleOf(an);
+    const best = an.status === "unbounded" ? an.verts.reduce((b, v) => (v.z > b.z ? v : b), an.verts[0]) : null;
+    plotEl.innerHTML = LG.plot(lp, an, { M: sc.M, step: sc.step, z: an.zstar, aria: "dört sonuç galerisi",
+      marks: an.verts.map(v => ({ p: v.p, label: LG.pt(v.p), kind: an.opt && an.opt.includes(v) ? "opt" : "bfs" })),
+      arrow: best ? [best.p, an.dir] : null, arrowLabel: best ? "z → ∞" : "" });
+    out.innerHTML = `<div class="w-lp-geometry-math">$$\\max\\ z = ${LG.linTex(lp.c, ["x_1", "x_2"])}$$</div><p class="w-lp-geometry-small">Satırlar: ${rows.map(r => r.name).join(", ")}; $x \\ge 0$.</p>` + LG.statusHTML(lp, an);
+    Lab.renderMath(out);
+  }
+  [alt, unb, inf].forEach(x => x.addEventListener("change", upd));
+  upd();
+})();
+
+/* Widget E: bandwidth rate checker */
+(function () {
+  const F = ["ge-f1", "ge-f2", "ge-f3"].map(id => document.getElementById(id));
+  const err = document.getElementById("ge-err"), out = document.getElementById("ge-out"), net = document.getElementById("ge-net");
+  const LINKS = [
+    { id: "SRC→R1", use: [1, 0, 1], cap: 10, from: [40, 95], to: [170, 35] },
+    { id: "SRC→R2", use: [0, 1, 0], cap: 8, from: [40, 95], to: [170, 155] },
+    { id: "R1→DST", use: [1, 0, 0], cap: 7, from: [170, 35], to: [300, 95] },
+    { id: "R2→DST", use: [0, 1, 1], cap: 9, from: [170, 155], to: [300, 95] },
+    { id: "R1→R2", use: [0, 0, 1], cap: 4, from: [170, 35], to: [170, 155] }
+  ];
+  function svg(load) {
+    let s = `<svg viewBox="0 0 340 190" role="img" aria-label="bandwidth ağı">`;
+    LINKS.forEach((l, k) => {
+      const over = load[k] > l.cap + 1e-9, full = Math.abs(load[k] - l.cap) <= 1e-9;
+      const col = over ? "var(--orange-700)" : full ? "var(--accent)" : "var(--blue-600)";
+      const [x1, y1] = l.from, [x2, y2] = l.to, ang = Math.atan2(y2 - y1, x2 - x1), r = 20;
+      const ax = x2 - r * Math.cos(ang), ay = y2 - r * Math.sin(ang), bx = x1 + r * Math.cos(ang), by = y1 + r * Math.sin(ang);
+      s += `<line x1="${bx}" y1="${by}" x2="${ax}" y2="${ay}" style="stroke:${col};stroke-width:${full || over ? 3.5 : 2}"/>`;
+      s += `<polygon points="${ax},${ay} ${ax - 8 * Math.cos(ang - 0.4)},${ay - 8 * Math.sin(ang - 0.4)} ${ax - 8 * Math.cos(ang + 0.4)},${ay - 8 * Math.sin(ang + 0.4)}" style="fill:${col}"/>`;
+      const mx = (x1 + x2) / 2 + (k === 4 ? 26 : 0), my = (y1 + y2) / 2 + (k === 4 ? 0 : (y2 < y1 ? -8 : 0) + (k === 1 || k === 3 ? 14 : -6));
+      s += `<text x="${mx}" y="${my}" text-anchor="middle" style="font-size:11px;font-weight:700;fill:${col};paint-order:stroke;stroke:var(--paper);stroke-width:3px">${LG.fr(load[k])}/${l.cap}</text>`;
+    });
+    [["SRC", 40, 95], ["R1", 170, 35], ["R2", 170, 155], ["DST", 300, 95]].forEach(([n, x, y]) => {
+      s += `<circle cx="${x}" cy="${y}" r="19" style="fill:var(--paper);stroke:${n === "SRC" || n === "DST" ? "var(--accent)" : "var(--blue-600)"};stroke-width:2.5"/><text x="${x}" y="${y + 4}" text-anchor="middle" style="font-size:11px;font-weight:700;fill:var(--ink-800)">${n}</text>`;
+    });
+    return s + "</svg>";
+  }
+  function go() {
+    const f = F.map(x => LG.parseNum(x.value));
+    if (f.some(v => v === null)) { err.textContent = "Üç rate de sayı olmalı (Gbps, örnek: 7 ya da 2.5)."; return; }
+    err.textContent = "";
+    const load = LINKS.map(l => l.use[0] * f[0] + l.use[1] * f[1] + l.use[2] * f[2]);
+    net.innerHTML = svg(load);
+    const neg = f.some(v => v < -1e-9), bad = LINKS.filter((l, k) => load[k] > l.cap + 1e-9), tot = f[0] + f[1] + f[2];
+    let h = `<div class="table-wrap"><table><tr><th>link</th><th>kullanan path</th><th>yük</th><th>kapasite</th><th></th></tr>`;
+    LINKS.forEach((l, k) => {
+      const st = load[k] > l.cap + 1e-9 ? '<span class="w-lp-geometry-neg">aşıldı</span>' : Math.abs(load[k] - l.cap) <= 1e-9 ? "tam dolu" : "boşluk " + LG.fr(l.cap - load[k]);
+      h += `<tr><td>${l.id}</td><td>${l.use.map((u, j) => (u ? "P" + "₁₂₃"[j] : "")).filter(Boolean).join(", ")}</td><td>${LG.fr(load[k])}</td><td>${l.cap}</td><td>${st}</td></tr>`;
+    });
+    h += `</table></div><p>Toplam: <b>${LG.fr(tot)}</b> Gbps.</p>`;
+    let v;
+    if (neg) v = "Bir rate negatif: $f \\ge 0$ bozuluyor. Infeasible.";
+    else if (bad.length) v = `Infeasible: ${bad.map(l => l.id).join(", ")} kapasitesi aşılıyor.`;
+    else if (tot >= 16 - 1e-9) v = "Feasible ve toplam 16 = üst sınır ($f_1 \\le 7$ ile $f_2 + f_3 \\le 9$'un toplamı) ⇒ <b>optimal</b>.";
+    else v = `Feasible, ama toplam ${LG.fr(tot)} &lt; 16: optimal değil.`;
+    out.innerHTML = h + `<div class="w-lp-geometry-status">${v}</div>`;
+    Lab.renderMath(out);
+  }
+  document.getElementById("ge-go").addEventListener("click", go);
+  F.forEach(x => x.addEventListener("keydown", e => { if (e.key === "Enter") go(); }));
+  document.querySelectorAll("[data-ge]").forEach(b => b.addEventListener("click", () => { b.dataset.ge.split(",").forEach((v, j) => { F[j].value = v; }); go(); }));
+  go();
+})();
+</script>
+</body>
+</html>

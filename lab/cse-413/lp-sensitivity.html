@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 413: sensitivity analysis. Optimal basis ne zaman değişir, RHS ranging (B⁻¹ sütunu), shadow price ile z*(b), objective coefficient ranging, iso-profit eğimi, yeni activity'yi fiyatlamak, solver report'u, 100% rule ve range dışında dual simplex." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Sensitivity analysis: RHS ve objective ranging · CSE 413 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-lp-sensitivity-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-lp-sensitivity-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-lp-sensitivity-ctl input[type="text"] { width: 76px; }
+    .w-lp-sensitivity-ctl input[type="range"] { flex: 1 1 160px; min-width: 120px; accent-color: var(--blue-600); }
+    .w-lp-sensitivity-ctl select { max-width: 100%; }
+    .w-lp-sensitivity-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-lp-sensitivity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+    .w-lp-sensitivity-panel { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px; min-width: 0; background: var(--paper); }
+    .w-lp-sensitivity-panel h4 { margin: 0 0 4px; font-size: .92rem; color: var(--fg-brand); }
+    .w-lp-sensitivity-panel svg { display: block; width: 100%; height: auto; }
+    .w-lp-sensitivity-out { margin-top: 8px; font-size: .95rem; }
+    .w-lp-sensitivity-out p { margin: 4px 0; }
+    .w-lp-sensitivity-ok { color: #2b8a3e; font-weight: 700; }
+    .w-lp-sensitivity-no { color: var(--orange-700); font-weight: 700; }
+    .w-lp-sensitivity-tab { border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: .85rem; }
+    .w-lp-sensitivity-tab td, .w-lp-sensitivity-tab th { padding: 3px 7px; text-align: center; white-space: nowrap; }
+    .w-lp-sensitivity-tab .hl { background: var(--blue-050); font-weight: 700; }
+    .w-lp-sensitivity-tab .hl2 { background: var(--orange-100); font-weight: 700; }
+    .w-lp-sensitivity-tab tr.sep td { border-top: 2px solid var(--border-strong); }
+    .w-lp-sensitivity-report { font-family: 'JetBrains Mono', monospace; font-size: .8rem; white-space: pre; overflow-x: auto; background: var(--bg-muted); border-radius: var(--radius-sm); padding: 8px; margin: 6px 0; }
+    code.w-lp-sensitivity-usd { font-family: inherit; background: none; padding: 0; border: 0; color: inherit; font-size: inherit; }
+    .w-lp-sensitivity-check li { margin: 3px 0; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 413</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 413</a> / Sensitivity analysis</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">Week 4</span><span class="chip chip--exam">Vize kapsamı</span><span class="chip">Lab 4: ranging</span><span class="src">~50 dk · 12 bölüm</span></div>
+          <h1>Sensitivity analysis: RHS ve objective ranging</h1>
+          <p class="lead">Bir LP'yi çözdün ve final tableau elinde. Şimdi bir veri değişiyor: memory pool büyüyor, bir ürünün kârı düşüyor, yeni bir ürün teklif ediliyor. <em>Sensitivity analysis</em>, problemi baştan çözmeden şu soruyu cevaplar: optimal basis hâlâ optimal mi, değilse ne olur? Bu derste RHS ranging'i, objective coefficient ranging'i, yeni bir activity'yi fiyatlamayı, solver report'unu okumayı, 100% rule'u ve range dışına çıkınca ne yapılacağını göreceksin.</p>
+          <p class="src">Not: Week 4 slaytları ve Lab 4 notebook'u repoda yok. Konu Winston (Bölüm 5, §6.3, §6.4, §6.11) ve Boyd §5.6 üzerinden anlatıldı. Sayısal örnek hocanın Week 3'teki job-mix LP'si; tableau'lar slaytlardaki $c_j - z_j$ düzeninde.</p>
+          <!-- Kaynak: Syllabus Week 4 satırı (resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Syllabus.pdf) · Week_03.pdf s.4, 7, 14–20 (job-mix, final tableau, shadow price önizlemesi) · Winston §5.1–5.4 (pdf s.243–270), §6.3 (pdf s.291), §6.4, §6.11 (pdf s.345) · Boyd §5.6 (pdf s.263) · Pınar, Doğrusal Optimizasyondan Çıkış, Ders 17 · Lab01.ipynb Exercise 1. Bütün sayılar python (Fraction ile exact simplex) ile kontrol edildi. -->
+        </header>
+
+        <article class="lesson" data-course="cse-413" data-lesson="lp-sensitivity">
+
+<!-- 1 -->
+<section class="lsec" id="basis-test" data-min="4">
+  <h2>Sensitivity analysis neye bakar?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Final tableau iki şey söyler: hangi vertex'teyiz (b sütunu) ve oradan çıkan hiçbir edge yukarı gitmiyor ($c_j - z_j$ satırı). Bir veri değişince bu iki bilgiden biri bozulabilir. Hangisinin bozulduğunu bilirsen, neyi yeniden hesaplaman gerektiğini de bilirsin.</p>
+  </div>
+  <p>Week 3'ün job-mix LP'si: $\max z = 3x_1 + 5x_2$, s.t. $x_1 \le 4$ (accelerator), $2x_2 \le 12$ (memory), $3x_1 + 2x_2 \le 18$ (CPU), $x \ge 0$. Slaytlardaki final tableau (slayt düzeni: $c_j - z_j$ satırı, max problemde en büyük pozitif değer girer):</p>
+  <div class="table-wrap"><table class="w-lp-sensitivity-tab">
+    <tr><th></th><th>$c_j \to$</th><th></th><th>3</th><th>5</th><th>0</th><th>0</th><th>0</th></tr>
+    <tr><th>$c_B$</th><th>Basis</th><th>b</th><th>$x_1$</th><th>$x_2$</th><th>$s_1$</th><th>$s_2$</th><th>$s_3$</th></tr>
+    <tr><td>0</td><td>$s_1$</td><td>2</td><td>0</td><td>0</td><td>1</td><td>1/3</td><td>−1/3</td></tr>
+    <tr><td>5</td><td>$x_2$</td><td>6</td><td>0</td><td>1</td><td>0</td><td>1/2</td><td>0</td></tr>
+    <tr><td>3</td><td>$x_1$</td><td>2</td><td>1</td><td>0</td><td>0</td><td>−1/3</td><td>1/3</td></tr>
+    <tr class="sep"><td></td><td>$z_j$</td><td>36</td><td>3</td><td>5</td><td>0</td><td>3/2</td><td>1</td></tr>
+    <tr><td></td><td>$c_j - z_j$</td><td></td><td>0</td><td>0</td><td>0</td><td>−3/2</td><td>−1</td></tr>
+  </table></div>
+  <!-- Kaynak: Week_03.pdf s.18–19 (Iteration 2 ve "Reading the Final Tableau"). -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · bir basis ne zaman optimal kalır (max problem, slayt düzeni)</span>
+    <ol>
+      <li><strong>Feasibility:</strong> b sütunu, yani $x_B = B^{-1}b$, her satırda $\ge 0$.</li>
+      <li><strong>Optimality:</strong> her $c_j - z_j \le 0$.</li>
+    </ol>
+    <p>İkisi de sağlanıyorsa basis optimaldir. Sensitivity analysis bir değişikliğin bu iki koşuldan hangisine dokunduğunu sorar (Winston Table 9):</p>
+    <div class="table-wrap"><table>
+      <tr><th>Değişen</th><th>Tableau'da ne değişir</th><th>Basis hâlâ optimal, eğer</th></tr>
+      <tr><td>RHS $b_i$</td><td>b sütunu (ve $z$)</td><td>yeni $B^{-1}b \ge 0$</td></tr>
+      <tr><td>Nonbasic $x_j$'nin $c_j$'si</td><td>sadece kendi $c_j - z_j$'si</td><td>o değer $\le 0$</td></tr>
+      <tr><td>Basic $x_j$'nin $c_j$'si</td><td>$c_B$ değişir, bütün $z_j$ satırı değişebilir</td><td>her nonbasic $c_k - z_k \le 0$</td></tr>
+      <tr><td>Yeni activity (sütun)</td><td>yeni bir $c_j - z_j$ girer</td><td>o değer $\le 0$</td></tr>
+    </table></div>
+    <p>"Optimal basis değişmiyor" demek $x^*$'ın ve $z^*$'ın değişmediği anlamına gelmez. RHS değişince basis aynı kalsa bile basic variable'ların değerleri değişir. Basic variable'ın $c_j$'si değişince $x^*$ aynı kalır ama $z^*$ değişir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · z-row düzenine çeviri</span>
+    <p>Lab 3 iskeleti ve bazı kitaplar (Winston dahil) tableau'nun en üstüne <strong>row 0</strong> yazar: $z_j - c_j$ değerleri. Bu, slayttaki satırın işaretçe tersidir:</p>
+    $$\text{row 0 katsayısı} = z_j - c_j = -(c_j - z_j).$$
+    <p>Slaytta "her $c_j - z_j \le 0$" olan optimality koşulu, z-row'da "row 0'ın her katsayısı $\ge 0$" olur. Entering variable slaytta en büyük pozitif $c_j - z_j$, z-row'da en negatif katsayıdır. Bu derste bütün tableau'lar slayt düzeninde. Winston'dan alınan sayılar da bu düzene çevrildi.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>RHS değişikliği $c_j - z_j$ satırını <strong>hiç</strong> değiştirmez ($z_j = c_B^T B^{-1} a_j$ formülünde $b$ yok). Bu yüzden bir RHS değişikliği basis'i "suboptimal" yapamaz, sadece "infeasible" yapabilir.</li>
+      <li>Objective değişikliği b sütununu değiştirmez. Bu yüzden basis infeasible olamaz, sadece suboptimal olabilir.</li>
+      <li>Winston'ın "row 0 nonnegative" cümlesini slayt düzenine taşırken işareti çevirmeyi unutma.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-basis-1">
+    <p class="quiz__q">Memory pool 12'den 14'e çıkıyor. Final tableau'nun hangi kısmı yeniden hesaplanmalı?</p>
+    <button class="quiz__opt" data-correct>Sadece b sütunu ve $z$; $c_j - z_j$ satırı aynı kalır<span class="why">Doğru. $b$ sadece $B^{-1}b$'de ve $z = c_B^T B^{-1} b$'de görünür. Optimality koşulu bozulamaz; kontrol edilecek tek şey yeni b sütununun $\ge 0$ olması.</span></button>
+    <button class="quiz__opt">Sadece $c_j - z_j$ satırı<span class="why">Bu objective coefficient değişikliği için geçerli. RHS, $z_j = c_B^T B^{-1} a_j$ formülüne girmez.</span></button>
+    <button class="quiz__opt">Bütün tableau, çünkü problem değişti<span class="why">Sensitivity analysis'in amacı tam da bunu yapmamak. $B^{-1}$ ve sütunlar aynı kalır; değişen sadece b sütunu.</span></button>
+    <button class="quiz__opt">Hiçbir şey, çünkü memory zaten binding<span class="why">Binding constraint'in RHS'si değişince vertex kayar, yani b sütunu değişir. Nonbinding constraint'in RHS'si range içinde değişince decision variable'lar ve $z^*$ değişmez; ama ilgili basic slack ve dolayısıyla tableau'nun b sütunu yine değişir (accelerator 4'ten 3'e inince $s_1$ 2'den 1'e iner).</span></button>
+  </div>
+  <div class="quiz" id="q-basis-2">
+    <p class="quiz__q">Lab 3 iskeletinde row 0 şu çıkıyor: $(0,\ 0,\ 0,\ 3/2,\ 1)$. Slayt düzeninde bu satır nedir ve tableau optimal mi?</p>
+    <button class="quiz__opt">$c_j - z_j = (0, 0, 0, 3/2, 1)$, optimal değil çünkü pozitif değer var<span class="why">İşareti çevirmedin. z-row $z_j - c_j$'yi tutar; slayt satırı onun negatifidir.</span></button>
+    <button class="quiz__opt" data-correct>$c_j - z_j = (0, 0, 0, -3/2, -1)$, optimal<span class="why">Doğru. Row 0 = $z_j - c_j$, slayttaki satır bunun negatifi. Hepsi $\le 0$, yani optimal. Bu, yukarıdaki final tableau'nun ta kendisi.</span></button>
+    <button class="quiz__opt">Satır aynı, sadece optimality koşulu "$\ge 0$" olur ve tableau optimal değil<span class="why">Koşulun yönü değişiyor, doğru. Ama satırın kendisi de işaret değiştiriyor ve iki düzen aynı tableau için hep aynı kararı verir: burada optimal.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="rhs-geo" data-min="4">
+  <h2>RHS değişince constraint paralel kayar</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · memory pool</span>
+    <p>Optimum $(2, 6)$'da memory ($2x_2 \le 12$) ve CPU ($3x_1 + 2x_2 \le 18$) binding. Memory'nin RHS'sine $b_2$ dersek, $2x_2 = b_2$ doğrusu yukarı aşağı paralel kayar. Optimal vertex hâlâ <strong>memory ∩ CPU</strong> noktasıdır, yeter ki bu nokta feasible kalsın. Nokta CPU doğrusu üzerinde kayar:</p>
+    $$x_2 = \tfrac{b_2}{2}, \qquad x_1 = \tfrac{18 - b_2}{3}.$$
+    <p>$x_1 \ge 0$ için $b_2 \le 18$, accelerator ($x_1 \le 4$) için $b_2 \ge 6$. Yani $6 \le b_2 \le 18$ aralığında aynı iki constraint binding kalır, yani <strong>aynı basis</strong>. $b_2 = 18$'de vertex $x_2$ ekseninde $(0, 9)$'a, $b_2 = 6$'da accelerator duvarında $(4, 3)$'e çarpar.</p>
+    <p>Bu aralıkta $z = 3x_1 + 5x_2 = (18 - b_2) + 2.5\,b_2 = 18 + 1.5\,b_2$. Memory'nin her ek bloğu $z$'yi $3/2$ artırır: final tableau'da $s_2$'nin altındaki $z_j = 3/2$ sayısı.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · grafik yöntem (Winston §5.1)</span>
+    <ul>
+      <li><strong>Binding constraint:</strong> RHS'yi değiştir, optimal vertex'i tanımlayan doğruların kesişimini $b_i$ cinsinden çöz. Kesişim feasible kaldığı sürece basis aynı. Aralığın uçları, kesişimin başka bir constraint'e (ya da bir eksene) çarptığı değerlerdir.</li>
+      <li><strong>Nonbinding constraint</strong> (slack'i $> 0$): RHS'yi slack kadar azaltabilirsin, istediğin kadar artırabilirsin. Accelerator için slack $s_1 = 2$, yani $b_1 \in [2, \infty)$. Bu aralıkta ne $x^*$ ne de $z^*$ değişir.</li>
+      <li><strong>Shadow price</strong> (Winston'ın tanımı): RHS 1 artınca optimal $z$'nin iyileşme miktarı (max'ta artış, min'de azalış). Tanım sadece basis'in değişmediği aralıkta geçerli.</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · nondegenerate vertex (Pınar, Ders 17)</span>
+    <p>$x^*$'ta aktif constraint'lerin index kümesi $J$ olsun ve $|J| = n$ (nondegenerate vertex). Küçük bir $u$ perturbation'ında</p>
+    $$x^*(u) = A_J^{-1}(b_J + u_J)$$
+    <p>optimal kalır ve dual çözüm $u$'dan bağımsızdır. Yani basis değişmediği sürece $x^*$, RHS'nin <strong>affine</strong> bir fonksiyonu, shadow price'lar ise sabittir. Yukarıdaki $x_2 = b_2/2$, $x_1 = (18 - b_2)/3$ bunun tam örneği.</p>
+  </div>
+  <!-- Kaynak: Winston §5.1 "Graphical Analysis of the Effect of a Change in a Right-Hand Side" ve "Shadow Prices" (Giapetto: 80 ≤ b1 ≤ 120, shadow price 1, 1, 0) · Pınar Ders 17.2 (x*(u) = A_J^{-1}(b_J + u_J)). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Basis aynı kaldı" ≠ "çözüm aynı kaldı". $b_2 = 15$'te basis aynı ama çözüm $(1, 7.5)$.</li>
+      <li>Nonbinding constraint'te tersi doğru: RHS aralık içinde değişirse çözüm de $z^*$ de aynı kalır.</li>
+      <li>Aralığın ucunu bulurken sadece bir taraftaki duvara bakma. $b_2$ büyürken $x_1$ küçülür ve $x_1 \ge 0$ da bir duvardır.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-5.1-P2"><span class="box__label">Winston §5.1 Problem 2 · ödev sorusu</span>
+    <p>Giapetto LP: $\max z = 3x_1 + 2x_2$ s.t. $2x_1 + x_2 \le 100$ (finishing), $x_1 + x_2 \le 80$ (carpentry), $x_1 \le 40$ (demand), $x \ge 0$. Optimum $(20, 60)$, $z = 180$.</p>
+    <p>"Show that if available carpentry hours remain between 60 and 100, the current basis remains optimal. If between 60 and 100 carpentry hours are available, would Giapetto still produce 20 soldiers and 60 trains?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Optimumda hangi iki constraint binding? $b_2 = 80 + \Delta$ alıp o iki doğrunun kesişimini $\Delta$ cinsinden çöz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Kesişim noktasının hangi koşullarda feasible olduğunu yaz: $x_1 \ge 0$, $x_2 \ge 0$ ve demand $x_1 \le 40$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$(20, 60)$'ta finishing ($2\cdot20 + 60 = 100$) ve carpentry ($20 + 60 = 80$) binding, demand değil ($20 &lt; 40$).</p>
+      <p>$b_2 = 80 + \Delta$ için $2x_1 + x_2 = 100$ ve $x_1 + x_2 = 80 + \Delta$ çözülür: $x_1 = 20 - \Delta$, $x_2 = 60 + 2\Delta$.</p>
+      <p>Feasibility: $x_1 \ge 0 \Rightarrow \Delta \le 20$; $x_2 \ge 0 \Rightarrow \Delta \ge -30$; demand $x_1 \le 40 \Rightarrow \Delta \ge -20$. Birlikte $-20 \le \Delta \le 20$, yani $60 \le b_2 \le 100$: basis aynı kalır.</p>
+      <p>Ama <strong>hayır</strong>, Giapetto 20 soldier ve 60 train üretmeye devam etmez (sadece $b_2 = 80$'de eder). Örneğin $b_2 = 90$'da $(10, 80)$, $b_2 = 70$'te $(30, 40)$ üretir. Basis aynı, değerler $b_2$ ile değişir. $z = 3(20 - \Delta) + 2(60 + 2\Delta) = 180 + \Delta$: carpentry'nin shadow price'ı 1.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Winston (pdf s.247)</a></p>
+    <!-- Kaynak: Winston §5.1 Problems Group A, 2. Sayılar python ile kontrol edildi: b2 range [60, 100]. -->
+  </div>
+  <div class="quiz" id="q-rhs-geo">
+    <p class="quiz__q">Job-mix'te accelerator kotası 4'ten 3'e iniyor ($b_1 = 3$). Ne olur?</p>
+    <button class="quiz__opt" data-correct>Hiçbir şey: çözüm $(2, 6)$, $z^* = 36$<span class="why">Doğru. Accelerator nonbinding, slack'i 2. $b_1 \in [2, \infty)$ aralığında ne çözüm ne $z^*$ değişir.</span></button>
+    <button class="quiz__opt">$z^*$ 3 azalır, çünkü $x_1$'in kârı 3<span class="why">Bu, $x_1 = b_1$ olsaydı doğru olurdu. Ama $x_1 = 2$ ve kota 3 hâlâ $x_1$'i kısıtlamıyor. Shadow price $z_j$'den okunur ve $s_1$ altında 0.</span></button>
+    <button class="quiz__opt">Basis değişir, çünkü bir RHS değişti<span class="why">RHS değişikliği basis'i ancak bir basic variable negatif olursa bozar. Burada $s_1 = 2 - 1 = 1 \ge 0$.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="rhs-binv" data-min="5">
+  <h2>RHS ranging formülü: $B^{-1}$'in sütunu</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Grafik yöntem iki değişkende çalışır. Tableau'da aynı şeyi bir satırda yaparsın: $b_i$'yi $\Delta$ kadar artırmak, başlangıçta $s_i$'yi $-\Delta$ yapmaya benzer. Simplex'in yaptığı bütün row operation'lar slack sütunlarına da uygulandı. Bu yüzden final tableau'da <strong>$s_i$'nin altındaki sütun</strong>, $b_i$ 1 artınca her basic variable'ın ne kadar değiştiğini söyler.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · RHS ranging</span>
+    <p>Başlangıç basis'i slack'lerden oluşuyorsa, final tableau'da slack sütunları (orijinal sırayla) $B^{-1}$'dir (Winston §6.3). $b \to b + \Delta e_i$ için</p>
+    $$x_B(\Delta) = B^{-1}b + \Delta \cdot \underbrace{B^{-1}e_i}_{s_i \text{ altındaki sütun}} \ \ge\ 0.$$
+    <p>Her satır $k$ için: $x_{B,k} + \Delta\,\beta_k \ge 0$.</p>
+    <ul>
+      <li>$\beta_k &gt; 0$ ise $\Delta \ge -x_{B,k}/\beta_k$ (allowable decrease'i sınırlar),</li>
+      <li>$\beta_k &lt; 0$ ise $\Delta \le -x_{B,k}/\beta_k = x_{B,k}/|\beta_k|$ (allowable increase'i sınırlar),</li>
+      <li>$\beta_k = 0$ ise satır sınır koymaz.</li>
+    </ul>
+    <p>En sıkı alt sınır ile en sıkı üst sınır aralığı verir. Bu, simplex'teki ratio test'in aynı mantığı: "hangi basic variable ilk sıfıra çarpar?"</p>
+  </div>
+  <p><strong>Job-mix, memory ($i = 2$):</strong> $s_2$ sütunu $(1/3,\ 1/2,\ -1/3)$, satırlar $(s_1, x_2, x_1)$:</p>
+  $$\begin{aligned} s_1 &= 2 + \tfrac13\Delta \ge 0 &&\Rightarrow \Delta \ge -6\\ x_2 &= 6 + \tfrac12\Delta \ge 0 &&\Rightarrow \Delta \ge -12\\ x_1 &= 2 - \tfrac13\Delta \ge 0 &&\Rightarrow \Delta \le 6 \end{aligned}$$
+  <p>$-6 \le \Delta \le 6$, yani $b_2 \in [6, 18]$. Grafik yöntemle aynı sonuç. <strong>CPU ($i = 3$):</strong> $s_3$ sütunu $(-1/3,\ 0,\ 1/3)$: $s_1 = 2 - \Delta/3 \ge 0 \Rightarrow \Delta \le 6$, $x_1 = 2 + \Delta/3 \ge 0 \Rightarrow \Delta \ge -6$, yani $b_3 \in [12, 24]$. <strong>Accelerator ($i = 1$):</strong> $s_1$ sütunu $(1, 0, 0)$: sadece $s_1 = 2 + \Delta \ge 0$, yani $b_1 \in [2, \infty)$.</p>
+  <h3>Adım adım</h3>
+  <p>Bir constraint seç ve oynat. Tableau sayfada gerçekten çalışan simplex'ten geliyor; satır satır eşitsizlikler o tableau'nun $B^{-1}$ sütunundan kuruluyor.</p>
+  <div class="w-lp-sensitivity-ctl"><select id="w-rr-sel" class="btn btn--sm" aria-label="Constraint seç">
+    <option value="0">Job-mix · accelerator b₁ = 4</option>
+    <option value="1" selected>Job-mix · memory b₂ = 12</option>
+    <option value="2">Job-mix · CPU b₃ = 18</option>
+    <option value="3">Giapetto · finishing b₁ = 100</option>
+    <option value="4">Giapetto · carpentry b₂ = 80</option>
+    <option value="5">Giapetto · demand b₃ = 40</option>
+  </select></div>
+  <div id="w-rr-stepper"></div>
+  <!-- Kaynak: Winston §6.3 "Changing the Right-Hand Side of a Constraint" (Dakota: 16 ≤ b2 ≤ 24, "column i of B^{-1}") ve Problem 9. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$B^{-1}$'in sütunları <strong>slack'lerin orijinal sırasıyla</strong> okunur ($s_1, s_2, s_3$), basis satırlarının sırasıyla değil.</li>
+      <li>Bölmeyi yanlış işaretle yapma: $\beta_k &lt; 0$ satırı artışı sınırlar. Bir satırı yazıp $\Delta$'yı yalnız bırakmak en güvenli yol.</li>
+      <li>$\ge$ constraint'inde slack yerine excess ($e_i$, katsayı $-1$) vardır; o sütun $-B^{-1}e_i$ olur. Bu derste bütün örnekler $\le$.</li>
+      <li>Aralık "$b_i$'nin kendisi" için verilir. "Allowable increase 6" ile "$b_2 \le 6$"yı karıştırma: $b_2 \le 12 + 6 = 18$.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.3-P7cd"><span class="box__label">Winston §6.3 Problem 7(c)–(d) · ödev sorusu</span>
+    <p>Giapetto LP'sinin ($\max 3x_1 + 2x_2$; finishing $2x_1 + x_2 \le 100$, carpentry $x_1 + x_2 \le 80$, demand $x_1 \le 40$) optimal tableau'su, slayt düzenine çevrilmiş hâli (Winston Table 12):</p>
+    <div class="table-wrap"><table class="w-lp-sensitivity-tab">
+      <tr><th>$c_B$</th><th>Basis</th><th>b</th><th>$x_1$</th><th>$x_2$</th><th>$s_1$</th><th>$s_2$</th><th>$s_3$</th></tr>
+      <tr><td>3</td><td>$x_1$</td><td>20</td><td>1</td><td>0</td><td>1</td><td>−1</td><td>0</td></tr>
+      <tr><td>2</td><td>$x_2$</td><td>60</td><td>0</td><td>1</td><td>−1</td><td>2</td><td>0</td></tr>
+      <tr><td>0</td><td>$s_3$</td><td>20</td><td>0</td><td>0</td><td>−1</td><td>1</td><td>1</td></tr>
+      <tr class="sep"><td></td><td>$z_j$</td><td>180</td><td>3</td><td>2</td><td>1</td><td>1</td><td>0</td></tr>
+      <tr><td></td><td>$c_j - z_j$</td><td></td><td>0</td><td>0</td><td>−1</td><td>−1</td><td>0</td></tr>
+    </table></div>
+    <p>"(c) Show that if between 80 and 120 finishing hours are available, the current basis remains optimal. Find the new optimal solution to the Giapetto problem if 90 finishing hours are available. (d) Show that as long as the demand for soldiers is at least 20, the current basis remains optimal." (problemin bu bölümle ilgili kısmı; (a), (b), (e) Bölüm 6 ve 8'de)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Finishing için $s_1$ sütununu oku: $(1, -1, -1)$. Her satır için $x_{B,k} + \Delta\beta_k \ge 0$ yaz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>90 saat $\Delta = -10$ demek. Aralığın içinde olduğu için yeni değerler $x_B + \Delta\beta$ ile doğrudan bulunur, pivot gerekmez.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(c)</strong> $s_1$ sütunu $(1, -1, -1)$, satırlar $(x_1, x_2, s_3)$:</p>
+      $$x_1 = 20 + \Delta \ge 0 \Rightarrow \Delta \ge -20,\quad x_2 = 60 - \Delta \ge 0 \Rightarrow \Delta \le 60,\quad s_3 = 20 - \Delta \ge 0 \Rightarrow \Delta \le 20.$$
+      <p>$-20 \le \Delta \le 20$, yani $80 \le b_1 \le 120$: basis optimal kalır. $b_1 = 90$ ($\Delta = -10$): $x_1 = 10$, $x_2 = 70$, $s_3 = 30$, $z = 3(10) + 2(70) = 170$. Kontrol: $z = 180 + y_1\Delta = 180 + 1\cdot(-10) = 170$.</p>
+      <p><strong>(d)</strong> $s_3$ sütunu $(0, 0, 1)$: sadece $s_3 = 20 + \Delta \ge 0$, yani $\Delta \ge -20$, $b_3 \ge 20$. Üst sınır yok. Demand nonbinding olduğu için bu aralıkta çözüm $(20, 60)$ ve $z = 180$ hiç değişmez.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf">Winston (pdf s.304–305)</a></p>
+    <!-- Kaynak: Winston §6.3 Problem 7 ve Table 12. Tableau ve sonuçlar Fraction simplex ile kontrol edildi (b1 = 90 → z = 170, x = (10, 70)). -->
+  </div>
+  <div class="box box--exam" data-exam="winston-6.3-P3"><span class="box__label">Winston §6.3 Problem 3 · ödev sorusu</span>
+    <p>Dakota Furniture (Bölüm 5'te tam tableau var): $\max z = 60x_1 + 30x_2 + 20x_3$, lumber $8x_1 + 6x_2 + x_3 \le 48$, finishing $4x_1 + 2x_2 + 1.5x_3 \le 20$, carpentry $2x_1 + 1.5x_2 + 0.5x_3 \le 8$. Optimum $x_1 = 2$, $x_3 = 8$, $s_1 = 24$, $z = 280$; final tableau'da $s_1$ sütunu $(1, 0, 0)$ (satırlar $s_1, x_3, x_1$).</p>
+    <p>"In the Dakota problem, show that if the amount of lumber (board ft) available ($b_1$) satisfies $b_1 \ge 24$, the current basis remains optimal. If $b_1 = 30$, find the new optimal solution."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Lumber binding mi? $s_1$ basic ve 24'e eşit.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$s_1$ sütunu birim vektör olduğu için sadece $s_1$'in satırı değişir.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$b_1 = 48 + \Delta$: $s_1 = 24 + \Delta \ge 0 \Rightarrow \Delta \ge -24$, diğer satırlarda $\beta = 0$. Yani $b_1 \ge 24$ iken basis optimal.</p>
+      <p>$b_1 = 30$ ($\Delta = -18$): $s_1 = 6$, $x_3 = 8$, $x_1 = 2$, $z = 280$. Çözüm değişmedi, sadece kullanılmayan lumber 24'ten 6'ya indi. Nonbinding constraint'in kuralı: aralık içinde ne $x^*$ ne $z^*$ değişir.</p>
+    </div></details>
+    <!-- Kaynak: Winston §6.3 Problem 3. python: b1 = 30 → z = 280, s1 = 6. -->
+  </div>
+  <div class="quiz" id="q-rhs-binv">
+    <p class="quiz__q">Job-mix'te CPU 18'den 21'e çıkıyor. Yeni çözüm nedir?</p>
+    <button class="quiz__opt" data-correct>$x_1 = 3$, $x_2 = 6$, $s_1 = 1$, $z = 39$<span class="why">Doğru. $\Delta = 3$ aralıkta ($\le 6$). $s_3$ sütunu $(-1/3, 0, 1/3)$: $s_1 = 2 - 1$, $x_2 = 6$, $x_1 = 2 + 1$. $z = 9 + 30 = 39 = 36 + 1\cdot3$.</span></button>
+    <button class="quiz__opt">$x_1 = 2$, $x_2 = 7.5$, $z = 43.5$<span class="why">Ek CPU'yu interactive tier'a vermişsin. Ama memory binding: $x_2 \le 6$. $s_3$ sütununda $x_2$ satırı 0, yani $x_2$ değişmez.</span></button>
+    <button class="quiz__opt">Basis değişir, çünkü $\Delta = 3 &gt; 2$<span class="why">2, $s_1$'in değeri; sınır $s_1 + \Delta\beta \ge 0$'dan gelir: $2 - \Delta/3 \ge 0 \Rightarrow \Delta \le 6$. $x_{B,k}$'yi doğrudan sınır sanma, $\beta_k$'ya böl.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="rhs-z" data-min="5">
+  <h2>Range içinde $z^*$: shadow price ve piecewise linear $z^*(b)$</h2>
+  <div class="box box--rule">
+    <span class="box__label">Kural · shadow price ile yeni $z^*$</span>
+    <p>Shadow price'lar final tableau'da slack'lerin altındaki $z_j$'lerdir: $y = c_B^T B^{-1} = (0,\ 3/2,\ 1)$. $y_i$, $z^*$'ın $b_i$'ye göre türevidir. $b_i$ allowable range içinde $\Delta b_i$ kadar değişirse, max ya da min fark etmez:</p>
+    $$z^*_{\text{yeni}} = z^* + y_i\,\Delta b_i, \qquad y = c_B^T B^{-1}.$$
+    <p>Winston shadow price'ı "$z$'nin <strong>iyileşmesi</strong>" olarak tanımlar (max'ta artış, min'de azalış). Max problemde bu sayı $y_i$'nin kendisidir ve Winston formül (1) yukarıdakiyle aynıdır. Min problemde Winston'ın shadow price'ı $q_i = -y_i$'dir ve formül (2) $z^*_{\text{yeni}} = z^* - q_i\,\Delta b_i$ olur; bu da $z^* + y_i\Delta b_i$'ye eşittir. Örnek: $\min x$ s.t. $x \ge b$. $y = 1$, $q = -1$; $b$ 1 artınca $z^*$ 1 artar. Range'in dışında bu formül <strong>geçersiz</strong>: basis değişir, shadow price'lar da değişir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · $z^*(b_i)$'nin şekli (Winston §5.4)</span>
+    <ul>
+      <li>$z^*$, tek bir RHS'nin fonksiyonu olarak <strong>piecewise linear</strong>'dır. Her parçanın eğimi o parçadaki basis'in shadow price'ıdır. Kırılma noktaları basis'in değiştiği yerlerdir.</li>
+      <li>Max problemde $\le$ constraint için eğimler $\ge 0$ ve soldan sağa <strong>azalır</strong> (diminishing returns): kaynak bollaştıkça bir birimin değeri artamaz. Yani $z^*(b_i)$ concave.</li>
+      <li>Job-mix memory: $b_2 \in [0, 6]$ eğim $5/2$, $[6, 18]$ eğim $3/2$, $b_2 \ge 18$ eğim 0.</li>
+      <li>Slaytın Iteration 1 tableau'sunda $s_2$'nin $c_j - z_j$'si $-5/2$ ve slayt bunu "a shadow price, a week early" diye okur. O basis'te ($\{s_1, x_2, s_3\}$) CPU binding değil, ek bir memory bloğunun tamamı $x_2$'ye gider: $5 \cdot \tfrac12 = \tfrac52$. $b_2 \le 6$ parçasında da CPU binding değil, eğim yine $5/2$. Final basis'te CPU da binding: ek memory $x_2$'yi $\tfrac12$ artırırken $x_1$'i $\tfrac13$ azaltır, $5\cdot\tfrac12 - 3\cdot\tfrac13 = \tfrac32$.</li>
+    </ul>
+  </div>
+  <h3>Kendin dene: RHS slider</h3>
+  <p>Bir constraint seç, RHS'yi kaydır ya da yaz. Her konumda LP sayfada yeniden çözülüyor. Sağdaki grafik $z^*(b_i)$; kırılma noktaları, her basis'in kendi $B^{-1}$ sütunundan bulunan range uçlarıdır (LINDO'nun "Parametrics" özelliğinin yaptığı gibi bir basis'ten diğerine geçilerek).</p>
+  <p class="w-lp-sensitivity-guess"><b>Önce tahmin et:</b> memory 12'den 20'ye çıkarsa $z^*$ kaç olur? $36 + \tfrac32 \cdot 8 = 48$ mi?</p>
+  <div class="w-lp-sensitivity-ctl">
+    <select id="w-rhs-sel" class="btn btn--sm" aria-label="Constraint seç">
+      <option value="0">accelerator x₁ ≤ b₁</option>
+      <option value="1" selected>memory 2x₂ ≤ b₂</option>
+      <option value="2">CPU 3x₁ + 2x₂ ≤ b₃</option>
+    </select>
+    <input id="w-rhs-range" type="range" min="0" max="24" step="0.5" value="12" aria-label="RHS slider" />
+    <label>$b_i$ = <input id="w-rhs-num" type="text" inputmode="decimal" value="12" class="btn btn--sm" /></label>
+    <button class="btn btn--sm" id="w-rhs-reset">orijinal değer</button>
+  </div>
+  <div class="w-lp-sensitivity-err" id="w-rhs-err" aria-live="polite"></div>
+  <div class="w-lp-sensitivity-grid">
+    <div class="w-lp-sensitivity-panel"><h4>Feasible region ve optimal vertex</h4><div id="w-rhs-region"></div></div>
+    <div class="w-lp-sensitivity-panel"><h4>$z^*(b_i)$</h4><div id="w-rhs-curve"></div></div>
+  </div>
+  <div class="w-lp-sensitivity-out" id="w-rhs-out" aria-live="polite"></div>
+  <!-- Kaynak: Winston §5.4 (Figure 13: optimal z-value versus raw material; piecewise linear, slopes = shadow prices, nonincreasing). -->
+  <div class="box box--rule">
+    <span class="box__label">Boyd §5.6 · perturbation ve sensitivity</span>
+    <p>Boyd aynı fikri genel (min) problem için yazar: $\min f_0(x)$ s.t. $f_i(x) \le u_i$, $h_i(x) = v_i$. $p^*(u, v)$ perturbed problemin optimal değeri. Strong duality varsa, her $u, v$ için</p>
+    $$p^*(u, v) \ \ge\ p^*(0, 0) - \lambda^{*T} u - \nu^{*T} v.$$
+    <p>Ve $p^*$ $(0,0)$'da differentiable ise $\lambda_i^* = -\dfrac{\partial p^*(0,0)}{\partial u_i}$, $\nu_i^* = -\dfrac{\partial p^*(0,0)}{\partial v_i}$.</p>
+    <ul>
+      <li>$\lambda_i^*$ büyükse ve constraint'i sıkılaştırırsan ($u_i &lt; 0$), $p^*$'ın <strong>çok artacağı garantidir</strong>.</li>
+      <li>$\lambda_i^*$ küçükse ve gevşetirsen ($u_i &gt; 0$), $p^*$ <strong>fazla azalmaz</strong>.</li>
+      <li>Eşitsizlik sadece bir <strong>lower bound</strong>; sonuçlar simetrik değil. $\lambda_i^*$ büyük diye gevşetmenin $p^*$'ı çok düşüreceği garanti değil.</li>
+    </ul>
+    <p>Job-mix'e çeviri: $\max 3x_1 + 5x_2$ yerine $\min -3x_1 - 5x_2$ düşün; $p^* = -z^*$ ve $\lambda^* = y = (0, 3/2, 1)$. $-z^*(b) \ge -36 - y^T u$, yani $z^*(b + u) \le 36 + y^T u$. Memory'yi 8 artırınca $z^* \le 48$: gerçek değer 45, sınır tutuyor ama eşit değil. Range içinde eşitlik vardır. Pınar (Ders 17) aynı eşitsizliği $p^*(u) \ge p^*(0) - u^T z^*$ biçiminde verir ve $p^*(u)$'nun polyhedron üzerinde piecewise linear olduğunu ispatlar.</p>
+  </div>
+  <!-- Kaynak: Boyd §5.6.1–5.6.3 (5.56), (5.57), sensitivity interpretations, Figure 5.10 · Pınar Ders 17.1. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Shadow price'ı range dışına taşımak: memory 20 için $36 + 1.5\cdot8 = 48$ yanlış. $b_2 = 18$'den sonra $x_1 = 0$ olur ve CPU tek başına $x_2 \le 9$ der: $z^* = 45$.</li>
+      <li>Shadow price "kaynağın piyasa fiyatı" değil, "bir birim <strong>bedava</strong> gelirse $z$ ne kadar artar"dır. Kaynağın bedeli objective'de zaten varsa, shadow price bu bedelin <strong>üstüne</strong> ödenebilecek primdir (Winston §5.3, Winco 3: raw material 4 dolar + shadow price 1 = en çok 5 dolar).</li>
+      <li>Min problemde hangi sayıyı kullandığını yaz. $y = c_B^T B^{-1}$ ile $z_{\text{yeni}} = z + y_i\Delta b_i$; Winston'ın shadow price'ı $q_i = -y_i$ ile $z_{\text{yeni}} = z - q_i\Delta b_i$. İkisini karıştırırsan işaret ters çıkar.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-rhs-z-1">
+    <p class="quiz__q">Job-mix'te memory 12'den 20'ye çıkıyor. $z^*$ kaç?</p>
+    <button class="quiz__opt">48<span class="why">Shadow price'ı range dışında kullandın. $b_2$'nin range'i $[6, 18]$; 20 bunun dışında.</span></button>
+    <button class="quiz__opt" data-correct>45<span class="why">Doğru. $b_2 = 18$'de $z = 45$ ve vertex $(0, 9)$. Sonra memory nonbinding olur, eğim 0. Slider'da memory'yi 20'ye getirip kontrol edebilirsin.</span></button>
+    <button class="quiz__opt">36<span class="why">Memory optimumda binding, yani artışın bir etkisi var. Etkisizlik sadece $b_2 \ge 18$ bölgesinde başlar.</span></button>
+  </div>
+  <div class="quiz" id="q-rhs-z-2">
+    <p class="quiz__q">Ek CPU çekirdeği kiralanabiliyor. Job-mix'te bir çekirdeğe en çok ne kadar ödenmeli ve kaç çekirdeğe kadar bu fiyat geçerli?</p>
+    <button class="quiz__opt" data-correct>En çok 1 k₺; 6 çekirdeğe kadar (CPU ≤ 24)<span class="why">Doğru. CPU'nun shadow price'ı $y_3 = 1$, allowable increase 6. Sonrasında accelerator binding olur ve eğim 0'a düşer.</span></button>
+    <button class="quiz__opt">En çok 3 k₺, çünkü batch compute'un kârı 3<span class="why">Bir çekirdek $x_1$'i $1/3$ birim artırır ($s_3$ sütununda $x_1$ satırı $1/3$): $3 \cdot \tfrac13 = 1$. Değişkenin kârı ile kaynağın değeri farklı şeyler.</span></button>
+    <button class="quiz__opt">En çok 1 k₺, sınırsız sayıda<span class="why">Shadow price sadece range içinde geçerli. $b_3 &gt; 24$ olunca $s_1$ negatife düşer ve basis değişir.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="obj-nonbasic" data-min="4">
+  <h2>Nonbasic variable'ın objective coefficient'ı</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Bir ürün optimumda hiç üretilmiyorsa (nonbasic), kârını biraz değiştirmek planı değiştirmez. Sadece bir soru var: kâr, ürünü planın içine sokacak kadar arttı mı? Bunu ürünün kendi $c_j - z_j$'si söyler. $z_j$, o üründen bir birim yapmak için vazgeçilen kârdır; $c_j$ onu geçerse ürün girmeye değer.</p>
+  </div>
+  <p>Job-mix'te iki decision variable da basic, o yüzden Winston'ın ikinci örneğini kullanıyoruz.</p>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Dakota Furniture (Winston §6.3)</span>
+    <p>$x_1$ desk, $x_2$ table, $x_3$ chair: $\max z = 60x_1 + 30x_2 + 20x_3$, lumber $8x_1 + 6x_2 + x_3 \le 48$, finishing $4x_1 + 2x_2 + 1.5x_3 \le 20$, carpentry $2x_1 + 1.5x_2 + 0.5x_3 \le 8$, $x \ge 0$. Final tableau (slayt düzeni):</p>
+    <div class="table-wrap"><table class="w-lp-sensitivity-tab">
+      <tr><th></th><th>$c_j \to$</th><th></th><th>60</th><th>30</th><th>20</th><th>0</th><th>0</th><th>0</th></tr>
+      <tr><th>$c_B$</th><th>Basis</th><th>b</th><th>$x_1$</th><th>$x_2$</th><th>$x_3$</th><th>$s_1$</th><th>$s_2$</th><th>$s_3$</th></tr>
+      <tr><td>0</td><td>$s_1$</td><td>24</td><td>0</td><td>−2</td><td>0</td><td>1</td><td>2</td><td>−8</td></tr>
+      <tr><td>20</td><td>$x_3$</td><td>8</td><td>0</td><td>−2</td><td>1</td><td>0</td><td>2</td><td>−4</td></tr>
+      <tr><td>60</td><td>$x_1$</td><td>2</td><td>1</td><td>5/4</td><td>0</td><td>0</td><td>−1/2</td><td>3/2</td></tr>
+      <tr class="sep"><td></td><td>$z_j$</td><td>280</td><td>60</td><td>35</td><td>20</td><td>0</td><td>10</td><td>10</td></tr>
+      <tr><td></td><td>$c_j - z_j$</td><td></td><td>0</td><td>−5</td><td>0</td><td>0</td><td>−10</td><td>−10</td></tr>
+    </table></div>
+    <p>Table ($x_2$) nonbasic. $c_2 = 30 + \Delta$ olursa $z_2$ değişmez (çünkü $c_B$ değişmedi), sadece $c_2 - z_2 = 30 + \Delta - 35 = -5 + \Delta$ değişir. Basis optimal kalır $\iff -5 + \Delta \le 0 \iff c_2 \le 35$. Alt sınır yok: masa ucuzlarsa zaten yapılmıyordu.</p>
+  </div>
+  <!-- Kaynak: Winston §6.3 "Changing the Objective Function Coefficient of a Nonbasic Variable" (Dakota, c2 ≤ 35; c2 = 40 için yeni optimum z = 288) ve optimal tableau (13). Tableau Fraction simplex ile kontrol edildi. -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · nonbasic $x_j$</span>
+    <ul>
+      <li>Değişen tek şey $x_j$'nin kendi $c_j - z_j$'si. Basis optimal kalır $\iff c_j \le z_j$.</li>
+      <li>Allowable increase $= -(c_j - z_j) = |c_j - z_j|$, allowable decrease $= \infty$.</li>
+      <li>Aralıkta ne $x^*$ ne $z^*$ değişir ($x_j = 0$ olduğu için $c_j$'nin $z$'ye katkısı 0).</li>
+      <li><strong>Reduced cost</strong>'un anlamı (Winston §5.2): ürünün kârının, ürün basis'e girmeden önce ne kadar <strong>iyileşmesi</strong> gerektiği. Tam o kadar iyileşirse alternative optima oluşur; daha fazlası ürünü basis'e sokar (degeneracy yoksa $x_j &gt; 0$ olur).</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Nonbasic variable'ın $c_j$'si değişince <strong>başka</strong> sütunların $c_k - z_k$'si değişmez. Bütün satırı yeniden hesaplamak gerekmez.</li>
+      <li>$c_2 = 33$ olsa da Dakota masa yapmaz: $33 - 35 = -2 \le 0$. "Fiyat arttı, biraz üretelim" sezgisi yanlış.</li>
+      <li>$c_2 &gt; 35$ olunca cevap "biraz masa yap" değil: pivot gerekir ve diğer üretimler de değişir (Winston: $c_2 = 40$'ta $x_2 = 1.6$, $x_3 = 11.2$, $x_1 = 0$, $z = 288$).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-obj-nb">
+    <p class="quiz__q">Dakota'da masa fiyatı 30'dan 34'e çıkıyor. Ne olur?</p>
+    <button class="quiz__opt" data-correct>Hiçbir şey: 2 desk, 8 chair, $z = 280$<span class="why">Doğru. $c_2 - z_2 = 34 - 35 = -1 \le 0$. Nonbasic olduğu için $z$ de değişmez.</span></button>
+    <button class="quiz__opt">$z$ 4 artar<span class="why">$z$'nin değişmesi için $x_2 &gt; 0$ olmalı. $x_2 = 0$, katkısı $34 \cdot 0 = 0$.</span></button>
+    <button class="quiz__opt">Masa basis'e girer, çünkü $c_2 - z_2$ arttı<span class="why">Artması yetmez, pozitif olması gerekir. $-5$'ten $-1$'e çıktı, hâlâ $\le 0$.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="obj-basic" data-min="5">
+  <h2>Basic variable'ın objective coefficient'ı</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Basic bir variable'ın kârı değişince $c_B$ değişir. $z_j = c_B^T(\text{sütun } j)$ olduğu için <strong>her</strong> nonbasic sütunun $z_j$'si etkilenebilir. Ama etki doğrusaldır: $c_B$'deki değişiklik o variable'ın satırıyla çarpılır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · basic $x_j$ (satırı $r$)</span>
+    <p>$c_j \to c_j + \Delta$ olunca her nonbasic $k$ için</p>
+    $$ (c_k - z_k)(\Delta) = (c_k - z_k) - \Delta \cdot a_{rk} \ \le\ 0$$
+    <p>($a_{rk}$: final tableau'da $x_j$'nin satırı, $k$ sütunu). $a_{rk} &gt; 0$ ise $\Delta \ge (c_k - z_k)/a_{rk}$; $a_{rk} &lt; 0$ ise $\Delta \le (c_k - z_k)/a_{rk}$. Basic sütunların $c_j - z_j$'si 0 kalır.</p>
+    <p>Aralıkta $x^*$ değişmez ($B^{-1}b$'ye $c$ girmez), $z^*$ ise $x_j^*\Delta$ kadar değişir.</p>
+  </div>
+  <p><strong>Job-mix, $c_1 = 3 + \Delta$.</strong> $x_1$'in satırı: $(1, 0, 0, -1/3, 1/3)$. Nonbasic'ler $s_2$ ve $s_3$:</p>
+  $$\begin{aligned} s_2:&\quad -\tfrac32 - \Delta\left(-\tfrac13\right) = -\tfrac32 + \tfrac{\Delta}{3} \le 0 &&\Rightarrow \Delta \le \tfrac92 \\ s_3:&\quad -1 - \Delta\left(\tfrac13\right) \le 0 &&\Rightarrow \Delta \ge -3 \end{aligned}$$
+  <p>$-3 \le \Delta \le 4.5$, yani $c_1 \in [0,\ 7.5]$ ($c_2 = 5$ sabitken). Aynı şeyi $z_j$'yi baştan yazarak da görebilirsin: $z_{s_2} = 0\cdot\tfrac13 + 5\cdot\tfrac12 + c_1\cdot(-\tfrac13)$, yani $c_{s_2} - z_{s_2} = -\tfrac52 + \tfrac{c_1}{3} \le 0 \iff c_1 \le 7.5$.</p>
+  <p><strong>Job-mix, $c_2 = 5 + \Delta$.</strong> $x_2$'nin satırı $(0, 1, 0, 1/2, 0)$: $s_2$: $-\tfrac32 - \tfrac{\Delta}{2} \le 0 \Rightarrow \Delta \ge -3$; $s_3$: $a = 0$, sınır yok. Yani $c_2 \in [2, \infty)$.</p>
+  <p><strong>z-row düzeninde:</strong> row 0 katsayısı $(z_k - c_k)(\Delta) = (z_k - c_k) + \Delta a_{rk} \ge 0$. Aynı eşitsizlikler, sadece işaretler çevrik.</p>
+  <!-- Kaynak: Winston §6.3 "Changing the Objective Function Coefficient of a Basic Variable" (Dakota: 56 ≤ c1 ≤ 80, Figure 3). Job-mix aralıkları python ile kontrol edildi: c1 ∈ [0, 15/2], c2 ∈ [2, ∞). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Sadece $x_j$'nin kendi sütununa bakmak: basic sütunun $c_j - z_j$'si hep 0 kalır, bilgi nonbasic sütunlardadır.</li>
+      <li>Bölmede işaret: $a_{rk} &lt; 0$ olduğunda eşitsizlik yön değiştirir. Satırı açık yazıp $\Delta$'yı yalnız bırak.</li>
+      <li>Aralık içinde "$z^*$ aynı kalır" demek: $c_1 = 5$ olursa çözüm $(2, 6)$ ama $z^* = 10 + 30 = 40$.</li>
+      <li>Aralık bir variable'ın tek başına değiştiği durum içindir. İki $c_j$ birlikte değişirse 100% rule'a bak (Bölüm 10).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.3-P7ab"><span class="box__label">Winston §6.3 Problem 7(a)–(b) · ödev sorusu</span>
+    <p>Giapetto, Bölüm 3'teki optimal tableau ile. "(a) Show that as long as soldiers ($x_1$) contribute between <code class="w-lp-sensitivity-usd">&#36;</code>2 and <code class="w-lp-sensitivity-usd">&#36;</code>4 to profit, the current basis remains optimal. If soldiers contribute <code class="w-lp-sensitivity-usd">&#36;</code>3.50 to profit, find the new optimal solution to the Giapetto problem. (b) Show that as long as trains ($x_2$) contribute between <code class="w-lp-sensitivity-usd">&#36;</code>1.50 and <code class="w-lp-sensitivity-usd">&#36;</code>3.00 to profit, the current basis remains optimal." (problemin bu bölümle ilgili kısmı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Nonbasic sütunlar $s_1$ ve $s_2$, ikisinin de $c_j - z_j$'si $-1$. $x_1$'in satırı $(1, 0, 1, -1, 0)$, $x_2$'nin satırı $(0, 1, -1, 2, 0)$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Her nonbasic $k$ için $-1 - \Delta a_{rk} \le 0$ yaz. (a)'nın ikinci kısmında 3.50 aralıkta mı, ona bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p><strong>(a)</strong> $c_1 = 3 + \Delta$, satır $x_1$: $s_1$: $-1 - \Delta(1) \le 0 \Rightarrow \Delta \ge -1$; $s_2$: $-1 - \Delta(-1) = -1 + \Delta \le 0 \Rightarrow \Delta \le 1$. Yani $2 \le c_1 \le 4$. $c_1 = 3.5$ aralıkta: çözüm aynı, $x_1 = 20$, $x_2 = 60$; $z = 3.5(20) + 2(60) = 190$ (ya da $180 + 20 \cdot 0.5$).</p>
+      <p><strong>(b)</strong> $c_2 = 2 + \Delta$, satır $x_2$: $s_1$: $-1 - \Delta(-1) \le 0 \Rightarrow \Delta \le 1$; $s_2$: $-1 - 2\Delta \le 0 \Rightarrow \Delta \ge -\tfrac12$. Yani $1.5 \le c_2 \le 3$.</p>
+      <p>Grafik kontrol: optimumda finishing (eğim $-2$) ve carpentry (eğim $-1$) binding. İso-profit eğimi $-c_1/c_2$ bu ikisinin arasında kalmalı: $c_2 = 2$ ile $2 \le c_1 \le 4$, $c_1 = 3$ ile $1.5 \le c_2 \le 3$.</p>
+    </div></details>
+    <!-- Kaynak: Winston §6.3 Problem 7(a)–(b). python: c1 range [2, 4], c2 range [3/2, 3], c1 = 3.5 → z = 190. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-6.3-P1"><span class="box__label">Winston §6.3 Problem 1 · ödev sorusu</span>
+    <p>"In the Dakota problem, show that the current basis remains optimal if $c_3$, the price of chairs, satisfies $15 \le c_3 \le 22.5$. If $c_3 = 21$, find the new optimal solution. Also, if $c_3 = 25$, find the new optimal solution."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$x_3$'ün satırı (Bölüm 5'teki tableau): $(0, -2, 1, 0, 2, -4)$. Nonbasic'ler $x_2$, $s_2$, $s_3$; $c - z$ değerleri $-5, -10, -10$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$c_3 = 25$ aralık dışında. Yeni $c_j - z_j$ satırını hesapla, pozitif çıkanı sok, ratio test yap ve bir pivot at (Bölüm 11'deki gibi).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$c_3 = 20 + \Delta$, satır $x_3$:</p>
+      $$x_2: -5 - \Delta(-2) \le 0 \Rightarrow \Delta \le 2.5;\quad s_2: -10 - 2\Delta \le 0 \Rightarrow \Delta \ge -5;\quad s_3: -10 - \Delta(-4) \le 0 \Rightarrow \Delta \le 2.5.$$
+      <p>Yani $15 \le c_3 \le 22.5$.</p>
+      <p>$c_3 = 21$: aralıkta. Çözüm aynı ($x_1 = 2$, $x_3 = 8$), $z = 60(2) + 21(8) = 288$.</p>
+      <p>$c_3 = 25$ ($\Delta = 5$): yeni satır $c_j - z_j$: $x_2$: $-5 + 10 = 5$; $s_2$: $-10 - 10 = -20$; $s_3$: $-10 + 20 = 10$. En büyük pozitif $s_3$ (10), o girer. Ratio test $s_3$ sütununda ($-8, -4, 3/2$): sadece $x_1$ satırı pozitif, $2/(3/2) = 4/3$. $x_1$ çıkar, pivot $3/2$.</p>
+      <p>Yeni değerler: $s_3 = 4/3$, $x_3 = 8 + 4\cdot\tfrac43 = \tfrac{40}{3}$, $s_1 = 24 + 8\cdot\tfrac43 = \tfrac{104}{3}$, $x_1 = 0$. Yeni $c_j - z_j$ satırı $(-\tfrac{20}{3}, -\tfrac{10}{3}, 0, 0, -\tfrac{50}{3}, 0)$: hepsi $\le 0$, optimal. $z = 25\cdot\tfrac{40}{3} = \tfrac{1000}{3} \approx 333.33$. Sandalye çok kârlı olunca Dakota desk'i bırakıp sadece sandalye yapar.</p>
+    </div></details>
+    <!-- Kaynak: Winston §6.3 Problem 1. Fraction simplex: c3 = 25 → basis {s1, x3, s3}, x3 = 40/3, s1 = 104/3, s3 = 4/3, z = 1000/3. -->
+  </div>
+  <div class="quiz" id="q-obj-basic">
+    <p class="quiz__q">Job-mix'te batch compute'un kârı 3'ten 6'ya çıkıyor. Ne olur?</p>
+    <button class="quiz__opt" data-correct>Çözüm $(2, 6)$ kalır, $z^* = 42$<span class="why">Doğru. $c_1 = 6 \in [0, 7.5]$. $x^*$ aynı, $z^* = 6\cdot2 + 5\cdot6 = 42 = 36 + 2\cdot3$.</span></button>
+    <button class="quiz__opt">Çözüm $(4, 3)$'e geçer<span class="why">Bu $c_1 &gt; 7.5$ için doğru. 6 hâlâ aralıkta.</span></button>
+    <button class="quiz__opt">Çözüm aynı, $z^* = 36$<span class="why">Basic variable'ın kârı değişince $z^*$ değişir: $x_1 = 2$ birim, her biri 3 daha fazla kazandırıyor.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="obj-geo" data-min="4">
+  <h2>Geometri: iso-profit eğimi iki binding constraint arasında</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Slaytta iso-profit doğrusu $3x_1 + 5x_2 = z$, $c = (3, 5)$ yönünde kayıyordu ve son dokunduğu nokta $(2, 6)$ idi. $c$ değişince doğru <strong>döner</strong>. Doğru, $(2, 6)$'da birleşen iki kenardan birine paralel olana kadar aynı vertex son dokunulan nokta olarak kalır. Paralel olduğu anda o kenarın tamamı optimaldir (alternative optima), daha fazla dönerse optimum komşu vertex'e atlar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iki değişkende objective ranging</span>
+    <p>$c_2 &gt; 0$ iken iso-profit eğimi $-c_1/c_2$, optimal vertex'te binding olan iki constraint'in eğimleri arasında kalmalıdır. Job-mix'te $(2, 6)$'da memory ($x_2 = 6$, eğim 0) ve CPU ($3x_1 + 2x_2 = 18$, eğim $-3/2$) binding:</p>
+    $$-\tfrac32 \ \le\ -\tfrac{c_1}{c_2} \ \le\ 0 \quad\iff\quad 0 \le \tfrac{c_1}{c_2} \le \tfrac32.$$
+    <p>$c_2 = 5$ iken $0 \le c_1 \le 7.5$, $c_1 = 3$ iken $c_2 \ge 2$. Tableau'dan bulduğumuz aralıkların aynısı. Eşdeğer ifade: $c$, binding constraint'lerin normal'leri $(0, 2)$ ve $(3, 2)$'nin oluşturduğu cone'un içinde olmalı. Cone koşulu her işarette geçerlidir; oran kuralı ise sadece $c_2 &gt; 0$ iken. $c_2 \le 0$ olunca $c_1/c_2$'ye bakıp karar verme: job-mix'te $c_1 = 3$, $c_2 = -1$ için optimum $(4, 0)$, $z = 12$; $(4, 3)$ sadece 9 verir.</p>
+    <p><strong>$z^*(c_j)$'nin şekli</strong> (Winston §5.4): $c_j$'nin piecewise linear fonksiyonu, her parçanın eğimi o parçadaki $x_j^*$'dir. Max problemde eğimler artar ($z^*$ convex): $c_1$ yükseldikçe $x_1^*$ azalamaz. Job-mix: $c_1 \le 0$'da $(0, 6)$, $z = 30$; $[0, 7.5]$'te $z = 30 + 2c_1$; $c_1 \ge 7.5$'te $(4, 3)$, $z = 15 + 4c_1$.</p>
+  </div>
+  <h3>Kendin dene: objective slider</h3>
+  <p>Bir katsayı seç ve kaydır. İso-profit doğrusu optimal vertex'ten geçiyor; altta o anki final tableau'nun $c_j - z_j$ satırı ve z-row karşılığı var, ikisi de sayfadaki simplex'in o $c$ için çözümünden.</p>
+  <p class="w-lp-sensitivity-guess"><b>Önce tahmin et:</b> $c_1 = 8$ olursa (c₂ = 5) optimal vertex hangisi olur ve $z^*$ kaç olur?</p>
+  <div class="w-lp-sensitivity-ctl">
+    <select id="w-obj-sel" class="btn btn--sm" aria-label="Katsayı seç">
+      <option value="0" selected>c₁ değişsin (c₂ = 5)</option>
+      <option value="1">c₂ değişsin (c₁ = 3)</option>
+    </select>
+    <input id="w-obj-range" type="range" min="0" max="12" step="0.1" value="3" aria-label="Objective coefficient slider" />
+    <label>değer = <input id="w-obj-num" type="text" inputmode="decimal" value="3" class="btn btn--sm" /></label>
+    <button class="btn btn--sm" id="w-obj-reset">orijinal değer</button>
+  </div>
+  <div class="w-lp-sensitivity-err" id="w-obj-err" aria-live="polite"></div>
+  <div class="w-lp-sensitivity-grid">
+    <div class="w-lp-sensitivity-panel"><h4>İso-profit doğrusu</h4><div id="w-obj-region"></div></div>
+    <div class="w-lp-sensitivity-panel"><h4>$z^*(c_j)$</h4><div id="w-obj-curve"></div></div>
+  </div>
+  <div class="w-lp-sensitivity-out" id="w-obj-out" aria-live="polite"></div>
+  <!-- Kaynak: Week_03.pdf s.7 ("Slide the Objective") · Winston §5.1 Figure 1 (Giapetto, 2 ≤ c1 ≤ 4) ve §5.4 Figure 16 (optimal z-value versus c1). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Eğimi $-c_2/c_1$ yazmak. $c_1x_1 + c_2x_2 = z$ doğrusunda $x_2 = z/c_2 - (c_1/c_2)x_1$, eğim $-c_1/c_2$.</li>
+      <li>Aralığın ucunda ($c_1 = 7.5$) tek optimum yok: $(2, 6)$–$(4, 3)$ kenarının tamamı optimal. "Basis değişti" değil, "iki basis de optimal" de.</li>
+      <li>Geometrik yöntem sadece iki değişkende pratik. Üç ve daha fazlasında tableau formülünü kullan.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab01-ex1"><span class="box__label">Lab01 Exercise 1 · lab görevi</span>
+    <p>Lab01'in LP'si: maximize $3x_1 + 4x_2$ s.t. $x_1 + x_2 \le 4$, $x_1 + 3x_2 \le 6$, $x_1, x_2 \ge 0$; köşeler <code>verts = [(0, 0), (4, 0), (3, 1), (0, 2)]</code>, optimum $(3, 1)$.</p>
+    <p>"<strong>Re-solve the LP.</strong> Change the objective to <strong>maximize $x_1 + 2x_2$</strong> over the same feasible region. Evaluate it at each vertex (reuse <code>verts</code>) to find the new optimum. <em>Which constraint(s) are active at the solution?</em>"</p>
+    <p>Sensitivity açısından ek soru: optimum neden değişmedi, $c_1/c_2$ hangi aralıkta kaldıkça $(3, 1)$ optimal kalır?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Dört köşede $x_1 + 2x_2$'yi hesapla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$(3, 1)$'de binding olan iki doğrunun eğimleri $-1$ ve $-1/3$. İso-profit eğimi $-c_1/c_2$ bu ikisinin arasında mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>Köşelerde: $(0,0) \to 0$, $(4,0) \to 4$, $(3,1) \to 5$, $(0,2) \to 4$. Yeni optimum yine $(3, 1)$, değer 5. Active constraint'ler: $x_1 + x_2 = 4$ ve $x_1 + 3x_2 = 6$, ikisi de.</p>
+      <p>Neden değişmedi: $(3, 1)$ optimal kalır $\iff -1 \le -c_1/c_2 \le -1/3 \iff 1/3 \le c_1/c_2 \le 1$. Eski objective'de oran $3/4$, yenisinde $1/2$; ikisi de aralıkta. Tableau ile kontrol (python): $c_2 = 2$ sabitken $c_1 \in [2/3,\ 2]$, yani oran $[1/3, 1]$. Shadow price'lar ise değişti: eski objective'de $(5/2, 1/2)$, yenisinde $(1/2, 1/2)$. Objective değişince $x^*$ aynı kalabilir ama $y^*$ değişir.</p>
+    </div></details>
+    <!-- Kaynak: resources/2026-2027-fall/27G_CSE413_5013_OptimizationTheory_Lab01.ipynb, hücre 21–22 (LP ve verts) ve hücre 28 (Exercises, 1). Notebook origin/main'de olmadığı için link verilmedi. Değerler python ile kontrol edildi. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-5.1-P1"><span class="box__label">Winston §5.1 Problem 1 · ödev sorusu</span>
+    <p>Giapetto ($\max 3x_1 + 2x_2$; finishing $2x_1 + x_2 \le 100$, carpentry $x_1 + x_2 \le 80$, demand $x_1 \le 40$; optimum $(20, 60)$). "Show that if the contribution to profit for trains is between <code class="w-lp-sensitivity-usd">&#36;</code>1.50 and <code class="w-lp-sensitivity-usd">&#36;</code>3, the current basis remains optimal. If the contribution to profit for trains is <code class="w-lp-sensitivity-usd">&#36;</code>2.50, then what would be the new optimal solution?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Binding doğrular: finishing (eğim $-2$) ve carpentry (eğim $-1$). İso-profit eğimi $-3/c_2$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$-2 \le -3/c_2 \le -1$ eşitsizliğini $c_2$ için çöz ($c_2 &gt; 0$).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$-2 \le -3/c_2 \le -1 \iff 1 \le 3/c_2 \le 2 \iff 1.5 \le c_2 \le 3$. Bu aralıkta $(20, 60)$ optimal kalır.</p>
+      <p>$c_2 = 2.5$: aralıkta, çözüm yine 20 soldier, 60 train; $z = 3(20) + 2.5(60) = 210$.</p>
+      <p>Tableau ile aynı sonuç Bölüm 6'daki 7(b)'de çıktı. $0 &lt; c_2 &lt; 1.5$ olursa iso-profit finishing'den daha dik olur ve optimum $(40, 20)$'ye geçer. $c_2 = 0$'da $x_1 = 40$, $0 \le x_2 \le 20$ kenarının tamamı optimaldir; $c_2 &lt; 0$'da optimum $(40, 0)$ olur. $c_2 &gt; 3$ olursa carpentry'den daha yatık olur ve $(0, 80)$'e geçer.</p>
+    </div></details>
+    <!-- Kaynak: Winston §5.1 Problems Group A, 1. python: c2 range [3/2, 3], c2 = 2.5 → z = 210. -->
+  </div>
+  <div class="quiz" id="q-obj-geo">
+    <p class="quiz__q">Job-mix'te $c_1 = 3$ sabit. Interactive compute'un kârı $c_2$ hangi değere inince optimum $(2, 6)$'dan ayrılır?</p>
+    <button class="quiz__opt" data-correct>$c_2 &lt; 2$ olunca; $0 &lt; c_2 &lt; 2$ aralığında optimum $(4, 3)$'e geçer<span class="why">Doğru. $c_2 &gt; 0$ iken $c_1/c_2 \le 3/2$ gerekir, yani $c_2 \ge 2$. $0 &lt; c_2 &lt; 2$'de doğru CPU kenarından daha dik olur ve CPU ile accelerator'ın kesiştiği $(4, 3)$ optimal olur. $c_2 = 0$'da $(4, 0)$–$(4, 3)$ kenarının tamamı optimaldir; $c_2 &lt; 0$'da optimum $(4, 0)$, $z = 12$.</span></button>
+    <button class="quiz__opt">$c_2 &lt; 3$ olunca, çünkü o zaman batch daha kârlı<span class="why">"Daha kârlı olan değişken kazanır" doğru değil; kaynak tüketimi de önemli. Oran sınırı CPU'nun eğiminden gelir: $c_1/c_2 \le 3/2$.</span></button>
+    <button class="quiz__opt">Hiçbir zaman, çünkü memory hep binding<span class="why">$0 &lt; c_2 &lt; 2$'de optimum $(4, 3)$ ve orada $x_2 = 3 &lt; 6$: memory nonbinding olur.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="price-out" data-min="4">
+  <h2>Yeni activity'yi fiyatlamak: $c_j - y^T a_j$</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Yeni bir ürün teklif edildi. Onu yapmak için kaynak kullanacaksın ve o kaynakların bir değeri var: shadow price'lar. Ürünün kullandığı kaynakların toplam değeri ($z_j = y^T a_j$) ürünün kârından ($c_j$) küçükse ürün kazandırır. Buna ürünü <strong>price out</strong> etmek denir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · pricing out (Winston §6.3, Change 4 ve 5)</span>
+    <p>$y = c_B^T B^{-1}$ (slack'lerin altındaki $z_j$'ler). Yeni sütun $a_j$ ve kârı $c_j$ için</p>
+    $$c_j - z_j = c_j - y^T a_j.$$
+    <ul>
+      <li>$\le 0$: mevcut basis optimal kalır, ürünü yapma. $z^*$ ve $x^*$ değişmez.</li>
+      <li>$&gt; 0$: ürün girmeli. Sütununu tableau'ya $B^{-1}a_j$ olarak ekle, bu değeri $c_j - z_j$ satırına yaz ve simplex'e devam et.</li>
+      <li>$= 0$: alternative optima; ürünü yapmak $z^*$'ı değiştirmez.</li>
+    </ul>
+    <p>Aynı hesap, nonbasic bir variable'ın <strong>sütunu</strong> değiştiğinde de geçerlidir (Winston: tables 43 dolara ve $(5, 2, 2)$ kaynakla, $c_2 - z_2 = 43 - 40 = 3 &gt; 0$, masa girer).</p>
+  </div>
+  <p><strong>Job-mix:</strong> $y = (0,\ 3/2,\ 1)$. Yeni bir "GPU-burst" tier'ı birim başına 4 k₺ kazandırıyor ve 1 accelerator, 1 memory bloğu, 2 CPU kullanıyor: $z_j = 0\cdot1 + \tfrac32\cdot1 + 1\cdot2 = 3.5$, $c_j - z_j = 0.5 &gt; 0$. Girer; yeniden çözünce $z^* = 37.5$.</p>
+  <h3>Kendin dene: price-out hesaplayıcı</h3>
+  <p class="w-lp-sensitivity-guess"><b>Önce tahmin et:</b> kârı 5, kullandığı kaynaklar (0 accelerator, 2 memory, 2 CPU) olan bir ürün girer mi? $z^*$ değişir mi?</p>
+  <div class="w-lp-sensitivity-ctl">
+    <label>$c$ = <input id="w-po-c" type="text" inputmode="decimal" value="4" class="btn btn--sm" /></label>
+    <label>$a_1$ = <input id="w-po-a1" type="text" inputmode="decimal" value="1" class="btn btn--sm" /></label>
+    <label>$a_2$ = <input id="w-po-a2" type="text" inputmode="decimal" value="1" class="btn btn--sm" /></label>
+    <label>$a_3$ = <input id="w-po-a3" type="text" inputmode="decimal" value="2" class="btn btn--sm" /></label>
+    <button class="btn btn--sm btn--accent" id="w-po-go">Fiyatla</button>
+  </div>
+  <div class="w-lp-sensitivity-ctl"><span class="src">hazır:</span>
+    <button class="btn btn--sm" data-po="4,1,1,2">GPU-burst</button>
+    <button class="btn btn--sm" data-po="3,0,2,1">kârı 3, (0, 2, 1)</button>
+    <button class="btn btn--sm" data-po="5,0,2,2">kârı 5, (0, 2, 2)</button>
+    <button class="btn btn--sm" data-po="2,0,0,0">kaynak kullanmayan</button>
+  </div>
+  <div class="w-lp-sensitivity-err" id="w-po-err" aria-live="polite"></div>
+  <div class="w-lp-sensitivity-out" id="w-po-out" aria-live="polite"></div>
+  <!-- Kaynak: Winston §6.3 "Changing the Column of a Nonbasic Variable" (tables, c2 − z2 = 3) ve "Adding a New Activity" (footstools: 15 − 20 = −5) · Week_03.pdf s.14 (zⱼ = profit we give up). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Ürünün kârını tek bir kaynağın fiyatıyla karşılaştırmak. $y^T a_j$, kullanılan <strong>bütün</strong> kaynakların toplam değeri.</li>
+      <li>Nonbinding kaynağın ($y_i = 0$) bedava olduğunu unutmak: accelerator ne kadar kullanılsa da $z_j$'ye katkısı 0. Ama ürün girince accelerator'ın slack'i azalır; büyük miktarda kullanım basis'i değiştirebilir.</li>
+      <li>$c_j - z_j &gt; 0$ çıkınca "ürünü yap, diğerleri aynı" demek: pivot sonrası eski ürünlerin miktarları da değişir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.3-P5"><span class="box__label">Winston §6.3 Problem 5 · ödev sorusu</span>
+    <p>"Dakota Furniture is considering manufacturing home computer tables. A home computer table sells for <code class="w-lp-sensitivity-usd">&#36;</code>36 and uses 6 board ft of lumber, 2 finishing hours, and 2 carpentry hours. Should the company manufacture any home computer tables?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Dakota'nın shadow price'ları final tableau'da slack'lerin altındaki $z_j$'ler: $(0, 10, 10)$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$z_j = y^T a_j$ ile ürünün kullandığı kaynakların değerini bul, 36 ile karşılaştır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$y = (0, 10, 10)$, $a = (6, 2, 2)$: $z_j = 0\cdot6 + 10\cdot2 + 10\cdot2 = 40$. $c_j - z_j = 36 - 40 = -4 \le 0$.</p>
+      <p><strong>Hayır.</strong> Bir home computer table, finishing ve carpentry'den 40 dolarlık değer tüketip 36 dolar getirir. Mevcut basis optimal kalır: 2 desk, 8 chair, $z = 280$. (z-row düzeninde: row 0 katsayısı $40 - 36 = 4 \ge 0$, optimal.)</p>
+    </div></details>
+    <!-- Kaynak: Winston §6.3 Problem 5. python: 4 değişkenli LP yeniden çözüldü, z = 280, x4 = 0. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-6.3-P7e"><span class="box__label">Winston §6.3 Problem 7(e) · ödev sorusu</span>
+    <p>Giapetto (Bölüm 3'teki tableau). "(e) Giapetto is considering manufacturing toy boats. A toy boat uses 2 carpentry hours and 1 finishing hour. Demand for toy boats is unlimited. If a toy boat contributes <code class="w-lp-sensitivity-usd">&#36;</code>3.50 to profit, should Giapetto manufacture any toy boats?" (problemin bu bölümle ilgili kısmı)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Giapetto'da slack'lerin altındaki $z_j$'ler $(1, 1, 0)$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Boat'un sütunu $a = (1, 2, 0)$: finishing, carpentry, soldier demand sırasıyla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$z_j = 1\cdot1 + 1\cdot2 + 0\cdot0 = 3$, $c_j - z_j = 3.5 - 3 = 0.5 &gt; 0$. <strong>Evet</strong>, toy boat basis'e girmeli.</p>
+      <p>Yeniden çözünce (python, 3 değişkenli LP): 40 soldier, 20 boat, 0 train, $z = 190$. Boat'lar train'lerin yerini alır; soldier demand'i artık binding.</p>
+    </div></details>
+    <!-- Kaynak: Winston §6.3 Problem 7(e). python ile kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-price-out">
+    <p class="quiz__q">Job-mix'e kârı 3 olan, (0 accelerator, 2 memory, 1 CPU) kullanan bir ürün öneriliyor. Karar?</p>
+    <button class="quiz__opt" data-correct>Yapma: $c_j - z_j = 3 - 4 = -1$<span class="why">Doğru. $z_j = \tfrac32\cdot2 + 1\cdot1 = 4$. Kullandığı memory ve CPU, ondan daha fazla kazandıran mevcut planı küçültür.</span></button>
+    <button class="quiz__opt">Yap: kârı 3, batch compute ile aynı<span class="why">Kârlar aynı olsa da kaynak tüketimi farklı. Karar $c_j$ ile $y^Ta_j$'nin karşılaştırmasından çıkar.</span></button>
+    <button class="quiz__opt">Yap, çünkü accelerator kullanmıyor ve accelerator boşta<span class="why">Boşta olan kaynağı kullanmamak avantaj değil: accelerator'ın shadow price'ı zaten 0. Ürün dar boğaz olan memory ve CPU'yu kullanıyor.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="report" data-min="5">
+  <h2>Solver sensitivity report'unu okumak</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Büyük bir LP'de range'leri elle hesaplamazsın; solver bir report verir. Report'taki her sütun bu derste elle bulduğun bir sayıdır. Report'u okuyabilmek, onu nasıl hesaplayacağını bilmek demektir.</p>
+  </div>
+  <p>Job-mix için LINDO biçiminde bir report. Bu metin sayfadaki simplex'in final tableau'sundan, Bölüm 3 ve 6'daki formüllerle üretiliyor:</p>
+  <div class="w-lp-sensitivity-report" id="w-rep-pre" aria-label="Job-mix sensitivity report"></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · report sütunları</span>
+    <div class="table-wrap"><table>
+      <tr><th>Report'ta</th><th>Tableau'da</th></tr>
+      <tr><td>VALUE</td><td>b sütunu (nonbasic ise 0)</td></tr>
+      <tr><td>REDUCED COST</td><td>$|c_j - z_j|$: değişkenin kârı ne kadar iyileşirse basis'e girer</td></tr>
+      <tr><td>SLACK OR SURPLUS</td><td>$s_i$ ya da $e_i$'nin değeri</td></tr>
+      <tr><td>DUAL PRICE</td><td>shadow price $y_i$ = slack'in altındaki $z_j$</td></tr>
+      <tr><td>OBJ COEFFICIENT RANGES</td><td>Bölüm 5–6: $c_j$ için allowable increase / decrease</td></tr>
+      <tr><td>RIGHTHAND SIDE RANGES</td><td>Bölüm 3: $b_i$ için allowable increase / decrease</td></tr>
+    </table></div>
+    <ul>
+      <li><strong>Nonbinding constraint</strong> (Winston Table 4): $\le$ için AI $= \infty$, AD $=$ slack; $\ge$ için AI $=$ excess, AD $= \infty$. Report'taki accelerator satırı: AI = INFINITY, AD = 2.</li>
+      <li><strong>Shadow price işaretleri</strong> (max problem): $\le$ constraint'te $\ge 0$, $\ge$ constraint'te $\le 0$, $=$ constraint'te her işaret olabilir. Sebep: $\le$'nin RHS'sini artırmak feasible region'a nokta ekler, $z^*$ kötüleşemez. Min problemde türev olan $y_i = (c_B^T B^{-1})_i$ için işaretler ters döner: $\le$ için $y_i \le 0$, $\ge$ için $y_i \ge 0$. Winston'ın iyileşme tanımıyla ($q_i = -y_i$, LINDO'nun DUAL PRICE'ı) min problemde de işaretler max'takiyle aynıdır: $\le$ için $q_i \ge 0$, $\ge$ için $q_i \le 0$.</li>
+      <li><strong>Complementary slackness</strong>: slack $&gt; 0$ ise shadow price 0; shadow price $\ne 0$ ise constraint binding (ayrıntısı lp-duality dersinde).</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Winco report'u ile soru cevaplamak (Winston §5.2, Example 4)</span>
+    <p>Winco: $\max 4x_1 + 6x_2 + 7x_3 + 8x_4$; (2) $x_1 + x_2 + x_3 + x_4 = 950$; (3) $x_4 \ge 400$; (4) raw material $2x_1 + 3x_2 + 4x_3 + 7x_4 \le 4600$; (5) labor $3x_1 + 4x_2 + 5x_3 + 6x_4 \le 5000$. LINDO: $z = 6650$, dual prices $(3, -2, 1, 0)$; RHS ranges: row 2 AI 50 / AD 100, row 4 AI 250 / AD 150, row 5 AI ∞ / AD 250.</p>
+    <ul>
+      <li>980 birim üretilmesi gerekirse: $\Delta b_1 = 30 \le 50$, $z = 6650 + 30 \cdot 3 = 6740$.</li>
+      <li>Raw material 4500: $\Delta = -100$, AD 150 içinde, $z = 6650 - 100 = 6550$. Raw material 4400: $\Delta = -200 &gt; 150$, report'tan yeni $z$ <strong>bulunamaz</strong>; yeniden çözmek gerekir.</li>
+      <li>Row 3'ün dual price'ı $-2$: product 4 için minimum talebi 1 artırmak geliri 2 düşürür ($\ge$ constraint, max problem, işaret $\le 0$).</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Winston §5.2 Figure 3 (Winco LINDO output), Example 3–4, "Signs of Shadow Prices", Table 4, "Degeneracy and Sensitivity Analysis" (Oddity 1–3). -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · degeneracy ve alternative optima varsa dikkat</span>
+    <ul>
+      <li><strong>Degenerate optimum</strong> (bir basic variable 0): bazı RHS'lerde AI ya da AD 0 çıkar. O dual price o yönde kullanılamaz (Winston Oddity 1). Bir nonbasic variable'ın girmesi için kârının reduced cost'tan fazla iyileşmesi gerekebilir (Oddity 2); range dışına çıkmak çözümü değiştirmeyebilir (Oddity 3), çünkü basis değişir ama vertex aynı kalır.</li>
+      <li><strong>Alternative optima</strong>: optimumda bir nonbasic variable'ın $c_j - z_j = 0$'dır. O zaman bazı objective range'lerinde AI ya da AD 0 çıkar ve report solver'ın <strong>seçtiği</strong> optimal basis'e göredir.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Week 3 bandwidth LP</span>
+    <p>$\max f_1 + f_2 + f_3$ s.t. $f_1 + f_3 \le 10$ (SRC→R1), $f_2 \le 8$ (SRC→R2), $f_1 \le 7$ (R1→DST), $f_2 + f_3 \le 9$ (R2→DST), $f_3 \le 4$ (R1→R2), $f \ge 0$. Optimal değer 16 Gbps, ama optimum tek değil: $f_1 = 7$, $f_2 + f_3 = 9$, $f_3 \in [1, 3]$ olan her nokta optimal. Slayttaki $(7, 8, 1)$ bunlardan biri, $(7, 6, 3)$ bir diğeri.</p>
+    <p>Sayfadaki simplex $(7, 8, 1)$'de duruyor. O basis'in report'u (python ile de aynı):</p>
+    <ul>
+      <li>$f_2 \le 8$'in slack'i nonbasic ve $c_j - z_j = 0$: alternative optima'nın işareti. Bu slack'i basis'e sokan pivot $(7, 6, 3)$'e götürür, $z$ değişmez.</li>
+      <li>$c_3$'ün range'i $[0, 1]$: allowable increase <strong>0</strong>. $f_3$'ün kârı biraz artarsa $(7, 6, 3)$ tek optimum olur.</li>
+      <li>Dual price'lar $(0, 0, 1, 1, 0)$: R1→DST ve R2→DST link'lerinin her ek Gbps'i toplamı 1 artırır. SRC→R2 ($f_2 \le 8$) binding olduğu hâlde dual price'ı 0. Binding olmak shadow price'ın pozitif olmasını gerektirmez.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Week_03.pdf s.23 (bandwidth LP, f* = (7, 8, 1)). Alternative optima ve report değerleri Fraction simplex ile kontrol edildi. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Report'taki range'ler her zaman <strong>tek</strong> bir parametre değişirken geçerlidir. Birkaç değişiklik için 100% rule (Bölüm 10).</li>
+      <li>RHS range içinde report yeni $z^*$'ı verir ama yeni $x^*$'ı vermez (Winston §5.2). $x^*$ için $B^{-1}$ gerekir.</li>
+      <li>Solver'ların işaret düzeni farklıdır (LINDO "DUAL PRICES"ı iyileşme yönünde verir). Emin değilsen RHS'yi 1 artırıp yeniden çöz ve $z$'nin hangi yöne gittiğine bak.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab04-ranging"><span class="box__label">Lab 4 (syllabus Week 4) · lab görevi</span>
+    <p>Syllabus, Week 4 satırı: "Linear programming II: duality, shadow prices, sensitivity analysis — Duals with PuLP/CBC; RHS/objective ranging". Lab 4 notebook'u repoda yok; görev syllabus satırından kuruldu: job-mix'i PuLP/CBC ile çöz, dual'ları oku, bütün RHS ve objective range'lerini bul ve kendi tableau'nla karşılaştır.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>PuLP'ta constraint'lerin <code>.pi</code> (dual) ve <code>.slack</code> alanları, variable'ların <code>.dj</code> (reduced cost) alanı vardır.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>PuLP, LINDO'daki gibi hazır bir RANGES bloğu vermez. Range'leri ya kendi simplex'inin final tableau'sundaki $B^{-1}$ ile (Bölüm 3, 6) ya da RHS/katsayıyı adım adım değiştirip basis'in değiştiği noktayı arayarak bul.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+<pre><code>import pulp
+m = pulp.LpProblem("jobmix", pulp.LpMaximize)
+x1 = pulp.LpVariable("x1", lowBound=0)
+x2 = pulp.LpVariable("x2", lowBound=0)
+m += 3*x1 + 5*x2
+m += x1 &lt;= 4, "accelerator"
+m += 2*x2 &lt;= 12, "memory"
+m += 3*x1 + 2*x2 &lt;= 18, "CPU"
+m.solve(pulp.PULP_CBC_CMD(msg=0))
+for name, con in m.constraints.items():
+    print(name, con.pi, con.slack)     # dual ve slack
+for v in m.variables():
+    print(v.name, v.varValue, v.dj)    # değer ve reduced cost</code></pre>
+      <p>Beklenen: $x = (2, 6)$, $z = 36$; dual'lar accelerator 0, memory 1.5, CPU 1; slack'ler 2, 0, 0; reduced cost'lar 0, 0.</p>
+      <p>Range'ler (final tableau'dan):</p>
+      <div class="table-wrap"><table>
+        <tr><th>Parametre</th><th>Şu an</th><th>Allowable increase</th><th>Allowable decrease</th><th>Range</th></tr>
+        <tr><td>$c_1$</td><td>3</td><td>4.5</td><td>3</td><td>$[0, 7.5]$</td></tr>
+        <tr><td>$c_2$</td><td>5</td><td>$\infty$</td><td>3</td><td>$[2, \infty)$</td></tr>
+        <tr><td>$b_1$ accelerator</td><td>4</td><td>$\infty$</td><td>2</td><td>$[2, \infty)$</td></tr>
+        <tr><td>$b_2$ memory</td><td>12</td><td>6</td><td>6</td><td>$[6, 18]$</td></tr>
+        <tr><td>$b_3$ CPU</td><td>18</td><td>6</td><td>6</td><td>$[12, 24]$</td></tr>
+      </table></div>
+      <p>Kontrol: memory'yi 18.01 yapıp yeniden çöz; eğim $3/2$'den 0'a düşer. CPU 24.01'de eğim 1'den 0'a düşer. $c_1 = 7.6$'da çözüm $(4, 3)$'e atlar.</p>
+    </div></details>
+    <p class="src"><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Syllabus.pdf">Syllabus (orijinal)</a></p>
+    <!-- Kaynak: Syllabus Week 4 satırı · weeks/04-lp-duality-and-sensitivity.md "Implement: Sensitivity report: allowable ranges for c and b". Range değerleri Fraction simplex ile kontrol edildi. -->
+  </div>
+  <div class="quiz" id="q-report">
+    <p class="quiz__q">Bir report'ta bir $\le$ constraint'in satırı: SLACK = 250, DUAL PRICE = 0, RHS 5000. Allowable increase ve decrease nedir?</p>
+    <button class="quiz__opt" data-correct>AI = ∞, AD = 250<span class="why">Doğru (Winston Table 4). Kaynağın 250'si boşta: 250'ye kadar azaltabilirsin, istediğin kadar artırabilirsin.</span></button>
+    <button class="quiz__opt">AI = 250, AD = ∞<span class="why">Yönler ters. Boştaki 250 birim, azaltmanın ne kadar ileri gidebileceğini söyler; artırmak hiçbir şeyi bozmaz.</span></button>
+    <button class="quiz__opt">AI = AD = 0, çünkü dual price 0<span class="why">Dual price 0 olması range'in sıfır olması demek değil. 0 olan aralık degenerate durumlarda çıkar.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="hundred" data-min="4">
+  <h2>Birden fazla değişiklik: 100% rule</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Her range tek bir parametre değişirken geçerli. İki parametre birlikte değişirse? Her değişikliği, kendi izin verilen payının yüzdesi olarak ölç. Yüzdelerin toplamı 100'ü geçmiyorsa basis güvende.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · 100% rule (Winston §6.4)</span>
+    <p>Her değişen parametre için $r_j = \dfrac{\Delta_j}{I_j}$ (artış) ya da $r_j = \dfrac{-\Delta_j}{D_j}$ (azalış); değişmeyen için $r_j = 0$. $I_j$, $D_j$: tek başına değişirken allowable increase / decrease.</p>
+    <ul>
+      <li>$\sum r_j \le 1$ ise basis <strong>kesin</strong> optimal kalır.</li>
+      <li>$\sum r_j &gt; 1$ ise <strong>bilinmez</strong>: optimal kalabilir de kalmayabilir de. Yeniden hesapla.</li>
+    </ul>
+    <p><strong>Objective, Case 1:</strong> değişen bütün $c_j$'lerin reduced cost'u sıfırdan farklıysa (hepsi nonbasic), her biri kendi range'inde kaldıkça basis optimal; kalmazsa değil. <strong>Case 2</strong> (en az biri basic): 100% rule. Aynı ayrım RHS için: değişen bütün constraint'ler nonbinding ise her birinin kendi range'i yeter; en az biri binding ise 100% rule.</p>
+    <p>Basis kalırsa: objective değişikliğinde $x^*$ aynı, $z^* = \sum c_j' x_j^*$; RHS değişikliğinde $z^* = z + \sum y_i\Delta b_i$.</p>
+  </div>
+  <p><strong>Job-mix:</strong> memory 12 → 15 ($r = 3/6 = 0.5$), CPU 18 → 16 ($r = 2/6 \approx 0.33$). Toplam $0.83 \le 1$: basis kalır, $z^* = 36 + 1.5\cdot3 + 1\cdot(-2) = 38.5$. Yeni değerler $B^{-1}$ ile: $s_1 = 2 + 1 + \tfrac23 = \tfrac{11}{3}$, $x_2 = 7.5$, $x_1 = 2 - 1 - \tfrac23 = \tfrac13$; hepsi $\ge 0$.</p>
+  <!-- Kaynak: Winston §6.4, Example 2–9 (Dakota: masa 70 / sandalye 18 → r = 0.5 + 0.4 = 0.9; 22 finishing + 9 carpentry → r = 1). Job-mix örneği python ile kontrol edildi: z = 77/2. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$\sum r_j &gt; 1$ "basis değişir" demek değil. Kural sadece yeterli bir koşul.</li>
+      <li>Azalış için payda <strong>allowable decrease</strong>, artış için allowable increase. Karıştırma.</li>
+      <li>Allowable increase $\infty$ olan bir artış $r = 0$ katkı yapar.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.4-P7"><span class="box__label">Winston §6.4 Problem 7 · ödev sorusu</span>
+    <p>Dakota (OBJ COEFFICIENT RANGES: desks 60, AI 20, AD 4; tables 30, AI 5, AD ∞; chairs 20, AI 2.5, AD 5). "Suppose that the price of a desk is <code class="w-lp-sensitivity-usd">&#36;</code>65, a table is <code class="w-lp-sensitivity-usd">&#36;</code>25, and a chair is <code class="w-lp-sensitivity-usd">&#36;</code>18. Show that the current basis remains optimal. What is the new optimal z-value?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Desk ve chair basic (reduced cost 0), yani Case 2: 100% rule.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Table'ın fiyatı düşüyor ve AD $= \infty$: $r = 0$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$r_1 = 5/20 = 0.25$, $r_2 = 5/\infty = 0$, $r_3 = 2/5 = 0.4$. Toplam $0.65 \le 1$: basis optimal kalır, çözüm 2 desk, 8 chair.</p>
+      <p>$z = 65\cdot2 + 25\cdot0 + 18\cdot8 = 130 + 144 = 274$.</p>
+    </div></details>
+    <!-- Kaynak: Winston §6.4 Problem 7, Figure 4 (Dakota LINDO). python: z = 274. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-6.4-P8"><span class="box__label">Winston §6.4 Problem 8 · ödev sorusu</span>
+    <p>Dakota (RIGHTHAND SIDE RANGES: lumber 48, AI ∞, AD 24; finishing 20, AI 4, AD 4; carpentry 8, AI 2, AD 1.333). "Suppose that 60 board ft of lumber and 23 finishing hours are available. Show that the current basis remains optimal."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Finishing binding, yani Case 2.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Lumber'ın artışı AI $= \infty$'a bölünür.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$r_{\text{lumber}} = 12/\infty = 0$, $r_{\text{finishing}} = 3/4 = 0.75$. Toplam $0.75 \le 1$: basis optimal. $z = 280 + 0\cdot12 + 10\cdot3 = 310$. ($B^{-1}$ ile: $s_1 = 42$, $x_3 = 14$, $x_1 = 0.5$.)</p>
+    </div></details>
+    <!-- Kaynak: Winston §6.4 Problem 8. python: z = 310, x1 = 1/2, x3 = 14, s1 = 42. -->
+  </div>
+  <div class="box box--exam" data-exam="winston-6.4-P9"><span class="box__label">Winston §6.4 Problem 9 · ödev sorusu</span>
+    <p>Dakota (aynı RHS ranges). "Suppose 40 board ft of lumber, 21 finishing hours, and 8.5 carpentry hours are available. Show that the current basis remains optimal."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Üç ayrı oran: biri azalış, ikisi artış.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Carpentry'nin AI'si 2, finishing'in 4, lumber'ın AD'si 24.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$r_{\text{lumber}} = 8/24 = 1/3$, $r_{\text{finishing}} = 1/4$, $r_{\text{carpentry}} = 0.5/2 = 1/4$. Toplam $5/6 \approx 0.83 \le 1$: basis optimal.</p>
+      <p>$z = 280 + 0\cdot(-8) + 10\cdot1 + 10\cdot0.5 = 295$. ($B^{-1}$ ile: $s_1 = 14$, $x_3 = 8$, $x_1 = 2.25$.)</p>
+    </div></details>
+    <!-- Kaynak: Winston §6.4 Problem 9. python: z = 295, x1 = 9/4, x3 = 8, s1 = 14. -->
+  </div>
+  <div class="quiz" id="q-hundred">
+    <p class="quiz__q">Job-mix'te memory 12 → 16 ve CPU 18 → 22. 100% rule ne der?</p>
+    <button class="quiz__opt">Basis kalır, çünkü ikisi de kendi range'inde<span class="why">Tek tek range'de olmak, iki binding constraint birlikte değişirken yetmez (Case 2).</span></button>
+    <button class="quiz__opt" data-correct>$r = 4/6 + 4/6 = 4/3 &gt; 1$: kural bir şey söylemez, yeniden hesapla<span class="why">Doğru. (Hesaplarsan: $s_1 = 2 + \tfrac43 - \tfrac43 = 2$, $x_2 = 8$, $x_1 = 2 - \tfrac43 + \tfrac43 = 2$; hepsi $\ge 0$, yani basis aslında kalıyor. $&gt; 1$ "bilinmez" demektir, "bozulur" değil.)</span></button>
+    <button class="quiz__opt">$r &gt; 1$, basis kesin değişir<span class="why">100% rule tek yönlü: $\le 1$ garanti verir, $&gt; 1$ hiçbir şey söylemez. Bu örnekte basis kalıyor.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="outside" data-min="5">
+  <h2>Range dışına çıkınca: pivot ya da dual simplex</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Range dışına çıkınca iki durum var ve ikisi de eski tableau'dan devam eder. <strong>Objective</strong> değiştiyse tableau hâlâ feasible ama bir $c_j - z_j$ pozitif: normal simplex'e devam et. <strong>RHS</strong> değiştiyse optimality satırı hâlâ $\le 0$ ama b sütununda negatif bir değer var: normal simplex başlayamaz (BFS yok). Burada <strong>dual simplex</strong> kullanılır: optimality'yi koruyarak feasibility'yi düzeltir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · objective range dışında</span>
+    <p>Yeni $c_j - z_j$ satırını yaz (Bölüm 6 formülü), pozitif olanlardan en büyüğünü sok, ratio test yap, pivot at. Job-mix $c_1 = 8$: $s_2$'nin $c - z$'si $-\tfrac32 + \tfrac53 = \tfrac16 &gt; 0$, $s_2$ girer. Ratio: $s_1$: $2/(1/3) = 6$, $x_2$: $6/(1/2) = 12$; $s_1$ çıkar. Yeni vertex $(4, 3)$, $s_2 = 6$, $z = 47$.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · dual simplex, max problem (Winston §6.11)</span>
+    <ol>
+      <li>Her RHS $\ge 0$ ise dur, tableau optimal.</li>
+      <li>En negatif basic variable <strong>çıkar</strong>; onun satırı pivot satırı. Pivot satırında <strong>negatif</strong> katsayısı olan her $x_j$ için $\left|\dfrac{c_j - z_j}{a_{rj}}\right|$ hesapla; en küçüğü <strong>girer</strong>. Bu ratio test $c_j - z_j \le 0$ satırını korur.</li>
+      <li>Pivot satırında negatif katsayı yoksa (RHS negatif, bütün katsayılar $\ge 0$) LP infeasible.</li>
+    </ol>
+    <p>Winston'ın üç kullanımı: bir constraint eklendikten sonra yeni optimum, bir RHS değiştikten sonra yeni optimum, "normal" bir min problemini çözmek.</p>
+  </div>
+  <p class="src">Not: Dual simplex Week 3 slaytlarında sadece adıyla geçiyor ("presolve + dual simplex + barrier"), Week 4 slaytları repoda olmadığı için sınav kapsamında olup olmadığı belirsiz. Hocaya sormaya değer.</p>
+  <h3>Adım adım: job-mix'te range dışı RHS</h3>
+  <p>Bir senaryo seç ya da memory için kendi değerini yaz. Eski final tableau'ya yeni $B^{-1}b$ yazılıyor ve dual simplex sayfada çalışıyor. Sonda sonuç, LP'nin sıfırdan çözümüyle karşılaştırılıyor.</p>
+  <div class="w-lp-sensitivity-ctl">
+    <select id="w-ds-sel" class="btn btn--sm" aria-label="Senaryo seç">
+      <option value="4,20,18" selected>memory b₂ = 20</option>
+      <option value="4,12,27">CPU b₃ = 27</option>
+      <option value="4,12,9">CPU b₃ = 9</option>
+    </select>
+    <label>memory $b_2$ = <input id="w-ds-num" type="text" inputmode="decimal" value="" placeholder="ör. 22" class="btn btn--sm" /></label>
+    <button class="btn btn--sm" id="w-ds-go">Kur</button>
+  </div>
+  <div class="w-lp-sensitivity-err" id="w-ds-err" aria-live="polite"></div>
+  <div id="w-ds-stepper"></div>
+  <!-- Kaynak: Winston §6.3 RHS değişikliği sonrası infeasible basis alt başlığı (Dakota b2 = 30, Table 6) ve §6.11 dual simplex adımları, Table 33–34. Senaryolar python ile kontrol edildi: b2 = 20 → z = 45, b3 = 27 → z = 42, b3 = 9 → z = 45/2. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Dual simplex'te önce <strong>çıkan</strong> seçilir (satır), sonra giren (sütun). Normal simplex'in tersi.</li>
+      <li>Ratio sadece pivot satırında <strong>negatif</strong> katsayısı olan sütunlar için hesaplanır. Pozitif katsayılı bir sütunu sokmak b'yi daha da negatif yapar.</li>
+      <li>Range dışında da shadow price'ı kullanmak: memory 20 için 48 değil 45 (dual simplex sonucu ve slider aynı sayıyı veriyor).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-6.3-P2"><span class="box__label">Winston §6.3 Problem 2 · ödev sorusu</span>
+    <p>"If $c_1 = 55$ in the Dakota problem, show that the new optimal solution does not produce any desks."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Desk'in range'i $[56, 80]$; 55 dışında. $c_1 = 60 + \Delta$, $\Delta = -5$ ile $x_1$ satırını kullanarak nonbasic $c_j - z_j$'leri yeniden hesapla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Pozitif çıkan sütunu sok ve ratio test yap. Hangi satır çıkıyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$x_1$ satırı: $(1, 5/4, 0, 0, -1/2, 3/2)$. $\Delta = -5$:</p>
+      $$x_2: -5 - (-5)\tfrac54 = 1.25,\quad s_2: -10 - (-5)(-\tfrac12) = -12.5,\quad s_3: -10 - (-5)\tfrac32 = -2.5.$$
+      <p>$x_2$ (table) $1.25 &gt; 0$ ile girer. Ratio test $x_2$ sütununda $(-2, -2, 5/4)$: sadece $x_1$ satırı pozitif, $2/(5/4) = 1.6$. <strong>$x_1$ çıkar</strong>, pivot $5/4$.</p>
+      <p>Yeni değerler: $x_2 = 1.6$, $x_3 = 8 + 2(1.6) = 11.2$, $s_1 = 24 + 2(1.6) = 27.2$, $x_1 = 0$. Yeni $c_j - z_j$ satırı $(-1, 0, 0, 0, -12, -4)$, hepsi $\le 0$: optimal. $z = 30(1.6) + 20(11.2) = 272$. Desk üretilmiyor.</p>
+    </div></details>
+    <!-- Kaynak: Winston §6.3 Problem 2. Fraction simplex: c1 = 55 → basis {s1, x3, x2}, x2 = 8/5, x3 = 56/5, z = 272. -->
+  </div>
+  <div class="quiz" id="q-outside">
+    <p class="quiz__q">Job-mix'te CPU 18'den 27'ye çıkıyor. Eski final tableau'ya yeni b yazınca $s_1 = -1$ çıkıyor. Dual simplex'te ne olur?</p>
+    <button class="quiz__opt" data-correct>$s_1$ çıkar; pivot satırında negatif katsayılı tek sütun $s_3$ ($-1/3$), o girer; $z^* = 42$<span class="why">Doğru. Ratio $|-1 / (-1/3)| = 3$. Sonuç: $s_3 = 3$, $x_1 = 4$, $x_2 = 6$, $z = 42$. Accelerator binding oldu.</span></button>
+    <button class="quiz__opt">$s_2$ girer, çünkü $c_j - z_j$'si en negatif<span class="why">Dual simplex'te önce çıkan satır seçilir, giren sadece o satırda negatif katsayısı olanlardan seçilir. $s_1$ satırında $s_2$'nin katsayısı $1/3 &gt; 0$.</span></button>
+    <button class="quiz__opt">$z^* = 45$, çünkü CPU'nun shadow price'ı 1<span class="why">$36 + 9$ hesabı range dışında geçersiz. CPU'nun range'i $[12, 24]$.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="4">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak. İlk dört soru yeni bir LP üzerinde: $\max z = 2x_1 + 3x_2$ s.t. $x_1 + x_2 \le 8$ (A), $x_1 + 3x_2 \le 18$ (B), $x_1 \le 6$ (C), $x \ge 0$. Optimal tableau (slayt düzeni, satırlar $x_1, x_2, s_3$):</p>
+  <div class="table-wrap"><table class="w-lp-sensitivity-tab">
+    <tr><th>$c_B$</th><th>Basis</th><th>b</th><th>$x_1$</th><th>$x_2$</th><th>$s_1$</th><th>$s_2$</th><th>$s_3$</th></tr>
+    <tr><td>2</td><td>$x_1$</td><td>3</td><td>1</td><td>0</td><td>3/2</td><td>−1/2</td><td>0</td></tr>
+    <tr><td>3</td><td>$x_2$</td><td>5</td><td>0</td><td>1</td><td>−1/2</td><td>1/2</td><td>0</td></tr>
+    <tr><td>0</td><td>$s_3$</td><td>3</td><td>0</td><td>0</td><td>−3/2</td><td>1/2</td><td>1</td></tr>
+    <tr class="sep"><td></td><td>$z_j$</td><td>21</td><td>2</td><td>3</td><td>3/2</td><td>1/2</td><td>0</td></tr>
+    <tr><td></td><td>$c_j - z_j$</td><td></td><td>0</td><td>0</td><td>−3/2</td><td>−1/2</td><td>0</td></tr>
+  </table></div>
+  <!-- Kaynak: kendi alıştırma LP'si (rezerve mock ile ilgisi yok). Bütün cevaplar Fraction simplex ile kontrol edildi: b1 range [6, 10], c2 range [2, 6], b1 = 9 → z = 45/2, c2 = 7 → (0, 6), z = 42, yeni ürün (4; 2, 1, 0) → z = 108/5. -->
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">A'nın RHS'si 8'den 9'a çıkıyor. $z^*$?</p>
+    <button class="quiz__opt" data-correct>22.5<span class="why">Doğru. $s_1$ sütunu $(3/2, -1/2, -3/2)$: $s_3 = 3 - 1.5 \ge 0$, $x_2 = 5 - 0.5 \ge 0$; range $[6, 10]$. $z = 21 + \tfrac32 \cdot 1$.</span></button>
+    <button class="quiz__opt">21<span class="why">A binding ($s_1$ nonbasic), shadow price'ı $z_j = 3/2$, sıfır değil.</span></button>
+    <button class="quiz__opt">23<span class="why">Ek kapasitenin hepsini $x_1$'e (kâr 2) verdin. Ama B de binding; vertex A ∩ B üzerinde kalır ve $x_1$ $1.5$ artarken $x_2$ $0.5$ azalır.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">$c_2$ hangi aralıkta kaldıkça basis optimal kalır?</p>
+    <button class="quiz__opt" data-correct>$[2, 6]$<span class="why">Doğru. $x_2$ satırı $(0, 1, -1/2, 1/2, 0)$. $s_1$: $-\tfrac32 + \tfrac{\Delta}{2} \le 0 \Rightarrow \Delta \le 3$; $s_2$: $-\tfrac12 - \tfrac{\Delta}{2} \le 0 \Rightarrow \Delta \ge -1$.</span></button>
+    <button class="quiz__opt">$[1, 3]$<span class="why">Bu $c_1$'in aralığı. $c_2$ için $x_2$'nin satırını kullan.</span></button>
+    <button class="quiz__opt">$[3, \infty)$<span class="why">Basic variable'ın katsayısı iki yönde de sınırlıdır; $c_2$ çok artınca iso-profit B'den daha yatık olur ve $(0, 6)$ optimal olur.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">Kârı 4 olan, A'dan 2, B'den 1, C'den 0 birim kullanan yeni bir ürün. Karar?</p>
+    <button class="quiz__opt" data-correct>Girer: $c - y^Ta = 4 - 3.5 = 0.5 &gt; 0$<span class="why">Doğru. $y = (3/2, 1/2, 0)$, $y^T a = 3 + 0.5 = 3.5$. Yeniden çözünce $z^* = 21.6$.</span></button>
+    <button class="quiz__opt">Girmez: $4 - (2 + 1) \cdot 3 &lt; 0$<span class="why">Kaynak miktarlarını $x_2$'nin kârıyla çarpmışsın. Kaynakların değeri shadow price'larla ölçülür.</span></button>
+    <button class="quiz__opt">Girmez, çünkü A zaten dolu<span class="why">Dolu kaynağı kullanmak mümkün: ürün girince eski ürünlerden biri azalır. Kararı $c - y^Ta$ verir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">$c_2 = 7$ olursa ne olur?</p>
+    <button class="quiz__opt">Çözüm $(3, 5)$ kalır, $z^* = 41$<span class="why">7, $c_2$'nin range'i $[2, 6]$'nın dışında. $s_1$'in $c - z$'si $-\tfrac32 + 2 = \tfrac12 &gt; 0$ olur.</span></button>
+    <button class="quiz__opt" data-correct>$s_1$ girer, optimum $(0, 6)$'ya geçer, $z^* = 42$<span class="why">Doğru. Ratio test $s_1$ sütununda: sadece $x_1$ satırı pozitif ($3/(3/2) = 2$), $x_1$ çıkar. Yeni vertex $(0, 6)$: $7\cdot6 = 42 &gt; 41$.</span></button>
+    <button class="quiz__opt">Dual simplex gerekir<span class="why">Objective değişikliği b sütununu değiştirmez, tableau feasible kalır. Normal simplex ile bir pivot yeter.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Job-mix'te shadow price'lar $(0, 3/2, 1)$. Hangi ifade <strong>yanlış</strong>?</p>
+    <button class="quiz__opt">Memory'yi 4 blok artırmak $z^*$'ı 6 artırır<span class="why">Bu doğru: $\Delta = 4 \le 6$ (allowable increase), $z = 36 + 1.5 \cdot 4 = 42$.</span></button>
+    <button class="quiz__opt">Accelerator'ı 1 azaltmak $z^*$'ı değiştirmez<span class="why">Bu doğru: accelerator nonbinding, AD = 2.</span></button>
+    <button class="quiz__opt" data-correct>CPU'yu 10 artırmak $z^*$'ı 10 artırır<span class="why">Yanlış olan bu, yani doğru cevap. CPU'nun allowable increase'i 6. $b_3 = 28$'de $z^* = 42$, artış 6.</span></button>
+  </div>
+  <!-- Sıradaki konu: gradient descent. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* LP helpers for this lesson: tableau simplex in the slide convention (largest c_j − z_j enters), ranging, dual simplex, fractions, SVG. */
+const LPS = (function () {
+  const EPS = 1e-9;
+  function approx(v) {
+    const a = Math.abs(v);
+    for (let q = 1; q <= 60; q++) { const p = Math.round(a * q); if (Math.abs(p / q - a) < 1e-7) return [p, q]; }
+    return null;
+  }
+  function tex(v) {
+    if (v === Infinity) return "\\infty";
+    if (v === -Infinity) return "-\\infty";
+    if (Math.abs(v) < 1e-9) return "0";
+    const s = v < 0 ? "-" : "", pq = approx(v);
+    if (!pq) return s + String(Math.round(Math.abs(v) * 1000) / 1000);
+    return pq[1] === 1 ? s + pq[0] : s + "\\tfrac{" + pq[0] + "}{" + pq[1] + "}";
+  }
+  function txt(v) {
+    if (v === Infinity) return "∞";
+    if (v === -Infinity) return "−∞";
+    if (Math.abs(v) < 1e-9) return "0";
+    const s = v < 0 ? "−" : "", pq = approx(v);
+    if (!pq) return s + String(Math.round(Math.abs(v) * 1000) / 1000);
+    return pq[1] === 1 ? s + pq[0] : s + pq[0] + "/" + pq[1];
+  }
+  const clone = (T) => T.map((r) => r.slice());
+  function pivot(T, r, j) {
+    const p = T[r][j];
+    T[r] = T[r].map((x) => x / p);
+    for (let i = 0; i < T.length; i++) {
+      if (i === r || Math.abs(T[i][j]) < 1e-15) continue;
+      const f = T[i][j];
+      T[i] = T[i].map((x, k) => x - f * T[r][k]);
+    }
+  }
+  function price(T, basis, cc) {
+    const m = T.length, N = cc.length, z = [], red = [];
+    for (let j = 0; j < N; j++) {
+      let s = 0;
+      for (let i = 0; i < m; i++) s += cc[basis[i]] * T[i][j];
+      z.push(s); red.push(cc[j] - s);
+    }
+    let zval = 0;
+    for (let i = 0; i < m; i++) zval += cc[basis[i]] * T[i][N];
+    return { z, red, zval };
+  }
+  function pack(T, basis, cc, n, m, status, col) {
+    const N = n + m, p = price(T, basis, cc), x = Array(N).fill(0);
+    basis.forEach((bv, i) => { x[bv] = T[i][N]; });
+    return { status, col, T, basis: basis.slice(), cc, n, m, N, x, z: p.zval, zrow: p.z, red: p.red,
+      y: p.z.slice(n, N), Binv: T.map((row) => row.slice(n, N)) };
+  }
+  /* max c·x s.t. A x <= b (b >= 0), x >= 0; slack basis at the start */
+  function solve(c, A, b) {
+    const m = A.length, n = c.length, N = n + m;
+    const T = A.map((row, i) => row.concat(Array.from({ length: m }, (_, k) => (k === i ? 1 : 0)), [b[i]]));
+    const cc = c.concat(Array(m).fill(0));
+    const basis = Array.from({ length: m }, (_, i) => n + i);
+    for (let it = 0; it < 100; it++) {
+      const p = price(T, basis, cc);
+      let j = -1, best = EPS;
+      for (let k = 0; k < N; k++) if (p.red[k] > best + 1e-12) { best = p.red[k]; j = k; }
+      if (j < 0) return pack(T, basis, cc, n, m, "optimal");
+      let r = -1, rb = Infinity;
+      for (let i = 0; i < m; i++) if (T[i][j] > EPS) { const q = T[i][N] / T[i][j]; if (q < rb - 1e-12) { rb = q; r = i; } }
+      if (r < 0) return pack(T, basis, cc, n, m, "unbounded", j);
+      pivot(T, r, j); basis[r] = j;
+    }
+    return pack(T, basis, cc, n, m, "iter");
+  }
+  /* RHS ranging for constraint i: x_B + Δ·(column i of B^{-1}) >= 0 */
+  function rhsRange(res, i) {
+    let lo = -Infinity, hi = Infinity;
+    const rows = res.T.map((row, k) => {
+      const xb = row[res.N], beta = res.Binv[k][i];
+      let kind = "none", bound = null;
+      if (beta > EPS) { kind = "lo"; bound = -xb / beta; lo = Math.max(lo, bound); }
+      else if (beta < -EPS) { kind = "hi"; bound = -xb / beta; hi = Math.min(hi, bound); }
+      return { k, xb, beta, kind, bound };
+    });
+    return { lo, hi, rows };
+  }
+  /* objective ranging for variable j: every nonbasic c_k − z_k must stay <= 0 */
+  function objRange(res, j) {
+    const r = res.basis.indexOf(j);
+    if (r < 0) return { basic: false, lo: -Infinity, hi: -res.red[j], rows: [] };
+    let lo = -Infinity, hi = Infinity;
+    const rows = [];
+    for (let k = 0; k < res.N; k++) {
+      if (res.basis.includes(k)) continue;
+      const a = res.T[r][k], rk = res.red[k];
+      let kind = "none", bound = null;
+      if (a > EPS) { kind = "lo"; bound = rk / a; lo = Math.max(lo, bound); }
+      else if (a < -EPS) { kind = "hi"; bound = rk / a; hi = Math.min(hi, bound); }
+      rows.push({ k, a, rk, kind, bound });
+    }
+    return { basic: true, row: r, lo, hi, rows };
+  }
+  /* dual simplex from a tableau whose c_j − z_j row is <= 0; returns the steps */
+  function dualSimplex(T0, basis0, cc) {
+    const T = clone(T0), basis = basis0.slice(), N = cc.length, m = T.length, steps = [];
+    for (let it = 0; it < 30; it++) {
+      let r = -1, worst = -EPS;
+      for (let i = 0; i < m; i++) if (T[i][N] < worst - 1e-12) { worst = T[i][N]; r = i; }
+      if (r < 0) return { status: "optimal", T, basis, steps };
+      const p = price(T, basis, cc), ratios = [];
+      let j = -1, best = Infinity;
+      for (let k = 0; k < N; k++) if (T[r][k] < -EPS) {
+        const q = Math.abs(p.red[k] / T[r][k]);
+        ratios.push({ k, q });
+        if (q < best - 1e-12) { best = q; j = k; }
+      }
+      if (j < 0) { steps.push({ r, j: -1, ratios, before: clone(T), basis: basis.slice() }); return { status: "infeasible", T, basis, steps }; }
+      steps.push({ r, j, ratios, before: clone(T), basis: basis.slice() });
+      pivot(T, r, j); basis[r] = j;
+    }
+    return { status: "iter", T, basis, steps };
+  }
+  /* Sutherland–Hodgman clip of the box [0,X]×[0,Y] by a·x <= b */
+  function polygon(A, b, X, Y) {
+    let P = [[0, 0], [X, 0], [X, Y], [0, Y]];
+    A.forEach((a, i) => {
+      const f = (p) => a[0] * p[0] + a[1] * p[1] - b[i], Q = [];
+      for (let k = 0; k < P.length; k++) {
+        const p = P[k], q = P[(k + 1) % P.length], fp = f(p), fq = f(q);
+        if (fp <= 1e-12) Q.push(p);
+        if ((fp < -1e-12 && fq > 1e-12) || (fp > 1e-12 && fq < -1e-12)) {
+          const t = fp / (fp - fq);
+          Q.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]);
+        }
+      }
+      P = Q;
+    });
+    return P;
+  }
+  function segment(a, b, X, Y) {
+    const pts = [];
+    if (Math.abs(a[1]) > EPS) { [0, X].forEach((x) => { const y = (b - a[0] * x) / a[1]; if (y >= -1e-9 && y <= Y + 1e-9) pts.push([x, y]); }); }
+    if (Math.abs(a[0]) > EPS) { [0, Y].forEach((y) => { const x = (b - a[1] * y) / a[0]; if (x >= -1e-9 && x <= X + 1e-9) pts.push([x, y]); }); }
+    const out = [];
+    pts.forEach((p) => { if (!out.some((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 1e-6)) out.push(p); });
+    return out.length >= 2 ? [out[0], out[1]] : null;
+  }
+  const W = 300, H = 270, PL = 30, PR = 10, PT = 10, PB = 26;
+  function regionSVG(o) {
+    const sx = (x) => PL + (x / o.X) * (W - PL - PR), sy = (y) => H - PB - (y / o.Y) * (H - PT - PB);
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria || "feasible region"}">`;
+    for (let x = 0; x <= o.X; x += 2) s += `<line x1="${sx(x)}" y1="${sy(0)}" x2="${sx(x)}" y2="${sy(o.Y)}" style="stroke:var(--border);stroke-width:.6"/><text x="${sx(x)}" y="${H - 10}" font-size="10" text-anchor="middle" style="fill:var(--fg-muted)">${x}</text>`;
+    for (let y = 0; y <= o.Y; y += 2) s += `<line x1="${sx(0)}" y1="${sy(y)}" x2="${sx(o.X)}" y2="${sy(y)}" style="stroke:var(--border);stroke-width:.6"/><text x="${PL - 5}" y="${sy(y) + 3}" font-size="10" text-anchor="end" style="fill:var(--fg-muted)">${y}</text>`;
+    s += `<text x="${W - PR}" y="${sy(0) - 4}" font-size="11" text-anchor="end" style="fill:var(--fg-muted)">x₁</text><text x="${PL + 4}" y="${PT + 10}" font-size="11" style="fill:var(--fg-muted)">x₂</text>`;
+    const P = polygon(o.A, o.b, o.X, o.Y);
+    if (P.length >= 3) s += `<polygon points="${P.map((p) => sx(p[0]) + "," + sy(p[1])).join(" ")}" style="fill:var(--blue-100);stroke:var(--blue-600);stroke-width:1.5;fill-opacity:.7"/>`;
+    else if (P.length) s += `<circle cx="${sx(P[0][0])}" cy="${sy(P[0][1])}" r="3" style="fill:var(--blue-600)"/>`;
+    o.A.forEach((a, i) => {
+      const seg = segment(a, o.b[i], o.X, o.Y);
+      if (!seg) return;
+      const hl = i === o.hl;
+      s += `<line x1="${sx(seg[0][0])}" y1="${sy(seg[0][1])}" x2="${sx(seg[1][0])}" y2="${sy(seg[1][1])}" style="stroke:${hl ? "var(--accent)" : "var(--blue-800)"};stroke-width:${hl ? 3 : 1.2}"/>`;
+      const lab = seg[0][1] > seg[1][1] ? seg[0] : seg[1];
+      s += `<text x="${Math.min(sx(lab[0]) + 4, W - 60)}" y="${Math.max(sy(lab[1]) + 12, PT + 10)}" font-size="10" style="fill:${hl ? "var(--accent)" : "var(--blue-800)"};font-weight:${hl ? 700 : 400}">${o.names[i]}</text>`;
+    });
+    if (o.iso) {
+      const seg = segment(o.iso.c, o.iso.z, o.X, o.Y);
+      if (seg) s += `<line x1="${sx(seg[0][0])}" y1="${sy(seg[0][1])}" x2="${sx(seg[1][0])}" y2="${sy(seg[1][1])}" style="stroke:#2b8a3e;stroke-width:2;stroke-dasharray:6 4"/>`;
+    }
+    if (o.vertex) s += `<circle cx="${sx(o.vertex[0])}" cy="${sy(o.vertex[1])}" r="6" style="fill:#2b8a3e;stroke:var(--paper);stroke-width:2"/><text x="${sx(o.vertex[0]) + 8}" y="${sy(o.vertex[1]) - 8}" font-size="11" font-weight="700" style="fill:#2b8a3e">(${txt(o.vertex[0])}, ${txt(o.vertex[1])})</text>`;
+    return s + "</svg>";
+  }
+  function curveSVG(o) {
+    const sx = (x) => PL + 4 + ((x - o.x0) / (o.x1 - o.x0)) * (W - PL - PR - 4), sy = (y) => H - PB - (y / o.ymax) * (H - PT - PB);
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria || "z*"}">`;
+    const xs = o.xticks, ys = o.yticks;
+    xs.forEach((x) => { s += `<line x1="${sx(x)}" y1="${sy(0)}" x2="${sx(x)}" y2="${sy(o.ymax)}" style="stroke:var(--border);stroke-width:.6"/><text x="${sx(x)}" y="${H - 10}" font-size="10" text-anchor="middle" style="fill:var(--fg-muted)">${x}</text>`; });
+    ys.forEach((y) => { s += `<line x1="${sx(o.x0)}" y1="${sy(y)}" x2="${sx(o.x1)}" y2="${sy(y)}" style="stroke:var(--border);stroke-width:.6"/><text x="${PL}" y="${sy(y) + 3}" font-size="10" text-anchor="end" style="fill:var(--fg-muted)">${y}</text>`; });
+    s += `<text x="${W - PR}" y="${sy(0) - 4}" font-size="11" text-anchor="end" style="fill:var(--fg-muted)">${o.xlabel}</text><text x="${PL + 8}" y="${PT + 10}" font-size="11" style="fill:var(--fg-muted)">z*</text>`;
+    s += `<polyline fill="none" points="${o.pts.map((p) => sx(p[0]) + "," + sy(p[1])).join(" ")}" style="stroke:var(--blue-600);stroke-width:2.2"/>`;
+    o.bps.forEach((p) => { s += `<circle cx="${sx(p[0])}" cy="${sy(p[1])}" r="4.5" style="fill:var(--paper);stroke:var(--accent);stroke-width:2"/><text x="${sx(p[0])}" y="${sy(p[1]) - 9}" font-size="10" text-anchor="middle" style="fill:var(--accent);font-weight:700">${txt(p[0])}</text>`; });
+    if (o.cur) s += `<circle cx="${sx(o.cur[0])}" cy="${sy(o.cur[1])}" r="5.5" style="fill:#2b8a3e;stroke:var(--paper);stroke-width:2"/>`;
+    return s + "</svg>";
+  }
+  /* final tableau in the slide layout */
+  function tableau(res, vars, opt) {
+    opt = opt || {};
+    const n = res.n, m = res.m, N = res.N, names = vars.concat(Array.from({ length: m }, (_, k) => "s" + (k + 1)));
+    const nm = (j) => names[j].replace(/(\d+)$/, "<sub>$1</sub>");
+    const p = price(res.T, res.basis, res.cc);
+    const cls = (i, j) => (opt.cell && opt.cell[0] === i && opt.cell[1] === j) ? "hl2" : ((opt.col === j || opt.row === i) ? "hl" : "");
+    let h = `<div class="table-wrap"><table class="w-lp-sensitivity-tab"><tr><th></th><th>c<sub>j</sub> →</th><th></th>${res.cc.map((c) => `<th>${txt(c)}</th>`).join("")}</tr>`;
+    h += `<tr><th>c<sub>B</sub></th><th>Basis</th><th>b</th>${names.map((_, j) => `<th class="${opt.col === j ? "hl" : ""}">${nm(j)}</th>`).join("")}</tr>`;
+    res.T.forEach((row, i) => {
+      const bcls = (opt.bcol || opt.row === i) ? (opt.bneg && row[N] < -1e-9 ? "hl2" : "hl") : "";
+      h += `<tr><td>${txt(res.cc[res.basis[i]])}</td><td class="${opt.row === i ? "hl" : ""}">${nm(res.basis[i])}</td><td class="${bcls}">${txt(row[N])}</td>${row.slice(0, N).map((v, j) => `<td class="${cls(i, j)}">${txt(v)}</td>`).join("")}</tr>`;
+    });
+    h += `<tr class="sep"><td></td><td>z<sub>j</sub></td><td>${txt(p.zval)}</td>${p.z.map((v) => `<td>${txt(v)}</td>`).join("")}</tr>`;
+    h += `<tr><td></td><td>c<sub>j</sub> − z<sub>j</sub></td><td></td>${p.red.map((v, j) => `<td class="${opt.redcol === j ? "hl2" : ""}">${txt(v)}</td>`).join("")}</tr></table></div>`;
+    return h;
+  }
+  /* interval in TeX, open at an infinite end */
+  function iv(lo, hi) { return (lo === -Infinity ? "(" : "[") + tex(lo) + ",\\ " + tex(hi) + (hi === Infinity ? ")" : "]"); }
+  function readNum(raw, lo, hi, label) {
+    const s = String(raw).trim().replace(",", ".");
+    if (s === "") return { e: `${label} boş. Bir sayı yaz (ondalık için nokta: 7.5).` };
+    if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(s)) return { e: `${label} bir sayı olmalı (örnek: 12 ya da 7.5). "${s}" okunamadı.` };
+    const v = Number(s);
+    if (v < lo) return { e: `${label} en az ${lo} olmalı.` };
+    if (v > hi) return { e: `${label} en fazla ${hi} olsun: daha büyüğü grafiğin dışına taşar ve yeni bir şey göstermez.` };
+    return { v };
+  }
+  return { tex, txt, iv, clone, solve, rhsRange, objRange, dualSimplex, regionSVG, curveSVG, tableau, price, readNum, EPS };
+})();
+
+const JM = { c: [3, 5], A: [[1, 0], [0, 2], [3, 2]], b: [4, 12, 18], names: ["accelerator", "memory", "CPU"], vars: ["x1", "x2"] };
+const GP = { c: [3, 2], A: [[2, 1], [1, 1], [1, 0]], b: [100, 80, 40], names: ["finishing", "carpentry", "demand"], vars: ["x1", "x2"] };
+const vname = (res, j) => (j < res.n ? "x_" + (j + 1) : "s_" + (j - res.n + 1));
+
+/* 1. RHS ranging stepper: rows of x_B + Δ·β >= 0 from the computed B^{-1} */
+(function () {
+  const sel = document.getElementById("w-rr-sel"), box = document.getElementById("w-rr-stepper");
+  function build() {
+    const v = Number(sel.value), P = v < 3 ? JM : GP, i = v % 3;
+    const res = LPS.solve(P.c, P.A, P.b), rr = LPS.rhsRange(res, i), col = res.n + i, T = LPS.tex;
+    const beta = res.Binv.map((r) => r[i]);
+    const frames = [{ cap: `Final tableau. $s_${i + 1}$ (${P.names[i]}) altındaki sütun $B^{-1}e_${i + 1} = (${beta.map(T).join(",\\ ")})$. Satırlar sırayla: $${res.basis.map((j) => vname(res, j)).join(", ")}$.`, row: null, done: [] }];
+    const done = [];
+    rr.rows.forEach((row) => {
+      const xv = vname(res, res.basis[row.k]);
+      let c = `Satır $${xv}$: $${T(row.xb)} + \\Delta\\cdot(${T(row.beta)}) \\ge 0$. `;
+      if (row.kind === "lo") c += `$\\beta &gt; 0$ ⇒ $\\Delta \\ge ${T(row.bound)}$ (alt sınır).`;
+      else if (row.kind === "hi") c += `$\\beta &lt; 0$ ⇒ $\\Delta \\le ${T(row.bound)}$ (üst sınır).`;
+      else c += `$\\beta = 0$ ⇒ bu satır sınır koymaz.`;
+      done.push(c);
+      frames.push({ cap: c, row: row.k, done: done.slice() });
+    });
+    const lo = rr.lo, hi = rr.hi, bi = P.b[i];
+    frames.push({ cap: `En sıkı sınırlar: $${T(lo)} \\le \\Delta \\le ${T(hi)}$ ⇒ <b>$${T(bi + lo)} \\le b_${i + 1} \\le ${T(bi + hi)}$</b>. Allowable increase $${T(hi)}$, allowable decrease $${T(-lo)}$. Shadow price $y_${i + 1} = ${T(res.y[i])}$.`, row: null, done: done.slice(), final: true });
+    Lab.stepper(box, {
+      title: (v < 3 ? "Job-mix" : "Giapetto") + " · " + P.names[i] + " için RHS ranging",
+      interval: 1500,
+      frames: frames.map((f) => ({ caption: f.cap, f })),
+      render(fr, idx, el) {
+        const f = fr.f;
+        el.innerHTML = LPS.tableau(res, P.vars, { col, row: f.row, bcol: f.row === null, cell: f.row !== null ? [f.row, col] : null }) +
+          (f.done.length ? `<ul style="margin:6px 0 0;font-size:.9rem">${f.done.map((d) => `<li>${d}</li>`).join("")}</ul>` : "");
+      }
+    });
+  }
+  sel.onchange = build; build();
+})();
+
+/* 2. RHS slider: re-solve, region, z*(b_i) with breakpoints from the basis ranges */
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const sel = $("w-rhs-sel"), rng = $("w-rhs-range"), num = $("w-rhs-num"), err = $("w-rhs-err"), out = $("w-rhs-out");
+  const DOM = [[0, 8], [0, 24], [0, 30]];
+  const base = LPS.solve(JM.c, JM.A, JM.b), T = LPS.tex;
+  function solveAt(i, t) { const b = JM.b.slice(); b[i] = t; return LPS.solve(JM.c, JM.A, b); }
+  function breakpoints(i) {
+    const [d0, d1] = DOM[i], bps = [];
+    let t = JM.b[i];
+    for (let g = 0; g < 20; g++) { const rr = LPS.rhsRange(solveAt(i, t), i), up = t + rr.hi; if (!(up < d1 - 1e-9)) break; bps.push(up); t = up + 1e-6; }
+    t = JM.b[i];
+    for (let g = 0; g < 20; g++) { const rr = LPS.rhsRange(solveAt(i, t), i), dn = t + rr.lo; if (!(dn > d0 + 1e-9)) break; bps.push(dn); t = dn - 1e-6; }
+    return bps.sort((a, b) => a - b);
+  }
+  const cache = {};
+  function curve(i) {
+    if (cache[i]) return cache[i];
+    const [d0, d1] = DOM[i], pts = [];
+    for (let k = 0; k <= 240; k++) { const t = d0 + (d1 - d0) * k / 240; pts.push([t, solveAt(i, t).z]); }
+    const bps = breakpoints(i).map((t) => [t, solveAt(i, t).z]);
+    return (cache[i] = { pts, bps });
+  }
+  function draw(t) {
+    const i = Number(sel.value), res = solveAt(i, t), b = JM.b.slice(); b[i] = t;
+    const cv = curve(i);
+    $("w-rhs-region").innerHTML = LPS.regionSVG({ A: JM.A, b, X: 10, Y: 12, hl: i, names: JM.names, vertex: [res.x[0], res.x[1]], iso: { c: JM.c, z: res.z }, aria: "job-mix feasible region" });
+    $("w-rhs-curve").innerHTML = LPS.curveSVG({ pts: cv.pts, bps: cv.bps, cur: [t, res.z], x0: DOM[i][0], x1: DOM[i][1], ymax: 50, xticks: i === 0 ? [0, 2, 4, 6, 8] : i === 1 ? [0, 6, 12, 18, 24] : [0, 6, 12, 18, 24, 30], yticks: [0, 10, 20, 30, 40, 50], xlabel: "b" + (i + 1), aria: "z* fonksiyonu" });
+    const rr = LPS.rhsRange(res, i), rb = LPS.rhsRange(base, i);
+    const bin = JM.names.filter((_, k) => Math.abs(res.x[res.n + k]) < 1e-9);
+    const bas = res.basis.map((j) => vname(res, j)).join(", ");
+    const h = 0.01, zl = solveAt(i, Math.max(DOM[i][0], t - h)).z, zr = solveAt(i, t + h).z;
+    const slopeNum = (zr - zl) / ((t + h) - Math.max(DOM[i][0], t - h));
+    let s = `<p>$b_${i + 1} = ${T(t)}$: optimal vertex $(${T(res.x[0])},\\ ${T(res.x[1])})$, $z^* = ${T(res.z)}$. Basis $\\{${bas}\\}$, binding: ${bin.length ? bin.join(", ") : "yok"}.</p>`;
+    s += `<p>Bu basis'in shadow price'ı $y_${i + 1} = ${T(res.y[i])}$ ve range'i $b_${i + 1} \\in ${LPS.iv(t + rr.lo, t + rr.hi)}$ ($B^{-1}$ sütunundan). Kontrol: $\\pm 0.01$ ile yeniden çözünce ortalama eğim $\\approx ${(Math.round(slopeNum * 1000) / 1000)}$ (kırılma noktasında iki eğimin ortası çıkar).</p>`;
+    const inBase = t >= JM.b[i] + rb.lo - 1e-9 && t <= JM.b[i] + rb.hi + 1e-9;
+    const guess = base.z + base.y[i] * (t - JM.b[i]);
+    s += inBase
+      ? `<p class="w-lp-sensitivity-ok">Orijinal basis'in range'i $${LPS.iv(JM.b[i] + rb.lo, JM.b[i] + rb.hi)}$ içindesin: $36 + ${T(base.y[i])}\\cdot(${T(t - JM.b[i])}) = ${T(guess)}$ doğru.</p>`
+      : `<p class="w-lp-sensitivity-no">Orijinal range $${LPS.iv(JM.b[i] + rb.lo, JM.b[i] + rb.hi)}$ dışındasın: $36 + ${T(base.y[i])}\\cdot(${T(t - JM.b[i])}) = ${T(guess)}$ tahmini yanlış, gerçek $z^* = ${T(res.z)}$.</p>`;
+    out.innerHTML = s; Lab.renderMath(out);
+  }
+  function setDomain() {
+    const i = Number(sel.value);
+    rng.min = DOM[i][0]; rng.max = DOM[i][1]; rng.value = JM.b[i]; num.value = JM.b[i]; err.textContent = ""; draw(JM.b[i]);
+  }
+  rng.addEventListener("input", () => { num.value = rng.value; err.textContent = ""; draw(Number(rng.value)); });
+  num.addEventListener("change", () => {
+    const i = Number(sel.value), r = LPS.readNum(num.value, DOM[i][0], DOM[i][1], "$b_" + (i + 1) + "$");
+    if (r.e) { err.innerHTML = r.e; Lab.renderMath(err); return; }
+    err.textContent = ""; rng.value = r.v; draw(r.v);
+  });
+  $("w-rhs-reset").onclick = setDomain;
+  sel.onchange = setDomain;
+  setDomain();
+})();
+
+/* 3. Objective slider: rotate the iso-profit line, live c_j − z_j row, z*(c_j) */
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const sel = $("w-obj-sel"), rng = $("w-obj-range"), num = $("w-obj-num"), err = $("w-obj-err"), out = $("w-obj-out");
+  const T = LPS.tex, base = LPS.solve(JM.c, JM.A, JM.b);
+  function solveC(j, v) { const c = JM.c.slice(); c[j] = v; return LPS.solve(c, JM.A, JM.b); }
+  const cache = {};
+  function curve(j) {
+    if (cache[j]) return cache[j];
+    const pts = [], bps = [];
+    for (let k = 0; k <= 240; k++) { const v = 12 * k / 240; pts.push([v, solveC(j, v).z]); }
+    let v = JM.c[j];
+    for (let g = 0; g < 10; g++) { const r = solveC(j, v), o = LPS.objRange(r, j), up = v + o.hi; if (!(up < 12 - 1e-9)) break; bps.push(up); v = up + 1e-6; }
+    v = JM.c[j];
+    for (let g = 0; g < 10; g++) { const r = solveC(j, v), o = LPS.objRange(r, j), dn = v + o.lo; if (!(dn > 1e-9)) break; bps.push(dn); v = dn - 1e-6; }
+    return (cache[j] = { pts, bps: bps.sort((a, b) => a - b).map((t) => [t, solveC(j, t).z]) });
+  }
+  function draw(v) {
+    const j = Number(sel.value), res = solveC(j, v), c = JM.c.slice(); c[j] = v;
+    const cv = curve(j);
+    $("w-obj-region").innerHTML = LPS.regionSVG({ A: JM.A, b: JM.b, X: 10, Y: 12, hl: -1, names: JM.names, vertex: [res.x[0], res.x[1]], iso: { c, z: res.z }, aria: "iso-profit doğrusu" });
+    $("w-obj-curve").innerHTML = LPS.curveSVG({ pts: cv.pts, bps: cv.bps, cur: [v, res.z], x0: 0, x1: 12, ymax: 80, xticks: [0, 2, 4, 6, 8, 10, 12], yticks: [0, 20, 40, 60, 80], xlabel: "c" + (j + 1), aria: "z* fonksiyonu" });
+    const o = LPS.objRange(res, j), ob = LPS.objRange(base, j);
+    const names = ["x_1", "x_2", "s_1", "s_2", "s_3"];
+    const zeroNB = res.red.some((r, k) => !res.basis.includes(k) && Math.abs(r) < 1e-9);
+    let s = `<p>$c = (${T(c[0])},\\ ${T(c[1])})$: optimal vertex $(${T(res.x[0])},\\ ${T(res.x[1])})$, $z^* = ${T(res.z)}$, iso-profit eğimi $-c_1/c_2 = ${c[1] ? T(-c[0] / c[1]) : "-\\infty"}$.</p>`;
+    s += `<div class="table-wrap"><table class="w-lp-sensitivity-tab"><tr><th></th>${names.map((x) => `<th>$${x}$</th>`).join("")}</tr>`;
+    s += `<tr><td>slayt: $c_j - z_j$</td>${res.red.map((r) => `<td class="${r > 1e-9 ? "hl2" : ""}">${LPS.txt(r)}</td>`).join("")}</tr>`;
+    s += `<tr><td>z-row: $z_j - c_j$</td>${res.red.map((r) => `<td>${LPS.txt(-r)}</td>`).join("")}</tr></table></div>`;
+    s += `<p>Bu basis $\\{${res.basis.map((k) => vname(res, k)).join(", ")}\\}$, $c_${j + 1}$ için range'i $${LPS.iv(v + o.lo, v + o.hi)}$.</p>`;
+    const lo0 = JM.c[j] + ob.lo, hi0 = JM.c[j] + ob.hi, inB = v >= lo0 - 1e-9 && v <= hi0 + 1e-9;
+    s += inB ? `<p class="w-lp-sensitivity-ok">Orijinal range $${LPS.iv(lo0, hi0)}$ içindesin: vertex $(2, 6)$ optimal, $z^* = 36 + ${T(base.x[j])}\\cdot(${T(v - JM.c[j])})$.</p>`
+      : `<p class="w-lp-sensitivity-no">Orijinal range $${LPS.iv(lo0, hi0)}$ dışındasın: optimum başka bir vertex'e geçti.</p>`;
+    if (zeroNB) s += `<p><b>Aralığın ucundasın:</b> bir nonbasic sütunun $c_j - z_j$'si 0. İki vertex ve aradaki kenarın tamamı optimal (alternative optima).</p>`;
+    out.innerHTML = s; Lab.renderMath(out);
+  }
+  function reset() { const j = Number(sel.value); rng.value = JM.c[j]; num.value = JM.c[j]; err.textContent = ""; draw(JM.c[j]); }
+  rng.addEventListener("input", () => { num.value = rng.value; err.textContent = ""; draw(Number(rng.value)); });
+  num.addEventListener("change", () => {
+    const j = Number(sel.value), r = LPS.readNum(num.value, 0, 12, "$c_" + (j + 1) + "$");
+    if (r.e) { err.innerHTML = r.e; Lab.renderMath(err); return; }
+    err.textContent = ""; rng.value = r.v; draw(r.v);
+  });
+  $("w-obj-reset").onclick = reset; sel.onchange = reset; reset();
+})();
+
+/* 4. Price out a new product on job-mix and re-solve with the extra column */
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const T = LPS.tex, base = LPS.solve(JM.c, JM.A, JM.b), y = base.y;
+  const ids = ["w-po-c", "w-po-a1", "w-po-a2", "w-po-a3"], labels = ["$c$", "$a_1$ (accelerator)", "$a_2$ (memory)", "$a_3$ (CPU)"];
+  function run() {
+    const v = [];
+    for (let k = 0; k < 4; k++) {
+      const r = LPS.readNum($(ids[k]).value, k === 0 ? -50 : 0, 50, labels[k]);
+      if (r.e) { $("w-po-err").innerHTML = r.e + (k > 0 ? " Kaynak kullanımı negatif olamaz." : ""); Lab.renderMath($("w-po-err")); $("w-po-out").innerHTML = ""; return; }
+      v.push(r.v);
+    }
+    $("w-po-err").textContent = "";
+    const [c, a1, a2, a3] = v, a = [a1, a2, a3];
+    const zj = y[0] * a1 + y[1] * a2 + y[2] * a3, red = c - zj;
+    let s = `<p>$y = (${y.map(T).join(",\\ ")})$ (final tableau'da slack'lerin altındaki $z_j$'ler). $z_j = y^T a = ${T(y[0])}\\cdot${T(a1)} + ${T(y[1])}\\cdot${T(a2)} + ${T(y[2])}\\cdot${T(a3)} = ${T(zj)}$.</p>`;
+    s += `<p><b>$c_j - z_j = ${T(c)} - ${T(zj)} = ${T(red)}$</b>. `;
+    if (red > 1e-9) s += `<span class="w-lp-sensitivity-ok">Pozitif: ürün basis'e girmeli.</span></p>`;
+    else if (red < -1e-9) s += `<span class="w-lp-sensitivity-no">Negatif: ürünü yapma, mevcut plan optimal kalır.</span></p>`;
+    else s += `<b>Sıfır: alternative optima.</b> Ürünü yapmak $z^*$'ı değiştirmez.</p>`;
+    const A2 = JM.A.map((row, k) => row.concat([a[k]])), res = LPS.solve(JM.c.concat([c]), A2, JM.b);
+    if (res.status === "unbounded") s += `<p>Yeniden çözüm: <b>unbounded</b>. Ürün hiçbir kısıtlı kaynağı kullanmıyor ve kâr getiriyor, yani istediğin kadar yapabilirsin. Gerçek bir modelde bu, eksik bir constraint'in işaretidir.</p>`;
+    else s += `<p>Yeniden çözüm (3 değişkenli LP, sayfadaki simplex): $x_1 = ${T(res.x[0])}$, $x_2 = ${T(res.x[1])}$, yeni ürün $= ${T(res.x[2])}$, $z^* = ${T(res.z)}$ (önceki 36).</p>`;
+    $("w-po-out").innerHTML = s; Lab.renderMath($("w-po-out"));
+  }
+  $("w-po-go").onclick = run;
+  ids.forEach((id) => $(id).addEventListener("change", run));
+  document.querySelectorAll("[data-po]").forEach((btn) => btn.addEventListener("click", () => {
+    btn.dataset.po.split(",").forEach((x, k) => { $(ids[k]).value = x; }); run();
+  }));
+  run();
+})();
+
+/* 5. Sensitivity report text, built from the computed final tableau */
+(function () {
+  const res = LPS.solve(JM.c, JM.A, JM.b), pre = document.getElementById("w-rep-pre");
+  const f = (v) => (v === Infinity ? "INFINITY" : v.toFixed(6)).padStart(14);
+  const L = [];
+  L.push("MAX     3 X1 + 5 X2", "SUBJECT TO", "      2)   X1 <= 4", "      3)   2 X2 <= 12", "      4)   3 X1 + 2 X2 <= 18", "END", "");
+  L.push("        OBJECTIVE FUNCTION VALUE", "        1)" + f(res.z), "");
+  L.push("VARIABLE         VALUE  REDUCED COST");
+  ["X1", "X2"].forEach((nm, j) => L.push(nm.padEnd(8) + f(res.x[j]) + f(Math.abs(res.red[j]))));
+  L.push("", "     ROW  SLACK OR SURPLUS   DUAL PRICES");
+  [0, 1, 2].forEach((k) => L.push(("      " + (k + 2) + ")").padEnd(8) + f(res.x[res.n + k]) + f(res.y[k])));
+  L.push("", "RANGES IN WHICH THE BASIS IS UNCHANGED:", "", "                 OBJ COEFFICIENT RANGES");
+  L.push("VARIABLE       CURRENT     ALLOWABLE     ALLOWABLE", "                  COEF      INCREASE      DECREASE");
+  ["X1", "X2"].forEach((nm, j) => { const o = LPS.objRange(res, j); L.push(nm.padEnd(8) + f(JM.c[j]) + f(o.hi) + f(-o.lo)); });
+  L.push("", "                 RIGHTHAND SIDE RANGES", "     ROW       CURRENT     ALLOWABLE     ALLOWABLE", "                   RHS      INCREASE      DECREASE");
+  [0, 1, 2].forEach((k) => { const r = LPS.rhsRange(res, k); L.push(("       " + (k + 2)).padEnd(8) + f(JM.b[k]) + f(r.hi) + f(-r.lo)); });
+  pre.textContent = L.join("\n");
+})();
+
+/* 6. Dual simplex after an RHS change outside the range */
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const sel = $("w-ds-sel"), box = $("w-ds-stepper"), err = $("w-ds-err"), num = $("w-ds-num");
+  const base = LPS.solve(JM.c, JM.A, JM.b), T = LPS.tex, N = base.N;
+  function build(b) {
+    const xb = base.Binv.map((row) => row.reduce((s, v, k) => s + v * b[k], 0));
+    const T0 = LPS.clone(base.T); T0.forEach((row, k) => { row[N] = xb[k]; });
+    const run = LPS.dualSimplex(T0, base.basis, base.cc);
+    const mk = (Tm, basis) => Object.assign({}, base, { T: Tm, basis });
+    const frames = [];
+    frames.push({ caption: `Yeni $b = (${b.map(T).join(", ")})$. $c_j - z_j$ satırı değişmez; b sütunu $B^{-1}b = (${xb.map(T).join(",\\ ")})$ olur.` + (xb.some((v) => v < -1e-9) ? " Negatif bir değer var: basis infeasible, dual simplex başlıyor." : " Hepsi $\\ge 0$: range içindesin, pivot gerekmez."), tab: mk(T0, base.basis), opt: { bcol: true, bneg: true } });
+    run.steps.forEach((st) => {
+      const lv = vname(base, st.basis[st.r]);
+      if (st.j < 0) { frames.push({ caption: `$${lv}$ satırında negatif katsayı yok: LP infeasible.`, tab: mk(st.before, st.basis), opt: { row: st.r } }); return; }
+      const rat = st.ratios.map((q) => `$${vname(base, q.k)}$: $${T(q.q)}$`).join(", ");
+      frames.push({ caption: `En negatif basic variable $${lv} = ${T(st.before[st.r][N])}$ <b>çıkar</b>. Pivot satırında negatif katsayılı sütunlar için $|(c_j - z_j)/a_{rj}|$: ${rat}. En küçüğü $${vname(base, st.j)}$ <b>girer</b>.`, tab: mk(st.before, st.basis), opt: { row: st.r, col: st.j, cell: [st.r, st.j] } });
+    });
+    if (run.status === "optimal") {
+      const fin = mk(run.T, run.basis), p = LPS.price(run.T, run.basis, base.cc), chk = LPS.solve(JM.c, JM.A, b);
+      const x1 = run.basis.indexOf(0) >= 0 ? run.T[run.basis.indexOf(0)][N] : 0, x2 = run.basis.indexOf(1) >= 0 ? run.T[run.basis.indexOf(1)][N] : 0;
+      frames.push({ caption: `Bütün b değerleri $\\ge 0$ ve $c_j - z_j \\le 0$: optimal. $x = (${T(x1)},\\ ${T(x2)})$, $z^* = ${T(p.zval)}$. Sıfırdan çözüm: $z^* = ${T(chk.z)}$ ${Math.abs(chk.z - p.zval) < 1e-9 ? "(aynı)" : "(FARKLI)"}. Eski shadow price ile tahmin: $36 + ${T(base.y[0])}\\cdot${T(b[0] - 4)} + ${T(base.y[1])}\\cdot${T(b[1] - 12)} + ${T(base.y[2])}\\cdot${T(b[2] - 18)} = ${T(36 + base.y[0] * (b[0] - 4) + base.y[1] * (b[1] - 12) + base.y[2] * (b[2] - 18))}$.`, tab: fin, opt: { bcol: true } });
+    }
+    Lab.stepper(box, {
+      title: "Dual simplex · job-mix, b = (" + b.map(LPS.txt).join(", ") + ")",
+      interval: 1800,
+      frames,
+      render(f, idx, el) { el.innerHTML = LPS.tableau(f.tab, JM.vars, f.opt); }
+    });
+  }
+  sel.onchange = () => { num.value = ""; err.textContent = ""; build(sel.value.split(",").map(Number)); };
+  $("w-ds-go").onclick = () => {
+    const r = LPS.readNum(num.value, 0, 40, "memory $b_2$");
+    if (r.e) { err.innerHTML = r.e; Lab.renderMath(err); return; }
+    err.textContent = ""; build([4, r.v, 18]);
+  };
+  build(sel.value.split(",").map(Number));
+})();
+</script>
+</body>
+</html>

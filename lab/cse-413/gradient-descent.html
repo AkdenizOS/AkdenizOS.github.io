@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 413 Week 5: descent direction, sabit step size ve 2/λmax sınırı, condition number ve zig-zag, exact line search, Armijo koşulu ve backtracking tablosu, Wolfe koşulları, convergence rate'leri, steepest descent başka norm'larda." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Gradient descent ve Armijo backtracking · CSE 413 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-gradient-descent-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-gradient-descent-card { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); padding: 10px; margin: 10px 0; min-width: 0; }
+    .w-gradient-descent-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-gradient-descent-ctl input[type="text"] { width: 84px; font-family: 'JetBrains Mono', monospace; }
+    .w-gradient-descent-ctl input.w-gradient-descent-wide { width: 112px; }
+    .w-gradient-descent-ctl select { max-width: 100%; }
+    .w-gradient-descent-ctl label { font-weight: 600; font-size: .92rem; }
+    .w-gradient-descent-row { display: grid; grid-template-columns: 70px minmax(0, 1fr) 56px; gap: 8px; align-items: center; margin: 6px 0; }
+    .w-gradient-descent-row input[type="range"] { width: 100%; accent-color: var(--blue-600); }
+    .w-gradient-descent-row label { font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: .9rem; }
+    .w-gradient-descent-row b { font-family: 'JetBrains Mono', monospace; font-size: .88rem; text-align: right; }
+    .w-gradient-descent-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-gradient-descent-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; align-items: start; }
+    .w-gradient-descent-plot { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); padding: 6px; min-width: 0; }
+    .w-gradient-descent-plot h4 { margin: 0 0 4px; font-size: .9rem; color: var(--fg-brand); }
+    .w-gradient-descent-plot svg { display: block; width: 100%; height: auto; }
+    .w-gradient-descent-out { font-size: .92rem; min-width: 0; }
+    .w-gradient-descent-out table, .w-gradient-descent-card table { font-size: .85rem; }
+    .w-gradient-descent-mono { font-family: 'JetBrains Mono', monospace; font-size: .85rem; }
+    .w-gradient-descent-ok { color: #2b8a3e; font-weight: 700; }
+    .w-gradient-descent-no { color: var(--orange-700); font-weight: 700; }
+    .w-gradient-descent-cur { background: var(--blue-050); }
+    .w-gradient-descent-verdict { font-weight: 700; margin: 6px 0; }
+    .w-gradient-descent-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: .8rem; margin-top: 4px; }
+    .w-gradient-descent-legend i { display: inline-block; width: 16px; height: 3px; vertical-align: middle; margin-right: 4px; border-radius: 2px; }
+    .w-gradient-descent-code { overflow-x: auto; font-size: .82rem; background: var(--bg-muted); border-radius: var(--radius-sm); padding: 8px; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 413</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 413</a> / Gradient descent ve Armijo backtracking</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L9</span><span class="chip chip--exam">Vize · Week 5</span><span class="chip">Lab 1 · Lab 2</span><span class="src">~56 dk · 12 bölüm</span></div>
+          <h1>Gradient descent, step size seçimi ve Armijo backtracking</h1>
+          <p class="lead">Unconstrained bir problemde minimum, $\nabla f = 0$ olan yerdedir. Bu denklemi çoğu zaman elle çözemeyiz. Gradient descent bu noktaya adım adım yürür: $x_{k+1} = x_k - \alpha_k \nabla f(x_k)$. Bu derste iki soruya cevap arıyoruz: hangi yöne gideceğiz ve o yönde ne kadar ilerleyeceğiz. Sabit step size'ı, exact line search'ü ve Armijo backtracking'i göreceksin. Condition number'ın hızı nasıl belirlediğini de sayılarla ölçeceksin.</p>
+          <p class="src">Not: Week 5 slaytları ve Lab 5 notebook'u repoda yok. Bu ders Nocedal–Wright Bölüm 3, Boyd–Vandenberghe Bölüm 9 (kitap ve slaytlar) ve Winston §11.7 üzerinden anlatıldı. Sayısal örnekler hocanın Lab 1 ve Lab 2 notebook'larından. Step size için hocanın Lab 1'deki yazımını kullanıyoruz: $x_{k+1} = x_k - \alpha\,\nabla f(x_k)$.</p>
+          <!-- Kaynak: syllabus Week 5 satırı ("Unconstrained optimization I: gradient descent, step-size selection, convergence rates" / lab "Implementing GD, Armijo/backtracking; sensor-calibration case") · weeks/05-unconstrained-gradient-descent.md · Lab01.ipynb Exercise 2 · Lab02.ipynb Section 4 (Rosenbrock κ ≈ 2508), Section 6 (Q = [[3,1],[1,2]], b = (5,5)), Section 7 (gd()) · Nocedal–Wright §3.1–3.3 ve Ek A.2 · Boyd–Vandenberghe §9.1–9.4 · bv_cvxslides s.287–305 · Winston §11.7 (Example 29, Problems 1–5) · exams/README.md "Write the backtracking line search algorithm". Bütün sayılar python3 ile doğrulandı (/private/tmp/claude-501/lab-cse-413/gd/verify.py, verify2.py, rosen.py). -->
+        </header>
+
+        <article class="lesson" data-course="cse-413" data-lesson="gradient-descent">
+
+<!-- 1 -->
+<section class="lsec" id="descent" data-min="4">
+  <h2>Descent direction ve genel descent method</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · sisli dağ</span>
+    <p>Sisli bir dağdan iniyorsun. Haritan yok, sadece ayağının altındaki eğimi hissediyorsun. Yapabileceğin tek şey şu: aşağı doğru bir yön seç, o yönde biraz yürü, sonra durup eğime yeniden bak. Gradient descent bu yürüyüşün matematiği.</p>
+  </div>
+  <p>Problem $\min_{x \in \mathbb{R}^n} f(x)$. Boyd'un varsayımları: $f$ convex ve iki kez türevlenebilir, optimum $p^\star$ bir $x^\star$'da alınıyor. O zaman optimality condition $\nabla f(x^\star) = 0$, yani $n$ bilinmeyenli $n$ denklem. Quadratic'te bu bir lineer sistem ($Qx = b$, Lab 2). Çoğu fonksiyonda kapalı bir çözüm yok. Bu yüzden <strong>iterative method</strong> kullanırız: $x^{(0)}$ başlangıç noktasından bir dizi iterate üretiriz ve $f(x^{(k)}) \to p^\star$, $\nabla f(x^{(k)}) \to 0$ olmasını isteriz.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · descent method</span>
+    <p>$$x_{k+1} = x_k + \alpha_k d_k, \qquad \alpha_k &gt; 0$$</p>
+    <ul>
+      <li>$d_k$: <strong>search direction</strong>. $\alpha_k$: <strong>step size</strong> (step length).</li>
+      <li>$d$ bir <strong>descent direction</strong>'dır $\iff \nabla f(x)^T d &lt; 0$. Neden: Taylor'dan $f(x + \alpha d) \approx f(x) + \alpha\,\nabla f(x)^T d$. İkinci terim negatifse küçük $\alpha$ için $f$ azalır.</li>
+      <li><strong>Gradient descent</strong>: $d = -\nabla f(x)$. O zaman $\nabla f^T d = -\|\nabla f\|_2^2 &lt; 0$ (gradient sıfır değilse). Yani $-\nabla f$ her zaman bir descent direction.</li>
+      <li><strong>Stopping criterion</strong>: genelde $\|\nabla f(x)\|_2 \le \varepsilon$.</li>
+    </ul>
+    <p>Genel algoritma (Boyd, Algorithm 9.1):</p>
+    <ol>
+      <li>Bir descent direction $d$ belirle.</li>
+      <li><strong>Line search</strong>: bir step size $\alpha &gt; 0$ seç.</li>
+      <li>Güncelle: $x := x + \alpha d$.</li>
+    </ol>
+    <p>Stopping criterion sağlanana kadar tekrarla.</p>
+    <p>Nocedal–Wright yönü $p_k = -B_k^{-1}\nabla f_k$ diye yazar. $B_k = I$ steepest descent'tir, $B_k = \nabla^2 f(x_k)$ Newton (Week 6), $B_k \approx$ Hessian quasi-Newton. $B_k$ positive definite ise $\nabla f_k^T p_k = -\nabla f_k^T B_k^{-1}\nabla f_k &lt; 0$, yani $p_k$ yine bir descent direction.</p>
+  </div>
+  <!-- Kaynak: bv_cvxslides 9.2–9.11 · Boyd §9.1–9.3, Algorithm 9.1 ve 9.3 · Nocedal–Wright (3.2). -->
+  <div class="box box--example">
+    <span class="box__label">Örnek · Lab 2'nin quadratic'i</span>
+    <p>$q(x) = \tfrac12 x^TQx - b^Tx$, $Q = \begin{pmatrix}3&amp;1\\1&amp;2\end{pmatrix}$, $b = (5,5)$. $\nabla q(x) = Qx - b$, yani $\nabla q(0,0) = (-5,-5)$. Birkaç yönü deneyelim:</p>
+    <ul>
+      <li>$d = (1,0)$: $\nabla q^T d = -5 &lt; 0$, descent.</li>
+      <li>$d = (1,-1)$: $-5 + 5 = 0$. Bu yön contour'a teğet. Birinci mertebede $q$ değişmez, descent sayılmaz.</li>
+      <li>$d = (-1,-1)$: $5 + 5 = 10 &gt; 0$. Bu bir ascent direction.</li>
+      <li>$d = -\nabla q = (5,5)$: $-25 - 25 = -50$. Gradient descent yönü.</li>
+    </ul>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Descent direction" demek "her $\alpha$ ile $f$ azalır" demek değil. Sadece <em>yeterince küçük</em> $\alpha$ için azalır. Büyük adım $f$'i artırabilir (Bölüm 2).</li>
+      <li>İşaret: minimize ederken $x - \alpha\nabla f$. Winston maksimize eder ve <strong>steepest ascent</strong> kullanır: $v + t\nabla f$. $\max f \equiv \min(-f)$, iki yazım aynı şey.</li>
+      <li>$\nabla f^T d = 0$ descent değildir. Teğet yönde birinci mertebe değişim sıfır.</li>
+      <li>$\|\nabla f\| \le \varepsilon$ bir stationary point'e yakın olduğunu söyler. Non-convex bir $f$'te bu bir saddle ya da local minimum olabilir. Nocedal'ın dediği gibi line search method'ları sadece stationary point'lere çekilmeyi garanti eder.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-11.7-P5"><span class="box__label">Winston §11.7 Problem 5 · ödev sorusu</span>
+    <p>"Show that at any point $\bar x = (\bar x_1, \bar x_2)$, $\nabla f(\bar x)$ is perpendicular to the curve $f(x_1, x_2) = f(\bar x_1, \bar x_2)$. (Hint: Two vectors are perpendicular if their scalar product equals zero.)"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Level curve'ü bir parametreyle yaz: $r(s)$, $r(0) = \bar x$ ve her $s$ için $f(r(s)) = f(\bar x)$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Sabit bir fonksiyonun türevi sıfırdır. $s$'ye göre türev al ve chain rule uygula.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$r(s)$ level curve üzerinde, $r(0) = \bar x$ olsun. $f(r(s)) = f(\bar x)$ sabit olduğu için</p>
+      $$\frac{d}{ds} f(r(s)) = \nabla f(r(s))^T r'(s) = 0.$$
+      <p>$s = 0$'da $\nabla f(\bar x)^T r'(0) = 0$. $r'(0)$ eğrinin $\bar x$'teki teğet vektörü. Scalar product sıfır, yani $\nabla f(\bar x)$ eğriye diktir.</p>
+      <p>Kontrol (Winston'ın örneği): $f = x_1^2 + x_2^2$, $\bar x = (3,4)$. $\nabla f = (6,8)$. $x_1^2 + x_2^2 = 25$ çemberinin $(3,4)$'teki teğeti $(-4,3)$. $6\cdot(-4) + 8\cdot 3 = 0$.</p>
+      <p>Bu derste neden önemli: $-\nabla f$ her zaman contour'a diktir. Contour'lar uzun elipslerse bu yön minimuma değil, karşı duvara bakar (Bölüm 4).</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf" target="_blank" rel="noopener">Orijinal kitap (Winston, s.663)</a></p>
+    <!-- Kaynak: Winston §11.7 Problems, Group C, Problem 5 (pdf s.679). -->
+  </div>
+  <div class="quiz" id="q-desc-1">
+    <p class="quiz__q">$\nabla f(x) = (2, -3)$. Aşağıdakilerden hangisi $x$'te bir descent direction?</p>
+    <button class="quiz__opt" data-correct>$d = (1, 1)$<span class="why">Doğru: $\nabla f^T d = 2 - 3 = -1 &lt; 0$. Yön $-\nabla f$ olmak zorunda değil, gradient ile açısı 90°'den büyük olması yeter.</span></button>
+    <button class="quiz__opt">$d = (3, 2)$<span class="why">$6 - 6 = 0$. Bu yön contour'a teğet; birinci mertebede $f$ değişmez, descent değil.</span></button>
+    <button class="quiz__opt">$d = (2, -3)$<span class="why">Bu gradient'in kendisi: $4 + 9 = 13 &gt; 0$, en dik çıkış yönü. İşareti unutma hatası.</span></button>
+    <button class="quiz__opt">$d = (-1, -1)$<span class="why">$-2 + 3 = 1 &gt; 0$, ascent. "Koordinatları negatif olan yön aşağı gider" sezgisi yanlış; işaret gradient'le scalar product'tan okunur.</span></button>
+  </div>
+  <div class="quiz" id="q-desc-2">
+    <p class="quiz__q">Gradient descent'te $d = -\nabla f(x)$ neden ($\nabla f(x) \ne 0$ iken) her zaman bir descent direction?</p>
+    <button class="quiz__opt" data-correct>$\nabla f^T d = -\|\nabla f\|_2^2 &lt; 0$<span class="why">Doğru: bir vektörün kendisiyle scalar product'ı norm'unun karesi ve pozitif.</span></button>
+    <button class="quiz__opt">Çünkü $f$ convex<span class="why">Descent direction tanımı convexity istemez. Non-convex $f$'te de $-\nabla f$ yerel olarak aşağı gider.</span></button>
+    <button class="quiz__opt">Çünkü $-\nabla f$ minimuma doğru bakar<span class="why">Bakmaz. Contour'a dik bakar; uzun elipslerde minimumu ıskalar. Bu zig-zag'in sebebi.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="fixed-step" data-min="5">
+  <h2>Sabit step size: Lab 1'deki bowl</h2>
+  <p>Hocanın Lab 1'indeki bowl $f(x,y) = x^2 + y^2$ ile başlayalım. $\nabla f = (2x, 2y) = 2x$ (vektör olarak). Sabit $\alpha$ ile:</p>
+  $$x_{k+1} = x_k - \alpha\cdot 2x_k = (1 - 2\alpha)\,x_k \quad\Longrightarrow\quad x_k = (1-2\alpha)^k x_0.$$
+  <p>Her adım noktayı aynı sayıyla çarpıyor. Bütün davranış bu tek çarpanda. $x_0 = (1.8, 1.6)$, $f(x_0) = 5.8$:</p>
+  <div class="table-wrap"><table>
+    <tr><th>$\alpha$</th><th>$1 - 2\alpha$</th><th>$x_1$</th><th>$f(x_1)$</th><th>davranış</th><th>$\|x_k\| \le 10^{-3}$ için iteration</th></tr>
+    <tr><td>0.05</td><td>0.9</td><td>(1.62, 1.44)</td><td>4.698</td><td>düzgün ama yavaş</td><td>74</td></tr>
+    <tr><td>0.3</td><td>0.4</td><td>(0.72, 0.64)</td><td>0.928</td><td>hızlı</td><td>9</td></tr>
+    <tr><td>0.5</td><td>0</td><td>(0, 0)</td><td>0</td><td>tek adımda minimum</td><td>1</td></tr>
+    <tr><td>0.8</td><td>−0.6</td><td>(−1.08, −0.96)</td><td>2.088</td><td>işaret değiştirerek yakınsar (oscillation)</td><td>16</td></tr>
+    <tr><td>1.0</td><td>−1</td><td>(−1.8, −1.6)</td><td>5.8</td><td>iki nokta arasında sonsuza kadar zıplar</td><td>hiç</td></tr>
+    <tr><td>1.1</td><td>−1.2</td><td>(−2.16, −1.92)</td><td>8.352</td><td>diverge</td><td>hiç</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · bowl'da sabit adım</span>
+    <p>$f = \|x\|_2^2$ için $x_k = (1-2\alpha)^k x_0$ ve $f(x_k) = (1-2\alpha)^{2k} f(x_0)$.</p>
+    <ul>
+      <li>Yakınsar $\iff |1 - 2\alpha| &lt; 1 \iff 0 &lt; \alpha &lt; 1$.</li>
+      <li>Hız $|1 - 2\alpha|$: küçükse hızlı. $0 &lt; \alpha \le 0.5$ arası monoton, $0.5 &lt; \alpha &lt; 1$ arası işaret değiştirerek.</li>
+      <li>$\alpha = 1$: $|1-2\alpha| = 1$, ne yakınsar ne kaçar. $\alpha &gt; 1$: diverge.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Lab01.ipynb hücre 12 (f_bowl, numerical_gradient) ve hücre 28 (Exercise 2). python: verify.py "Lab01 Ex2" bloğu. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$\alpha = 0.8$ "diverge" değil. Çarpan $-0.6$, mutlak değeri 1'den küçük: nokta her adımda taraf değiştirir ama minimuma yaklaşır. Diverge için $|1-2\alpha| &gt; 1$ gerekir.</li>
+      <li>Büyük adım her zaman daha hızlı değil: $\alpha = 0.8$ (16 iteration), $\alpha = 0.3$'ten (9 iteration) yavaş. Önemli olan $|1-2\alpha|$.</li>
+      <li>$\alpha = 0.5$'in tek adımda bitirmesi bu fonksiyona özel. Eğrilik her yönde aynı (2) olduğu için oldu. Bir sonraki bölümde eğrilik yöne göre değişecek.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab01-ex2"><span class="box__label">Week 1 Lab · Exercise 2 · lab görevi</span>
+    <p>"<strong>Gradient descent by hand.</strong> Using <code>numerical_gradient</code>, implement the update $x_{k+1} = x_k - \alpha\,\nabla f(x_k)$ for <code>f_bowl</code>, starting from $(1.8, 1.6)$. Store the iterates and plot the path on a contour of the bowl. Try step sizes $\alpha = 0.05,\ 0.3,\ 0.8$ — describe what happens (convergence, slow, oscillation/divergence)."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p><code>f_bowl</code> $= x^2 + y^2$. Gradient'i $(2x, 2y)$; <code>numerical_gradient</code> central difference kullandığı için quadratic'te bunu yuvarlama hatası dışında aynen verir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Güncellemeyi $x_{k+1} = (1-2\alpha)x_k$ diye sadeleştir. Üç $\alpha$ için çarpanı yaz, sonra işaretine ve büyüklüğüne bak.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$x_{k+1} = x_k - \alpha(2x_k) = (1-2\alpha)x_k$, yani $x_k = (1-2\alpha)^k(1.8, 1.6)$.</p>
+      <div class="table-wrap"><table>
+        <tr><th>$\alpha$</th><th>çarpan</th><th>$x_1, x_2, x_3$</th><th>yorum</th></tr>
+        <tr><td>0.05</td><td>0.9</td><td>(1.62, 1.44), (1.458, 1.296), (1.3122, 1.1664)</td><td>Yakınsar ama yavaş: $\|x\| \le 10^{-3}$ için 74 iteration.</td></tr>
+        <tr><td>0.3</td><td>0.4</td><td>(0.72, 0.64), (0.288, 0.256), (0.1152, 0.1024)</td><td>Hızlı yakınsama: 9 iteration.</td></tr>
+        <tr><td>0.8</td><td>−0.6</td><td>(−1.08, −0.96), (0.648, 0.576), (−0.3888, −0.3456)</td><td>Oscillation: her adımda orijinin öbür tarafına geçer, yine de yakınsar (16 iteration).</td></tr>
+      </table></div>
+      <p>Path, $(1.8, 1.6)$'dan orijine giden doğru üzerinde kalır, çünkü her adım aynı skalerle çarpıyor. $\alpha = 0.8$'de bu doğru üzerinde ileri geri sıçrar. Divergence için $\alpha &gt; 1$ gerekir ($\alpha = 1.1$'de çarpan $-1.2$).</p>
+      <p>Kod iskeleti:</p>
+      <pre class="w-gradient-descent-code">def gd_fixed(f, x0, alpha, iters=50):
+    x = np.array(x0, dtype=float)
+    path = [x.copy()]
+    for _ in range(iters):
+        x = x - alpha * numerical_gradient(f, x)
+        path.append(x.copy())
+    return np.array(path)
+
+for a in (0.05, 0.3, 0.8):
+    P = gd_fixed(f_bowl, [1.8, 1.6], a)
+    ax.plot(P[:, 0], P[:, 1], "o-", label=f"alpha={a}")</pre>
+    </div></details>
+    <!-- Kaynak: Lab01.ipynb hücre 28, Exercise 2 (notebook origin/main'de yok, link verilmedi). python: x_k, f ve iteration sayıları verify.py ile. -->
+  </div>
+  <div class="quiz" id="q-fixed-1">
+    <p class="quiz__q">$f = x^2 + y^2$, sabit $\alpha = 0.75$ ile gradient descent. Ne olur?</p>
+    <button class="quiz__opt" data-correct>İşaret değiştirerek yakınsar, çarpan $-0.5$<span class="why">Doğru: $1 - 2(0.75) = -0.5$, mutlak değeri 1'den küçük.</span></button>
+    <button class="quiz__opt">Diverge eder, çünkü $\alpha &gt; 0.5$<span class="why">0.5 en iyi adım, sınır değil. Sınır $|1 - 2\alpha| &lt; 1$, yani $\alpha &lt; 1$.</span></button>
+    <button class="quiz__opt">Monoton yakınsar, çarpan 0.5<span class="why">Çarpan $1 - 2\alpha$, $2\alpha - 1$ değil. İşaret negatif olduğu için nokta her adımda taraf değiştirir.</span></button>
+    <button class="quiz__opt">İki nokta arasında zıplar<span class="why">Bu $\alpha = 1$'de olur (çarpan $-1$).</span></button>
+  </div>
+  <div class="quiz" id="q-fixed-2">
+    <p class="quiz__q">Tek değişkenli $f(x) = 3x^2$. Sabit step size ile gradient descent hangi $\alpha$ aralığında her başlangıçtan yakınsar?</p>
+    <button class="quiz__opt" data-correct>$0 &lt; \alpha &lt; 1/3$<span class="why">Doğru: $f' = 6x$, çarpan $1 - 6\alpha$; $|1-6\alpha| &lt; 1 \iff 0 &lt; \alpha &lt; 1/3$.</span></button>
+    <button class="quiz__opt">$0 &lt; \alpha &lt; 1$<span class="why">Bu $x^2 + y^2$'nin aralığı. Eğrilik 2 değil 6; sınır $2/f'' = 2/6$.</span></button>
+    <button class="quiz__opt">$0 &lt; \alpha &lt; 1/6$<span class="why">$1/6$ tek adımda minimuma götüren adım (çarpan 0). Sınır bunun iki katı.</span></button>
+    <button class="quiz__opt">$0 &lt; \alpha &lt; 2/3$<span class="why">$f''$ yerine $f$'nin katsayısını (3) kullandın. Eğrilik $f'' = 6$.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="quadratic" data-min="6">
+  <h2>Quadratic üzerinde GD: her eigen-yön kendi çarpanıyla</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Bowl'da eğrilik her yönde aynıydı, o yüzden tek bir çarpan yetti. Genel bir quadratic'te eğrilik yöne göre değişir. Hessian'ın eigenvector'ları ana yönleri, eigenvalue'ları o yönlerdeki eğriliği verir (Hessian dersi). Gradient descent her eigen-yönü ayrı ayrı, kendi çarpanıyla küçültür.</p>
+  </div>
+  <p>$f(x) = \tfrac12 x^TQx - b^Tx$, $Q$ symmetric positive definite, $x^\star = Q^{-1}b$. $\nabla f(x) = Qx - b = Q(x - x^\star)$. Hatayı $e_k = x_k - x^\star$ diye yazarsak:</p>
+  $$e_{k+1} = e_k - \alpha Q e_k = (I - \alpha Q)\,e_k.$$
+  <p>$Qv_i = \lambda_i v_i$ ve $e_k = \sum_i c_i v_i$ dersek, $(I - \alpha Q)v_i = (1 - \alpha\lambda_i)v_i$. Her adımda $c_i \leftarrow (1 - \alpha\lambda_i)\,c_i$.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · quadratic'te sabit step size</span>
+    <ul>
+      <li>Her başlangıçtan yakınsama $\iff$ her $i$ için $|1 - \alpha\lambda_i| &lt; 1$ $\iff$ $\boxed{0 &lt; \alpha &lt; 2/\lambda_{\max}}$.</li>
+      <li>Adım başına hata çarpanı ($\|e\|_2$ için): $\rho(\alpha) = \max_i |1 - \alpha\lambda_i| = \max\big(|1 - \alpha\lambda_{\min}|,\ |1 - \alpha\lambda_{\max}|\big)$.</li>
+      <li>En iyi sabit adım iki ucu dengeler: $1 - \alpha\lambda_{\min} = -(1 - \alpha\lambda_{\max})$, yani
+      $$\alpha^\star = \frac{2}{\lambda_{\min} + \lambda_{\max}}, \qquad \rho(\alpha^\star) = \frac{\lambda_{\max} - \lambda_{\min}}{\lambda_{\max} + \lambda_{\min}} = \frac{\kappa - 1}{\kappa + 1}, \quad \kappa = \frac{\lambda_{\max}}{\lambda_{\min}}.$$</li>
+      <li>$f(x_k) - f^\star = \tfrac12 e_k^TQe_k$, bu yüzden $f$ farkı adım başına en çok $\rho^2$ ile çarpılır.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Lab 2 · $Q = \begin{pmatrix}3&amp;1\\1&amp;2\end{pmatrix}$, $b = (5,5)$</span>
+    <p>Lab 2'de $x^\star = (1,2)$ ve $q^\star = -7.5$ bulunmuştu. İz 5, determinant 5: $\lambda = \tfrac{5 \pm \sqrt5}{2}$, yani $\lambda_{\min} = 1.382$, $\lambda_{\max} = 3.618$, $\kappa = 2.618$.</p>
+    <ul>
+      <li>Yakınsama aralığı: $0 &lt; \alpha &lt; 2/3.618 = 0.553$.</li>
+      <li>En iyi sabit adım: $\alpha^\star = 2/(\lambda_{\min} + \lambda_{\max}) = 2/5 = 0.4$ (toplam = iz).</li>
+      <li>Çarpan: $(\kappa-1)/(\kappa+1) = \sqrt5/5 = 0.4472$.</li>
+    </ul>
+    <p>$x_0 = (0,0)$'dan $\alpha = 0.4$ ile: $(2, 2)$, $(0.8, 1.6)$, $(1.2, 2.0)$, $(0.96, 1.92)$, $(1.04, 2.0)$. Her adımda $\|x_k - x^\star\|$ tam olarak 0.4472 ile çarpılıyor, çünkü iki eigen-yönün çarpanı da $\pm 0.4472$.</p>
+  </div>
+  <!-- Kaynak: Lab02.ipynb hücre 22 (Q, b, x* = (1,2), q* = -7.5) · Nocedal–Wright §3.3 · plan'daki "each eigen-coordinate is multiplied by (1 − αλ_i)". python: verify.py "Lab02 q" bloğu (fixed .4 ratio 0.44721). -->
+  <p>Aşağıda $f = \tfrac12(\lambda_1 x_1^2 + \lambda_2 x_2^2)$ var: eksenler eigen-yönler, $x_0 = (1.8, 1.6)$. Slider'larla eğrilikleri ve step size'ı değiştir. Adım adım oynat: soldaki path contour'lar üzerinde, sağdaki grafik $\log_{10}\|x_k - x^\star\|$ ve kesikli çizgi $\rho^k$ tahmini.</p>
+  <p class="w-gradient-descent-guess"><b>Önce tahmin et:</b> $\lambda_1 = 1$, $\lambda_2 = 9$ iken $\alpha = 0.2$ ve $\alpha = 0.21$ arasında ne fark olur? Path hangi eksende zıplamaya başlar?</p>
+  <div class="w-gradient-descent-card" id="pg">
+    <div class="w-gradient-descent-row"><label for="pg-l1">λ₁</label><input type="range" id="pg-l1" min="0.5" max="10" step="0.5" value="1" /><b id="pg-l1v">1</b></div>
+    <div class="w-gradient-descent-row"><label for="pg-l2">λ₂</label><input type="range" id="pg-l2" min="0.5" max="10" step="0.5" value="9" /><b id="pg-l2v">9</b></div>
+    <div class="w-gradient-descent-row"><label for="pg-a">α</label><input type="range" id="pg-a" min="0.01" max="1.5" step="0.01" value="0.2" /><b id="pg-av">0.2</b></div>
+    <div class="w-gradient-descent-ctl">
+      <label for="pg-at">α yaz:</label><input type="text" id="pg-at" value="0.2" inputmode="decimal" /><button class="btn btn--sm" id="pg-go">Uygula</button>
+    </div>
+    <div class="w-gradient-descent-ctl">
+      <button class="btn btn--sm" data-pga="best">α = 2/(λmin+λmax)</button>
+      <button class="btn btn--sm" data-pga="inv">α = 1/λmax</button>
+      <button class="btn btn--sm" data-pga="lim">α = 2/λmax</button>
+      <button class="btn btn--sm" data-pga="lab1">Lab 1 bowl (λ = 2, 2)</button>
+    </div>
+    <div class="w-gradient-descent-err" id="pg-err" aria-live="polite"></div>
+    <div class="w-gradient-descent-out" id="pg-tab"></div>
+    <div id="pg-step"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Sınır $2/\lambda_{\max}$, köşegenden okunmaz. Lab 2'nin $Q$'sunda köşegen 3 ve 2; $2/3 = 0.667$ yanlış olur, doğru sınır $0.553$. Köşegen dışı terim eigenvalue'ları ayırır.</li>
+      <li>$\alpha = 2/\lambda_{\max}$ tam sınırda: o eigen-yönde çarpan $-1$, nokta sonsuza kadar zıplar. Aralık açık.</li>
+      <li>Sınırı belirleyen $\lambda_{\max}$, hızı belirleyen iki uç birlikte. $\kappa$ büyükse en iyi sabit adım bile yavaş: $(\kappa-1)/(\kappa+1) \to 1$.</li>
+      <li>$\rho$ uzaklık ($\|e\|$) için. $f - f^\star$ soruluyorsa karesini düşün.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-quad-1">
+    <p class="quiz__q">$f = \tfrac12 x^TQx$ ve $Q$'nun eigenvalue'ları 1 ve 9. Sabit step size ile GD'nin her başlangıçtan yakınsadığı en büyük aralık hangisi?</p>
+    <button class="quiz__opt" data-correct>$0 &lt; \alpha &lt; 2/9$<span class="why">Doğru: sınırı en eğri yön belirler, $2/\lambda_{\max}$.</span></button>
+    <button class="quiz__opt">$0 &lt; \alpha &lt; 2$<span class="why">$\lambda_{\min}$ ile hesapladın. Düz yön büyük adıma izin verir ama dik yön ($\lambda = 9$) $\alpha &gt; 2/9$'da patlar.</span></button>
+    <button class="quiz__opt">$0 &lt; \alpha &lt; 0.2$<span class="why">$0.2 = 2/(1+9)$ en iyi sabit adım. Yakınsama sınırı değil.</span></button>
+    <button class="quiz__opt">$0 &lt; \alpha &lt; 1/9$<span class="why">$1/\lambda_{\max}$ güvenli bir seçim ($1/L$), ama aralığın sonu değil. $1/9$ ile $2/9$ arası da yakınsar.</span></button>
+  </div>
+  <div class="quiz" id="q-quad-2">
+    <p class="quiz__q">Aynı $Q$ (eigenvalue'lar 1 ve 9) ile en iyi sabit adımda $\|x_k - x^\star\|$ adım başına hangi sayıyla çarpılır?</p>
+    <button class="quiz__opt" data-correct>0.8<span class="why">Doğru: $(\kappa-1)/(\kappa+1) = 8/10$.</span></button>
+    <button class="quiz__opt">$8/9 \approx 0.889$<span class="why">Bu $1 - 1/\kappa$, Boyd'un exact line search için $f$ farkına verdiği kaba üst sınır. Başka bir nicelik.</span></button>
+    <button class="quiz__opt">0.64<span class="why">Bu $0.8^2$, $f - f^\star$'ın çarpanı için üst sınır. Soru uzaklığı soruyor.</span></button>
+    <button class="quiz__opt">$1/9$<span class="why">$1/\kappa$ küçük bir sayı; GD bu kadar hızlı olsaydı condition number dert olmazdı.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="kappa" data-min="5">
+  <h2>Condition number ve zig-zag</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · kanyon</span>
+    <p>$\kappa$ büyükse contour'lar uzun ve ince elipsler. $-\nabla f$ contour'a dik olduğu için kanyonun dibine değil karşı duvara bakar. GD duvardan duvara sekerek yavaşça ilerler. Buna <strong>zig-zagging</strong> denir. Kodda bir hata yok, bu fonksiyonun geometrisi.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Boyd §9.3.2 · $f = \tfrac12(x_1^2 + \gamma x_2^2)$</span>
+    <p>Exact line search (Bölüm 5) ile $x^{(0)} = (\gamma, 1)$'den başlayınca iterate'ler kapalı formda yazılabiliyor:</p>
+    $$x_1^{(k)} = \gamma\Big(\frac{\gamma-1}{\gamma+1}\Big)^k, \quad x_2^{(k)} = \Big(-\frac{\gamma-1}{\gamma+1}\Big)^k, \quad f(x^{(k)}) = \Big(\frac{\gamma-1}{\gamma+1}\Big)^{2k} f(x^{(0)}).$$
+    <p>$\gamma = 10$: $x^{(1)} = (8.1818, -0.8182)$, $x^{(2)} = (6.6942, 0.6694)$, $x^{(3)} = (5.4771, -0.5477)$. $x_2$ her adımda işaret değiştiriyor: zig-zag. Her adımda $f$, $(9/11)^2 = 0.669$ ile çarpılıyor. Her adımın step size'ı $2/11$.</p>
+  </div>
+  <!-- Kaynak: Boyd §9.3.2 (s.469–470), bv_cvxslides 9.12. python: verify.py "Boyd gamma=10" (t = 2/11 her adımda). -->
+  <div class="box box--rule">
+    <span class="box__label">Kural · condition number hızı belirler</span>
+    <ul>
+      <li>$\kappa = \lambda_{\max}/\lambda_{\min}$ (Hessian'ın). $\kappa = 1$: contour'lar çember, $-\nabla f$ merkeze bakar, exact line search tek adımda biter.</li>
+      <li>Nocedal–Wright Theorem 3.3: strongly convex quadratic'te exact line search ile
+      $$f(x_{k+1}) - f^\star \le \Big(\frac{\kappa-1}{\kappa+1}\Big)^2 \big(f(x_k) - f^\star\big).$$</li>
+      <li>Theorem 3.4: $f$ iki kez sürekli türevlenebilir olsun ve exact line search'lü iterate'ler, $\nabla^2 f(x^\star)$'ın positive definite olduğu bir $x^\star$'a yakınsasın. $\kappa$ bu Hessian'ın condition number'ı olsun. O zaman $(\kappa-1)/(\kappa+1) &lt; r &lt; 1$ olan her $r$ için, yeterince büyük $k$'lerde $f(x_{k+1}) - f^\star \le r^2\,(f(x_k) - f^\star)$. Çarpan aynen geçmiyor, ondan biraz büyük her $r^2$ geçiyor. Yani yavaşlık quadratic'lere özel değil.</li>
+      <li>Gereken iteration sayısı $\kappa$ ile kabaca doğrusal büyür.</li>
+    </ul>
+  </div>
+  <p>$f$ farkını $10^6$ kat küçültmek için en kötü durumda gereken iteration sayısı ($r^2 = ((\kappa-1)/(\kappa+1))^2$ ile):</p>
+  <div class="table-wrap"><table>
+    <tr><th>$\kappa$</th><th>$(\kappa-1)/(\kappa+1)$</th><th>adım başına $f$ çarpanı</th><th>iteration</th></tr>
+    <tr><td>2</td><td>0.3333</td><td>0.1111</td><td>7</td></tr>
+    <tr><td>10</td><td>0.8182</td><td>0.6694</td><td>35</td></tr>
+    <tr><td>100</td><td>0.9802</td><td>0.9608</td><td>346</td></tr>
+    <tr><td>1000</td><td>0.9980</td><td>0.9960</td><td>3454</td></tr>
+    <tr><td>2508 (Rosenbrock, $(1,1)$)</td><td>0.9992</td><td>0.9984</td><td>8663</td></tr>
+  </table></div>
+  <p>Büyük $\kappa$'da iteration sayısı yaklaşık $\kappa\ln(10^6)/4 \approx 3.45\,\kappa$. Lab 2 Rosenbrock'un minimizer'ındaki Hessian için $\kappa \approx 2508$ bulmuş ve "Week 5 will feel this number" demişti. İşte o: Lab 1'in zor başlangıcı $(-1.2, 1)$'den GD + backtracking ($\alpha_0 = 1$, $\beta = 0.5$, $c = 10^{-4}$) $\|\nabla f\| \le 10^{-3}$'e 5231 iteration'da ulaşıyor. Lab 1 aynı başlangıçtan BFGS çağırıyordu; o yöntem Week 6'da.</p>
+  <!-- Kaynak: Lab02.ipynb hücre 17 (kappa = 2508) · Lab01.ipynb hücre 25 (Rosenbrock, x0 = (-1.2, 1), BFGS). python: verify.py "kappa table", rosen.py (5231 iteration). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Adımı küçültmek işaret değiştiren oscillation'ı kaldırabilir: sabit $\alpha \le 1/\lambda_{\max}$'ta her çarpan $1 - \alpha\lambda_i \ge 0$. Ama kötü condition number'dan gelen yavaşlık gitmez, düz yöndeki çarpan $1 - \alpha\lambda_{\min} \ge 1 - 1/\kappa$ olur. Çare değişken değiştirmek ya da Newton (Bölüm 10, Week 6).</li>
+      <li>$\kappa$ eigenvalue'ların oranı, köşegen elemanların değil (matrix diagonal değilse).</li>
+      <li>Ölçek değiştirmek $\kappa$'yı değiştirir: $f = \tfrac12(x_1^2 + 100x_2^2)$'de $y_2 = 10x_2$ koyarsan $f = \tfrac12(x_1^2 + y_2^2)$, $\kappa = 1$. Aynı problem, çok farklı GD hızı.</li>
+      <li>Theorem 3.3 bir üst sınır. Bazı başlangıç noktalarında GD çok daha hızlı gider (Bölüm 5'teki örnekte oran 1/21).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-kappa-1">
+    <p class="quiz__q">$f = \tfrac12(x_1^2 + 4x_2^2)$, exact line search, Boyd'un kötü başlangıcı $(4, 1)$. $f$ adım başına hangi sayıyla çarpılır?</p>
+    <button class="quiz__opt" data-correct>0.36<span class="why">Doğru: $((4-1)/(4+1))^2 = 0.6^2$.</span></button>
+    <button class="quiz__opt">0.6<span class="why">Bu koordinatların çarpanı. $f$ karesel, kareyi almayı unuttun.</span></button>
+    <button class="quiz__opt">0.75<span class="why">Bu $1 - 1/\kappa$, Boyd'un genel üst sınırı. Bu örnekte gerçek oran daha iyi.</span></button>
+    <button class="quiz__opt">0.25<span class="why">$1/\kappa$ bir convergence çarpanı değil.</span></button>
+  </div>
+  <div class="quiz" id="q-kappa-2">
+    <p class="quiz__q">$f = \tfrac12(x_1^2 + 100x_2^2)$'de GD çok yavaş. En etkili çare hangisi?</p>
+    <button class="quiz__opt" data-correct>$y_2 = 10x_2$ diye değişken değiştirmek<span class="why">Doğru: yeni fonksiyonda $\kappa = 1$, exact line search tek adımda biter. Steepest descent'in quadratic norm'u ve Newton bu fikrin genel hali.</span></button>
+    <button class="quiz__opt">Step size'ı küçültmek<span class="why">$\alpha \le 1/100$ seçersen işaret değiştiren oscillation kalkar, ama yavaşlık gitmez: $x_1$ yönündeki çarpan $1 - \alpha \ge 0.99$ olur. Hız $\kappa$'ya bağlı.</span></button>
+    <button class="quiz__opt">Başlangıç noktasını $(0,0)$'a yakın seçmek<span class="why">Bu hile, minimumu bildiğini varsayıyor. Adım başına çarpan aynı kalır.</span></button>
+    <button class="quiz__opt">Exact yerine backtracking kullanmak<span class="why">Line search türü sabiti biraz değiştirir ama $\kappa$ bağımlılığını kaldırmaz (Bölüm 9).</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="exact" data-min="5">
+  <h2>Exact line search</h2>
+  <p>Yön belli olunca geriye tek değişkenli bir problem kalır: bu doğru üzerinde ne kadar gideceğiz? Nocedal bu tek boyutlu fonksiyona $\phi$ der:</p>
+  $$\phi(\alpha) = f(x_k + \alpha d_k), \qquad \alpha &gt; 0.$$
+  <div class="box box--rule">
+    <span class="box__label">Kural · exact line search</span>
+    <ul>
+      <li>$\alpha_k = \arg\min_{\alpha &gt; 0} \phi(\alpha)$. Koşulu $\phi'(\alpha) = \nabla f(x_k + \alpha d_k)^T d_k = 0$.</li>
+      <li>Quadratic $f = \tfrac12 x^TQx - b^Tx$ ve $d = -g$ ($g = \nabla f(x_k)$) için kapalı form (Nocedal 3.25):
+      $$\alpha_k = \frac{g^Tg}{g^TQg}.$$</li>
+      <li>Sonuç: $\phi'(\alpha_k) = 0$ demek $\nabla f(x_{k+1})^T d_k = 0$, yani ardışık gradient'ler diktir: $g_{k+1}^T g_k = 0$. Path dik açılarla döner.</li>
+      <li>Quadratic dışında $\phi$'yi minimize etmek pahalı. Winston türevi sıfıra eşitler ya da Golden Section Search kullanır. Nocedal'a göre genelde bu kadar emek değmez: inexact line search yeterli (Bölüm 6).</li>
+    </ul>
+  </div>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · neden dik açı</span>
+    <p>Doğru boyunca yürürken $f$ azaldıkça daha küçük contour'ları kesersin. En düşük noktada doğru bir contour'a <em>teğet</em> olur. Yeni gradient o contour'a dik, yani eski yöne dik. Bir sonraki adım bu yüzden 90° döner.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Lab 2'nin quadratic'i, $x_0 = (0,0)$</span>
+    <ul>
+      <li>$k = 0$: $g_0 = (-5,-5)$, $g_0^Tg_0 = 50$, $Qg_0 = (-20,-15)$, $g_0^TQg_0 = 175$. $\alpha_0 = 50/175 = 2/7$. $x_1 = (10/7, 10/7) \approx (1.4286, 1.4286)$, $q = -50/7 \approx -7.1429$.</li>
+      <li>$k = 1$: $g_1 = Qx_1 - b = (5/7, -5/7)$. Kontrol: $g_0^Tg_1 = -25/7 + 25/7 = 0$. $g_1^Tg_1 = 50/49$, $g_1^TQg_1 = 75/49$, $\alpha_1 = 2/3$. $x_2 = (20/21, 40/21) \approx (0.9524, 1.9048)$, $q \approx -7.4830$.</li>
+      <li>$k = 2$: $\alpha_2 = 2/7$ yine. $x_3 \approx (1.0204, 1.9728)$, $q \approx -7.4992$.</li>
+    </ul>
+    <p>2 boyutta step size'lar iki değer arasında gidip geliyor (2/7, 2/3, 2/7, …). $q - q^\star$: $7.5 \to 0.3571 \to 0.0170 \to 0.0008$, her adımda $1/21$ ile çarpılıyor. Theorem 3.3'ün en kötü durum çarpanı $((\kappa-1)/(\kappa+1))^2 = 0.2$; bu başlangıç noktası ondan çok daha şanslı.</p>
+  </div>
+  <!-- Kaynak: Nocedal–Wright (3.24)–(3.26), Theorem 3.3 · Lab02 hücre 22 (Q, b). python: verify.py Fraction ile (alpha 2/7, 2/3; g.g+ = 0), verify2.py (oran 1/21). -->
+  <div class="box box--example">
+    <span class="box__label">Örnek · Winston Example 29 (steepest ascent)</span>
+    <p>$\max z = -(x_1-3)^2 - (x_2-2)^2$, $v_0 = (1,1)$. $\nabla f = (-2(x_1-3), -2(x_2-2))$, $\nabla f(1,1) = (4, 2)$. $f(t_0) = f(1 + 4t_0, 1 + 2t_0) = -(-2+4t_0)^2 - (-1+2t_0)^2$. $f'(t_0) = -8(-2+4t_0) - 4(-1+2t_0) = 20 - 40t_0 = 0 \Rightarrow t_0 = 0.5$. $v_1 = (3, 2)$, $\nabla f(3,2) = (0,0)$: dur. $f$ concave olduğu için bu optimum. Tek adımda bitti, çünkü Hessian $-2I$: $\kappa = 1$.</p>
+  </div>
+  <!-- Kaynak: Winston §11.7 Example 29 (pdf s.679). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Exact line search genelde tek adımda optimuma götürmez. $\kappa = 1$ ise her başlangıçtan tek adımda biter. $\kappa &gt; 1$ ise ancak özel başlangıçlardan biter: başlangıç hatası $x_0 - x^\star$ tek bir eigenspace içindeyse (ör. $Q = \mathrm{diag}(1, 10)$, $x_0 = (0, 3)$). "Bu yön boyunca en iyi" ile "en iyi nokta" farklı şeyler.</li>
+      <li>$\alpha = g^Tg/g^TQg$ formülü $d = -g$ ve quadratic için geçerli. $-b^Tx$ terimi formülü değiştirmez, $g$'nin içinde zaten var.</li>
+      <li>Winston maksimize ederken $v + t\nabla f$ ve $t \ge 0$. Concave quadratic'te formül $t = g^Tg / g^TAg$ olur, burada $A = -\nabla^2 f$.</li>
+      <li>Exact her zaman maliyet açısından kazanmaz. Boyd'un $\mathbb{R}^{100}$ örneğinde exact ile backtracking arasındaki fark küçük.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-11.7-P2"><span class="box__label">Winston §11.7 Problem 2 · ödev sorusu</span>
+    <p>"Use the method of steepest ascent to approximate the optimal solution to the following problem: $\max z = -(x_1-2)^2 - x_1 - x_2^2$. Begin at the point $(2.5, 1.5)$."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$\nabla f = (-2(x_1 - 2) - 1,\ -2x_2)$. Başlangıçta değerini hesapla.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\phi(t) = f(v_0 + t\nabla f(v_0))$ yaz ve $\phi'(t) = 0$ çöz. Hessian $-2I$; kaç adım süreceğini hesaba girişmeden tahmin edebilirsin.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$v_0 = (2.5, 1.5)$, $z_0 = -0.25 - 2.5 - 2.25 = -5$. $\nabla f(v_0) = (-2(0.5) - 1,\ -3) = (-2, -3)$.</p>
+      <p>$\phi(t) = f(2.5 - 2t,\ 1.5 - 3t) = -(0.5-2t)^2 - (2.5-2t) - (1.5-3t)^2$.</p>
+      <p>$\phi'(t) = 4(0.5 - 2t) + 2 + 6(1.5 - 3t) = 13 - 26t = 0 \Rightarrow t_0 = 0.5$.</p>
+      <p>$v_1 = (2.5, 1.5) + 0.5(-2,-3) = (1.5, 0)$. $\nabla f(v_1) = (-2(-0.5) - 1,\ 0) = (0, 0)$: dur.</p>
+      <p>$f$'nin Hessian'ı $-2I$, negative definite: $f$ concave, stationary point global maximum. Optimum $x^\star = (1.5, 0)$, $z^\star = -0.25 - 1.5 = -1.75$. Hessian'ın iki eigenvalue'su eşit ($\kappa = 1$), bu yüzden tek adım yetti.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf" target="_blank" rel="noopener">Orijinal kitap (Winston, s.663)</a></p>
+    <!-- Kaynak: Winston §11.7 Problem 2 (pdf s.679). python: verify.py "Winston P2" (phi'(1/2) = 0, z = -7/4). -->
+  </div>
+  <div class="box box--exam" data-exam="winston-11.7-P3"><span class="box__label">Winston §11.7 Problem 3 · ödev sorusu</span>
+    <p>"Use steepest ascent to approximate the optimal solution to the following problem: $\max z = 2x_1x_2 + 2x_2 - x_1^2 - 2x_2^2$. Begin at the point $(0.5, 0.5)$. Note that at later iterations, successive points are very close together."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$\nabla f = (2x_2 - 2x_1,\ 2x_1 + 2 - 4x_2)$. $\nabla f(0.5, 0.5) = (0, 1)$: ilk adım sadece $x_2$'yi değiştirir.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$f$ concave quadratic, $A = -\nabla^2 f = \begin{pmatrix}2&amp;-2\\-2&amp;4\end{pmatrix}$. Her adımda $t = g^Tg/g^TAg$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap"><table>
+        <tr><th>$k$</th><th>$v_k$</th><th>$\nabla f(v_k)$</th><th>$t_k$</th><th>$v_{k+1}$</th><th>$z(v_{k+1})$</th></tr>
+        <tr><td>0</td><td>(0.5, 0.5)</td><td>(0, 1)</td><td>1/4</td><td>(0.5, 0.75)</td><td>0.875</td></tr>
+        <tr><td>1</td><td>(0.5, 0.75)</td><td>(0.5, 0)</td><td>1/2</td><td>(0.75, 0.75)</td><td>0.9375</td></tr>
+        <tr><td>2</td><td>(0.75, 0.75)</td><td>(0, 0.5)</td><td>1/4</td><td>(0.75, 0.875)</td><td>0.96875</td></tr>
+        <tr><td>3</td><td>(0.75, 0.875)</td><td>(0.25, 0)</td><td>1/2</td><td>(0.875, 0.875)</td><td>0.984375</td></tr>
+        <tr><td>4</td><td>(0.875, 0.875)</td><td>(0, 0.25)</td><td>1/4</td><td>(0.875, 0.9375)</td><td>0.9921875</td></tr>
+      </table></div>
+      <p>Örnek hesap ($k = 0$): $g = (0,1)$, $g^Tg = 1$, $g^TAg = 4$, $t_0 = 1/4$. $k = 1$: $g = (0.5, 0)$, $g^Tg = 0.25$, $g^TAg = 0.5$, $t_1 = 1/2$.</p>
+      <p>Gerçek optimum: $\nabla f = 0 \Rightarrow x_1 = x_2$ ve $2x_1 + 2 - 4x_1 = 0$, yani $(1, 1)$, $z^\star = 1$. $A$ positive definite olduğu için $f$ concave ve bu global maximum.</p>
+      <p>Gözlem: $z^\star - z$ her adımda yarıya iniyor ($1/8, 1/16, 1/32, \dots$) ve adım uzunlukları $0.25, 0.25, 0.125, 0.125, 0.0625, \dots$ küçülüyor. Winston'ın "successive points are very close together" dediği bu. Yönler sırayla yatay ve dikey: ardışık gradient'ler dik, klasik zig-zag. $A$'nın eigenvalue'ları $3 \pm \sqrt5$ (0.764 ve 5.236), $\kappa \approx 6.85$; Theorem 3.3'ün sınırı $0.745^2 = 0.556$, gerçekleşen oran 0.5.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/books/winston-operations-research.pdf" target="_blank" rel="noopener">Orijinal kitap (Winston, s.663)</a></p>
+    <!-- Kaynak: Winston §11.7 Problem 3 (pdf s.679). python: verify.py "Winston P3" (Fraction ile 8 iteration). -->
+  </div>
+  <div class="quiz" id="q-exact-1">
+    <p class="quiz__q">$f = \tfrac12 x^TQx$, $Q = \mathrm{diag}(1, 3)$, $x = (1,1)$. Gradient descent yönünde exact line search hangi $\alpha$'yı verir?</p>
+    <button class="quiz__opt" data-correct>$5/14 \approx 0.357$<span class="why">Doğru: $g = (1,3)$, $g^Tg = 10$, $g^TQg = 1 + 27 = 28$.</span></button>
+    <button class="quiz__opt">$1/3$<span class="why">Bu $1/\lambda_{\max}$, sabit güvenli adım. Exact adım noktaya ve yöne bağlı.</span></button>
+    <button class="quiz__opt">$1/2$<span class="why">Bu $2/(\lambda_{\min}+\lambda_{\max})$, en iyi sabit adım. Exact line search her iteration'da ayrı hesaplanır.</span></button>
+    <button class="quiz__opt">$10/4 = 2.5$<span class="why">Paydada $g^TQg$ yerine $\lambda$'ların toplamını kullandın.</span></button>
+  </div>
+  <div class="quiz" id="q-exact-2">
+    <p class="quiz__q">Exact line search kullanan gradient descent'te ardışık iki gradient $g_k$ ve $g_{k+1}$ arasındaki açı kaç derece?</p>
+    <button class="quiz__opt" data-correct>90°<span class="why">Doğru: $\phi'(\alpha_k) = g_{k+1}^Td_k = -g_{k+1}^Tg_k = 0$.</span></button>
+    <button class="quiz__opt">0°<span class="why">Aynı yönde kalsaydı line search o yönde daha ileri giderdi; minimumda durduğu için yön değişmek zorunda.</span></button>
+    <button class="quiz__opt">180°<span class="why">Bu "geri dönüş" olurdu; exact line search çizgi üzerindeki minimumu aştırmaz.</span></button>
+    <button class="quiz__opt">$\kappa$'ya bağlı<span class="why">$\kappa$ adımların uzunluğunu ve sayısını etkiler; diklik her zaman geçerli.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="armijo" data-min="5">
+  <h2>Sufficient decrease: Armijo koşulu</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi · "azaldı" yetmez</span>
+    <p>Exact line search pahalı. Akla gelen ucuz kural: "$f$ azaldıysa kabul et." Nocedal bunun yetmediğini bir örnekle gösterir: $f(x_k) = 5/k$ her adımda azalır ama minimum $-1$ iken limit 0'da kalır. Azalmalar çok küçük kaldığı için dizi minimuma hiç ulaşmaz. Çözüm: azalma hem adımla hem eğimle orantılı olsun.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Armijo (sufficient decrease) koşulu</span>
+    $$f(x_k + \alpha d_k) \;\le\; f(x_k) + c\,\alpha\,\nabla f(x_k)^T d_k, \qquad c \in (0, 1).$$
+    <ul>
+      <li>Sağ taraf $l(\alpha) = f(x_k) + c\alpha\,\nabla f_k^Td_k$, eğimi negatif bir doğru. Tangent'tan ($c = 1$) daha yatık. $\alpha$, $\phi(\alpha) \le l(\alpha)$ ise kabul.</li>
+      <li>Gradient descent'te ($d = -g$): $f(x - \alpha g) \le f(x) - c\alpha\|g\|^2$.</li>
+      <li>Yorum (Boyd): $c$, doğrusal tahminin vaat ettiği azalmanın kabul ettiğimiz kesri.</li>
+      <li>Tipik değerler: Nocedal $c_1 = 10^{-4}$. Boyd $c \in (0, 0.5)$, genelde 0.01 ile 0.3 arası.</li>
+      <li>$\nabla f^Td &lt; 0$ olduğu için çok küçük $\alpha$ her zaman kabul edilir (Taylor). Bu yüzden backtracking sonlu adımda biter.</li>
+    </ul>
+  </div>
+  <p>Aynı şeyi üç kitap üç ayrı harfle yazıyor. Sınavda soru hangi notasyonu kullanırsa onu oku:</p>
+  <div class="table-wrap"><table>
+    <tr><th>kaynak</th><th>step size</th><th>Armijo sabiti</th><th>küçültme çarpanı</th><th>ilk deneme</th></tr>
+    <tr><td>Bu ders, Lab 1</td><td>$\alpha$</td><td>$c$</td><td>$\beta$</td><td>$\alpha_0$</td></tr>
+    <tr><td>Nocedal–Wright</td><td>$\alpha$</td><td>$c$ (Wolfe'da $c_1$)</td><td>$\rho$</td><td>$\bar\alpha$</td></tr>
+    <tr><td>Boyd–Vandenberghe</td><td>$t$</td><td>$\alpha$</td><td>$\beta$</td><td>$t = 1$</td></tr>
+    <tr><td>Repo'daki weeks/05 notu</td><td colspan="4">"parameters $\alpha \in (0, 0.5)$, $\beta \in (0,1)$": Boyd'un yazımı, $\alpha$ burada Armijo sabiti</td></tr>
+  </table></div>
+  <div class="box box--rule">
+    <span class="box__label">Neden $c &lt; 1/2$?</span>
+    <p>Quadratic'te $d = -g$ ile $\phi(\alpha) = f - \alpha\|g\|^2 + \tfrac12\alpha^2 g^TQg$. Exact minimizer $\alpha^\star = \|g\|^2/g^TQg$ koyunca</p>
+    $$\phi(\alpha^\star) = f - \tfrac12\,\alpha^\star\|g\|^2.$$
+    <p>Armijo'nun sağ tarafı $f - c\,\alpha^\star\|g\|^2$. Yani ideal adım <em>ancak</em> $c \le 1/2$ ise kabul edilir. Örnek: Lab 2'nin quadratic'inde $x = 0$, $\alpha^\star = 2/7$: $\phi(2/7) = -50/7$, $c = 1/2$ ile sağ taraf $0 + \tfrac12\cdot\tfrac27\cdot(-50) = -50/7$, tam eşit. Boyd convergence ispatında da $c &lt; 1/2$'yi kullanır.</p>
+  </div>
+  <!-- Kaynak: Nocedal–Wright §3.1 (3.4), Şekil 3.2 ve 3.3 · Boyd §9.2 Algorithm 9.2, s.465–466 · bv_cvxslides 9.10 · weeks/05 Key concepts. python: verify.py "exact a=2/7 ... armijo rhs c=.5" eşit. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Harf çakışması: Boyd'un $\alpha$'sı bizim $c$'miz. Boyd'da step size $t$. "$\alpha = 0.3$, $\beta = 0.7$" gördüğünde 0.3 adım değil, Armijo sabiti.</li>
+      <li>İşaret: $\nabla f^Td$ negatif, sağ taraf $f(x)$'in <em>altında</em>. $+c\alpha\|g\|^2$ yazarsan artışları kabul edersin.</li>
+      <li>Armijo sadece "fazla uzun" adımları eler. Çok kısa adımlar her zaman geçer. Bunu ya büyük $\alpha_0$'dan geri gelerek (backtracking) ya da curvature condition ile (Bölüm 8) önleriz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-armijo-1">
+    <p class="quiz__q">$f(x) = 10$, $\nabla f(x)^Td = -20$, $c = 0.1$. $\alpha = 0.5$ deneniyor ve $f(x + 0.5d) = 9.4$. Armijo kararı ne?</p>
+    <button class="quiz__opt" data-correct>Red: sağ taraf $10 + 0.1\cdot0.5\cdot(-20) = 9$ ve $9.4 &gt; 9$<span class="why">Doğru: azalma var (0.6) ama vaat edilenin onda biri olan 1'e ulaşmıyor.</span></button>
+    <button class="quiz__opt">Kabul: $9.4 &lt; 10$<span class="why">Bu "simple decrease". Armijo'nun amacı tam olarak bu kuralı sıkılaştırmak.</span></button>
+    <button class="quiz__opt">Kabul: sağ taraf $10 + 1 = 11$<span class="why">İşaret hatası. $\nabla f^Td$ negatif, sağ taraf $f(x)$'in altında kalır.</span></button>
+    <button class="quiz__opt">Red: sağ taraf $-1$<span class="why">$f(x)$'i sağ tarafa eklemeyi unuttun.</span></button>
+  </div>
+  <div class="quiz" id="q-armijo-2">
+    <p class="quiz__q">Boyd–Vandenberghe'de "backtracking line search with $\alpha = 0.1$, $\beta = 0.7$" yazıyor. 0.1 nedir?</p>
+    <button class="quiz__opt" data-correct>Armijo (sufficient decrease) sabiti<span class="why">Doğru: Boyd'da step size $t$, $\alpha \in (0, 0.5)$ sabit, $\beta$ küçültme çarpanı.</span></button>
+    <button class="quiz__opt">İlk denenen step size<span class="why">Boyd her zaman $t = 1$'den başlar. Nocedal/Lab notasyonuyla karıştırdın.</span></button>
+    <button class="quiz__opt">Küçültme çarpanı<span class="why">Küçültme çarpanı $\beta = 0.7$.</span></button>
+    <button class="quiz__opt">Stopping tolerance<span class="why">Boyd stopping için $\eta$ ya da $\epsilon$ kullanır.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="backtracking" data-min="6">
+  <h2>Backtracking line search ve trial tablosu</h2>
+  <p>Fikir basit: cesur bir adımla başla, Armijo sağlanmazsa adımı sabit bir oranla küçült. İlk kabul edilen adımı kullan.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · backtracking (Nocedal Algorithm 3.1, Boyd Algorithm 9.2)</span>
+    <pre class="w-gradient-descent-code">given x, descent direction d (∇f(x)ᵀd &lt; 0),
+      α0 &gt; 0, β ∈ (0, 1), c ∈ (0, 1/2)
+α := α0
+while f(x + α d) &gt; f(x) + c · α · ∇f(x)ᵀd:
+    α := β · α
+return α          # sonra x := x + α d</pre>
+    <ul>
+      <li>$\alpha_0 = 1$ Newton ve quasi-Newton için doğal seçim (Nocedal). GD'de başka bir $\alpha_0$ da kullanılabilir.</li>
+      <li>$\beta$: 0.1 kaba, 0.8 ince arama (Boyd). Boyd'un deneylerinde $\beta \approx 0.5$ ve $c$ 0.2–0.5 arası iyi; parametrelerin etkisi en fazla iki kat civarında.</li>
+      <li>Biter, çünkü yeterince küçük $\alpha$ Armijo'yu sağlar. Kabul edilen adım ya $\alpha_0$'dır ya da reddedilen bir adımın $\beta$ katı; bu yüzden "çok kısa" olamaz. Backtracking bu sayede curvature condition'a ihtiyaç duymaz.</li>
+      <li>Gradient descent yönü $d = -\nabla f$ için: $\nabla^2 f \preceq L I$ ise her $\alpha \le 1/L$ Armijo'yu geçer ($c \le 1/2$ iken). Sonuç: kabul edilen $\alpha \ge \min(\alpha_0, \beta/L)$. Başka bir descent direction'da sınır $\|d\|$'ye bağlıdır ve bu hali tutmaz.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Nocedal–Wright Algorithm 3.1 (s.37) · Boyd Algorithm 9.2 (s.464–466), §9.3.1 "backtracking line search terminates either with t = 1 or with a value t ≥ β/M", §9.3.2 parametre deneyleri · exams/README.md "Must be able to do by hand: Write the backtracking line search algorithm." -->
+  <p>Sınavda bu algoritma bir tablo olarak istenir. Sütunlar hep aynı: deneme, $\alpha$, deneme noktası, $f$ orada, Armijo'nun sağ tarafı, karar.</p>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Lab 2'nin quadratic'i, $x = (0,0)$, $\alpha_0 = 1$, $\beta = 0.5$, $c = 0.1$</span>
+    <p>$q(0) = 0$, $g = (-5,-5)$, $d = (5,5)$, $\nabla q^Td = -50$.</p>
+    <div class="table-wrap"><table>
+      <tr><th>$j$</th><th>$\alpha$</th><th>$x + \alpha d$</th><th>$q(x+\alpha d)$</th><th>sağ taraf $0 + 0.1\,\alpha\,(-50)$</th><th>karar</th></tr>
+      <tr><td>0</td><td>1</td><td>(5, 5)</td><td>37.5</td><td>−5</td><td>red</td></tr>
+      <tr><td>1</td><td>0.5</td><td>(2.5, 2.5)</td><td>−3.125</td><td>−2.5</td><td>kabul</td></tr>
+    </table></div>
+    <p>$x_1 = (2.5, 2.5)$. Kabul edilen 0.5, exact adımdan (2/7 = 0.286) büyük ve bu yönde $\phi$'nin minimumunu aşıyor. Yine de $q$ 0'dan $-3.125$'e indi. Backtracking'in işi en iyi adımı bulmak değil, yeterince iyi bir adımı ucuza bulmak.</p>
+  </div>
+  <!-- Kaynak: python verify.py "backtracking q from 0". -->
+  <p>Aşağıdaki hesaplayıcı aynı tabloyu senin seçtiğin fonksiyon ve parametrelerle kuruyor. Soldaki grafik $\phi(\alpha) = f(x + \alpha d)$ (mavi), tangent (gri kesikli) ve Armijo doğrusu $l(\alpha)$ (turuncu kesikli). Eksen üzerindeki yeşil şerit Armijo'yu sağlayan $\alpha$'lar.</p>
+  <p class="w-gradient-descent-guess"><b>Önce tahmin et:</b> Rosenbrock'ta $(-1.2, 1)$'den $\alpha_0 = 1$, $\beta = 0.5$ ile kaç kez yarıya inmek gerekir? Gradient'in büyüklüğü (yaklaşık 233) sana ne söylüyor?</p>
+  <div class="w-gradient-descent-card" id="bt">
+    <div class="w-gradient-descent-ctl">
+      <label for="bt-fn">fonksiyon</label>
+      <select id="bt-fn" class="btn btn--sm">
+        <option value="q">Lab 2: ½xᵀQx − bᵀx</option>
+        <option value="twin">2x₁² + x₂²</option>
+        <option value="bowl">Lab 1 bowl: x₁² + x₂²</option>
+        <option value="rosen">Rosenbrock</option>
+      </select>
+    </div>
+    <div class="w-gradient-descent-ctl">
+      <label for="bt-x0">x</label><input type="text" id="bt-x0" class="w-gradient-descent-wide" value="0, 0" />
+      <label for="bt-a0">α₀</label><input type="text" id="bt-a0" value="1" inputmode="decimal" />
+      <label for="bt-beta">β</label><input type="text" id="bt-beta" value="0.5" inputmode="decimal" />
+      <label for="bt-c">c</label><input type="text" id="bt-c" value="0.1" inputmode="decimal" />
+      <button class="btn btn--sm btn--accent" id="bt-go">Tabloyu kur</button>
+    </div>
+    <div class="w-gradient-descent-err" id="bt-err" aria-live="polite"></div>
+    <div id="bt-step"></div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Sağ taraf her denemede değişir, çünkü içinde $\alpha$ var. İlk satırın sağ tarafını aşağı kopyalama.</li>
+      <li>Sağ taraftaki $f(x)$ ve $\nabla f(x)$ <em>şu anki</em> noktada hesaplanır, deneme noktasında değil.</li>
+      <li>Bir iteration bitince bir sonraki line search yine $\alpha_0$'dan başlar (temel algoritmada).</li>
+      <li>Gradient büyükse ilk denemeler çok uzağa atar. Rosenbrock'ta $(-1.2, 1)$'de $\|\nabla f\| \approx 233$: 10 kez yarıya inip $\alpha = 1/1024$'te kabul ediliyor.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="gd-twin-quadratic"><span class="box__label">Vize tipi soru (yeni sayılar) · alıştırma</span>
+    <p>$f(x) = 2x_1^2 + x_2^2$, $x_0 = (1, 2)$.</p>
+    <ol type="a">
+      <li>$f = \tfrac12 x^TQx$ olacak şekilde $Q$'yu ve condition number $\kappa$'yı yaz.</li>
+      <li>Sabit $\alpha = 0.1$ ile bir gradient descent adımı at; $x_1$ ve $f(x_1)$'i bul.</li>
+      <li>Sabit step size ile GD hangi $\alpha$ aralığında her başlangıçtan yakınsar?</li>
+      <li>$\alpha_0 = 1$, $\beta = 0.5$, $c = 0.1$ ile $x_0$'da backtracking tablosunu kur. Kabul edilen $\alpha$'yı sabit step size olarak kullansaydın ne olurdu?</li>
+      <li>En iyi sabit step size'ı ve $\|x_k - x^\star\|$'ın adım başına çarpanını ver.</li>
+    </ol>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$\tfrac12\cdot 4x_1^2 = 2x_1^2$. $\nabla f = (4x_1, 2x_2)$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(d) $\nabla f(x_0)^Td = -\|\nabla f(x_0)\|^2$. Kabul edilen $\alpha$'yı $2/\lambda_{\max}$ ile karşılaştır.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <ol type="a">
+        <li>$Q = \mathrm{diag}(4, 2)$, $\lambda_{\max} = 4$, $\lambda_{\min} = 2$, $\kappa = 2$.</li>
+        <li>$\nabla f(x_0) = (4, 4)$, $f(x_0) = 2 + 4 = 6$. $x_1 = (1,2) - 0.1(4,4) = (0.6, 1.6)$, $f(x_1) = 0.72 + 2.56 = 3.28$.</li>
+        <li>$0 &lt; \alpha &lt; 2/\lambda_{\max} = 0.5$.</li>
+        <li>$d = (-4,-4)$, $\nabla f^Td = -32$.
+          <div class="table-wrap"><table>
+            <tr><th>$j$</th><th>$\alpha$</th><th>$x_0 + \alpha d$</th><th>$f$</th><th>$6 + 0.1\,\alpha(-32)$</th><th>karar</th></tr>
+            <tr><td>0</td><td>1</td><td>(−3, −2)</td><td>22</td><td>2.8</td><td>red</td></tr>
+            <tr><td>1</td><td>0.5</td><td>(−1, 0)</td><td>2</td><td>4.4</td><td>kabul</td></tr>
+          </table></div>
+          Kabul edilen $\alpha = 0.5 = 2/\lambda_{\max}$, tam sınır. Sabit adım olarak kullanırsan $x_1$-yönündeki çarpan $1 - 0.5\cdot4 = -1$: $(-1, 0) \to (1, 0) \to (-1, 0) \to \dots$ sonsuza kadar zıplar, hiç yakınsamaz. Armijo sadece <em>o anki</em> adımın yeterince azalttığını kontrol eder; o adımın sabit tutulursa ne olacağını söylemez.</li>
+        <li>$\alpha^\star = 2/(4+2) = 1/3$, çarpan $(\kappa-1)/(\kappa+1) = 1/3$. İterate'ler: $(-1/3, 2/3)$, $(1/9, 2/9)$, $(-1/27, 2/27)$, …</li>
+      </ol>
+    </div></details>
+    <!-- Kaynak: plan exam_items "EXAMPLE midterm Q5(a)–(e) ... write a twin such as f = 2x1² + x2² from (1,2)"; yeni sayılarla yazıldı, ayrılmış deneme sınavının sayıları kullanılmadı. python: verify.py "twin" bloğu. -->
+  </div>
+  <div class="quiz" id="q-bt-1">
+    <p class="quiz__q">$f(x) = x^2$, $x = 2$, $d = -f'(2) = -4$, $\alpha_0 = 1$, $\beta = 0.5$, $c = 0.1$. Backtracking hangi $\alpha$'yı kabul eder?</p>
+    <button class="quiz__opt" data-correct>0.5<span class="why">Doğru: $\alpha = 1$'de $f(-2) = 4 &gt; 4 - 1.6 = 2.4$, red. $\alpha = 0.5$'te $f(0) = 0 \le 4 - 0.8 = 3.2$, kabul.</span></button>
+    <button class="quiz__opt">1<span class="why">$f(-2) = 4$, hiç azalma yok; Armijo'nun sağ tarafı 2.4.</span></button>
+    <button class="quiz__opt">0.25<span class="why">Backtracking ilk kabul edilen adımda durur, daha iyisini aramaz.</span></button>
+    <button class="quiz__opt">0.125<span class="why">Bir kabulden sonra küçültmeye devam edilmez.</span></button>
+  </div>
+  <div class="quiz" id="q-bt-2">
+    <p class="quiz__q">Backtracking'in sonlu sayıda denemede biteceğini ne garanti eder?</p>
+    <button class="quiz__opt" data-correct>$d$ bir descent direction, bu yüzden yeterince küçük $\alpha$ Armijo'yu sağlar<span class="why">Doğru: $\phi(\alpha) \approx f + \alpha\nabla f^Td &lt; f + c\alpha\nabla f^Td$ ($c &lt; 1$ iken) küçük $\alpha$ için.</span></button>
+    <button class="quiz__opt">$f$'nin convex olması<span class="why">Convexity gerekmez; Taylor argümanı her türevlenebilir $f$'te çalışır.</span></button>
+    <button class="quiz__opt">$\beta &lt; 0.5$ seçilmesi<span class="why">$\beta \in (0,1)$ yeterli; $\beta = 0.8$ ile de biter, sadece daha çok deneme yapar.</span></button>
+    <button class="quiz__opt">$\alpha_0 = 1$ seçilmesi<span class="why">Her pozitif $\alpha_0$'dan başlayan dizi $\alpha_0\beta^j \to 0$.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="wolfe" data-min="4">
+  <h2>Wolfe ve Goldstein koşulları</h2>
+  <p>Armijo fazla uzun adımı eler, fazla kısa adımı elemez. Backtracking bunu yapısıyla çözüyordu. Başka line search'ler (özellikle quasi-Newton için) kısa adımları bir koşulla eler.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Wolfe koşulları (Nocedal 3.6)</span>
+    $$\begin{aligned}
+    &amp;f(x_k + \alpha d_k) \le f(x_k) + c_1\alpha\,\nabla f_k^T d_k &amp;&amp;\text{(sufficient decrease)}\\
+    &amp;\nabla f(x_k + \alpha d_k)^T d_k \ge c_2\,\nabla f_k^T d_k &amp;&amp;\text{(curvature condition)}
+    \end{aligned}\qquad 0 &lt; c_1 &lt; c_2 &lt; 1.$$
+    <ul>
+      <li>Curvature condition $\phi'(\alpha) \ge c_2\,\phi'(0)$ demek: eğim yeterince yataylaşmış olmalı. Eğim hâlâ çok negatifse daha gidebiliriz, adım kısa.</li>
+      <li>Tipik $c_2$: Newton ve quasi-Newton için 0.9, nonlinear conjugate gradient için 0.1.</li>
+      <li><strong>Strong Wolfe</strong>: ikinci koşul $|\nabla f(x_k + \alpha d_k)^T d_k| \le c_2|\nabla f_k^T d_k|$. $\phi'$'nin fazla pozitif olmasına da izin vermez, yani minimumu çok aşan adımları da eler.</li>
+      <li><strong>Goldstein</strong> ($0 &lt; c &lt; 1/2$): $f_k + (1-c)\alpha\,\nabla f_k^Td_k \le f(x_k + \alpha d_k) \le f_k + c\alpha\,\nabla f_k^Td_k$. Sol eşitsizlik kısa adımları eler. Dezavantajı: $\phi$'nin minimizer'larını da dışarıda bırakabilir. Newton tipi yöntemlerde kullanılır, quasi-Newton'a pek uymaz.</li>
+      <li>Lemma 3.1: $f$ türevlenebilir ve ışın boyunca alttan sınırlı, $d$ descent direction ise Wolfe ve strong Wolfe'u sağlayan $\alpha$ aralıkları vardır.</li>
+      <li>Zoutendijk (Theorem 3.2): $f$ alttan sınırlı, $\nabla f$ Lipschitz ve adımlar Wolfe'u sağlıyorsa steepest descent için $\|\nabla f_k\| \to 0$. Bu <em>global convergence</em>: her başlangıçtan bir stationary point'e çekilme.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Lab 2'nin quadratic'i, $x = 0$, $d = (5,5)$, $\phi'(0) = -50$, $c_1 = 0.1$, $c_2 = 0.9$</span>
+    <div class="table-wrap"><table>
+      <tr><th>$\alpha$</th><th>$\phi(\alpha)$</th><th>Armijo sağ tarafı</th><th>$\phi'(\alpha)$</th><th>$c_2\phi'(0)$</th><th>sonuç</th></tr>
+      <tr><td>0.01</td><td>−0.49125</td><td>−0.05</td><td>−48.25</td><td>−45</td><td>Armijo ✓, curvature ✗: fazla kısa</td></tr>
+      <tr><td>2/7</td><td>−7.1429</td><td>−1.4286</td><td>0</td><td>−45</td><td>ikisi de ✓ (exact minimizer)</td></tr>
+      <tr><td>0.5</td><td>−3.125</td><td>−2.5</td><td>37.5</td><td>−45</td><td>Wolfe ✓; strong Wolfe da ✓ ($37.5 \le 45$)</td></tr>
+    </table></div>
+    <p>Goldstein ($c = 0.1$) aynı sonucu verir: $\alpha = 0.01$'de alt sınır $0.9\cdot0.01\cdot(-50) = -0.45$ ve $\phi = -0.49125$ bunun altında, yani adım fazla kısa. $\alpha = 0.5$'te $-22.5 \le -3.125 \le -2.5$, kabul.</p>
+  </div>
+  <!-- Kaynak: Nocedal–Wright §3.1 (3.5)–(3.7), (3.11), Lemma 3.1, §3.2 Theorem 3.2 ve (3.18). python: verify2.py (phi, phi', Goldstein alt sınırı). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$c_2 &gt; c_1$ olmak zorunda. Aksi halde iki koşulu birlikte sağlayan $\alpha$ olmayabilir.</li>
+      <li>Curvature condition'da iki taraf da negatif sayılarla başlar. "$\ge$" demek: yeni eğim, eski eğimin $c_2$ katından <em>daha az dik</em>.</li>
+      <li>Backtracking yaparken curvature condition'ı ayrıca kontrol etmen gerekmez; sınavda "backtracking" isteniyorsa tabloya sadece Armijo sütunu yaz.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-wolfe-1">
+    <p class="quiz__q">$\phi'(0) = -10$, $c_2 = 0.9$. Denenen $\alpha$'da $\phi'(\alpha) = -9.5$. Curvature condition ne diyor?</p>
+    <button class="quiz__opt" data-correct>Sağlanmıyor: $-9.5 &lt; -9$, eğim hâlâ dik, adım kısa<span class="why">Doğru: koşul $\phi'(\alpha) \ge 0.9\cdot(-10) = -9$.</span></button>
+    <button class="quiz__opt">Sağlanıyor: $-9.5 \ge -10$<span class="why">$c_2$ çarpanını unuttun; karşılaştırma $\phi'(0)$ ile değil $c_2\phi'(0)$ ile.</span></button>
+    <button class="quiz__opt">Sağlanıyor, çünkü $\phi'(\alpha) &lt; 0$<span class="why">Negatif eğim sadece $f$'nin o noktada hâlâ azaldığını söyler. Koşul eğimin yeterince yataylaşmasını ister.</span></button>
+    <button class="quiz__opt">Sadece Armijo'ya bakılır, bu koşul önemsiz<span class="why">Backtracking'de öyle; ama soru Wolfe line search'teki curvature condition'ı soruyor.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="rates" data-min="5">
+  <h2>Convergence rate: linear, superlinear, quadratic</h2>
+  <p>"Yakınsıyor" yetmez; ne kadar hızlı? Hatayı $e_k = \|x_k - x^\star\|$ ile ölçelim.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · rate tanımları (Nocedal Ek A.2)</span>
+    <div class="table-wrap"><table>
+      <tr><th>rate</th><th>tanım (yeterince büyük $k$ için)</th><th>örnek dizi</th></tr>
+      <tr><td>Q-linear</td><td>$e_{k+1}/e_k \le r$, $r \in (0,1)$</td><td>$1 + 0.5^k$ ($r = 0.5$)</td></tr>
+      <tr><td>Q-superlinear</td><td>$e_{k+1}/e_k \to 0$</td><td>$1 + k^{-k}$</td></tr>
+      <tr><td>Q-quadratic</td><td>$e_{k+1}/e_k^2 \le M$ ($M &lt; 1$ olmak zorunda değil)</td><td>$1 + 0.5^{2^k}$</td></tr>
+      <tr><td>sublinear</td><td>Q-linear bile değil</td><td>$1/k$</td></tr>
+    </table></div>
+    <ul>
+      <li>Linear convergence semilog grafikte ($\log e_k$'ye karşı $k$) düz bir çizgidir. Quadratic'te doğru basamak sayısı her adımda kabaca ikiye katlanır.</li>
+      <li>Gradient descent: linear. Quasi-Newton: superlinear. Newton, $x^\star$ yakınında: quadratic (Week 6).</li>
+    </ul>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Kural · Boyd'un analizi: strong convexity ve L-smoothness</span>
+    <ul>
+      <li><strong>Strongly convex</strong>: $mI \preceq \nabla^2 f(x) \preceq MI$ (sublevel set üzerinde), $m &gt; 0$. Sonuç: $f(x) - p^\star \le \dfrac{1}{2m}\|\nabla f(x)\|_2^2$. $m$'yi bilirsen bu bir stopping criterion olur (genelde bilmezsin).</li>
+      <li>Exact line search: $f(x^{(k)}) - p^\star \le c^k\,(f(x^{(0)}) - p^\star)$, $c = 1 - m/M$.</li>
+      <li>Backtracking (Boyd'un harfleriyle sabit $\alpha$, bizde $c$): $c_{\text{rate}} = 1 - \min\{2m\alpha,\ 2\beta\alpha m/M\}$.</li>
+      <li>$\epsilon$ doğruluk için iteration sayısı en çok $\dfrac{\log((f(x^{(0)}) - p^\star)/\epsilon)}{\log(1/c)}$; büyük $M/m$'de $\log(1/c) \approx m/M$, yani sınır $M/m$ ile doğrusal büyür.</li>
+      <li><strong>L-smooth</strong>: $\|\nabla f(x) - \nabla f(y)\| \le L\|x - y\|$ (iki kez türevlenebilir $f$'te $\nabla^2 f \preceq LI$, yani $L = M$). Sabit $\alpha = 1/L$ her zaman azaltır: $f(x - \tfrac1L\nabla f) \le f(x) - \tfrac{1}{2L}\|\nabla f\|^2$. Quadratic'te $L = \lambda_{\max}$, $m = \lambda_{\min}$.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Nocedal–Wright Ek A.2 (A.34 ve sonrası), Exercise 2.13 (1/k sublinear) · Boyd §9.1.2 (9.9), §9.3.1 (9.17)–(9.19), backtracking analizi · Nocedal (3.13) Lipschitz · weeks/05 "L-smoothness and μ-strong convexity". -->
+  <div class="box box--example">
+    <span class="box__label">Örnek · sınır ne kadar kaba?</span>
+    <p>Boyd'un $\gamma = 10$ örneğinde exact line search ile gerçek $f$ çarpanı $(9/11)^2 = 0.669$, genel sınır $1 - m/M = 0.9$. $f$ farkını $10^6$ kat küçültmek için gerçekte 35 iteration, sınır 132 diyor. $\kappa = 100$'de 346'ya karşı 1375, $\kappa = 1000$'de 3454'e karşı 13809. Boyd'un dediği gibi sınır yaklaşık 4 kat temkinli, ama $\kappa$'ya bağımlılığı doğru gösteriyor.</p>
+  </div>
+  <!-- Kaynak: Boyd §9.3.2 ("only about a factor of four conservative"). python: verify.py "kappa table". -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Linear convergence", hatanın $k$ ile doğrusal azaldığı anlamına gelmez. Hata geometrik azalır; doğrusal olan $\log$ hata.</li>
+      <li>Hangi nicelik? $(\kappa-1)/(\kappa+1)$ en iyi sabit adımda uzaklık için; karesi exact line search'te $f$ farkı için; $1 - m/M$ Boyd'un $f$ farkı için kaba sınırı. Formülü yazarken neyi ölçtüğünü söyle.</li>
+      <li>Quadratic convergence tanımındaki $M$ 1'den büyük olabilir. Önemli olan karesel ilişki.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-rate-1">
+    <p class="quiz__q">Bir yöntemin hataları: $10^{-1}, 10^{-2}, 10^{-4}, 10^{-8}$. Bu diziye uyan en yüksek convergence order hangisi?</p>
+    <button class="quiz__opt" data-correct>Quadratic<span class="why">Doğru: $e_{k+1} = e_k^2$, doğru basamak sayısı her adımda ikiye katlanıyor.</span></button>
+    <button class="quiz__opt">Linear<span class="why">Dizi tanım gereği Q-linear de (oranlar $\le 0.1$). Ama $e_{k+1} = e_k^2$, yani daha güçlü quadratic ilişki geçerli. Soru en yüksek order'ı soruyor.</span></button>
+    <button class="quiz__opt">Sublinear<span class="why">Sublinear en yavaşı ($1/k$ gibi); bu dizi çok hızlı.</span></button>
+  </div>
+  <div class="quiz" id="q-rate-2">
+    <p class="quiz__q">$f = \tfrac12 x^TQx$, $Q$'nun eigenvalue'ları 2 ve 8. $\alpha = 1/L$ sabit adımı kaç?</p>
+    <button class="quiz__opt" data-correct>$1/8$<span class="why">Doğru: quadratic'te $L = \lambda_{\max} = 8$.</span></button>
+    <button class="quiz__opt">$1/2$<span class="why">$\lambda_{\min}$ ile hesapladın; bu adım dik yönde ($\lambda = 8$) çarpanı $-3$ yapar ve diverge eder.</span></button>
+    <button class="quiz__opt">$1/5$<span class="why">Bu $2/(\lambda_{\min}+\lambda_{\max})$, en iyi sabit adım; $1/L$ değil.</span></button>
+    <button class="quiz__opt">$1/4$<span class="why">Bu $2/\lambda_{\max}$, yakınsamanın sınırı; tam sınırda zıplar.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="steepest" data-min="4">
+  <h2>Steepest descent başka bir norm'da</h2>
+  <p>"En dik iniş" bir adımın uzunluğunu nasıl ölçtüğüne bağlı. Norm'lar dersinde ℓ2'de en dik yönün $-\nabla f$ olduğunu görmüştük. Başka bir norm seçersen başka bir yön çıkar.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · steepest descent direction (Boyd §9.4)</span>
+    <ul>
+      <li>Normalized: $\Delta x_{\text{nsd}} = \arg\min\{\nabla f(x)^Tv : \|v\| = 1\}$, birim uzunlukta en negatif directional derivative.</li>
+      <li>Unnormalized: $\Delta x_{\text{sd}} = \|\nabla f(x)\|_*\,\Delta x_{\text{nsd}}$, burada $\|\cdot\|_*$ dual norm. $\nabla f^T\Delta x_{\text{sd}} = -\|\nabla f\|_*^2$.</li>
+      <li>Euclidean norm: $\Delta x_{\text{sd}} = -\nabla f$, yani gradient descent.</li>
+      <li>Quadratic norm $\|x\|_P = (x^TPx)^{1/2}$, $P \succ 0$: $\Delta x_{\text{sd}} = -P^{-1}\nabla f$. Bu, $\bar x = P^{1/2}x$ değişken değişiminden sonra gradient descent ile aynı.</li>
+      <li>ℓ1 norm: $|\partial f/\partial x_i| = \|\nabla f\|_\infty$ olan koordinatı seç; $\Delta x_{\text{sd}} = -(\partial f/\partial x_i)\,e_i$. Sadece bir koordinat değişir (coordinate descent).</li>
+      <li>Convergence özellikleri gradient descent'e benzer. $P$'nin seçimi hızı çok etkiler: $P$, Hessian'a yakınsa dönüştürülmüş problemin $\kappa$'sı 1'e yakın olur. $P = \nabla^2 f(x)$ seçmek Newton step'ini verir (Week 6).</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · $\nabla f(x) = (4, -10)$</span>
+    <ul>
+      <li>ℓ2: $\Delta x_{\text{sd}} = (-4, 10)$.</li>
+      <li>ℓ1: en büyük $|g_i|$ ikinci koordinatta (10). $\Delta x_{\text{sd}} = -(-10)e_2 = (0, 10)$, $\Delta x_{\text{nsd}} = (0, 1)$. Kontrol: $\nabla f^T\Delta x_{\text{sd}} = -100 = -\|g\|_\infty^2$ (ℓ1'in dual'ı ℓ∞).</li>
+      <li>$P = \mathrm{diag}(2, 8)$: $\Delta x_{\text{sd}} = -P^{-1}g = (-2,\ 1.25)$. $\nabla f^T\Delta x_{\text{sd}} = -(8 + 12.5) = -20.5 = -g^TP^{-1}g$.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: bv_cvxslides 9.16–9.18 · Boyd §9.4 · weeks/05 "steepest descent in a general norm" · norms-gradients dersindeki directional derivative bölümü. python: verify.py "l1 steepest". -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>ℓ1 steepest descent yönü $-\mathrm{sign}(g)$ değil; sadece en büyük kısmi türevin koordinatı hareket eder.</li>
+      <li>Normalized ve unnormalized yönleri karıştırma. Line search ikisinde de çalışır, ama "$\nabla f^T\Delta x = -\|\nabla f\|_*^2$" sadece unnormalized için doğru.</li>
+      <li>$P$ positive definite olmalı; değilse $\|\cdot\|_P$ bir norm değildir ve $-P^{-1}\nabla f$ descent direction olmayabilir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="winston-11.7-P1"><span class="box__label">Winston §11.7 Problem 1 · ödev sorusu</span>
+    <p>"For any vector $x$, show that the vector $x/\|x\|$ has unit length."</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Norm'un homogeneity özelliği: $\|tx\| = |t|\,\|x\|$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$t = 1/\|x\|$ al; $x \ne 0$ varsayımını söyle.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$x \ne 0$ olsun (aksi halde $x/\|x\|$ tanımsız). $t = 1/\|x\| &gt; 0$. Homogeneity: $\big\|x/\|x\|\big\| = \tfrac{1}{\|x\|}\|x\| = 1$.</p>
+      <p>Euclidean norm'la açık hesap: $\big\|x/\|x\|\big\|^2 = \sum_i x_i^2/\|x\|^2 = \|x\|^2/\|x\|^2 = 1$.</p>
+      <p>Winston yönleri bu şekilde normalize eder: $\nabla f(x)/\|\nabla f(x)\|$, Boyd'daki $\Delta x_{\text{nsd}}$'nin ℓ2 hali.</p>
+    </div></details>
+    <!-- Kaynak: Winston §11.7 Problem 1 (pdf s.679). -->
+  </div>
+  <div class="quiz" id="q-sd-1">
+    <p class="quiz__q">$\nabla f(x) = (-6, 2)$. ℓ1 norm'a göre unnormalized steepest descent yönü $\Delta x_{\text{sd}}$ nedir?</p>
+    <button class="quiz__opt" data-correct>$(6, 0)$<span class="why">Doğru: en büyük $|g_i|$ birinci koordinatta, $-g_1e_1 = (6, 0)$.</span></button>
+    <button class="quiz__opt">$(-6, 0)$<span class="why">İşaret hatası: bu gradient'in bileşeni, yön onun tersi.</span></button>
+    <button class="quiz__opt">$(6, -2)$<span class="why">Bu ℓ2 yönü ($-\nabla f$). ℓ1'de sadece bir koordinat hareket eder.</span></button>
+    <button class="quiz__opt">$(1, -1)$<span class="why">Bu $-\mathrm{sign}(g)$; ℓ∞ norm'unun steepest descent yönü, ℓ1'in değil.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="implement" data-min="5">
+  <h2>Kendi GD'ni yaz: Lab 5 görevi</h2>
+  <p class="src">Not: Lab 5 notebook'u repoda yok. Syllabus'taki "sensor-calibration case" de repoda olmadığı için burada anlatılmadı. Görev listesi repodaki weeks/05 planından ve syllabus satırından ("Implementing GD, Armijo/backtracking") alındı.</p>
+  <p>Hocanın Lab 2'deki en küçük GD'si şuydu: <code>gd(df, x0_, a=0.08, iters=400)</code>, yani sabit adım ve sabit sayıda iteration, stopping criterion yok. Lab 5'in istediği bunun üç yönlü hali.</p>
+  <div class="box box--rule">
+    <span class="box__label">Kural · iyi bir GD implementasyonu</span>
+    <ul>
+      <li>Her iteration'da bir kez $f(x)$ ve $\nabla f(x)$ hesapla; backtracking denemeleri sadece $f$ ister.</li>
+      <li>Önce gradient'i Lab 2'nin <code>grad_check</code>'i ile doğrula. Yanlış gradient'le GD sessizce saçmalar.</li>
+      <li>Stopping: $\|\nabla f\| \le \varepsilon$ <em>ve</em> bir iteration üst sınırı. Sadece iteration sayısıyla durmak yakınsamadığını gizler.</li>
+      <li>$f$ <code>nan</code> ya da <code>inf</code> olursa dur ve "diverge" de.</li>
+      <li>$\log(f(x_k) - p^\star)$'ı $k$'ye karşı çiz; linear convergence düz çizgi verir, eğimi $\kappa$'yı ele verir.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Lab02.ipynb hücre 26 (gd(df, x0_, a=0.08, iters=400)), hücre 9–14 (grad_check) · weeks/05 Implement ve Checklist · Boyd §9.3 "stopping criterion ... checked after step 1". -->
+  <p>Aşağıda üç line search aynı fonksiyonda yarışıyor. Exact line search quadratic'lerde kapalı formdan yapılıyor. Rosenbrock'ta $\phi(\alpha)$ bir quartic, $\phi'(\alpha)$ bir cubic. Bu ışında $\phi$'nin iki local minimum'u olabiliyor, bu yüzden kod cubic'in bütün pozitif köklerini buluyor ve $\phi$'yi en küçük yapanı seçiyor. Backtracking $\alpha_0 = 1$, $\beta = 0.5$, $c = 10^{-4}$ kullanıyor. Durma: quadratic'lerde $\|\nabla f\| \le 10^{-6}$, Rosenbrock'ta $10^{-3}$, en çok 20000 iteration.</p>
+  <p class="w-gradient-descent-guess"><b>Önce tahmin et:</b> $\kappa = 50$ olan quadratic'te sabit $\alpha = 1/L$ kaç kat yavaş kalır? Rosenbrock'ta exact line search backtracking'i kaç kat geçer, yoksa geçemez mi?</p>
+  <div class="w-gradient-descent-card" id="rc">
+    <div class="w-gradient-descent-ctl">
+      <label for="rc-fn">fonksiyon</label>
+      <select id="rc-fn" class="btn btn--sm">
+        <option value="kq">½(x₁² + κx₂²), başlangıç (κ, 1)</option>
+        <option value="q">Lab 2: ½xᵀQx − bᵀx, başlangıç (0, 0)</option>
+        <option value="rosen">Rosenbrock, başlangıç (−1.2, 1)</option>
+      </select>
+    </div>
+    <div class="w-gradient-descent-row" id="rc-krow"><label for="rc-k">κ</label><input type="range" id="rc-k" min="1" max="100" step="1" value="10" /><b id="rc-kv">10</b></div>
+    <div class="w-gradient-descent-ctl">
+      <label for="rc-a">sabit α</label><input type="text" id="rc-a" value="0.1" inputmode="decimal" />
+      <button class="btn btn--sm" id="rc-l">α = 1/L</button>
+      <button class="btn btn--sm btn--accent" id="rc-go">Yarıştır</button>
+    </div>
+    <div class="w-gradient-descent-err" id="rc-err" aria-live="polite"></div>
+    <div class="w-gradient-descent-grid">
+      <div class="w-gradient-descent-out" id="rc-out"></div>
+      <div class="w-gradient-descent-plot"><h4>$\log_{10}(f(x_k) - p^\star)$</h4><svg id="rc-svg" viewBox="0 0 320 210" role="img" aria-label="Semilog convergence grafiği"></svg>
+        <div class="w-gradient-descent-legend"><span><i style="background:var(--fg-muted)"></i>sabit α</span><span><i style="background:var(--blue-600)"></i>exact</span><span><i style="background:var(--accent)"></i>backtracking</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Rosenbrock'ta sabit adım için $1/L$ yok: Hessian noktaya göre değişir. Kendi seçtiğin sabit adım bir bölgede güvenli, başka bölgede diverge olabilir.</li>
+      <li>"Exact line search her zaman en az iteration'ı verir" diye düşünme. Lab 2'nin quadratic'inde kazanıyor (11 iteration), ama $\kappa = 10$'luk örnekte backtracking 65'e karşı exact 83, Rosenbrock'ta 5231'e karşı 10124 iteration. Üstelik her exact adım çok sayıda $f$ değerlendirmesi ister. Adil kıyas fonksiyon çağrısı sayısıyla yapılır.</li>
+      <li>Rosenbrock'ta çizginin düzleşip sonra yeniden düşmesi normal: GD önce kanyona iner, sonra kanyon boyunca yavaşça ilerler.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="w5-lab5-implement"><span class="box__label">Week 5 · Implement listesi · lab görevi</span>
+    <p>"- [ ] <code>gradient_descent</code> with fixed step, exact line search, and backtracking. - [ ] Rosenbrock and ill-conditioned quadratics as test problems. - [ ] Convergence plot: <code>log(f(x_k) − p*)</code> vs. <code>k</code> for several <code>κ</code>." Checklist: "Observed linear rate matches the theoretical bound", "Backtracking implemented without any library helper". (weeks/05'ten, olduğu gibi)</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Tek bir fonksiyon yaz, line search'ü bir parametreyle seç: <code>"fixed"</code>, <code>"exact"</code>, <code>"backtracking"</code>. Exact sadece quadratic'te kapalı formda: $\alpha = g^Tg/g^TQg$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>"Theoretical bound" ile karşılaştırma için $f = \tfrac12(x_1^2 + \kappa x_2^2)$'yi $(\kappa, 1)$'den başlat: exact line search'te oran tam olarak $((\kappa-1)/(\kappa+1))^2$ çıkmalı (Boyd §9.3.2).</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <pre class="w-gradient-descent-code">import numpy as np
+
+def backtracking(f, x, g, d, a0=1.0, beta=0.5, c=1e-4):
+    fx, slope = f(x), g @ d          # slope &lt; 0
+    a = a0
+    while f(x + a * d) &gt; fx + c * a * slope:
+        a *= beta
+    return a
+
+def gradient_descent(f, grad, x0, rule="backtracking", alpha=0.1,
+                     Q=None, tol=1e-6, max_iter=20000):
+    x = np.array(x0, dtype=float)
+    hist = [f(x)]
+    for k in range(max_iter):
+        g = grad(x)
+        if np.linalg.norm(g) &lt;= tol:            # stopping criterion
+            break
+        d = -g
+        if rule == "fixed":
+            a = alpha
+        elif rule == "exact":                    # quadratic only
+            a = (g @ g) / (g @ Q @ g)
+        else:
+            a = backtracking(f, x, g, d)
+        x = x + a * d
+        hist.append(f(x))
+        if not np.isfinite(hist[-1]):
+            raise RuntimeError("diverged")
+    return x, np.array(hist)
+
+for kappa in (2, 10, 50):
+    Q = np.diag([1.0, kappa])
+    f = lambda x: 0.5 * x @ Q @ x
+    grad = lambda x: Q @ x
+    x, h = gradient_descent(f, grad, [kappa, 1.0], rule="exact", Q=Q)
+    ratio = h[1:6] / h[:5]                    # p* = 0
+    print(kappa, len(h) - 1, ratio.round(4), ((kappa-1)/(kappa+1))**2)
+    plt.semilogy(h, label=f"kappa={kappa}")</pre>
+      <p>Beklenen gözlem: exact line search'te $f$ oranı her adımda tam $((\kappa-1)/(\kappa+1))^2$ ($\kappa = 10$ için 0.6694); semilog çizgiler düz ve eğimleri $\kappa$ büyüdükçe yataylaşıyor. Backtracking'li GD Rosenbrock'ta $(-1.2, 1)$'den $\|\nabla f\| \le 10^{-3}$'e 5231 iteration'da varıyor; ilk adımda 10 kez yarıya iniyor.</p>
+    </div></details>
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/weeks/05-unconstrained-gradient-descent.md" target="_blank" rel="noopener">Orijinal görev listesi (weeks/05)</a></p>
+    <!-- Kaynak: weeks/05-unconstrained-gradient-descent.md "Implement" ve "Checklist" · syllabus Week 5 lab sütunu. python: rosen.py (5231 iteration, ilk adım 10 red), verify.py (gamma=10 oranı 0.669421). Yarış sayıları (Lab 2 q: exact 11 / bt 75; κ=10: exact 83 / bt 65; Rosenbrock: exact 10124 / bt 5231 / sabit 0.001 14789) sayfanın kendi kodu node ile çalıştırılarak alındı; Rosenbrock'un üç sayısı da python ile aynı (exact: numpy.roots ile cubic'in pozitif kökleri, ilk ışında alpha = 0.012249, f = 0.194690; ilk local minimum alpha = 0.000788, f = 4.128097). -->
+  </div>
+  <div class="box box--exam" data-exam="winston-11.7-P4"><span class="box__label">Winston §11.7 Problem 4 · ödev sorusu</span>
+    <p>"How would you modify the method of steepest ascent if each variable $x_i$ were constrained to lie in an interval $[a_i, b_i]$?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Adım attıktan sonra bir koordinat aralığın dışına çıkarsa en yakın uç noktaya ne olur?</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Alternatif: line search'te $t$'yi, nokta kutunun içinde kalacak şekilde sınırla.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>İki makul değişiklik:</p>
+      <ol>
+        <li><strong>Projection</strong>: her adımdan sonra her koordinatı aralığa kırp, $x_i \leftarrow \min(b_i, \max(a_i, x_i))$. Yani $v_{k+1} = \Pi_{[a,b]}\big(v_k + t_k\nabla f(v_k)\big)$. Bir sınırdayken gradient dışarı bakan bileşenleri sıfırlanır; o koordinat sınırda kalır.</li>
+        <li><strong>Sınırlı line search</strong>: $t_k$'yi $0 \le t \le t_{\max}$ aralığında ara; $t_{\max}$, $v_k + t\nabla f(v_k)$'nin kutuda kaldığı en büyük $t$. Bir koordinat sınıra dayanınca o koordinatı sabitleyip kalan koordinatlarla devam et.</li>
+      </ol>
+      <p>Durma kuralı da değişir: optimumda $\nabla f$ sıfır olmak zorunda değil. Bir koordinat alt sınırdaysa $\partial f/\partial x_i \le 0$, üst sınırdaysa $\ge 0$, içerideyse $= 0$ olmalı (max problemi için). Bu, Week 7'deki KKT koşullarının kutu kısıtlı özel hali.</p>
+    </div></details>
+    <!-- Kaynak: Winston §11.7 Problems, Group B, Problem 4 (pdf s.679). -->
+  </div>
+  <div class="quiz" id="q-impl-1">
+    <p class="quiz__q">Backtracking'li GD'nin bir iteration'ında, 3 deneme yapıldıysa kaç gradient değerlendirmesi gerekir?</p>
+    <button class="quiz__opt" data-correct>1<span class="why">Doğru: gradient sadece şu anki noktada lazım (yön ve eğim için). Denemeler sadece $f$ ister.</span></button>
+    <button class="quiz__opt">3<span class="why">Armijo kontrolünde deneme noktasındaki gradient kullanılmaz; o curvature condition'ın işi.</span></button>
+    <button class="quiz__opt">4<span class="why">Deneme başına gradient hesaplamak gereksiz maliyet.</span></button>
+    <button class="quiz__opt">0<span class="why">Yön $-\nabla f$ olduğu için en az bir gradient şart.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="final" data-min="4">
+  <h2>Son kontrol</h2>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">$f = \tfrac12 x^TQx$, $Q$'nun eigenvalue'ları 0.5 ve 4. Sabit $\alpha = 0.45$ ile GD ne yapar?</p>
+    <button class="quiz__opt" data-correct>Yakınsar; dik yönde işaret değiştirir, çarpan 0.8<span class="why">Doğru: çarpanlar $1 - 0.225 = 0.775$ ve $1 - 1.8 = -0.8$; $0.45 &lt; 2/4 = 0.5$.</span></button>
+    <button class="quiz__opt">Diverge eder, çünkü $\alpha &gt; 1/L = 0.25$<span class="why">$1/L$ güvenli seçim, sınır değil. Sınır $2/L = 0.5$.</span></button>
+    <button class="quiz__opt">Yakınsar, çarpan 0.775<span class="why">Hızı en kötü çarpan belirler: $\max(0.775, 0.8) = 0.8$.</span></button>
+    <button class="quiz__opt">İki nokta arasında zıplar<span class="why">Bu $\alpha = 2/\lambda_{\max} = 0.5$'te olur.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Bir arkadaşın quadratic bir problemde Armijo sabitini $c = 0.7$ seçiyor. Ne olur?</p>
+    <button class="quiz__opt" data-correct>Exact minimizer bile reddedilir; kabul edilen adımlar gereksiz kısa kalır<span class="why">Doğru: quadratic'te $\phi(\alpha^\star) = f - \tfrac12\alpha^\star\|g\|^2$, Armijo ise $f - 0.7\,\alpha^\star\|g\|^2$ istiyor.</span></button>
+    <button class="quiz__opt">Backtracking hiç bitmez<span class="why">Biter: $c &lt; 1$ olduğu sürece küçük $\alpha$ her zaman kabul edilir.</span></button>
+    <button class="quiz__opt">$f$'yi artıran adımlar kabul edilir<span class="why">$c &gt; 0$ ve $\nabla f^Td &lt; 0$ oldukça sağ taraf $f(x)$'in altında; artış kabul edilmez.</span></button>
+    <button class="quiz__opt">Hiçbir şey değişmez<span class="why">$c$ büyüdükçe koşul sıkılaşır; Boyd'un $c &lt; 1/2$ istemesinin sebebi bu.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">$f = \tfrac12 x^TQx - b^Tx$, $Q \succ 0$. Backtracking bir iteration'da $\alpha = 0.5$'i kabul etti ve bu değer $2/\lambda_{\max}$'a eşit. Başlangıç hatası $x_0 - x^\star$'ın $\lambda_{\max}$ eigenspace'indeki bileşeni sıfır değil. Her iteration'da $\alpha = 0.5$'i sabit kullanırsan ne olur?</p>
+    <button class="quiz__opt" data-correct>En dik eigen-yönde nokta sonsuza kadar zıplar, yakınsamaz<span class="why">Doğru: o yöndeki çarpan $1 - 0.5\lambda_{\max} = -1$. Armijo sadece o anki adımı denetler.</span></button>
+    <button class="quiz__opt">Yakınsar, çünkü Armijo'yu sağlayan adım iyi bir adımdır<span class="why">Armijo tek bir adımın yeterince azalttığını söyler; aynı adımı sonsuza kadar kullanmanın güvenli olduğunu söylemez.</span></button>
+    <button class="quiz__opt">Tek adımda minimuma gider<span class="why">Bu $\kappa = 1$ ve $\alpha = 1/\lambda$ iken olur.</span></button>
+    <button class="quiz__opt">Monoton yakınsar<span class="why">Çarpan $-1$ ise mutlak değeri 1, ne yakınsar ne kaçar.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Bütün eigenvalue'ları eşit olan ($\kappa = 1$) bir quadratic'te exact line search'lü GD kaç iteration'da $x^\star$'a varır?</p>
+    <button class="quiz__opt" data-correct>1<span class="why">Doğru: contour'lar çember, $-\nabla f$ tam merkeze bakar; Winston Example 29 ve Problem 2 bunun örneği.</span></button>
+    <button class="quiz__opt">2<span class="why">2 boyutta 2 adım, Newton'la ya da conjugate gradient'le karıştırılan bir sezgi; burada ilk adım yeter.</span></button>
+    <button class="quiz__opt">Sonsuz, sadece limitte<span class="why">$\kappa = 1$'de çarpan $(\kappa-1)/(\kappa+1) = 0$.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Bir yöntemin $f(x_k) - p^\star$ değerleri semilog grafikte düz bir çizgi üzerinde, eğim her adımda $\log_{10} 0.9$. Bu ne tür convergence?</p>
+    <button class="quiz__opt" data-correct>Linear, oran 0.9<span class="why">Doğru: semilog'da düz çizgi = sabit oranlı (geometrik) azalma. Gradient descent'in tipik davranışı.</span></button>
+    <button class="quiz__opt">Quadratic<span class="why">Quadratic'te semilog eğri giderek dikleşir, düz kalmaz.</span></button>
+    <button class="quiz__opt">Sublinear<span class="why">Sublinear'de oran 1'e yaklaşır, çizgi yataylaşır.</span></button>
+    <button class="quiz__opt">Superlinear<span class="why">Superlinear'de oran sıfıra gider; çizgi düz kalmaz.</span></button>
+  </div>
+  <!-- Sıradaki konu: Newton, BFGS ve Gauss–Newton. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* Shared helpers for this lesson's widgets */
+const GDL = {
+  num(v, d) {
+    if (d === undefined) d = 4;
+    if (!isFinite(v)) return v > 0 ? "∞" : "−∞";
+    const a = Math.abs(v);
+    let s;
+    if (a !== 0 && (a >= 1e6 || a < 1e-4)) s = v.toExponential(2);
+    else s = String(Math.round(v * Math.pow(10, d)) / Math.pow(10, d));
+    return s;
+  },
+  html(v, d) { return GDL.num(v, d).replace(/^-/, "−").replace("e-", "e−"); },
+  tex(v, d) {
+    if (!isFinite(v)) return v > 0 ? "\\infty" : "-\\infty";
+    const s = GDL.num(v, d);
+    if (s.indexOf("e") >= 0) {
+      const p = s.split("e");
+      return p[0] + "\\cdot 10^{" + Number(p[1]) + "}";
+    }
+    return s;
+  },
+  pairH(v, d) { return "(" + GDL.html(v[0], d) + ", " + GDL.html(v[1], d) + ")"; },
+  pairT(v, d) { return "(" + GDL.tex(v[0], d) + ", " + GDL.tex(v[1], d) + ")"; },
+  parseNum(str) {
+    const t = String(str).trim().replace(",", ".");
+    if (!/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(t)) return NaN;
+    return Number(t);
+  },
+  parsePair(str) {
+    const parts = String(str).trim().split(/[\s;,]+/).filter(Boolean);
+    if (parts.length !== 2) return null;
+    const a = GDL.parseNum(parts[0]), b = GDL.parseNum(parts[1]);
+    return isFinite(a) && isFinite(b) ? [a, b] : null;
+  },
+  dot(a, b) { return a[0] * b[0] + a[1] * b[1]; },
+  eig2(H) {
+    const T = H[0][0] + H[1][1], D = H[0][0] * H[1][1] - H[0][1] * H[1][0];
+    const r = Math.sqrt(Math.max(0, T * T / 4 - D));
+    return [T / 2 - r, T / 2 + r];
+  },
+  mv(H, x) { return [H[0][0] * x[0] + H[0][1] * x[1], H[1][0] * x[0] + H[1][1] * x[1]]; },
+  FUN: {
+    q: {
+      f: x => 0.5 * (3 * x[0] * x[0] + 2 * x[0] * x[1] + 2 * x[1] * x[1]) - 5 * x[0] - 5 * x[1],
+      g: x => [3 * x[0] + x[1] - 5, x[0] + 2 * x[1] - 5],
+      H: [[3, 1], [1, 2]], pstar: -7.5, x0: [0, 0], c: 0.1
+    },
+    twin: {
+      f: x => 2 * x[0] * x[0] + x[1] * x[1],
+      g: x => [4 * x[0], 2 * x[1]],
+      H: [[4, 0], [0, 2]], pstar: 0, x0: [1, 2], c: 0.1
+    },
+    bowl: {
+      f: x => x[0] * x[0] + x[1] * x[1],
+      g: x => [2 * x[0], 2 * x[1]],
+      H: [[2, 0], [0, 2]], pstar: 0, x0: [1.8, 1.6], c: 0.1
+    },
+    rosen: {
+      f: x => (1 - x[0]) * (1 - x[0]) + 100 * (x[1] - x[0] * x[0]) * (x[1] - x[0] * x[0]),
+      g: x => [-2 * (1 - x[0]) - 400 * x[0] * (x[1] - x[0] * x[0]), 200 * (x[1] - x[0] * x[0])],
+      H: null, pstar: 0, x0: [-1.2, 1], c: 1e-4
+    }
+  }
+};
+
+/* 1. GD playground on f = 1/2 (l1 x1^2 + l2 x2^2): every eigen-coordinate times (1 - alpha*l_i) */
+(function () {
+  const $ = id => document.getElementById(id);
+  const l1 = $("pg-l1"), l2 = $("pg-l2"), aR = $("pg-a"), aT = $("pg-at"), err = $("pg-err"), tab = $("pg-tab"), box = $("pg-step");
+  const X0 = [1.8, 1.6], K = 30, R = 2.6;
+  let timer = null;
+  function verdict(f) {
+    const a = Math.abs(f);
+    if (a < 1e-12) return "tek adımda sıfır";
+    if (a < 1) return f > 0 ? "monoton yakınsar" : "işaret değiştirerek yakınsar";
+    if (Math.abs(a - 1) < 1e-12) return "zıplar (çarpan " + (f > 0 ? "1" : "−1") + ")";
+    return "diverge";
+  }
+  function build(alpha) {
+    const L1 = Number(l1.value), L2 = Number(l2.value);
+    $("pg-l1v").textContent = L1; $("pg-l2v").textContent = L2;
+    $("pg-av").textContent = GDL.html(alpha, 3);
+    const lmin = Math.min(L1, L2), lmax = Math.max(L1, L2), kap = lmax / lmin;
+    const f1 = 1 - alpha * L1, f2 = 1 - alpha * L2, rho = Math.max(Math.abs(f1), Math.abs(f2));
+    tab.innerHTML = `<div class="table-wrap"><table><tr><th>eigen-yön</th><th>$\\lambda_i$</th><th>$1 - \\alpha\\lambda_i$</th><th>durum</th></tr>` +
+      `<tr><td>$x_1$</td><td>${L1}</td><td>${GDL.html(f1)}</td><td>${verdict(f1)}</td></tr>` +
+      `<tr><td>$x_2$</td><td>${L2}</td><td>${GDL.html(f2)}</td><td>${verdict(f2)}</td></tr></table></div>` +
+      `<p class="w-gradient-descent-verdict">$\\kappa = ${GDL.tex(kap, 3)}$ · sınır $2/\\lambda_{\\max} = ${GDL.tex(2 / lmax)}$ · en iyi $\\alpha^\\star = ${GDL.tex(2 / (lmin + lmax))}$ ile çarpan $(\\kappa-1)/(\\kappa+1) = ${GDL.tex((kap - 1) / (kap + 1))}$ · senin $\\alpha$'nın çarpanı $\\rho = ${GDL.tex(rho)}$` +
+      (rho > 1 + 1e-12 ? ` <span class="w-gradient-descent-no">⇒ diverge</span>` : Math.abs(rho - 1) < 1e-12 ? ` <span class="w-gradient-descent-no">⇒ yakınsamaz</span>` : ` <span class="w-gradient-descent-ok">⇒ yakınsar</span>`) + `</p>`;
+    Lab.renderMath(tab);
+    const pts = [X0.slice()];
+    for (let k = 0; k < K; k++) {
+      const p = pts[pts.length - 1];
+      const n = [f1 * p[0], f2 * p[1]];
+      pts.push(n);
+      const nn = Math.hypot(n[0], n[1]);
+      if (nn < 1e-7 || nn > 1e3) break;
+    }
+    const fv = p => 0.5 * (L1 * p[0] * p[0] + L2 * p[1] * p[1]);
+    const nrm = pts.map(p => Math.hypot(p[0], p[1]));
+    const frames = pts.map((p, k) => {
+      let cap = `$k = ${k}$: $x_{${k}} = ${GDL.pairT(p)}$, $f(x_{${k}}) = ${GDL.tex(fv(p))}$`;
+      if (k > 0) cap += `, $\\|x_{${k}}\\| / \\|x_{${k - 1}}\\| = ${GDL.tex(nrm[k] / nrm[k - 1])}$`;
+      if (k === pts.length - 1) {
+        if (nrm[k] > 1e3) cap += ". Nokta grafikten çok uzaklaştı: <b>diverge</b>.";
+        else if (nrm[k] < 1e-7) cap += ". Minimuma vardı.";
+        else if (rho >= 1 - 1e-12) cap += ". Yakınsamıyor.";
+        else cap += `. ${K} adım gösterildi.`;
+      }
+      return { k, caption: cap + "." };
+    });
+    const c = 160, s = 300 / (2 * R);
+    const sx = v => c + v * s, sy = v => c - v * s;
+    const f0 = fv(X0);
+    let ell = "";
+    [0.03, 0.12, 0.3, 0.6, 1, 1.6].forEach(m => {
+      const lev = m * f0;
+      ell += `<ellipse cx="${c}" cy="${c}" rx="${Math.sqrt(2 * lev / L1) * s}" ry="${Math.sqrt(2 * lev / L2) * s}" fill="none" stroke="var(--blue-300)" stroke-width="1" />`;
+    });
+    const lo = -7, hi = 3, W = 300, H = 200, px = 34, py = 10;
+    const kx = k => px + (k / K) * (W - px - 6), ky = v => py + (hi - Math.max(lo, Math.min(hi, v))) / (hi - lo) * (H - py - 22);
+    let grid = "";
+    for (let v = lo; v <= hi; v += 2) grid += `<line x1="${px}" x2="${W - 6}" y1="${ky(v)}" y2="${ky(v)}" stroke="var(--border)" /><text x="${px - 4}" y="${ky(v) + 4}" font-size="10" text-anchor="end" fill="var(--fg-muted)">${v}</text>`;
+    grid += `<text x="${(W + px) / 2}" y="${H - 4}" font-size="10" text-anchor="middle" fill="var(--fg-muted)">k</text>`;
+    const th0 = Math.log10(nrm[0]), lr = Math.log10(Math.max(rho, 1e-12));
+    const thLine = `<line x1="${kx(0)}" y1="${ky(th0)}" x2="${kx(K)}" y2="${ky(th0 + K * lr)}" stroke="var(--accent)" stroke-dasharray="5 4" stroke-width="1.5" />`;
+    Lab.stepper(box, {
+      title: `GD, λ = (${l1.value}, ${l2.value}), α = ${GDL.html(alpha, 3)}`,
+      interval: 650,
+      frames,
+      render(fr, idx, el) {
+        const vis = pts.slice(0, fr.k + 1);
+        const path = vis.map(p => `${sx(Math.max(-50, Math.min(50, p[0])))},${sy(Math.max(-50, Math.min(50, p[1])))}`).join(" ");
+        const cur = vis[vis.length - 1];
+        const inside = Math.abs(cur[0]) <= R && Math.abs(cur[1]) <= R;
+        let svg1 = `<svg viewBox="0 0 320 320" role="img" aria-label="Contour ve GD path"><defs><clipPath id="pg-clip"><rect x="10" y="10" width="300" height="300" /></clipPath></defs>` +
+          `<rect x="10" y="10" width="300" height="300" fill="none" stroke="var(--border)" />` +
+          `<line x1="10" x2="310" y1="${c}" y2="${c}" stroke="var(--border)" /><line y1="10" y2="310" x1="${c}" x2="${c}" stroke="var(--border)" />` +
+          `<g clip-path="url(#pg-clip)">${ell}<polyline points="${path}" fill="none" stroke="var(--accent)" stroke-width="2" />` +
+          vis.map((p, i) => `<circle cx="${sx(p[0])}" cy="${sy(p[1])}" r="${i === vis.length - 1 ? 5 : 2.6}" fill="${i === vis.length - 1 ? "var(--accent)" : "var(--blue-600)"}" />`).join("") +
+          `<circle cx="${c}" cy="${c}" r="3.5" fill="#2b8a3e" /></g>` +
+          `<text x="16" y="24" font-size="11" fill="var(--fg-muted)">x₁ ekseni: λ₁ = ${l1.value}</text>` +
+          (inside ? "" : `<text x="160" y="300" font-size="12" text-anchor="middle" fill="var(--orange-700)">nokta grafiğin dışında</text>`) + `</svg>`;
+        const lp = nrm.slice(0, fr.k + 1).map((v, k) => `${kx(k)},${ky(Math.log10(Math.max(v, 1e-12)))}`).join(" ");
+        let svg2 = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="log hata grafiği">${grid}${thLine}<polyline points="${lp}" fill="none" stroke="var(--blue-600)" stroke-width="2" />` +
+          nrm.slice(0, fr.k + 1).map((v, k) => `<circle cx="${kx(k)}" cy="${ky(Math.log10(Math.max(v, 1e-12)))}" r="2.4" fill="var(--blue-600)" />`).join("") + `</svg>`;
+        el.innerHTML = `<div class="w-gradient-descent-grid"><div class="w-gradient-descent-plot"><h4>Contour'lar ve path</h4>${svg1}</div>` +
+          `<div class="w-gradient-descent-plot"><h4>$\\log_{10}\\|x_k - x^\\star\\|$ (mavi), $\\rho^k$ tahmini (turuncu)</h4>${svg2}</div></div>`;
+      }
+    });
+  }
+  function fromInputs(useText) {
+    err.textContent = "";
+    let a = Number(aR.value);
+    if (useText) {
+      a = GDL.parseNum(aT.value);
+      if (!isFinite(a) || a <= 0 || a > 5) { err.textContent = "α için 0 ile 5 arasında pozitif bir sayı yaz (ör. 0.21)."; return; }
+      aR.value = Math.min(1.5, a);
+    } else aT.value = a;
+    build(a);
+  }
+  function soon(useText) { clearTimeout(timer); timer = setTimeout(() => fromInputs(useText), 120); }
+  [l1, l2, aR].forEach(el => el.addEventListener("input", () => soon(false)));
+  $("pg-go").addEventListener("click", () => fromInputs(true));
+  aT.addEventListener("keydown", e => { if (e.key === "Enter") fromInputs(true); });
+  document.querySelectorAll("[data-pga]").forEach(b => b.addEventListener("click", () => {
+    if (b.dataset.pga === "lab1") { l1.value = 2; l2.value = 2; aT.value = 0.3; fromInputs(true); return; }
+    const L1 = Number(l1.value), L2 = Number(l2.value), lmin = Math.min(L1, L2), lmax = Math.max(L1, L2);
+    const a = b.dataset.pga === "best" ? 2 / (lmin + lmax) : b.dataset.pga === "inv" ? 1 / lmax : 2 / lmax;
+    aT.value = String(a);
+    fromInputs(true);
+  }));
+  fromInputs(false);
+})();
+
+/* 2. Backtracking calculator: real trials, Armijo test, phi(alpha) plot */
+(function () {
+  const $ = id => document.getElementById(id);
+  const sel = $("bt-fn"), x0In = $("bt-x0"), a0In = $("bt-a0"), bIn = $("bt-beta"), cIn = $("bt-c"), err = $("bt-err"), box = $("bt-step");
+  function preset() {
+    const F = GDL.FUN[sel.value];
+    x0In.value = F.x0[0] + ", " + F.x0[1];
+    a0In.value = "1"; bIn.value = "0.5"; cIn.value = String(F.c);
+    run();
+  }
+  function run() {
+    err.textContent = "";
+    const F = GDL.FUN[sel.value];
+    const x = GDL.parsePair(x0In.value), a0 = GDL.parseNum(a0In.value), beta = GDL.parseNum(bIn.value), c = GDL.parseNum(cIn.value);
+    if (!x) { err.textContent = "x için iki sayı yaz, ör. 0, 0 ya da -1.2 1."; return; }
+    if (Math.abs(x[0]) > 100 || Math.abs(x[1]) > 100) { err.textContent = "Koordinatları −100 ile 100 arasında tut."; return; }
+    if (!(a0 > 0 && a0 <= 100)) { err.textContent = "α₀ pozitif olmalı (en çok 100)."; return; }
+    if (!(beta > 0 && beta < 1)) { err.textContent = "β, 0 ile 1 arasında olmalı."; return; }
+    if (!(c > 0 && c < 1)) { err.textContent = "c, 0 ile 1 arasında olmalı."; return; }
+    const g = F.g(x), f0 = F.f(x), d = [-g[0], -g[1]], s = GDL.dot(g, d);
+    if (Math.hypot(g[0], g[1]) < 1e-12) { err.textContent = "Bu noktada gradient sıfır: zaten stationary point, line search'e gerek yok."; return; }
+    if (c >= 0.5) err.textContent = "Uyarı: c ≥ 0.5. Boyd c < 0.5 ister; quadratic'te exact minimizer bile reddedilebilir.";
+    const trials = [];
+    let a = a0;
+    for (let j = 0; j < 80; j++) {
+      const xt = [x[0] + a * d[0], x[1] + a * d[1]], ft = F.f(xt), rhs = f0 + c * a * s;
+      const ok = isFinite(ft) && ft <= rhs;
+      trials.push({ j, a, xt, ft, rhs, ok });
+      if (ok) break;
+      a *= beta;
+    }
+    const last = trials[trials.length - 1];
+    if (!last.ok) { err.textContent = "80 denemede kabul edilen adım bulunamadı."; return; }
+    const acc = last.a;
+    const A = acc >= a0 / 8 ? a0 : Math.min(a0, acc * 4);
+    const phi = t => F.f([x[0] + t * d[0], x[1] + t * d[1]]);
+    const N = 160, samp = [];
+    for (let i = 0; i <= N; i++) { const t = A * i / N; samp.push([t, phi(t)]); }
+    let ymin = Math.min(...samp.map(p => p[1]), f0 + c * A * s);
+    let ymax = f0 + 0.35 * Math.max(1e-9, f0 - ymin);
+    if (!(ymax > ymin)) ymax = ymin + 1;
+    const W = 320, H = 220, px = 40, py = 10, pb = 26;
+    const sxp = t => px + (t / A) * (W - px - 8), syp = v => py + (ymax - v) / (ymax - ymin) * (H - py - pb);
+    const clampY = v => Math.max(ymin - 0.05 * (ymax - ymin), Math.min(ymax + 0.05 * (ymax - ymin), v));
+    const curve = samp.map(p => `${sxp(p[0])},${syp(clampY(p[1]))}`).join(" ");
+    let band = "";
+    for (let i = 0; i < N; i++) {
+      const t0 = samp[i][0], t1 = samp[i + 1][0];
+      if (samp[i][1] <= f0 + c * t0 * s && samp[i + 1][1] <= f0 + c * t1 * s) band += `<line x1="${sxp(t0)}" x2="${sxp(t1)}" y1="${H - pb + 6}" y2="${H - pb + 6}" stroke="#2b8a3e" stroke-width="5" />`;
+    }
+    const lineAt = (k, t) => syp(f0 + k * t * s);
+    const base = `<defs><clipPath id="bt-clip"><rect x="${px}" y="${py}" width="${W - px - 8}" height="${H - py - pb}" /></clipPath></defs>` +
+      `<rect x="${px}" y="${py}" width="${W - px - 8}" height="${H - py - pb}" fill="none" stroke="var(--border)" />` +
+      `<text x="${px - 4}" y="${syp(f0) + 4}" font-size="9" text-anchor="end" fill="var(--fg-muted)">f(x)</text>` +
+      `<text x="${px}" y="${H - 4}" font-size="10" fill="var(--fg-muted)">0</text><text x="${W - 8}" y="${H - 4}" font-size="10" text-anchor="end" fill="var(--fg-muted)">α = ${GDL.html(A, 5)}</text>` +
+      `<g clip-path="url(#bt-clip)"><line x1="${sxp(0)}" y1="${syp(f0)}" x2="${sxp(A)}" y2="${syp(f0)}" stroke="var(--border)" />` +
+      `<line x1="${sxp(0)}" y1="${syp(f0)}" x2="${sxp(A)}" y2="${lineAt(1, A)}" stroke="var(--fg-muted)" stroke-dasharray="4 4" />` +
+      `<line x1="${sxp(0)}" y1="${syp(f0)}" x2="${sxp(A)}" y2="${lineAt(c, A)}" stroke="var(--accent)" stroke-dasharray="6 4" stroke-width="1.6" />` +
+      `<polyline points="${curve}" fill="none" stroke="var(--blue-600)" stroke-width="2" /></g>` + band;
+    const isQ = !!F.H;
+    let exact = "", lim = "";
+    if (isQ) {
+      const Hg = GDL.mv(F.H, g), ae = GDL.dot(g, g) / GDL.dot(g, Hg), ev = GDL.eig2(F.H);
+      exact = ` Bu yönde exact adım $g^Tg/g^TQg = ${GDL.tex(ae)}$.`;
+      const r = Math.max(Math.abs(1 - acc * ev[0]), Math.abs(1 - acc * ev[1]));
+      lim = ` Sabit adım olarak $\\alpha = ${GDL.tex(acc)}$: sınır $2/\\lambda_{\\max} = ${GDL.tex(2 / ev[1])}$, çarpan $\\rho = ${GDL.tex(r)}$ ⇒ ` + (r < 1 - 1e-12 ? "yakınsardı." : (Math.abs(r - 1) < 1e-12 ? "<b>zıplardı, yakınsamazdı</b>" : "<b>diverge ederdi</b>") + " (başlangıç hatasının $|1 - \\alpha\\lambda_i| \\ge 1$ olan eigen-yönlerde bileşeni sıfır değilse).");
+    }
+    const frames = trials.map((t, i) => ({
+      upto: i,
+      caption: `Deneme ${t.j}: $\\alpha = ${GDL.tex(t.a, 6)}$, $f(x + \\alpha d) = ${GDL.tex(t.ft)}$, sağ taraf $${GDL.tex(f0)} + ${GDL.tex(c, 6)}\\cdot ${GDL.tex(t.a, 6)}\\cdot(${GDL.tex(s)}) = ${GDL.tex(t.rhs)}$ ⇒ ` +
+        (t.ok ? `<b>kabul</b>.` : `red, $\\alpha \\leftarrow ${GDL.tex(beta, 6)}\\,\\alpha$.`)
+    }));
+    frames.push({ upto: trials.length - 1, final: true,
+      caption: `Sonuç: ${trials.length} denemede $\\alpha = ${GDL.tex(acc, 6)}$ kabul edildi. Yeni nokta $${GDL.pairT(last.xt)}$, $f$: $${GDL.tex(f0)} \\to ${GDL.tex(last.ft)}$.${exact}${lim}` });
+    const head = `<p class="w-gradient-descent-mono">x = ${GDL.pairH(x)} · f(x) = ${GDL.html(f0)} · ∇f(x) = ${GDL.pairH(g)} · d = −∇f · ∇f(x)ᵀd = ${GDL.html(s)}</p>`;
+    Lab.stepper(box, {
+      title: "Backtracking trial tablosu",
+      interval: 1300,
+      frames,
+      render(fr, idx, el) {
+        let rows = "";
+        trials.forEach((t, i) => {
+          if (i > fr.upto) return;
+          const cur = i === fr.upto && !fr.final;
+          rows += `<tr class="${cur ? "w-gradient-descent-cur" : ""}"><td>${t.j}</td><td>${GDL.html(t.a, 6)}</td><td>${GDL.pairH(t.xt)}</td><td>${GDL.html(t.ft)}</td><td>${GDL.html(t.rhs)}</td><td>${t.ok ? '<span class="w-gradient-descent-ok">kabul</span>' : '<span class="w-gradient-descent-no">red</span>'}</td></tr>`;
+        });
+        let marks = "";
+        trials.forEach((t, i) => {
+          if (i > fr.upto) return;
+          const col = t.ok ? "#2b8a3e" : "var(--orange-700)";
+          if (t.a > A * (1 + 1e-9)) {
+            marks += `<text x="${W - 12}" y="${py + 12 + 11 * i}" font-size="9" text-anchor="end" fill="${col}">α = ${GDL.html(t.a, 6)} → sağda</text>`;
+          } else {
+            const yy = syp(Math.max(ymin, Math.min(ymax, t.ft)));
+            marks += `<line x1="${sxp(t.a)}" x2="${sxp(t.a)}" y1="${py}" y2="${H - pb}" stroke="${col}" stroke-dasharray="2 3" /><circle cx="${sxp(t.a)}" cy="${yy}" r="4.5" fill="${col}" />`;
+          }
+        });
+        el.innerHTML = head + `<div class="w-gradient-descent-grid"><div class="w-gradient-descent-plot"><h4>$\\phi(\\alpha) = f(x + \\alpha d)$</h4><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="phi(alpha) grafiği">${base}${marks}</svg>` +
+          `<div class="w-gradient-descent-legend"><span><i style="background:var(--blue-600)"></i>φ(α)</span><span><i style="background:var(--accent)"></i>Armijo doğrusu</span><span><i style="background:var(--fg-muted)"></i>tangent</span><span><i style="background:#2b8a3e"></i>kabul bölgesi</span></div></div>` +
+          `<div class="table-wrap"><table><tr><th>j</th><th>α</th><th>x + αd</th><th>f(x + αd)</th><th>sağ taraf</th><th>karar</th></tr>${rows}</table></div></div>`;
+      }
+    });
+  }
+  sel.addEventListener("change", preset);
+  $("bt-go").addEventListener("click", run);
+  [x0In, a0In, bIn, cIn].forEach(el => el.addEventListener("keydown", e => { if (e.key === "Enter") run(); }));
+  run();
+})();
+
+/* 3. Race: fixed vs exact vs backtracking, real runs, semilog plot */
+(function () {
+  const $ = id => document.getElementById(id);
+  const sel = $("rc-fn"), kR = $("rc-k"), aIn = $("rc-a"), err = $("rc-err"), out = $("rc-out"), svg = $("rc-svg"), krow = $("rc-krow");
+  const MAX = 20000;
+  function problem() {
+    if (sel.value === "kq") {
+      const k = Number(kR.value);
+      return { f: x => 0.5 * (x[0] * x[0] + k * x[1] * x[1]), g: x => [x[0], k * x[1]], H: [[1, 0], [0, k]], pstar: 0, x0: [k, 1], tol: 1e-6, L: k };
+    }
+    if (sel.value === "q") { const F = GDL.FUN.q; return { f: F.f, g: F.g, H: F.H, pstar: F.pstar, x0: [0, 0], tol: 1e-6, L: GDL.eig2(F.H)[1] }; }
+    const F = GDL.FUN.rosen; return { f: F.f, g: F.g, H: null, pstar: 0, x0: [-1.2, 1], tol: 1e-3, L: null };
+  }
+  /* Rosenbrock along x + t d is a quartic in t, so phi'(t) is a cubic. phi can have two local minima
+     on the ray; the exact step is the positive root of phi' with the lowest phi. */
+  function rosenExact(P, x, d) {
+    const s = 1 - x[0], u = x[1] - x[0] * x[0], v = d[1] - 2 * x[0] * d[0], w = -d[0] * d[0];
+    const c = [400 * w * w, 600 * v * w, 200 * (2 * u * w + v * v) + 2 * d[0] * d[0], 200 * u * v - 2 * d[0] * s];
+    const dphi = t => ((c[0] * t + c[1]) * t + c[2]) * t + c[3];
+    const lead = c.find(z => z !== 0);
+    const R = 1 + Math.max(...c.map(z => Math.abs(z / lead)));
+    const A = 3 * c[0], B = 2 * c[1], C = c[2], cuts = [0];
+    if (A !== 0) {
+      const D = B * B - 4 * A * C;
+      if (D > 0) [(-B - Math.sqrt(D)) / (2 * A), (-B + Math.sqrt(D)) / (2 * A)].sort((p, q) => p - q).forEach(t => { if (t > 0 && t < R) cuts.push(t); });
+    } else if (B !== 0 && -C / B > 0 && -C / B < R) cuts.push(-C / B);
+    cuts.push(R);
+    const phi = t => P.f([x[0] + t * d[0], x[1] + t * d[1]]);
+    let best = null;
+    for (let i = 0; i + 1 < cuts.length; i++) {
+      let lo = cuts[i], hi = cuts[i + 1], flo = dphi(lo);
+      if (flo * dphi(hi) > 0) continue;
+      for (let j = 0; j < 200 && hi - lo > 1e-16 * (1 + hi); j++) {
+        const mid = (lo + hi) / 2, fm = dphi(mid);
+        if (fm * flo > 0) { lo = mid; flo = fm; } else hi = mid;
+      }
+      const t = (lo + hi) / 2;
+      if (t > 0 && (best === null || phi(t) < phi(best))) best = t;
+    }
+    return best;
+  }
+  function runOne(P, rule, alpha) {
+    let x = P.x0.slice(), hist = [P.f(x) - P.pstar], k = 0, status = "";
+    for (; k < MAX; k++) {
+      const g = P.g(x);
+      if (Math.hypot(g[0], g[1]) <= P.tol) { status = "ok"; break; }
+      const d = [-g[0], -g[1]], fx = P.f(x);
+      let a;
+      if (rule === "fixed") a = alpha;
+      else if (rule === "exact") {
+        if (P.H) a = GDL.dot(g, g) / GDL.dot(g, GDL.mv(P.H, g));
+        else a = rosenExact(P, x, d);
+      } else {
+        a = 1; const sl = GDL.dot(g, d);
+        while (P.f([x[0] + a * d[0], x[1] + a * d[1]]) > fx + 1e-4 * a * sl) a *= 0.5;
+      }
+      x = [x[0] + a * d[0], x[1] + a * d[1]];
+      const fv = P.f(x);
+      if (!isFinite(fv) || Math.abs(x[0]) > 1e8 || Math.abs(x[1]) > 1e8) { status = "div"; k++; break; }
+      hist.push(fv - P.pstar);
+    }
+    if (!status) status = "max";
+    return { k, x, hist, status };
+  }
+  function draw(runs) {
+    const W = 320, H = 210, px = 34, py = 8, pb = 22;
+    let maxK = 1;
+    runs.forEach(r => { maxK = Math.max(maxK, r.hist.length - 1); });
+    let lo = 0, hi = 0;
+    runs.forEach(r => r.hist.forEach(v => { const l = Math.log10(Math.max(v, 1e-16)); if (isFinite(l)) { lo = Math.min(lo, l); hi = Math.max(hi, l); } }));
+    lo = Math.max(-16, Math.floor(lo)); hi = Math.min(12, Math.ceil(hi)); if (hi <= lo) hi = lo + 1;
+    const sx = k => px + (k / maxK) * (W - px - 8), sy = v => py + (hi - Math.max(lo, Math.min(hi, v))) / (hi - lo) * (H - py - pb);
+    let s = "";
+    const step = Math.max(1, Math.ceil((hi - lo) / 6));
+    for (let v = lo; v <= hi; v += step) s += `<line x1="${px}" x2="${W - 8}" y1="${sy(v)}" y2="${sy(v)}" stroke="var(--border)" /><text x="${px - 4}" y="${sy(v) + 3}" font-size="9" text-anchor="end" fill="var(--fg-muted)">${v}</text>`;
+    s += `<text x="${px}" y="${H - 6}" font-size="9" fill="var(--fg-muted)">0</text><text x="${W - 8}" y="${H - 6}" font-size="9" text-anchor="end" fill="var(--fg-muted)">k = ${maxK}</text>`;
+    const cols = { fixed: "var(--fg-muted)", exact: "var(--blue-600)", bt: "var(--accent)" };
+    runs.forEach(r => {
+      const n = r.hist.length, stride = Math.max(1, Math.ceil(n / 400));
+      const pts = [];
+      for (let i = 0; i < n; i += stride) pts.push(`${sx(i)},${sy(Math.log10(Math.max(r.hist[i], 1e-16)))}`);
+      pts.push(`${sx(n - 1)},${sy(Math.log10(Math.max(r.hist[n - 1], 1e-16)))}`);
+      s += `<polyline points="${pts.join(" ")}" fill="none" stroke="${cols[r.key]}" stroke-width="2" />`;
+    });
+    svg.innerHTML = s;
+  }
+  function defaultAlpha() {
+    const P = problem();
+    aIn.value = P.L ? String(Math.round(1e6 / P.L) / 1e6) : "0.001";
+  }
+  function race() {
+    err.textContent = "";
+    krow.style.display = sel.value === "kq" ? "" : "none";
+    $("rc-kv").textContent = kR.value;
+    const a = GDL.parseNum(aIn.value);
+    if (!(a > 0 && a <= 10)) { err.textContent = "Sabit α için 0 ile 10 arasında pozitif bir sayı yaz."; return; }
+    const P = problem();
+    const runs = [
+      Object.assign(runOne(P, "fixed", a), { key: "fixed", name: `sabit α = ${GDL.html(a, 6)}` }),
+      Object.assign(runOne(P, "exact"), { key: "exact", name: P.H ? "exact (kapalı form)" : "exact (cubic'in kökleri)" }),
+      Object.assign(runOne(P, "bt"), { key: "bt", name: "backtracking" })
+    ];
+    const st = r => r.status === "ok" ? `<span class="w-gradient-descent-ok">${r.k}</span>` : r.status === "div" ? `<span class="w-gradient-descent-no">diverge (${r.k}. adım)</span>` : `<span class="w-gradient-descent-no">&gt; ${MAX}</span>`;
+    let extra = "";
+    if (P.L) {
+      const ev = GDL.eig2(P.H), kap = ev[1] / ev[0];
+      extra = `<p class="src">$\\kappa = ${GDL.tex(kap, 3)}$, $L = \\lambda_{\\max} = ${GDL.tex(ev[1])}$, sabit adım sınırı $2/L = ${GDL.tex(2 / ev[1])}$. Exact line search'te en kötü durum $f$ çarpanı $((\\kappa-1)/(\\kappa+1))^2 = ${GDL.tex(Math.pow((kap - 1) / (kap + 1), 2))}$.</p>`;
+    }
+    out.innerHTML = `<div class="table-wrap"><table><tr><th>yöntem</th><th>iteration</th><th>son $f - p^\\star$</th><th>son $x$</th></tr>` +
+      runs.map(r => `<tr><td>${r.name}</td><td>${st(r)}</td><td>${GDL.html(r.hist[r.hist.length - 1])}</td><td>${GDL.pairH(r.x)}</td></tr>`).join("") + `</table></div>` + extra;
+    Lab.renderMath(out);
+    draw(runs);
+  }
+  sel.addEventListener("change", () => { defaultAlpha(); race(); });
+  kR.addEventListener("input", () => { $("rc-kv").textContent = kR.value; });
+  kR.addEventListener("change", () => { defaultAlpha(); race(); });
+  $("rc-l").addEventListener("click", () => { defaultAlpha(); race(); });
+  $("rc-go").addEventListener("click", race);
+  aIn.addEventListener("keydown", e => { if (e.key === "Enter") race(); });
+  defaultAlpha();
+  race();
+})();
+</script>
+</body>
+</html>

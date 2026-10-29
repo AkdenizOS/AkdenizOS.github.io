@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 413: Newton step, Newton decrement, damped Newton ve backtracking, quadratic convergence, affine invariance, Hessian modification, secant condition, BFGS, L-BFGS, Gauss–Newton, Levenberg–Marquardt ve method race." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Newton, BFGS ve Gauss–Newton · CSE 413 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=7" />
+  <style>
+    .w-newton-quasi-newton-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-newton-quasi-newton-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-newton-quasi-newton-ctl input[type="text"] { width: 74px; }
+    .w-newton-quasi-newton-ctl select { max-width: 100%; }
+    .w-newton-quasi-newton-ctl label { font-family: 'JetBrains Mono', monospace; font-size: .88rem; font-weight: 700; }
+    .w-newton-quasi-newton-mat { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 8px 0; }
+    .w-newton-quasi-newton-mat fieldset { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 6px 10px 8px; margin: 0; min-width: 0; }
+    .w-newton-quasi-newton-mat legend { font-size: .85rem; font-weight: 700; color: var(--fg-brand); padding: 0 4px; }
+    .w-newton-quasi-newton-mat .row { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+    .w-newton-quasi-newton-mat .row span { font-family: 'JetBrains Mono', monospace; font-size: .82rem; min-width: 30px; }
+    .w-newton-quasi-newton-mat input[type="text"] { width: 70px; }
+    .w-newton-quasi-newton-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-newton-quasi-newton-ok { color: #2b8a3e; font-weight: 700; }
+    .w-newton-quasi-newton-bad { color: var(--orange-700); font-weight: 700; }
+    .w-newton-quasi-newton-out { font-size: .93rem; min-width: 0; overflow-x: auto; }
+    .w-newton-quasi-newton-out table { font-size: .88rem; }
+    .w-newton-quasi-newton-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; align-items: start; }
+    .w-newton-quasi-newton-plot { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); padding: 6px; min-width: 0; }
+    .w-newton-quasi-newton-plot svg { display: block; width: 100%; height: auto; }
+    .w-newton-quasi-newton-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: .82rem; margin-top: 4px; }
+    .w-newton-quasi-newton-legend i { display: inline-block; width: 16px; height: 4px; vertical-align: middle; margin-right: 4px; border-radius: 2px; }
+    .w-newton-quasi-newton-mono { font-family: 'JetBrains Mono', monospace; font-size: .85rem; }
+    .w-newton-quasi-newton-log { max-height: 320px; overflow: auto; }
+    /* KaTeX keeps a hidden absolutely positioned MathML copy; a positioned scroll box keeps it from widening the page */
+    .w-newton-quasi-newton-tw, .w-newton-quasi-newton-out { position: relative; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 413</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 413</a> / Newton, BFGS ve Gauss–Newton</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L10</span><span class="chip chip--exam">Vize · Week 6</span><span class="chip">Lab 1 · Lab 6</span><span class="src">~60 dk · 12 bölüm</span></div>
+          <h1>Newton, BFGS ve Gauss–Newton</h1>
+          <p class="lead">Gradient descent fonksiyonun doğrusal modeline bakar ve adım boyunu tahmin etmek zorundadır. Newton's method ikinci dereceden (quadratic) modeli kurar ve doğrudan onun dibine atlar. Bu derste Newton step'i, Newton decrement'i, backtracking'li (damped) Newton'u, quadratic convergence'ı ve Hessian positive definite olmadığında ne olduğunu göreceksin. Sonra Hessian'ı hiç hesaplamadan aynı hıza yaklaşan quasi-Newton yöntemlerine geçeceğiz: secant condition, BFGS, L-BFGS. Son olarak least squares problemleri için Gauss–Newton ve Levenberg–Marquardt, ve hangi problemde hangi yöntemin seçileceği.</p>
+          <p class="src">Not: Bu haftanın (Week 6) slaytları ve Lab 6 notebook'u repoda yok; konu Boyd–Vandenberghe §9.5 (ve bv_cvxslides 9.20–9.39), Nocedal–Wright §3.3–3.4, §6.1, §7.2, §10.3 ve hocanın Lab 1 notebook'u (Section 6, Exercise 4) üzerinden anlatıldı. Hoca derste başka bir gösterim ya da başka örnekler kullanmış olabilir.</p>
+          <!-- Kaynak: syllabus (27G_CSE413_5013_Optimization_Theory_Syllabus.pdf) Week 6 satırı: "Unconstrained optimization II: Newton, quasi-Newton (BFGS, L-BFGS), Gauss–Newton | Method race; a tour of scipy.optimize" · Week_01.pdf s.19 (problem class tablosu) · Lab01.ipynb Section 6 (hücre 24–26) ve Exercise 4 (hücre 28) · Boyd–Vandenberghe §9.5.1–9.5.4 (pdf s.498–510), §9.7 (implementation) · bv_cvxslides 9.20–9.39 (pdf s.306–322) · Nocedal–Wright Teorem 3.5, §3.4 (Algoritma 3.2, 3.3, (3.38)–(3.42)), §6.1 ((6.1)–(6.20), Algoritma 6.1), §7.2 (Algoritma 7.4, 7.5, (7.20)), §10.1 ve §10.3 ((10.1)–(10.5), (10.23)–(10.26), (10.31)–(10.34)) · weeks/06-unconstrained-newton-quasi-newton.md (Efe'nin notları boş) · exams/README.md ("Derive the Newton step and the Newton decrement"). -->
+        </header>
+
+        <article class="lesson" data-course="cse-413" data-lesson="newton-quasi-newton">
+
+<!-- 1 -->
+<section class="lsec" id="step" data-min="5">
+  <h2>Newton step: quadratic model'in dibine atlamak</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Hessian dersindeki second-order Taylor model'ini hatırla. Bulunduğun noktada fonksiyonu bir paraboloid ile taklit ediyorsun. Paraboloid'in dibi tek bir lineer sistemle bulunur. Newton's method her iteration'da bu dibe gider, sonra yeni noktada yeni bir model kurar.</p>
+    <p>Tek değişkende: $m(v) = f(x) + f'(x)\,v + \tfrac12 f''(x)\,v^2$. Türevi sıfıra eşitle: $f'(x) + f''(x)\,v = 0$, yani $v = -f'(x)/f''(x)$. Örnek: $f(x) = e^x - 2x$, $x = 0$. $f'(0) = -1$, $f''(0) = 1$, adım $v = 1$, yeni nokta $x = 1$. Gradient descent'te bu adımın boyunu sen seçerdin. Newton'da boyu da yönü de eğrilik belirler.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanım · Newton step (Boyd §9.5.1)</span>
+    $$\Delta x_{nt} = -\nabla^2 f(x)^{-1}\,\nabla f(x) \qquad\Longleftrightarrow\qquad \nabla^2 f(x)\,\Delta x_{nt} = -\nabla f(x)$$
+    <p>Elle de bilgisayarda da sağdaki lineer sistemi çözersin; matrix'in inverse'ünü açıkça hesaplamazsın. Boyd aynı step için üç yorum verir:</p>
+    <ol>
+      <li><strong>Quadratic model'in minimizer'ı.</strong> $x + \Delta x_{nt}$, $\hat f(x+v) = f(x) + \nabla f(x)^Tv + \tfrac12 v^T\nabla^2 f(x)\,v$ modelini minimize eder.</li>
+      <li><strong>Linearized optimality condition.</strong> $\nabla f(x+v) \approx \nabla f(x) + \nabla^2 f(x)\,v = 0$ denkleminin çözümüdür. Yani Newton, $\nabla f = 0$ denklemine uygulanmış root-finding yöntemidir.</li>
+      <li><strong>Hessian norm'unda steepest descent.</strong> $\|u\|_{\nabla^2 f(x)} = (u^T\nabla^2 f(x)\,u)^{1/2}$ norm'unda en dik iniş yönüdür.</li>
+    </ol>
+    <p><strong>Descent direction mı?</strong> $\nabla^2 f(x) \succ 0$ ise $\nabla f(x)^T\Delta x_{nt} = -\nabla f(x)^T\nabla^2 f(x)^{-1}\nabla f(x) &lt; 0$, $\nabla f(x) \ne 0$ olduğu sürece. Hessian positive definite değilse bu garanti kaybolur (Bölüm 6).</p>
+  </div>
+  <!-- Kaynak: Boyd §9.5.1 (pdf s.498–499), bv_cvxslides 9.20–9.22. -->
+  <div class="box box--example">
+    <span class="box__label">Örnek · Lab 2'nin quadratic'i: $f = x^2 + xy + 2y^2$, $x_0 = (2, 1)$</span>
+    <p>$\nabla f = (2x + y,\; x + 4y) = (5, 6)$ ve $\nabla^2 f = \begin{pmatrix} 2 & 1 \\ 1 & 4 \end{pmatrix}$, $\det = 7$.</p>
+    <p>Sistem: $\begin{pmatrix} 2 & 1 \\ 1 & 4 \end{pmatrix}\Delta x = -\begin{pmatrix} 5 \\ 6 \end{pmatrix}$. 2×2 inverse formülüyle $\nabla^2 f^{-1}\nabla f = \tfrac17\begin{pmatrix} 4 & -1 \\ -1 & 2 \end{pmatrix}\begin{pmatrix} 5 \\ 6 \end{pmatrix} = \tfrac17\begin{pmatrix} 14 \\ 7 \end{pmatrix} = \begin{pmatrix} 2 \\ 1 \end{pmatrix}$.</p>
+    <p>$\Delta x_{nt} = (-2, -1)$, yeni nokta $x_1 = (0, 0)$. Bu, $f$'nin tam minimizer'ı. Neden tek adım? $f$ quadratic olduğu için Taylor modeli $\hat f$ fonksiyonun kendisi; modelin dibi fonksiyonun dibi. Bu, $\kappa$ ne kadar büyük olursa olsun geçerlidir.</p>
+  </div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Eksi işaretini unutma. $+\nabla^2 f^{-1}\nabla f$ yokuş yukarı gider.</li>
+      <li>Köşegene bölüp geçme: $(-5/2,\ -6/4)$ Newton step değil. Köşegen dışı terim sistemin parçası.</li>
+      <li>Hessian'ı her iteration'da <strong>o anki noktada</strong> yeniden hesapla. Quadratic olmayan fonksiyonda $\nabla^2 f$ değişir.</li>
+      <li>"Tek adımda biter" sadece quadratic için doğru. Quadratic olmayan fonksiyonda Newton birkaç iteration sürer (Bölüm 4).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-step-1">
+    <p class="quiz__q">$f(x, y) = x^2 + 2xy + 3y^2$, $x_0 = (1, 1)$. Newton step $\Delta x_{nt}$ hangisi?</p>
+    <button class="quiz__opt" data-correct>$(-1, -1)$<span class="why">Doğru. $\nabla f = (4, 8)$, $\nabla^2 f = \begin{pmatrix} 2 & 2 \\ 2 & 6 \end{pmatrix}$, $\det = 8$. $\nabla^2 f^{-1}\nabla f = \tfrac18(6\cdot4 - 2\cdot8,\ -2\cdot4 + 2\cdot8) = (1, 1)$. Yeni nokta origin, yani minimizer.</span></button>
+    <button class="quiz__opt">$(-4, -8)$<span class="why">Bu $-\nabla f$, yani $t = 1$ ile gradient descent adımı. Newton gradient'i Hessian'ın inverse'üyle çarpar.</span></button>
+    <button class="quiz__opt">$(-2, -4/3)$<span class="why">Her bileşeni köşegen elemanına böldün: $4/2$ ve $8/6$. Bu, köşegen dışı $2xy$ terimini yok saymak demek.</span></button>
+    <button class="quiz__opt">$(1, 1)$<span class="why">$\nabla^2 f^{-1}\nabla f$'yi doğru buldun ama eksiyi unuttun. Bu adım $f$'yi artırır: $f(2,2) = 24 &gt; f(1,1) = 6$.</span></button>
+  </div>
+  <div class="quiz" id="q-step-2">
+    <p class="quiz__q">$f(x) = \tfrac12 x^TQx - b^Tx$, $Q \succ 0$ ve $\kappa(Q) = 10^4$. Pure Newton ($t = 1$) herhangi bir $x_0$'dan kaç iteration'da minimizer'a ulaşır?</p>
+    <button class="quiz__opt" data-correct>1<span class="why">Doğru. $\nabla f = Qx - b$, $\nabla^2 f = Q$. $x_1 = x_0 - Q^{-1}(Qx_0 - b) = Q^{-1}b = x^*$. Condition number bu sonucu değiştirmez.</span></button>
+    <button class="quiz__opt">$\kappa$ ile orantılı, yani binlerce<span class="why">Bu gradient descent'in davranışı. Newton Hessian'la ölçeklediği için kanyonun şeklini zaten hesaba katar.</span></button>
+    <button class="quiz__opt">$n$, yani boyut kadar<span class="why">$n$ adımda biten yöntem conjugate gradient. Newton quadratic'te tek adımda biter.</span></button>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="lsec" id="decrement" data-min="6">
+  <h2>Newton decrement: minimum'a ne kadar kaldı?</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Algoritmanın "artık yeter" demesi gerek. $f(x) - p^\star$'ı bilmiyoruz, çünkü $p^\star$ bilinmiyor. Ama quadratic model'in kendi minimum'unu biliyoruz: model "dibine kadar $\tfrac12\lambda^2$ daha inebilirsin" der. Bu sayıya bakarak durursun.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Tanım · Newton decrement (Boyd §9.5.1)</span>
+    $$\lambda(x) = \left(\nabla f(x)^T\,\nabla^2 f(x)^{-1}\,\nabla f(x)\right)^{1/2}$$
+    <p>Aynı sayının dört yüzü:</p>
+    <ul>
+      <li>$\lambda^2 = \nabla f^T\nabla^2 f^{-1}\nabla f = \Delta x_{nt}^T\,\nabla^2 f\,\Delta x_{nt}$: Newton step'in Hessian norm'undaki uzunluğunun karesi.</li>
+      <li>$\nabla f(x)^T\Delta x_{nt} = -\lambda(x)^2$: Newton yönündeki directional derivative. Backtracking bu sayıyı kullanır.</li>
+      <li>$f(x) - \inf_y \hat f(y) = f(x) - \hat f(x + \Delta x_{nt}) = \tfrac12\lambda(x)^2$: model'in öngördüğü azalma (predicted decrease), yani $f(x) - p^\star$ için bir tahmin.</li>
+      <li><strong>Stopping criterion:</strong> $\lambda^2/2 \le \epsilon$ ise dur.</li>
+    </ul>
+    <p>$\lambda$, Newton step gibi affine invariant'tır (Bölüm 5). $\|\nabla f\|_2$ değildir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Türetme · sınav cevabı biçiminde</span>
+    <p>$\hat f(x + v) = f(x) + g^Tv + \tfrac12 v^THv$, $g = \nabla f(x)$, $H = \nabla^2 f(x) \succ 0$.</p>
+    <ol>
+      <li>$\hat f$ convex quadratic, minimum'da gradient'i sıfır: $g + Hv = 0 \Rightarrow v = -H^{-1}g = \Delta x_{nt}$.</li>
+      <li>Yerine koy: $g^T\Delta x_{nt} = -g^TH^{-1}g = -\lambda^2$ ve $\tfrac12\Delta x_{nt}^TH\Delta x_{nt} = \tfrac12 g^TH^{-1}HH^{-1}g = \tfrac12\lambda^2$.</li>
+      <li>$\hat f(x + \Delta x_{nt}) = f(x) - \lambda^2 + \tfrac12\lambda^2 = f(x) - \tfrac12\lambda^2$. $\blacksquare$</li>
+    </ol>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · tahmin ile gerçek</span>
+    <p><strong>Quadratic.</strong> Bölüm 1'deki $f = x^2 + xy + 2y^2$, $x_0 = (2,1)$: $\lambda^2 = \nabla f^T(\nabla^2 f^{-1}\nabla f) = (5, 6)\cdot(2, 1) = 16$, $\lambda^2/2 = 8$. Gerçekten $f(2,1) - p^\star = 8 - 0 = 8$. Quadratic'te tahmin tam doğru.</p>
+    <p><strong>Quadratic olmayan.</strong> $g(x,y) = x^4 + xy + 2y^2$, $x_0 = (1,1)$: $\nabla g = (4x^3 + y,\ x + 4y) = (5, 5)$, $\nabla^2 g = \begin{pmatrix} 12x^2 & 1 \\ 1 & 4 \end{pmatrix} = \begin{pmatrix} 12 & 1 \\ 1 & 4 \end{pmatrix}$, $\det = 47$.</p>
+    <div class="table-wrap w-newton-quasi-newton-tw"><table>
+      <tr><th>Büyüklük</th><th>Kesir</th><th>Ondalık</th></tr>
+      <tr><td>$\Delta x_{nt}$</td><td>$(-\tfrac{15}{47},\ -\tfrac{55}{47})$</td><td>$(-0.3191,\ -1.1702)$</td></tr>
+      <tr><td>$\lambda^2 = -\nabla g^T\Delta x_{nt}$</td><td>$\tfrac{350}{47}$</td><td>$7.4468$</td></tr>
+      <tr><td>predicted decrease $\lambda^2/2$</td><td>$\tfrac{175}{47}$</td><td>$3.7234$</td></tr>
+      <tr><td>$x_0 + \Delta x_{nt}$</td><td>$(\tfrac{32}{47},\ -\tfrac{8}{47})$</td><td>$(0.6809,\ -0.1702)$</td></tr>
+      <tr><td>actual decrease $g(x_0) - g(x_1)$</td><td></td><td>$4 - 0.1569 = 3.8431$</td></tr>
+    </table></div>
+    <p>Model azalmayı biraz düşük tahmin etti, çünkü $x^4$ teriminin eğriliği $x$ küçüldükçe azalıyor. Minimizer $(\tfrac14, -\tfrac1{16})$, $p^\star = -\tfrac1{256}$; yani $g(x_0) - p^\star = 4.0039$.</p>
+  </div>
+  <!-- Kaynak: Boyd §9.5.1 (9.29), (9.30), pdf s.500–501; bv_cvxslides 9.23. Sayılar python (fractions) ile kontrol edildi. -->
+  <h3>Kendin dene: 2×2 Newton hesaplayıcısı</h3>
+  <p>$\nabla f$ ve simetrik $\nabla^2 f$'yi gir ya da hazır bir fonksiyon seç. Hesaplayıcı lineer sistemi kesirlerle tam çözer; $\Delta x_{nt}$, $\lambda^2$, $\lambda$, $\lambda^2/2$'yi ve $\nabla^2 f\,\Delta x_{nt} + \nabla f = 0$ kontrolünü gösterir. Hazır fonksiyonda gerçek azalmayı da hesaplar. Kesir için <code>3/4</code>, ondalık için <code>0.75</code> yazabilirsin.</p>
+  <p class="w-newton-quasi-newton-guess"><b>Önce tahmin et:</b> $g = x^4 + xy + 2y^2$'de $(0.1, 0.1)$ noktasını seç. Hessian positive definite mi? $\lambda^2$ pozitif çıkar mı?</p>
+  <div class="w-newton-quasi-newton-ctl">
+    <select id="wc-preset" class="btn btn--sm" aria-label="hazır fonksiyon">
+      <option value="lab2">Lab 2: x² + xy + 2y², (2, 1)</option>
+      <option value="quart" selected>x⁴ + xy + 2y², (1, 1)</option>
+      <option value="quart01">x⁴ + xy + 2y², (0.1, 0.1)</option>
+      <option value="boyd">Boyd (9.20), (−1, 1)</option>
+      <option value="manual">Elle gir</option>
+    </select>
+  </div>
+  <div class="w-newton-quasi-newton-mat">
+    <fieldset><legend>∇f(x)</legend>
+      <div class="row"><span>g₁</span><input type="text" id="wc-g1" aria-label="g1" /></div>
+      <div class="row"><span>g₂</span><input type="text" id="wc-g2" aria-label="g2" /></div>
+    </fieldset>
+    <fieldset><legend>∇²f(x)</legend>
+      <div class="row"><span>h₁₁</span><input type="text" id="wc-h11" aria-label="h11" /></div>
+      <div class="row"><span>h₁₂</span><input type="text" id="wc-h12" aria-label="h12" /></div>
+      <div class="row"><span>h₂₂</span><input type="text" id="wc-h22" aria-label="h22" /></div>
+    </fieldset>
+  </div>
+  <div class="w-newton-quasi-newton-err" id="wc-err" aria-live="polite"></div>
+  <div class="w-newton-quasi-newton-out" id="wc-out"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$\lambda$ ile $\lambda^2$'yi karıştırma. Stopping criterion $\lambda^2/2 \le \epsilon$; predicted decrease de $\lambda^2/2$.</li>
+      <li>$\lambda^2 \ne \|\Delta x_{nt}\|_2^2$. Uzunluk Hessian norm'unda ölçülür: $\Delta x^T\nabla^2 f\,\Delta x$.</li>
+      <li>$\lambda^2/2$ quadratic'te tam, diğerlerinde tahmindir. Minimum'a uzakken çok yanlış olabilir (Bölüm 3'te $1.139$'a karşı $0.594$).</li>
+      <li>Boyd'un algoritmasında stopping criterion step hesaplandıktan <strong>sonra</strong>, update'ten <strong>önce</strong> kontrol edilir.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="twin-newton-decrement"><span class="box__label">Alıştırma · sınav tipi</span>
+    <p>Consider $f(x_1, x_2) = x_1^4 + x_1x_2 + 2x_2^2$ at $x^{(0)} = (1, 1)$.</p>
+    <p>(a) Compute the Newton step $\Delta x_{nt}$. (b) Compute the Newton decrement $\lambda(x^{(0)})$ and the decrease predicted by the quadratic model. (c) Compute the actual decrease of a full step. (d) With tolerance $\epsilon = 10^{-6}$, does the method stop at $x^{(0)}$?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Önce $\nabla f$ ve $\nabla^2 f$'yi $(1,1)$'de yaz. 2×2 sistemi $\begin{pmatrix} a & b \\ b & c \end{pmatrix}^{-1} = \tfrac{1}{ac - b^2}\begin{pmatrix} c & -b \\ -b & a \end{pmatrix}$ ile çöz.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$\lambda^2$ için yeni bir matrix çarpımı gerekmez: $\lambda^2 = -\nabla f^T\Delta x_{nt}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) $\nabla f = (4x_1^3 + x_2,\ x_1 + 4x_2) = (5, 5)$, $\nabla^2 f = \begin{pmatrix} 12x_1^2 & 1 \\ 1 & 4 \end{pmatrix} = \begin{pmatrix} 12 & 1 \\ 1 & 4 \end{pmatrix}$. $\det = 47 &gt; 0$ ve $12 &gt; 0$, yani $\nabla^2 f \succ 0$.</p>
+      <p>$\nabla^2 f^{-1}\nabla f = \tfrac1{47}\begin{pmatrix} 4 & -1 \\ -1 & 12 \end{pmatrix}\begin{pmatrix} 5 \\ 5 \end{pmatrix} = \tfrac1{47}\begin{pmatrix} 15 \\ 55 \end{pmatrix}$, so $\Delta x_{nt} = \left(-\tfrac{15}{47}, -\tfrac{55}{47}\right) \approx (-0.319, -1.170)$.</p>
+      <p>(b) $\lambda^2 = -\nabla f^T\Delta x_{nt} = \tfrac{5\cdot15 + 5\cdot55}{47} = \tfrac{350}{47} \approx 7.447$, $\lambda \approx 2.729$. Predicted decrease $\lambda^2/2 = \tfrac{175}{47} \approx 3.723$.</p>
+      <p>(c) $x^{(1)} = \left(\tfrac{32}{47}, -\tfrac{8}{47}\right) \approx (0.681, -0.170)$, $f(x^{(1)}) \approx 0.2149 - 0.1159 + 0.0579 = 0.157$. Actual decrease $4 - 0.157 = 3.843$, slightly more than predicted.</p>
+      <p>(d) $\lambda^2/2 = 3.72 &gt; 10^{-6}$: do not stop. Backtracking with $\alpha = 0.1$ accepts $t = 1$, since $0.157 \le 4 - 0.1\cdot 7.447 = 3.255$.</p>
+    </div></details>
+    <!-- Kaynak: alıştırma bu ders için yazıldı (yeni sayılar). python fractions: dx = (-15/47, -55/47), lam2 = 350/47, f(x1) = 0.156941. -->
+  </div>
+  <div class="quiz" id="q-dec-1">
+    <p class="quiz__q">Bir noktada $\nabla f = (2, 0)$ ve $\nabla^2 f = \mathrm{diag}(4, 1)$. Predicted decrease $\lambda^2/2$ kaç?</p>
+    <button class="quiz__opt" data-correct>$0.5$<span class="why">Doğru. $\nabla^2 f^{-1}\nabla f = (0.5, 0)$, $\lambda^2 = 2\cdot0.5 = 1$, yarısı $0.5$.</span></button>
+    <button class="quiz__opt">$1$<span class="why">Bu $\lambda^2$. Predicted decrease onun yarısıdır: $f - \hat f(x + \Delta x) = \tfrac12\lambda^2$.</span></button>
+    <button class="quiz__opt">$2$<span class="why">Bu $\|\nabla f\|_2^2/2$. Hessian'ın inverse'ünü kullanmadın; decrement eğriliği hesaba katar.</span></button>
+    <button class="quiz__opt">$0.125$<span class="why">$\|\Delta x\|_2^2/2 = 0.25/2$ hesapladın. $\lambda$, step'in Euclidean değil Hessian norm'undaki uzunluğudur: $\Delta x^T H\Delta x = 4\cdot 0.25 = 1$.</span></button>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="lsec" id="damped" data-min="6">
+  <h2>Damped Newton: backtracking ile güvenli adım</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Model sadece yakında güvenilirdir. Minimum'dan uzakta tam adım ($t = 1$) hedefi aşabilir. $f(x) = \log(e^x + e^{-x})$ convex ve minimizer'ı $x^\star = 0$. Burada $f' = \tanh x$, $f'' = 1/\cosh^2 x$, yani $\Delta x_{nt} = -\sinh x\cosh x$. $x_0 = 1.5$'ten pure Newton: $1.5 \to -3.509 \to 275.6 \to \dots$ Iterate'ler patlıyor. Çözüm: Newton yönünü koru, adım boyunu backtracking ile seç.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Algorithm 9.5 · Newton's method (Boyd)</span>
+    <p>given a starting point $x \in \mathbf{dom}\,f$, tolerance $\epsilon &gt; 0$.<br>repeat</p>
+    <ol>
+      <li><em>Compute the Newton step and decrement.</em> $\Delta x_{nt} := -\nabla^2 f(x)^{-1}\nabla f(x)$; $\lambda^2 := \nabla f(x)^T\nabla^2 f(x)^{-1}\nabla f(x)$.</li>
+      <li><em>Stopping criterion.</em> quit if $\lambda^2/2 \le \epsilon$.</li>
+      <li><em>Line search.</em> Choose step size $t$ by backtracking line search.</li>
+      <li><em>Update.</em> $x := x + t\,\Delta x_{nt}$.</li>
+    </ol>
+    <p><strong>Backtracking</strong> (Boyd §9.2, parametreler $\alpha \in (0, 0.5)$, $\beta \in (0, 1)$): $t := 1$; while $f(x + t\Delta x) &gt; f(x) + \alpha t\,\nabla f(x)^T\Delta x$, $t := \beta t$. Newton yönünde $\nabla f^T\Delta x_{nt} = -\lambda^2$ olduğu için koşul şuna dönüşür:</p>
+    $$f(x + t\,\Delta x_{nt}) \le f(x) - \alpha\, t\, \lambda^2$$
+    <p>Bu algoritmaya <strong>damped</strong> (ya da guarded) Newton denir. Her zaman $t = 1$ kullanan sürüm <strong>pure Newton</strong>'dur.</p>
+  </div>
+  <!-- Kaynak: Boyd §9.5.2 Algorithm 9.5 (pdf s.501), backtracking Algorithm 9.2 (§9.2); bv_cvxslides 9.24. -->
+  <div class="box box--example">
+    <span class="box__label">Örnek · $f = \log(e^x + e^{-x})$, $x_0 = 1.5$, $\alpha = 0.1$, $\beta = 0.5$</span>
+    <div class="table-wrap w-newton-quasi-newton-tw"><table>
+      <tr><th>$k$</th><th>$x_k$</th><th>$\Delta x_{nt}$</th><th>$\lambda^2/2$</th><th>denenen $t$: $f(x + t\Delta x)$ vs sağ taraf</th><th>kabul edilen $t$</th></tr>
+      <tr><td>0</td><td>1.5</td><td>$-5.0089$</td><td>2.2669</td><td>$t = 1$: $3.5098 &gt; 1.0952$ ✗ · $t = 0.5$: $1.1303 \le 1.3219$ ✓</td><td>0.5</td></tr>
+      <tr><td>1</td><td>$-1.0045$</td><td>$1.8303$</td><td>0.6987</td><td>$t = 1$: $1.0012 &gt; 0.9906$ ✗ · $t = 0.5$: $0.6971 \le 1.0605$ ✓</td><td>0.5</td></tr>
+      <tr><td>2</td><td>$-0.0893$</td><td>$0.0898$</td><td>0.0040</td><td>$t = 1$: $0.69315 \le 0.69633$ ✓</td><td>1</td></tr>
+      <tr><td>3</td><td>$0.00048$</td><td>$-0.00048$</td><td>$1.1\times10^{-7}$</td><td>$t = 1$ ✓</td><td>1</td></tr>
+      <tr><td>4</td><td>$-7.2\times10^{-11}$</td><td></td><td>$2.6\times10^{-21}$</td><td colspan="2">$\lambda^2/2 \le \epsilon$: dur</td></tr>
+    </table></div>
+    <p>İlk iki iteration damped phase: backtracking adımı yarıya indiriyor. Sonra hep $t = 1$: pure phase. Sağ taraf $f(x_k) - \alpha t\lambda^2$; örneğin $k = 0$, $t = 1$: $1.5486 - 0.1\cdot 4.5338 = 1.0952$.</p>
+  </div>
+  <!-- Kaynak: örnek bu ders için seçildi; python ile hesaplandı (verify2.py). Pure Newton x0=1.5: -3.50894, 275.594. Pure Newton bu fonksiyonda |x0| > 1.0887 için ıraksar. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Harf çakışması: Boyd'da $\alpha, \beta$ backtracking parametreleri, $t$ step size. Nocedal–Wright'ta $\alpha_k$ step length'in kendisi. Sınavda hangi gösterimi kullandığını yaz.</li>
+      <li>Backtracking her zaman $t = 1$ ile başlar. Newton'un hızlı fazı tam adımı kabul etmesine dayanır.</li>
+      <li>Sağ tarafta $-\alpha t\lambda^2$ var, $-\alpha t\lambda^2/2$ değil: Armijo koşulu directional derivative'i ($-\lambda^2$) kullanır, predicted decrease'i değil.</li>
+      <li>Backtracking, Hessian positive definite değilken yanlış yönü düzeltmez. Yön ascent ise ($\nabla f^T\Delta x &gt; 0$) yeterince küçük adımlar Armijo'yu sağlamaz, bu yüzden backtracking'in sonlu sürede bitme garantisi kaybolur. Büyük bir $t$ koşulu tesadüfen sağlayabilir, ama buna güvenilmez. Önce descent direction üretilmeli (Bölüm 6).</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="twin-damped-logcosh"><span class="box__label">Alıştırma · sınav tipi</span>
+    <p>Let $f(x) = \log(e^{x} + e^{-x})$. Start at $x^{(0)} = 1.2$ and use backtracking with $\alpha = 0.25$, $\beta = 0.5$.</p>
+    <p>(a) Where does a pure Newton step ($t = 1$) take you? Is it better than $x^{(0)}$? (b) Run the backtracking line search for the first iteration and give $x^{(1)}$. (c) Compare $\lambda^2/2$ at $x^{(0)}$ with the true gap $f(x^{(0)}) - p^\star$.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$f'(x) = \tanh x$, $f''(x) = 1/\cosh^2 x$. Buradan $\Delta x_{nt} = -\sinh x\cosh x$ ve $\lambda^2 = f'^2/f'' = \sinh^2 x$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$p^\star = f(0) = \log 2$. Koşul: $f(x + t\Delta x) \le f(x) - 0.25\,t\,\lambda^2$. $t = 1$, sonra $t = 0.5$ dene.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) $\sinh 1.2 = 1.5095$, $\cosh 1.2 = 1.8107$, so $\Delta x_{nt} = -2.7331$ and the pure step lands at $x = -1.5331$. That is farther from $x^\star = 0$ than $1.2$, and $f(-1.5331) = 1.5787 &gt; f(1.2) = 1.2868$. Pure Newton gets worse here.</p>
+      <p>(b) $\lambda^2 = \sinh^2 1.2 = 2.2785$. $t = 1$: $1.5787 &gt; 1.2868 - 0.25\cdot2.2785 = 0.7172$, reject. $t = 0.5$: $f(1.2 - 1.3666) = f(-0.1666) = 0.7070 \le 1.2868 - 0.125\cdot2.2785 = 1.0020$, accept. $x^{(1)} = -0.1666$. From there full steps: $x^{(2)} = 0.0031$, $x^{(3)} \approx -2\times10^{-8}$.</p>
+      <p>(c) $\lambda^2/2 = 1.139$, while $f(x^{(0)}) - p^\star = 1.2868 - 0.6931 = 0.594$. Far from the optimum the quadratic model overestimates the gap by almost a factor of two; near the optimum the two agree.</p>
+    </div></details>
+    <!-- Kaynak: alıştırma bu ders için yazıldı. python (verify3.py): pure -1.533115; t=0.5 kabul; x1=-0.166557, x2=0.003097. -->
+  </div>
+  <div class="quiz" id="q-damp-1">
+    <p class="quiz__q">Damped Newton'da bir iteration'da $\lambda^2 = 4$, $f(x) = 10$, $\alpha = 0.1$. $t = 1$ ile $f(x + \Delta x_{nt}) = 9.7$ çıktı. Ne olur?</p>
+    <button class="quiz__opt" data-correct>Reddedilir; $t = \beta$ denenir<span class="why">Doğru. Koşul $f(x + t\Delta x) \le 10 - 0.1\cdot1\cdot4 = 9.6$. $9.7 &gt; 9.6$, azalma yetersiz.</span></button>
+    <button class="quiz__opt">Kabul edilir, çünkü $f$ azaldı<span class="why">Armijo koşulu sadece azalma değil, <em>yeterli</em> azalma ister: en az $\alpha t\lambda^2 = 0.4$.</span></button>
+    <button class="quiz__opt">Kabul edilir, çünkü sağ taraf $10 - 0.1\cdot 2 = 9.8$<span class="why">$\lambda^2/2$'yi kullandın. Armijo'da directional derivative $\nabla f^T\Delta x_{nt} = -\lambda^2$ girer.</span></button>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="lsec" id="phases" data-min="5">
+  <h2>İki faz ve quadratic convergence</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Newton minimum'a yaklaşınca doğru basamak sayısı her iteration'da yaklaşık iki katına çıkar. $f(x) = e^x - 2x$, $x^\star = \ln 2$, $x_0 = 0$:</p>
+    <div class="table-wrap w-newton-quasi-newton-tw"><table>
+      <tr><th>$k$</th><th>$x_k$</th><th>hata $|x_k - x^\star|$</th><th>$e_{k+1}/e_k^2$</th></tr>
+      <tr><td>0</td><td>0</td><td>$6.9\times10^{-1}$</td><td></td></tr>
+      <tr><td>1</td><td>1</td><td>$3.1\times10^{-1}$</td><td>0.64</td></tr>
+      <tr><td>2</td><td>0.735759</td><td>$4.3\times10^{-2}$</td><td>0.45</td></tr>
+      <tr><td>3</td><td>0.694042</td><td>$9.0\times10^{-4}$</td><td>0.49</td></tr>
+      <tr><td>4</td><td>0.693148</td><td>$4.0\times10^{-7}$</td><td>0.50</td></tr>
+      <tr><td>5</td><td>0.6931471805600</td><td>$8.0\times10^{-14}$</td><td>0.50</td></tr>
+    </table></div>
+    <p>Son sütun sabite yaklaşıyor: $e_{k+1} \approx C e_k^2$. Hata $10^{-7}$'den $10^{-14}$'e tek adımda iniyor. Gradient descent'te ise hata her adımda sabit bir oranla çarpılır (linear convergence).</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Classical convergence analysis (Boyd §9.5.3)</span>
+    <p><strong>Varsayımlar:</strong> $S = \{x \in \mathbf{dom}\,f : f(x) \le f(x^{(0)})\}$ başlangıç noktasının sublevel set'i. $f$, $S$ üzerinde $m$ sabitiyle strongly convex; $\nabla^2 f$, $S$ üzerinde Lipschitz, $\|\nabla^2 f(x) - \nabla^2 f(y)\|_2 \le L\|x - y\|_2$. ($L$, $f$'nin bir quadratic'e ne kadar benzediğini ölçer; quadratic'te $L = 0$.)</p>
+    <p>Öyle $\eta \in (0, m^2/L]$ ve $\gamma &gt; 0$ vardır ki:</p>
+    <ul>
+      <li><strong>Damped Newton phase</strong>, $\|\nabla f(x)\|_2 \ge \eta$: çoğu iteration backtracking ister, $f$ her adımda en az $\gamma$ azalır. Bu faz en fazla $(f(x^{(0)}) - p^\star)/\gamma$ iteration sürer.</li>
+      <li><strong>Quadratically convergent phase</strong>, $\|\nabla f(x)\|_2 &lt; \eta$: bütün iteration'lar $t = 1$ kullanır ve $\dfrac{L}{2m^2}\|\nabla f(x^{(k+1)})\|_2 \le \left(\dfrac{L}{2m^2}\|\nabla f(x^{(k)})\|_2\right)^2$.</li>
+    </ul>
+    <p><strong>Sonuç:</strong> $f(x) - p^\star \le \epsilon$ için iteration sayısı en fazla</p>
+    $$\frac{f(x^{(0)}) - p^\star}{\gamma} + \log_2\log_2(\epsilon_0/\epsilon)$$
+    <p>Burada $L &gt; 0$ için $\epsilon_0 = 2m^3/L^2$. $L = 0$ (quadratic) durumunda sınır anlamsızlaşır ($\epsilon_0 = \infty$); orada gerek de yok, çünkü quadratic model $f$'nin kendisi ve tam Newton adımı ($t = 1$, $\alpha &lt; 0.5$ olduğu için kabul edilir) minimizer'a tek adımda gider.</p>
+    <p>İkinci terim pratikte 6 civarında ve neredeyse sabit. $m$, $L$ genelde bilinmez; analiz iki fazı açıklamak için var.</p>
+    <p><strong>Nocedal–Wright Teorem 3.5:</strong> $\nabla^2 f$, second-order sufficient conditions'ı sağlayan bir $x^*$ civarında Lipschitz ise ve $x_0$ yeterince yakınsa, pure Newton iterate'leri $x^*$'a <strong>quadratic</strong> hızla yakınsar; $\|\nabla f_k\|$ da quadratic hızla sıfıra gider.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Convergence hızları (N&amp;W Ek A.2)</span>
+    <ul>
+      <li><strong>Linear:</strong> $\|x_{k+1} - x^*\| \le r\|x_k - x^*\|$, $r \in (0,1)$. Gradient descent.</li>
+      <li><strong>Superlinear:</strong> $\|x_{k+1} - x^*\| / \|x_k - x^*\| \to 0$. BFGS.</li>
+      <li><strong>Quadratic:</strong> $\|x_{k+1} - x^*\| \le M\|x_k - x^*\|^2$. Newton (yakında).</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · Boyd (9.20), $\mathbb{R}^2$</span>
+    <p>$f(x_1, x_2) = e^{x_1 + 3x_2 - 0.1} + e^{x_1 - 3x_2 - 0.1} + e^{-x_1 - 0.1}$. Minimizer $x^\star = (-\tfrac12\ln 2,\ 0) = (-0.3466, 0)$, $p^\star = 2\sqrt2\,e^{-0.1} = 2.5593$. Boyd, $\alpha = 0.1$, $\beta = 0.7$ ile Newton'un 5 iteration'da çok yüksek doğruluğa ulaştığını, son adımın hatayı $10^{-5}$'ten $10^{-10}$'a indirdiğini gösteriyor. Aynı ayarlarla $x^{(0)} = (-1, 1)$'den:</p>
+    <div class="table-wrap w-newton-quasi-newton-tw"><table>
+      <tr><th>$k$</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+      <tr><td>$f(x^{(k)}) - p^\star$</td><td>6.60</td><td>1.17</td><td>0.157</td><td>$4.8\times10^{-3}$</td><td>$5.6\times10^{-6}$</td><td>$7.9\times10^{-12}$</td></tr>
+      <tr><td>$\lambda^2/2$</td><td>4.45</td><td>0.863</td><td>0.139</td><td>$4.7\times10^{-3}$</td><td>$5.6\times10^{-6}$</td><td>$7.9\times10^{-12}$</td></tr>
+    </table></div>
+    <p>Bu başlangıçta hiç backtracking gerekmedi (hep $t = 1$). İkinci satıra bak: yakınsarken $\lambda^2/2$ gerçek açığın neredeyse aynısı oluyor. Stopping criterion bu yüzden güvenilir.</p>
+  </div>
+  <!-- Kaynak: Boyd §9.5.3 (pdf s.502–505), §9.5.4 ve Fig. 9.19–9.20 (pdf s.506–507), bv_cvxslides 9.25–9.28; N&W Teorem 3.5 (pdf s.63–64), Ek A.2 hız tanımları. x0 = (-1, 1) bu ders için seçildi (Boyd'un şekildeki başlangıç noktası metinde verilmiyor); tablo python ile. -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Quadratic convergence <strong>local</strong> bir özelliktir. Uzaktan başlarsan önce damped phase gelir; pure Newton orada ıraksayabilir.</li>
+      <li>"Hata karesi alınır" demek "hata yarıya iner" demek değil. $10^{-3} \to 10^{-6} \to 10^{-12}$.</li>
+      <li>$\log_2\log_2(\epsilon_0/\epsilon) \approx 6$ sadece quadratic phase için. Toplam iteration sayısının bir de $(f(x^{(0)}) - p^\star)/\gamma$ kısmı var.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-ph-1">
+    <p class="quiz__q">Quadratic phase'de $\|x_k - x^*\| = 10^{-3}$ ve $M \approx 1$. Bir sonraki iteration'da hata yaklaşık kaç olur?</p>
+    <button class="quiz__opt" data-correct>$10^{-6}$<span class="why">Doğru. $M\|x_k - x^*\|^2 = 10^{-6}$. Doğru basamak sayısı 3'ten 6'ya çıktı.</span></button>
+    <button class="quiz__opt">$5\times10^{-4}$<span class="why">Bu linear convergence ($r = 0.5$). Quadratic'te hata çarpılmaz, karesi alınır.</span></button>
+    <button class="quiz__opt">$10^{-9}$<span class="why">Küpü aldın. Newton'un hızı ikinci derece: üs 2.</span></button>
+  </div>
+  <div class="quiz" id="q-ph-2">
+    <p class="quiz__q">Damped Newton phase için hangisi doğru?</p>
+    <button class="quiz__opt" data-correct>$f$ her iteration'da en az sabit bir $\gamma$ kadar azalır, iteration sayısı en fazla $(f(x^{(0)}) - p^\star)/\gamma$<span class="why">Doğru. Boyd'un analizinin birinci kısmı tam olarak bu.</span></button>
+    <button class="quiz__opt">Her iteration $t = 1$ kullanır<span class="why">Bu quadratic phase'in özelliği. Damped phase'de backtracking $t &lt; 1$ seçer.</span></button>
+    <button class="quiz__opt">Hata her adımda karesi alınarak azalır<span class="why">Karesel azalma ancak $\|\nabla f\| &lt; \eta$ olunca başlar.</span></button>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="lsec" id="affine" data-min="4">
+  <h2>Affine invariance: koordinat değişince Newton değişmez</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>$f = x_1^2 + 100x_2^2$, $x = (1, 1)$. $-\nabla f = (-2, -200)$: gradient neredeyse sadece $x_2$ yönünü gösteriyor, minimizer'a değil. Newton step ise $-(2/2,\ 200/200) = (-1, -1)$ ve doğrudan origin'e gidiyor. Değişkenleri $y_2 = 10x_2$ diye ölçeklesen fonksiyon $y_1^2 + y_2^2$ olur; Newton iki koordinat sisteminde de aynı noktaya gider. Gradient descent gitmez.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Affine invariance (Boyd §9.5.1)</span>
+    <p>$T \in \mathbb{R}^{n\times n}$ nonsingular, $\bar f(y) = f(Ty)$, $x = Ty$. Chain rule:</p>
+    $$\nabla\bar f(y) = T^T\nabla f(x), \qquad \nabla^2\bar f(y) = T^T\nabla^2 f(x)\,T$$
+    $$\Delta y_{nt} = -(T^T\nabla^2 f\,T)^{-1}T^T\nabla f = -T^{-1}\nabla^2 f^{-1}\nabla f = T^{-1}\Delta x_{nt}, \qquad x + \Delta x_{nt} = T(y + \Delta y_{nt})$$
+    <ul>
+      <li>Newton iterate'leri $\bar f$ için, $y^{(0)} = T^{-1}x^{(0)}$'dan başlayınca $y^{(k)} = T^{-1}x^{(k)}$.</li>
+      <li>Newton decrement de invariant: $\bar\lambda(y) = \lambda(x)$. Bu yüzden $\lambda^2/2 \le \epsilon$ iyi bir stopping criterion.</li>
+      <li>$\|\nabla f\|_2$ invariant değil; gradient descent'in hızı koordinatlara (condition number'a) bağlı.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: Boyd §9.5.1 "Affine invariance of the Newton step" (pdf s.500), bv_cvxslides 9.23–9.24; 9.18 (steepest descent'te P seçimi = değişken değişimi). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Invariance tam aritmetikte geçerli. Bilgisayarda kötü koşullanmış Hessian'la sistemi çözerken yine basamak kaybedersin (Hessian dersi, Bölüm 10).</li>
+      <li>Boyd'un classical analizi ($m$, $L$ sabitleri) affine invariant değil, yöntem invariant. Bu eksikliği self-concordance analizi kapatır (9.32–9.36; ilgi alanı dışı ama adını bil).</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-aff-1">
+    <p class="quiz__q">$\bar f(y) = f(Ty)$ ve $x = Ty$. $\bar f$'nin $y$'deki Newton step'i nedir?</p>
+    <button class="quiz__opt" data-correct>$T^{-1}\Delta x_{nt}$<span class="why">Doğru. $-(T^T H T)^{-1}T^T g = -T^{-1}H^{-1}T^{-T}T^Tg = T^{-1}\Delta x_{nt}$. İki iterate de aynı noktaya karşılık gelir.</span></button>
+    <button class="quiz__opt">$T^T\Delta x_{nt}$<span class="why">Gradient böyle dönüşür ($T^T\nabla f$), step değil. Step bir nokta farkıdır, $x = Ty$ olduğu için $T^{-1}$ ile döner.</span></button>
+    <button class="quiz__opt">$\Delta x_{nt}$, hiç değişmez<span class="why">Değişmeyen <em>nokta</em>: $x + \Delta x = T(y + \Delta y)$. Vektörün kendisi yeni koordinatlarda farklı yazılır.</span></button>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="lsec" id="nonconvex" data-min="6">
+  <h2>Hessian positive definite değilse</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Newton $\nabla f = 0$ denklemini çözer. Saddle point ve maximum da bu denklemin çözümüdür. Newton aralarında ayrım yapmaz.</p>
+    <p>Tek değişkende $f(x) = x^3 - 3x$: $f' = 3x^2 - 3$, $f'' = 6x$. $x_0 = -2$'den pure Newton: $-1.25,\ -1.025,\ -1.0003,\ -1.00000005$. Iterate'ler quadratic hızla bir <strong>local maximum</strong>'a, $x = -1$'e gidiyor ($f''(-1) = -6 &lt; 0$). $x_0 = 2$'den aynı hızla minimum $x = 1$'e gider.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · $g = x^4 + xy + 2y^2$, $x_0 = (0.1, 0.1)$</span>
+    <p>$\nabla^2 g(0.1, 0.1) = \begin{pmatrix} 0.12 & 1 \\ 1 & 4 \end{pmatrix}$, $\det = 0.48 - 1 = -0.52 &lt; 0$: indefinite, eigenvalue'lar $-0.123$ ve $4.243$. Pure Newton iterate'leri:</p>
+    <div class="table-wrap w-newton-quasi-newton-tw"><table>
+      <tr><th>$k$</th><th>$x_k$</th><th>$g(x_k)$</th><th>$\nabla g^T\Delta x_{nt}$</th></tr>
+      <tr><td>0</td><td>$(0.1,\ 0.1)$</td><td>$0.0301$</td><td>$-0.059$</td></tr>
+      <tr><td>1</td><td>$(-0.0615,\ 0.0154)$</td><td>$-0.00046$</td><td>$+0.0010$ (ascent!)</td></tr>
+      <tr><td>2</td><td>$(0.0091,\ -0.0023)$</td><td>$-1.0\times10^{-5}$</td><td>$+2.1\times10^{-5}$</td></tr>
+      <tr><td>3</td><td>$(-2.4\times10^{-5},\ 6\times10^{-6})$</td><td>$-7\times10^{-11}$</td><td>$+1.5\times10^{-10}$</td></tr>
+    </table></div>
+    <p>Iterate'ler origin'e, yani saddle point'e yakınsıyor ($\nabla^2 g(0) = \begin{pmatrix} 0 & 1 \\ 1 & 4 \end{pmatrix}$, $\det = -1$). Gerçek minimizer $(\tfrac14, -\tfrac1{16})$, $g = -\tfrac1{256}$. Hesaplayıcıda $(0.1, 0.1)$ preset'ini seçip bak: $\lambda^2$ hâlâ pozitif çıkıyor ama yön sonraki adımlarda yokuş yukarı dönüyor.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Hessian modification (Nocedal–Wright §3.4)</span>
+    <p><strong>Algorithm 3.2 (Line Search Newton with Modification).</strong> Her $k$ için: $B_k = \nabla^2 f(x_k) + E_k$'yı factorize et; Hessian yeterince positive definite ise $E_k = 0$, değilse $E_k$, $B_k$'yı positive definite yapacak şekilde seçilir. $B_k p_k = -\nabla f(x_k)$'yı çöz. $x_{k+1} = x_k + \alpha_k p_k$, $\alpha_k$ Wolfe, Goldstein ya da Armijo backtracking ile.</p>
+    <p><strong>Algorithm 3.3 (Cholesky with Added Multiple of the Identity).</strong> $\beta &gt; 0$ seç (tipik $10^{-3}$). $\min_i a_{ii} &gt; 0$ ise $\tau_0 = 0$, değilse $\tau_0 = -\min_i a_{ii} + \beta$. Sonra: $A + \tau_k I = LL^T$ Cholesky'sini dene; başarılıysa dur, değilse $\tau_{k+1} = \max(2\tau_k, \beta)$.</p>
+    <p><strong>Eigenvalue fikri:</strong> negatif eigenvalue'ları küçük bir $\delta &gt; 0$ ile değiştir ya da işaretlerini çevir. N&amp;W'nin örneği: $\nabla f = (1, -3, 2)$, $\nabla^2 f = \mathrm{diag}(10, 3, -1)$. Pure Newton step $(-0.1,\ 1,\ 2)$ ve $\nabla f^Tp = 0.9 &gt; 0$: descent değil. $-1$'i $\delta = 10^{-8}$ ile değiştirmek aşırı uzun bir adım verir ($\approx -2\times10^{8}\,q_3$). Hangi stratejinin en iyi olduğu konusunda uzlaşma yok.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Algorithm 3.3 bizim örnekte</span>
+    <p>$A = \begin{pmatrix} 0.12 & 1 \\ 1 & 4 \end{pmatrix}$. Köşegen pozitif, $\tau_0 = 0$; Cholesky başarısız (çünkü $\det &lt; 0$). $\tau = 0.001, 0.002, \dots$ ikiye katlanarak $\tau = 0.128$'e çıkar; $\lambda_{\min}(A) = -0.1226$ olduğu için ilk başarılı değer bu. $p = -(A + 0.128I)^{-1}\nabla g$ bir descent direction. Backtracking ($\alpha = 0.1$, $\beta = 0.7$) ilk adımda $t = 0.082$ seçer; sonra Hessian positive definite bölgeye girilir, $\tau = 0$ ve tam adımlarla $(0.25, -0.0625)$'e 5 iteration'da yakınsar.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Maliyet ve implementation (Boyd §9.7)</span>
+    <ul>
+      <li>Her iteration'da Hessian: $n(n+1)/2$ farklı ikinci türev.</li>
+      <li>Newton sistemi $H\Delta x = -g$ Cholesky ile çözülür: $H = LL^T$, $\Delta x_{nt} = -L^{-T}L^{-1}g$, $\lambda(x) = \|L^{-1}g\|_2$. Yapısız (dense) $H$ için maliyet $(1/3)n^3$ flop. Sparse ya da banded $H$'de çok daha az.</li>
+      <li>Cholesky'nin başarısız olması, $H$'nin positive definite olmadığının sayısal testidir.</li>
+    </ul>
+  </div>
+  <!-- Kaynak: N&W §3.4 (pdf s.67–71): (3.38), Algorithm 3.2, (3.40)–(3.42) örneği, Algorithm 3.3; Boyd §9.7 ve bv_cvxslides 9.38. x^3-3x ve g örnekleri bu ders için; python ile (verify.py). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>"Newton yakınsadı, demek ki minimum buldum" yanlış. Yakınsadığın noktada Hessian'ın eigenvalue'larına bak.</li>
+      <li>Hessian indefinite iken $\lambda^2 = \nabla f^TH^{-1}\nabla f$ negatif de çıkabilir; o zaman $\lambda$ tanımsız ve stopping criterion anlamsız.</li>
+      <li>$\tau$'yu büyütmenin bedeli: $\tau \to \infty$'da $p \approx -\nabla f/\tau$, yani kısa bir gradient descent adımı. Hız kaybolur, güvenlik gelir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-nc-1">
+    <p class="quiz__q">$f(x) = x^3 - 3x$, pure Newton $x_0 = -2$'den başlıyor. Ne olur?</p>
+    <button class="quiz__opt" data-correct>Hızla $x = -1$'e, bir local maximum'a yakınsar<span class="why">Doğru. $-2 \to -1.25 \to -1.025 \to \dots$ Newton $f' = 0$'ı çözer, $f''(-1) = -6 &lt; 0$ olduğunu umursamaz.</span></button>
+    <button class="quiz__opt">$x = 1$'deki minimum'a yakınsar<span class="why">Newton en yakın stationary point'e çekilir. $-2$'den bakınca o $-1$. Minimum'a $x_0 = 2$'den gidersin.</span></button>
+    <button class="quiz__opt">Iraksar, çünkü $f$ alttan sınırsız<span class="why">$f$ alttan sınırsız ama Newton $f$'nin değerine değil $f' = 0$ denklemine bakar ve bir köke yakınsar.</span></button>
+  </div>
+  <div class="quiz" id="q-nc-2">
+    <p class="quiz__q">Algorithm 3.3'te $A + \tau I$ için Cholesky başarısız oldu. Bu ne demek ve sonra ne yapılır?</p>
+    <button class="quiz__opt" data-correct>$A + \tau I$ positive definite değil; $\tau \leftarrow \max(2\tau, \beta)$ ile tekrar dene<span class="why">Doğru. Cholesky sadece positive definite matrix'lerde tamamlanır; $\tau$ ikiye katlanarak büyütülür.</span></button>
+    <button class="quiz__opt">$A$ singular; pure Newton step'e geri dön<span class="why">Başarısızlık indefinite ya da semidefinite olmayı gösterir. Pure step'e dönmek tam da kaçındığımız ascent yönünü verebilir.</span></button>
+    <button class="quiz__opt">Line search'te $t$'yi küçült<span class="why">Sorun adımın boyu değil yönü. Yön yanlışken $t$'yi küçültmek yardımcı olmaz.</span></button>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="lsec" id="secant" data-min="5">
+  <h2>Quasi-Newton fikri: secant condition</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Newton'un iki bedeli var: her iteration'da $n(n+1)/2$ ikinci türev ve $O(n^3)$'lük bir lineer sistem. Bazen ikinci türevi yazamazsın bile. Oysa her adımda gradient'in nasıl değiştiğini zaten görüyorsun. Gradient farkı, eğriliğin bir yönden ölçümüdür.</p>
+    <p>Tek değişkende: $f''(x_{k+1}) \approx \dfrac{f'(x_{k+1}) - f'(x_k)}{x_{k+1} - x_k}$. Bu, türevin sekant doğrusunun eğimi. Quasi-Newton bu fikri $n$ boyuta taşır: Hessian yerine, gradient farklarıyla güncellenen bir $B_k$ matrix'i kullanır.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Quasi-Newton çerçevesi (Nocedal–Wright §6.1)</span>
+    <p>Model: $m_k(p) = f_k + \nabla f_k^Tp + \tfrac12 p^TB_kp$, $B_k$ simetrik ve positive definite. Arama yönü $p_k = -B_k^{-1}\nabla f_k$, yeni nokta $x_{k+1} = x_k + \alpha_k p_k$. Sonra</p>
+    $$s_k = x_{k+1} - x_k, \qquad y_k = \nabla f_{k+1} - \nabla f_k$$
+    <ul>
+      <li><strong>Secant equation (6.6):</strong> $B_{k+1}s_k = y_k$. Yeni model'in gradient'i son iki noktada gerçek gradient'le aynı olsun.</li>
+      <li><strong>Curvature condition (6.7):</strong> $s_k^Ty_k &gt; 0$. Secant'ı $s_k^T$ ile soldan çarp: $s_k^TB_{k+1}s_k = s_k^Ty_k$. Sol taraf $B_{k+1} \succ 0$ ise pozitif; o hâlde sağ taraf da pozitif olmalı.</li>
+      <li>$f$ strongly convex ise (6.7) her zaman sağlanır. Nonconvex $f$'de line search'le zorlanır: <strong>Wolfe conditions</strong> (3.6)
+        $$f(x_k + \alpha_kp_k) \le f_k + c_1\alpha_k\nabla f_k^Tp_k, \qquad \nabla f(x_k + \alpha_kp_k)^Tp_k \ge c_2\nabla f_k^Tp_k,$$
+        $0 &lt; c_1 &lt; c_2 &lt; 1$ (tipik $c_1 = 10^{-4}$, $c_2 = 0.9$). İkinci koşuldan $y_k^Ts_k \ge (c_2 - 1)\alpha_k\nabla f_k^Tp_k &gt; 0$.</li>
+      <li>Secant $n$ denklem verir; simetrik $B_{k+1}$'in $n(n+1)/2$ bilinmeyeni var. Çözüm tek değil. BFGS, $B_k$'ya (ya da inverse'üne) en yakın olanı seçer (sonraki bölüm).</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · quadratic'te $y = Qs$</span>
+    <p>$f = \tfrac12x^TQx - b^Tx$ için $\nabla f = Qx - b$, yani $y_k = Q(x_{k+1} - x_k) = Qs_k$. Gerçek Hessian secant'ı her zaman sağlar. Lab 2'nin $f = x^2 + xy + 2y^2$'sinde ($Q = \begin{pmatrix} 2 & 1 \\ 1 & 4 \end{pmatrix}$) $s = (1, 0)$ adımı $y = (2, 1)$ verir: Hessian'ın birinci sütunu. $s^Ty = 2 &gt; 0$.</p>
+  </div>
+  <!-- Kaynak: N&W §6.1 (6.1)–(6.8), Wolfe (3.6) (pdf s.155–157, s.52). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Secant $B_{k+1}s_k = y_k$; $B_ks_k = y_k$ değil. Eski matrix'ten değil, güncellenmiş matrix'ten istenir.</li>
+      <li>$y_k$ gradient farkıdır, fonksiyon değeri farkı değil.</li>
+      <li>Inverse için yazılışı ters: $H_{k+1} = B_{k+1}^{-1}$ ise $H_{k+1}y_k = s_k$.</li>
+      <li>Armijo backtracking tek başına $s^Ty &gt; 0$'ı garanti etmez; Wolfe'nin curvature koşulu gerekir.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-sec-1">
+    <p class="quiz__q">Bir adımdan sonra $s_k = (1, 2)$, $y_k = (-1, 0)$. Ne söylersin?</p>
+    <button class="quiz__opt" data-correct>$s_k^Ty_k = -1 &lt; 0$: secant'ı sağlayan simetrik positive definite bir $B_{k+1}$ yok<span class="why">Doğru. $s^TB_{k+1}s = s^Ty = -1$ olurdu; positive definite matrix'te bu sayı pozitif olmak zorunda.</span></button>
+    <button class="quiz__opt">Sorun yok, BFGS her zaman positive definite bir matrix üretir<span class="why">BFGS'in positive definiteness'ı koruması $s^Ty &gt; 0$ şartına bağlı. Bu şart bozulunca $B_{k+1}$ indefinite çıkabilir.</span></button>
+    <button class="quiz__opt">$s^Ty$'nin işareti önemsiz, önemli olan $\|y\| &gt; 0$<span class="why">Curvature condition tam olarak işaretle ilgili: $s$ yönündeki ortalama eğrilik pozitif olmalı.</span></button>
+  </div>
+  <div class="quiz" id="q-sec-2">
+    <p class="quiz__q">Inverse Hessian approximation $H_{k+1}$ için secant denklemi hangisi?</p>
+    <button class="quiz__opt" data-correct>$H_{k+1}y_k = s_k$<span class="why">Doğru. $B_{k+1}s_k = y_k$'yı $B_{k+1}^{-1} = H_{k+1}$ ile soldan çarp.</span></button>
+    <button class="quiz__opt">$H_{k+1}s_k = y_k$<span class="why">Bu $B$'nin denklemi. $H$ eğriliğin tersini taşır, gradient farkını adıma çevirir.</span></button>
+    <button class="quiz__opt">$H_ky_k = s_k$<span class="why">Koşul güncellenmiş matrix için konur; eski $H_k$ bunu genelde sağlamaz.</span></button>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="lsec" id="bfgs" data-min="6">
+  <h2>BFGS update</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>BFGS (Broyden, Fletcher, Goldfarb, Shanno) her iteration'da matrix'e rank-two bir düzeltme ekler: $s$ yönünde eski eğrilik bilgisini siler, ölçülen eğriliği ($y$) yazar. Diğer yönlere mümkün olduğunca dokunmaz.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">BFGS formülleri (Nocedal–Wright §6.1)</span>
+    <p>$\rho_k = \dfrac{1}{y_k^Ts_k}$. Inverse form (6.17):</p>
+    $$H_{k+1} = (I - \rho_k s_ky_k^T)\,H_k\,(I - \rho_k y_ks_k^T) + \rho_k s_ks_k^T$$
+    <p>Hessian form (6.19):</p>
+    $$B_{k+1} = B_k - \frac{B_ks_ks_k^TB_k}{s_k^TB_ks_k} + \frac{y_ky_k^T}{y_k^Ts_k}$$
+    <p><strong>Algorithm 6.1 (BFGS Method).</strong> Given $x_0$, tolerance $\varepsilon &gt; 0$, $H_0$; $k \leftarrow 0$; while $\|\nabla f_k\| &gt; \varepsilon$: $p_k = -H_k\nabla f_k$; $x_{k+1} = x_k + \alpha_kp_k$, $\alpha_k$ Wolfe'yi sağlasın; $s_k$, $y_k$'yı tanımla; $H_{k+1}$'i (6.17) ile hesapla; $k \leftarrow k + 1$.</p>
+    <ul>
+      <li>$H_k \succ 0$ ve $s_k^Ty_k &gt; 0$ ise $H_{k+1} \succ 0$.</li>
+      <li>Her iteration $O(n^2)$: lineer sistem çözümü ya da matrix–matrix çarpımı yok. Convergence <strong>superlinear</strong>.</li>
+      <li>Line search her zaman önce $\alpha_k = 1$'i denemeli; sonunda hep kabul edilir ve superlinear hız buradan gelir.</li>
+      <li>$H_0$: $I$ ya da onun bir katı. Etkili bir heuristic (6.20): ilk adımdan sonra, ilk update'ten önce $H_0 \leftarrow \dfrac{y_k^Ts_k}{y_k^Ty_k}I$.</li>
+      <li>Aynı türetmenin $B$ için yapılmış hâli DFP update'idir (6.13). BFGS pratikte daha iyi çalışır.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · bir update, $B_0 = I$, $s_0 = (1, 0)$, $y_0 = (2, 1)$</span>
+    <p>$y^Ts = 2$, $B_0s = (1, 0)$, $s^TB_0s = 1$.</p>
+    $$B_1 = I - \begin{pmatrix} 1 & 0 \\ 0 & 0 \end{pmatrix} + \frac12\begin{pmatrix} 4 & 2 \\ 2 & 1 \end{pmatrix} = \begin{pmatrix} 2 & 1 \\ 1 & \tfrac32 \end{pmatrix}$$
+    <p><strong>Secant kontrolü:</strong> $B_1s = (2, 1) = y$ ✓. <strong>PD:</strong> $2 &gt; 0$, $\det = 3 - 1 = 2 &gt; 0$ ✓.</p>
+    <p>Inverse form ile: $\rho = \tfrac12$, $H_1 = (I - \tfrac12 sy^T)(I - \tfrac12 ys^T) + \tfrac12 ss^T = \begin{pmatrix} \tfrac34 & -\tfrac12 \\ -\tfrac12 & 1 \end{pmatrix}$. Kontrol: $B_1H_1 = I$ ✓, $H_1y = (1, 0) = s$ ✓.</p>
+    <p>Bu $y$, Lab 2 quadratic'inden geliyordu (gerçek Hessian $\begin{pmatrix} 2 & 1 \\ 1 & 4 \end{pmatrix}$). $B_1$ birinci sütunu doğru öğrendi; $(2,2)$ elemanı $\tfrac32$, gerçeği $4$. Tek bir ölçüm sadece $s$ yönündeki eğriliği öğretir.</p>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Nocedal–Wright · Rosenbrock, $x_0 = (-1.2, 1)$</span>
+    <p>Wolfe line search ile $\|\nabla f\| \le 10^{-5}$'e kadar: steepest descent <strong>5264</strong>, BFGS <strong>34</strong>, Newton <strong>21</strong> iteration. Son dört iteration'da $\|x_k - x^*\|$:</p>
+    <div class="table-wrap w-newton-quasi-newton-tw"><table>
+      <tr><th>steepest descent</th><th>BFGS</th><th>Newton</th></tr>
+      <tr><td>1.827e-04</td><td>1.70e-03</td><td>3.48e-02</td></tr>
+      <tr><td>1.826e-04</td><td>1.17e-03</td><td>1.44e-02</td></tr>
+      <tr><td>1.824e-04</td><td>1.34e-04</td><td>1.82e-04</td></tr>
+      <tr><td>1.823e-04</td><td>1.01e-06</td><td>1.17e-08</td></tr>
+    </table></div>
+    <p>Steepest descent'in hatası neredeyse yerinde sayıyor (linear, oran ≈ 1). BFGS'te oran sıfıra gidiyor (superlinear). Newton'da üs ikiye katlanıyor (quadratic).</p>
+  </div>
+  <!-- Kaynak: N&W §6.1 (6.13), (6.14), (6.17)–(6.20), Algorithm 6.1, "Properties of the BFGS method" tablosu (pdf s.159–162). Worked update python fractions ile kontrol edildi. -->
+  <h3>Kendin dene: tek BFGS update</h3>
+  <p>$B_k$ (simetrik), $s_k$ ve $y_k$'yı gir. Hesaplayıcı (6.19) ile $B_{k+1}$'i, $B_{k+1}s_k = y_k$ kontrolünü, positive definiteness'ı ve (6.17) ile $H_{k+1}$'i bulur, sonra $B_{k+1}H_{k+1} = I$ olduğunu doğrular.</p>
+  <p class="w-newton-quasi-newton-guess"><b>Önce tahmin et:</b> "İkinci update" preset'inde $B_2$ hem $s_1$ hem $s_0$ için secant'ı sağlar mı? "$s^Ty &lt; 0$" preset'inde $B_1$ positive definite kalır mı?</p>
+  <div class="w-newton-quasi-newton-ctl">
+    <select id="wb-preset" class="btn btn--sm" aria-label="hazır değerler">
+      <option value="ex1" selected>Örnek: B₀ = I, s = (1,0), y = (2,1)</option>
+      <option value="ex2">İkinci update: B₁, s = (0,1), y = (1,4)</option>
+      <option value="neg">sᵀy &lt; 0: B₀ = I, s = (1,1), y = (1,−2)</option>
+      <option value="manual">Elle gir</option>
+    </select>
+  </div>
+  <div class="w-newton-quasi-newton-mat">
+    <fieldset><legend>B_k</legend>
+      <div class="row"><span>b₁₁</span><input type="text" id="wb-b11" aria-label="b11" /></div>
+      <div class="row"><span>b₁₂</span><input type="text" id="wb-b12" aria-label="b12" /></div>
+      <div class="row"><span>b₂₂</span><input type="text" id="wb-b22" aria-label="b22" /></div>
+    </fieldset>
+    <fieldset><legend>s_k</legend>
+      <div class="row"><span>s₁</span><input type="text" id="wb-s1" aria-label="s1" /></div>
+      <div class="row"><span>s₂</span><input type="text" id="wb-s2" aria-label="s2" /></div>
+    </fieldset>
+    <fieldset><legend>y_k</legend>
+      <div class="row"><span>y₁</span><input type="text" id="wb-y1" aria-label="y1" /></div>
+      <div class="row"><span>y₂</span><input type="text" id="wb-y2" aria-label="y2" /></div>
+    </fieldset>
+  </div>
+  <div class="w-newton-quasi-newton-err" id="wb-err" aria-live="polite"></div>
+  <div class="w-newton-quasi-newton-out" id="wb-out"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İki formülü karıştırma. $B$ formunda paydalar $s^TBs$ ve $y^Ts$; $H$ formunda $\rho = 1/(y^Ts)$ çarpanı üç yerde.</li>
+      <li>BFGS sadece <strong>son</strong> secant'ı garanti eder. "İkinci update" preset'inde $B_2s_1 = y_1$ ama $B_2s_0 \ne y_0$.</li>
+      <li>$s^Ty \le 0$ ise update'i körü körüne uygulama: $B_{k+1}$ indefinite olabilir. Update'i atlamak (skip) da N&amp;W'ye göre önerilmez, çünkü çok sık atlanırsa eğrilik bilgisi birikmez; doğru çözüm Wolfe line search (ya da damped BFGS).</li>
+      <li>Quasi-Newton yönü $p_k = -H_k\nabla f_k$; $-B_k\nabla f_k$ değil.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="twin-secant-bfgs"><span class="box__label">Alıştırma · sınav tipi</span>
+    <p>(a) Give two reasons for using a quasi-Newton method instead of Newton's method. (b) State the secant condition and the curvature condition, and explain why the curvature condition is needed. (c) Let $B_0 = I$, $s_0 = (1, -1)$, $y_0 = (3, -1)$. Compute $B_1$ with the BFGS update, verify the secant condition, and decide whether $B_1$ is positive definite.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>(b) için secant'ı $s^T$ ile soldan çarp ve positive definiteness tanımını kullan.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>(c) $B_0 = I$ iken $B_0s = s$ ve $s^TB_0s = \|s\|^2 = 2$. $y^Ts = 3 + 1 = 4$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) Newton needs all $n(n+1)/2$ second derivatives at every iteration, which may be expensive or unavailable, and it solves an $n\times n$ linear system, $O(n^3)$. Quasi-Newton (BFGS) needs only gradients, costs $O(n^2)$ per iteration, and still converges superlinearly. Also $B_k$ stays positive definite, so $p_k$ is always a descent direction, while the true Hessian can be indefinite.</p>
+      <p>(b) Secant: $B_{k+1}s_k = y_k$ with $s_k = x_{k+1} - x_k$, $y_k = \nabla f_{k+1} - \nabla f_k$. Curvature: $s_k^Ty_k &gt; 0$. Multiplying the secant condition by $s_k^T$ gives $s_k^TB_{k+1}s_k = s_k^Ty_k$; if $B_{k+1} \succ 0$ the left side is positive, so a positive definite solution exists only if $s_k^Ty_k &gt; 0$. A Wolfe line search guarantees it.</p>
+      <p>(c) $B_1 = I - \dfrac{ss^T}{2} + \dfrac{yy^T}{4} = I - \tfrac12\begin{pmatrix} 1 & -1 \\ -1 & 1 \end{pmatrix} + \tfrac14\begin{pmatrix} 9 & -3 \\ -3 & 1 \end{pmatrix} = \begin{pmatrix} \tfrac{11}{4} & -\tfrac14 \\ -\tfrac14 & \tfrac34 \end{pmatrix}$.</p>
+      <p>Secant: $B_1s = (\tfrac{11}{4} + \tfrac14,\ -\tfrac14 - \tfrac34) = (3, -1) = y$ ✓. PD: $b_{11} = \tfrac{11}{4} &gt; 0$, $\det = \tfrac{33}{16} - \tfrac1{16} = 2 &gt; 0$ ✓. (Inverse form gives $H_1 = \begin{pmatrix} \tfrac38 & \tfrac18 \\ \tfrac18 & \tfrac{11}{8} \end{pmatrix}$, and $B_1H_1 = I$.)</p>
+    </div></details>
+    <!-- Kaynak: alıştırma bu ders için yazıldı; python fractions (verify.py, G bloğu). -->
+  </div>
+  <div class="quiz" id="q-bfgs-1">
+    <p class="quiz__q">$B_0 = I$, $s_0 = (2, 0)$, $y_0 = (6, 0)$. BFGS $B_1$ nedir?</p>
+    <button class="quiz__opt" data-correct>$\mathrm{diag}(3, 1)$<span class="why">Doğru. $I - \tfrac{1}{4}\begin{pmatrix} 4 & 0 \\ 0 & 0 \end{pmatrix} + \tfrac1{12}\begin{pmatrix} 36 & 0 \\ 0 & 0 \end{pmatrix}$. $x_1$ yönünde eğrilik $6/2 = 3$ ölçüldü. Burada $y = 3s$, yani $y$, $s$'ye paralel; bu yüzden $x_2$ yönüne dokunulmadı.</span></button>
+    <button class="quiz__opt">$\mathrm{diag}(4, 1)$<span class="why">Eski eğriliği silen $-B ss^TB/(s^TBs)$ terimini unuttun: $1 + 3$ değil, $1 - 1 + 3$.</span></button>
+    <button class="quiz__opt">$\mathrm{diag}(3, 3)$<span class="why">Bu örnekte $y$, $s$'ye paralel ve $B_0 = I$, bu yüzden ikinci diagonal eleman $1$ kalır. Genel BFGS update'i diğer yönleri de değiştirebilir: yukarıdaki örnekte $s = (1, 0)$, $y = (2, 1)$ iken $(2,2)$ elemanı $1$'den $\tfrac32$'ye çıktı.</span></button>
+  </div>
+  <div class="quiz" id="q-bfgs-2">
+    <p class="quiz__q">BFGS'in (inverse form) bir iteration maliyeti, gradient hesabı hariç, hangi mertebede?</p>
+    <button class="quiz__opt" data-correct>$O(n^2)$<span class="why">Doğru. Matrix–vector çarpımları ve rank-two update. Lineer sistem çözülmez.</span></button>
+    <button class="quiz__opt">$O(n^3)$<span class="why">Bu Newton'un (dense Cholesky) maliyeti. $H$ formu inverse'ü doğrudan güncellediği için sistem çözmek gerekmez.</span></button>
+    <button class="quiz__opt">$O(n)$<span class="why">Bu L-BFGS'in ($m$ sabitken $4mn$) maliyeti. Tam BFGS $n\times n$ bir matrix tutar ve günceller.</span></button>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="lsec" id="lbfgs" data-min="4">
+  <h2>L-BFGS: son m çift ile yaşamak</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>$n = 10^6$ değişkenli bir problemde $H_k$ $10^{12}$ sayı demek; saklanamaz. Ama $H_k\nabla f_k$ çarpımını, $H_k$'yı hiç kurmadan, son $m$ adımın $(s_i, y_i)$ çiftlerinden hesaplayabilirsin. L-BFGS (limited-memory BFGS) bunu yapar. Pratikte $m$ 3 ile 20 arası yeter.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Algorithm 7.4 · L-BFGS two-loop recursion (N&amp;W §7.2)</span>
+    <p class="w-newton-quasi-newton-mono">q ← ∇f_k<br>for i = k−1, k−2, …, max(0, k−m):  α_i ← ρ_i s_iᵀq;  q ← q − α_i y_i<br>r ← H_k⁰ q<br>for i = max(0, k−m), …, k−1:  β ← ρ_i y_iᵀr;  r ← r + s_i(α_i − β)<br>stop with result H_k∇f_k = r</p>
+    <ul>
+      <li>$H_k^0$ hariç $4mn$ çarpma. $H_k^0 = \gamma_kI$, $\gamma_k = \dfrac{s_{k-1}^Ty_{k-1}}{y_{k-1}^Ty_{k-1}}$ (7.20): son adımdaki eğriliğin ölçeği.</li>
+      <li>İlk adımlar: döngüler yalnızca saklı çiftleri gezer, bu yüzden alt sınır $\max(0, k-m)$. $k = 0$'da hiç çift yok: iki döngü de boş, $H_0^0 = I$ seçilir ve $r = \nabla f_0$ (ilk adım steepest descent). $\gamma_k$ ölçeklemesi ilk çift $(s_0, y_0)$ oluştuktan sonra, $k \ge 1$ için kullanılır.</li>
+      <li><strong>Algorithm 7.5 (L-BFGS):</strong> $p_k = -H_k\nabla f_k$ (two-loop ile), Wolfe line search, en eski çifti at, yeni $(s_k, y_k)$'yı sakla.</li>
+      <li>İlk $m - 1$ iteration'da (aynı başlangıç matrix'iyle) BFGS ile aynıdır.</li>
+      <li>SciPy'deki adı <code>"L-BFGS-B"</code>: B, bound constraint'leri de destekler.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · $m = 1$, çift $s = (1, 0)$, $y = (2, 1)$, $\nabla f_k = (1, 1)$</span>
+    <p>$\rho = 1/(y^Ts) = \tfrac12$, $\gamma = s^Ty / y^Ty = 2/5 = 0.4$.</p>
+    <ol>
+      <li>Birinci döngü: $\alpha = \rho\, s^Tq = \tfrac12\cdot1 = 0.5$; $q = (1, 1) - 0.5(2, 1) = (0, 0.5)$.</li>
+      <li>$r = \gamma q = (0, 0.2)$.</li>
+      <li>İkinci döngü: $\beta = \rho\, y^Tr = \tfrac12\cdot0.2 = 0.1$; $r = (0, 0.2) + (1, 0)(0.5 - 0.1) = (0.4, 0.2)$.</li>
+    </ol>
+    <p>Kontrol: (6.17)'yi $H^0 = 0.4I$ ile açıkça kurarsan $H = \begin{pmatrix} 0.6 & -0.2 \\ -0.2 & 0.4 \end{pmatrix}$ ve $H(1,1) = (0.4, 0.2)$ ✓. Arama yönü $p_k = (-0.4, -0.2)$. Matrix hiç kurulmadan aynı sonuç.</p>
+  </div>
+  <!-- Kaynak: N&W §7.2 (7.16)–(7.20), Algorithm 7.4, 7.5 (pdf s.195–198). Örnek python ile (verify.py, I bloğu). -->
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>Döngü sırası: birinci döngü en yeni çiftten başlayıp en eskiye gider, ikinci döngü en eski çiftten başlayıp en yeniye gider.</li>
+      <li>L-BFGS bir matrix saklamaz; sadece $2m$ vektör. "L-BFGS'in $H_k$'sı" dediğinde implicit bir matrix'ten söz ediyorsun.</li>
+      <li>Büyük $m$ her zaman daha iyi değil: maliyet $m$ ile artar, kazanç bir yerden sonra küçülür.</li>
+    </ul>
+  </div>
+  <div class="quiz" id="q-lb-1">
+    <p class="quiz__q">$n = 10^6$, $m = 10$. L-BFGS kaç sayı saklar, tam BFGS kaç?</p>
+    <button class="quiz__opt" data-correct>L-BFGS $\approx 2\times10^7$, BFGS $\approx 10^{12}$<span class="why">Doğru. $m$ çift $\times$ 2 vektör $\times$ $n$ bileşen $= 2mn$; BFGS $n^2$ (simetri ile yarısı, yine $\sim 10^{12}$).</span></button>
+    <button class="quiz__opt">İkisi de $\approx 10^{12}$; L-BFGS sadece daha hızlı hesaplar<span class="why">L-BFGS'in amacı tam olarak belleği $O(mn)$'e indirmek.</span></button>
+    <button class="quiz__opt">L-BFGS $10$, BFGS $10^6$<span class="why">$m$ vektör <em>çiftlerinin</em> sayısı; her vektörün $n$ bileşeni var.</span></button>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="lsec" id="gauss-newton" data-min="6">
+  <h2>Gauss–Newton ve Levenberg–Marquardt</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Veriye eğri uydurmak (curve fitting) en sık karşılaşılan optimization problemi. Model $\phi(t; x)$, ölçümler $(t_j, y_j)$, residual $r_j(x) = \phi(t_j; x) - y_j$. Objective'in özel bir yapısı var: residual'ların kareleri toplamı. Bu yapı, Hessian'ın büyük kısmını sadece birinci türevlerden kurmaya izin verir.</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Nonlinear least squares (Nocedal–Wright §10.1, §10.3)</span>
+    $$f(x) = \tfrac12\sum_{j=1}^m r_j(x)^2 = \tfrac12\|r(x)\|_2^2, \qquad J(x) = \begin{pmatrix} \nabla r_1(x)^T \\ \vdots \\ \nabla r_m(x)^T \end{pmatrix} \in \mathbb{R}^{m\times n}$$
+    $$\nabla f = J^Tr, \qquad \nabla^2 f = J^TJ + \sum_{j=1}^m r_j\,\nabla^2 r_j$$
+    <ul>
+      <li><strong>Gauss–Newton (10.23):</strong> ikinci terimi at, $\nabla^2 f \approx J^TJ$:
+        $$J_k^TJ_k\,p_k^{GN} = -J_k^Tr_k$$
+        Bu, $\min_p \tfrac12\|J_kp + r_k\|^2$ linear least squares probleminin normal equation'ı; yani $r(x_k + p) \approx r_k + J_kp$ linearization'ı.</li>
+      <li><strong>Avantajlar:</strong> ikinci türev yok; residual'lar küçükse ya da neredeyse affine ise $J^TJ$ gerçek Hessian'a yakın ve hız Newton'a yakın; $J$ full rank ise $p^{GN}$ descent direction: $(p^{GN})^T\nabla f = -\|Jp^{GN}\|^2 \le 0$.</li>
+      <li><strong>Levenberg–Marquardt:</strong> aynı Hessian yaklaşımı, line search yerine trust region (10.31): $\min_p \tfrac12\|J_kp + r_k\|^2$, $\|p\| \le \Delta_k$. Çözüm bir $\lambda \ge 0$ için
+        $$(J^TJ + \lambda I)\,p^{LM} = -J^Tr$$
+        $\lambda = 0$: Gauss–Newton. $\lambda$ büyük: $p \approx -\tfrac1\lambda J^Tr$, kısa bir gradient descent adımı. $J$ rank-deficient iken de çalışır.</li>
+    </ul>
+  </div>
+  <div class="box box--example">
+    <span class="box__label">Örnek · $y = a\,e^{bx}$, 5 nokta</span>
+    <p>Veri: $x = 0, 1, 2, 3, 4$ ve $y = 2.1,\ 2.9,\ 3.6,\ 5.1,\ 6.5$. Residual $r_j = a e^{bx_j} - y_j$, Jacobian satırları $\left(e^{bx_j},\ a x_j e^{bx_j}\right)$. En iyi uyum $a^* = 2.1358$, $b^* = 0.28024$, $f^* = 0.025741$.</p>
+    <p>$(a, b) = (1, 0)$'dan pure Gauss–Newton'un ilk adımı $(1.84, 1.10)$'a sıçrar ve $f$ $29.32$'den $11368$'e çıkar: linearization uzakta güvenilmez. Sonra geri döner ve 10 iteration'da yakınsar. Levenberg–Marquardt ($\lambda_0 = 1$, başarılı adımda $\lambda/10$, başarısızda $\lambda\times10$) aynı başlangıçta $f$'yi her adımda azaltır: $29.32 \to 8.71 \to 2.09 \to 0.178 \to 0.0273 \to \dots$ Aşağıdaki stepper ile iki yöntemi karşılaştır.</p>
+  </div>
+  <!-- Kaynak: N&W (10.1), (10.3)–(10.5), (10.23)–(10.26), (10.31)–(10.34) (pdf s.265–278). Veri bu ders için seçildi; scipy.optimize.least_squares(method='lm') ile doğrulandı: a=2.135829, b=0.280236, f=0.0257410. λ güncelleme kuralı yaygın basit bir sezgisel, N&W trust-region ile çözer. -->
+  <h3>Kendin dene: Gauss–Newton ve LM stepper</h3>
+  <p class="w-newton-quasi-newton-guess"><b>Önce tahmin et:</b> $(1, 0)$'dan Gauss–Newton'un ilk adımı $f$'yi azaltır mı? $(2, 0.3)$ gibi iyi bir başlangıçta GN mi, LM mi daha az iteration ister?</p>
+  <div class="w-newton-quasi-newton-ctl">
+    <label for="wg-method">yöntem</label>
+    <select id="wg-method" class="btn btn--sm">
+      <option value="GN">Gauss–Newton</option>
+      <option value="LM">Levenberg–Marquardt</option>
+    </select>
+    <label for="wg-start">başlangıç (a, b)</label>
+    <select id="wg-start" class="btn btn--sm">
+      <option value="1,0">(1, 0)</option>
+      <option value="2,0.3">(2, 0.3)</option>
+      <option value="3,-0.5">(3, −0.5)</option>
+    </select>
+  </div>
+  <div id="w-gn"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>$J^TJ$, $n\times n$; $JJ^T$ değil ($m\times m$). $J$'nin satırları residual'lar, sütunları parametreler.</li>
+      <li>$\tfrac12$ çarpanı: $f = \tfrac12\|r\|^2 \Rightarrow \nabla f = J^Tr$. $\tfrac12$'siz yazarsan gradient $2J^Tr$ olur (Gauss–Newton adımı yine aynı çıkar, ama gradient'i karıştırma).</li>
+      <li>Residual'lar büyük ve eğri ise ihmal edilen $\sum r_j\nabla^2 r_j$ terimi büyük olur; Gauss–Newton yavaşlar (linear), Newton daha iyi olabilir.</li>
+      <li>LM'deki $\lambda$ Newton decrement değil; damping parametresi. Aynı harf, farklı anlam.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="twin-gauss-newton"><span class="box__label">Alıştırma · sınav tipi</span>
+    <p>Fit the one-parameter model $\phi(t; b) = e^{bt}$ to the data $(t_1, y_1) = (1, 2)$, $(t_2, y_2) = (2, 4)$ by minimizing $f(b) = \tfrac12\sum_j (e^{bt_j} - y_j)^2$.</p>
+    <p>(a) Write the residual vector and the Jacobian. (b) Do one Gauss–Newton step from $b^{(0)} = 0.5$. (c) The exact solution is $b^\star = \ln 2$. Why does Gauss–Newton converge fast here?</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>$r_j(b) = e^{bt_j} - y_j$, $\dfrac{\partial r_j}{\partial b} = t_je^{bt_j}$. Tek parametre olduğu için $J$ bir sütun, $J^TJ$ bir sayı.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>$p = -\dfrac{J^Tr}{J^TJ} = -\dfrac{\sum_j t_je^{bt_j}(e^{bt_j} - y_j)}{\sum_j t_j^2e^{2bt_j}}$.</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>(a) $r(b) = \begin{pmatrix} e^{b} - 2 \\ e^{2b} - 4 \end{pmatrix}$, $J(b) = \begin{pmatrix} e^{b} \\ 2e^{2b} \end{pmatrix}$.</p>
+      <p>(b) At $b = 0.5$: $e^{0.5} = 1.6487$, $e^{1} = 2.7183$. $r = (-0.3513,\ -1.2817)$, $J = (1.6487,\ 5.4366)$. $J^TJ = 2.7183 + 29.5562 = 32.2745$, $J^Tr = -0.5792 - 6.9681 = -7.5473$. $p = 7.5473/32.2745 = 0.2338$, so $b^{(1)} = 0.7338$.</p>
+      <p>Further steps: $b^{(2)} = 0.69472$, $b^{(3)} = 0.6931496$, $b^{(4)} = 0.69314718$; errors $4.1\times10^{-2}$, $1.6\times10^{-3}$, $2.4\times10^{-6}$, $5.5\times10^{-12}$.</p>
+      <p>(c) The data are fit exactly ($r(b^\star) = 0$, zero residual), so the neglected term $\sum r_j\nabla^2 r_j$ vanishes at the solution and $J^TJ$ equals the true Hessian there. Gauss–Newton then behaves like Newton: quadratic local convergence.</p>
+    </div></details>
+    <!-- Kaynak: alıştırma bu ders için yazıldı; python (verify2.py GN tiny). -->
+  </div>
+  <div class="quiz" id="q-gn-1">
+    <p class="quiz__q">Tek parametreli bir problemde $r = (1, -1)$ ve $J = \begin{pmatrix} 1 \\ 2 \end{pmatrix}$. Gauss–Newton adımı $p$ kaç?</p>
+    <button class="quiz__opt" data-correct>$0.2$<span class="why">Doğru. $J^TJ = 5$, $J^Tr = 1 - 2 = -1$, $p = -(-1)/5 = 0.2$.</span></button>
+    <button class="quiz__opt">$-0.2$<span class="why">Denklemin sağındaki eksiyi unuttun: $J^TJp = -J^Tr$.</span></button>
+    <button class="quiz__opt">$1$<span class="why">Bu $-J^Tr$, yani $t = 1$ ile gradient descent adımı. Gauss–Newton $J^TJ$ ile ölçekler.</span></button>
+  </div>
+  <div class="quiz" id="q-gn-2">
+    <p class="quiz__q">Levenberg–Marquardt'ta $\lambda$ çok büyütülürse adım neye benzer?</p>
+    <button class="quiz__opt" data-correct>$-\tfrac1\lambda J^Tr$: gradient yönünde kısa bir adım<span class="why">Doğru. $\lambda I$ terimi $J^TJ$'yi bastırır; $p \approx -\nabla f/\lambda$.</span></button>
+    <button class="quiz__opt">Pure Gauss–Newton adımına<span class="why">Bu $\lambda \to 0$ limiti.</span></button>
+    <button class="quiz__opt">Tam Newton adımına<span class="why">LM ihmal edilen $\sum r_j\nabla^2 r_j$ terimini hiçbir $\lambda$ için geri getirmez.</span></button>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="lsec" id="race" data-min="7">
+  <h2>Yöntem seçimi ve method race</h2>
+  <div class="box box--intuition">
+    <span class="box__label">Sezgi</span>
+    <p>Week 1'in kuralı: önce problemi sınıflandır, sınıf hangi aracı kullanacağını söyler. Unconstrained smooth problem için slayttaki cevap "Gradient descent · Newton / quasi-Newton" (Week 5–6). Bu hafta o satırın içini dolduruyoruz: hangi bilgiye sahipsin (gradient? Hessian? residual yapısı?) ve $n$ ne kadar büyük?</p>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">Yöntem seçim rehberi</span>
+    <div class="table-wrap w-newton-quasi-newton-tw"><table>
+      <tr><th>Durum</th><th>Yöntem</th><th>Neden</th></tr>
+      <tr><td>Hessian ucuz ve $n$ küçük/orta</td><td>Newton (damped, gerekirse Hessian modification)</td><td>quadratic convergence, az iteration; iteration başına $O(n^3)$</td></tr>
+      <tr><td>Sadece gradient var, $n$ orta</td><td>BFGS</td><td>superlinear, $O(n^2)$ bellek ve iş</td></tr>
+      <tr><td>Sadece gradient var, $n$ çok büyük</td><td>L-BFGS</td><td>$O(mn)$ bellek, BFGS'e yakın hız</td></tr>
+      <tr><td>Objective $\tfrac12\|r(x)\|^2$</td><td>Gauss–Newton / Levenberg–Marquardt</td><td>$J^TJ$ ikinci türevsiz Hessian yaklaşımı</td></tr>
+      <tr><td>Gradient yok, $n$ küçük, gürültülü $f$</td><td>Nelder–Mead (derivative-free)</td><td>sadece fonksiyon değerlerini karşılaştırır</td></tr>
+      <tr><td>Çok büyük $n$, basit adım yeter</td><td>gradient descent (ya da Week 10'da SGD)</td><td>iteration başına $O(n)$</td></tr>
+    </table></div>
+  </div>
+  <div class="box box--rule">
+    <span class="box__label">A tour of scipy.optimize</span>
+    <p><code>res = minimize(fun, x0, method=..., jac=..., hess=...)</code>. Kısıt ya da bound yoksa varsayılan method <code>"BFGS"</code>. <code>jac</code> verilmezse gradient finite difference ile hesaplanır ve bu her gradient için ek fonksiyon değerlendirmesi demektir. Sonuç nesnesinde <code>res.x</code>, <code>res.fun</code>, <code>res.nit</code> (iteration), <code>res.nfev</code> (fonksiyon değerlendirmesi), <code>res.njev</code>, <code>res.success</code>.</p>
+    <p>Rosenbrock, $x_0 = (-1.2, 1)$, SciPy 1.13.1 ile:</p>
+    <div class="table-wrap w-newton-quasi-newton-tw"><table>
+      <tr><th>method</th><th>verilen türev</th><th><code>nit</code></th><th><code>nfev</code></th><th><code>njev</code> / <code>nhev</code></th></tr>
+      <tr><td>Nelder-Mead</td><td>yok</td><td>85</td><td>159</td><td></td></tr>
+      <tr><td>Powell</td><td>yok</td><td>23</td><td>607</td><td></td></tr>
+      <tr><td>CG</td><td>yok (finite diff.)</td><td>37</td><td>280</td><td></td></tr>
+      <tr><td>BFGS</td><td>yok (finite diff.)</td><td>32</td><td>117</td><td></td></tr>
+      <tr><td>BFGS</td><td><code>jac</code></td><td>32</td><td>39</td><td>39</td></tr>
+      <tr><td>L-BFGS-B</td><td><code>jac</code></td><td>36</td><td>44</td><td></td></tr>
+      <tr><td>trust-exact</td><td><code>jac</code>, <code>hess</code></td><td>25</td><td>26</td><td></td></tr>
+    </table></div>
+  </div>
+  <!-- Kaynak: Week_01.pdf s.19 tablo; syllabus Week 6 lab sütunu; scipy.optimize.minimize dokümantasyonu (varsayılan BFGS); tablo SciPy 1.13.1 ile koşuldu (lab01ex4.py). -->
+  <h3>Kendin dene: method race</h3>
+  <p>Gradient descent (backtracking), damped Newton (Algorithm 3.3 ile Hessian modification + backtracking) ve BFGS ((6.20) ölçeklemesi + backtracking) aynı başlangıçtan, aynı stopping criterion ile ($\|\nabla f\| \le 10^{-5}$) yarışıyor. Üçünde de Armijo $c_1 = 10^{-4}$, $\beta = 0.5$, ilk deneme $t = 1$. Konturlar $\log_{10}(f + 1)$ seviyeleri.</p>
+  <p class="w-newton-quasi-newton-guess"><b>Önce tahmin et:</b> $(-1.2, 1)$'den gradient descent kaç bin iteration ister? Newton'un son birkaç hatasının üsleri nasıl ilerler: $-3, -6, -12$ mi, $-3, -4, -5$ mi?</p>
+  <div class="w-newton-quasi-newton-ctl">
+    <label for="wr-x">x₀</label><input type="text" id="wr-x" value="-1.2" aria-label="x0" />
+    <label for="wr-y">y₀</label><input type="text" id="wr-y" value="1" aria-label="y0" />
+    <button class="btn btn--sm btn--accent" id="wr-go">Yarışı başlat</button>
+  </div>
+  <div class="w-newton-quasi-newton-err" id="wr-err" aria-live="polite"></div>
+  <div id="w-race"></div>
+  <div class="w-newton-quasi-newton-out" id="wr-sum"></div>
+  <div class="box box--trap">
+    <span class="box__label">Tuzaklar</span>
+    <ul>
+      <li>İteration sayısı tek ölçüt değil. Newton'un bir iteration'ı bir Hessian ve bir lineer sistem; GD'ninki bir gradient. Adil karşılaştırma için <code>nfev</code>, <code>njev</code> ve süreyi de yaz.</li>
+      <li><code>jac</code> vermeden çağrılan BFGS'in <code>nfev</code>'i finite-difference gradient'leri de sayar ($n = 2$'de her gradient 2 ek değerlendirme). "BFGS çok fonksiyon çağırdı" sonucunu bununla açıkla.</li>
+      <li>Farklı line search'ler farklı sayılar verir: bu widget Armijo kullanıyor, N&amp;W Wolfe; o yüzden GD burada 5264 değil yaklaşık 11 bin iteration ister.</li>
+    </ul>
+  </div>
+  <div class="box box--exam" data-exam="lab01-s6-bfgs"><span class="box__label">Lab 1 · Section 6 · lab görevi</span>
+    <p>"A peek ahead — calling a real solver. … meet <strong><code>scipy.optimize.minimize</code></strong> — give it an objective and a starting point and it returns the minimizer."</p>
+    <p class="w-newton-quasi-newton-mono">rosen = lambda p: (1 - p[0])**2 + 100*(p[1] - p[0]**2)**2<br>res_r = minimize(rosen, x0=[-1.2, 1.0], method="BFGS")<br>print("Rosenbrock -&gt;  x* =", np.round(res_r.x, 4), " f* =", round(float(res_r.fun), 6), " iterations =", res_r.nit)</p>
+    <p>(notebook hücresinden kısaltıldı; bowl kısmı çıkarıldı) Çıktıyı çalıştırmadan tahmin et ve neden BFGS'in burada "the curved valley makes it much harder" uyarısına rağmen başardığını açıkla.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Rosenbrock'un minimizer'ı ve minimum değeri Hessian dersinden: $(1, 1)$, $f = 0$.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p><code>jac</code> verilmemiş. BFGS gradient'i nereden alıyor? Her iteration'da $B_k$'ya ne ekliyor?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>SciPy 1.13.1'de çıktı: <code>x* = [1. 1.]</code>, <code>f* = 0.0</code> (gerçek değer $2.0\times10^{-11}$, 6 basamağa yuvarlanınca 0), <code>iterations = 32</code>, <code>success: True</code>. Sürüme göre iteration sayısı birkaç değişebilir.</p>
+      <p>Neden başarılı: <code>jac</code> verilmediği için SciPy gradient'i finite difference ile hesaplar. BFGS her adımda $(s_k, y_k)$'dan kanyonun eğriliğini öğrenir; $H_k$ yavaş yavaş inverse Hessian'a benzer ve adımlar kanyon boyunca uzanır. Gradient descent aynı kanyonda duvardan duvara zıplar (condition number $\approx 2508$, Hessian dersi).</p>
+    </div></details>
+    <!-- Kaynak: Lab01.ipynb hücre 24–26 (Section 6). Notebook'ta çıktı kayıtlı değil; sayılar SciPy 1.13.1 ile koşuldu. Lab01 dosyası origin/main'de olmadığı için link verilmedi. -->
+  </div>
+  <div class="box box--exam" data-exam="lab01-ex4"><span class="box__label">Lab 1 · Exercise 4 · lab görevi</span>
+    <p>"4. <strong>(Stretch) Method matters.</strong> Minimize Rosenbrock from the hard start $(-1.2, 1.0)$ with <code>"Nelder-Mead"</code> and with <code>"BFGS"</code>. Compare <code>res.nit</code> and <code>res.nfev</code>. Why might a gradient-based method win here?"</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p><code>nfev</code>'i yorumlarken BFGS'e <code>jac</code> verip vermediğine dikkat et. İkisini de dene.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Nelder–Mead her adımda bir simplex'in köşelerindeki fonksiyon değerlerini karşılaştırır. Eğim ya da eğrilik bilgisi kullanır mı?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <div class="table-wrap w-newton-quasi-newton-tw"><table>
+        <tr><th>method</th><th><code>nit</code></th><th><code>nfev</code></th><th>sonuç</th></tr>
+        <tr><td>Nelder-Mead</td><td>85</td><td>159</td><td>$(1, 1)$, $f = 8.2\times10^{-10}$</td></tr>
+        <tr><td>BFGS (jac yok)</td><td>32</td><td>117</td><td>$(1, 1)$, $f = 2.0\times10^{-11}$</td></tr>
+        <tr><td>BFGS (<code>jac=rosen_der</code>)</td><td>32</td><td>39 (+ 39 gradient)</td><td>$(1, 1)$</td></tr>
+      </table></div>
+      <p>(SciPy 1.13.1.) BFGS iteration'ların üçte birinden azını kullanıyor ve daha doğru bir sonuca ulaşıyor. <code>nfev</code> farkı $n = 2$'de küçük görünüyor, çünkü finite-difference gradient'in her biri 3 değerlendirme ($39\times3 = 117$).</p>
+      <p>Neden gradient tabanlı yöntem kazanır: gradient her adımda iniş yönünü, BFGS update'i de kanyonun eğriliğini verir; yöntem superlinear yakınsar. Nelder–Mead sadece değerleri sıralar, kavisli vadide simplex'i küçük adımlarla döndürerek ilerler ve yakınsaması yavaştır. $n$ büyüdükçe fark çok açılır: Nelder–Mead'in simplex'i $n + 1$ nokta, ve yöntem yüksek boyutta belirgin şekilde kötüleşir. Gradient yoksa ya da $f$ gürültülüyse Nelder–Mead yine mantıklı bir seçimdir.</p>
+    </div></details>
+    <!-- Kaynak: Lab01.ipynb hücre 28 (Exercise 4); hücre 26 ipucu ("Try other methods via method=\"Nelder-Mead\" or \"Powell\"..."). Sayılar lab01ex4.py, SciPy 1.13.1. -->
+  </div>
+  <div class="box box--exam" data-exam="lab06-method-race"><span class="box__label">Lab 6 · method race · lab görevi</span>
+    <p>Syllabus, Week 6 laboratory: "Method race; a tour of scipy.optimize".</p>
+    <p class="src">Not: Lab 6 notebook'u repoda yok. Görevin sadece syllabus'taki başlığı biliniyor; aşağıdaki çözüm, Rosenbrock'ta GD, Newton ve BFGS'i yarıştıran yukarıdaki widget'ın ve SciPy turunun sonuçlarıdır.</p>
+    <details class="hint"><summary>İpucu 1</summary><div><p>Adil bir yarış için aynı başlangıç, aynı stopping criterion ve aynı line search kullan; iteration sayısının yanında fonksiyon, gradient ve Hessian değerlendirmelerini de say.</p></div></details>
+    <details class="hint"><summary>İpucu 2</summary><div><p>Hatanın $\|x_k - x^*\|$ dizisine bak: oran sabit mi (linear), sıfıra mı gidiyor (superlinear), üs mü ikiye katlanıyor (quadratic)?</p></div></details>
+    <details class="reveal"><summary>Çözümü göster</summary><div>
+      <p>$x_0 = (-1.2, 1)$, $\|\nabla f\| \le 10^{-5}$, Armijo $c_1 = 10^{-4}$, $\beta = 0.5$:</p>
+      <div class="table-wrap w-newton-quasi-newton-tw"><table>
+        <tr><th>yöntem</th><th>iteration</th><th>$f$ değerl.</th><th>gradient</th><th>Hessian</th><th>son hatalar $\|x_k - x^*\|$</th></tr>
+        <tr><td>gradient descent</td><td>10916</td><td>108512</td><td>10917</td><td>0</td><td>$1.76, 1.76, 1.75\ (\times10^{-5})$</td></tr>
+        <tr><td>damped Newton</td><td>21</td><td>29</td><td>22</td><td>21</td><td>$9.2\times10^{-3}$, $1.2\times10^{-3}$, $2.7\times10^{-6}$, $1.4\times10^{-10}$</td></tr>
+        <tr><td>BFGS</td><td>36</td><td>54</td><td>37</td><td>0</td><td>$1.2\times10^{-2}$, $9.7\times10^{-4}$, $6.3\times10^{-5}$, $4.5\times10^{-7}$</td></tr>
+      </table></div>
+      <p>Yorum: GD linear (oran ≈ 1, hata neredeyse durmuş), BFGS superlinear (oranlar $0.08, 0.06, 0.007$), Newton quadratic (son adımda $10^{-6} \to 10^{-10}$). Newton en az iteration'ı kullanıyor ama her iteration'da Hessian ve lineer sistem var; BFGS sadece gradient'le Newton'a yakın. SciPy turu: aynı problemde <code>Nelder-Mead</code> 85, <code>BFGS</code> 32, <code>trust-exact</code> (Hessian'lı) 25 iteration.</p>
+    </div></details>
+    <!-- Kaynak: syllabus Week 6 satırı (Laboratory / Deliverables sütunu). Sayılar race.py (python) ve widget'ın JS koşusu ile aynı. -->
+    <p><a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Syllabus.pdf">Orijinal: syllabus (Week 6 satırı)</a></p>
+  </div>
+  <div class="quiz" id="q-race-1">
+    <p class="quiz__q">$n = 2\times10^5$ parametreli smooth bir model; gradient backprop ile ucuz, Hessian pratikte hesaplanamaz. Hangisini seçersin?</p>
+    <button class="quiz__opt" data-correct>L-BFGS<span class="why">Doğru. Gradient var, $n$ büyük: $O(mn)$ bellekle BFGS'e yakın hız.</span></button>
+    <button class="quiz__opt">Newton<span class="why">Hessian $4\times10^{10}$ eleman ve $O(n^3)$ çözüm. Bu ölçekte hem bellek hem süre yetmez.</span></button>
+    <button class="quiz__opt">Tam BFGS<span class="why">$n\times n$ dense $H_k$ saklamak gerekir: $4\times10^{10}$ sayı. Limited-memory sürüm tam bunun için var.</span></button>
+    <button class="quiz__opt">Nelder–Mead<span class="why">Elinde gradient varken kullanmamak israf; Nelder–Mead yüksek boyutta çok yavaşlar.</span></button>
+  </div>
+  <div class="quiz" id="q-race-2">
+    <p class="quiz__q">Bir simülasyonun 3 parametresini ayarlıyorsun. Her değerlendirme gürültülü, türev formülü yok. İlk tercih?</p>
+    <button class="quiz__opt" data-correct>Nelder–Mead<span class="why">Doğru. Derivative-free; $n$ küçük ve gürültüye karşı finite-difference gradient'ten daha dayanıklı.</span></button>
+    <button class="quiz__opt">Gauss–Newton<span class="why">Least squares yapısı ve Jacobian gerekir; burada ikisi de yok.</span></button>
+    <button class="quiz__opt">Finite-difference gradient ile Newton<span class="why">Gürültü, ikinci türevlerin finite-difference tahminini neredeyse kullanılamaz yapar.</span></button>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="lsec" id="check" data-min="5">
+  <h2>Son kontrol</h2>
+  <p>Kâğıt kalemle çöz, sonra cevaba bak.</p>
+  <div class="quiz" id="q-final-1">
+    <p class="quiz__q">$\nabla f = (3, 1)$, $\nabla^2 f = \mathrm{diag}(2, 1)$. $\epsilon = 1$ ile Boyd'un algoritması durur mu?</p>
+    <button class="quiz__opt" data-correct>Hayır: $\lambda^2/2 = 2.75 &gt; 1$<span class="why">Doğru. $\nabla^2 f^{-1}\nabla f = (1.5, 1)$, $\lambda^2 = 4.5 + 1 = 5.5$.</span></button>
+    <button class="quiz__opt">Hayır: $\|\nabla f\|^2/2 = 5 &gt; 1$<span class="why">Karar doğru ama ölçüt yanlış. Boyd'un stopping criterion'u $\lambda^2/2$, gradient norm'u değil.</span></button>
+    <button class="quiz__opt">Evet: $\lambda = \sqrt{5.5}/2 &lt; 1.2$<span class="why">$\lambda$'yı ikiye bölmek bir şey ifade etmez; ölçüt $\lambda^2/2 = 2.75$.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2">
+    <p class="quiz__q">Değişkenleri $x = Ty$ ile yeniden ölçekledin. Hangisi değişmez?</p>
+    <button class="quiz__opt" data-correct>Newton iterate'lerinin karşılık geldiği noktalar ve $\lambda(x)$<span class="why">Doğru: $y^{(k)} = T^{-1}x^{(k)}$ ve $\bar\lambda(y) = \lambda(x)$.</span></button>
+    <button class="quiz__opt">$\|\nabla f\|_2$ ve gradient descent iterate'leri<span class="why">İkisi de koordinatlara bağlı: $\nabla\bar f = T^T\nabla f$. Bu yüzden GD condition number'a duyarlı.</span></button>
+    <button class="quiz__opt">Hiçbiri; ölçekleme her yöntemi etkiler<span class="why">Newton'un temel özelliği affine invariance: tam aritmetikte ölçekleme onu etkilemez.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3">
+    <p class="quiz__q">BFGS'te $H_k \succ 0$. $H_{k+1}$'in positive definite olması için ne yeter?</p>
+    <button class="quiz__opt" data-correct>$s_k^Ty_k &gt; 0$<span class="why">Doğru. (6.17) ile $z^TH_{k+1}z = w^TH_kw + \rho_k(z^Ts_k)^2$ ve $\rho_k &gt; 0$.</span></button>
+    <button class="quiz__opt">$f$'nin convex olması<span class="why">Convexity tek başına yeterli değil: affine bir $f$'de $y = 0$, yani $s^Ty = 0$ ve update tanımsız. Gereken $s^Ty &gt; 0$. Strong convexity bunu sıfır olmayan her adımda garanti eder; nonconvex $f$'de ise Wolfe line search sağlar.</span></button>
+    <button class="quiz__opt">$\|s_k\| &lt; 1$<span class="why">Adımın boyu değil, $s$ yönündeki ölçülen eğriliğin işareti önemli.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4">
+    <p class="quiz__q">Residual'ları büyük kalan (veriye kötü uyan) bir least squares probleminde Gauss–Newton yavaşladı. En olası neden?</p>
+    <button class="quiz__opt" data-correct>İhmal edilen $\sum_j r_j\nabla^2r_j$ terimi büyük; $J^TJ$ Hessian'a iyi bir yaklaşım değil<span class="why">Doğru. Küçük residual'da bu terim kaybolur ve GN Newton gibi davranır; büyük residual'da hız linear'a düşer.</span></button>
+    <button class="quiz__opt">$J^TJ$ her zaman indefinite olduğu için<span class="why">$J^TJ$ her zaman positive semidefinite; $J$ full rank ise positive definite.</span></button>
+    <button class="quiz__opt">Line search kullanılmadığı için<span class="why">Line search globalleştirir ama yerel hızı belirleyen Hessian yaklaşımının kalitesidir.</span></button>
+  </div>
+  <div class="quiz" id="q-final-5">
+    <p class="quiz__q">Newton ve BFGS için iteration başına maliyet (türev hesabı hariç) ve yerel hız hangisi?</p>
+    <button class="quiz__opt" data-correct>Newton $O(n^3)$, quadratic; BFGS $O(n^2)$, superlinear<span class="why">Doğru. BFGS'in bedeli daha çok iteration; kazancı ucuz iteration ve ikinci türevsizlik.</span></button>
+    <button class="quiz__opt">İkisi de $O(n^3)$, ikisi de quadratic<span class="why">BFGS lineer sistem çözmez ve gerçek Hessian'ı bilmediği için quadratic değil superlinear yakınsar.</span></button>
+    <button class="quiz__opt">Newton $O(n^2)$, BFGS $O(n)$<span class="why">$O(n)$ L-BFGS'in ($4mn$) mertebesi; Newton dense Cholesky ile $(1/3)n^3$.</span></button>
+  </div>
+  <!-- Sıradaki konu: Lagrange multipliers ve KKT. -->
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script src="course.js?v=7"></script>
+<script src="../assets/lab.js?v=7"></script>
+<script>
+/* Shared helpers: number formatting, exact rationals (BigInt), input parsing, SVG mapping */
+const NQ = {
+  num(v, d) {
+    if (d === undefined) d = 4;
+    if (!Number.isFinite(v)) return String(v);
+    if (v !== 0 && (Math.abs(v) >= 1e6 || Math.abs(v) < 1e-4)) return NQ.sci(v);
+    const r = Math.round(v * 10 ** d) / 10 ** d;
+    return String(Object.is(r, -0) ? 0 : r);
+  },
+  sci(v) {
+    if (v === 0) return "0";
+    const e = Math.floor(Math.log10(Math.abs(v)));
+    let m = v / 10 ** e;
+    if (Math.abs(m) >= 9.95) return NQ.sci(Math.sign(v) * 10 ** (e + 1));
+    return `${m.toFixed(1)}\\times 10^{${e}}`;
+  },
+  vec(a, d) { return `(${a.map(v => NQ.num(v, d)).join(",\\ ")})`; }
+};
+
+const Q = {
+  gcd(a, b) { a = a < 0n ? -a : a; b = b < 0n ? -b : b; while (b) { [a, b] = [b, a % b]; } return a; },
+  make(n, d) {
+    if (d === undefined) d = 1n;
+    if (d === 0n) throw new Error("division by zero");
+    if (d < 0n) { n = -n; d = -d; }
+    const g = Q.gcd(n, d) || 1n;
+    return { n: n / g, d: d / g };
+  },
+  int(k) { return Q.make(BigInt(k), 1n); },
+  add(a, b) { return Q.make(a.n * b.d + b.n * a.d, a.d * b.d); },
+  sub(a, b) { return Q.make(a.n * b.d - b.n * a.d, a.d * b.d); },
+  mul(a, b) { return Q.make(a.n * b.n, a.d * b.d); },
+  div(a, b) { return Q.make(a.n * b.d, a.d * b.n); },
+  neg(a) { return { n: -a.n, d: a.d }; },
+  zero(a) { return a.n === 0n; },
+  sign(a) { return a.n > 0n ? 1 : a.n < 0n ? -1 : 0; },
+  eq(a, b) { return a.n === b.n && a.d === b.d; },
+  val(a) { return Number(a.n) / Number(a.d); },
+  tex(a) {
+    if (a.d === 1n) return a.n.toString();
+    const s = a.n < 0n ? "-" : "", an = a.n < 0n ? -a.n : a.n;
+    if (an.toString().length + a.d.toString().length > 14) return NQ.num(Q.val(a), 6);
+    return `${s}\\tfrac{${an}}{${a.d}}`;
+  },
+  texA(a) { return a.d === 1n ? Q.tex(a) : `${Q.tex(a)} \\approx ${NQ.num(Q.val(a))}`; },
+  parse(raw, label) {
+    const s = String(raw).trim().replace(",", ".");
+    if (s === "") return { e: `${label} boş. Bir sayı yaz (örnek: 3, -1.5 ya da 3/4).` };
+    let m = s.match(/^([+-]?\d{1,9})\s*\/\s*(\d{1,9})$/);
+    if (m) {
+      if (BigInt(m[2]) === 0n) return { e: `${label}: payda sıfır olamaz.` };
+      return { q: Q.make(BigInt(m[1]), BigInt(m[2])) };
+    }
+    m = s.match(/^([+-]?)(\d{0,9})(?:\.(\d{1,9}))?$/);
+    if (m && (m[2] || m[3])) {
+      const frac = m[3] || "", n = BigInt((m[2] || "0") + frac) * (m[1] === "-" ? -1n : 1n);
+      return { q: Q.make(n, 10n ** BigInt(frac.length)) };
+    }
+    return { e: `${label} okunamadı: "${s}". Tam sayı, ondalık (0.75) ya da kesir (3/4) yaz.` };
+  },
+  /* 2x2 symmetric helpers; M = [[a,b],[b,c]] as Q's */
+  det(M) { return Q.sub(Q.mul(M[0][0], M[1][1]), Q.mul(M[0][1], M[1][0])); },
+  mv(M, v) { return [Q.add(Q.mul(M[0][0], v[0]), Q.mul(M[0][1], v[1])), Q.add(Q.mul(M[1][0], v[0]), Q.mul(M[1][1], v[1]))]; },
+  dot(u, v) { return Q.add(Q.mul(u[0], v[0]), Q.mul(u[1], v[1])); },
+  mm(A, B) { return [0, 1].map(i => [0, 1].map(j => Q.add(Q.mul(A[i][0], B[0][j]), Q.mul(A[i][1], B[1][j])))); },
+  inv(M) { const d = Q.det(M); return [[Q.div(M[1][1], d), Q.neg(Q.div(M[0][1], d))], [Q.neg(Q.div(M[1][0], d)), Q.div(M[0][0], d)]]; },
+  texM(M) { return `\\begin{pmatrix} ${Q.tex(M[0][0])} & ${Q.tex(M[0][1])} \\\\ ${Q.tex(M[1][0])} & ${Q.tex(M[1][1])} \\end{pmatrix}`; },
+  texV(v) { return `(${Q.tex(v[0])},\\ ${Q.tex(v[1])})`; },
+  /* PD test for symmetric 2x2: a > 0 and det > 0 */
+  pd(M) { return Q.sign(M[0][0]) > 0 && Q.sign(Q.det(M)) > 0; }
+};
+
+/* 1. 2x2 Newton calculator */
+(function () {
+  const $ = id => document.getElementById(id);
+  const ids = ["wc-g1", "wc-g2", "wc-h11", "wc-h12", "wc-h22"], labels = ["$g_1$", "$g_2$", "$h_{11}$", "$h_{12}$", "$h_{22}$"];
+  const ins = ids.map($), sel = $("wc-preset"), err = $("wc-err"), out = $("wc-out");
+  const quart = { f: p => p[0] ** 4 + p[0] * p[1] + 2 * p[1] ** 2, tex: "x^4 + xy + 2y^2" };
+  const boydF = p => Math.exp(p[0] + 3 * p[1] - 0.1) + Math.exp(p[0] - 3 * p[1] - 0.1) + Math.exp(-p[0] - 0.1);
+  function boydVals(p) {
+    const a = Math.exp(p[0] + 3 * p[1] - 0.1), b = Math.exp(p[0] - 3 * p[1] - 0.1), c = Math.exp(-p[0] - 0.1);
+    return [a + b - c, 3 * a - 3 * b, a + b + c, 3 * a - 3 * b, 9 * a + 9 * b].map(v => v.toFixed(6));
+  }
+  const PRE = {
+    lab2: { v: ["5", "6", "2", "1", "4"], x: [2, 1], f: p => p[0] ** 2 + p[0] * p[1] + 2 * p[1] ** 2, tex: "x^2 + xy + 2y^2" },
+    quart: { v: ["5", "5", "12", "1", "4"], x: [1, 1], f: quart.f, tex: quart.tex },
+    quart01: { v: ["0.104", "0.5", "0.12", "1", "4"], x: [0.1, 0.1], f: quart.f, tex: quart.tex },
+    boyd: { v: boydVals([-1, 1]), x: [-1, 1], f: boydF, tex: "\\text{Boyd (9.20)}", rounded: true }
+  };
+  let cur = PRE.quart;
+  function load(key) {
+    if (key === "manual") { cur = null; upd(); return; }
+    cur = PRE[key];
+    cur.v.forEach((v, i) => { ins[i].value = v; });
+    upd();
+  }
+  function upd() {
+    const vals = [], errs = [];
+    ins.forEach((inp, i) => { const r = Q.parse(inp.value, labels[i]); if (r.e) errs.push(r.e); else vals.push(r.q); });
+    if (errs.length) { err.innerHTML = errs.join("<br>"); out.innerHTML = ""; Lab.renderMath(err); return; }
+    const g = [vals[0], vals[1]], H = [[vals[2], vals[3]], [vals[3], vals[4]]], D = Q.det(H);
+    if (Q.zero(D)) {
+      err.innerHTML = `$\\det \\nabla^2 f = 0$: Hessian singular, Newton sistemi tek çözümlü değil. Newton step tanımsız; Hessian modification (Bölüm 6) gerekir.`;
+      out.innerHTML = ""; Lab.renderMath(err); return;
+    }
+    err.innerHTML = "";
+    const v = Q.mv(Q.inv(H), g), dx = [Q.neg(v[0]), Q.neg(v[1])];
+    const res = Q.mv(H, dx).map((r, i) => Q.add(r, g[i]));
+    const gdx = Q.dot(g, dx), lam2 = Q.neg(gdx), half = Q.div(lam2, Q.int(2));
+    const isPD = Q.pd(H), dsign = Q.sign(D), a = Q.sign(H[0][0]);
+    const kind = isPD ? `<span class="w-newton-quasi-newton-ok">positive definite</span>` : dsign < 0 ? `<span class="w-newton-quasi-newton-bad">indefinite</span> ($\\det &lt; 0$)` : a < 0 ? `<span class="w-newton-quasi-newton-bad">negative definite</span>` : `<span class="w-newton-quasi-newton-bad">positive definite değil</span>`;
+    let rows = `<tr><td>$\\nabla^2 f$</td><td>$${Q.texM(H)}$, $\\det = ${Q.texA(D)}$: ${kind}</td></tr>`;
+    rows += `<tr><td>$\\Delta x_{nt}$</td><td>$${Q.texV(dx)} \\approx ${NQ.vec(dx.map(Q.val))}$</td></tr>`;
+    rows += `<tr><td>kontrol $\\nabla^2 f\\,\\Delta x_{nt} + \\nabla f$</td><td>$${Q.texV(res)}$ ${res.every(Q.zero) ? '<span class="w-newton-quasi-newton-ok">✓ sistem tam çözüldü</span>' : ""}</td></tr>`;
+    rows += `<tr><td>$\\nabla f^T\\Delta x_{nt}$</td><td>$${Q.texA(gdx)}$ ${Q.sign(gdx) < 0 ? '<span class="w-newton-quasi-newton-ok">descent direction</span>' : '<span class="w-newton-quasi-newton-bad">descent değil (yokuş yukarı ya da düz)</span>'}</td></tr>`;
+    rows += `<tr><td>$\\lambda^2 = -\\nabla f^T\\Delta x_{nt}$</td><td>$${Q.texA(lam2)}$</td></tr>`;
+    const stopNote = !Q.zero(lam2) ? "" : isPD ? ` <span class="w-newton-quasi-newton-ok">$\\nabla f = 0$: stopping criterion $\\lambda^2/2 \\le \\epsilon$ sağlandı, dur</span>` : ` <span class="w-newton-quasi-newton-bad">Hessian positive definite değil; $\\lambda^2 = 0$ burada $\\nabla f = 0$ demek değil, decrement durma ölçüsü olarak kullanılamaz</span>`;
+    rows += Q.sign(lam2) >= 0 ? `<tr><td>$\\lambda$</td><td>$${NQ.num(Math.sqrt(Q.val(lam2)))}$</td></tr><tr><td>predicted decrease $\\lambda^2/2$</td><td>$${Q.texA(half)}$${stopNote}</td></tr>` : `<tr><td>$\\lambda$</td><td><span class="w-newton-quasi-newton-bad">tanımsız: $\\lambda^2 &lt; 0$</span></td></tr>`;
+    let note = "";
+    if (cur) {
+      const x0 = cur.x, x1 = [x0[0] + Q.val(dx[0]), x0[1] + Q.val(dx[1])], f0 = cur.f(x0), f1 = cur.f(x1);
+      const arm = f0 - 0.1 * Q.val(lam2);
+      rows += `<tr><td>$f = ${cur.tex}$, $x_0$</td><td>$${NQ.vec(x0)}$, $f(x_0) = ${NQ.num(f0)}$</td></tr>`;
+      rows += `<tr><td>$x_0 + \\Delta x_{nt}$</td><td>$${NQ.vec(x1)}$, $f = ${NQ.num(f1)}$</td></tr>`;
+      rows += `<tr><td>actual decrease</td><td>$${NQ.num(f0 - f1)}$ (tahmin $${NQ.num(Q.val(half))}$)</td></tr>`;
+      rows += `<tr><td>Armijo, $\\alpha = 0.1$, $t = 1$</td><td>$${NQ.num(f1)} ${f1 <= arm ? "\\le" : "&gt;"} ${NQ.num(arm)}$: ${f1 <= arm ? '<span class="w-newton-quasi-newton-ok">tam adım kabul</span>' : '<span class="w-newton-quasi-newton-bad">tam adım reddedilir, backtracking $t$\'yi küçültür</span>'}</td></tr>`;
+      if (cur.rounded) note = `<p class="src">Not: Boyd (9.20)'nin gradient ve Hessian değerleri 6 basamağa yuvarlanıp girildi; kesirler bu yuvarlanmış sayıların tam çözümü.</p>`;
+    } else {
+      note = `<p class="src">Not: Elle girilen değerlerde $f$ bilinmediği için gerçek azalma hesaplanmıyor.</p>`;
+    }
+    if (!isPD) note += `<p class="w-newton-quasi-newton-bad">Hessian positive definite değil. Newton step'in descent olduğu garanti değil ve quadratic model'in dibi yok (model alttan sınırsız ya da düz). Bölüm 6'daki modification'a bak.</p>`;
+    out.innerHTML = `<div class="table-wrap w-newton-quasi-newton-tw"><table>${rows}</table></div>${note}`;
+    Lab.renderMath(out);
+  }
+  sel.addEventListener("change", () => load(sel.value));
+  ins.forEach(inp => inp.addEventListener("input", () => { if (sel.value !== "manual") { sel.value = "manual"; cur = null; } upd(); }));
+  load(sel.value);
+})();
+
+/* 2. BFGS single-update calculator, (6.19) and (6.17) in exact arithmetic */
+(function () {
+  const $ = id => document.getElementById(id);
+  const ids = ["wb-b11", "wb-b12", "wb-b22", "wb-s1", "wb-s2", "wb-y1", "wb-y2"];
+  const labels = ["$b_{11}$", "$b_{12}$", "$b_{22}$", "$s_1$", "$s_2$", "$y_1$", "$y_2$"];
+  const ins = ids.map($), sel = $("wb-preset"), err = $("wb-err"), out = $("wb-out");
+  const PRE = {
+    ex1: { v: ["1", "0", "1", "1", "0", "2", "1"] },
+    ex2: { v: ["2", "1", "3/2", "0", "1", "1", "4"], prev: { s: [1, 0], y: [2, 1] } },
+    neg: { v: ["1", "0", "1", "1", "1", "1", "-2"] }
+  };
+  let cur = PRE.ex1;
+  function load(k) {
+    if (k === "manual") { cur = null; upd(); return; }
+    cur = PRE[k]; cur.v.forEach((v, i) => { ins[i].value = v; }); upd();
+  }
+  function upd() {
+    const vals = [], errs = [];
+    ins.forEach((inp, i) => { const r = Q.parse(inp.value, labels[i]); if (r.e) errs.push(r.e); else vals.push(r.q); });
+    if (!errs.length && Q.zero(vals[3]) && Q.zero(vals[4])) errs.push("$s_k = 0$ olamaz: adım atılmadan eğrilik ölçülmez.");
+    if (errs.length) { err.innerHTML = errs.join("<br>"); out.innerHTML = ""; Lab.renderMath(err); return; }
+    const B = [[vals[0], vals[1]], [vals[1], vals[2]]], s = [vals[3], vals[4]], y = [vals[5], vals[6]];
+    const Bs = Q.mv(B, s), sBs = Q.dot(s, Bs), ys = Q.dot(y, s);
+    const msgs = [];
+    if (!Q.pd(B)) msgs.push("$B_k$ positive definite değil. BFGS $B_k \\succ 0$ varsayar.");
+    if (Q.zero(sBs)) msgs.push("$s^TB_ks = 0$: formülün paydası sıfır.");
+    if (Q.zero(ys)) msgs.push("$y^Ts = 0$: formülün paydası sıfır, update tanımsız.");
+    if (msgs.length && (Q.zero(sBs) || Q.zero(ys))) { err.innerHTML = msgs.join("<br>"); out.innerHTML = ""; Lab.renderMath(err); return; }
+    err.innerHTML = msgs.join("<br>");
+    const B1 = [0, 1].map(i => [0, 1].map(j => Q.add(Q.sub(B[i][j], Q.div(Q.mul(Bs[i], Bs[j]), sBs)), Q.div(Q.mul(y[i], y[j]), ys))));
+    const B1s = Q.mv(B1, s), sec = Q.eq(B1s[0], y[0]) && Q.eq(B1s[1], y[1]);
+    const D1 = Q.det(B1), pd1 = Q.pd(B1);
+    let rows = `<tr><td>$s^Ty$</td><td>$${Q.texA(ys)}$ ${Q.sign(ys) > 0 ? '<span class="w-newton-quasi-newton-ok">curvature condition sağlanıyor</span>' : '<span class="w-newton-quasi-newton-bad">curvature condition bozuk: $s^Ty \\le 0$</span>'}</td></tr>`;
+    rows += `<tr><td>$B_ks$, $s^TB_ks$</td><td>$${Q.texV(Bs)}$, $${Q.tex(sBs)}$</td></tr>`;
+    rows += `<tr><td>$B_{k+1}$ (6.19)</td><td>$${Q.texM(B1)}$</td></tr>`;
+    rows += `<tr><td>secant $B_{k+1}s = y$</td><td>$${Q.texV(B1s)}$ ${sec ? '<span class="w-newton-quasi-newton-ok">✓ $= y$</span>' : '<span class="w-newton-quasi-newton-bad">✗</span>'}</td></tr>`;
+    rows += `<tr><td>positive definite?</td><td>$b_{11} = ${Q.tex(B1[0][0])}$, $\\det = ${Q.texA(D1)}$: ${pd1 ? '<span class="w-newton-quasi-newton-ok">evet</span>' : '<span class="w-newton-quasi-newton-bad">hayır</span>'}</td></tr>`;
+    if (!Q.zero(Q.det(B))) {
+      const H = Q.inv(B), rho = Q.div(Q.int(1), ys), I = [[Q.int(1), Q.int(0)], [Q.int(0), Q.int(1)]];
+      const L = [0, 1].map(i => [0, 1].map(j => Q.sub(I[i][j], Q.mul(rho, Q.mul(s[i], y[j])))));
+      const R = [0, 1].map(i => [0, 1].map(j => Q.sub(I[i][j], Q.mul(rho, Q.mul(y[i], s[j])))));
+      const LHR = Q.mm(Q.mm(L, H), R);
+      const H1 = [0, 1].map(i => [0, 1].map(j => Q.add(LHR[i][j], Q.mul(rho, Q.mul(s[i], s[j])))));
+      const P = Q.mm(B1, H1), isI = Q.eq(P[0][0], I[0][0]) && Q.eq(P[1][1], I[1][1]) && Q.zero(P[0][1]) && Q.zero(P[1][0]);
+      rows += `<tr><td>$H_{k+1}$ (6.17), $H_k = B_k^{-1}$</td><td>$${Q.texM(H1)}$</td></tr>`;
+      rows += `<tr><td>$B_{k+1}H_{k+1}$</td><td>$${Q.texM(P)}$ ${isI ? '<span class="w-newton-quasi-newton-ok">✓ $= I$, iki form aynı matrix</span>' : ""}</td></tr>`;
+    }
+    if (cur && cur.prev) {
+      const sp = cur.prev.s.map(Q.int), yp = cur.prev.y.map(Q.int), Bp = Q.mv(B1, sp), okp = Q.eq(Bp[0], yp[0]) && Q.eq(Bp[1], yp[1]);
+      rows += `<tr><td>eski çift: $B_{k+1}s_{k-1}$ vs $y_{k-1} = ${Q.texV(yp)}$</td><td>$${Q.texV(Bp)}$ ${okp ? '<span class="w-newton-quasi-newton-ok">✓</span>' : '<span class="w-newton-quasi-newton-bad">✗ eski secant artık sağlanmıyor</span>'}</td></tr>`;
+    }
+    out.innerHTML = `<div class="table-wrap w-newton-quasi-newton-tw"><table>${rows}</table></div>`;
+    Lab.renderMath(out); Lab.renderMath(err);
+  }
+  sel.addEventListener("change", () => load(sel.value));
+  ins.forEach(inp => inp.addEventListener("input", () => { if (sel.value !== "manual") { sel.value = "manual"; cur = null; } upd(); }));
+  load(sel.value);
+})();
+
+/* 3. Gauss-Newton / Levenberg-Marquardt stepper for y = a e^{bx} */
+(function () {
+  const X = [0, 1, 2, 3, 4], Y = [2.1, 2.9, 3.6, 5.1, 6.5];
+  const res = p => X.map((x, j) => p[0] * Math.exp(p[1] * x) - Y[j]);
+  const jac = p => X.map(x => [Math.exp(p[1] * x), p[0] * x * Math.exp(p[1] * x)]);
+  const half = r => 0.5 * r.reduce((s, v) => s + v * v, 0);
+  function normal(J, r, lam) {
+    const A = [[0, 0], [0, 0]], g = [0, 0];
+    J.forEach((row, j) => { for (let a = 0; a < 2; a++) { g[a] += row[a] * r[j]; for (let b = 0; b < 2; b++) A[a][b] += row[a] * row[b]; } });
+    const M = [[A[0][0] + lam, A[0][1]], [A[1][0], A[1][1] + lam]], d = M[0][0] * M[1][1] - M[0][1] * M[1][0];
+    const p = [-(M[1][1] * g[0] - M[0][1] * g[1]) / d, -(-M[1][0] * g[0] + M[0][0] * g[1]) / d];
+    return { A, g, p };
+  }
+  function run(mode, x0) {
+    let x = x0.slice(), lam = 1;
+    const frames = [];
+    for (let k = 0; k < 30; k++) {
+      const r = res(x), J = jac(x), f = half(r), N0 = normal(J, r, 0), gn = Math.hypot(N0.g[0], N0.g[1]);
+      if (!Number.isFinite(f) || gn < 1e-8) { frames.push({ k, x: x.slice(), r, f, gn, done: true }); break; }
+      let p, xn, tries = [];
+      if (mode === "GN") { p = N0.p; xn = [x[0] + p[0], x[1] + p[1]]; }
+      else {
+        for (let t = 0; t < 40; t++) {
+          const N = normal(J, r, lam), cand = [x[0] + N.p[0], x[1] + N.p[1]], fc = half(res(cand));
+          if (fc < f) { tries.push({ lam, fc, ok: true }); p = N.p; xn = cand; lam /= 10; break; }
+          tries.push({ lam, fc, ok: false }); lam *= 10;
+        }
+        if (!p) { frames.push({ k, x: x.slice(), r, f, gn, done: true }); break; }
+      }
+      frames.push({ k, x: x.slice(), r, f, gn, A: N0.A, g: N0.g, p, xn, fn: half(res(xn)), tries });
+      x = xn;
+    }
+    return frames;
+  }
+  const W = 300, H = 210, xl = -0.3, xr = 4.3, yb = 0, yt = 9;
+  const PX = v => ((v - xl) / (xr - xl) * W).toFixed(1), PY = v => (H - (v - yb) / (yt - yb) * H).toFixed(1);
+  function curve(p, style) {
+    const pts = [];
+    for (let i = 0; i <= 60; i++) { const x = xl + (xr - xl) * i / 60, v = p[0] * Math.exp(p[1] * x); pts.push(PX(x) + "," + PY(Math.max(-50, Math.min(60, v)))); }
+    return `<polyline points="${pts.join(" ")}" clip-path="url(#wgclip)" style="fill:none;${style}" />`;
+  }
+  function plot(f) {
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="veri ve uydurulan eğri"><defs><clipPath id="wgclip"><rect width="${W}" height="${H}" /></clipPath></defs><rect width="${W}" height="${H}" style="fill:var(--paper)" />`;
+    for (let yv = 0; yv <= 8; yv += 2) s += `<line x1="0" y1="${PY(yv)}" x2="${W}" y2="${PY(yv)}" style="stroke:var(--border);stroke-width:1" /><text x="3" y="${Number(PY(yv)) - 2}" style="fill:var(--fg-muted);font-size:10px">${yv}</text>`;
+    s += curve(f.x, "stroke:var(--blue-600);stroke-width:2.2");
+    if (f.xn) s += curve(f.xn, "stroke:var(--accent);stroke-width:1.6;stroke-dasharray:6 4");
+    X.forEach((x, j) => { s += `<circle cx="${PX(x)}" cy="${PY(Y[j])}" r="4.5" style="fill:var(--fg)" />`; });
+    return s + `</svg>`;
+  }
+  function render(f, i, el) {
+    let t = `<div class="table-wrap w-newton-quasi-newton-tw"><table><tr><th>$x_j$</th><th>$y_j$</th><th>$r_j$</th></tr>`;
+    f.r.forEach((rv, j) => { t += `<tr><td>${X[j]}</td><td>${Y[j]}</td><td>${NQ.num(rv)}</td></tr>`; });
+    t += `</table></div>`;
+    let m = "";
+    if (f.A) {
+      m = `<p>$J^TJ = \\begin{pmatrix} ${NQ.num(f.A[0][0], 3)} & ${NQ.num(f.A[0][1], 3)} \\\\ ${NQ.num(f.A[1][0], 3)} & ${NQ.num(f.A[1][1], 3)} \\end{pmatrix}$, $J^Tr = ${NQ.vec(f.g, 3)}$</p>`;
+      if (f.tries && f.tries.length) m += `<p>${f.tries.map(q => `$\\lambda = ${NQ.num(q.lam)}$: $f = ${NQ.num(q.fc)}$ ${q.ok ? "✓" : "✗"}`).join(" · ")}</p>`;
+    }
+    el.innerHTML = `<div class="w-newton-quasi-newton-grid"><div class="w-newton-quasi-newton-plot">${plot(f)}<div class="w-newton-quasi-newton-legend"><span><i style="background:var(--blue-600)"></i>şimdiki eğri</span><span><i style="background:var(--accent)"></i>adımdan sonraki</span></div></div><div class="w-newton-quasi-newton-out">${t}${m}</div></div>`;
+  }
+  const host = document.getElementById("w-gn"), msel = document.getElementById("wg-method"), ssel = document.getElementById("wg-start");
+  function build() {
+    const mode = msel.value, x0 = ssel.value.split(",").map(Number), fr = run(mode, x0);
+    const frames = fr.map(f => {
+      let cap = `$k = ${f.k}$: $(a, b) = ${NQ.vec(f.x)}$, $f = ${NQ.num(f.f)}$, $\\|\\nabla f\\| = ${NQ.num(f.gn)}$.`;
+      if (f.done) cap += ` <b>Durdu:</b> ${fr.length - 1} iteration. Çözüm $a^* = 2.1358$, $b^* = 0.28024$, $f^* = 0.025741$.`;
+      else cap += ` ${mode === "GN" ? "$J^TJp = -J^Tr$" : "$(J^TJ + \\lambda I)p = -J^Tr$"} ⇒ $p = ${NQ.vec(f.p)}$, yeni $f = ${NQ.num(f.fn)}$` + (f.fn > f.f ? ` <b style="color:var(--orange-700)">($f$ arttı: linearization bu uzaklıkta güvenilmez)</b>.` : ".");
+      return Object.assign({ caption: cap }, f);
+    });
+    Lab.stepper(host, { title: `${mode === "GN" ? "Gauss–Newton" : "Levenberg–Marquardt"}: y = a·e^(bx), başlangıç (${x0.join(", ")})`, interval: 1500, frames, render });
+  }
+  msel.addEventListener("change", build); ssel.addEventListener("change", build);
+  build();
+})();
+
+/* 4. Method race on Rosenbrock: GD, damped Newton (Algorithm 3.3 modification), BFGS (6.17) + (6.20) */
+(function () {
+  const f = p => (1 - p[0]) ** 2 + 100 * (p[1] - p[0] ** 2) ** 2;
+  const grad = p => [-2 * (1 - p[0]) - 400 * p[0] * (p[1] - p[0] ** 2), 200 * (p[1] - p[0] ** 2)];
+  const hess = p => [[2 + 1200 * p[0] ** 2 - 400 * p[1], -400 * p[0]], [-400 * p[0], 200]];
+  const C1 = 1e-4, BETA = 0.5, TOL = 1e-5, CAP = 50000;
+  const err = p => Math.hypot(p[0] - 1, p[1] - 1);
+  function chol2(A) { const a = A[0][0]; if (!(a > 0)) return false; const d = A[1][1] - A[0][1] * A[0][1] / a; return d > 0; }
+  function solve2(A, b) { const d = A[0][0] * A[1][1] - A[0][1] * A[1][0]; return [(A[1][1] * b[0] - A[0][1] * b[1]) / d, (-A[1][0] * b[0] + A[0][0] * b[1]) / d]; }
+  function run(method, x0) {
+    let x = x0.slice(), fx = f(x), g = grad(x), Hk = [[1, 0], [0, 1]], first = true;
+    const cnt = { f: 1, g: 1, h: 0, mod: 0, skip: 0 }, path = [x.slice()], errs = [err(x)], fs = [fx];
+    let k = 0;
+    for (; k < CAP; k++) {
+      if (Math.hypot(g[0], g[1]) <= TOL) break;
+      let p;
+      if (method === "gd") p = [-g[0], -g[1]];
+      else if (method === "newton") {
+        const A = hess(x); cnt.h++;
+        let tau = Math.min(A[0][0], A[1][1]) > 0 ? 0 : -Math.min(A[0][0], A[1][1]) + 1e-3;
+        while (!chol2([[A[0][0] + tau, A[0][1]], [A[1][0], A[1][1] + tau]])) tau = Math.max(2 * tau, 1e-3);
+        if (tau > 0) cnt.mod++;
+        const s = solve2([[A[0][0] + tau, A[0][1]], [A[1][0], A[1][1] + tau]], g); p = [-s[0], -s[1]];
+      } else p = [-(Hk[0][0] * g[0] + Hk[0][1] * g[1]), -(Hk[1][0] * g[0] + Hk[1][1] * g[1])];
+      const gp = g[0] * p[0] + g[1] * p[1];
+      let t = 1;
+      let fn;
+      while (true) { cnt.f++; fn = f([x[0] + t * p[0], x[1] + t * p[1]]); if (fn <= fx + C1 * t * gp || t < 1e-20) break; t *= BETA; }
+      const xn = [x[0] + t * p[0], x[1] + t * p[1]], gn = grad(xn); cnt.g++;
+      if (method === "bfgs") {
+        const s = [xn[0] - x[0], xn[1] - x[1]], y = [gn[0] - g[0], gn[1] - g[1]], sy = s[0] * y[0] + s[1] * y[1];
+        if (sy > 1e-12) {
+          if (first) { const c = sy / (y[0] * y[0] + y[1] * y[1]); Hk = [[c, 0], [0, c]]; first = false; }
+          const r = 1 / sy, L = [[1 - r * s[0] * y[0], -r * s[0] * y[1]], [-r * s[1] * y[0], 1 - r * s[1] * y[1]]];
+          const LH = [[L[0][0] * Hk[0][0] + L[0][1] * Hk[1][0], L[0][0] * Hk[0][1] + L[0][1] * Hk[1][1]], [L[1][0] * Hk[0][0] + L[1][1] * Hk[1][0], L[1][0] * Hk[0][1] + L[1][1] * Hk[1][1]]];
+          const N = [[0, 0], [0, 0]];
+          for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) N[i][j] = LH[i][0] * L[j][0] + LH[i][1] * L[j][1] + r * s[i] * s[j];
+          Hk = N;
+        } else cnt.skip++;
+      }
+      x = xn; g = gn; fx = fn; path.push(x.slice()); errs.push(err(x)); fs.push(fx);
+    }
+    return { its: k, x, cnt, path, errs, fs };
+  }
+  /* static log10(f+1) contours by marching squares */
+  const W = 300, R = { x0: -2, x1: 2, y0: -1, y1: 3 };
+  const PX = v => ((v - R.x0) / (R.x1 - R.x0) * W).toFixed(1), PY = v => (W - (v - R.y0) / (R.y1 - R.y0) * W).toFixed(1);
+  let contours = "";
+  (function () {
+    const N = 90, gx = i => R.x0 + (R.x1 - R.x0) * i / N, gy = j => R.y0 + (R.y1 - R.y0) * j / N, G = [];
+    for (let i = 0; i <= N; i++) { G.push([]); for (let j = 0; j <= N; j++) G[i].push(Math.log10(f([gx(i), gy(j)]) + 1)); }
+    [0.05, 0.2, 0.5, 0.8, 1.1, 1.4, 1.7, 2, 2.3, 2.6, 2.9, 3.2].forEach(Lv => {
+      let d = "";
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+        const v = [G[i][j], G[i + 1][j], G[i + 1][j + 1], G[i][j + 1]], c4 = [[gx(i), gy(j)], [gx(i + 1), gy(j)], [gx(i + 1), gy(j + 1)], [gx(i), gy(j + 1)]], pts = [];
+        for (let e = 0; e < 4; e++) { const a0 = v[e] - Lv, a1 = v[(e + 1) % 4] - Lv; if ((a0 < 0) !== (a1 < 0)) { const t = a0 / (a0 - a1), p0 = c4[e], p1 = c4[(e + 1) % 4]; pts.push([p0[0] + t * (p1[0] - p0[0]), p0[1] + t * (p1[1] - p0[1])]); } }
+        for (let q = 0; q + 1 < pts.length; q += 2) d += `M${PX(pts[q][0])} ${PY(pts[q][1])}L${PX(pts[q + 1][0])} ${PY(pts[q + 1][1])}`;
+      }
+      if (d) contours += `<path d="${d}" style="fill:none;stroke:var(--border);stroke-width:1" />`;
+    });
+  })();
+  const COL = { gd: "var(--orange-700)", newton: "var(--blue-600)", bfgs: "#2b8a3e" }, NAME = { gd: "gradient descent", newton: "damped Newton", bfgs: "BFGS" };
+  function poly(path, upto, col, step) {
+    const pts = [];
+    for (let i = 0; i <= Math.min(upto, path.length - 1); i += step) pts.push(PX(path[i][0]) + "," + PY(path[i][1]));
+    const last = path[Math.min(upto, path.length - 1)];
+    pts.push(PX(last[0]) + "," + PY(last[1]));
+    return `<polyline points="${pts.join(" ")}" style="fill:none;stroke:${col};stroke-width:2;opacity:.9" /><circle cx="${PX(last[0])}" cy="${PY(last[1])}" r="4" style="fill:${col};stroke:#fff;stroke-width:1.2" />`;
+  }
+  const host = document.getElementById("w-race"), ex = document.getElementById("wr-x"), ey = document.getElementById("wr-y"), er = document.getElementById("wr-err"), sum = document.getElementById("wr-sum");
+  function readIn(inp, label, lo, hi) {
+    const s = String(inp.value).trim().replace(",", ".");
+    if (s === "") return { e: `${label} boş.` };
+    const v = Number(s);
+    if (!Number.isFinite(v)) return { e: `${label} bir sayı olmalı (örnek: -1.2).` };
+    if (v < lo || v > hi) return { e: `${label} ${lo} ile ${hi} arasında olmalı (çizim alanı).` };
+    return { v };
+  }
+  function build() {
+    const a = readIn(ex, "$x_0$", -2, 2), b = readIn(ey, "$y_0$", -1, 3);
+    if (a.e || b.e) { er.innerHTML = [a.e, b.e].filter(Boolean).join("<br>"); Lab.renderMath(er); return; }
+    er.innerHTML = "";
+    const x0 = [a.v, b.v], M = { gd: run("gd", x0), newton: run("newton", x0), bfgs: run("bfgs", x0) };
+    const K = Math.max(M.newton.its, M.bfgs.its), frames = [];
+    for (let k = 0; k <= K; k++) {
+      const cap = `$k = ${k}$: ` + ["newton", "bfgs", "gd"].map(m => { const i = Math.min(k, M[m].its); return `${NAME[m]} $\\|x_{${i}} - x^*\\| = ${NQ.num(M[m].errs[i])}$`; }).join(" · ") + ".";
+      frames.push({ k, caption: cap });
+    }
+    frames.push({ k: CAP, final: true, caption: `Gradient descent'in tam yolu: ${M.gd.its} iteration. Newton ${M.newton.its}, BFGS ${M.bfgs.its} iteration'da bitirdi. Turuncu çizgi kanyonun tabanında yüzlerce küçük zikzakla ilerliyor.` });
+    Lab.stepper(host, {
+      title: `Rosenbrock, başlangıç (${x0.join(", ")})`, interval: 900, frames,
+      render(fr, idx, el) {
+        let s = `<svg viewBox="0 0 ${W} ${W}" role="img" aria-label="Rosenbrock konturları ve iterate yolları"><rect width="${W}" height="${W}" style="fill:var(--paper)" />${contours}`;
+        s += `<circle cx="${PX(1)}" cy="${PY(1)}" r="5" style="fill:none;stroke:var(--fg);stroke-width:2" />`;
+        ["gd", "bfgs", "newton"].forEach(m => { const step = fr.final && m === "gd" ? Math.max(1, Math.ceil(M.gd.its / 600)) : 1; s += poly(M[m].path, fr.k, COL[m], step); });
+        s += `</svg>`;
+        let t = `<div class="table-wrap w-newton-quasi-newton-tw"><table><tr><th>yöntem</th><th>$k$</th><th>$x_k$</th><th>$f(x_k)$</th><th>$\\|x_k - x^*\\|$</th></tr>`;
+        ["newton", "bfgs", "gd"].forEach(m => { const i = Math.min(fr.k, M[m].its); t += `<tr><td style="color:${COL[m]};font-weight:700">${NAME[m]}</td><td>${i}</td><td>$${NQ.vec(M[m].path[i], 4)}$</td><td>$${NQ.num(M[m].fs[i])}$</td><td>$${NQ.num(M[m].errs[i])}$</td></tr>`; });
+        el.innerHTML = `<div class="w-newton-quasi-newton-grid"><div class="w-newton-quasi-newton-plot">${s}<div class="w-newton-quasi-newton-legend">${["newton", "bfgs", "gd"].map(m => `<span><i style="background:${COL[m]}"></i>${NAME[m]}</span>`).join("")}</div></div><div class="w-newton-quasi-newton-out">${t}</table></div></div></div>`;
+      }
+    });
+    let st = `<div class="table-wrap w-newton-quasi-newton-tw"><table><tr><th>yöntem</th><th>iteration</th><th>$f$ değerl.</th><th>gradient</th><th>Hessian</th><th>Hessian modification</th><th>atlanan BFGS update</th></tr>`;
+    ["gd", "newton", "bfgs"].forEach(m => { const c = M[m].cnt; st += `<tr><td style="color:${COL[m]};font-weight:700">${NAME[m]}</td><td>${M[m].its}${M[m].its >= CAP ? " (sınır)" : ""}</td><td>${c.f}</td><td>${c.g}</td><td>${c.h}</td><td>${m === "newton" ? c.mod : "–"}</td><td>${m === "bfgs" ? c.skip : "–"}</td></tr>`; });
+    st += `</table></div>`;
+    let lg = `<div class="w-newton-quasi-newton-log table-wrap w-newton-quasi-newton-tw"><table><tr><th>$k$</th><th>Newton $\\|x_k - x^*\\|$</th><th>BFGS $\\|x_k - x^*\\|$</th><th>GD $\\|x_k - x^*\\|$</th></tr>`;
+    for (let k = 0; k <= K; k++) lg += `<tr><td>${k}</td>${["newton", "bfgs", "gd"].map(m => `<td>${k <= M[m].its ? "$" + NQ.num(M[m].errs[k]) + "$" : ""}</td>`).join("")}</tr>`;
+    lg += `</table></div>`;
+    sum.innerHTML = `<p><b>Sayaçlar</b> (durma: $\\|\\nabla f\\| \\le 10^{-5}$):</p>${st}<p><b>Hata günlüğü.</b> Newton sütununun sonunda üslerin nasıl ikiye katlandığına, BFGS'te oranın sıfıra gittiğine, GD'de hatanın neredeyse durduğuna bak.</p>${lg}`;
+    Lab.renderMath(sum);
+  }
+  document.getElementById("wr-go").addEventListener("click", build);
+  [ex, ey].forEach(inp => inp.addEventListener("keydown", e => { if (e.key === "Enter") build(); }));
+  build();
+})();
+</script>
+</body>
+</html>
