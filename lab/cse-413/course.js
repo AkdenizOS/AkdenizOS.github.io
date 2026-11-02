@@ -1,5 +1,5 @@
 /* CSE 413 Optimization Theory and Applications — lesson list for the course page and the lesson footers.
-   Order follows the weekly plan (W1–W7); lessons for weeks without an instructor deck in the repo follow Winston and Boyd.
+   The beginner study route comes first; the full lessons follow W1–W7. Instructor decks W1–W6 are available; extended derivations also use textbooks.
    status: "open" | "soon". sections is the planned count shown before a visit. */
 window.LAB_COURSES = window.LAB_COURSES || {};
 window.LAB_COURSES["cse-413"] = {
@@ -9,6 +9,8 @@ window.LAB_COURSES["cse-413"] = {
   // Optional countdown on the course page; it hides itself once the date has passed.
   exam: { name: "Vize", label: "4 Kas 10:30", date: "2026-11-04T10:30:00+03:00" },
   lessons: [
+    { slug: "midterm-review", unit: "Vizeye hazırlık", lecture: "W1–W6", title: "Sıfırdan vizeye: temel fikirler ve küçük hesaplar", min: 66, sections: 12, status: "open",
+      desc: "Ön bilgi gerektirmeyen başlangıç rotası: kavram, çözümlü örnek, kendi hesabın. Modelleme, gradient, simplex, duality, GD ve temel Newton.", tags: ["Buradan başla", "Sıfırdan öğren"] },
     { slug: "modeling", unit: "Temeller", lecture: "W1", title: "Optimization problem'ini kurmak", min: 66, sections: 12, status: "open",
       desc: "Decision variable, objective ve constraint, feasible region, local ve global minimum, problem sınıfları ve 6 adımlık modelleme tarifi.", tags: ["Lab 1"] },
     { slug: "norms-gradients", unit: "Temeller", lecture: "W2", title: "Norm'lar, gradient ve gradient checker", min: 63, sections: 12, status: "open",
@@ -30,9 +32,9 @@ window.LAB_COURSES["cse-413"] = {
     { slug: "newton-quasi-newton", unit: "Unconstrained", lecture: "W6", title: "Newton, BFGS ve Gauss–Newton", min: 65, sections: 12, status: "open",
       desc: "Newton step ve decrement, damped Newton, quadratic convergence, affine invariance, secant condition, BFGS, L-BFGS, Gauss–Newton.", tags: ["Boyd §9"] },
     { slug: "lagrange-kkt", unit: "Constrained", lecture: "W7", title: "Lagrange multipliers ve KKT", min: 60, sections: 12, status: "open",
-      desc: "Multiplier'ın geometrisi, dört KKT koşulu ve case analysis, Slater ve LICQ, dual function ve strong duality, LP duality'nin KKT'si.", tags: ["Boyd §5", "Sınav kalıbı"] },
+      desc: "W7’nin işlendiği teyit edilmedi; syllabus kapsamında. Multiplier'ın geometrisi, dört KKT koşulu ve case analysis, Slater ve LICQ, dual function ve strong duality, LP duality'nin KKT'si.", tags: ["Kapsam teyidi", "Boyd §5"] },
     { slug: "water-filling-barrier", unit: "Constrained", lecture: "W7", title: "Water-filling ve barrier method", min: 55, sections: 12, status: "open",
-      desc: "Water-filling'i KKT ile çözmek ve ν üzerinde bisection, logarithmic barrier, central path ve duality gap m/t, barrier method, Phase I.", tags: ["Boyd §5, §11"] },
+      desc: "W7’nin işlendiği teyit edilmedi; ikinci tur. Water-filling'i KKT ile çözmek ve ν üzerinde bisection, logarithmic barrier, central path ve duality gap m/t, barrier method, Phase I.", tags: ["Kapsam teyidi", "Boyd §5, §11"] },
     { slug: "formula-sheet", unit: "Tekrar", lecture: "W1–W7", title: "Formül kartı ve karışık tekrar", min: 62, sections: 12, status: "open",
       desc: "El yazısı A4 kâğıda haftalara göre ne yazılır: norm ve gradient, tableau kuralları, dual ve sensitivity, line search, Newton, KKT.", tags: ["Vize öncesi"] }
   ]

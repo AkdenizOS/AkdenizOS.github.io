@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Hocanın W1–W6 slaytlarından vize tekrarı: simplex, duality, gradient descent ve Newton için basit hesaplar, çözümler ve kapsam ayrımı." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Sıfırdan vizeye · CSE 413</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=9" />
+  <style>
+    .w-modeling-guess { margin: 12px 0 4px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--orange-100); border-radius: var(--radius-sm); }
+    .w-modeling-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    .w-modeling-ctl input[type="text"] { width: 64px; }
+    .w-modeling-ctl select { max-width: 100%; }
+    .w-modeling-err { color: var(--orange-700); font-weight: 600; font-size: .92rem; min-height: 1.2em; margin: 4px 0; }
+    .w-modeling-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; font-family: 'JetBrains Mono', monospace; font-size: .9rem; }
+    .w-modeling-row input[type="text"] { width: 54px; }
+    .w-modeling-row .w-modeling-idx { min-width: 26px; font-weight: 700; color: var(--fg-brand); }
+    .w-modeling-plot { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); padding: 6px; max-width: 440px; }
+    .w-modeling-plot svg { display: block; width: 100%; height: auto; }
+    .w-modeling-slider { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; margin: 6px 0; max-width: 440px; }
+    .w-modeling-slider input[type="range"] { width: 100%; accent-color: var(--orange-600); }
+    .w-modeling-out { margin: 8px 0; }
+    .w-modeling-ok { color: #2b8a3e; font-weight: 700; }
+    .w-modeling-bad { color: var(--orange-700); font-weight: 700; }
+    .w-modeling-tags { display: grid; gap: 6px; margin: 8px 0; }
+    .w-modeling-tag { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); }
+    .w-modeling-tag .w-modeling-why { grid-column: 1 / -1; font-size: .9rem; color: var(--fg-muted); }
+    .w-modeling-axes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px; margin: 8px 0; }
+    .w-modeling-axes fieldset { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; margin: 0; min-width: 0; }
+    .w-modeling-axes legend { font-weight: 700; font-size: .88rem; color: var(--fg-brand); }
+    .w-modeling-axes label { margin-right: 10px; white-space: nowrap; }
+    .w-modeling-sched { display: grid; gap: 4px; margin: 8px 0; }
+    .w-modeling-sched > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .w-modeling-load { display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: .85rem; margin: 3px 0; }
+    .w-modeling-load > span:first-child { min-width: 34px; }
+    .w-modeling-bar { flex: 1; min-width: 60px; max-width: 260px; height: 12px; background: var(--stone-200); border-radius: 4px; overflow: hidden; }
+    .w-modeling-bar > i { display: block; height: 100%; }
+    .w-modeling-fig { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 8px 0; }
+    .w-modeling-fig > div { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); padding: 6px; min-width: 0; }
+    .w-modeling-fig svg { display: block; width: 100%; height: auto; }
+    .w-modeling-fig h4 { margin: 0 0 4px; font-size: .95rem; color: var(--fg-brand); }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list">
+        <a href="../" role="listitem">Lab</a>
+        <a href="./" role="listitem">CSE 413</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 413</a> / Sıfırdan vizeye</div>
+
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div>
+        <nav id="toc-list"></nav>
+        <div class="toc__tools">
+          <button class="btn btn--sm" data-focus>◎ Odak modu</button>
+          <div class="pomo-slot"></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip chip--exam">Sıfırdan vizeye</span><span class="chip">W1–W6 slaytları</span><span class="src">~66 dk · 12 bölüm</span></div>
+          <h1>Sıfırdan vizeye: temel fikirler ve küçük hesaplar</h1>
+          <p class="lead">Daha önce optimization çalışmış olman gerekmiyor. Önce kavramın ne anlama geldiğini öğren, sonra çözümlü örneği izle ve benzer bir hesabı kendin yap. Her adımda kullanacağın temel fikirler açıklanır; daha çok anlatım gerektiğinde ilgili derse geçebilirsin. Buradaki süreler yaklaşık okuma süreleridir; kâğıtta çözmek ve konuyu öğrenmek için kendi hızında ilerle.</p>
+        </header>
+        <article class="lesson" data-course="cse-413" data-lesson="midterm-review">
+<section class="lsec" id="scope" data-min="3"><h2>Sıfırdan nasıl çalışılır?</h2>
+<p>Bu rotayı ilk dersten başlayarak sırayla çalış. Bir formülü görünce ezberlemeye geçmeden, hangi soruya cevap verdiğini öğren.</p>
+<ol><li><strong>Kavram:</strong> terimin tanımını oku; İngilizce adını da öğren, sınavda o adı görebilirsin.</li><li><strong>Çözümlü örnek:</strong> soruyu ve çözümü birlikte incele. Her satırın neden yazıldığını anla; ilk turda çözüme bakabilirsin.</li><li><strong>Kendi hesabın:</strong> çözümü kapatıp işlemleri boş kâğıtta yeniden yap. Takıldığın adımda ilgili uzun derse dön.</li><li><strong>Kendini dene:</strong> soruyu cevapla ve yanlış seçeneklerin açıklamasını oku. Henüz bilmiyorsan “Atla” ile önce anlatımı açabilirsin.</li></ol>
+<p>Hedef bütün sayfaları hızla bitirmek değil; bir sonraki örneği yardım almadan çözebilir hâle gelmek. Önce modelleme ve türevlerin anlamı, ardından simplex, duality, GD ve Newton.</p>
+
+
+<div class="box box--rule"><span class="box__label">Çalışma hedefi</span>
+<p>Hocanın öğrenciyle paylaşılan mesajındaki yönlendirme: <strong>işlenen yerler, basit hesaplamalar ve ne işe yaradıkları</strong>. Bu bir soru listesi ya da kesin kapsam ilanı değil.</p>
+<p>Arkadaş aktarımına göre ilk beş slayt işlendi; altıncı slayttaki Newton'dan bahsedildi ve hesap yapıldı, fakat ne kadarının tamamlandığı bilinmiyor. “Simplex kesin çıkar” ifadesi arkadaş yorumu; hocanın doğrudan sözü olarak alınmamalı.</p></div>
+<p><strong>Çalışma rotası:</strong> modeling → norm/gradient/Hessian → simplex → duality ve shadow price → GD → temel Newton. Her başlıkta önce “ne işe yarar?” sorusuna iki cümleyle cevap ver, sonra küçük bir hesabı kâğıtta yap.</p>
+<p>Syllabus vize için W1–W7 ve bir el yazısı A4 formül kâğıdı diyor. W7'nin işlendiği bu mesajlarla doğrulanmıyor: <a href="lagrange-kkt.html">KKT</a> ve <a href="water-filling-barrier.html">water-filling/barrier</a> bu yüzden ikinci turda, kapsam teyidiyle çalışılacak. Tamamen kapsam dışı sayılmıyor.</p>
+<p>Big-M/two-phase, ayrıntılı dual simplex, Wolfe/Goldstein, Newton decrement, BFGS matris güncellemesi ve Gauss–Newton/LM ayrıntılı derslerde ek çalışma olarak bulunur. Bunları temel örneklerden önce çalışma; W5–W6 slaytları bu ayrıntılara girmiyor.</p>
+<div class="quiz" id="q-mr-scope"><p class="quiz__q">Bu rotaya ilk kez çalışırken nasıl başlamalısın?</p><button class="quiz__opt" data-correct>Kavramı öğren, çözümlü örneği incele, sonra çözümü kapatıp kendin yap.<span class="why">İlk turda çözüme bakabilirsin; hedef adımların nedenini anlayıp sonrasında bağımsız çözmek.</span></button><button class="quiz__opt">Önce bütün formülleri anlamadan ezberle.<span class="why">Formülün neyi hesapladığını bilmezsen hangi soruda kullanacağını seçemezsin.</span></button><button class="quiz__opt">Hiç çalışmadıysan bütün örnekleri ilk denemede çözmen gerekir.<span class="why">İlk çalışmada çözümlü örnekten öğrenmek normal; ardından kendin dene.</span></button></div>
+</section>
+
+<section class="lsec" id="model" data-min="4"><h2>W1 · Model ne işe yarar?</h2>
+
+<p><strong>Optimization</strong>, seçenekler arasından objective'i en iyi yapan feasible kararı bulur. Decision variable senin seçtiğin, parameter verilen sayıdır. Constraint izin verilen kararları sınırlar.</p>
+<div class="box box--example"><span class="box__label">Hocanın Lab01 örneği · önce kendin kur</span>
+<p>İki üründen $x_1,x_2$ üret; kazançları 3 ve 4. İki kaynak sınırı $x_1+x_2\le4$, $x_1+3x_2\le6$. Üretim negatif olamaz. Modeli yaz; $(3,1)$ feasible mı, kazancı kaç?</p></div>
+<details class="reveal"><summary>Çözümü göster</summary><div><p>$\max 3x_1+4x_2$; verilen iki constraint ve $x_1,x_2\ge0$. $(3,1)$ iki kaynak kısıtını eşitlikle sağlar: $4\le4$, $6\le6$. Kazanç $13$. Sürekli üretim varsayımında LP, constrained ve convex feasible set. Tam sayı şartı eklenirse integer model olur.</p></div></details>
+<p><strong>Local / global:</strong> local minimum yalnız yakın komşularıyla, global minimum bütün feasible noktalarla karşılaştırılır. Convex problemde local minimum globaldir. Infeasible = hiçbir uygun karar yok; unbounded = objective sınırsız iyileşiyor.</p>
+<p><a href="modeling.html">Modelleme dersine dön</a></p>
+<p class="src">Kaynak: <a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Week_01.pdf#page=4" target="_blank" rel="noopener">Week 1, PDF s.4–19</a>. Aşağıdaki çözümler çalışma amacıyla hesaplandı.</p><div class="quiz" id="q-mr-model"><p class="quiz__q">Kazanç katsayısı 3 hangi tür bilgidir?</p><button class="quiz__opt" data-correct>Parameter; objective’in bir katsayısı.<span class="why">Verilidir, üretim miktarı gibi sen seçmezsin.</span></button><button class="quiz__opt">Decision variable.<span class="why">Seçilenler x₁ ve x₂; katsayı 3 veri.</span></button><button class="quiz__opt">Feasible set.<span class="why">Feasible set, constraint’leri sağlayan kararların kümesidir.</span></button></div>
+</section>
+
+<section class="lsec" id="foundations" data-min="6"><h2>W2 · Gradient yönü, Hessian şekli söyler</h2>
+
+<p><strong>Norm</strong> büyüklüğü ölçer: $v=(3,-4)$ için $\|v\|_1=7$, $\|v\|_2=5$, $\|v\|_\infty=4$. Hangi normu seçtiğin, “yakın” veya “küçük hata” tanımını değiştirir.</p>
+<div class="box box--example"><span class="box__label">Hocanın sayıları · önce türevleri al</span>
+<p>$f(x,y)=x^2+xy+2y^2$, $P=(1,2)$. $f(P)$, $\nabla f(P)$ ve Hessian'ı bul. $d=(-1,0)$ yönünde küçük bir adım azaltır mı?</p></div>
+<details class="reveal"><summary>Çözümü göster</summary><div><p>$f(P)=11$, $\nabla f=(2x+y,x+4y)$, $\nabla f(P)=(4,9)$ ve $H=\begin{pmatrix}2&1\\1&4\end{pmatrix}$. $\nabla f(P)^Td=-4&lt;0$: küçük pozitif adımla azalır. $H$ için ilk leading minor 2 ve determinant 7 pozitif; PD, dolayısıyla $f$ strictly convex. Stationary nokta $(0,0)$ global minimum.</p></div></details>
+<p><strong>Tuzak:</strong> gradient sıfırsa stationary point buldun; non-convex problemde minimum garantisi yok. $g=x^2+3xy+2y^2$ için Hessian determinantı $8-9=-1$: $(0,0)$ saddle.</p>
+<p><strong>Taylor:</strong> $f(x+p)\approx f(x)+\nabla f(x)^Tp+\tfrac12p^THp$. Gradient ilk mertebe, Hessian ikinci mertebe değişimi verir. PD quadratic $\tfrac12x^TQx-b^Tx$ için minimum $Qx=b$ çözümüdür.</p>
+<p><a href="norms-gradients.html">Norm / gradient</a> · <a href="hessian-convexity.html">Hessian / convexity</a></p>
+<p class="src">Kaynak: <a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Week_02.pdf#page=4" target="_blank" rel="noopener">Week 2, PDF s.4–24</a>. Aşağıdaki çözümler çalışma amacıyla hesaplandı.</p><div class="quiz" id="q-mr-stationary"><p class="quiz__q">Gradient sıfır, Hessian eigenvalue’ları −1 ve 6. Ne buldun?</p><button class="quiz__opt" data-correct>Saddle point.<span class="why">Eğrilik bir yönde negatif, başka yönde pozitif.</span></button><button class="quiz__opt">Kesin minimum.<span class="why">Sıfır gradient tek başına yetmez; negatif eğrilik var.</span></button><button class="quiz__opt">Global maximum.<span class="why">Pozitif eğrilik olan yönde yukarı çıkılabiliyor.</span></button></div>
+</section>
+
+<section class="lsec" id="simplex" data-min="10"><h2>W3 · Simplex: iki pivotu elle yap</h2>
+
+<p><strong>Ne işe yarar?</strong> LP'nin basic feasible solution'ları arasında objective'i iyileştirerek ilerler. Slack variable kullanılmayan kaynağı gösterir. Pivot, bir variable'ı basis'e alıp bir başkasını çıkarır.</p>
+<div class="box box--example"><span class="box__label">Hocanın job-mix LP'si · kâğıtta çöz</span>
+<p>$\max z=3x_1+5x_2$, $x_1\le4$, $2x_2\le12$, $3x_1+2x_2\le18$, $x\ge0$. Slack ekle, initial BFS'yi yaz, iki pivotla çöz.</p></div>
+<p><strong>$c_j-z_j$ convention:</strong> en büyük pozitif reduced cost girer. Giren sütunda yalnız pozitif katsayılarla RHS / katsayı hesapla; en küçük nonnegative oran çıkan variable'ı seçer. Pivot satırını pivot elemanına böl, sütunun öbür satırlarını sıfırla. Pozitif reduced cost kalmayınca dur.</p>
+<details class="reveal"><summary>Çözümü göster</summary><div>
+<p>Başlangıç: $(x_1,x_2,s_1,s_2,s_3)=(0,0,4,12,18)$. $c_j-z_j=(3,5,0,0,0)$.</p>
+<ol><li>$x_2$ girer: oranlar “yok”, $12/2=6$, $18/2=9$; $s_2$ çıkar. Yeni nokta $(0,6)$, $z=30$.</li>
+<li>Yeni reduced cost $x_1$ için 3, $s_2$ için $-5/2$. $x_1$ girer: oranlar $4/1=4$, “yok”, $6/3=2$; $s_3$ çıkar. Son nokta $(2,6)$, $z=36$.</li></ol>
+<div style="overflow-x:auto"><table><thead><tr><th>Basis</th><th>$x_1$</th><th>$x_2$</th><th>$s_1$</th><th>$s_2$</th><th>$s_3$</th><th>RHS</th></tr></thead><tbody><tr><td>$s_1$</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td><td>4</td></tr><tr><td>$s_2$</td><td>0</td><td>2</td><td>0</td><td>1</td><td>0</td><td>12</td></tr><tr><td>$s_3$</td><td>3</td><td>2</td><td>0</td><td>0</td><td>1</td><td>18</td></tr><tr><td>$c_j-z_j$</td><td>3</td><td>5</td><td>0</td><td>0</td><td>0</td><td>0</td></tr></tbody></table></div><p>İlk pivot sonrası:</p><div style="overflow-x:auto"><table><thead><tr><th>Basis</th><th>$x_1$</th><th>$x_2$</th><th>$s_1$</th><th>$s_2$</th><th>$s_3$</th><th>RHS</th></tr></thead><tbody><tr><td>$s_1$</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td><td>4</td></tr><tr><td>$x_2$</td><td>0</td><td>1</td><td>0</td><td>1/2</td><td>0</td><td>6</td></tr><tr><td>$s_3$</td><td>3</td><td>0</td><td>0</td><td>−1</td><td>1</td><td>6</td></tr><tr><td>$c_j-z_j$</td><td>3</td><td>0</td><td>0</td><td>−5/2</td><td>0</td><td>30</td></tr></tbody></table></div><p>Son tableau:</p><div style="overflow-x:auto"><table><thead><tr><th>Basis</th><th>$x_1$</th><th>$x_2$</th><th>$s_1$</th><th>$s_2$</th><th>$s_3$</th><th>RHS</th></tr></thead><tbody><tr><td>$s_1$</td><td>0</td><td>0</td><td>1</td><td>1/3</td><td>−1/3</td><td>2</td></tr><tr><td>$x_2$</td><td>0</td><td>1</td><td>0</td><td>1/2</td><td>0</td><td>6</td></tr><tr><td>$x_1$</td><td>1</td><td>0</td><td>0</td><td>−1/3</td><td>1/3</td><td>2</td></tr><tr><td>$c_j-z_j$</td><td>0</td><td>0</td><td>0</td><td>−3/2</td><td>−1</td><td>36</td></tr></tbody></table></div>
+<p>$s=(2,0,0)$: accelerator kapasitesinin 2 birimi boşta, memory ve CPU binding. Maksimum kazanç 36.</p>
+</div></details>
+<div class="box box--trap"><span class="box__label">İki convention'ı karıştırma</span><p>Week 3, $c_j-z_j$ kullanırken Week 4 s.3 $z_j-c_j$ (z-row) gösteriyor. İkinci yazımda en negatif giriş seçilir, hepsi nonnegative olunca durulur. Optimal z-row slack girişleri $(0,1.5,1)$; $c_j-z_j$ satırında bunların işaretleri tersidir.</p></div>
+<p>Nonbasic reduced cost sıfırsa alternative optimum adayı vardır; pozitif reduced cost'lu giren sütunda hiç pozitif constraint katsayısı yoksa max problemi unbounded'dır. Ratio sıfır olabilir: degenerate pivot.</p>
+<p><a href="simplex.html">Bütün pivotları etkileşimli çalış</a> · <a href="simplex-special.html">Özel durumlar</a></p>
+<p class="src">Kaynak: <a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Week_03.pdf#page=11" target="_blank" rel="noopener">Week 3, PDF s.11–21</a>. Aşağıdaki çözümler çalışma amacıyla hesaplandı.</p><div class="quiz" id="q-mr-pivot"><p class="quiz__q">İlk pivotta x₂ giriyorsa s₂ neden çıkar?</p><button class="quiz__opt" data-correct>En küçük uygun oran 12/2 = 6.<span class="why">CPU oranı 9; accelerator satırındaki sıfır katsayıyla oran hesaplanmaz.</span></button><button class="quiz__opt">Objective katsayısı 5 olduğu için.<span class="why">5 giren variable’ı seçer; çıkan variable’ı ratio test seçer.</span></button><button class="quiz__opt">Sıfıra bölünce oran 0 olduğu için.<span class="why">Sıfıra bölünmez; o satır ratio test’e katılmaz.</span></button></div>
+</section>
+
+<section class="lsec" id="duality" data-min="6"><h2>W4 · Dual, shadow price ve küçük bir karar</h2>
+
+<p><strong>Ne işe yarar?</strong> Dual, kaynaklara fiyat koyar; primal kazancına bir üst sınır ve optimum için kontrol sağlar. Shadow price, mevcut optimal basis geçerliyken bir ek kaynak biriminin marjinal değeridir.</p>
+<p>Job-mix'in dual'ı: $\min 4y_1+12y_2+18y_3$, $y_1+3y_3\ge3$, $2y_2+2y_3\ge5$, $y\ge0$.</p>
+<div class="box box--example"><span class="box__label">Önce kendin hesapla</span><p>Primal optimum $(2,6)$, slack $(2,0,0)$. Complementary slackness ile $y^*$ bul. Memory'nin bir birimi 1.2'ye, accelerator'ın bir birimi 0.2'ye satılıyor. Küçük miktarlarda hangisini alırsın?</p></div>
+<details class="reveal"><summary>Çözümü göster</summary><div><p>$s_1&gt;0\Rightarrow y_1=0$. $x_1,x_2&gt;0$ olduğundan iki dual constraint equality olur: $3y_3=3$, $2y_2+2y_3=5$. Böylece $y^*=(0,1.5,1)$. Dual değer $12(1.5)+18=36$: primal ile eşit, ikisi de optimal. Memory alımında birim net katkı $1.5-1.2=0.3$; accelerator değeri 0 olduğundan 0.2 ödeme mantıklı değil. Range aşılırsa tekrar çöz.</p></div></details>
+<p><strong>Weak duality:</strong> feasible $x,y$ için $c^Tx\le b^Ty$. <strong>Strong duality:</strong> LP optimumu varsa değerler eşit. <strong>Complementary slackness:</strong> $y_i(b-Ax)_i=0$ ve $x_j(A^Ty-c)_j=0$.</p>
+<div class="box box--trap"><span class="box__label">Week 4 s.10 düzeltmesi</span><p>Primal unbounded ise dual infeasible. Ama yalnız “dual infeasible” bilgisinden primal kesin unbounded sonucu çıkmaz: iki problem de infeasible olabilir. Slaytın altındaki kısa debugging cümlesini bu koşulla oku.</p></div>
+<p><a href="lp-duality.html">Duality dersine dön</a></p>
+<p class="src">Kaynak: <a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Week_04.pdf#page=3" target="_blank" rel="noopener">Week 4, PDF s.3–10</a>. Aşağıdaki çözümler çalışma amacıyla hesaplandı.</p><div class="quiz" id="q-mr-price"><p class="quiz__q">Slack pozitifse aynı kaynağın optimal dual fiyatı ne olur?</p><button class="quiz__opt" data-correct>Sıfır.<span class="why">Complementary slackness: pozitif slack × fiyat = 0.</span></button><button class="quiz__opt">Mutlaka pozitif.<span class="why">Boşta kaynak varken küçük bir ek birimin değeri sıfırdır.</span></button><button class="quiz__opt">Objective katsayısı.<span class="why">Ürün kazancı ile kaynak fiyatı farklı kavramlardır.</span></button></div>
+</section>
+
+<section class="lsec" id="sensitivity" data-min="5"><h2>W4 · Fiyat nereye kadar geçerli? Bir uygulama</h2>
+
+<p>Job-mix'te memory RHS'si $b_2$ değişsin. $6\le b_2\le18$ için $x_2=b_2/2$, $x_1=(18-b_2)/3$; dolayısıyla $z^*=18+1.5b_2$. $b_2=14$ için $(x_1,x_2)=(4/3,7)$, $z^*=39$.</p>
+<p>$0\le b_2\le6$ aralığında $z^*=12+2.5b_2$; $b_2\ge18$ için $z^*=45$. Fiyat sırasıyla 2.5, 1.5 ve 0; kırılma noktalarında tek bir iki taraflı türev yok. Batch kazancı $c_1$ ise, $c_2=5$ sabitken $0\le c_1\le7.5$ aralığında $(2,6)$ optimal kalır; sınırda başka optimumlar olabilir.</p>
+<div class="box box--example"><span class="box__label">Hocanın data-center örneği · Week 4 PDF s.17</span><p>$\max 30x_1+20x_2$; power $6x_1+2x_2\le60$, cooling $3x_1+3x_2\le45$, GPU stock $x_1\le8$, $x\ge0$. Power ve cooling binding kabulüyle çöz, GPU sınırını kontrol et. Hangi kaynağı artırmak daha değerli?</p></div>
+<details class="reveal"><summary>Çözümü göster</summary><div><p>$3x_1+x_2=30$, $x_1+x_2=15$ → $x^*=(7.5,7.5)$, $z^*=375$. Stock slack $8-7.5=0.5$, dolayısıyla $y_{stock}=0$. Dual eşitlikler $6y_p+3y_c=30$, $2y_p+3y_c=20$ verir: $y_p=2.5$, $y_c=5$. Kontrol $60(2.5)+45(5)=375$. Birim başına marjinal değer cooling'de daha yüksek; gerçek satın alma kararında fiyat ve birimleri de karşılaştır.</p></div></details>
+<p><strong>Simplex / interior-point:</strong> simplex sınırdaki vertex'ler boyunca ilerler; interior-point iç bölgeden central path izler. Week 4 bunu kavramsal karşılaştırıyor; ayrıntılı barrier türetmesi ayrı uzun derste.</p>
+<p><a href="lp-sensitivity.html">Ranging araçları</a></p>
+<p class="src">Kaynak: <a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_Optimization_Theory_Week_04.pdf#page=12" target="_blank" rel="noopener">Week 4, PDF s.12–17</a>. Aşağıdaki çözümler çalışma amacıyla hesaplandı.</p><div class="quiz" id="q-mr-range"><p class="quiz__q">b₂ = 20 için 36 + 1.5(20 − 12) = 48 kullanılır mı?</p><button class="quiz__opt" data-correct>Hayır; 18’de basis/fiyat değişir, doğru optimum 45.<span class="why">1.5 fiyatı yalnız belirtilen range içinde geçerli.</span></button><button class="quiz__opt">Evet; shadow price bütün RHS değerlerinde sabittir.<span class="why">Fiyat marjinal ve basis’e bağlıdır.</span></button><button class="quiz__opt">Hayır; problem artık infeasible.<span class="why">Kapasiteyi artırmak mevcut feasible noktaları yok etmez.</span></button></div>
+</section>
+
+<section class="lsec" id="gd" data-min="6"><h2>W5 · GD: üç adımı ve yönünü hesapla</h2>
+
+<p><strong>Ne işe yarar?</strong> Gradient descent, fonksiyonu azaltmak için eğimin ters yönünde yürür. Model fitting, sensor calibration ve neural network training'de kullanılır.</p>
+<p>$$x_{k+1}=x_k-\alpha\nabla f(x_k).$$ Hocanın $f=(x-3)^2$ örneğinde $f'=2(x-3)$; $x_0=7$, $\alpha=0.25$ → $7\to5\to4\to3.5\to3.25$.</p>
+<div class="box box--example"><span class="box__label">Week 5 s.6–8 · kâğıtta dene</span><p>(a) $f=(x-1)^2$, $x_0=5$, $\alpha=0.1$: üç adım.<br>(b) $f=x^2+4y^2$, $(x,y)=(2,1)$, $\alpha=0.1$: bir adım ve yeni objective.</p></div>
+<details class="reveal"><summary>Çözümü göster</summary><div><p>(a) Eğimler $8,6.4,5.12$; yeni noktalar $4.2,3.56,3.048$. (b) $\nabla f=(2x,8y)=(4,8)$; yeni nokta $(1.6,0.2)$; $f=2.56+4(0.04)=2.72$ (başlangıç 8).</p></div></details>
+<p><strong>Step size:</strong> $(x-a)^2$ için hata $e_{k+1}=(1-2\alpha)e_k$. $\alpha=0.5$ bir adımda çözer; $\alpha=1$ aynı iki nokta arasında gider gelir; $\alpha&gt;1$ sıfırdan farklı başlangıç hatasını büyütür. Çok küçük $\alpha$ güvenli ama yavaştır. Bu eşik yalnız bu quadratic örnek içindir.</p>
+<p><a href="gradient-descent.html">GD'nin ayrıntılı dersi</a></p>
+<p class="src">Kaynak: <a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_OptimizationTheory_Week05.pdf#page=4" target="_blank" rel="noopener">Week 5, PDF s.4–11</a>. Aşağıdaki çözümler çalışma amacıyla hesaplandı.</p><div class="quiz" id="q-mr-gd"><p class="quiz__q">(x − 1)², x = 5, α = 0.1. İlk yeni x?</p><button class="quiz__opt" data-correct>4.2<span class="why">Gradient 8; 5 − 0.1×8 = 4.2.</span></button><button class="quiz__opt">5.8<span class="why">Gradient yönünde artırdın; minimize ederken tersine git.</span></button><button class="quiz__opt">4.6<span class="why">Türevdeki 2 katsayısını unuttun.</span></button></div>
+</section>
+
+<section class="lsec" id="gd-practice" data-min="5"><h2>W5 · Backtracking, rescaling ve ne zaman durulur?</h2>
+
+<p><strong>Slayttaki basit backtracking:</strong> büyük adımı dene; $f(x-\alpha g)\ge f(x)$ ise $\alpha$'yı ikiye böl ve tekrar dene. Önce gradient küçük mü kontrol et; $g=0$ iken strict decrease arama.</p>
+<p>$f=(x-3)^2$, $x=7$, $g=8$: $\alpha=1$ → $x_{new}=-1$, $f=16$; eski değer de 16 olduğundan reddet. $\alpha=0.5$ → $x_{new}=3$, $f=0$; kabul.</p>
+<div class="box box--rule"><span class="box__label">Slayt ile ek teori ayrımı</span><p>Week 5 s.12 yalnız objective'in azalmasını sınar. Tam <strong>Armijo</strong> koşulu $f(x-\alpha g)\le f(x)-c\alpha\|g\|^2$, $0&lt;c&lt;1$; belirli miktarda azalma ister. Bu daha güçlü koşul syllabus'ta var, uzun GD dersinde anlatılıyor. İkisini aynı testmiş gibi yazma.</p></div>
+<p><strong>Rescaling / standardization:</strong> $t_{scaled}=(t-\bar t)/\sigma_t$; input büyüklüklerini benzeştirerek dar valley ve zig-zag sorununu azaltır. Sensor örneğinde veri/parametre gösterimi değişir; fiziksel doğrusal ilişki uygun dönüşümle aynıdır. Slayttaki 171,784 → 1 adım sayısı o deneyin sonucudur, genel hız garantisi değildir.</p>
+<p><strong>Stopping:</strong> gradient norm'u küçükse, objective ilerlemesi çok küçükse veya maksimum adım sayısına ulaşıldıysa dur. Küçük ilerleme tek başına global optimum kanıtı değildir. <strong>Gradient checker:</strong> $[f(x+h)-f(x-h)]/(2h)$ ile türev formülünü kontrol et; çok küçük $h$ round-off hatasını büyütebilir.</p>
+<p class="src">Kaynak: <a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_OptimizationTheory_Week05.pdf#page=12" target="_blank" rel="noopener">Week 5, PDF s.12–20</a>. Aşağıdaki çözümler çalışma amacıyla hesaplandı.</p><div class="quiz" id="q-mr-backtracking"><p class="quiz__q">İlk denemede objective aynı kaldı. Slayttaki algoritma ne yapar?</p><button class="quiz__opt" data-correct>Adımı ikiye böler, yeniden dener.<span class="why">Strict azalma istenir; eşit değer kabul edilmez.</span></button><button class="quiz__opt">Adımı kabul eder.<span class="why">Kodda >= kontrolü var; eşitlik de reddedilir.</span></button><button class="quiz__opt">Gradient formülü kesin yanlıştır.<span class="why">Büyük adım da aynı yüksekliğe götürebilir; gradient checker ayrı kontroldür.</span></button></div>
+</section>
+
+<section class="lsec" id="newton" data-min="7"><h2>W6 · Newton: slope ÷ bend, iki adım</h2>
+
+<p><strong>Ne işe yarar?</strong> Newton, bulunduğu noktadaki quadratic modelin stationary noktasını hedefler. Gradient'e ek olarak curvature kullanır: tek değişkende $$x_{k+1}=x_k-\frac{f'(x_k)}{f''(x_k)}.$$ Çok değişkende $H\Delta x=-g$ çözülür, $x_{new}=x+\Delta x$. Positive definite quadratic'te tam Newton adımı tek seferde minimuma gider.</p>
+<p>$f=(x-3)^2$, $x=7$: slope 8, bend 2, $x_{new}=7-8/2=3$.</p>
+<div class="box box--example"><span class="box__label">Hocanın √3 alıştırması · s.8–9</span><p>$f=x^3/3-3x$ için $f'=x^2-3$, $f''=2x$. $x_0=2$'den iki Newton adımı yap. Sonra $x_0=-1$'den başlayan iterasyonun neden minimuma gitmeyebileceğini açıkla.</p></div>
+<details class="reveal"><summary>Çözümü göster</summary><div><p>$x_1=2-(4-3)/4=1.75=7/4$. $x_2=7/4-(1/16)/(7/2)=97/56\approx1.732143$. Negatif başlangıçta $-1\to-2\to-1.75\to\cdots\to-\sqrt3$; burada $f''=2x&lt;0$: local maximum. Pozitif domain üzerinde $+\sqrt3$ minimumdur; tüm gerçek sayılarda bu cubic aşağıdan sınırlı değildir.</p></div></details>
+<p><strong>√2 bağlantısı:</strong> $f=x^3/3-2x$, pozitif $x$ için Newton adımı $(x+2/x)/2$ olur: $1\to1.5\to1.416667\to1.414216$. Burada root-finding, $f'=0$ denklemini çözüyor; doğrudan $f=0$ aramıyoruz.</p>
+<p><strong>Risk:</strong> $f''=0$ iken bölme yapılamaz. Negatif curvature veya kötü başlangıç uphill adım verebilir. Örneğin $f=x^4/4-x^2$, $x=0.5$: $g=-0.875$, $H=-1.25$, yeni $x=-0.2$; objective $-0.234375$'ten $-0.0396$'ya <em>artar</em>. Güvenli yöntem uygun descent direction ve backtracking kullanır.</p>
+<p><a href="newton-quasi-newton.html">Newton ve quasi-Newton ayrıntıları</a></p>
+<p class="src">Kaynak: <a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_OptimizationTheory_Week06.pdf#page=4" target="_blank" rel="noopener">Week 6, PDF s.4–14</a>. Aşağıdaki çözümler çalışma amacıyla hesaplandı.</p><div class="quiz" id="q-mr-newton"><p class="quiz__q">(x − 3)² için x = 7’de Newton neden 3’e gider?</p><button class="quiz__opt" data-correct>7 − 8/2 = 3; slope’u curvature’a böler.<span class="why">Gradient ve ikinci türev birlikte adımın büyüklüğünü verir.</span></button><button class="quiz__opt">7 − 2/8 = 6.75.<span class="why">Slope ve bend oranını ters aldın.</span></button><button class="quiz__opt">Newton her fonksiyonda global minimumu bir adımda bulur.<span class="why">Tek adım sonucu PD quadratic için; genel fonksiyonlarda böyle garanti yok.</span></button></div>
+</section>
+
+<section class="lsec" id="method-choice" data-min="4"><h2>W6 · BFGS / L-BFGS neyi kolaylaştırır?</h2>
+
+<p><strong>Newton:</strong> gerçek Hessian'ı oluşturmak ve lineer sistemi çözmek pahalı olabilir. $n$ variable için dense Hessian $n^2$ sayı tutar.</p>
+<p><strong>BFGS:</strong> gradient değişimlerinden curvature yaklaşımı öğrenir; second derivative formülü istemez. Slayttaki küçük örnek: $x=7$'de slope 8, $x=5$'te slope 4; yaklaşık bend $(8-4)/(7-5)=2$. Çok değişkende bunun yerini matris yaklaşımı alır.</p>
+<p><strong>L-BFGS:</strong> tam dense matrix yerine son birkaç adım/gradient farkı çiftini tutar; bellek yaklaşık $O(mn)$, $m$ saklanan çift sayısı. BFGS yaklaşık $O(n^2)$ bellek kullanır. Az/orta variable ve uygun Hessian varsa Newton; büyük smooth problemde L-BFGS düşünülebilir. Dev veri için minibatch SGD/Adam sonraki haftaların konusu.</p>
+<p><strong>Az iterasyon ≠ kısa süre:</strong> slayttaki Rosenbrock yarışı GD 379, BFGS 34, Newton 21 adım. Bunlar belirli ayarlara ait deneylerdir; her yöntemin adım maliyeti farklıdır. Yerel quadratic convergence de uygun düzgünlük, curvature ve başlangıç koşullarına bağlıdır.</p>
+<p class="src">Kaynak: <a href="https://github.com/AkdenizOS/CSE-413-Optimization-Theory-and-Applications/blob/main/resources/2026-2027-fall/27G_CSE413_5013_OptimizationTheory_Week06.pdf#page=12" target="_blank" rel="noopener">Week 6, PDF s.12–21</a>. Aşağıdaki çözümler çalışma amacıyla hesaplandı.</p><div class="quiz" id="q-mr-lbfgs"><p class="quiz__q">L-BFGS’nin temel avantajı nedir?</p><button class="quiz__opt" data-correct>Son birkaç curvature çiftini tutarak belleği azaltması.<span class="why">Tam n×n Hessian veya dense BFGS matrix’i saklamaz.</span></button><button class="quiz__opt">Her zaman tek adımda bitmesi.<span class="why">Genel nonlinear fonksiyonda böyle garanti yok.</span></button><button class="quiz__opt">Hiç gradient istememesi.<span class="why">Curvature bilgisini gradient farklarından öğrenir.</span></button></div>
+</section>
+
+
+<section class="lsec" id="step-checker" data-min="5">
+<h2>Hesabını kontrol et · GD ve Newton adım adım</h2>
+<p>Önce sıradaki noktayı kâğıtta hesapla; sonra sağ okla kontrol et. Tablo her seçimde update kuralı çalıştırılarak üretilir. Çözümü görmek için “Önce dene” sorusunu yanıtla ya da geç.</p>
+<label for="mr-case">Slayt örneği</label>
+<select id="mr-case">
+<option value="gd">GD: (x − 1)², x₀ = 5, α = 0.1</option>
+<option value="bounce">GD: (x − 1)², x₀ = 5, α = 1</option>
+<option value="sqrt2">Newton: x³/3 − 2x, x₀ = 1</option>
+<option value="sqrt3">Newton: x³/3 − 3x, x₀ = 2</option>
+<option value="hill">Newton: x³/3 − 3x, x₀ = −1</option>
+</select>
+<div id="mr-steps"></div>
+<div class="quiz" id="q-mr-checker"><p class="quiz__q">Newton’da f'' negatif olan bir stationary nokta tek değişkende hangi türdedir?</p>
+<button class="quiz__opt" data-correct>Strict local maximum.<span class="why">Sıfır eğim ve negatif ikinci türev, tepenin yerel testidir.</span></button>
+<button class="quiz__opt">Global minimum.<span class="why">Newton sıfır eğim arar; curvature kontrolü ayrıca gerekir.</span></button></div>
+</section>
+<section class="lsec" id="last-check" data-min="5"><h2>Son kontrol · bakmadan anlat, kâğıtta çöz</h2>
+
+<ol><li>Variable / objective / constraint ayrımını bir model üzerinde göster.</li>
+<li>Bir norm, gradient ve 2×2 Hessian hesapla; stationary noktanın türünü yorumla.</li>
+<li>Job-mix'te iki pivotu, ratio test'leri ve son tableau'yu bakmadan yaz.</li>
+<li>Dual'ı kur; slack'ten fiyatı ve satın alma kararını çıkar.</li>
+<li>Shadow price'ın geçerli olduğu range'i açıkla.</li>
+<li>GD'de üç adım; basit backtracking'de kabul/red hesabı yap.</li>
+<li>Newton'da iki karekök adımı; negatif curvature riskini açıkla.</li>
+<li>GD / Newton / BFGS / L-BFGS'nin ne kullandığını ve maliyet farkını anlat.</li></ol>
+<p><strong>A4'e:</strong> norm tanımları; gradient/Hessian; Taylor; simplex giren/çıkan ve iki işaret convention'ı; primal–dual eşleştirme; complementary slackness; shadow-price range notu; GD ve Newton update; basit backtracking; durma kuralları. Ek yer varsa Armijo ve kapsam teyidiyle KKT.</p>
+<p><a href="formula-sheet.html">Geniş formül kartı</a> · <a href="practice.html?mode=mixed">Karışık test</a>. <code>exams/EXAMPLE</code> uzun bir öğrenci denemesidir: 90 dakika, calculator ve closed-notes ibareleri gerçek sınav kuralı değildir. Güncel syllabus bir el yazısı A4'e izin veriyor; gerçek süre ve calculator kuralı ayrıca teyit edilmeli.</p>
+<div class="quiz" id="q-mr-final"><p class="quiz__q">Küçük hesapları yaptın. Sonraki en yararlı kontrol?</p><button class="quiz__opt" data-correct>Yöntemlerin amacını ve hangi durumda sorun çıkardığını açıklamak.<span class="why">Hocanın yönlendirmesi hesapla birlikte “ne işe yarar” kısmını vurguluyor.</span></button><button class="quiz__opt">Yalnız bütün ileri formülleri ezberlemek.<span class="why">Önce temel işlemleri ve yorumunu sağlamlaştır.</span></button><button class="quiz__opt">Newton gradient’i sıfırladığı için her cevabı minimum saymak.<span class="why">Curvature ve domain kontrolü gerekir.</span></button></div>
+</section>
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+<script src="course.js?v=10"></script>
+<script src="../assets/lab.js?v=9"></script>
+<script>
+(function () {
+  "use strict";
+  const choice = document.getElementById("mr-case");
+  const stage = document.getElementById("mr-steps");
+  const num = x => Number(x.toFixed(8)).toString();
+  function draw() {
+    const reset = stage.querySelector('[data-a="reset"]');
+    if (reset) reset.click();
+    const mode = choice.value;
+    const gd = mode === "gd" || mode === "bounce";
+    const a = mode === "sqrt2" ? 2 : 3;
+    const alpha = mode === "bounce" ? 1 : 0.1;
+    let x = gd ? 5 : mode === "sqrt2" ? 1 : mode === "hill" ? -1 : 2;
+    const frames = [];
+    for (let k = 0; k < 5; k++) {
+      const f = gd ? (x - 1) ** 2 : x ** 3 / 3 - a * x;
+      const g = gd ? 2 * (x - 1) : x * x - a;
+      const h = gd ? 2 : 2 * x;
+      const next = gd ? x - alpha * g : x - g / h;
+      frames.push({ k, x, f, g, h, next,
+        caption: gd ? `Yeni x = ${num(x)} − ${alpha} × ${num(g)} = ${num(next)}.`
+          : `Yeni x = ${num(x)} − (${num(g)}) / (${num(h)}) = ${num(next)}.${h < 0 ? " Negatif curvature: minimum garantisi yok." : ""}` });
+      x = next;
+    }
+    Lab.stepper(stage, {
+      title: gd ? `Gradient descent · α = ${alpha}` : "Newton · slope / bend",
+      interval: 1000, frames,
+      render(frame, index, el) {
+        el.innerHTML = '<div style="overflow-x:auto"><table><thead><tr><th>k</th><th>x</th><th>f(x)</th><th>slope</th><th>bend</th><th>Yeni x</th></tr></thead><tbody>' +
+          frames.slice(0, index + 1).map(r => `<tr><td>${r.k}</td><td>${num(r.x)}</td><td>${num(r.f)}</td><td>${num(r.g)}</td><td>${num(r.h)}</td><td>${num(r.next)}</td></tr>`).join('') +
+          '</tbody></table></div>';
+      }
+    });
+  }
+  choice.addEventListener("change", draw);
+  draw();
+})();
+</script>
+</body>
+</html>
