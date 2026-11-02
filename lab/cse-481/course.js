@@ -1,5 +1,5 @@
 /* CSE 481 Engineering Economics — lesson list for the course page and the lesson footers.
-   Order follows the weekly slides (W1–W6) and the term-project brief; the last lesson is final-only.
+   Order follows the weekly slides (W1–W6) and the term-project brief; economics basics are also in the received W5–W6 slides.
    status: "open" | "soon". sections is the planned count shown before a visit. */
 window.LAB_COURSES = window.LAB_COURSES || {};
 window.LAB_COURSES["cse-481"] = {
@@ -7,7 +7,7 @@ window.LAB_COURSES["cse-481"] = {
   title: "Engineering Economics",
   repo: "https://github.com/AkdenizOS/CSE-481-Engineering-Economics",
   // Optional countdown on the course page; it hides itself once the date has passed.
-  exam: { name: "Vize", label: "3 Kas 13:30", date: "2026-11-03T13:30:00+03:00" },
+  exam: { name: "Vize", label: "3 Kas 13:30 · teyit et", date: "2026-11-03T13:30:00+03:00" },
   lessons: [
     { slug: "bist-ohlcv", unit: "Veri ve göstergeler", lecture: "W1", title: "BIST 100, OHLCV ve candlestick", min: 57, sections: 12, status: "open",
       desc: "Dersin data → rules → signals → backtest hattı, yfinance ile veri, OHLCV ve candle okuma, Close ile Adj Close, compounding ve buy-and-hold.", tags: ["Mini Lab", "Quiz"] },
@@ -29,9 +29,9 @@ window.LAB_COURSES["cse-481"] = {
       desc: "Harness'ın state'leri ve tool izinleri, memory türleri, evidence bundle, data quality ve risk gate, human review ve replay.", tags: ["Proje brief"] },
     { slug: "scenarios-fundamentals", unit: "Agent ve araştırma", lecture: "W1–W2", title: "Dört araştırma senaryosu ve fundamentals", min: 55, sections: 11, status: "open",
       desc: "Sector lag score, event sayımı, point-in-time fundamentals ve disclosure date, açıklama sonrası fiyat, fundamental ve combined score.", tags: ["Proje brief"] },
-    { slug: "midterm-review", unit: "Tekrar", lecture: "W1–W7", title: "Vize provası: yedi \"≠\" ayrımı ve formül kartı", min: 63, sections: 12, status: "open",
-      desc: "Brief §38'in yedi ayrımı karışık sorularla, sınav sözlüğü, stop/R/trade metrikleri ve gösterge formülleri tek yerde.", tags: ["Vize öncesi"] },
-    { slug: "engineering-economics-tvm", unit: "Final için", lecture: "W9+", title: "Engineering economics: time value of money, NPV, IRR", min: 67, sections: 12, status: "open",
-      desc: "Cash flow diagram, compound interest, annuity ve gradient, nominal ve effective rate, MARR, NPV, IRR, MIRR, alternatif karşılaştırma.", tags: ["Final", "Schmid & Vanderby"] }
+    { slug: "midterm-review", unit: "Tekrar", lecture: "W1–W7", title: "Vize provası: 7 soru, 40 dakika ve faiz tablosu", min: 120, sections: 14, status: "open",
+      desc: "W5 maliyetler, W6 ekonomik eşdeğerlik, altı faiz faktörü, kavram tekrarı ve çözümleri sonunda açılan 7 soruluk 40 dakikalık deneme.", tags: ["Vize öncesi"] },
+    { slug: "engineering-economics-tvm", unit: "Mühendislik ekonomisi", lecture: "W5–W6 + kitap", title: "Engineering economics: time value of money, NPV, IRR", min: 67, sections: 12, status: "open",
+      desc: "Cash flow diagram, compound interest, annuity ve gradient, nominal ve effective rate, MARR, NPV, IRR, MIRR, alternatif karşılaştırma.", tags: ["W5–W6 temelleri", "Kitap uzantıları"] }
   ]
 };
