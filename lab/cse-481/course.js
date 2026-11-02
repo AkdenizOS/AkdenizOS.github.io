@@ -1,5 +1,5 @@
 /* CSE 481 Engineering Economics — lesson list for the course page and the lesson footers.
-   Order follows the weekly slides (W1–W6) and the term-project brief; economics basics are also in the received W5–W6 slides.
+   The midterm path comes first; course-wide trading, project and book material follows.
    status: "open" | "soon". sections is the planned count shown before a visit. */
 window.LAB_COURSES = window.LAB_COURSES || {};
 window.LAB_COURSES["cse-481"] = {
@@ -9,6 +9,10 @@ window.LAB_COURSES["cse-481"] = {
   // Optional countdown on the course page; it hides itself once the date has passed.
   exam: { name: "Vize", label: "3 Kas 13:30 · teyit et", date: "2026-11-03T13:30:00+03:00" },
   lessons: [
+    { slug: "cash-flow-path", unit: "Vize çalışma yolu", lecture: "W6 · ders kaydı", title: "Sıfırdan: nakit akışı, faiz tablosu ve senaryo çözümü", min: 58, sections: 7, status: "open",
+      desc: "Verilen/aranan, altı tablo faktörü, yıl başı ve ertelenmiş taksitler, t=4 eşdeğeri, karışık akışlar ve yazılım şirketi kararları.", tags: ["Buradan başla", "Çözümlü örnekler"] },
+    { slug: "midterm-review", unit: "Vize çalışma yolu", lecture: "W5–W6 + ek tekrar", title: "Vize provası: 7 soru, 40 dakika ve faiz tablosu", min: 120, sections: 14, status: "open",
+      desc: "W5 maliyetler, W6 ekonomik eşdeğerlik, altı faiz faktörü, kavram tekrarı ve çözümleri sonunda açılan 7 soruluk 40 dakikalık deneme.", tags: ["Vize öncesi"] },
     { slug: "bist-ohlcv", unit: "Veri ve göstergeler", lecture: "W1", title: "BIST 100, OHLCV ve candlestick", min: 57, sections: 12, status: "open",
       desc: "Dersin data → rules → signals → backtest hattı, yfinance ile veri, OHLCV ve candle okuma, Close ile Adj Close, compounding ve buy-and-hold.", tags: ["Mini Lab", "Quiz"] },
     { slug: "support-resistance", unit: "Veri ve göstergeler", lecture: "W1", title: "Support ve resistance", min: 50, sections: 11, status: "open",
@@ -29,8 +33,6 @@ window.LAB_COURSES["cse-481"] = {
       desc: "Harness'ın state'leri ve tool izinleri, memory türleri, evidence bundle, data quality ve risk gate, human review ve replay.", tags: ["Proje brief"] },
     { slug: "scenarios-fundamentals", unit: "Agent ve araştırma", lecture: "W1–W2", title: "Dört araştırma senaryosu ve fundamentals", min: 55, sections: 11, status: "open",
       desc: "Sector lag score, event sayımı, point-in-time fundamentals ve disclosure date, açıklama sonrası fiyat, fundamental ve combined score.", tags: ["Proje brief"] },
-    { slug: "midterm-review", unit: "Tekrar", lecture: "W1–W7", title: "Vize provası: 7 soru, 40 dakika ve faiz tablosu", min: 120, sections: 14, status: "open",
-      desc: "W5 maliyetler, W6 ekonomik eşdeğerlik, altı faiz faktörü, kavram tekrarı ve çözümleri sonunda açılan 7 soruluk 40 dakikalık deneme.", tags: ["Vize öncesi"] },
     { slug: "engineering-economics-tvm", unit: "Mühendislik ekonomisi", lecture: "W5–W6 + kitap", title: "Engineering economics: time value of money, NPV, IRR", min: 67, sections: 12, status: "open",
       desc: "Cash flow diagram, compound interest, annuity ve gradient, nominal ve effective rate, MARR, NPV, IRR, MIRR, alternatif karşılaştırma.", tags: ["W5–W6 temelleri", "Kitap uzantıları"] }
   ]
