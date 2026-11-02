@@ -5,8 +5,7 @@ window.LAB_COURSES = window.LAB_COURSES || {};
 window.LAB_COURSES["cse-301"] = {
   code: "CSE 301",
   title: "Algorithms",
-  // Optional countdown on the course page; it hides itself once the date has passed.
-  exam: { name: "Vize", label: "30 Eki 09:00", date: "2026-10-30T09:00:00+03:00" },
+  // Online midterm cancelled; do not invent a date for the paper resit.
   lessons: [
     { slug: "asymptotics", unit: "Temeller", lecture: "L1–2", title: "Asymptotic analysis ve loop analizi", min: 45, sections: 11, status: "open",
       desc: "O, Ω, Θ tanımları, c ve n₀ ile proof, fonksiyonları büyüme hızına göre sıralama, loop'ların running time'ı.", tags: ["Her vizede", "HW1"] },
@@ -26,8 +25,10 @@ window.LAB_COURSES["cse-301"] = {
       desc: "Complete binary tree, heap property, O(log n) insert ve extract-min, array representation, HeapSort.", tags: ["L7 notları §2"] },
     { slug: "bst-red-black", unit: "Data structures", lecture: "L7", title: "BST ve red-black tree", min: 55, sections: 11, status: "open",
       desc: "BST operation'ları ve height'ın önemi, red-black tree kuralları, height'ın O(log n) olduğunun proof'u.", tags: ["HW4"] },
-    { slug: "dc-design", unit: "Divide and conquer", lecture: "L1 + sınav", title: "Divide and conquer tasarımı ve Karatsuba", min: 48, sections: 11, status: "open",
+    { slug: "dc-design", unit: "Divide and conquer", lecture: "L1 + sınav", title: "Divide and conquer tasarımı ve Karatsuba", min: 54, sections: 12, status: "open",
       desc: "Karatsuba fikri ve sınavdaki algorithm design soruları: binary search varyantları, partition ile daraltma, Select ile ikiye bölme.", tags: ["Sınav kalıbı", "Tasarım"] },
+    { slug: "midterm-review", unit: "Özet", lecture: "L1–7 · Form A–D", title: "Vize provası · çıkmış A–D formları", min: 65, sections: 11, status: "open",
+      desc: "Dört çıkmış form: gerekçeli cevaplar, recursion tree, QuickSelect izi, merge ile çift sayma ve strong induction.", tags: ["Vize", "Çıkan A–D", "Kâğıtta çöz"] },
     // Single-page trace without lab.js: no sections to track, so it stays out of the progress total.
     { slug: "sorting-trace", unit: "Özet", lecture: "L2–L7", title: "Sorting adım adım", min: 20, status: "open",
       desc: "7 sorting algoritması aynı array üzerinde satır satır: Insertion, Merge, Quick, Heap, Counting, Radix, Bucket.", tags: ["Tekrar"] }
