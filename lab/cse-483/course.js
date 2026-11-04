@@ -1,5 +1,5 @@
 /* CSE 483 Entrepreneurship — lesson list for the course page and the lesson footers.
-   Order follows the syllabus weeks with the TTE01x videos; the KOSGEB page closes the list because the KOSGEB training replaces the midterm.
+   Order follows the syllabus weeks with the TTE01x videos; the KOSGEB unit closes the list because the midterm is drawn from the KOSGEB training.
    status: "open" | "soon". sections is the planned count shown before a visit. */
 window.LAB_COURSES = window.LAB_COURSES || {};
 window.LAB_COURSES["cse-483"] = {
@@ -34,6 +34,10 @@ window.LAB_COURSES["cse-483"] = {
     { slug: "is-plani-pitch-unlu-girisimciler", unit: "Etik ve sunum", lecture: "W13–W14", title: "İş planı, pitch ve ünlü girişimciler", min: 37, sections: 8, status: "open",
       desc: "İş planının amacı ve bölümleri, pitch'te who cares ve why you, ünlü girişimci vakalarını okumak, survivorship bias.", tags: ["Dönem projesi"] },
     { slug: "kosgeb-hazirlik", unit: "KOSGEB", lecture: "5 Kas", title: "KOSGEB eğitimi hazırlık: soru bankası ve terimler", min: 45, sections: 9, status: "open",
-      desc: "Eğitim hakkında bilinenler, 16 gerçek sorunun tuzakları, konulara göre KOSGEB tarzı soru bankası ve TR↔EN terim kartları.", tags: ["Vize yerine"] }
+      desc: "Eğitim hakkında bilinenler, 16 gerçek sorunun tuzakları, konulara göre KOSGEB tarzı soru bankası ve TR↔EN terim kartları.", tags: ["Vize"] },
+    { slug: "kosgeb-lms-sinavlari", unit: "KOSGEB", lecture: "LMS", title: "KOSGEB bölüm sonu sınavları: 80 soru", min: 40, sections: 8, status: "open",
+      desc: "Geleneksel Girişimcilik eğitiminin sekiz bölüm sonu sınavından 80 soru, doğru cevapları ve gerekçeleriyle. 📝 LMS sınavı.", tags: ["Vize"] },
+    { slug: "kosgeb-video-ozetleri", unit: "KOSGEB", lecture: "LMS", title: "KOSGEB video özetleri", min: 45, sections: 8, status: "open",
+      desc: "Eğitimdeki 23 videonun bölüm bölüm özeti: tanımlar, listeler, sayılar ve örnekler. 🎬 Video.", tags: ["Vize"] }
   ]
 };
