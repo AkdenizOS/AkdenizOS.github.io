@@ -512,7 +512,7 @@
           <div class="lcard__top"><span>${esc(l.lecture)}</span><span>${l.min} dk</span></div>
           <h3>${esc(l.title)}</h3>
           <p>${esc(l.desc)}</p>
-          <div>${(l.tags || []).map((t) => `<span class="chip${/sınav|vize|exam/i.test(t) ? " chip--exam" : ""}">${esc(t)}</span>`).join(" ")}</div>
+          <div>${(l.tags || []).map((t) => `<span class="chip${/sınav|vize|final|exam/i.test(t) ? " chip--exam" : ""}">${esc(t)}</span>`).join(" ")}</div>
           <div class="lcard__bar"><i style="width:${pct}%"></i></div>
           <div class="lcard__meta"><span>${state}</span><span>${p.total || l.sections || "?"} bölüm</span></div>
         </a>`;
