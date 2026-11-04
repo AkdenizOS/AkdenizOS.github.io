@@ -1,5 +1,5 @@
 /* CSE 483 Entrepreneurship — lesson list for the course page and the lesson footers.
-   Order follows the syllabus weeks with the TTE01x videos; the KOSGEB unit closes the list because the midterm is drawn from the KOSGEB training.
+   Order follows the syllabus weeks with the TTE01x videos; the KOSGEB unit closes the list because the midterm and the final are drawn from the KOSGEB training.
    status: "open" | "soon". sections is the planned count shown before a visit. */
 window.LAB_COURSES = window.LAB_COURSES || {};
 window.LAB_COURSES["cse-483"] = {
@@ -38,6 +38,10 @@ window.LAB_COURSES["cse-483"] = {
     { slug: "kosgeb-lms-sinavlari", unit: "KOSGEB", lecture: "LMS", title: "KOSGEB bölüm sonu sınavları: 80 soru", min: 40, sections: 8, status: "open",
       desc: "Geleneksel Girişimcilik eğitiminin sekiz bölüm sonu sınavından 80 soru, doğru cevapları ve gerekçeleriyle. 📝 LMS sınavı.", tags: ["Vize"] },
     { slug: "kosgeb-video-ozetleri", unit: "KOSGEB", lecture: "LMS", title: "KOSGEB video özetleri", min: 45, sections: 8, status: "open",
-      desc: "Eğitimdeki 23 videonun bölüm bölüm özeti: tanımlar, listeler, sayılar ve örnekler. 🎬 Video.", tags: ["Vize"] }
+      desc: "Eğitimdeki 23 videonun bölüm bölüm özeti: tanımlar, listeler, sayılar ve örnekler. 🎬 Video.", tags: ["Vize"] },
+    { slug: "kosgeb-ileri-lms-sinavlari", unit: "KOSGEB", lecture: "LMS", title: "KOSGEB bölüm sonu sınavları (İleri): 80 soru", min: 40, sections: 8, status: "open",
+      desc: "İleri Girişimcilik eğitiminin sekiz bölüm sonu sınavından (Bölüm 9–16) 80 soru, doğru cevapları ve gerekçeleriyle. 📝 LMS sınavı.", tags: ["Final"] },
+    { slug: "kosgeb-ileri-video-ozetleri", unit: "KOSGEB", lecture: "LMS", title: "KOSGEB video özetleri (İleri)", min: 40, sections: 8, status: "open",
+      desc: "İleri Girişimcilik eğitimindeki 17 videonun bölüm bölüm özeti: tanımlar, listeler, sayılar ve örnekler. 🎬 Video.", tags: ["Final"] }
   ]
 };
