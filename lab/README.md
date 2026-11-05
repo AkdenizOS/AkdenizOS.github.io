@@ -16,6 +16,10 @@ GitHub Pages caches assets for 4 hours, so every page loads `lab.css`, `lab.js` 
 
 Progress is kept in `localStorage` under `lab:<course>/<slug>/…`. No accounts, nothing leaves the browser.
 
+## Dark mode
+
+Every page carries a one-line script in `<head>`, right after the `lab.css` link, that sets `data-theme` on `<html>` before paint: the saved choice in `localStorage` `lab:theme` (`"dark"` / `"light"`), otherwise the system setting. `lab.js` adds the ☾/☀ toggle to the navbar. `lab.css` redefines the colour tokens under `:root[data-theme="dark"]` (screen only, prints stay light), including the raw ramps (`--stone-*`, `--blue-*`, `--ink-*`), so widgets follow the theme as long as they use tokens. In lessons write colours as `var(--…)`, never hex: status colours are `--ok`, `--bad`, `--warn`, `--violet`, `--info`, `--hot` with `-bg` tints, and code blocks use `--code-bg`. Canvas drawings cannot read `var()`; pick mid-tone colours that work on both backgrounds.
+
 ## Study features (all in `assets/lab.js`, no per-lesson code)
 
 They follow the learning-science findings that hold for students with ADHD too: retrieval practice, successive relearning, interleaving.

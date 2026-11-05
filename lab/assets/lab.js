@@ -545,9 +545,40 @@
     }
   }
 
+  /* ── Theme: an inline script in <head> sets data-theme before paint; this adds the navbar toggle.
+     The saved choice lives in localStorage "lab:theme" as a plain string; without one the
+     page follows the system setting. ── */
+  function initTheme() {
+    const root = document.documentElement;
+    const dark = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+    const saved = () => { try { return localStorage.getItem("lab:theme"); } catch (e) { return null; } };
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const lightColor = meta ? meta.content : "";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "theme-toggle";
+    const apply = (theme) => {
+      root.dataset.theme = theme;
+      if (meta) meta.content = theme === "dark" ? "#101318" : lightColor;
+      btn.textContent = theme === "dark" ? "☀" : "☾";
+      btn.setAttribute("aria-label", theme === "dark" ? "Açık temaya geç" : "Koyu temaya geç");
+      btn.title = btn.getAttribute("aria-label");
+    };
+    apply(saved() || (dark && dark.matches ? "dark" : "light"));
+    btn.addEventListener("click", () => {
+      const next = root.dataset.theme === "dark" ? "light" : "dark";
+      try { localStorage.setItem("lab:theme", next); } catch (e) { /* private mode */ }
+      apply(next);
+    });
+    if (dark && dark.addEventListener) dark.addEventListener("change", (e) => { if (!saved()) apply(e.matches ? "dark" : "light"); });
+    const nav = document.querySelector(".navbar__inner");
+    if (nav) nav.appendChild(btn);
+  }
+
   window.Lab = { stepper, arrayView, codeView, renderMath, store };
 
   document.addEventListener("DOMContentLoaded", () => {
+    initTheme();
     const article = document.querySelector("article.lesson[data-lesson]");
     if (article) initLesson(article);
     const course = document.querySelector("[data-course-page]");
