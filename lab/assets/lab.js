@@ -558,7 +558,10 @@
     btn.type = "button";
     btn.className = "theme-toggle";
     const apply = (theme) => {
+      const changed = root.dataset.theme !== theme;
       root.dataset.theme = theme;
+      // Canvas widgets cannot follow CSS variables; they listen for this and redraw.
+      if (changed) document.dispatchEvent(new CustomEvent("lab:theme", { detail: theme }));
       if (meta) meta.content = theme === "dark" ? "#101318" : lightColor;
       btn.textContent = theme === "dark" ? "☀" : "☾";
       btn.setAttribute("aria-label", theme === "dark" ? "Açık temaya geç" : "Koyu temaya geç");
