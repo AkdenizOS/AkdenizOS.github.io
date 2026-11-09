@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 301 Lecture 9: graph terminology and representations, DFS discovery/finish times, topological sort, BFS levels, shortest paths and bipartite testing." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Graphs, BFS ve DFS · CSE 301 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=14" />
+  <script>try{var t=localStorage.getItem("lab:theme");document.documentElement.dataset.theme=t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
+  <style>
+    .g-figure { overflow-x: auto; margin: 10px 0; }
+    .g-svg { display: block; width: 100%; min-width: 520px; max-width: 760px; height: auto; margin: 0 auto; }
+    .g-svg .edge { stroke: var(--border-strong); stroke-width: 2.2; }
+    .g-svg .tree-edge { stroke: var(--blue-600); stroke-width: 4; }
+    .g-svg .node circle { fill: var(--bg-elevated); stroke: var(--blue-600); stroke-width: 2.5; }
+    .g-svg .node text { text-anchor: middle; dominant-baseline: central; fill: var(--fg); font: 700 15px 'JetBrains Mono', monospace; }
+    .g-svg .node.white circle { fill: var(--bg-elevated); }
+    .g-svg .node.gray circle { fill: var(--orange-100); stroke: var(--accent); }
+    .g-svg .node.black circle { fill: var(--stone-800); stroke: var(--stone-900); }
+    .g-svg .node.black text { fill: var(--fg-on-accent); }
+    .g-svg .node.level0 circle { fill: var(--accent); stroke: var(--orange-700); }
+    .g-svg .node.level0 text { fill: var(--fg-on-accent); }
+    .g-svg .node.level1 circle { fill: var(--blue-100); }
+    .g-svg .node.level2 circle { fill: var(--ok-bg); stroke: var(--ok); }
+    .g-svg .node.level3 circle { fill: var(--violet-bg); stroke: var(--violet); }
+    .g-svg .time { fill: var(--fg-subtle); font: 600 10px 'JetBrains Mono', monospace; text-anchor: middle; }
+    .g-state { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .g-pill { padding: 5px 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--stone-050); color: var(--fg-muted); font: 600 .8rem 'JetBrains Mono', monospace; }
+    .g-pill b { color: var(--fg); }
+    .rep-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+    .mini-matrix { border-collapse: separate; border-spacing: 4px; margin: 8px auto; font: 600 .78rem 'JetBrains Mono', monospace; }
+    .mini-matrix th { color: var(--fg-subtle); }
+    .mini-matrix td { width: 26px; height: 26px; text-align: center; border-radius: 4px; background: var(--stone-100); color: var(--fg); }
+    .mini-matrix td.one { background: var(--blue-100); color: var(--fg-brand); font-weight: 800; }
+    .adj-list { display: grid; gap: 6px; margin: 8px 0; font: 600 .83rem 'JetBrains Mono', monospace; }
+    .adj-list div { padding: 7px 9px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--stone-050); }
+    .algo-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .algo-card { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--sp-4); background: var(--bg-elevated); }
+    .algo-card h3 { margin-top: 0; }
+    .topo { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 12px 0; }
+    .topo span { padding: 8px 10px; border: 2px solid var(--blue-600); border-radius: var(--radius-sm); background: var(--blue-050); font: 700 .84rem 'JetBrains Mono', monospace; }
+    .topo i { color: var(--fg-subtle); font-style: normal; }
+    .lesson .katex-display { overflow-x: auto; overflow-y: hidden; }
+    .lesson-foot { flex-wrap: wrap; }
+    .lesson-foot .btn { white-space: normal; max-width: 100%; }
+    @media (max-width: 700px) { .rep-grid, .algo-compare { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation"><div class="navbar__inner">
+    <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home"><span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>AkdenizOS</a>
+    <div class="navbar__links" role="list"><a href="../" role="listitem">Lab</a><a href="./" role="listitem">CSE 301</a></div>
+  </div></nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 301</a> / Graphs, BFS ve DFS</div>
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste"><div class="toc__title">Bu derste</div><nav id="toc-list"></nav><div class="toc__tools"><button class="btn btn--sm" data-focus>◎ Odak modu</button><div class="pomo-slot"></div></div></aside>
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L9</span><span class="chip chip--exam">Bonus quiz</span><span class="chip">11 Kasım · kâğıt</span><span class="src">~58 dk · 10 bölüm</span></div>
+          <h1>Graphs, BFS ve DFS</h1>
+          <p class="lead">Graph, nesneleri vertex; aralarındaki ilişkileri edge olarak modeller. DFS bir yolu olabildiğince derine izler ve discovery/finish time üretir. BFS source'tan katman katman yayılır ve unweighted graph'ta shortest-path distance'ı bulur. İkisi de adjacency list ile $O(|V|+|E|)$ sürer; farkları frontier'ı hangi sırayla işledikleridir.</p>
+          <!-- Kaynak: CSE-301-Algorithms lectures/09-graphs-bfs-and-dfs.md · CS161 Winter 2026 L9 notes, slides, pre-lecture, notebook ve concept check · CLRS 3e §22.1–22.4 · exams/practice Example1–4 (DFS) ve quiz2_practice.pdf. -->
+        </header>
+
+        <article class="lesson" data-course="cse-301" data-lesson="graphs-bfs-dfs">
+
+<section class="lsec" id="model" data-min="5">
+  <h2>Graph dili</h2>
+  <div class="box box--rule"><span class="box__label">Tanımlar</span>
+    <p>$G=(V,E)$. $V$ vertex kümesi, $E\subseteq V\times V$ edge kümesi. Genelde $n=|V|$, $m=|E|$.</p>
+    <ul><li><b>Undirected:</b> $\{u,v\}$ iki yönlü ilişki. Maksimum $n(n-1)/2$ edge.</li><li><b>Directed:</b> $(u,v)$ yalnızca $u\to v$. Maksimum $n(n-1)$ edge.</li><li><b>Path:</b> edge'lerle birbirini izleyen vertex dizisi. Path length = edge sayısı.</li><li><b>Connected:</b> undirected graph'ta her iki vertex arasında path var.</li><li><b>Sparse:</b> $m=\Theta(n)$ civarı; <b>dense:</b> $m=\Theta(n^2)$ civarı.</li></ul>
+  </div>
+  <div class="box box--example"><span class="box__label">Gerçek problemi graph'a çevir</span>
+    <ul><li>Actor = vertex, aynı filmde oynama = undirected edge; Bacon number = Kevin Bacon'dan shortest-path distance.</li><li>Ders = vertex, prerequisite = directed edge; geçerli ders sırası = topological order.</li><li>Fish species = vertex, kavga eden çift = edge; iki sakin tank = bipartite coloring.</li></ul>
+  </div>
+  <div class="quiz" id="q-model"><p class="quiz__q">Bir prerequisite graph'ında “A dersi B'den önce alınmalı” ilişkisini nasıl yönlendirirsin?</p>
+    <button class="quiz__opt" data-correct>$A\to B$<span class="why">Doğru. Edge dependency'nin önce geleninden sonra gelene gider.</span></button>
+    <button class="quiz__opt">$B\to A$<span class="why">Bu yön “B, A'nın prerequisite'i” anlamına gelirdi.</span></button>
+    <button class="quiz__opt">Undirected edge<span class="why">Prerequisite symmetric değildir; yön bilgisi gerekir.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="representation" data-min="6">
+  <h2>Adjacency matrix mı list mi?</h2>
+  <div class="rep-grid">
+    <div class="box box--example"><span class="box__label">Adjacency matrix</span>
+      <table class="mini-matrix" aria-label="Adjacency matrix example"><tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th></tr><tr><th>A</th><td>0</td><td class="one">1</td><td class="one">1</td><td>0</td></tr><tr><th>B</th><td class="one">1</td><td>0</td><td>0</td><td class="one">1</td></tr><tr><th>C</th><td class="one">1</td><td>0</td><td>0</td><td class="one">1</td></tr><tr><th>D</th><td>0</td><td class="one">1</td><td class="one">1</td><td>0</td></tr></table>
+      <p>Space $\Theta(n^2)$. “$(u,v)$ edge mi?” $\Theta(1)$. Bir vertex'in bütün neighbor'larını saymak $\Theta(n)$.</p>
+    </div>
+    <div class="box box--example"><span class="box__label">Adjacency list</span>
+      <div class="adj-list"><div>A: B, C</div><div>B: A, D</div><div>C: A, D</div><div>D: B, C</div></div>
+      <p>Space $\Theta(n+m)$. Neighbor enumeration $\Theta(\deg(u))$. Belirli edge'i aramak unsorted list'te $O(\deg(u))$.</p>
+    </div>
+  </div>
+  <div class="box box--rule"><span class="box__label">Seçim kuralı</span><p>Sparse graph → adjacency list. Dense graph ve çok sayıda edge-existence query → matrix düşünülebilir. DFS/BFS'in $O(n+m)$ bound'u adjacency list varsayar; matrix ile bütün satırlar tarandığı için $O(n^2)$ olur.</p></div>
+  <div class="quiz" id="q-rep"><p class="quiz__q">1 milyon vertex, yaklaşık 3 milyon edge olan bir social graph için hangisi mantıklı?</p>
+    <button class="quiz__opt" data-correct>Adjacency list<span class="why">Doğru. Graph sparse: $m\approx3n$. Matrix $10^{12}$ hücre ister.</span></button>
+    <button class="quiz__opt">Adjacency matrix<span class="why">Edge lookup hızlı olur ama space pratik değildir.</span></button>
+    <button class="quiz__opt">Fark etmez, ikisi de $\Theta(n+m)$ space<span class="why">Matrix $\Theta(n^2)$ space kullanır.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="dfs-idea" data-min="5">
+  <h2>DFS: derine git, sonra geri dön</h2>
+  <div class="box box--intuition"><span class="box__label">Sezgi</span><p>Labirentte bir yol seçip dead end'e kadar ilerle; sonra son ayrım noktasına geri dön. Recursion bunu doğal olarak yapar. Iterative yazarsan frontier bir <strong>stack</strong> (LIFO) olur.</p></div>
+  <div class="box box--rule"><span class="box__label">State ve metadata</span>
+    <ul><li><b>white:</b> hiç keşfedilmedi.</li><li><b>gray:</b> keşfedildi, recursive call hâlâ açık.</li><li><b>black:</b> bütün outgoing edge'leri işlendi.</li><li>$d[v]$: discovery time, $f[v]$: finish time, $\pi[v]$: DFS tree parent.</li></ul>
+    <pre><code>DFS-VISIT(u):
+    color[u] = gray; d[u] = ++time
+    for v in Adj[u]:
+        if color[v] == white:
+            pi[v] = u
+            DFS-VISIT(v)
+    color[u] = black; f[u] = ++time</code></pre>
+  </div>
+  <div class="box box--trap"><span class="box__label">Tie-breaker sonucu değiştirir</span><p>Bir vertex'in birden çok white neighbor'ı varsa hangisini önce seçtiğin DFS tree'yi ve time'ları değiştirir. Soru vertex numarası/alphabetical order diyorsa adjacency list'i o sırada işle.</p></div>
+  <div class="quiz" id="q-dfs-structure"><p class="quiz__q">Recursive DFS'in iterative karşılığı hangi data structure?</p>
+    <button class="quiz__opt" data-correct>Stack (LIFO)<span class="why">Doğru. En son keşfedilen unfinished vertex önce devam eder.</span></button>
+    <button class="quiz__opt">Queue (FIFO)<span class="why">Queue BFS'in level-order davranışını verir.</span></button>
+    <button class="quiz__opt">Min-heap<span class="why">Priority order DFS'in tanımı değildir.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="dfs-trace" data-min="7">
+  <h2>DFS'i elle izle: discovery ve finish</h2>
+  <p>Undirected graph'ta A'dan başla; neighbor tie-breaker alphabetical. Turuncu = recursion stack'te (gray), koyu = finished (black), mavi edge = DFS tree edge.</p>
+  <div id="dfs-stepper"></div>
+  <div class="box box--rule"><span class="box__label">Parenthesis theorem</span>
+    <p>Her vertex bir interval üretir: $[d[v],f[v]]$. İki interval ya tamamen ayrıdır ya da biri diğerini tamamen içerir. $v$, $u$'nun DFS-tree descendant'ıysa:</p>
+    $$d[u] < d[v] < f[v] < f[u].$$
+  </div>
+  <div class="box box--rule"><span class="box__label">Edge classification · directed graph</span>
+    <ul><li><b>Tree edge:</b> white vertex'i ilk kez keşfeder.</li><li><b>Back edge:</b> gray ancestor'a gider. Directed graph'ta back edge vardır iff cycle vardır.</li><li><b>Forward edge:</b> descendant'a giden ama tree olmayan edge.</li><li><b>Cross edge:</b> ancestor/descendant olmayan tamamlanmış subtree'ler arasında.</li></ul>
+  </div>
+  <div class="quiz" id="q-times"><p class="quiz__q">$d[u]=2,f[u]=11$ ve $d[v]=5,f[v]=8$. Ne kesin?</p>
+    <button class="quiz__opt" data-correct>$v$, $u$'nun DFS-tree descendant'ıdır.<span class="why">Doğru. $[5,8]$, $[2,11]$ interval'ının tamamen içinde.</span></button>
+    <button class="quiz__opt">$u$ ve $v$ farklı DFS tree'lerindedir.<span class="why">Farklı tree interval'ları ayrık olurdu.</span></button>
+    <button class="quiz__opt">Aralarında mutlaka doğrudan edge vardır.<span class="why">Descendant olmak path olduğunu söyler; doğrudan edge zorunlu değildir.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="dfs-runtime" data-min="5">
+  <h2>DFS runtime ve connected components</h2>
+  <div class="box box--rule"><span class="box__label">Neden $O(n+m)$?</span>
+    <p>Her vertex white'dan gray'e yalnızca bir kez geçer: $O(n)$ visit. Adjacency list'teki her directed edge bir kez, undirected edge iki endpoint'ten en fazla iki kez scan edilir: $O(m)$. Toplam $O(n+m)$.</p>
+  </div>
+  <div class="box box--example"><span class="box__label">Bütün graph'ı dolaş</span>
+    <pre><code>for u in V:
+    if color[u] == white:
+        DFS-VISIT(u)</code></pre>
+    <p>Undirected graph'ta outer loop'un başlattığı her yeni DFS tree bir connected component'tır. Tek source'tan DFS yalnızca o source'tan reachable vertex'leri bulur.</p>
+  </div>
+  <div class="box box--trap"><span class="box__label">$O(m)$ demek her zaman doğru değil</span><p>Graph'ta isolated vertex olabilir: $m=0,n>0$. Initialization ve vertex loop'u yüzünden doğru genel bound $O(n+m)$.</p></div>
+  <div class="quiz" id="q-components"><p class="quiz__q">Undirected graph'ta full DFS forest 4 root ürettiyse kaç connected component vardır?</p>
+    <button class="quiz__opt" data-correct>4<span class="why">Doğru. Her root, önceki tree'lerden ulaşılamayan yeni bir component başlatır.</span></button>
+    <button class="quiz__opt">3<span class="why">Root sayısı doğrudan component sayısıdır.</span></button>
+    <button class="quiz__opt">Edge sayısını bilmeden bulunamaz.<span class="why">DFS forest root'ları yeterli bilgiyi verir.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="topological" data-min="6">
+  <h2>DFS application: topological sort</h2>
+  <div class="box box--intuition"><span class="box__label">Dependency order</span><p>$A\to B$, “A bitmeden B yapılamaz” olsun. Directed graph cycle içeriyorsa bütün dependency'leri karşılayan sıra yoktur. Cycle yoksa graph bir <strong>DAG</strong>'dir.</p></div>
+  <div class="box box--rule"><span class="box__label">Algorithm</span>
+    <ol><li>Full DFS çalıştır.</li><li>Vertex'i black yaptığın anda listenin başına ekle; eşdeğer olarak decreasing finish time'a göre sırala.</li></ol>
+    <p>DAG'de her edge $u\to v$ için $f[u]>f[v]$. Bu yüzden decreasing finish time sırası bütün edge'leri soldan sağa taşır.</p>
+  </div>
+  <div class="topo" aria-label="Topological order example"><span>programming-1</span><i>→</i><span>data-structures</span><i>→</i><span>algorithms</span><i>→</i><span>advanced-algorithms</span></div>
+  <div class="box box--trap"><span class="box__label">Tek bir topological order olmak zorunda değil</span><p>Aralarında dependency olmayan vertex'ler farklı sıralarda gelebilir. Sadece her edge'in source'u target'tan önce olmalı. Cycle varsa reverse finish order bir liste üretse bile geçerli topological order değildir; cycle detection gerekir.</p></div>
+  <div class="quiz" id="q-topo"><p class="quiz__q">Topological sort hangi graph sınıfında tanımlıdır?</p>
+    <button class="quiz__opt" data-correct>Directed acyclic graph (DAG)<span class="why">Doğru. Directed dependency gerekir; cycle bütün vertex'leri aynı anda önce/sonra olmaya zorlar.</span></button>
+    <button class="quiz__opt">Her connected undirected graph<span class="why">Undirected edge dependency yönü vermez; ayrıca iki yön gibi düşünülürse cycle oluşur.</span></button>
+    <button class="quiz__opt">Yalnızca tree'ler<span class="why">Tree bir özel durum; her DAG topological sort edilebilir.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="bfs" data-min="7">
+  <h2>BFS: source'tan level level yayıl</h2>
+  <div class="box box--intuition"><span class="box__label">Sezgi · su dalgası</span><p>Önce source, sonra bir edge uzaktakiler, sonra iki edge uzaktakiler. Frontier bir <strong>queue</strong> (FIFO): önce keşfedilen vertex önce expand edilir.</p></div>
+  <pre><code>BFS(s):
+    dist[*] = infinity; dist[s] = 0
+    Q = queue([s])
+    while Q not empty:
+        u = dequeue(Q)
+        for v in Adj[u]:
+            if dist[v] == infinity:
+                dist[v] = dist[u] + 1
+                pi[v] = u
+                enqueue(Q, v)</code></pre>
+  <p>Aynı graph'ta A'dan BFS. Node rengi level'ı, mavi edge ilk keşfi yapan BFS-tree edge'ini gösterir.</p>
+  <div id="bfs-stepper"></div>
+  <div class="quiz" id="q-bfs-level"><p class="quiz__q">Animasyondaki graph'ta A'dan E'ye unweighted shortest-path distance kaç?</p>
+    <button class="quiz__opt" data-correct>3<span class="why">Doğru. E level 3'te: örneğin A–B–D–E.</span></button>
+    <button class="quiz__opt">4<span class="why">Vertex saydın; distance edge sayısıdır.</span></button>
+    <button class="quiz__opt">DFS order'a bağlı olduğu için bilinemez.<span class="why">BFS level'ı tie-breaker'dan bağımsız shortest distance verir.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="shortest" data-min="5">
+  <h2>BFS neden shortest path verir?</h2>
+  <div class="box box--rule"><span class="box__label">Level invariant</span><p>$L_i$, source'a distance'ı tam $i$ olan vertex'lerdir. BFS $L_i$ bitmeden $L_{i+1}$'i expand etmez. $u\in L_i$ üzerinden ilk kez bulunan white neighbor $v$, $L_{i+1}$'e konur ve $\pi[v]=u$ olur.</p></div>
+  <div class="box box--intuition"><span class="box__label">Proof'ün iki yönü</span>
+    <ol><li>$v$ level $i+1$'e eklendiyse level $i$'deki bir $u$ üzerinden path vardır: distance en fazla $i+1$.</li><li>Distance daha küçük olsaydı $v$ daha erken bir level'da keşfedilirdi. O hâlde distance tam $i+1$.</li></ol>
+  </div>
+  <div class="box box--trap"><span class="box__label">Weighted graph'ta geçmez</span><p>BFS edge sayısını minimize eder. Edge weight'leri farklıysa iki edge'lik yol, üç edge'lik yoldan daha pahalı olabilir. Nonnegative weighted shortest path için Dijkstra gerekir.</p></div>
+  <div class="quiz" id="q-weight"><p class="quiz__q">A→B weight 100, A→C weight 1, C→B weight 1. BFS A'dan B için ne bulur?</p>
+    <button class="quiz__opt" data-correct>Bir edge'lik A→B yolunu; weight açısından optimal olduğunu garanti etmez.<span class="why">Doğru. BFS edge count'u minimize eder: 1 edge, ama cost 100. A→C→B cost 2.</span></button>
+    <button class="quiz__opt">A→C→B, çünkü cost 2.<span class="why">Bu weighted shortest-path mantığı; BFS weight okumaz.</span></button>
+    <button class="quiz__opt">İki yolu da aynı sayar.<span class="why">Edge count'ları 1 ve 2, aynı değil.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="choose" data-min="6">
+  <h2>BFS mi DFS mi?</h2>
+  <div class="algo-compare">
+    <div class="algo-card"><h3>BFS · queue</h3><ul><li>Unweighted shortest path / distance</li><li>Bacon number, grid'de minimum move</li><li>Bipartite test: even/odd level coloring</li><li>Yakın vertex'ler önce</li></ul></div>
+    <div class="algo-card"><h3>DFS · stack/recursion</h3><ul><li>Discovery/finish time</li><li>Topological sort</li><li>Cycle/back-edge reasoning</li><li>Subtree vertex'lerini consecutive order'a koyma</li></ul></div>
+  </div>
+  <div class="box box--rule"><span class="box__label">İkisinin de yapabildiği</span><p>Reachability ve undirected connected components. İkisinin de adjacency-list runtime'ı $O(n+m)$. Algorithm seçimi, gereken output'a bağlıdır.</p></div>
+  <div class="box box--example"><span class="box__label">Bipartite test</span><p>Her component'ta BFS başlat; even level bir renk, odd level öbür renk. Bir edge aynı renkli iki vertex'i bağlıyorsa odd cycle vardır ve graph bipartite değildir. Hiç conflict yoksa iki renk geçerlidir.</p></div>
+  <div class="quiz" id="q-choose"><p class="quiz__q">Blocked cell'li bir grid'de başlangıçtan hedefe minimum move sayısı?</p>
+    <button class="quiz__opt" data-correct>BFS<span class="why">Doğru. Her move aynı cost'ta bir edge; BFS shortest edge count'u verir.</span></button>
+    <button class="quiz__opt">DFS<span class="why">DFS bir path bulabilir ama ilk bulduğu path shortest olmak zorunda değildir.</span></button>
+    <button class="quiz__opt">Topological sort<span class="why">Grid genelde DAG değildir ve soru dependency order değil.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="check" data-min="6">
+  <h2>Son kontrol · kâğıt provası</h2>
+  <div class="quiz" id="q-final-1"><p class="quiz__q">Adjacency-list graph'ta full BFS/DFS neden $O(n+m)$?</p>
+    <button class="quiz__opt" data-correct>Her vertex en fazla bir kez keşfedilir ve her adjacency-list entry sabit sayıda scan edilir.<span class="why">Doğru. Vertex işi $O(n)$, edge işi $O(m)$.</span></button>
+    <button class="quiz__opt">Her vertex bütün diğer vertex'lerle compare edilir.<span class="why">Bu $O(n^2)$ olurdu; adjacency list bunu yapmaz.</span></button>
+    <button class="quiz__opt">Çünkü graph her zaman connected'dır.<span class="why">Disconnected graph'ta outer loop bütün component'ları gezer; bound yine $O(n+m)$.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2"><p class="quiz__q">DFS interval'ları $u:[1,10]$, $v:[3,6]$, $w:[11,14]$. Hangisi doğru?</p>
+    <button class="quiz__opt" data-correct>$v$, $u$'nun descendant'ı; $w$ başka tamamlanmış subtree/tree'de.<span class="why">Doğru. $v$ interval'ı nested, $w$ interval'ı disjoint.</span></button>
+    <button class="quiz__opt">$u$, $v$'nin descendant'ı.<span class="why">İçteki interval descendant'a aittir.</span></button>
+    <button class="quiz__opt">Parenthesis theorem bozulmuş.<span class="why">Nested veya disjoint tam theorem'in söylediği yapı.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3"><p class="quiz__q">Bir DAG'de topological order'ı DFS time'larından nasıl çıkarırsın?</p>
+    <button class="quiz__opt" data-correct>Vertex'leri decreasing finish time'a göre sırala.<span class="why">Doğru. Her edge $u\to v$ için $f[u]>f[v]$.</span></button>
+    <button class="quiz__opt">Increasing discovery time'a göre sırala.<span class="why">DFS'in ilk keşif order'ı dependency'leri her zaman korumaz.</span></button>
+    <button class="quiz__opt">BFS level'larını ters çevir.<span class="why">BFS source distance verir, genel dependency order değil.</span></button>
+  </div>
+  <div class="quiz" id="q-final-4"><p class="quiz__q">Aynı unweighted graph ve source için BFS tree tie-breaker ile değişebilir. Hangisi değişmez?</p>
+    <button class="quiz__opt" data-correct>Her vertex'in source'a distance'ı<span class="why">Doğru. Farklı eşit uzunlukta shortest path parent'ları seçilebilir, ama level/distance aynıdır.</span></button>
+    <button class="quiz__opt">Her vertex'in parent'ı<span class="why">Birden çok shortest predecessor varsa tie-breaker parent'ı değiştirebilir.</span></button>
+    <button class="quiz__opt">Queue'dan çıkış sırası<span class="why">Aynı level içindeki sıra adjacency order'a bağlıdır.</span></button>
+  </div>
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+<script src="course.js?v=10"></script>
+<script src="../assets/lab.js?v=14"></script>
+<script>
+(function () {
+  "use strict";
+  const names = ["A", "B", "C", "D", "E", "F"];
+  const pos = { A:[80,150], B:[220,65], C:[220,235], D:[390,150], E:[560,65], F:[390,275] };
+  const edges = [["A","B"],["A","C"],["B","D"],["C","D"],["D","E"],["C","F"]];
+  const adj = { A:["B","C"], B:["A","D"], C:["A","D","F"], D:["B","C","E"], E:["D"], F:["C"] };
+  const edgeKey = (a,b) => [a,b].sort().join("-");
+  function graphSvg(frame, mode) {
+    const states = frame.state || {}, tree = new Set(frame.tree || []), times = frame.times || {}, levels = frame.levels || {};
+    return `<div class="g-figure"><svg class="g-svg" viewBox="0 0 640 340" role="img" aria-label="Graph traversal state">${edges.map(([a,b]) => `<line class="edge${tree.has(edgeKey(a,b)) ? " tree-edge" : ""}" x1="${pos[a][0]}" y1="${pos[a][1]}" x2="${pos[b][0]}" y2="${pos[b][1]}" />`).join("")}${names.map((v) => {
+      const cls = mode === "bfs" && levels[v] !== undefined ? `level${Math.min(levels[v],3)}` : (states[v] || "white");
+      const tm = times[v] ? `${times[v].d || ""}${times[v].f ? "/"+times[v].f : ""}` : (levels[v] !== undefined ? `d=${levels[v]}` : "");
+      return `<g class="node ${cls}" transform="translate(${pos[v][0]} ${pos[v][1]})"><circle r="25"></circle><text y="1">${v}</text>${tm ? `<text class="time" y="40">${tm}</text>` : ""}</g>`;
+    }).join("")}</svg></div>`;
+  }
+
+  function dfsFrames() {
+    const state = Object.fromEntries(names.map((v) => [v,"white"]));
+    const times = {}, tree = [], out = [], frames = []; let time = 0;
+    const snap = (caption) => frames.push({ state:{...state}, times:Object.fromEntries(Object.entries(times).map(([k,v]) => [k,{...v}])), tree:tree.slice(), stack:out.slice(), caption });
+    snap("Başlangıç: bütün vertex'ler white. A source seçildi.");
+    function visit(u, parent) {
+      if (parent) tree.push(edgeKey(parent,u));
+      state[u]="gray"; times[u]={d:++time}; out.push(u); snap(`<b>${u}</b> discover: $d[${u}]=${time}$. Recursion stack: ${out.join(" → ")}.`);
+      adj[u].slice().sort().forEach((v) => { if (state[v]==="white") visit(v,u); });
+      state[u]="black"; times[u].f=++time; out.pop(); snap(`<b>${u}</b> finish: $f[${u}]=${time}$. ${out.length ? `Control ${out[out.length-1]}'ye döner.` : "DFS tamamlandı."}`);
+    }
+    visit("A", null); return frames;
+  }
+  const dfs = dfsFrames();
+  Lab.stepper(document.getElementById("dfs-stepper"), { title:"DFS · alphabetical tie-break", interval:900, frames:dfs, render(f,_,stage) { stage.innerHTML=graphSvg(f,"dfs")+`<div class="g-state"><span class="g-pill">stack <b>${f.stack.length?f.stack.join(" → "):"∅"}</b></span></div>`; } });
+
+  function bfsFrames() {
+    const level = {A:0}, parent = {}, q=["A"], tree=[], frames=[];
+    const snap = (caption, current) => frames.push({ levels:{...level}, tree:tree.slice(), queue:q.slice(), current, caption });
+    snap("A level 0'a konur ve queue'ya eklenir.", null);
+    while (q.length) {
+      const u=q.shift(); snap(`<b>${u}</b> dequeue. Neighbor'ları sırayla tara.`,u);
+      adj[u].slice().sort().forEach((v) => {
+        if (level[v]===undefined) { level[v]=level[u]+1; parent[v]=u; tree.push(edgeKey(u,v)); q.push(v); snap(`${u} → ${v}: ${v} ilk kez görüldü. $d[${v}]=${level[v]}$, parent ${u}; enqueue.`,u); }
+      });
+    }
+    snap("Queue boş. Level'lar source A'dan shortest-path distance'lardır.",null); return frames;
+  }
+  const bfs=bfsFrames();
+  Lab.stepper(document.getElementById("bfs-stepper"), { title:"BFS · A source", interval:900, frames:bfs, render(f,_,stage) { stage.innerHTML=graphSvg(f,"bfs")+`<div class="g-state"><span class="g-pill">queue <b>${f.queue.length?f.queue.join(" · "):"∅"}</b></span>${f.current?`<span class="g-pill">expand <b>${f.current}</b></span>`:""}</div>`; } });
+})();
+</script>
+</body>
+</html>

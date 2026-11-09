@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CSE 301 Lecture 8: hash tables with chaining, collisions, load factor, expected O(1), universal hash families and birthday collisions." />
+  <meta name="theme-color" content="#F7F8FC" />
+  <title>Hashing ve universal hash families · CSE 301 · AkdenizOS Lab</title>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <link rel="stylesheet" href="../assets/lab.css?v=14" />
+  <script>try{var t=localStorage.getItem("lab:theme");document.documentElement.dataset.theme=t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
+  <style>
+    .hash-table { display: grid; gap: 7px; margin: 12px 0; }
+    .hash-row { display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: center; gap: 9px; }
+    .hash-ix { font: 700 .82rem 'JetBrains Mono', monospace; color: var(--fg-subtle); text-align: right; }
+    .hash-chain { min-height: 42px; display: flex; flex-wrap: wrap; gap: 18px; align-items: center; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--stone-050); }
+    .hash-key { position: relative; min-width: 42px; padding: 7px 10px; text-align: center; border: 2px solid var(--blue-600); border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--fg); font: 700 .9rem 'JetBrains Mono', monospace; }
+    .hash-key + .hash-key::before { content: "→"; position: absolute; left: -16px; color: var(--fg-subtle); }
+    .hash-key.is-new { border-color: var(--accent); background: var(--orange-100); }
+    .hash-empty { color: var(--fg-subtle); font: 500 .82rem 'JetBrains Mono', monospace; }
+    .hash-calc { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--sp-4); margin: var(--sp-4) 0; background: var(--bg-elevated); }
+    .hash-calc__row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .hash-calc label { display: inline-flex; gap: 5px; align-items: center; color: var(--fg-muted); }
+    .hash-calc input { width: 5.5em; min-width: 0; padding: 5px 7px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--paper); color: var(--fg); font: 600 .88rem 'JetBrains Mono', monospace; }
+    .hash-calc__out { margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--blue-600); background: var(--blue-050); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+    .hash-bars { display: grid; grid-template-columns: repeat(6, minmax(34px, 1fr)); gap: 8px; align-items: end; min-height: 150px; margin: 12px 0 4px; }
+    .hash-bar { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; height: 145px; font: 600 .75rem 'JetBrains Mono', monospace; color: var(--fg-subtle); }
+    .hash-bar i { display: block; width: 100%; max-width: 52px; min-height: 4px; border-radius: 5px 5px 2px 2px; background: var(--blue-400); }
+    .hash-bar.is-hot i { background: var(--accent); }
+    .lesson .katex-display { overflow-x: auto; overflow-y: hidden; }
+    .lesson-foot { flex-wrap: wrap; }
+    .lesson-foot .btn { white-space: normal; max-width: 100%; }
+  </style>
+</head>
+<body>
+<div class="page-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <div class="navbar__inner">
+      <a href="../../" class="navbar__brand" aria-label="AkdenizOS — home">
+        <span class="navbar__logo"><img src="../../akdenizoslogo.png" alt="" width="22" height="22" /></span>
+        AkdenizOS
+      </a>
+      <div class="navbar__links" role="list"><a href="../" role="listitem">Lab</a><a href="./" role="listitem">CSE 301</a></div>
+    </div>
+  </nav>
+
+  <div class="lab-shell">
+    <div class="progress-top"><i></i></div>
+    <div class="lab-crumbs"><a href="../">Lab</a> / <a href="./">CSE 301</a> / Hashing</div>
+    <div class="lesson-grid">
+      <aside class="toc" aria-label="Bu derste">
+        <div class="toc__title">Bu derste</div><nav id="toc-list"></nav>
+        <div class="toc__tools"><button class="btn btn--sm" data-focus>◎ Odak modu</button><div class="pomo-slot"></div></div>
+      </aside>
+      <main>
+        <header class="lesson-head">
+          <div class="lesson-head__meta"><span class="chip">L8</span><span class="chip chip--exam">Bonus quiz</span><span class="chip">11 Kasım · kâğıt</span><span class="src">~48 dk · 9 bölüm</span></div>
+          <h1>Hashing ve universal hash families</h1>
+          <p class="lead">Hash table, çok büyük bir key evreninden yalnızca sakladığın küçük kümeyi az sayıda bucket'a dağıtır. İyi dağılımda insert, lookup ve delete expected $O(1)$; kötü bir sabit hash function'da hepsi $\Theta(n)$ olabilir. Buradaki ana fikir “collision hiç olmasın” değil, adversary key'leri seçtikten sonra hash function'ı rastgele seçerek collision olasılığını kontrol etmektir.</p>
+          <!-- Kaynak: CSE-301-Algorithms lectures/08-hashing.md · CS161 Winter 2026 L8 notes, slides, pre-lecture ve concept check · CLRS 3e Ch. 11. Stanford slaytları open addressing için açıkça “You don’t need to know about it for this class” der; bu ders quiz kapsamı için chaining'e odaklanır. -->
+        </header>
+
+        <article class="lesson" data-course="cse-301" data-lesson="hashing">
+
+<section class="lsec" id="why" data-min="4">
+  <h2>Neden hash table?</h2>
+  <div class="box box--intuition"><span class="box__label">Sezgi · dev evren, küçük gerçek küme</span>
+    <p>Key'lerin bütün evreni $U$ olsun: örneğin bütün 64-bit kimlikler, $|U|=2^{64}$. Gerçekte aynı anda yalnızca $k$ tane key saklıyorsun. Her olası key için bir array hücresi ayıran <em>direct addressing</em> çok hızlıdır ama $\Theta(|U|)$ alan harcar.</p>
+    <p>Hashing, $h:U\to\{0,\ldots,m-1\}$ fonksiyonuyla her key'i yalnızca $m$ bucket'tan birine yollar. Alan $\Theta(m+k)$ olur.</p>
+  </div>
+  <div class="box box--rule"><span class="box__label">Desteklenen operation'lar</span>
+    <ul><li><b>Insert(k):</b> key'i ekle.</li><li><b>Lookup(k) / Search(k):</b> key var mı?</li><li><b>Delete(k):</b> key'i sil.</li></ul>
+    <p>Hash table sıralı order vermez. Min/max, predecessor veya sorted traversal gerekiyorsa balanced BST daha uygundur; exact-key lookup ağırlıklıysa hash table genelde daha hızlıdır.</p>
+  </div>
+  <div class="quiz" id="q-why"><p class="quiz__q">$2^{64}$ olası key'den en fazla 1000 tanesini saklıyorsun. Direct addressing'in temel sorunu ne?</p>
+    <button class="quiz__opt" data-correct>Key başına hücre ayırdığı için alanı evren boyutunda olur.<span class="why">Doğru. Operation hızlıdır ama $2^{64}$ hücre pratik değildir. Hash table küçük bir bucket array'i kullanır.</span></button>
+    <button class="quiz__opt">Collision üretir.<span class="why">Direct addressing'de her key'in ayrı hücresi vardır, collision yoktur. Sorun alan tüketimidir.</span></button>
+    <button class="quiz__opt">Lookup sıralı olmadığı için $O(n)$ olur.<span class="why">Direct addressing lookup'u index ile $O(1)$ yapar; pahalı olan memory'dir.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="chaining" data-min="6">
+  <h2>Chaining: collision'ı listede tut</h2>
+  <div class="box box--rule"><span class="box__label">Yapı</span>
+    <p>Bucket array'inin her hücresi bir linked list (chain) tutar. Key $x$, $B_{h(x)}$ listesindedir. Aynı bucket'a gelen iki farklı key'e <strong>collision</strong> denir; bu hata değil, beklenen bir durumdur.</p>
+    <ul><li>Bucket'ı bulmak: hash function $O(1)$ varsayılır.</li><li>Lookup/delete: ilgili chain'i tara.</li><li>Duplicate kontrolü gerekmiyorsa listenin başına insert $O(1)$; set semantics için önce lookup gerekir.</li></ul>
+  </div>
+  <p>CS161 notlarındaki örneği oynat: $m=5$, $h(x)=(13x+2)\bmod 5$, key'ler $1,2,4,7,8$.</p>
+  <div id="chain-stepper"></div>
+  <div class="quiz" id="q-chain"><p class="quiz__q">Bu tabloda lookup(7) hangi bucket'ı ve hangi chain'i tarar?</p>
+    <button class="quiz__opt" data-correct>$h(7)=3$; $B_3$ içindeki 2 → 7 chain'i.<span class="why">Doğru. $(13\cdot7+2)\bmod5=93\bmod5=3$.</span></button>
+    <button class="quiz__opt">$B_2$; çünkü 7 mod 5 = 2.<span class="why">Hash function yalnızca $x\bmod5$ değil; önce $13x+2$ hesaplanıyor.</span></button>
+    <button class="quiz__opt">Bütün bucket'lar.<span class="why">Hash function doğru bucket'ı doğrudan verir; yalnızca o chain taranır.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="bad-fixed" data-min="5">
+  <h2>Sabit hash function neden worst case'i çözmez?</h2>
+  <div class="box box--intuition"><span class="box__label">Adversary oyunu</span>
+    <p>$h$ önceden sabitse adversary onu bilir. $|U|\gg m$ olduğundan pigeonhole principle ile en az bir bucket'a çok sayıda universe key'i düşer. Adversary saklayacağı key'lerin hepsini o gruptan seçebilir.</p>
+  </div>
+  <div class="hash-bars" aria-label="Dengesiz bucket dağılımı"><div class="hash-bar"><i style="height:8%"></i><span>0</span></div><div class="hash-bar"><i style="height:12%"></i><span>1</span></div><div class="hash-bar is-hot"><i style="height:100%"></i><span>2</span></div><div class="hash-bar"><i style="height:5%"></i><span>3</span></div><div class="hash-bar"><i style="height:10%"></i><span>4</span></div><div class="hash-bar"><i style="height:6%"></i><span>5</span></div></div>
+  <div class="box box--trap"><span class="box__label">Sonuç</span><p>“İyi görünen” deterministik bir hash function için bile bütün key'lerin aynı chain'e geldiği bir input vardır. Bu durumda lookup/delete ve duplicate kontrolü yapan insert $\Theta(k)$ olur. Hashing'in garantisi deterministic worst case değil, random choice üzerinden <strong>expected</strong> garantidir.</p></div>
+  <div class="quiz" id="q-fixed"><p class="quiz__q">$h(x)=x\bmod10$ için bütün key'leri aynı bucket'a düşüren 5 farklı key seç.</p>
+    <button class="quiz__opt" data-correct>7, 17, 27, 37, 47<span class="why">Doğru. Hepsi 10'a bölündüğünde kalan 7 verir.</span></button>
+    <button class="quiz__opt">1, 2, 3, 4, 5<span class="why">Bunlar beş farklı bucket'a dağılır.</span></button>
+    <button class="quiz__opt">10, 11, 12, 13, 14<span class="why">Kalanlar 0,1,2,3,4'tür; aynı bucket değil.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="expected" data-min="7">
+  <h2>Expected O(1) nereden geliyor?</h2>
+  <div class="box box--rule"><span class="box__label">Load factor</span>
+    <p>$k$ saklanan key, $m$ bucket olsun. <strong>Load factor</strong> $\alpha=k/m$: ortalama bucket başına key sayısı. Universal hashing altında bir key'in bulunduğu chain'in expected uzunluğu $O(1+\alpha)$ olur. $m=\Theta(k)$ seçilirse $\alpha=\Theta(1)$ ve operation expected $O(1)$.</p>
+  </div>
+  <p>CS161'in özel durumunda $k=m=n$. $x_i$'nin bucket uzunluğu:</p>
+  $$X=\sum_{j=1}^{n}\mathbf{1}[h(x_i)=h(x_j)]$$
+  $$\mathbb{E}[X]=1+\sum_{j\ne i}\Pr[h(x_i)=h(x_j)]\le 1+\frac{n-1}{n}<2.$$
+  <div class="box box--intuition"><span class="box__label">Neden indicator?</span><p>$x_i$ kendisiyle kesin collision yapar: katkısı 1. Diğer her $x_j$ için aynı bucket'a gelme olasılığı en fazla $1/n$. Linearity of expectation bağımsızlık istemez; beklenen katkıları toplarsın.</p></div>
+  <div class="box box--trap"><span class="box__label">Expected ≠ her operation kesin constant</span><p>Bazen uzun chain oluşabilir. İddia, hash function'ın rastgele seçimi üzerinden ortalama operation maliyetinin constant olduğudur. Worst-case tek çalışma hâlâ lineer olabilir.</p></div>
+  <div class="quiz" id="q-alpha"><p class="quiz__q">100 key, 25 bucket: $\alpha$ kaç ve chaining operation'ı için beklenen bound ne?</p>
+    <button class="quiz__opt" data-correct>$\alpha=4$; expected $\Theta(1+\alpha)=\Theta(5)=\Theta(1)$, fakat sabit yaklaşık büyür.<span class="why">Doğru. Asymptotically constant, ama bucket başına ortalama dört key olduğu için 100 bucket'lı tabloya göre daha yavaştır.</span></button>
+    <button class="quiz__opt">$\alpha=0.25$; expected $O(n)$<span class="why">Load factor key/bucket'tır: $100/25=4$.</span></button>
+    <button class="quiz__opt">$\alpha=4$; operation kesin en fazla 5 adım.<span class="why">Expected bound maksimum chain uzunluğu garantisi değildir.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="random-order" data-min="4">
+  <h2>Randomness'ın sırası ve expectation tuzağı</h2>
+  <div class="box box--rule"><span class="box__label">Doğru oyun sırası</span>
+    <ol><li>Adversary key'leri ve operation sequence'i seçer; hash family'yi bilir.</li><li>Algorithm family içinden $h$'yi rastgele seçer.</li><li>Tablo bu sabit $h$ ile çalışır.</li></ol>
+    <p>Hash function her çağrıda yeniden zar atmaz. Öyle olsaydı insert edilen key'i lookup sırasında başka bucket'ta arardın.</p>
+  </div>
+  <div class="box box--example"><span class="box__label">Pre-lecture tuzağı</span><p>Bir zar atıp bütün $n$ item'ı çıkan bucket'a koy. Sabit bir bucket'ın expected doluluğu $n/6$'dır; ama item 1'in bulunduğu bucket'ın doluluğu her zaman $n$'dir. “Bir bucket'ın expectation'ı” ile “seçtiğin key'in bucket'ı” aynı random variable değildir.</p></div>
+  <div class="quiz" id="q-meaning"><p class="quiz__q">Universal hashing'deki “expected $O(1)$” hangi randomness üzerinden?</p>
+    <button class="quiz__opt" data-correct>Algorithm'ın hash family'den rastgele seçtiği function üzerinden.<span class="why">Doğru. Key kümesi arbitrary olabilir; expectation hash function seçimindedir.</span></button>
+    <button class="quiz__opt">Adversary'nin key'leri rastgele seçmesi üzerinden.<span class="why">Analiz key'leri random varsaymıyor. Adversary arbitrary key seçebilir.</span></button>
+    <button class="quiz__opt">Her lookup'ta yeniden random bucket seçilmesi üzerinden.<span class="why">Bu bir function olmaz ve lookup daha önceki insert'i bulamaz.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="universal" data-min="5">
+  <h2>Universal hash family</h2>
+  <div class="box box--rule"><span class="box__label">Tanım</span>
+    <p>$H$, $U$'dan $m$ bucket'a giden hash function'lardan oluşsun. $H$ <strong>universal</strong> ise her farklı $x,y\in U$ için:</p>
+    $$\Pr_{h\sim H}[h(x)=h(y)]\le \frac{1}{m}.$$
+    <p>Bu tek pairwise collision bound'u, önceki expected chain hesabı için gereken her şeydir.</p>
+  </div>
+  <div class="box box--example"><span class="box__label">Non-example · most/least significant digit</span><p>$H=\{$ilk basamak, son basamak$\}$ ve $m=10$ olsun. 101 ile 111 hem ilk hem son basamakta aynıdır. Collision olasılığı $1$; universal olsaydı en fazla $1/10$ olmalıydı.</p></div>
+  <div class="box box--trap"><span class="box__label">Family random, function stable</span><p>Rastgele olan seçim $h\sim H$'dir. Seçildikten sonra $h(x)$ aynı $x$ için her zaman aynı sonucu verir.</p></div>
+  <div class="quiz" id="q-universal"><p class="quiz__q">20 bucket'lı universal family için farklı iki key'in collision olasılığı en fazla kaçtır?</p>
+    <button class="quiz__opt" data-correct>$1/20$<span class="why">Doğru. Tanım doğrudan $1/m$ verir.</span></button>
+    <button class="quiz__opt">$1/2$<span class="why">Bu iki function'lı family fikriyle karışmış olabilir; bound bucket sayısına bağlıdır.</span></button>
+    <button class="quiz__opt">0<span class="why">Universal hashing collision'ı yasaklamaz, olasılığını sınırlar.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="family" data-min="6">
+  <h2>Pratik universal family</h2>
+  <div class="box box--rule"><span class="box__label">Carter–Wegman family</span>
+    <p>Universe key'lerini $0,\ldots,M-1$ integer'ları olarak kodla. $p\ge M$ bir prime seç:</p>
+    $$h_{a,b}(x)=((ax+b)\bmod p)\bmod m,$$
+    <p>$a\in\{1,\ldots,p-1\}$, $b\in\{0,\ldots,p-1\}$. Algorithm $a$ ve $b$'yi rastgele seçer. Family size $p(p-1)$; function'ı saklamak için yalnızca $a,b$, yani $O(\log M)$ bit gerekir.</p>
+  </div>
+  <div class="hash-calc" id="hash-calc"><b>Function hesaplayıcı</b><p class="src">Sayıları değiştir; önce mod $p$, sonra mod $m$.</p>
+    <div class="hash-calc__row"><label>x <input id="hc-x" value="7" inputmode="numeric" /></label><label>a <input id="hc-a" value="3" inputmode="numeric" /></label><label>b <input id="hc-b" value="4" inputmode="numeric" /></label><label>p <input id="hc-p" value="11" inputmode="numeric" /></label><label>m <input id="hc-m" value="5" inputmode="numeric" /></label></div>
+    <div class="hash-calc__out" id="hc-out" aria-live="polite"></div>
+  </div>
+  <div class="box box--intuition"><span class="box__label">Proof fikri</span><p>Farklı $x,y$ için $ax+b\bmod p$ ve $ay+b\bmod p$, farklı output çiftleri arasında düzgün dağılır. Son mod $m$ aşamasında aynı residue class'a düşen çiftlerin oranı en fazla $1/m$ olur. Bonus quiz için tanım, formula ve neden küçük saklandığı proof detayından daha kritiktir.</p></div>
+  <div class="quiz" id="q-family"><p class="quiz__q">$p=11,m=5,a=3,b=4,x=7$ için $h_{a,b}(x)$ kaç?</p>
+    <button class="quiz__opt" data-correct>$3$<span class="why">Doğru. $3\cdot7+4=25$, $25\bmod11=3$, $3\bmod5=3$.</span></button>
+    <button class="quiz__opt">$0$<span class="why">25'i doğrudan 5'e modladın. Önce mod $p$ uygulanır.</span></button>
+    <button class="quiz__opt">$5$<span class="why">Output $0,\ldots,m-1$, yani 5 mümkün değil.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="birthday" data-min="5">
+  <h2>Collision kaçınılmaz mı? Birthday effect</h2>
+  <div class="box box--intuition"><span class="box__label">Pair sayısı hızlı büyür</span><p>$r$ key'in $\binom r2$ farklı çifti vardır. Her pair yaklaşık $1/m$ olasılıkla collision yapıyorsa expected colliding-pair sayısı $\binom r2/m$ olur. Bu değer $r\approx\sqrt m$ civarında constant'a ulaşır.</p></div>
+  <div class="box box--rule"><span class="box__label">No-collision olasılığı</span>
+    $$\Pr[\text{collision yok}] = \prod_{i=1}^{r-1}\left(1-\frac{i}{m}\right)\le e^{-r(r-1)/(2m)}.$$
+    <p>Yaklaşık $r\approx1.18\sqrt m$ olduğunda en az bir collision olasılığı $1/2$'yi geçer. Bu, hash table'ın bozuk olduğu anlamına gelmez: chaining collision'ı zaten yönetir. “Hiç collision olmasın” istemek çok fazla space gerektirir.</p>
+  </div>
+  <div class="quiz" id="q-birthday"><p class="quiz__q">$m$ bucket'ta collision olasılığı hangi key sayısı ölçeğinde belirginleşir?</p>
+    <button class="quiz__opt" data-correct>$\Theta(\sqrt m)$<span class="why">Doğru. Pair sayısı yaklaşık $r^2/2$; bunu $m$ ile karşılaştırınca $r\approx\sqrt m$ çıkar.</span></button>
+    <button class="quiz__opt">Yalnızca $r&gt;m$ olunca<span class="why">Pigeonhole principle $r&gt;m$ için collision'ı kesin yapar; birthday effect çok daha önce olasılığı büyütür.</span></button>
+    <button class="quiz__opt">$\Theta(\log m)$<span class="why">Pair count hesabı $r^2/m$; log değil karekök ölçeği verir.</span></button>
+  </div>
+</section>
+
+<section class="lsec" id="check" data-min="6">
+  <h2>Son kontrol · kâğıt provası</h2>
+  <p>Cevabı zihninden değil, kısa hesap yazarak ver.</p>
+  <div class="quiz" id="q-final-1"><p class="quiz__q">Chaining tablosunda $k=m=n$. Universal hashing ile belirli bir stored key'in chain uzunluğunun expectation'ı neden 2'den küçük?</p>
+    <button class="quiz__opt" data-correct>Kendisi 1 katkı verir; diğer $n-1$ key'in her biri en fazla $1/n$ collision olasılığıyla katkı verir.<span class="why">Doğru: $1+(n-1)/n&lt;2$.</span></button>
+    <button class="quiz__opt">Her bucket kesin en fazla 2 key tutar.<span class="why">Expectation maksimum doluluk garantisi değildir.</span></button>
+    <button class="quiz__opt">Collision olasılığı sıfırdır.<span class="why">Universal family collision'a izin verir; pair başına olasılığı sınırlar.</span></button>
+  </div>
+  <div class="quiz" id="q-final-2"><p class="quiz__q">Hangisi doğru?</p>
+    <button class="quiz__opt" data-correct>Adversary key'leri önce seçer; algorithm sonra family'den hash function seçer.<span class="why">Doğru. Aksi sırada adversary seçilmiş function'a özel kötü key'leri bulabilir.</span></button>
+    <button class="quiz__opt">Algorithm function'ı seçer, sonra adversary key'leri görerek seçer.<span class="why">Bu deterministic worst-case probleme geri döner.</span></button>
+    <button class="quiz__opt">Her operation yeni function seçer.<span class="why">Stored key'lerin yeri kaybolur.</span></button>
+  </div>
+  <div class="quiz" id="q-final-3"><p class="quiz__q">Bonus quiz için bu lecture'da en kritik implementation hangisi?</p>
+    <button class="quiz__opt" data-correct>Chaining: bucket array + her bucket'ta linked list.<span class="why">Doğru. Stanford L8 slaytları açıkça chaining'i işler ve open addressing'in bu ders için gerekmediğini söyler.</span></button>
+    <button class="quiz__opt">Quadratic probing zorunlu.<span class="why">Repo planında open addressing adı geçse de asıl L8 slaytında kapsam dışı deniyor.</span></button>
+    <button class="quiz__opt">Hash table her zaman sorted tutulur.<span class="why">Hash table unordered bir yapıdır.</span></button>
+  </div>
+</section>
+
+        </article>
+        <nav class="lesson-foot"></nav>
+      </main>
+    </div>
+  </div>
+</div>
+<script src="course.js?v=10"></script>
+<script src="../assets/lab.js?v=14"></script>
+<script>
+(function () {
+  "use strict";
+  const keys = [1, 2, 4, 7, 8];
+  const frames = [{ buckets: [[], [], [], [], []], newest: null, caption: "$m=5$, başlangıçta bütün chain'ler boş." }];
+  const b = [[], [], [], [], []];
+  keys.forEach((x) => {
+    const j = ((13 * x + 2) % 5 + 5) % 5;
+    b[j].push(x);
+    frames.push({ buckets: b.map((a) => a.slice()), newest: x, caption: `$h(${x})=(13\\cdot ${x}+2)\\bmod5=${j}$. ${x}, $B_${j}$ chain'inin sonuna eklendi.` });
+  });
+  Lab.stepper(document.getElementById("chain-stepper"), {
+    title: "Chaining trace", interval: 950, frames,
+    render(f, _, stage) {
+      stage.innerHTML = `<div class="hash-table">${f.buckets.map((row, i) => `<div class="hash-row"><span class="hash-ix">B${i}</span><div class="hash-chain">${row.length ? row.map((x) => `<span class="hash-key${x === f.newest ? " is-new" : ""}">${x}</span>`).join("") : '<span class="hash-empty">NIL</span>'}</div></div>`).join("")}</div>`;
+    }
+  });
+
+  const ids = ["x", "a", "b", "p", "m"];
+  const els = Object.fromEntries(ids.map((id) => [id, document.getElementById("hc-" + id)]));
+  const out = document.getElementById("hc-out");
+  function drawCalc() {
+    const v = Object.fromEntries(ids.map((id) => [id, Number(els[id].value)]));
+    if (!ids.every((id) => Number.isInteger(v[id])) || v.p <= 1 || v.m <= 0) { out.textContent = "Integer değerler yaz; p > 1 ve m > 0 olmalı."; return; }
+    const first = ((v.a * v.x + v.b) % v.p + v.p) % v.p;
+    const result = ((first % v.m) + v.m) % v.m;
+    out.innerHTML = `<code>(${v.a}·${v.x}+${v.b}) mod ${v.p} = ${first}</code><br><code>${first} mod ${v.m} = ${result}</code> → bucket <b>${result}</b>`;
+  }
+  ids.forEach((id) => els[id].addEventListener("input", drawCalc));
+  drawCalc();
+})();
+</script>
+</body>
+</html>

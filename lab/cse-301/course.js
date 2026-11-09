@@ -1,5 +1,5 @@
 /* CSE 301 Algorithms — lesson list for the course page and the lesson footers.
-   Order follows the lecture order (Stanford CS161 Winter 2026, lectures 1–7).
+   Order follows the lecture order (Stanford CS161 Winter 2026, lectures 1–9).
    status: "open" | "soon". sections is the planned count shown before a visit. */
 window.LAB_COURSES = window.LAB_COURSES || {};
 window.LAB_COURSES["cse-301"] = {
@@ -25,6 +25,10 @@ window.LAB_COURSES["cse-301"] = {
       desc: "Complete binary tree, heap property, O(log n) insert ve extract-min, array representation, HeapSort.", tags: ["L7 notları §2"] },
     { slug: "bst-red-black", unit: "Data structures", lecture: "L7", title: "BST ve red-black tree", min: 55, sections: 11, status: "open",
       desc: "BST operation'ları ve height'ın önemi, red-black tree kuralları, height'ın O(log n) olduğunun proof'u.", tags: ["HW4"] },
+    { slug: "hashing", unit: "Bonus quiz", lecture: "L8", title: "Hashing ve universal hash families", min: 48, sections: 9, status: "open",
+      desc: "Chaining, collision, load factor, expected O(1), adversarial input ve universal hashing.", tags: ["Bonus quiz", "10 puana kadar"] },
+    { slug: "graphs-bfs-dfs", unit: "Bonus quiz", lecture: "L9", title: "Graphs, BFS ve DFS", min: 58, sections: 10, status: "open",
+      desc: "Graph representation, DFS times ve topological sort, BFS levels, shortest path ve bipartite test.", tags: ["Bonus quiz", "Kâğıt üzerinde"] },
     { slug: "dc-design", unit: "Divide and conquer", lecture: "L1 + sınav", title: "Divide and conquer tasarımı ve Karatsuba", min: 54, sections: 12, status: "open",
       desc: "Karatsuba fikri ve sınavdaki algorithm design soruları: binary search varyantları, partition ile daraltma, Select ile ikiye bölme.", tags: ["Sınav kalıbı", "Tasarım"] },
     { slug: "midterm-review", unit: "Özet", lecture: "L1–7 · Form A–D", title: "Vize provası · çıkmış A–D formları", min: 65, sections: 11, status: "open",
