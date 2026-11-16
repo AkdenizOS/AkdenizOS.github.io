@@ -16,20 +16,20 @@ Antalya’da girişim, teknoloji ve iş birliği odaklı AkdenizOS’un çalış
 | `base.css`                  | Temel tipografi, içerik genişliği ve sayfa ritmi                  |
 | `components.css`            | Buton, link, kelime işareti, gezinme ve tema kontrolü             |
 | `system.css`                | CSS dosyaları ve açık cascade layer sırası                        |
-| `theme.js`                  | Sistem/açık/koyu tema, kalıcılık ve sekmeler arası eşitleme       |
+| `theme.js`                  | Açık/koyu tema, kalıcılık ve sekmeler arası eşitleme       |
 | `gallery.css`, `gallery.js` | Yalnızca dokümantasyon sayfasının yerleşimi ve örnek davranışları |
 | `experiments/`              | 23rd efektlerinin kaynakları, derlemesi ve çalışan deneme sayfası |
 
 Landing’in `assets/css/community.css` dosyası `system.css` dosyasını içe aktarır. Renk ve ortak bileşen kararları burada değiştirilir; landing’e kopyalanmaz. Landing CSS’i kompozisyonu ve içeriğe özgü görselleri düzenler. Katalogdaki renk değerleri JavaScript ile gerçek CSS değişkenlerinden okunur.
 
-`tokens`, `base`, `components` cascade katmanları bu sırayla yüklenir. Sayfa yerleşimi bunların ardından gelir. Tema varsayılanı sistemdir; kullanıcı tercihi `akdenizos-theme` ile saklanır. Sistem seçimi tercihi temizler. JavaScript kapalıyken CSS sistem tercihini korur.
+`tokens`, `base`, `components` cascade katmanları bu sırayla yüklenir. Sayfa yerleşimi bunların ardından gelir. Tema varsayılanı açıktır; kullanıcı tercihi `akdenizos-theme` ile saklanır. Cihazın renk tercihi otomatik uygulanmaz. JavaScript kapalıyken açık tema kullanılır.
 
 ## Yeni statik sayfada kullanma
 
 Repo kökünden yükleme örneği:
 
 ```html
-<meta name="color-scheme" content="light dark" />
+<meta name="color-scheme" content="light" />
 <script src="/design-system/theme.js"></script>
 <link rel="stylesheet" href="/design-system/system.css" />
 ```
@@ -48,7 +48,7 @@ Tema betiği `<head>` içinde, `defer` veya `type="module"` olmadan yüklenir. K
 
 Gezinme için link, sayfa içi işlem için native buton kullanılır. Düğmenin devre dışı hali `disabled` ile kurulur. Başarılı, yükleniyor, boş ve hata durumları yalnızca gerçek veri akışının ihtiyacına göre eklenir.
 
-Tema değiştiren kontrol: `data-theme-toggle`. Ayarlar/katalogda üç seçenekli native select: `data-theme-select`, değerleri `system`, `light`, `dark`.
+Tema değiştiren kontrol: `data-theme-toggle`. Ayarlar/katalogda iki seçenekli native select: `data-theme-select`, değerleri `light`, `dark`.
 
 ## Görsel dil
 

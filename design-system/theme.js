@@ -4,13 +4,11 @@
   const key = "akdenizos-theme";
   const root = document.documentElement;
   const meta = document.querySelector('meta[name="color-scheme"]');
-  const system = matchMedia("(prefers-color-scheme: dark)");
   const validTheme = (value) => value === "light" || value === "dark";
 
   const apply = (value) => {
-    if (validTheme(value)) root.dataset.theme = value;
-    else delete root.dataset.theme;
-    if (meta) meta.content = validTheme(value) ? value : "light dark";
+    root.dataset.theme = validTheme(value) ? value : "light";
+    if (meta) meta.content = root.dataset.theme;
   };
 
   try {
@@ -25,8 +23,7 @@
     });
     const toggles = document.querySelectorAll("[data-theme-toggle]");
     const selects = document.querySelectorAll("[data-theme-select]");
-    const resolvedTheme = () =>
-      root.dataset.theme || (system.matches ? "dark" : "light");
+    const resolvedTheme = () => root.dataset.theme;
     const update = () => {
       toggles.forEach((button) => {
         button.hidden = false;
@@ -36,7 +33,7 @@
         );
       });
       selects.forEach((select) => {
-        select.value = root.dataset.theme || "system";
+        select.value = root.dataset.theme;
       });
     };
     const setTheme = (value) => {
@@ -50,15 +47,12 @@
     toggles.forEach((button) =>
       button.addEventListener("click", () => {
         const target = resolvedTheme() === "dark" ? "light" : "dark";
-        setTheme(
-          target === (system.matches ? "dark" : "light") ? null : target,
-        );
+        setTheme(target);
       }),
     );
     selects.forEach((select) =>
       select.addEventListener("change", () => setTheme(select.value)),
     );
-    system.addEventListener("change", update);
     window.addEventListener("storage", (event) => {
       if (event.key === key || event.key === null) {
         apply(event.newValue);
