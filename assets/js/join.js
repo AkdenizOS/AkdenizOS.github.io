@@ -5,6 +5,14 @@
   const status = document.querySelector("#join-status");
   const verification = document.querySelector("#join-verification");
   const api = new URL(".", form.action).href;
+  document.querySelector("#hero-signup").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const email = document.querySelector("#hero-email");
+    document.querySelector("#join-email").value = email.value.trim();
+    const target = form.hidden ? document.querySelector("#join-success") : form;
+    if (!form.hidden) document.querySelector("#join-name").focus({ preventScroll: true });
+    target.scrollIntoView({ block: "center" });
+  });
   let token = "";
   let widget;
   let sending = false;
