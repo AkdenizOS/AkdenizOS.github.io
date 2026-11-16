@@ -11,7 +11,7 @@ Node 22 veya üzeri gerekir. `npm ci`, `npm run check`, `npm test`, `npm run bui
 ## API
 
 - `GET /health`: servis durumu.
-- `GET /config`: izin verilen origin’lere public Turnstile sitekey.
+- `GET /config`: public Turnstile sitekey; aynı origin GET isteğinde Origin başlığı gerekmez.
 - `POST /applications`: `name`, `email`, isteğe bağlı `phone`, `work`, `token`, boş `website`, `noticeVersion: "2026-11-17"`.
 - Başarılı kayıt veya mevcut e-posta için aynı `202 {"ok":true}` yanıtı verilir. Mevcut kayıt değiştirilmez; e-posta varlığı açıklanmaz.
 

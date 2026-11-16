@@ -104,10 +104,10 @@ export default {
     const reply = (body: unknown, status = 200) => Response.json(body, { status, headers });
     const path = new URL(request.url).pathname.replace(/^\/api(?=\/)/, "");
     if (path === "/health" && request.method === "GET") return reply({ ok: true });
-    if (!allowed) return reply({ error: "origin" }, 403);
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
     if (path === "/config" && request.method === "GET")
       return reply({ sitekey: env.TURNSTILE_SITE_KEY });
+    if (!allowed) return reply({ error: "origin" }, 403);
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
     if (path !== "/applications") return reply({ error: "not_found" }, 404);
     if (request.method !== "POST") return reply({ error: "method" }, 405);
     try {

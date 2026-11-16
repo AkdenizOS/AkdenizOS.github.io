@@ -49,6 +49,11 @@ test("application storage, abuse protection and durable receipts", async (t) => 
     return response;
   };
   try {
+    await t.test("same-origin configuration does not require an Origin header", async () => {
+      const response = await handler.fetch(new Request("https://akdenizos.org/api/config"), env, ctx);
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).sitekey, settings.TURNSTILE_SITE_KEY.value);
+    });
     await t.test("untrusted origins and bad fields cannot write", async () => {
       assert.equal((await submit(request(body, "https://other.example"))).status, 403);
       assert.equal((await submit(request({ ...body, email: "bad" }))).status, 400);
