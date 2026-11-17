@@ -22,7 +22,7 @@ Antalya’da girişim, teknoloji ve iş birliği odaklı AkdenizOS’un çalış
 
 Landing’in `assets/css/community.css` dosyası `system.css` dosyasını içe aktarır. Renk ve ortak bileşen kararları burada değiştirilir; landing’e kopyalanmaz. Landing CSS’i kompozisyonu ve içeriğe özgü görselleri düzenler. Katalogdaki renk değerleri JavaScript ile gerçek CSS değişkenlerinden okunur.
 
-`tokens`, `base`, `components` cascade katmanları bu sırayla yüklenir. Sayfa yerleşimi bunların ardından gelir. Kayıtlı tercih yoksa `Europe/Istanbul` saat diliminde 07.00–17.00 gündüz, 17.00–20.00 gün batımı, 20.00–07.00 gece görünümü uygulanır. Saat dakikada bir ve sekmeye dönülünce kontrol edilir. Elle açık/koyu seçimi `akdenizos-theme` ile saklanır; saat bunu değiştirmez. Katalogdaki otomatik seçimi kaydı kaldırır. Cihazın renk tercihi otomatik uygulanmaz. JavaScript kapalıyken açık tema kullanılır.
+`tokens`, `base`, `components` cascade katmanları bu sırayla yüklenir. Sayfa yerleşimi bunların ardından gelir. Kayıtlı tercih yoksa `Europe/Istanbul` saat diliminde 07.00–17.00 gündüz, 17.00–20.00 gün batımı, 20.00–07.00 gece görünümü uygulanır. Saat dakikada bir ve sekmeye dönülünce kontrol edilir. Elle açık/koyu seçimi `akdenizos-theme` ile saklanır; saat bunu değiştirmez. Navbar seçicisindeki ve katalogdaki otomatik seçimi kaydı kaldırır. Elle gün batımı seçimi `sunset` olarak saklanır. Navbar seçicisi mevcut manzarayı gösterir; native Popover menüsünde otomatik, gündüz, gün batımı ve gece seçilebilir. Popover desteklenmezse native select kullanılır. Cihazın renk tercihi otomatik uygulanmaz. JavaScript kapalıyken açık tema kullanılır.
 
 ## Yeni statik sayfada kullanma
 
@@ -48,7 +48,7 @@ Tema betiği `<head>` içinde, `defer` veya `type="module"` olmadan yüklenir. K
 
 Gezinme için link, sayfa içi işlem için native buton kullanılır. Düğmenin devre dışı hali `disabled` ile kurulur. Başarılı, yükleniyor, boş ve hata durumları yalnızca gerçek veri akışının ihtiyacına göre eklenir.
 
-Tema değiştiren kontrol: `data-theme-toggle`. Ayarlar/katalogda iki seçenekli native select: `data-theme-select`, değerleri `auto`, `light`, `dark`.
+Tema değiştiren kontrol: `data-theme-toggle`. Ayarlar/katalogda iki seçenekli native select: `data-theme-select`, değerleri `auto`, `light`, `sunset`, `dark`.
 
 ## Görsel dil
 

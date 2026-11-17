@@ -11,7 +11,7 @@ function boot(hour, saved) {
   const control = () => ({ value: "", hidden: false, handlers: {}, setAttribute() {}, addEventListener(name, fn) { this.handlers[name] = fn; } });
   const toggle = control(), select = control(), root = { dataset: {} };
   const document = { readyState: "complete", hidden: false, documentElement: root,
-    querySelector: () => ({ content: "light" }),
+    querySelector: selector => selector.startsWith("meta[") ? ({ content: "light" }) : null,
     querySelectorAll: selector => selector === "[data-theme-toggle]" ? [toggle] : selector === "[data-theme-select]" ? [select] : [],
     addEventListener: (name, fn) => { listeners[name] = fn; },
   };
@@ -53,5 +53,15 @@ test("storage changes synchronize manual preference and visibility refreshes the
   app.listeners.storage({ key: "akdenizos-theme", newValue: null });
   assert.equal(app.root.dataset.scene, "day");
   app.tick(18); app.listeners.visibilitychange();
+  assert.equal(app.root.dataset.scene, "sunset");
+});
+
+
+test("manual sunset is independent of the clock and persists in the shared select", () => {
+  const app = boot(23, "sunset");
+  assert.equal(app.root.dataset.scene, "sunset");
+  assert.equal(app.root.dataset.theme, "light");
+  assert.equal(app.select.value, "sunset");
+  app.tick(8);
   assert.equal(app.root.dataset.scene, "sunset");
 });
