@@ -43,7 +43,7 @@
         const scene = root.dataset.scene;
         trigger.querySelector("[data-scene-label]").textContent = labels[scene];
         trigger.querySelector("[data-scene-glyph]").textContent = preference ? glyphs[scene] : "◷";
-        trigger.setAttribute("aria-label", `Görünüm: ${labels[scene]}. ${preference ? "Elle seçildi" : "Otomatik, İstanbul saati"}`);
+        trigger.setAttribute("aria-label", `Görünüm: ${labels[scene]}. ${preference ? "Elle seçildi" : "Otomatik"}`);
       }
       choices.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.sceneChoice === (preference || "auto"))));
       toggles.forEach((button) => {
