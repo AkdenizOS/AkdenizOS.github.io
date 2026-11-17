@@ -6,8 +6,17 @@
   const meta = document.querySelector('meta[name="color-scheme"]');
   const validTheme = (value) => value === "light" || value === "dark";
 
+  let preference = null;
+  const istanbulHour = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Istanbul", hour: "2-digit", hourCycle: "h23",
+  });
   const apply = (value) => {
-    root.dataset.theme = validTheme(value) ? value : "light";
+    preference = validTheme(value) ? value : null;
+    const hour = Number(istanbulHour.format(new Date()));
+    const scene = preference ? (preference === "dark" ? "night" : "day")
+      : hour < 7 || hour >= 20 ? "night" : hour >= 17 ? "sunset" : "day";
+    root.dataset.scene = scene;
+    root.dataset.theme = scene === "night" ? "dark" : "light";
     if (meta) meta.content = root.dataset.theme;
   };
 
@@ -33,7 +42,7 @@
         );
       });
       selects.forEach((select) => {
-        select.value = root.dataset.theme;
+        select.value = preference || "auto";
       });
     };
     const setTheme = (value) => {
@@ -59,6 +68,13 @@
         update();
       }
     });
+    const followClock = () => {
+      if (preference || document.hidden) return;
+      apply(null);
+      update();
+    };
+    setInterval(followClock, 60_000);
+    document.addEventListener("visibilitychange", followClock);
     update();
   };
 

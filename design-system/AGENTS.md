@@ -4,7 +4,7 @@
 
 - Renk ve ölçü kaynağı `tokens.css`. `base.css` temel tipografi ve sayfa ritmini; `components.css` gerçek ortak bileşenleri içerir. Bunları kopyalayıp sayfaya özel sürümler üretme.
 - Yeni sayfa `system.css` yükler. Sayfa CSS’i yerleşimi ve içeriğe özgü görselleri düzenler; buton, link, tema ve logo kurallarını yeniden tanımlamaz.
-- Tema davranışı `theme.js` ile paylaşılır. Varsayılan açık temadır; koyu tema yalnızca ziyaretçi seçerse uygulanır. JavaScript kapalıyken açık tema korunur.
+- Tema davranışı `theme.js` ile paylaşılır. Kayıtlı seçim yoksa İstanbul saatine göre gündüz (07–17), gün batımı (17–20) ve gece (20–07) görünümü uygulanır. Elle açık/koyu seçimi korunur; otomatik seçim bu kaydı kaldırır. JavaScript kapalıyken açık tema korunur.
 - Yeni bileşeni ancak mevcut bir kullanıcı ihtiyacı varsa ekle. Yalnızca örnek kataloğu dolsun diye modal, toast, tablo veya form oluşturma.
 - Her eylem anlamına uygun native öğe kullanır: gezinme için `<a>`, sayfa içi işlem için `<button>`. Devre dışı işlemler native `disabled` kullanır.
 - Görünür klavye odağını, native erişilebilirlik anlamlarını ve hareket azaltma desteğini koru.

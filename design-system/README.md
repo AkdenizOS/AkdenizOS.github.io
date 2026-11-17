@@ -22,7 +22,7 @@ Antalya’da girişim, teknoloji ve iş birliği odaklı AkdenizOS’un çalış
 
 Landing’in `assets/css/community.css` dosyası `system.css` dosyasını içe aktarır. Renk ve ortak bileşen kararları burada değiştirilir; landing’e kopyalanmaz. Landing CSS’i kompozisyonu ve içeriğe özgü görselleri düzenler. Katalogdaki renk değerleri JavaScript ile gerçek CSS değişkenlerinden okunur.
 
-`tokens`, `base`, `components` cascade katmanları bu sırayla yüklenir. Sayfa yerleşimi bunların ardından gelir. Tema varsayılanı açıktır; kullanıcı tercihi `akdenizos-theme` ile saklanır. Cihazın renk tercihi otomatik uygulanmaz. JavaScript kapalıyken açık tema kullanılır.
+`tokens`, `base`, `components` cascade katmanları bu sırayla yüklenir. Sayfa yerleşimi bunların ardından gelir. Kayıtlı tercih yoksa `Europe/Istanbul` saat diliminde 07.00–17.00 gündüz, 17.00–20.00 gün batımı, 20.00–07.00 gece görünümü uygulanır. Saat dakikada bir ve sekmeye dönülünce kontrol edilir. Elle açık/koyu seçimi `akdenizos-theme` ile saklanır; saat bunu değiştirmez. Katalogdaki otomatik seçimi kaydı kaldırır. Cihazın renk tercihi otomatik uygulanmaz. JavaScript kapalıyken açık tema kullanılır.
 
 ## Yeni statik sayfada kullanma
 
@@ -48,7 +48,7 @@ Tema betiği `<head>` içinde, `defer` veya `type="module"` olmadan yüklenir. K
 
 Gezinme için link, sayfa içi işlem için native buton kullanılır. Düğmenin devre dışı hali `disabled` ile kurulur. Başarılı, yükleniyor, boş ve hata durumları yalnızca gerçek veri akışının ihtiyacına göre eklenir.
 
-Tema değiştiren kontrol: `data-theme-toggle`. Ayarlar/katalogda iki seçenekli native select: `data-theme-select`, değerleri `light`, `dark`.
+Tema değiştiren kontrol: `data-theme-toggle`. Ayarlar/katalogda iki seçenekli native select: `data-theme-select`, değerleri `auto`, `light`, `dark`.
 
 ## Görsel dil
 
@@ -86,7 +86,7 @@ Ortak kaynak değiştiğinde landing ve katalog birlikte açılır. Açık/koyu 
 
 ## Ana sayfadaki gökyüzü
 
-`effects/landing-sky.ts`, `effects/shader-sky.ts` motorunu kullanır. Tarayıcı `effects/sky.js` derlemesini yükler. Gökyüzü, aynı shader içinde akan deniz ve gün ışığı renk alanlarını bulutlarla birleştirir. Tek canvas kullanılır. Canvas yalnızca fotoğrafın gökyüzünü kaplar; fotoğrafın `object-fit` kırpımı ve ekran oranına göre yüksekliği hesaplanır. Saydamlık maskesi bulutları dağ çizgisinden önce yumuşakça söndürür; deniz ve palmiyeler fotoğraftan görünür. İlk çizim yumuşakça belirir. Açık temada gündüz fotoğrafı, koyu temada aynı kadrajın Imagegen ile üretilmiş gece karşılığı `assets/images/antalya-coast-night.webp` kullanılır. Gece fotoğrafında kıyı ve bahçe ışıkları bulunur; bulut motoru koyu mavi palete geçer. Gökyüzü fareyi yumuşak biçimde takip eder ve otomatik çalışır; ziyaretçiye animasyon ayarı sunulmaz. Reduced motion açıkken veya WebGL bulunmadığında fotoğraf görünür. Görünmeyen sekmede motor temizlenir. Ana sayfa modülü yaklaşık 16 kB minify edilmiş JavaScript’tir; bu bir aktarım veya cihaz performans ölçümü değildir.
+`effects/landing-sky.ts`, `effects/shader-sky.ts` motorunu kullanır. Tarayıcı `effects/sky.js` derlemesini yükler. Gökyüzü, aynı shader içinde akan deniz ve gün ışığı renk alanlarını bulutlarla birleştirir. Tek canvas kullanılır. Canvas yalnızca fotoğrafın gökyüzünü kaplar; fotoğrafın `object-fit` kırpımı ve ekran oranına göre yüksekliği hesaplanır. Saydamlık maskesi bulutları dağ çizgisinden önce yumuşakça söndürür; deniz ve palmiyeler fotoğraftan görünür. İlk çizim yumuşakça belirir. Açık temada gündüz fotoğrafı, koyu temada aynı kadrajın Imagegen ile üretilmiş gece karşılığı `assets/images/antalya-coast-night.webp` kullanılır. Gün batımı için aynı kadrajın `assets/images/antalya-coast-sunset.webp` görseli ve sıcak bulut paleti kullanılır. Gece fotoğrafında kıyı ve bahçe ışıkları bulunur; bulut motoru koyu mavi palete geçer. Gökyüzü fareyi yumuşak biçimde takip eder ve otomatik çalışır; ziyaretçiye animasyon ayarı sunulmaz. Reduced motion açıkken veya WebGL bulunmadığında fotoğraf görünür. Görünmeyen sekmede motor temizlenir. Ana sayfa modülü yaklaşık 16 kB minify edilmiş JavaScript’tir; bu bir aktarım veya cihaz performans ölçümü değildir.
 
 Kaynak güncellenince `experiments/` içinde `npm run check` ve `npm run build` çalıştırılır. Derleme hem deneme sayfasını hem ana sayfanın gökyüzü modülünü üretir.
 

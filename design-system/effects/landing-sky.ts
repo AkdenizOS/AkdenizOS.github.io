@@ -30,14 +30,16 @@ alignSky();
 
 function skyPalette() {
   const dark = document.documentElement.dataset.theme === "dark";
+  const sunset = document.documentElement.dataset.scene === "sunset";
   return {
-    colors: dark ? ["#07182C", "#234154", "#67808C", "#25445A"] : undefined,
+    colors: dark ? ["#07182C", "#234154", "#67808C", "#25445A"]
+      : sunset ? ["#68869B", "#F2C698", "#FFF0DB", "#DDA37E"] : undefined,
     gradient: !dark,
   };
 }
 
 const theme = new MutationObserver(() => engine?.setOptions(skyPalette()));
-theme.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+theme.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-scene"] });
 
 function render() {
   dispose();
