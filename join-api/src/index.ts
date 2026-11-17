@@ -1,8 +1,9 @@
 import type { InferEnv } from "cf/config";
 import type config from "../cloudflare.config";
+import { applicationEmails, type Application } from "./emails";
 
 export type Env = InferEnv<typeof config.worker>;
-type Application = { id: string; name: string; email: string; mail_attempts: number };
+type PendingApplication = Application & { mail_attempts: number };
 const NOTICE_VERSION = "2026-11-17";
 
 class RequestError extends Error {
@@ -49,45 +50,34 @@ async function readInput(request: Request) {
   return { name, email, phone: phone || null, work, token };
 }
 
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-}
-
-export async function sendReceipt(env: Env, id: string) {
+export async function sendApplicationEmails(env: Env, id: string) {
   const now = Math.floor(Date.now() / 1000);
   // A lease prevents request handling and the scheduled retry from sending concurrently.
   const row = await env.DB.prepare(`UPDATE applications
     SET mail_lease_until = ?, mail_attempts = mail_attempts + 1
     WHERE id = ? AND mail_status = 'pending' AND mail_attempts < 6
       AND mail_next_at <= ? AND mail_lease_until <= ?
-    RETURNING id, name, email, mail_attempts`).bind(now + 120, id, now, now).first<Application>();
+    RETURNING id, name, email, phone, work, mail_attempts`).bind(now + 120, id, now, now).first<PendingApplication>();
   if (!row) return;
   try {
-    const response = await fetch("https://api.resend.com/emails", {
+    const response = await fetch("https://api.resend.com/emails/batch", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${env.RESEND_API_KEY}`,
         "Content-Type": "application/json",
-        "Idempotency-Key": `application-receipt/${row.id}`,
+        "Idempotency-Key": `application-emails/${row.id}`,
       },
       signal: AbortSignal.timeout(10000),
-      body: JSON.stringify({
-        from: env.EMAIL_FROM,
-        to: [row.email],
-        reply_to: "contact@efekurucay.com",
-        subject: "AkdenizOS · Katılım isteğini aldık",
-        text: `Merhaba ${row.name},\n\nAkdenizOS katılım isteğini aldık. Paylaştığın bilgiler kaydedildi. Topluluğa katılımın sonraki adımını bu adrese ileteceğiz.\n\nBu kayıt otomatik üyelik veya bir gruba eklenme anlamına gelmez.\n\nBu isteği sen göndermediysen ya da bilgilerini sildirmek istersen bu e-postayı yanıtlayabilirsin.\n\nAkdenizOS\nhttps://akdenizos.org`,
-        html: `<div style="background:#f4f1eb;color:#233d49;padding:40px 28px;font:16px/1.7 Arial,sans-serif"><p style="font:600 28px Georgia,serif">AkdenizOS</p><h1 style="font:500 30px Georgia,serif">Katılım isteğini aldık.</h1><p>Merhaba ${escapeHtml(row.name)},</p><p>Paylaştığın bilgiler kaydedildi. Topluluğa katılımın sonraki adımını bu adrese ileteceğiz.</p><p>Bu kayıt otomatik üyelik veya bir gruba eklenme anlamına gelmez.</p><p style="font-size:13px">Bu isteği sen göndermediysen ya da bilgilerini sildirmek istersen bu e-postayı yanıtlayabilirsin.</p><a style="color:#233d49" href="https://akdenizos.org">akdenizos.org</a></div>`,
-      }),
+      body: JSON.stringify(applicationEmails(env.EMAIL_FROM, row)),
     });
     if (!response.ok) throw new Error(`resend_${response.status}`);
     await env.DB.prepare("UPDATE applications SET mail_status = 'sent', mail_sent_at = ?, mail_lease_until = 0 WHERE id = ?")
       .bind(now, id).run();
-    console.log(JSON.stringify({ event: "receipt_sent", applicationId: id }));
+    console.log(JSON.stringify({ event: "application_emails_sent", applicationId: id }));
   } catch {
     await env.DB.prepare(`UPDATE applications SET mail_status = ?, mail_next_at = ?, mail_lease_until = 0 WHERE id = ?`)
       .bind(row.mail_attempts >= 6 ? "failed" : "pending", now + 60 * 2 ** row.mail_attempts, id).run();
-    console.error(JSON.stringify({ event: "receipt_retry", applicationId: id, attempt: row.mail_attempts }));
+    console.error(JSON.stringify({ event: "application_emails_retry", applicationId: id, attempt: row.mail_attempts }));
   }
 }
 
@@ -131,7 +121,7 @@ export default {
         (id, email, name, phone, work, created_at, notice_version, mail_next_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO NOTHING RETURNING id`)
         .bind(id, input.email, input.name, input.phone, input.work, now, NOTICE_VERSION, now).first<{ id: string }>();
-      if (inserted) ctx.waitUntil(sendReceipt(env, id).catch(() => console.error(JSON.stringify({ event: "receipt_deferred", applicationId: id }))));
+      if (inserted) ctx.waitUntil(sendApplicationEmails(env, id).catch(() => console.error(JSON.stringify({ event: "application_emails_deferred", applicationId: id }))));
       return reply({ ok: true }, 202);
     } catch (error) {
       if (error instanceof RequestError) return reply({ error: error.code }, error.status);
@@ -145,7 +135,7 @@ export default {
       await env.DB.prepare("UPDATE applications SET mail_status = 'failed' WHERE mail_status = 'pending' AND mail_attempts = 6 AND mail_lease_until <= ?").bind(now).run();
       const due = await env.DB.prepare(`SELECT id FROM applications WHERE mail_status = 'pending'
         AND mail_next_at <= ? AND mail_lease_until <= ? ORDER BY mail_next_at LIMIT 20`).bind(now, now).all<{ id: string }>();
-      for (const row of due.results) await sendReceipt(env, row.id);
+      for (const row of due.results) await sendApplicationEmails(env, row.id);
     })());
   },
 } satisfies ExportedHandler<Env>;

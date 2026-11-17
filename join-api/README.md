@@ -19,9 +19,9 @@ Turnstile action `join`, hostname izin listesi, origin, sunucu doğrulaması, 8 
 
 ## Kayıt ve e-posta
 
-`schema.sql` ilk kurulum şemasıdır. D1 prepared statements kullanılır. E-posta normalize edilir ve unique indeksle korunur. Alındı e-postası için pending/sent/failed durumları, altı deneme ve atomik süreli sahiplenme vardır. Beş dakikalık cron geciken gönderimleri tekrar dener. Sabit Resend idempotency anahtarı tekrar gönderimleri engeller. Başvurunun kabulü e-posta servisine bağlı değildir. Loglar ad, telefon, e-posta, serbest metin veya anahtar içermez.
+`schema.sql` ilk kurulum şemasıdır. D1 prepared statements kullanılır. E-posta normalize edilir ve unique indeksle korunur. Başvurana alındı e-postası ve `contact@efekurucay.com` adresine başvuru bildirimi, Resend batch API ile birlikte gönderilir. Bildirimde ad, e-posta, telefon ve açıklama bulunur; yanıt adresi başvuranın e-postasıdır. Her iki şablon `src/emails.ts` içinde, PNG palmiye logosuyla tanımlıdır. E-postalar için pending/sent/failed durumları, altı deneme ve atomik süreli sahiplenme vardır. Beş dakikalık cron geciken gönderimleri tekrar dener. Sabit Resend idempotency anahtarı tekrar gönderimleri engeller. Başvurunun kabulü e-posta servisine bağlı değildir. Loglar ad, telefon, e-posta, serbest metin veya anahtar içermez.
 
-Gönderici: `AkdenizOS <merhaba@akdenizos.org>`. Yanıt adresi: `contact@efekurucay.com`. Grup daveti veya otomatik üyelik oluşturulmaz.
+Gönderici: `AkdenizOS <merhaba@akdenizos.org>`. Başvurana giden e-postanın yanıt adresi: `contact@efekurucay.com`. Grup daveti veya otomatik üyelik oluşturulmaz.
 
 ## Başvuruları görme
 

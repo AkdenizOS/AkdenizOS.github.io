@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { Miniflare } from "miniflare";
-import handler, {           sendReceipt } from "../src/index";
+import handler, {           sendApplicationEmails } from "../src/index";
 import config from "../cloudflare.config";
 
 test("application storage, abuse protection and durable receipts", async (t) => {
@@ -31,10 +31,10 @@ test("application storage, abuse protection and durable receipts", async (t) => 
   globalThis.fetch = async (input, init) => {
     if (String(input).includes("siteverify"))
       return Response.json({ success: allowToken, hostname, action: "join" });
-    assert.equal(String(input), "https://api.resend.com/emails");
+    assert.equal(String(input), "https://api.resend.com/emails/batch");
     if (failEmail) return Response.json({ error: "test" }, { status: 503 });
     const body = JSON.parse(String(init?.body));
-    sent.push({ key: new Headers(init?.headers).get("Idempotency-Key") , name: body.html });
+    sent.push({ key: new Headers(init?.headers).get("Idempotency-Key") , emails: body });
     return Response.json({ id: "test-email" });
   };
   const pending                     = [];
@@ -74,7 +74,16 @@ test("application storage, abuse protection and durable receipts", async (t) => 
       assert.equal(row?.phone, "0532 123 45 67");
       assert.equal(row?.mail_status, "sent");
       assert.equal(sent.length, 1);
-      assert.match(sent[0].name, /&lt;Efe&gt;/);
+      assert.match(sent[0].emails[0].html, /&lt;Efe&gt;/);
+      assert.equal(sent[0].emails.length, 2);
+      assert.deepEqual(sent[0].emails[0].to, ["efe@example.com"]);
+      const notification = sent[0].emails[1];
+      assert.deepEqual(notification.to, ["contact@efekurucay.com"]);
+      assert.equal(notification.reply_to, "efe@example.com");
+      assert.match(notification.html, /&lt;Efe&gt;/);
+      assert.match(notification.text, /0532 123 45 67/);
+      assert.match(notification.text, /Antalya’da bir ürün geliştiriyorum/);
+      for (const email of sent[0].emails) assert.match(email.html, /https:\/\/akdenizos.org\/assets\/brand\/logo.png/);
       assert.equal((await submit(request())).status, 202);
       assert.equal(await db.prepare("SELECT COUNT(*) AS n FROM applications").first("n"), 1);
       assert.equal(sent.length, 1);
@@ -90,10 +99,10 @@ test("application storage, abuse protection and durable receipts", async (t) => 
       failEmail = false;
       await db.prepare("UPDATE applications SET mail_next_at = 0 WHERE id = ?").bind(row.id).run();
       const before = sent.length;
-      await Promise.all([sendReceipt(env, row.id), sendReceipt(env, row.id)]);
+      await Promise.all([sendApplicationEmails(env, row.id), sendApplicationEmails(env, row.id)]);
       assert.equal(sent.length, before + 1);
       assert.equal(await db.prepare("SELECT mail_status FROM applications WHERE id = ?").bind(row.id).first("mail_status"), "sent");
-      assert.equal(sent.at(-1)?.key, `application-receipt/${row.id}`);
+      assert.equal(sent.at(-1)?.key, `application-emails/${row.id}`);
     });
   } finally { globalThis.fetch = originalFetch; await mf.dispose(); }
 });
