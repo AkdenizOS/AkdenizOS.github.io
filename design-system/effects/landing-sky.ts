@@ -13,7 +13,7 @@ function dispose() {
 }
 
 function alignSky() {
-  const box = photo.getBoundingClientRect();
+  const box = { width: photo.clientWidth, height: photo.clientHeight };
   const scale = Math.max(box.width / 1400, box.height / 1867);
   const position = parseFloat(getComputedStyle(photo).objectPosition.split(" ")[1]) / 100;
   const crop = (1867 * scale - box.height) * position;
@@ -28,6 +28,17 @@ const resize = new ResizeObserver(alignSky);
 resize.observe(photo);
 alignSky();
 
+function skyPalette() {
+  const dark = document.documentElement.dataset.theme === "dark";
+  return {
+    colors: dark ? ["#07182C", "#234154", "#67808C", "#25445A"] : undefined,
+    gradient: !dark,
+  };
+}
+
+const theme = new MutationObserver(() => engine?.setOptions(skyPalette()));
+theme.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
 function render() {
   dispose();
   if (reduced.matches || document.hidden) return;
@@ -40,7 +51,7 @@ function render() {
     amount: 0.4,
     lightning: false,
     interactive: true,
-    gradient: true,
+    ...skyPalette(),
   });
   if (!engine) mount.replaceChildren();
   else requestAnimationFrame(() => mount.setAttribute("data-ready", ""));
